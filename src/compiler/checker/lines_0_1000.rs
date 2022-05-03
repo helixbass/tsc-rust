@@ -2510,6 +2510,10 @@ impl TypeChecker {
         self.resolving_symbol.as_ref().unwrap().clone()
     }
 
+    pub(super) fn unresolved_symbols(&self) -> RefMut<HashMap<String, Rc<Symbol>>> {
+        self.unresolved_symbols.borrow_mut()
+    }
+
     pub(super) fn error_types(&self) -> RefMut<HashMap<String, Rc<Type>>> {
         self.error_types.borrow_mut()
     }

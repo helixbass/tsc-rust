@@ -783,6 +783,49 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_unresolved_symbol_for_entity_name(
+        &self,
+        name: &Node, /*EntityNameOrEntityNameExpression*/
+    ) -> Rc<Symbol /*TransientSymbol*/> {
+        let identifier = if name.kind() == SyntaxKind::QualifiedName {
+            name.as_qualified_name().right.clone()
+        } else if name.kind() == SyntaxKind::PropertyAccessExpression {
+            name.as_property_access_expression().name.clone()
+        } else {
+            name.node_wrapper()
+        };
+        let text = &identifier.as_identifier().escaped_text;
+        if &**text != "" {
+            let parent_symbol = if name.kind() == SyntaxKind::QualifiedName {
+                Some(self.get_unresolved_symbol_for_entity_name(&name.as_qualified_name().left))
+            } else if name.kind() == SyntaxKind::PropertyAccessExpression {
+                Some(self.get_unresolved_symbol_for_entity_name(
+                    &name.as_property_access_expression().expression,
+                ))
+            } else {
+                None
+            };
+            let path = if let Some(parent_symbol) = parent_symbol.as_ref() {
+                format!("{}.{}", self.get_symbol_path(parent_symbol), &**text)
+            } else {
+                (&**text).to_owned()
+            };
+            let mut result = self.unresolved_symbols().get(&path).map(Clone::clone);
+            if result.is_none() {
+                result = Some(
+                    self.create_symbol(
+                        SymbolFlags::TypeAlias,
+                        text.clone(),
+                        Some(CheckFlags::Unresolved),
+                    )
+                    .into(),
+                );
+            }
+            return result.unwrap();
+        }
+        return self.unknown_symbol();
+    }
+
     pub(super) fn resolve_type_reference_name(
         &self,
         type_reference: &Node, /*TypeReferenceNode*/
