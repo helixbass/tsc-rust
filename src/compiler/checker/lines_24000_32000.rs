@@ -48,6 +48,10 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn check_this_expression(&self, node: &Node) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn try_get_this_type_at_<TContainer: Borrow<Node>>(
         &self,
         node: &Node,

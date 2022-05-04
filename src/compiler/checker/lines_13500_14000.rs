@@ -4,8 +4,10 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    ElementFlags, TypeFlags, __String, map, DiagnosticMessage, Diagnostics, Node, Symbol,
-    SymbolFlags, Type, TypeChecker,
+    is_assertion_expression, is_const_type_reference, is_this_identifier, length, symbol_name,
+    ElementFlags, InterfaceTypeInterface, NodeInterface, SymbolInterface, SyntaxKind, TypeFlags,
+    TypeInterface, __String, map, DiagnosticMessage, Diagnostics, Node, Symbol, SymbolFlags, Type,
+    TypeChecker,
 };
 
 impl TypeChecker {
@@ -26,15 +28,46 @@ impl TypeChecker {
         &self,
         node: &Node, /*TypeReferenceNode*/
     ) -> Rc<Type> {
-        let mut symbol: Option<Rc<Symbol>> = None;
-        let mut type_: Option<Rc<Type>> = None;
-        let meaning = SymbolFlags::Type;
-        if type_.is_none() {
-            symbol = Some(self.resolve_type_reference_name(node, meaning, None));
-            type_ = Some(self.get_type_reference_type(node, &symbol.unwrap()));
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            if is_const_type_reference(node) && is_assertion_expression(&node.parent()) {
+                links.borrow_mut().resolved_symbol = Some(self.unknown_symbol());
+                let ret = self
+                    .check_expression_cached(&node.parent().as_has_expression().expression(), None);
+                links.borrow_mut().resolved_type = Some(ret.clone());
+                return ret;
+            }
+            let mut symbol: Option<Rc<Symbol>> = None;
+            let mut type_: Option<Rc<Type>> = None;
+            let meaning = SymbolFlags::Type;
+            if self.is_jsdoc_type_reference(node) {
+                type_ = self.get_intended_type_from_jsdoc_type_reference(node);
+                if type_.is_none() {
+                    symbol = Some(self.resolve_type_reference_name(node, meaning, Some(true)));
+                    if Rc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
+                        symbol = Some(self.resolve_type_reference_name(
+                            node,
+                            meaning | SymbolFlags::Value,
+                            None,
+                        ));
+                    } else {
+                        self.resolve_type_reference_name(node, meaning, None);
+                    }
+                    type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap()));
+                }
+            }
+            if type_.is_none() {
+                symbol = Some(self.resolve_type_reference_name(node, meaning, None));
+                type_ = Some(self.get_type_reference_type(node, symbol.as_ref().unwrap()));
+            }
+            {
+                let mut links = links.borrow_mut();
+                links.resolved_symbol = symbol;
+                links.resolved_type = type_;
+            }
         }
-        let type_ = type_.unwrap();
-        type_
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
     }
 
     pub(super) fn type_arguments_from_type_reference_node(
@@ -47,11 +80,87 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_type_of_global_symbol<TSymbolRef: Borrow<Symbol>>(
+    pub(super) fn get_type_from_type_query_node(
         &self,
-        symbol: Option<TSymbolRef>,
+        node: &Node, /*TypeQueryNode*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            let node_as_type_query_node = node.as_type_query_node();
+            let type_ = if is_this_identifier(Some(&*node_as_type_query_node.expr_name)) {
+                self.check_this_expression(&node_as_type_query_node.expr_name)
+            } else {
+                self.check_expression(&node_as_type_query_node.expr_name, None, None)
+            };
+            links.borrow_mut().resolved_type =
+                Some(self.get_regular_type_of_literal_type(&self.get_widened_type(&type_)));
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn get_type_of_global_symbol<TSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: Option<TSymbol>,
+        arity: usize,
     ) -> Rc<Type /*ObjectType*/> {
-        unimplemented!()
+        if symbol.is_none() {
+            return if arity != 0 {
+                self.empty_generic_type()
+            } else {
+                self.empty_object_type()
+            };
+        }
+        let symbol = symbol.unwrap();
+        let symbol = symbol.borrow();
+        let type_ = self.get_declared_type_of_symbol(symbol);
+        if !type_.flags().intersects(TypeFlags::Object) {
+            self.error(
+                self.get_type_declaration(symbol),
+                &Diagnostics::Global_type_0_must_be_a_class_or_interface_type,
+                Some(vec![symbol_name(symbol)]),
+            );
+            return if arity != 0 {
+                self.empty_generic_type()
+            } else {
+                self.empty_object_type()
+            };
+        }
+        if length(
+            type_
+                .maybe_as_interface_type()
+                .and_then(|type_| type_.maybe_type_parameters()),
+        ) != arity
+        {
+            self.error(
+                self.get_type_declaration(symbol),
+                &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
+                Some(vec![symbol_name(symbol), arity.to_string()]),
+            );
+            return if arity != 0 {
+                self.empty_generic_type()
+            } else {
+                self.empty_object_type()
+            };
+        }
+        type_
+    }
+
+    pub(super) fn get_type_declaration(&self, symbol: &Symbol) -> Option<Rc<Node /*Declaration*/>> {
+        let declarations = symbol.maybe_declarations();
+        declarations.as_ref().and_then(|declarations| {
+            for declaration in declarations {
+                match declaration.kind() {
+                    SyntaxKind::ClassDeclaration
+                    | SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::EnumDeclaration => {
+                        return Some(declaration.clone());
+                    }
+                    _ => (),
+                }
+            }
+            None
+        })
     }
 
     pub(super) fn get_global_value_symbol(
@@ -111,7 +220,7 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         let symbol = self.get_global_type_symbol(name, report_errors);
         if true {
-            Some(self.get_type_of_global_symbol(symbol))
+            Some(self.get_type_of_global_symbol(symbol, arity))
         } else {
             None
         }
