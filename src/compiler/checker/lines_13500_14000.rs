@@ -4,10 +4,10 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    is_assertion_expression, is_const_type_reference, is_this_identifier, length, symbol_name,
-    ElementFlags, InterfaceTypeInterface, NodeInterface, SymbolInterface, SyntaxKind, TypeFlags,
-    TypeInterface, __String, map, DiagnosticMessage, Diagnostics, Node, Symbol, SymbolFlags, Type,
-    TypeChecker,
+    find, is_assertion_expression, is_const_type_reference, is_this_identifier,
+    is_type_alias_declaration, length, symbol_name, ElementFlags, InterfaceTypeInterface,
+    NodeInterface, SymbolInterface, SyntaxKind, TypeFlags, TypeInterface, __String, map,
+    DiagnosticMessage, Diagnostics, Node, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -193,6 +193,50 @@ impl TypeChecker {
                 None
             },
         )
+    }
+
+    pub(super) fn get_global_type_alias_symbol(
+        &self,
+        name: &__String,
+        arity: usize,
+        report_errors: bool,
+    ) -> Option<Rc<Symbol>> {
+        let symbol = self.get_global_symbol(
+            name,
+            SymbolFlags::Type,
+            if report_errors {
+                Some(&Diagnostics::Cannot_find_global_type_0)
+            } else {
+                None
+            },
+        );
+        if let Some(symbol) = symbol.as_ref() {
+            self.get_declared_type_of_symbol(symbol);
+            if length(
+                (*self.get_symbol_links(symbol))
+                    .borrow()
+                    .type_parameters
+                    .as_deref(),
+            ) != arity
+            {
+                let symbol_declarations = symbol.maybe_declarations();
+                let decl = symbol_declarations
+                    .as_deref()
+                    .and_then(|symbol_declarations| {
+                        find(symbol_declarations, |declaration: &Rc<Node>, _| {
+                            is_type_alias_declaration(declaration)
+                        })
+                        .map(Clone::clone)
+                    });
+                self.error(
+                    decl,
+                    &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
+                    Some(vec![symbol_name(symbol), arity.to_string()]),
+                );
+                return None;
+            }
+        }
+        symbol
     }
 
     pub(super) fn get_global_symbol(
