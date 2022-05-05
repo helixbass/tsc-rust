@@ -2746,6 +2746,63 @@ impl TypeChecker {
         self.auto_array_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn maybe_deferred_global_es_symbol_constructor_symbol(
+        &self,
+    ) -> RefMut<Option<Rc<Symbol>>> {
+        self.deferred_global_es_symbol_constructor_symbol
+            .borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_es_symbol_constructor_type_symbol(
+        &self,
+    ) -> RefMut<Option<Rc<Symbol>>> {
+        self.deferred_global_es_symbol_constructor_type_symbol
+            .borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_es_symbol_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_es_symbol_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_typed_property_descriptor_type(
+        &self,
+    ) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_typed_property_descriptor_type
+            .borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_promise_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_promise_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_promise_like_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_promise_like_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_template_strings_array_type(
+        &self,
+    ) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_template_strings_array_type
+            .borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_import_meta_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_import_meta_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_import_meta_expression_type(
+        &self,
+    ) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_import_meta_expression_type
+            .borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_import_call_options_type(
+        &self,
+    ) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_import_call_options_type.borrow_mut()
+    }
+
     pub(super) fn resolution_targets(&self) -> RefMut<Vec<TypeSystemEntity>> {
         self.resolution_targets.borrow_mut()
     }

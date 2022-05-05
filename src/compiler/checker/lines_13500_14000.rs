@@ -1,13 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    find, is_assertion_expression, is_const_type_reference, is_this_identifier,
-    is_type_alias_declaration, length, symbol_name, ElementFlags, InterfaceTypeInterface,
-    NodeInterface, SymbolInterface, SyntaxKind, TypeFlags, TypeInterface, __String, map,
-    DiagnosticMessage, Diagnostics, Node, Symbol, SymbolFlags, Type, TypeChecker,
+    create_symbol_table, find, is_assertion_expression, is_const_type_reference,
+    is_this_identifier, is_type_alias_declaration, length, symbol_name, CheckFlags, ElementFlags,
+    InterfaceTypeInterface, NodeInterface, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    TypeFlags, TypeInterface, __String, map, DiagnosticMessage, Diagnostics, Node, Symbol,
+    SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -263,42 +265,182 @@ impl TypeChecker {
         report_errors: bool,
     ) -> Option<Rc<Type>> {
         let symbol = self.get_global_type_symbol(name, report_errors);
-        if true {
+        if symbol.is_some() || report_errors {
             Some(self.get_type_of_global_symbol(symbol, arity))
         } else {
             None
         }
     }
 
+    pub(super) fn get_global_typed_property_descriptor_type(&self) -> Rc<Type> {
+        if self
+            .maybe_deferred_global_typed_property_descriptor_type()
+            .is_none()
+        {
+            *self.maybe_deferred_global_typed_property_descriptor_type() = Some(
+                self.get_global_type(
+                    &__String::new("TypedPropertyDescriptor".to_owned()),
+                    1,
+                    true,
+                )
+                .unwrap_or_else(|| self.empty_generic_type()),
+            );
+        }
+        self.maybe_deferred_global_typed_property_descriptor_type()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn get_global_template_strings_array_type(&self) -> Rc<Type> {
+        if self
+            .maybe_deferred_global_template_strings_array_type()
+            .is_none()
+        {
+            *self.maybe_deferred_global_template_strings_array_type() = Some(
+                self.get_global_type(&__String::new("TemplateStringsArray".to_owned()), 0, true)
+                    .unwrap_or_else(|| self.empty_object_type()),
+            );
+        }
+        self.maybe_deferred_global_template_strings_array_type()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn get_global_import_meta_type(&self) -> Rc<Type> {
+        if self.maybe_deferred_global_import_meta_type().is_none() {
+            *self.maybe_deferred_global_import_meta_type() = Some(
+                self.get_global_type(&__String::new("ImportMeta".to_owned()), 0, true)
+                    .unwrap_or_else(|| self.empty_object_type()),
+            );
+        }
+        self.maybe_deferred_global_import_meta_type()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn get_global_import_meta_expression_type(&self) -> Rc<Type> {
+        if self
+            .maybe_deferred_global_import_meta_expression_type()
+            .is_none()
+        {
+            let symbol: Rc<Symbol> = self
+                .create_symbol(
+                    SymbolFlags::None,
+                    __String::new("ImportMetaExpression".to_owned()),
+                    None,
+                )
+                .into();
+            let import_meta_type = self.get_global_import_meta_type();
+
+            let meta_property_symbol: Rc<Symbol> = self
+                .create_symbol(
+                    SymbolFlags::Property,
+                    __String::new("meta".to_owned()),
+                    Some(CheckFlags::Readonly),
+                )
+                .into();
+            meta_property_symbol.set_parent(Some(symbol.clone()));
+            meta_property_symbol
+                .as_transient_symbol()
+                .symbol_links()
+                .borrow_mut()
+                .type_ = Some(import_meta_type);
+
+            let members = Rc::new(RefCell::new(create_symbol_table(Some(&vec![
+                meta_property_symbol,
+            ]))));
+            *symbol.maybe_members() = Some(members.clone());
+
+            *self.maybe_deferred_global_import_meta_expression_type() = Some(
+                self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
+                    .into(),
+            );
+        }
+        self.maybe_deferred_global_import_meta_expression_type()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn get_global_import_call_options_type(&self, report_errors: bool) -> Rc<Type> {
+        if self
+            .maybe_deferred_global_import_call_options_type()
+            .is_none()
+        {
+            *self.maybe_deferred_global_import_call_options_type() = self.get_global_type(
+                &__String::new("ImportCallOptions".to_owned()),
+                0,
+                report_errors,
+            );
+        }
+        self.maybe_deferred_global_import_call_options_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_object_type())
+    }
+
+    pub(super) fn get_global_es_symbol_constructor_symbol(
+        &self,
+        report_errors: bool,
+    ) -> Option<Rc<Symbol>> {
+        if self
+            .maybe_deferred_global_es_symbol_constructor_symbol()
+            .is_none()
+        {
+            *self.maybe_deferred_global_es_symbol_constructor_symbol() =
+                self.get_global_value_symbol(&__String::new("Symbol".to_owned()), report_errors);
+        }
+        self.maybe_deferred_global_es_symbol_constructor_symbol()
+            .clone()
+    }
+
     pub(super) fn get_global_es_symbol_constructor_type_symbol(
         &self,
         report_errors: bool,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if self
+            .maybe_deferred_global_es_symbol_constructor_type_symbol()
+            .is_none()
+        {
+            *self.maybe_deferred_global_es_symbol_constructor_type_symbol() = self
+                .get_global_type_symbol(
+                    &__String::new("SymbolConstructor".to_owned()),
+                    report_errors,
+                );
+        }
+        self.maybe_deferred_global_es_symbol_constructor_type_symbol()
+            .clone()
     }
 
     pub(super) fn get_global_es_symbol_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self.maybe_deferred_global_es_symbol_type().is_none() {
+            *self.maybe_deferred_global_es_symbol_type() =
+                self.get_global_type(&__String::new("Symbol".to_owned()), 0, report_errors);
+        }
+        self.maybe_deferred_global_es_symbol_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_object_type())
     }
 
     pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/> {
-        let mut deferred_global_promise_type_ref = self.deferred_global_promise_type.borrow_mut();
-        if let Some(deferred_global_promise_type) = deferred_global_promise_type_ref.as_ref() {
-            return deferred_global_promise_type.clone();
+        if self.maybe_deferred_global_promise_type().is_none() {
+            *self.maybe_deferred_global_promise_type() =
+                self.get_global_type(&__String::new("Promise".to_owned()), 1, report_errors);
         }
-        *deferred_global_promise_type_ref =
-            self.get_global_type(&__String::new("Promise".to_string()), 1, report_errors);
-        deferred_global_promise_type_ref.as_ref().map_or_else(
-            || self.empty_generic_type(),
-            |deferred_global_promise_type| deferred_global_promise_type.clone(),
-        )
+        self.maybe_deferred_global_promise_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
     }
 
     pub(super) fn get_global_promise_like_type(
         &self,
         report_errors: bool,
     ) -> Rc<Type /*GenericType*/> {
-        unimplemented!()
+        if self.maybe_deferred_global_promise_like_type().is_none() {
+            *self.maybe_deferred_global_promise_like_type() =
+                self.get_global_type(&__String::new("PromiseLike".to_owned()), 1, report_errors);
+        }
+        self.maybe_deferred_global_promise_like_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
     }
 
     pub(super) fn get_global_promise_constructor_symbol(
