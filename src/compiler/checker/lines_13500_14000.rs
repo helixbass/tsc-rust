@@ -2,14 +2,15 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
     create_symbol_table, find, is_assertion_expression, is_const_type_reference,
-    is_this_identifier, is_type_alias_declaration, length, symbol_name, CheckFlags, ElementFlags,
-    InterfaceTypeInterface, NodeInterface, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    TypeFlags, TypeInterface, __String, map, DiagnosticMessage, Diagnostics, Node, Symbol,
-    SymbolFlags, Type, TypeChecker,
+    is_this_identifier, is_type_alias_declaration, length, some, symbol_name, CheckFlags,
+    ElementFlags, InterfaceTypeInterface, NodeInterface, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, TypeFlags, TypeInterface, __String, map, DiagnosticMessage,
+    Diagnostics, Node, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -669,8 +670,30 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_object_type())
     }
 
+    pub(super) fn create_type_from_generic_global_type(
+        &self,
+        generic_global_type: &Type, /*GenericType*/
+        type_arguments: Vec<Rc<Type>>,
+    ) -> Rc<Type /*ObjectType*/> {
+        if !ptr::eq(generic_global_type, &*self.empty_generic_type()) {
+            self.create_type_reference(generic_global_type, Some(type_arguments))
+        } else {
+            self.empty_object_type()
+        }
+    }
+
+    pub(super) fn create_typed_property_descriptor_type(&self, property_type: &Type) -> Rc<Type> {
+        self.create_type_from_generic_global_type(
+            &self.get_global_typed_property_descriptor_type(),
+            vec![property_type.type_wrapper()],
+        )
+    }
+
     pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> Rc<Type> {
-        unimplemented!()
+        self.create_type_from_generic_global_type(
+            &self.get_global_iterable_type(true),
+            vec![iterated_type.type_wrapper()],
+        )
     }
 
     pub(super) fn create_array_type(
@@ -678,18 +701,80 @@ impl TypeChecker {
         element_type: &Type,
         readonly: Option<bool>,
     ) -> Rc<Type /*ObjectType*/> {
-        unimplemented!()
+        self.create_type_from_generic_global_type(
+            &*if matches!(readonly, Some(true)) {
+                self.global_readonly_array_type()
+            } else {
+                self.global_array_type()
+            },
+            vec![element_type.type_wrapper()],
+        )
+    }
+
+    pub(super) fn get_tuple_element_flags(&self, node: &Node /*TypeNode*/) -> ElementFlags {
+        match node.kind() {
+            SyntaxKind::OptionalType => ElementFlags::Optional,
+            SyntaxKind::RestType => self.get_rest_type_element_flags(node),
+            SyntaxKind::NamedTupleMember => {
+                let node_as_named_tuple_member = node.as_named_tuple_member();
+                if node_as_named_tuple_member.question_token.is_some() {
+                    ElementFlags::Optional
+                } else if node_as_named_tuple_member.dot_dot_dot_token.is_some() {
+                    self.get_rest_type_element_flags(node)
+                } else {
+                    ElementFlags::Required
+                }
+            }
+            _ => ElementFlags::Required,
+        }
+    }
+
+    pub(super) fn get_rest_type_element_flags(
+        &self,
+        node: &Node, /*RestTypeNode | NamedTupleMember*/
+    ) -> ElementFlags {
+        if self
+            .get_array_element_type_node(&node.as_has_type().maybe_type().unwrap())
+            .is_some()
+        {
+            ElementFlags::Rest
+        } else {
+            ElementFlags::Variadic
+        }
     }
 
     pub(super) fn get_array_or_tuple_target_type(
         &self,
-        node: &Node, /*ArrayTypeNode*/
+        node: &Node, /*ArrayTypeNode | TupleTypeNode*/
     ) -> Rc<Type /*GenericType*/> {
+        let readonly = self.is_readonly_type_operator(&node.parent());
         let element_type = self.get_array_element_type_node(node);
-        if let Some(element_type) = element_type {
-            return self.global_array_type();
+        if element_type.is_some() {
+            return if readonly {
+                self.global_readonly_array_type()
+            } else {
+                self.global_array_type()
+            };
         }
-        unimplemented!()
+        let node_as_tuple_type_node = node.as_tuple_type_node();
+        let element_flags = map(
+            Some(&node_as_tuple_type_node.elements),
+            |element: &Rc<Node>, _| self.get_tuple_element_flags(element),
+        )
+        .unwrap();
+        let missing_name = some(
+            Some(&node_as_tuple_type_node.elements),
+            Some(|e: &Rc<Node>| e.kind() != SyntaxKind::NamedTupleMember),
+        );
+        self.get_tuple_target_type(
+            &element_flags,
+            readonly,
+            if missing_name {
+                None
+            } else {
+                Some(&node_as_tuple_type_node.elements)
+            },
+        )
     }
 
     pub(super) fn is_deferred_type_reference_node(
@@ -697,6 +782,45 @@ impl TypeChecker {
         node: &Node, /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
         has_default_type_arguments: Option<bool>,
     ) -> bool {
+        self.get_alias_symbol_for_type_node(node).is_some()
+            || self.is_resolved_by_type_alias(node)
+                && if node.kind() == SyntaxKind::ArrayType {
+                    self.may_resolve_type_alias(&node.as_array_type_node().element_type)
+                } else if node.kind() == SyntaxKind::TupleType {
+                    some(
+                        Some(&node.as_tuple_type_node().elements),
+                        Some(|element: &Rc<Node>| self.may_resolve_type_alias(element)),
+                    )
+                } else {
+                    matches!(has_default_type_arguments, Some(true))
+                        || some(
+                            node.as_type_reference_node().type_arguments.as_deref(),
+                            Some(|type_argument: &Rc<Node>| {
+                                self.may_resolve_type_alias(type_argument)
+                            }),
+                        )
+                }
+    }
+
+    pub(super) fn is_resolved_by_type_alias(&self, node: &Node) -> bool {
+        let parent = node.parent();
+        match parent.kind() {
+            SyntaxKind::ParenthesizedType
+            | SyntaxKind::NamedTupleMember
+            | SyntaxKind::TypeReference
+            | SyntaxKind::UnionType
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::IndexedAccessType
+            | SyntaxKind::ConditionalType
+            | SyntaxKind::TypeOperator
+            | SyntaxKind::ArrayType
+            | SyntaxKind::TupleType => self.is_resolved_by_type_alias(&parent),
+            SyntaxKind::TypeAliasDeclaration => true,
+            _ => false,
+        }
+    }
+
+    pub(super) fn may_resolve_type_alias(&self, node: &Node) -> bool {
         unimplemented!()
     }
 
@@ -717,6 +841,10 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn is_readonly_type_operator(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn create_tuple_type(
         &self,
         element_types: &[Rc<Type>],
@@ -725,6 +853,15 @@ impl TypeChecker {
         named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
     ) -> Rc<Type> {
         let readonly = readonly.unwrap_or(false);
+        unimplemented!()
+    }
+
+    pub(super) fn get_tuple_target_type(
+        &self,
+        element_flags: &[ElementFlags],
+        readonly: bool,
+        named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
+    ) -> Rc<Type /*GenericType*/> {
         unimplemented!()
     }
 }
