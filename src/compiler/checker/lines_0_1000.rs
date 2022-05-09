@@ -2779,6 +2779,67 @@ impl TypeChecker {
         self.deferred_global_promise_like_type.borrow_mut()
     }
 
+    pub(super) fn maybe_deferred_global_promise_constructor_symbol(
+        &self,
+    ) -> RefMut<Option<Rc<Symbol>>> {
+        self.deferred_global_promise_constructor_symbol.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_promise_constructor_like_type(
+        &self,
+    ) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_promise_constructor_like_type
+            .borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_iterable_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_iterable_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_iterator_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_iterator_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_iterable_iterator_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_iterable_iterator_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_generator_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_generator_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_iterator_yield_result_type(
+        &self,
+    ) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_iterator_yield_result_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_iterator_return_result_type(
+        &self,
+    ) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_iterator_return_result_type
+            .borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_async_iterable_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_async_iterable_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_async_iterator_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_async_iterator_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_async_iterable_iterator_type(
+        &self,
+    ) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_async_iterable_iterator_type
+            .borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_async_generator_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_async_generator_type.borrow_mut()
+    }
+
     pub(super) fn maybe_deferred_global_template_strings_array_type(
         &self,
     ) -> RefMut<Option<Rc<Type>>> {
@@ -2801,6 +2862,22 @@ impl TypeChecker {
         &self,
     ) -> RefMut<Option<Rc<Type>>> {
         self.deferred_global_import_call_options_type.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_extract_symbol(&self) -> RefMut<Option<Rc<Symbol>>> {
+        self.deferred_global_extract_symbol.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_omit_symbol(&self) -> RefMut<Option<Rc<Symbol>>> {
+        self.deferred_global_omit_symbol.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_awaited_symbol(&self) -> RefMut<Option<Rc<Symbol>>> {
+        self.deferred_global_awaited_symbol.borrow_mut()
+    }
+
+    pub(super) fn maybe_deferred_global_big_int_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.deferred_global_big_int_type.borrow_mut()
     }
 
     pub(super) fn resolution_targets(&self) -> RefMut<Vec<TypeSystemEntity>> {

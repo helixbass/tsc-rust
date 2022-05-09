@@ -447,60 +447,226 @@ impl TypeChecker {
         &self,
         report_errors: bool,
     ) -> Option<Rc<Symbol>> {
-        let mut deferred_global_promise_constructor_symbol_ref =
-            self.deferred_global_promise_constructor_symbol.borrow_mut();
-        if let Some(deferred_global_promise_constructor_symbol) =
-            deferred_global_promise_constructor_symbol_ref.as_ref()
+        if self
+            .maybe_deferred_global_promise_constructor_symbol()
+            .is_none()
         {
-            return Some(deferred_global_promise_constructor_symbol.clone());
+            *self.maybe_deferred_global_promise_constructor_symbol() =
+                self.get_global_value_symbol(&__String::new("Promise".to_owned()), report_errors);
         }
-        *deferred_global_promise_constructor_symbol_ref =
-            self.get_global_value_symbol(&__String::new("Promise".to_string()), report_errors);
-        deferred_global_promise_constructor_symbol_ref.as_ref().map(
-            |deferred_global_promise_constructor_symbol| {
-                deferred_global_promise_constructor_symbol.clone()
-            },
-        )
+        self.maybe_deferred_global_promise_constructor_symbol()
+            .clone()
+    }
+
+    pub(super) fn get_global_promise_constructor_like_type(
+        &self,
+        report_errors: bool,
+    ) -> Rc<Type /*GenericType*/> {
+        if self
+            .maybe_deferred_global_promise_constructor_like_type()
+            .is_none()
+        {
+            *self.maybe_deferred_global_promise_constructor_like_type() = self.get_global_type(
+                &__String::new("PromiseConstructorLike".to_owned()),
+                0,
+                report_errors,
+            );
+        }
+        self.maybe_deferred_global_promise_constructor_like_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_object_type())
     }
 
     pub(super) fn get_global_async_iterable_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self.maybe_deferred_global_async_iterable_type().is_none() {
+            *self.maybe_deferred_global_async_iterable_type() =
+                self.get_global_type(&__String::new("AsyncIterable".to_owned()), 1, report_errors);
+        }
+        self.maybe_deferred_global_async_iterable_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
     }
 
     pub(super) fn get_global_async_iterator_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self.maybe_deferred_global_async_iterator_type().is_none() {
+            *self.maybe_deferred_global_async_iterator_type() =
+                self.get_global_type(&__String::new("AsyncIterator".to_owned()), 3, report_errors);
+        }
+        self.maybe_deferred_global_async_iterator_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
     }
 
     pub(super) fn get_global_async_iterable_iterator_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self
+            .maybe_deferred_global_async_iterable_iterator_type()
+            .is_none()
+        {
+            *self.maybe_deferred_global_async_iterable_iterator_type() = self.get_global_type(
+                &__String::new("AsyncIterableIterator".to_owned()),
+                1,
+                report_errors,
+            );
+        }
+        self.maybe_deferred_global_async_iterable_iterator_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
     }
 
     pub(super) fn get_global_async_generator_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self.maybe_deferred_global_async_generator_type().is_none() {
+            *self.maybe_deferred_global_async_generator_type() = self.get_global_type(
+                &__String::new("AsyncGenerator".to_owned()),
+                3,
+                report_errors,
+            );
+        }
+        self.maybe_deferred_global_async_generator_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
     }
 
     pub(super) fn get_global_iterable_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self.maybe_deferred_global_iterable_type().is_none() {
+            *self.maybe_deferred_global_iterable_type() =
+                self.get_global_type(&__String::new("Iterable".to_owned()), 1, report_errors);
+        }
+        self.maybe_deferred_global_iterable_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
     }
 
     pub(super) fn get_global_iterator_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self.maybe_deferred_global_iterator_type().is_none() {
+            *self.maybe_deferred_global_iterator_type() =
+                self.get_global_type(&__String::new("Iterator".to_owned()), 3, report_errors);
+        }
+        self.maybe_deferred_global_iterator_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
     }
 
     pub(super) fn get_global_iterable_iterator_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self
+            .maybe_deferred_global_iterable_iterator_type()
+            .is_none()
+        {
+            *self.maybe_deferred_global_iterable_iterator_type() = self.get_global_type(
+                &__String::new("IterableIterator".to_owned()),
+                1,
+                report_errors,
+            );
+        }
+        self.maybe_deferred_global_iterable_iterator_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
     }
 
     pub(super) fn get_global_generator_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self.maybe_deferred_global_generator_type().is_none() {
+            *self.maybe_deferred_global_generator_type() =
+                self.get_global_type(&__String::new("Generator".to_owned()), 3, report_errors);
+        }
+        self.maybe_deferred_global_generator_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
+    }
+
+    pub(super) fn get_global_iterator_yield_result_type(&self, report_errors: bool) -> Rc<Type> {
+        if self
+            .maybe_deferred_global_iterator_yield_result_type()
+            .is_none()
+        {
+            *self.maybe_deferred_global_iterator_yield_result_type() = self.get_global_type(
+                &__String::new("IteratorYieldResult".to_owned()),
+                1,
+                report_errors,
+            );
+        }
+        self.maybe_deferred_global_iterator_yield_result_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
+    }
+
+    pub(super) fn get_global_iterator_return_result_type(&self, report_errors: bool) -> Rc<Type> {
+        if self
+            .maybe_deferred_global_iterator_return_result_type()
+            .is_none()
+        {
+            *self.maybe_deferred_global_iterator_return_result_type() = self.get_global_type(
+                &__String::new("IteratorReturnResult".to_owned()),
+                1,
+                report_errors,
+            );
+        }
+        self.maybe_deferred_global_iterator_return_result_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_generic_type())
+    }
+
+    pub(super) fn get_global_type_or_undefined(
+        &self,
+        name: &__String,
+        arity: Option<usize>,
+    ) -> Option<Rc<Type /*ObjectType*/>> {
+        let arity = arity.unwrap_or(0);
+        let symbol = self.get_global_symbol(name, SymbolFlags::Type, None);
+        symbol.map(|symbol| self.get_type_of_global_symbol(Some(symbol), arity))
+    }
+
+    pub(super) fn get_global_extract_symbol(&self) -> Option<Rc<Symbol>> {
+        if self.maybe_deferred_global_extract_symbol().is_none() {
+            *self.maybe_deferred_global_extract_symbol() = Some(
+                self.get_global_type_alias_symbol(&__String::new("Extract".to_owned()), 2, true)
+                    .unwrap_or_else(|| self.unknown_symbol()),
+            );
+        }
+        self.maybe_deferred_global_extract_symbol()
+            .as_ref()
+            .map(Clone::clone)
+            .filter(|deferred_global_extract_symbol| {
+                !Rc::ptr_eq(deferred_global_extract_symbol, &self.unknown_symbol())
+            })
     }
 
     pub(super) fn get_global_omit_symbol(&self) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if self.maybe_deferred_global_omit_symbol().is_none() {
+            *self.maybe_deferred_global_omit_symbol() = Some(
+                self.get_global_type_alias_symbol(&__String::new("Omit".to_owned()), 2, true)
+                    .unwrap_or_else(|| self.unknown_symbol()),
+            );
+        }
+        self.maybe_deferred_global_omit_symbol()
+            .as_ref()
+            .map(Clone::clone)
+            .filter(|deferred_global_omit_symbol| {
+                !Rc::ptr_eq(deferred_global_omit_symbol, &self.unknown_symbol())
+            })
+    }
+
+    pub(super) fn get_global_awaited_symbol(&self) -> Option<Rc<Symbol>> {
+        if self.maybe_deferred_global_awaited_symbol().is_none() {
+            *self.maybe_deferred_global_awaited_symbol() = Some(
+                self.get_global_type_alias_symbol(&__String::new("Awaited".to_owned()), 1, true)
+                    .unwrap_or_else(|| self.unknown_symbol()),
+            );
+        }
+        self.maybe_deferred_global_awaited_symbol()
+            .as_ref()
+            .map(Clone::clone)
+            .filter(|deferred_global_awaited_symbol| {
+                !Rc::ptr_eq(deferred_global_awaited_symbol, &self.unknown_symbol())
+            })
     }
 
     pub(super) fn get_global_big_int_type(&self, report_errors: bool) -> Rc<Type> {
-        unimplemented!()
+        if self.maybe_deferred_global_big_int_type().is_none() {
+            *self.maybe_deferred_global_big_int_type() =
+                self.get_global_type(&__String::new("BigInt".to_owned()), 0, report_errors);
+        }
+        self.maybe_deferred_global_big_int_type()
+            .clone()
+            .unwrap_or_else(|| self.empty_object_type())
     }
 
     pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> Rc<Type> {
