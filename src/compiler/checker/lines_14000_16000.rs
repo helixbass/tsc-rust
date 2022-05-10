@@ -17,6 +17,22 @@ impl TypeChecker {
         target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> Rc<Type> {
+        if target
+            .as_object_flags_type()
+            .object_flags()
+            .intersects(ObjectFlags::Tuple)
+        {
+            self.create_normalized_tuple_type(target, type_arguments.unwrap())
+        } else {
+            self.create_type_reference(target, type_arguments)
+        }
+    }
+
+    pub(super) fn create_normalized_tuple_type(
+        &self,
+        target: &Type, /*TupleType*/
+        element_types: Vec<Rc<Type>>,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
