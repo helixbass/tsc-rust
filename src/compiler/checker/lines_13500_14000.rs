@@ -5,12 +5,13 @@ use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
+use super::get_node_id;
 use crate::{
     create_symbol_table, find, is_assertion_expression, is_const_type_reference,
-    is_this_identifier, is_type_alias_declaration, length, some, symbol_name, CheckFlags,
-    ElementFlags, InterfaceTypeInterface, NodeInterface, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, TypeFlags, TypeInterface, __String, map, DiagnosticMessage,
-    Diagnostics, Node, Symbol, SymbolFlags, Type, TypeChecker,
+    is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, some,
+    symbol_name, CheckFlags, ElementFlags, InterfaceTypeInterface, NodeInterface, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, TypeFlags, TypeInterface, __String, map,
+    DiagnosticMessage, Diagnostics, Node, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -878,21 +879,57 @@ impl TypeChecker {
         &self,
         node: &Node, /*ArrayTypeNode*/
     ) -> Rc<Type> {
-        let node_as_array_type_node = node.as_array_type_node();
-        let target = self.get_array_or_tuple_target_type(node);
-        if false {
-            unimplemented!()
-        } else if false {
-            unimplemented!()
-        } else {
-            let element_types =
-                vec![self.get_type_from_type_node_(&*node_as_array_type_node.element_type)];
-            return self.create_normalized_type_reference(&target, Some(element_types));
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            let target = self.get_array_or_tuple_target_type(node);
+            if Rc::ptr_eq(&target, &self.empty_generic_type()) {
+                links.borrow_mut().resolved_type = Some(self.empty_object_type());
+            } else if !(node.kind() == SyntaxKind::TupleType
+                && some(
+                    Some(&*node.as_tuple_type_node().elements),
+                    Some(|e: &Rc<Node>| {
+                        self.get_tuple_element_flags(e)
+                            .intersects(ElementFlags::Variadic)
+                    }),
+                ))
+                && self.is_deferred_type_reference_node(node, None)
+            {
+                links.borrow_mut().resolved_type = Some(
+                    if node.kind() == SyntaxKind::TupleType
+                        && node.as_tuple_type_node().elements.is_empty()
+                    {
+                        target
+                    } else {
+                        self.create_deferred_type_reference(
+                            &target,
+                            node,
+                            None,
+                            Option::<&Symbol>::None,
+                            None,
+                        )
+                    },
+                );
+            } else {
+                let element_types = if node.kind() == SyntaxKind::ArrayType {
+                    vec![self.get_type_from_type_node_(&*node.as_array_type_node().element_type)]
+                } else {
+                    map(
+                        Some(&*node.as_tuple_type_node().elements),
+                        |element: &Rc<Node>, _| self.get_type_from_type_node_(element),
+                    )
+                    .unwrap()
+                };
+                links.borrow_mut().resolved_type =
+                    Some(self.create_normalized_type_reference(&target, Some(element_types)));
+            }
         }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
     }
 
     pub(super) fn is_readonly_type_operator(&self, node: &Node) -> bool {
-        unimplemented!()
+        is_type_operator_node(node)
+            && node.as_type_operator_node().operator == SyntaxKind::ReadonlyKeyword
     }
 
     pub(super) fn create_tuple_type(
@@ -903,7 +940,20 @@ impl TypeChecker {
         named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
     ) -> Rc<Type> {
         let readonly = readonly.unwrap_or(false);
-        unimplemented!()
+        let tuple_target = self.get_tuple_target_type(
+            &element_flags.map(ToOwned::to_owned).unwrap_or_else(|| {
+                map(Some(element_types), |_, _| ElementFlags::Required).unwrap()
+            }),
+            readonly,
+            named_member_declarations,
+        );
+        if Rc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
+            self.empty_object_type()
+        } else if !element_types.is_empty() {
+            self.create_normalized_type_reference(&tuple_target, Some(element_types.to_owned()))
+        } else {
+            tuple_target
+        }
     }
 
     pub(super) fn get_tuple_target_type(
@@ -912,6 +962,66 @@ impl TypeChecker {
         readonly: bool,
         named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
     ) -> Rc<Type /*GenericType*/> {
+        if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::Rest) {
+            return if readonly {
+                self.global_readonly_array_type()
+            } else {
+                self.global_array_type()
+            };
+        }
+        let key = format!(
+            "{}{}{}",
+            map(Some(element_flags), |f: &ElementFlags, _| {
+                if f.intersects(ElementFlags::Required) {
+                    "#"
+                } else if f.intersects(ElementFlags::Optional) {
+                    "?"
+                } else if f.intersects(ElementFlags::Rest) {
+                    "."
+                } else {
+                    "*"
+                }
+            })
+            .unwrap()
+            .join(""),
+            if readonly { "R" } else { "" },
+            if let Some(named_member_declarations) = named_member_declarations
+                .filter(|named_member_declarations| !named_member_declarations.is_empty())
+            {
+                format!(
+                    ",{}",
+                    map(
+                        Some(named_member_declarations),
+                        |named_member_declaration: &Rc<Node>, _| get_node_id(
+                            named_member_declaration
+                        )
+                        .to_string()
+                    )
+                    .unwrap()
+                    .join(",")
+                )
+            } else {
+                "".to_owned()
+            }
+        );
+        let mut type_ = self.tuple_types().get(&key).map(Clone::clone);
+        if type_.is_none() {
+            type_ = Some(self.create_tuple_target_type(
+                element_flags,
+                readonly,
+                named_member_declarations,
+            ));
+            self.tuple_types().insert(key, type_.clone().unwrap());
+        }
+        type_.unwrap()
+    }
+
+    pub(super) fn create_tuple_target_type(
+        &self,
+        element_flags: &[ElementFlags],
+        readonly: bool,
+        named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
+    ) -> Rc<Type /*TupleType*/> {
         unimplemented!()
     }
 }
