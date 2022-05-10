@@ -663,6 +663,12 @@ pub fn single_or_undefined<TItem>(array: Option<&[TItem]>) -> Option<&TItem> {
     }
 }
 
+pub fn replace_element<TItem: Clone>(array: &[TItem], index: usize, value: TItem) -> Vec<TItem> {
+    let mut result = array.to_owned();
+    result[index] = value;
+    result
+}
+
 pub fn binary_search<
     TKey,
     TItem,

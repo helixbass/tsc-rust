@@ -1,14 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
 
 use crate::{
-    AccessFlags, Signature, TypePredicate, UnionType, __String, binary_search_copy_key,
-    compare_values, get_name_of_declaration, map, unescape_leading_underscores,
-    BaseUnionOrIntersectionType, Node, ObjectFlags, Symbol, SymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeId, TypeInterface, UnionReduction,
+    find_index, for_each, is_part_of_type_node, replace_element, same_map, AccessFlags,
+    Diagnostics, ElementFlags, Signature, TypePredicate, TypeReferenceInterface, UnionType,
+    __String, binary_search_copy_key, compare_values, get_name_of_declaration, map,
+    unescape_leading_underscores, BaseUnionOrIntersectionType, Node, ObjectFlags, Symbol,
+    SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -33,7 +34,251 @@ impl TypeChecker {
         target: &Type, /*TupleType*/
         element_types: Vec<Rc<Type>>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let target_as_tuple_type = target.as_tuple_type();
+        if !target_as_tuple_type
+            .combined_flags
+            .intersects(ElementFlags::NonRequired)
+        {
+            return self.create_type_reference(target, Some(element_types));
+        }
+        if target_as_tuple_type
+            .combined_flags
+            .intersects(ElementFlags::Variadic)
+        {
+            let union_index = find_index(
+                &element_types,
+                |t: &Rc<Type>, i| {
+                    target_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic)
+                        && t.flags().intersects(TypeFlags::Never | TypeFlags::Union)
+                },
+                None,
+            );
+            if let Some(union_index) = union_index {
+                return if self.check_cross_product_union(
+                    &map(Some(&*element_types), |t: &Rc<Type>, i| {
+                        if target_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic)
+                        {
+                            t.clone()
+                        } else {
+                            self.unknown_type()
+                        }
+                    })
+                    .unwrap(),
+                ) {
+                    self.map_type(
+                        &element_types[union_index],
+                        &mut |t: &Type| {
+                            Some(self.create_normalized_tuple_type(
+                                target,
+                                replace_element(&element_types, union_index, t.type_wrapper()),
+                            ))
+                        },
+                        None,
+                    )
+                    .unwrap()
+                } else {
+                    self.error_type()
+                };
+            }
+        }
+        let mut expanded_types: Vec<Rc<Type>> = vec![];
+        let mut expanded_flags: Vec<ElementFlags> = vec![];
+        let mut expanded_declarations: Option<
+            Vec<Rc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
+        > = Some(vec![]);
+        let mut last_required_index: isize = -1;
+        let mut first_rest_index: isize = -1;
+        let mut last_optional_or_rest_index: isize = -1;
+        for (i, type_) in element_types.iter().enumerate() {
+            let flags = target_as_tuple_type.element_flags[i];
+            if flags.intersects(ElementFlags::Variadic) {
+                if type_
+                    .flags()
+                    .intersects(TypeFlags::InstantiableNonPrimitive)
+                    || self.is_generic_mapped_type(type_)
+                {
+                    self.add_element(
+                        &mut last_required_index,
+                        &mut expanded_flags,
+                        &mut first_rest_index,
+                        &mut last_optional_or_rest_index,
+                        &mut expanded_types,
+                        &mut expanded_declarations,
+                        type_,
+                        ElementFlags::Variadic,
+                        target_as_tuple_type
+                            .labeled_element_declarations
+                            .as_ref()
+                            .map(|labeled_element_declarations| {
+                                labeled_element_declarations[i].clone()
+                            }),
+                    );
+                } else if self.is_tuple_type(type_) {
+                    let elements = self.get_type_arguments(type_);
+                    if elements.len() + expanded_types.len() >= 10_000 {
+                        self.error(
+                            self.maybe_current_node(),
+                            if is_part_of_type_node(&self.maybe_current_node().unwrap()) {
+                                &Diagnostics::Type_produces_a_tuple_type_that_is_too_large_to_represent
+                            } else {
+                                &Diagnostics::Expression_produces_a_tuple_type_that_is_too_large_to_represent
+                            },
+                            None
+                        );
+                        return self.error_type();
+                    }
+                    for_each(&elements, |t: &Rc<Type>, n| {
+                        self.add_element(
+                            &mut last_required_index,
+                            &mut expanded_flags,
+                            &mut first_rest_index,
+                            &mut last_optional_or_rest_index,
+                            &mut expanded_types,
+                            &mut expanded_declarations,
+                            t,
+                            type_.as_tuple_type().target().as_tuple_type().element_flags[n],
+                            type_
+                                .as_tuple_type()
+                                .target()
+                                .as_tuple_type()
+                                .labeled_element_declarations
+                                .as_ref()
+                                .map(|labeled_element_declarations| {
+                                    labeled_element_declarations[n].clone()
+                                }),
+                        );
+                        Option::<()>::None
+                    });
+                } else {
+                    self.add_element(
+                        &mut last_required_index,
+                        &mut expanded_flags,
+                        &mut first_rest_index,
+                        &mut last_optional_or_rest_index,
+                        &mut expanded_types,
+                        &mut expanded_declarations,
+                        &*if self.is_array_like_type(type_) {
+                            self.get_index_type_of_type_(type_, &self.number_type())
+                                .unwrap_or_else(|| self.error_type())
+                        } else {
+                            self.error_type()
+                        },
+                        ElementFlags::Rest,
+                        target_as_tuple_type
+                            .labeled_element_declarations
+                            .as_ref()
+                            .map(|labeled_element_declarations| {
+                                labeled_element_declarations[i].clone()
+                            }),
+                    );
+                }
+            } else {
+                self.add_element(
+                    &mut last_required_index,
+                    &mut expanded_flags,
+                    &mut first_rest_index,
+                    &mut last_optional_or_rest_index,
+                    &mut expanded_types,
+                    &mut expanded_declarations,
+                    type_,
+                    flags,
+                    target_as_tuple_type
+                        .labeled_element_declarations
+                        .as_ref()
+                        .map(|labeled_element_declarations| {
+                            labeled_element_declarations[i].clone()
+                        }),
+                );
+            }
+        }
+        if last_required_index >= 0 {
+            let last_required_index: usize = last_required_index.try_into().unwrap();
+            for i in 0..last_required_index {
+                if expanded_flags[i].intersects(ElementFlags::Optional) {
+                    expanded_flags[i] = ElementFlags::Required;
+                }
+            }
+        }
+        if first_rest_index >= 0 && first_rest_index < last_optional_or_rest_index {
+            let first_rest_index: usize = first_rest_index.try_into().unwrap();
+            let last_optional_or_rest_index: usize =
+                last_optional_or_rest_index.try_into().unwrap();
+            expanded_types[first_rest_index] = self.get_union_type(
+                same_map(
+                    Some(&expanded_types[first_rest_index..last_optional_or_rest_index + 1]),
+                    |t: &Rc<Type>, i| {
+                        if expanded_flags[first_rest_index + i].intersects(ElementFlags::Variadic) {
+                            self.get_indexed_access_type(
+                                t,
+                                &self.number_type(),
+                                None,
+                                Option::<&Node>::None,
+                                Option::<&Symbol>::None,
+                                None,
+                            )
+                        } else {
+                            t.clone()
+                        }
+                    },
+                )
+                .unwrap(),
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            );
+            expanded_types.splice(first_rest_index + 1..last_optional_or_rest_index + 1, []);
+            expanded_flags.splice(first_rest_index + 1..last_optional_or_rest_index + 1, []);
+            if let Some(expanded_declarations) = expanded_declarations.as_mut() {
+                expanded_declarations
+                    .splice(first_rest_index + 1..last_optional_or_rest_index + 1, []);
+            }
+        }
+        let tuple_target = self.get_tuple_target_type(
+            &expanded_flags,
+            target_as_tuple_type.readonly,
+            expanded_declarations.as_deref(),
+        );
+        if Rc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
+            self.empty_object_type()
+        } else if !expanded_flags.is_empty() {
+            self.create_type_reference(&tuple_target, Some(expanded_types))
+        } else {
+            tuple_target
+        }
+    }
+
+    pub(super) fn add_element(
+        &self,
+        last_required_index: &mut isize,
+        expanded_flags: &mut Vec<ElementFlags>,
+        first_rest_index: &mut isize,
+        last_optional_or_rest_index: &mut isize,
+        expanded_types: &mut Vec<Rc<Type>>,
+        expanded_declarations: &mut Option<Vec<Rc<Node>>>,
+        type_: &Type,
+        flags: ElementFlags,
+        declaration: Option<Rc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
+    ) {
+        if flags.intersects(ElementFlags::Required) {
+            *last_required_index = expanded_flags.len().try_into().unwrap();
+        }
+        if flags.intersects(ElementFlags::Rest) && *first_rest_index < 0 {
+            *first_rest_index = expanded_flags.len().try_into().unwrap();
+        }
+        if flags.intersects(ElementFlags::Optional | ElementFlags::Rest) {
+            *last_optional_or_rest_index = expanded_flags.len().try_into().unwrap();
+        }
+        expanded_types.push(type_.type_wrapper());
+        expanded_flags.push(flags);
+        if expanded_declarations.is_some() && declaration.is_some() {
+            expanded_declarations
+                .as_mut()
+                .unwrap()
+                .push(declaration.unwrap());
+        } else {
+            *expanded_declarations = None;
+        }
     }
 
     pub(super) fn slice_tuple_type(
@@ -230,6 +475,10 @@ impl TypeChecker {
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_cross_product_union(&self, types: &[Rc<Type>]) -> bool {
         unimplemented!()
     }
 
