@@ -5,7 +5,7 @@ use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
 
 use crate::{
-    find_index, for_each, is_part_of_type_node, replace_element, same_map, AccessFlags,
+    array_of, find_index, for_each, is_part_of_type_node, replace_element, same_map, AccessFlags,
     Diagnostics, ElementFlags, Signature, TypePredicate, TypeReferenceInterface, UnionType,
     __String, binary_search_copy_key, compare_values, get_name_of_declaration, map,
     unescape_leading_underscores, BaseUnionOrIntersectionType, Node, ObjectFlags, Symbol,
@@ -288,14 +288,69 @@ impl TypeChecker {
         end_skip_count: Option<usize>,
     ) -> Rc<Type> {
         let end_skip_count = end_skip_count.unwrap_or(0);
-        unimplemented!()
+        let target = type_.as_type_reference().target();
+        let end_index = self.get_type_reference_arity(type_) - end_skip_count;
+        let target_as_tuple_type = target.as_tuple_type();
+        if index > target_as_tuple_type.fixed_length {
+            self.get_rest_array_type_of_tuple_type(type_)
+                .unwrap_or_else(|| self.create_tuple_type(&[], None, None, None))
+        } else {
+            self.create_tuple_type(
+                &self.get_type_arguments(type_)[index..end_index],
+                Some(&target_as_tuple_type.element_flags[index..end_index]),
+                Some(false),
+                target_as_tuple_type
+                    .labeled_element_declarations
+                    .as_ref()
+                    .map(|labeled_element_declarations| {
+                        labeled_element_declarations[index..end_index].to_owned()
+                    })
+                    .as_deref(),
+            )
+        }
     }
 
     pub(super) fn get_known_keys_of_tuple_type(
         &self,
         type_: &Type, /*TupleTypeReference*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_target = type_.as_type_reference().target();
+        let type_target_as_tuple_type = type_target.as_tuple_type();
+        self.get_union_type(
+            {
+                let mut ret = array_of(type_target_as_tuple_type.fixed_length, |i| {
+                    self.get_string_literal_type(&i.to_string())
+                });
+                ret.push(self.get_index_type(
+                    &*if type_target_as_tuple_type.readonly {
+                        self.global_readonly_array_type()
+                    } else {
+                        self.global_array_type()
+                    },
+                    None,
+                    None,
+                ));
+                ret
+            },
+            None,
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        )
+    }
+
+    pub(super) fn get_start_element_count(
+        &self,
+        type_: &Type, /*TupleType*/
+        flags: ElementFlags,
+    ) -> usize {
+        let type_as_tuple_type = type_.as_tuple_type();
+        let index = find_index(
+            &type_as_tuple_type.element_flags,
+            |f: &ElementFlags, _| !f.intersects(flags),
+            None,
+        );
+        index.unwrap_or_else(|| type_as_tuple_type.element_flags.len())
     }
 
     pub(super) fn get_type_id(&self, type_: &Type) -> TypeId {

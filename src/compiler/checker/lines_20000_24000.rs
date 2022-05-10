@@ -327,6 +327,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_rest_array_type_of_tuple_type(
+        &self,
+        type_: &Type, /*TupleTypeReference*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_falsy_flags(&self, type_: &Type) -> TypeFlags {
         unimplemented!()
     }
