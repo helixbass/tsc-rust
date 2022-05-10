@@ -821,7 +821,57 @@ impl TypeChecker {
     }
 
     pub(super) fn may_resolve_type_alias(&self, node: &Node) -> bool {
-        unimplemented!()
+        match node.kind() {
+            SyntaxKind::TypeReference => {
+                self.is_jsdoc_type_reference(node)
+                    || self
+                        .resolve_type_reference_name(node, SymbolFlags::Type, None)
+                        .flags()
+                        .intersects(SymbolFlags::TypeAlias)
+            }
+            SyntaxKind::TypeQuery => true,
+            SyntaxKind::TypeOperator => {
+                let node_as_type_operator_node = node.as_type_operator_node();
+                node_as_type_operator_node.operator != SyntaxKind::UniqueKeyword
+                    && self.may_resolve_type_alias(&node_as_type_operator_node.type_)
+            }
+            SyntaxKind::ParenthesizedType
+            | SyntaxKind::OptionalType
+            | SyntaxKind::NamedTupleMember
+            | SyntaxKind::JSDocOptionalType
+            | SyntaxKind::JSDocNullableType
+            | SyntaxKind::JSDocNonNullableType
+            | SyntaxKind::JSDocTypeExpression => {
+                self.may_resolve_type_alias(&node.as_has_type().maybe_type().unwrap())
+            }
+            SyntaxKind::RestType => {
+                let node_as_rest_type_node = node.as_rest_type_node();
+                node_as_rest_type_node.type_.kind() != SyntaxKind::ArrayType
+                    || self.may_resolve_type_alias(
+                        &node_as_rest_type_node
+                            .type_
+                            .as_array_type_node()
+                            .element_type,
+                    )
+            }
+            SyntaxKind::UnionType | SyntaxKind::IntersectionType => some(
+                Some(node.as_union_or_intersection_type_node().types()),
+                Some(|type_: &Rc<Node>| self.may_resolve_type_alias(type_)),
+            ),
+            SyntaxKind::IndexedAccessType => {
+                let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
+                self.may_resolve_type_alias(&node_as_indexed_access_type_node.object_type)
+                    || self.may_resolve_type_alias(&node_as_indexed_access_type_node.index_type)
+            }
+            SyntaxKind::ConditionalType => {
+                let node_as_conditional_type_node = node.as_conditional_type_node();
+                self.may_resolve_type_alias(&node_as_conditional_type_node.check_type)
+                    || self.may_resolve_type_alias(&node_as_conditional_type_node.extends_type)
+                    || self.may_resolve_type_alias(&node_as_conditional_type_node.true_type)
+                    || self.may_resolve_type_alias(&node_as_conditional_type_node.false_type)
+            }
+            _ => false,
+        }
     }
 
     pub(super) fn get_type_from_array_or_tuple_type_node(

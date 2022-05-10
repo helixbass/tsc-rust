@@ -1194,6 +1194,14 @@ impl Node {
     pub fn as_type_query_node(&self) -> &TypeQueryNode {
         enum_unwrapped!(self, [Node, TypeQueryNode])
     }
+
+    pub fn as_rest_type_node(&self) -> &RestTypeNode {
+        enum_unwrapped!(self, [Node, RestTypeNode])
+    }
+
+    pub fn as_indexed_access_type_node(&self) -> &IndexedAccessTypeNode {
+        enum_unwrapped!(self, [Node, IndexedAccessTypeNode])
+    }
 }
 
 #[derive(Debug)]
