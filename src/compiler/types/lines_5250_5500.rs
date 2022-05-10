@@ -791,6 +791,30 @@ pub struct TupleType {
         Option<Vec<Rc<Node /*NamedTupleMember | ParameterDeclaration*/>>>,
 }
 
+impl TupleType {
+    pub fn new(
+        interface_type: BaseInterfaceType,
+        element_flags: Vec<ElementFlags>,
+        min_length: usize,
+        fixed_length: usize,
+        has_rest_element: bool,
+        combined_flags: ElementFlags,
+        readonly: bool,
+        labeled_element_declarations: Option<Vec<Rc<Node>>>,
+    ) -> Self {
+        Self {
+            _interface_type: interface_type,
+            element_flags,
+            min_length,
+            fixed_length,
+            has_rest_element,
+            combined_flags,
+            readonly,
+            labeled_element_declarations,
+        }
+    }
+}
+
 pub trait UnionOrIntersectionTypeInterface: TypeInterface {
     fn types(&self) -> &[Rc<Type>];
     fn maybe_property_cache(&self) -> RefMut<Option<SymbolTable>>;

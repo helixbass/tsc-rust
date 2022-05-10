@@ -1100,6 +1100,7 @@ pub struct SymbolLinks {
     pub cjs_export_merged: Option<Rc<Symbol>>,
     pub type_only_declaration: Option<Option<Rc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
     pub is_constructor_declared_property: Option<bool>,
+    pub tuple_label_declaration: Option<Rc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
     pub accessible_chain_cache: Option<HashMap<String, Option<Vec<Rc<Symbol>>>>>,
 }
 
@@ -1131,6 +1132,7 @@ impl SymbolLinks {
             cjs_export_merged: None,
             type_only_declaration: None,
             is_constructor_declared_property: None,
+            tuple_label_declaration: None,
             accessible_chain_cache: None,
         }
     }

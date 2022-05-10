@@ -2,16 +2,19 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::get_node_id;
 use crate::{
-    create_symbol_table, find, is_assertion_expression, is_const_type_reference,
+    count_where, create_symbol_table, find, is_assertion_expression, is_const_type_reference,
     is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, some,
-    symbol_name, CheckFlags, ElementFlags, InterfaceTypeInterface, NodeInterface, SymbolInterface,
-    SyntaxKind, TransientSymbolInterface, TypeFlags, TypeInterface, __String, map,
-    DiagnosticMessage, Diagnostics, Node, Symbol, SymbolFlags, Type, TypeChecker,
+    symbol_name, BaseInterfaceType, CheckFlags, ElementFlags, GenericableTypeInterface,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, NodeInterface, Number,
+    ObjectFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, TypeFlags,
+    TypeInterface, TypeReferenceInterface, __String, map, DiagnosticMessage, Diagnostics, Node,
+    Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -1022,6 +1025,120 @@ impl TypeChecker {
         readonly: bool,
         named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
     ) -> Rc<Type /*TupleType*/> {
-        unimplemented!()
+        let arity = element_flags.len();
+        let min_length = count_where(Some(element_flags), |f: &ElementFlags, _| {
+            f.intersects(ElementFlags::Required | ElementFlags::Variadic)
+        });
+        let mut type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        let mut properties: Vec<Rc<Symbol>> = vec![];
+        let mut combined_flags = ElementFlags::None;
+        if arity > 0 {
+            type_parameters = Some(vec![]);
+            let type_parameters = type_parameters.as_mut().unwrap();
+            for i in 0..arity {
+                type_parameters.push(self.create_type_parameter(Option::<&Symbol>::None).into());
+                let type_parameter = &type_parameters[i];
+                let flags = element_flags[i];
+                combined_flags |= flags;
+                if !combined_flags.intersects(ElementFlags::Variable) {
+                    let property: Rc<Symbol> = self
+                        .create_symbol(
+                            SymbolFlags::Property
+                                | if flags.intersects(ElementFlags::Optional) {
+                                    SymbolFlags::Optional
+                                } else {
+                                    SymbolFlags::None
+                                },
+                            __String::new(i.to_string()),
+                            Some(if readonly {
+                                CheckFlags::Readonly
+                            } else {
+                                CheckFlags::None
+                            }),
+                        )
+                        .into();
+                    let property_links = property.as_transient_symbol().symbol_links();
+                    let mut property_links = property_links.borrow_mut();
+                    property_links.tuple_label_declaration =
+                        named_member_declarations.and_then(|named_member_declarations| {
+                            named_member_declarations.get(i).map(Clone::clone)
+                        });
+                    property_links.type_ = Some(type_parameter.clone());
+                    properties.push(property);
+                }
+            }
+        }
+        let fixed_length = properties.len();
+        let length_symbol: Rc<Symbol> = self
+            .create_symbol(
+                SymbolFlags::Property,
+                __String::new("length".to_owned()),
+                None,
+            )
+            .into();
+        if combined_flags.intersects(ElementFlags::Variable) {
+            length_symbol
+                .as_transient_symbol()
+                .symbol_links()
+                .borrow_mut()
+                .type_ = Some(self.number_type());
+        } else {
+            let mut literal_types = vec![];
+            for i in min_length..=arity {
+                literal_types.push(self.get_number_literal_type(Number::new(i as f64)));
+            }
+            length_symbol
+                .as_transient_symbol()
+                .symbol_links()
+                .borrow_mut()
+                .type_ = Some(self.get_union_type(
+                literal_types,
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            ));
+        }
+        properties.push(length_symbol);
+        let type_ = self.create_object_type(
+            ObjectFlags::Tuple | ObjectFlags::Reference,
+            Option::<&Symbol>::None,
+        );
+        let mut this_type = self.create_type_parameter(Option::<&Symbol>::None);
+        this_type.is_this_type = Some(true);
+        let this_type: Rc<Type> = this_type.into();
+        let type_ = BaseInterfaceType::new(
+            type_,
+            type_parameters.clone(),
+            None,
+            type_parameters.clone(),
+            Some(this_type.clone()),
+        );
+        let type_: Rc<Type> = TupleType::new(
+            type_,
+            element_flags.to_owned(),
+            min_length,
+            fixed_length,
+            combined_flags.intersects(ElementFlags::Variable),
+            combined_flags,
+            readonly,
+            named_member_declarations.map(ToOwned::to_owned),
+        )
+        .into();
+        this_type.as_type_parameter().set_constraint(type_.clone());
+        let mut instantiations = HashMap::new();
+        instantiations.insert(
+            self.get_type_list_id(type_parameters.as_deref()),
+            type_.clone(),
+        );
+        let type_as_interface_type = type_.as_interface_type();
+        type_as_interface_type.set_target(type_.clone());
+        *type_as_interface_type.maybe_resolved_type_arguments() = type_parameters;
+        type_as_interface_type.set_declared_properties(properties);
+        type_as_interface_type.set_declared_call_signatures(vec![]);
+        type_as_interface_type.set_declared_construct_signatures(vec![]);
+        type_as_interface_type.set_declared_index_infos(vec![]);
+        type_as_interface_type.genericize(instantiations);
+        type_
     }
 }
