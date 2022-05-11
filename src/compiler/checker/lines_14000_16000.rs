@@ -7,8 +7,8 @@ use std::rc::Rc;
 
 use crate::{
     array_of, filter, find, find_index, find_last_index, for_each, get_object_flags,
-    is_part_of_type_node, ordered_remove_item_at, push_if_unique_rc, replace_element, same_map,
-    some, AccessFlags, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
+    is_part_of_type_node, ordered_remove_item_at, push_if_unique_rc, reduce_left, replace_element,
+    same_map, some, AccessFlags, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
     Signature, TypePredicate, TypeReferenceInterface, UnionOrIntersectionTypeInterface, UnionType,
     __String, binary_search_copy_key, compare_values, get_name_of_declaration, map,
     unescape_leading_underscores, BaseUnionOrIntersectionType, Node, ObjectFlags, Symbol,
@@ -692,7 +692,119 @@ impl TypeChecker {
         }
         let mut type_set: Vec<Rc<Type>> = vec![];
         let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, &types);
-        if union_reduction != UnionReduction::None {}
+        if union_reduction != UnionReduction::None {
+            if includes.intersects(TypeFlags::AnyOrUnknown) {
+                return if includes.intersects(TypeFlags::Any) {
+                    if includes.intersects(TypeFlags::IncludesWildcard) {
+                        self.wildcard_type()
+                    } else {
+                        self.any_type()
+                    }
+                } else {
+                    if includes.intersects(TypeFlags::Null)
+                        || self.contains_type(&type_set, &self.unknown_type())
+                    {
+                        self.unknown_type()
+                    } else {
+                        self.non_null_unknown_type()
+                    }
+                };
+            }
+            if matches!(self.exact_optional_property_types, Some(true))
+                && includes.intersects(TypeFlags::Undefined)
+            {
+                let missing_index = binary_search_copy_key(
+                    &type_set,
+                    &self.missing_type(),
+                    |type_, _| Some(self.get_type_id(type_)),
+                    compare_values,
+                    None,
+                );
+                if missing_index >= 0 && self.contains_type(&type_set, &self.undefined_type()) {
+                    ordered_remove_item_at(&mut type_set, missing_index.try_into().unwrap());
+                }
+            }
+            if includes.intersects(
+                TypeFlags::Literal
+                    | TypeFlags::UniqueESSymbol
+                    | TypeFlags::TemplateLiteral
+                    | TypeFlags::StringMapping,
+            ) || includes.intersects(TypeFlags::Void)
+                && includes.intersects(TypeFlags::Undefined)
+            {
+                self.remove_redundant_literal_types(
+                    &mut type_set,
+                    includes,
+                    union_reduction == UnionReduction::Subtype,
+                );
+            }
+            if includes.intersects(TypeFlags::StringLiteral)
+                && includes.intersects(TypeFlags::TemplateLiteral)
+            {
+                self.remove_string_literals_matched_by_template_literals(&mut type_set);
+            }
+            if union_reduction == UnionReduction::Subtype {
+                let maybe_type_set =
+                    self.remove_subtypes(type_set, includes.intersects(TypeFlags::Object));
+                match maybe_type_set {
+                    Some(maybe_type_set) => {
+                        type_set = maybe_type_set;
+                    }
+                    None => {
+                        return self.error_type();
+                    }
+                }
+            }
+            if type_set.is_empty() {
+                return if includes.intersects(TypeFlags::Null) {
+                    if includes.intersects(TypeFlags::IncludesNonWideningType) {
+                        self.null_type()
+                    } else {
+                        self.null_widening_type()
+                    }
+                } else if includes.intersects(TypeFlags::Undefined) {
+                    if includes.intersects(TypeFlags::IncludesNonWideningType) {
+                        self.undefined_type()
+                    } else {
+                        self.undefined_widening_type()
+                    }
+                } else {
+                    self.never_type()
+                };
+            }
+        }
+        let mut origin = origin.map(|origin| origin.borrow().type_wrapper());
+        if origin.is_none() && includes.intersects(TypeFlags::Union) {
+            let mut named_unions: Vec<Rc<Type>> = vec![];
+            self.add_named_unions(&mut named_unions, &types);
+            let mut reduced_types: Vec<Rc<Type>> = vec![];
+            for t in &type_set {
+                if !some(
+                    Some(&named_unions),
+                    Some(|union: &Rc<Type>| self.contains_type(union.as_union_type().types(), t)),
+                ) {
+                    reduced_types.push(t.clone());
+                }
+            }
+            if alias_symbol.is_none() && named_unions.len() == 1 && reduced_types.is_empty() {
+                return named_unions[0].clone();
+            }
+            let named_types_count = reduce_left(
+                &named_unions,
+                |sum, union: &Rc<Type>, _| sum + union.as_union_type().types().len(),
+                0,
+                None,
+                None,
+            );
+            if named_types_count + reduced_types.len() == type_set.len() {
+                for t in &named_unions {
+                    self.insert_type(&mut reduced_types, t);
+                }
+                origin = Some(
+                    self.create_origin_union_or_intersection_type(TypeFlags::Union, reduced_types),
+                );
+            }
+        }
         let object_flags = (if includes.intersects(TypeFlags::NotPrimitiveUnion) {
             ObjectFlags::None
         } else {
@@ -702,7 +814,13 @@ impl TypeChecker {
         } else {
             ObjectFlags::None
         });
-        self.get_union_type_from_sorted_list(type_set, object_flags)
+        self.get_union_type_from_sorted_list(
+            type_set,
+            object_flags,
+            alias_symbol,
+            alias_type_arguments,
+            origin,
+        )
     }
 
     pub(super) fn get_union_or_intersection_type_predicate(
@@ -713,10 +831,16 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_union_type_from_sorted_list(
+    pub(super) fn get_union_type_from_sorted_list<
+        TAliasSymbol: Borrow<Symbol>,
+        TOrigin: Borrow<Type>,
+    >(
         &self,
         types: Vec<Rc<Type>>,
         object_flags: ObjectFlags,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+        origin: Option<TOrigin>,
     ) -> Rc<Type> {
         let mut type_: Option<Rc<Type>> = None;
         if type_.is_none() {

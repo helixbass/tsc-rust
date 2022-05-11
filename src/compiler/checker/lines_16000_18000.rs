@@ -116,7 +116,10 @@ impl TypeChecker {
                     .as_ptr(),
             ),
             Type::LiteralType(literal_type) => {
-                ptr::eq(type_, literal_type.fresh_type().unwrap().as_ptr())
+                matches!(
+                    literal_type.fresh_type(),
+                    Some(fresh_type) if ptr::eq(type_, fresh_type.as_ptr())
+                )
             }
             _ => panic!("Expected IntrinsicType or LiteralType"),
         }

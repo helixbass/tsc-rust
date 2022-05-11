@@ -2564,12 +2564,24 @@ impl TypeChecker {
         self.unknown_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn non_null_unknown_type(&self) -> Rc<Type> {
+        self.non_null_unknown_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn undefined_type(&self) -> Rc<Type> {
         self.undefined_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn undefined_widening_type(&self) -> Rc<Type> {
+        self.undefined_widening_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn optional_type(&self) -> Rc<Type> {
         self.optional_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn missing_type(&self) -> Rc<Type> {
+        self.missing_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn null_type(&self) -> Rc<Type> {
