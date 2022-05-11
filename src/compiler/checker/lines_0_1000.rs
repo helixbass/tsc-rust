@@ -2488,6 +2488,10 @@ impl TypeChecker {
         self.tuple_types.borrow_mut()
     }
 
+    pub(super) fn union_types(&self) -> RefMut<HashMap<String, Rc</*UnionType*/ Type>>> {
+        self.union_types.borrow_mut()
+    }
+
     pub(super) fn string_literal_types(
         &self,
     ) -> RefMut<HashMap<String, Rc</*NumberLiteralType*/ Type>>> {

@@ -9,10 +9,11 @@ use crate::{
     array_of, filter, find, find_index, find_last_index, for_each, get_object_flags,
     is_part_of_type_node, ordered_remove_item_at, push_if_unique_rc, reduce_left, replace_element,
     same_map, some, AccessFlags, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
-    Signature, TypePredicate, TypeReferenceInterface, UnionOrIntersectionTypeInterface, UnionType,
-    __String, binary_search_copy_key, compare_values, get_name_of_declaration, map,
-    unescape_leading_underscores, BaseUnionOrIntersectionType, Node, ObjectFlags, Symbol,
-    SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, UnionReduction,
+    Signature, TypePredicate, TypePredicateKind, TypeReferenceInterface,
+    UnionOrIntersectionTypeInterface, UnionType, __String, binary_search_copy_key, compare_values,
+    get_name_of_declaration, map, unescape_leading_underscores, BaseUnionOrIntersectionType, Node,
+    ObjectFlags, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -828,7 +829,46 @@ impl TypeChecker {
         signatures: &[Rc<Signature>],
         kind: Option<TypeFlags>,
     ) -> Option<TypePredicate> {
-        unimplemented!()
+        let mut first: Option<Rc<TypePredicate>> = None;
+        let mut types: Vec<Rc<Type>> = vec![];
+        for sig in signatures {
+            let pred = self.get_type_predicate_of_signature(sig);
+            if match pred.as_ref() {
+                None => true,
+                Some(pred) => matches!(
+                    pred.kind,
+                    TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
+                ),
+            } {
+                if !matches!(kind, Some(TypeFlags::Intersection)) {
+                    continue;
+                } else {
+                    return None;
+                }
+            }
+            let pred = pred.unwrap();
+
+            if let Some(first) = first.as_ref() {
+                if !self.type_predicate_kinds_match(first, &pred) {
+                    return None;
+                }
+            } else {
+                first = Some(pred.clone());
+            }
+            types.push(pred.type_.clone().unwrap());
+        }
+        let first = first?;
+        let composite_type = self.get_union_or_intersection_type(&types, kind, None);
+        Some(self.create_type_predicate(
+            first.kind,
+            first.parameter_name.clone(),
+            first.parameter_index,
+            Some(composite_type),
+        ))
+    }
+
+    pub(super) fn type_predicate_kinds_match(&self, a: &TypePredicate, b: &TypePredicate) -> bool {
+        a.kind == b.kind && a.parameter_index == b.parameter_index
     }
 
     pub(super) fn get_union_type_from_sorted_list<
@@ -842,7 +882,42 @@ impl TypeChecker {
         alias_type_arguments: Option<&[Rc<Type>]>,
         origin: Option<TOrigin>,
     ) -> Rc<Type> {
-        let mut type_: Option<Rc<Type>> = None;
+        if types.is_empty() {
+            return self.never_type();
+        }
+        if types.len() == 1 {
+            return types[0].clone();
+        }
+        let origin = origin.map(|origin| origin.borrow().type_wrapper());
+        let type_key = match origin.as_ref() {
+            None => self.get_type_list_id(Some(&types)),
+            Some(origin) => {
+                if origin.flags().intersects(TypeFlags::Union) {
+                    format!(
+                        "|{}",
+                        self.get_type_list_id(Some(origin.as_union_type().types()))
+                    )
+                } else if origin.flags().intersects(TypeFlags::Intersection) {
+                    format!(
+                        "&{}",
+                        self.get_type_list_id(Some(origin.as_intersection_type().types()))
+                    )
+                } else {
+                    format!(
+                        "#{}|{}",
+                        origin.as_index_type().type_.id(),
+                        self.get_type_list_id(Some(&types))
+                    )
+                }
+            }
+        };
+        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+        let id = format!(
+            "{}{}",
+            type_key,
+            self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
+        );
+        let mut type_: Option<Rc<Type>> = self.union_types().get(&id).map(Clone::clone);
         if type_.is_none() {
             let is_boolean = types.len() == 2
                 && types[0].flags().intersects(TypeFlags::BooleanLiteral)
@@ -854,16 +929,19 @@ impl TypeChecker {
             });
             let object_flags_to_set =
                 object_flags | self.get_propagating_flags_of_types(&types, TypeFlags::Nullable);
-            type_ = Some(
-                UnionType::new(BaseUnionOrIntersectionType::new(
-                    base_type,
-                    types,
-                    object_flags_to_set,
-                ))
-                .into(),
-            );
+            let mut union_type = UnionType::new(BaseUnionOrIntersectionType::new(
+                base_type,
+                types,
+                object_flags_to_set,
+            ));
+            union_type.origin = origin;
+            type_ = Some(union_type.into());
+            let type_ = type_.as_ref().unwrap();
+            *type_.maybe_alias_symbol() = alias_symbol;
+            *type_.maybe_alias_type_arguments() = alias_type_arguments.map(ToOwned::to_owned);
             // TODO: also treat union type as intrinsic type with intrinsic_name = "boolean" if
             // is_boolean - should expose maybe_intrinsic_name on UnionType or something?
+            self.union_types().insert(id, type_.clone());
         }
         type_.unwrap()
     }
