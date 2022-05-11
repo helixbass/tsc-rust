@@ -1192,6 +1192,10 @@ pub fn string_contains(str_: &str, substring: &str) -> bool {
     str_.find(substring).is_some()
 }
 
+pub fn ordered_remove_item_at<TItem: Clone>(array: &mut Vec<TItem>, index: usize) {
+    array.remove(index);
+}
+
 pub fn unordered_remove_item_at<TItem: Clone>(array: &mut Vec<TItem>, index: usize) {
     array[index] = array[array.len() - 1].clone();
     array.pop();

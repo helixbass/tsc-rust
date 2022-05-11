@@ -616,6 +616,10 @@ impl TypeChecker {
         self.is_type_related_to(source, target, &self.assignable_relation())
     }
 
+    pub(super) fn is_type_derived_from(&self, source: &Type, target: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_type_assignable_to_and_optionally_elaborate<
         TErrorNode: Borrow<Node>,
         TExpr: Borrow<Node>,
@@ -842,6 +846,10 @@ impl TypeChecker {
             target,
             relation,
         )
+    }
+
+    pub(super) fn is_empty_resolved_type(&self, t: &Type /*ResolvedType*/) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn is_simple_type_related_to(

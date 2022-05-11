@@ -391,6 +391,7 @@ impl Type {
         match self {
             Type::ObjectType(object_type) => object_type,
             Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
+            Type::IntrinsicType(intrinsic_type) => intrinsic_type,
             _ => panic!("Expected object flags type"),
         }
     }
@@ -657,7 +658,7 @@ pub trait IntrinsicTypeInterface: TypeInterface {
 }
 
 #[derive(Clone, Debug)]
-#[type_type(interfaces = "IntrinsicTypeInterface")]
+#[type_type(interfaces = "IntrinsicTypeInterface, ObjectFlagsTypeInterface")]
 pub enum IntrinsicType {
     BaseIntrinsicType(BaseIntrinsicType),
     FreshableIntrinsicType(FreshableIntrinsicType),
@@ -668,7 +669,7 @@ pub enum IntrinsicType {
 pub struct BaseIntrinsicType {
     _type: BaseType,
     intrinsic_name: String,
-    object_flags: ObjectFlags,
+    object_flags: Cell<ObjectFlags>,
 }
 
 impl BaseIntrinsicType {
@@ -676,7 +677,7 @@ impl BaseIntrinsicType {
         Self {
             _type: type_,
             intrinsic_name,
-            object_flags,
+            object_flags: Cell::new(object_flags),
         }
     }
 }
@@ -687,8 +688,21 @@ impl IntrinsicTypeInterface for BaseIntrinsicType {
     }
 }
 
+impl ObjectFlagsTypeInterface for BaseIntrinsicType {
+    fn object_flags(&self) -> ObjectFlags {
+        self.object_flags.get()
+    }
+
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
+        self.object_flags.set(object_flags);
+    }
+}
+
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "IntrinsicType", interfaces = "IntrinsicTypeInterface")]
+#[type_type(
+    ancestors = "IntrinsicType",
+    interfaces = "IntrinsicTypeInterface, ObjectFlagsTypeInterface"
+)]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
     pub fresh_type: WeakSelf<Type>,

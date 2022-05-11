@@ -1202,6 +1202,10 @@ impl Node {
     pub fn as_indexed_access_type_node(&self) -> &IndexedAccessTypeNode {
         enum_unwrapped!(self, [Node, IndexedAccessTypeNode])
     }
+
+    pub fn as_optional_type_node(&self) -> &OptionalTypeNode {
+        enum_unwrapped!(self, [Node, OptionalTypeNode])
+    }
 }
 
 #[derive(Debug)]

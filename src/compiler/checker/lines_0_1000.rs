@@ -2512,6 +2512,10 @@ impl TypeChecker {
         self.substitution_types.borrow_mut()
     }
 
+    pub(super) fn subtype_reduction_cache(&self) -> RefMut<HashMap<String, Vec<Rc<Type>>>> {
+        self.subtype_reduction_cache.borrow_mut()
+    }
+
     pub(super) fn unknown_symbol(&self) -> Rc<Symbol> {
         self.unknown_symbol.as_ref().unwrap().clone()
     }

@@ -2,12 +2,14 @@
 
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    array_of, find_index, for_each, is_part_of_type_node, replace_element, same_map, AccessFlags,
-    Diagnostics, ElementFlags, Signature, TypePredicate, TypeReferenceInterface, UnionType,
-    __String, binary_search_copy_key, compare_values, get_name_of_declaration, map,
+    array_of, find, find_index, find_last_index, for_each, get_object_flags, is_part_of_type_node,
+    ordered_remove_item_at, replace_element, same_map, some, AccessFlags, Diagnostics,
+    ElementFlags, Signature, TypePredicate, TypeReferenceInterface, UnionType, __String,
+    binary_search_copy_key, compare_values, get_name_of_declaration, map,
     unescape_leading_underscores, BaseUnionOrIntersectionType, Node, ObjectFlags, Symbol,
     SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, UnionReduction,
 };
@@ -353,6 +355,33 @@ impl TypeChecker {
         index.unwrap_or_else(|| type_as_tuple_type.element_flags.len())
     }
 
+    pub(super) fn get_end_element_count(
+        &self,
+        type_: &Type, /*TupleType*/
+        flags: ElementFlags,
+    ) -> usize {
+        let type_as_tuple_type = type_.as_tuple_type();
+        let ret: isize = isize::try_from(type_as_tuple_type.element_flags.len()).unwrap()
+            - find_last_index(
+                &*type_as_tuple_type.element_flags,
+                |f: &ElementFlags, _| !f.intersects(flags),
+                None,
+            )
+            - 1;
+        ret.try_into().unwrap()
+    }
+
+    pub(super) fn get_type_from_optional_type_node(
+        &self,
+        node: &Node, /*OptionalTypeNode*/
+    ) -> Rc<Type> {
+        self.add_optionality(
+            &self.get_type_from_type_node_(&node.as_optional_type_node().type_),
+            Some(true),
+            None,
+        )
+    }
+
     pub(super) fn get_type_id(&self, type_: &Type) -> TypeId {
         type_.id()
     }
@@ -365,6 +394,21 @@ impl TypeChecker {
             compare_values,
             None,
         ) >= 0
+    }
+
+    pub(super) fn insert_type(&self, types: &mut Vec<Rc<Type>>, type_: &Type) -> bool {
+        let index = binary_search_copy_key(
+            types,
+            &type_.type_wrapper(),
+            |t, _| Some(self.get_type_id(t)),
+            compare_values,
+            None,
+        );
+        if index < 0 {
+            types.insert((!index).try_into().unwrap(), type_.type_wrapper());
+            return true;
+        }
+        false
     }
 
     pub(super) fn add_type_to_union(
@@ -391,8 +435,13 @@ impl TypeChecker {
             if flags.intersects(TypeFlags::Instantiable) {
                 includes |= TypeFlags::IncludesInstantiable;
             }
-            if false {
-                unimplemented!()
+            if ptr::eq(type_, &*self.wildcard_type()) {
+                includes |= TypeFlags::IncludesWildcard;
+            }
+            if !self.strict_null_checks && flags.intersects(TypeFlags::Nullable) {
+                if !(get_object_flags(type_).intersects(ObjectFlags::ContainsWideningType)) {
+                    includes |= TypeFlags::IncludesNonWideningType;
+                }
             } else {
                 let len = type_set.len();
                 let index: isize = if len > 0 && type_.id() > type_set[len - 1].id() {
@@ -424,6 +473,106 @@ impl TypeChecker {
             includes = self.add_type_to_union(type_set, includes, &type_);
         }
         includes
+    }
+
+    pub(super) fn remove_subtypes(
+        &self,
+        mut types: Vec<Rc<Type>>,
+        has_object_types: bool,
+    ) -> Option<Vec<Rc<Type>>> {
+        let id = self.get_type_list_id(Some(&types));
+        let match_ = self.subtype_reduction_cache().get(&id).map(Clone::clone);
+        if match_.is_some() {
+            return match_;
+        }
+        let has_empty_object = has_object_types
+            && some(
+                Some(&*types),
+                Some(|t: &Rc<Type>| {
+                    t.flags().intersects(TypeFlags::Object)
+                        && !self.is_generic_mapped_type(t)
+                        && self.is_empty_resolved_type(&self.resolve_structured_type_members(t))
+                }),
+            );
+        let len = types.len();
+        let mut i = len;
+        let mut count = 0;
+        while i > 0 {
+            i -= 1;
+            let source = types[i].clone();
+            if has_empty_object
+                || source
+                    .flags()
+                    .intersects(TypeFlags::StructuredOrInstantiable)
+            {
+                let key_property = if source.flags().intersects(
+                    TypeFlags::Object
+                        | TypeFlags::Intersection
+                        | TypeFlags::InstantiableNonPrimitive,
+                ) {
+                    find(
+                        &*self.get_properties_of_type(&source),
+                        |p: &Rc<Symbol>, _| self.is_unit_type(&self.get_type_of_symbol(p)),
+                    )
+                    .map(Clone::clone)
+                } else {
+                    None
+                };
+                let key_property_type = key_property.as_ref().map(|key_property| {
+                    self.get_regular_type_of_literal_type(&self.get_type_of_symbol(key_property))
+                });
+                for target in &types.clone() {
+                    if !Rc::ptr_eq(&source, target) {
+                        if count == 100000 {
+                            let estimated_count = (count / (len - i)) * len;
+                            if estimated_count > 1000000 {
+                                // tracing?.instant(tracing.Phase.CheckTypes, "removeSubtypes_DepthLimit", { typeIds: types.map(t => t.id) });
+                                self.error(
+                                    self.maybe_current_node(),
+                                    &Diagnostics::Expression_produces_a_union_type_that_is_too_complex_to_represent,
+                                    None
+                                );
+                                return None;
+                            }
+                        }
+                        count += 1;
+                        if let Some(key_property) = key_property.as_ref() {
+                            if target.flags().intersects(
+                                TypeFlags::Object
+                                    | TypeFlags::Intersection
+                                    | TypeFlags::InstantiableNonPrimitive,
+                            ) {
+                                let t = self.get_type_of_property_of_type_(
+                                    target,
+                                    key_property.escaped_name(),
+                                );
+                                if matches!(
+                                    t.as_ref(),
+                                    Some(t) if self.is_unit_type(t) && !matches!(
+                                        key_property_type.as_ref(),
+                                        Some(key_property_type) if Rc::ptr_eq(&self.get_regular_type_of_literal_type(t), key_property_type)
+                                    )
+                                ) {
+                                    continue;
+                                }
+                            }
+                        }
+                        if self.is_type_related_to(&source, target, &self.strict_subtype_relation())
+                            && (!get_object_flags(&self.get_target_type(&source))
+                                .intersects(ObjectFlags::Class)
+                                || !get_object_flags(&self.get_target_type(target))
+                                    .intersects(ObjectFlags::Class)
+                                || self.is_type_derived_from(&source, target))
+                        {
+                            ordered_remove_item_at(&mut types, i);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        self.subtype_reduction_cache().insert(id, types.clone());
+        Some(types)
     }
 
     pub(super) fn is_named_union_type(&self, type_: &Type) -> bool {
