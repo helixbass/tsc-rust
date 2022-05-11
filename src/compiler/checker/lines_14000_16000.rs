@@ -8,8 +8,8 @@ use std::rc::Rc;
 use crate::{
     array_of, find, find_index, find_last_index, for_each, get_object_flags, is_part_of_type_node,
     ordered_remove_item_at, replace_element, same_map, some, AccessFlags, Diagnostics,
-    ElementFlags, Signature, TypePredicate, TypeReferenceInterface, UnionType, __String,
-    binary_search_copy_key, compare_values, get_name_of_declaration, map,
+    ElementFlags, LiteralTypeInterface, Signature, TypePredicate, TypeReferenceInterface,
+    UnionType, __String, binary_search_copy_key, compare_values, get_name_of_declaration, map,
     unescape_leading_underscores, BaseUnionOrIntersectionType, Node, ObjectFlags, Symbol,
     SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, UnionReduction,
 };
@@ -573,6 +573,37 @@ impl TypeChecker {
         }
         self.subtype_reduction_cache().insert(id, types.clone());
         Some(types)
+    }
+
+    pub(super) fn remove_redundant_literal_types(
+        &self,
+        types: &mut Vec<Rc<Type>>,
+        includes: TypeFlags,
+        reduce_void_undefined: bool,
+    ) {
+        let mut i = types.len();
+        while i > 0 {
+            i -= 1;
+            let t = types[i].clone();
+            let flags = t.flags();
+            let remove = flags.intersects(
+                TypeFlags::StringLiteral | TypeFlags::TemplateLiteral | TypeFlags::StringMapping,
+            ) && includes.intersects(TypeFlags::String)
+                || flags.intersects(TypeFlags::NumberLiteral)
+                    && includes.intersects(TypeFlags::Number)
+                || flags.intersects(TypeFlags::BigIntLiteral)
+                    && includes.intersects(TypeFlags::BigInt)
+                || flags.intersects(TypeFlags::UniqueESSymbol)
+                    && includes.intersects(TypeFlags::ESSymbol)
+                || reduce_void_undefined
+                    && flags.intersects(TypeFlags::Undefined)
+                    && includes.intersects(TypeFlags::Void)
+                || self.is_fresh_literal_type(&t)
+                    && self.contains_type(types, &t.as_literal_type().regular_type());
+            if remove {
+                ordered_remove_item_at(types, i);
+            }
+        }
     }
 
     pub(super) fn is_named_union_type(&self, type_: &Type) -> bool {
