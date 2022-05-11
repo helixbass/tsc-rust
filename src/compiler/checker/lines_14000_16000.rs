@@ -6,10 +6,11 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    array_of, find, find_index, find_last_index, for_each, get_object_flags, is_part_of_type_node,
-    ordered_remove_item_at, replace_element, same_map, some, AccessFlags, Diagnostics,
-    ElementFlags, LiteralTypeInterface, Signature, TypePredicate, TypeReferenceInterface,
-    UnionType, __String, binary_search_copy_key, compare_values, get_name_of_declaration, map,
+    array_of, filter, find, find_index, find_last_index, for_each, get_object_flags,
+    is_part_of_type_node, ordered_remove_item_at, push_if_unique_rc, replace_element, same_map,
+    some, AccessFlags, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
+    Signature, TypePredicate, TypeReferenceInterface, UnionOrIntersectionTypeInterface, UnionType,
+    __String, binary_search_copy_key, compare_values, get_name_of_declaration, map,
     unescape_leading_underscores, BaseUnionOrIntersectionType, Node, ObjectFlags, Symbol,
     SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, UnionReduction,
 };
@@ -606,8 +607,72 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn remove_string_literals_matched_by_template_literals(
+        &self,
+        types: &mut Vec<Rc<Type>>,
+    ) {
+        let templates = filter(Some(types), |type_: &Rc<Type>| {
+            self.is_pattern_literal_type(type_)
+        })
+        .unwrap();
+        if !templates.is_empty() {
+            let mut i = types.len();
+            while i > 0 {
+                i -= 1;
+                let t = types[i].clone();
+                if t.flags().intersects(TypeFlags::StringLiteral)
+                    && some(
+                        Some(&templates),
+                        Some(|template: &Rc<Type>| {
+                            self.is_type_matched_by_template_literal_type(&t, template)
+                        }),
+                    )
+                {
+                    ordered_remove_item_at(types, i);
+                }
+            }
+        }
+    }
+
     pub(super) fn is_named_union_type(&self, type_: &Type) -> bool {
-        false
+        type_.flags().intersects(TypeFlags::Union)
+            && (type_.maybe_alias_symbol().is_some() || type_.as_union_type().origin.is_some())
+    }
+
+    pub(super) fn add_named_unions(&self, named_unions: &mut Vec<Rc<Type>>, types: &[Rc<Type>]) {
+        for t in types {
+            if t.flags().intersects(TypeFlags::Union) {
+                let origin = t.as_union_type().origin.clone();
+                if t.maybe_alias_symbol().is_some()
+                    || matches!(origin.as_ref(), Some(origin) if !origin.flags().intersects(TypeFlags::Union))
+                {
+                    push_if_unique_rc(named_unions, t);
+                } else if matches!(origin.as_ref(), Some(origin) if origin.flags().intersects(TypeFlags::Union))
+                {
+                    self.add_named_unions(named_unions, origin.unwrap().as_union_type().types());
+                }
+            }
+        }
+    }
+
+    pub(super) fn create_origin_union_or_intersection_type(
+        &self,
+        flags: TypeFlags,
+        types: Vec<Rc<Type>>,
+    ) -> Rc<Type> {
+        let result = self.create_origin_type(flags);
+        let result = BaseUnionOrIntersectionType::new(
+            result,
+            types,
+            ObjectFlags::None, // this was made up
+        );
+        // so was this
+        let result: Rc<Type> = if flags.intersects(TypeFlags::Union) {
+            UnionType::new(result).into()
+        } else {
+            IntersectionType::new(result).into()
+        };
+        result
     }
 
     pub(super) fn get_union_type<TAliasSymbol: Borrow<Symbol>, TOrigin: Borrow<Type>>(

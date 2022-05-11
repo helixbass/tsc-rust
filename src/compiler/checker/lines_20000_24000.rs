@@ -466,6 +466,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_type_matched_by_template_literal_type(
+        &self,
+        source: &Type,
+        target: &Type, /*TemplateLiteralType*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_object_literal_type(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral)
     }
