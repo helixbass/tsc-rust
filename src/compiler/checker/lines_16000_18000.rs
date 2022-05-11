@@ -855,6 +855,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_empty_anonymous_object_type(&self, t: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_simple_type_related_to(
         &self,
         source: &Type,

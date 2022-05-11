@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
@@ -950,25 +951,111 @@ impl TypeChecker {
         &self,
         node: &Node, /*UnionTypeNode*/
     ) -> Rc<Type> {
-        let node_as_union_type_node = node.as_union_type_node();
         let links = self.get_node_links(node);
-        let mut links_ref = links.borrow_mut();
-        if links_ref.resolved_type.is_none() {
-            // let alias_symbol = self.get_alias_symbol_for_type_node(node);
-            links_ref.resolved_type = Some(
+        if (*links).borrow().resolved_type.is_none() {
+            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            links.borrow_mut().resolved_type = Some(
                 self.get_union_type(
-                    map(Some(&node_as_union_type_node.types), |type_, _| {
-                        self.get_type_from_type_node_(type_)
-                    })
+                    map(
+                        Some(&node.as_union_type_node().types),
+                        |type_: &Rc<Node>, _| self.get_type_from_type_node_(type_),
+                    )
                     .unwrap(),
                     Some(UnionReduction::Literal),
-                    Option::<&Symbol>::None,
-                    None,
+                    alias_symbol.clone(),
+                    self.get_type_arguments_for_alias_symbol(alias_symbol)
+                        .as_deref(),
                     Option::<&Type>::None,
                 ),
             );
         }
-        links_ref.resolved_type.clone().unwrap()
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn add_type_to_intersection(
+        &self,
+        type_set: &mut HashMap<String, Rc<Type>>,
+        mut includes: TypeFlags,
+        type_: &Type,
+    ) -> TypeFlags {
+        let flags = type_.flags();
+        if flags.intersects(TypeFlags::Intersection) {
+            return self.add_types_to_intersection(
+                type_set,
+                includes,
+                type_.as_intersection_type().types(),
+            );
+        }
+        let mut type_ = type_.type_wrapper();
+        if self.is_empty_anonymous_object_type(&type_) {
+            if !includes.intersects(TypeFlags::IncludesEmptyObject) {
+                includes |= TypeFlags::IncludesEmptyObject;
+                type_set.insert(type_.id().to_string(), type_.clone());
+            }
+        } else {
+            if flags.intersects(TypeFlags::AnyOrUnknown) {
+                if Rc::ptr_eq(&type_, &self.wildcard_type()) {
+                    includes |= TypeFlags::IncludesWildcard;
+                }
+            } else if self.strict_null_checks || !flags.intersects(TypeFlags::Nullable) {
+                if matches!(self.exact_optional_property_types, Some(true))
+                    && Rc::ptr_eq(&type_, &self.missing_type())
+                {
+                    includes |= TypeFlags::IncludesMissingType;
+                    type_ = self.undefined_type();
+                }
+                if !type_set.contains_key(&type_.id().to_string()) {
+                    if type_.flags().intersects(TypeFlags::Unit)
+                        && includes.intersects(TypeFlags::Unit)
+                    {
+                        includes |= TypeFlags::NonPrimitive;
+                    }
+                    type_set.insert(type_.id().to_string(), type_);
+                }
+            }
+            includes |= flags & TypeFlags::IncludesMask;
+        }
+        includes
+    }
+
+    pub(super) fn add_types_to_intersection(
+        &self,
+        type_set: &mut HashMap<String, Rc<Type>>,
+        mut includes: TypeFlags,
+        types: &[Rc<Type>],
+    ) -> TypeFlags {
+        for type_ in types {
+            includes = self.add_type_to_intersection(
+                type_set,
+                includes,
+                &self.get_regular_type_of_literal_type(type_),
+            );
+        }
+        includes
+    }
+
+    pub(super) fn remove_redundant_primitive_types(
+        &self,
+        types: &mut Vec<Rc<Type>>,
+        includes: TypeFlags,
+    ) {
+        let mut i = types.len();
+        while i > 0 {
+            i -= 1;
+            let t = types[i].clone();
+            let remove = t.flags().intersects(TypeFlags::String)
+                && includes.intersects(TypeFlags::StringLiteral)
+                || t.flags().intersects(TypeFlags::Number)
+                    && includes.intersects(TypeFlags::NumberLiteral)
+                || t.flags().intersects(TypeFlags::BigInt)
+                    && includes.intersects(TypeFlags::BigIntLiteral)
+                || t.flags().intersects(TypeFlags::ESSymbol)
+                    && includes.intersects(TypeFlags::UniqueESSymbol);
+            if remove {
+                ordered_remove_item_at(types, i);
+            }
+        }
     }
 
     pub(super) fn get_intersection_type<TAliasSymbol: Borrow<Symbol>>(
