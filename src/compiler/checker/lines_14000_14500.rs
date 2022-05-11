@@ -7,14 +7,13 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    array_of, filter, find, find_index, find_last_index, for_each, get_object_flags,
-    is_part_of_type_node, ordered_remove_item_at, push_if_unique_rc, reduce_left, replace_element,
-    same_map, some, AccessFlags, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
-    Signature, TypePredicate, TypePredicateKind, TypeReferenceInterface,
-    UnionOrIntersectionTypeInterface, UnionType, __String, binary_search_copy_key, compare_values,
-    get_name_of_declaration, map, unescape_leading_underscores, BaseUnionOrIntersectionType, Node,
-    ObjectFlags, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    UnionReduction,
+    array_of, binary_search_copy_key, compare_values, filter, find, find_index, find_last_index,
+    for_each, get_object_flags, is_part_of_type_node, map, ordered_remove_item_at,
+    push_if_unique_rc, reduce_left, replace_element, same_map, some, BaseUnionOrIntersectionType,
+    Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface, Node, ObjectFlags,
+    Signature, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    TypePredicate, TypePredicateKind, TypeReferenceInterface, UnionOrIntersectionTypeInterface,
+    UnionReduction, UnionType,
 };
 
 impl TypeChecker {
