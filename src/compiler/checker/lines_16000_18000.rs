@@ -615,6 +615,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_type_subtype_of(&self, source: &Type, target: &Type) -> bool {
+        self.is_type_related_to(source, target, &self.subtype_relation())
+    }
+
     pub(super) fn is_type_assignable_to(&self, source: &Type, target: &Type) -> bool {
         self.is_type_related_to(source, target, &self.assignable_relation())
     }

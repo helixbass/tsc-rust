@@ -2492,6 +2492,10 @@ impl TypeChecker {
         self.union_types.borrow_mut()
     }
 
+    pub(super) fn intersection_types(&self) -> RefMut<HashMap<String, Rc<Type>>> {
+        self.intersection_types.borrow_mut()
+    }
+
     pub(super) fn string_literal_types(
         &self,
     ) -> RefMut<HashMap<String, Rc</*NumberLiteralType*/ Type>>> {
