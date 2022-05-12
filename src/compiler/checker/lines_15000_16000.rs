@@ -1,22 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
 
-use crate::{
-    concatenate, contains_rc, every, filter, find_index,
-    get_declaration_modifier_flags_from_symbol, get_object_flags, index_of_rc,
-    is_computed_property_name, is_identifier, is_known_symbol, is_private_identifier, map,
-    ordered_remove_item_at, reduce_left, replace_element, some, symbol_name,
-    walk_up_parenthesized_types, AccessFlags, BaseUnionOrIntersectionType, Debug_, Diagnostics,
-    IndexInfo, IndexType, InternalSymbolName, IntersectionType, ModifierFlags, NodeInterface,
-    ObjectFlags, ObjectTypeInterface, SyntaxKind, UnionOrIntersectionTypeInterface, UnionReduction,
-    __String, get_name_of_declaration, unescape_leading_underscores, Node, Symbol, SymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeInterface,
-};
+use crate::{AccessFlags, Node, Symbol, Type, TypeChecker, __String};
 
 impl TypeChecker {
     pub(super) fn get_template_string_for_type(&self, type_: &Type) -> Option<String> {
