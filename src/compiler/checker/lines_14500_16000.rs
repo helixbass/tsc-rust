@@ -7,10 +7,10 @@ use std::rc::Rc;
 
 use crate::{
     contains_rc, every, filter, find_index, get_object_flags, index_of_rc, ordered_remove_item_at,
-    some, AccessFlags, BaseUnionOrIntersectionType, IntersectionType, ObjectFlags,
-    UnionOrIntersectionTypeInterface, UnionReduction, __String, get_name_of_declaration,
-    unescape_leading_underscores, Node, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    reduce_left, some, AccessFlags, BaseUnionOrIntersectionType, Diagnostics, IntersectionType,
+    ObjectFlags, UnionOrIntersectionTypeInterface, UnionReduction, __String,
+    get_name_of_declaration, unescape_leading_underscores, Node, Symbol, SymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -331,12 +331,61 @@ impl TypeChecker {
         result.unwrap()
     }
 
+    pub(super) fn get_cross_product_union_size(&self, types: &[Rc<Type>]) -> usize {
+        reduce_left(
+            types,
+            |n, t: &Rc<Type>, _| {
+                if t.flags().intersects(TypeFlags::Union) {
+                    n * t.as_union_type().types().len()
+                } else if t.flags().intersects(TypeFlags::Never) {
+                    0
+                } else {
+                    n
+                }
+            },
+            1,
+            None,
+            None,
+        )
+    }
+
     pub(super) fn check_cross_product_union(&self, types: &[Rc<Type>]) -> bool {
-        unimplemented!()
+        let size = self.get_cross_product_union_size(types);
+        if size >= 100000 {
+            // tracing?.instant(tracing.Phase.CheckTypes, "checkCrossProductUnion_DepthLimit", { typeIds: types.map(t => t.id), size });
+            self.error(
+                self.maybe_current_node(),
+                &Diagnostics::Expression_produces_a_union_type_that_is_too_complex_to_represent,
+                None,
+            );
+            return false;
+        }
+        true
     }
 
     pub(super) fn get_cross_product_intersections(&self, types: &[Rc<Type>]) -> Vec<Rc<Type>> {
-        unimplemented!()
+        let count = self.get_cross_product_union_size(types);
+        let mut intersections: Vec<Rc<Type>> = vec![];
+        for i in 0..count {
+            let mut constituents = types.to_owned();
+            let mut n = i;
+            let mut j: isize = (types.len() - 1).try_into().unwrap();
+            while j >= 0 {
+                let j_as_usize: usize = j.try_into().unwrap();
+                if types[j_as_usize].flags().intersects(TypeFlags::Union) {
+                    let source_types = types[j_as_usize].as_union_type().types();
+                    let length = source_types.len();
+                    constituents[j_as_usize] = source_types[n % length].clone();
+                    n = (n as f64 / length as f64).floor() as usize;
+                }
+                j -= 1;
+            }
+            let t = self.get_intersection_type(&constituents, Option::<&Symbol>::None, None);
+            if !t.flags().intersects(TypeFlags::Never) {
+                intersections.push(t);
+            }
+        }
+        intersections
     }
 
     pub(super) fn get_literal_type_from_property_name(
