@@ -542,6 +542,8 @@ pub trait TypeInterface {
     fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
     // InstantiableType fields
     fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_resolved_index_type(&self) -> RefMut<Option<Rc<Type /*IndexType*/>>>;
+    fn maybe_resolved_string_index_type(&self) -> RefMut<Option<Rc<Type /*IndexType*/>>>;
 }
 
 #[derive(Clone, Debug)]
@@ -557,6 +559,8 @@ pub struct BaseType {
     immediate_base_constraint: RefCell<Option<Rc<Type>>>,
     // InstantiableType fields
     resolved_base_constraint: RefCell<Option<Rc<Type>>>,
+    resolved_index_type: RefCell<Option<Rc<Type /*IndexType*/>>>,
+    resolved_string_index_type: RefCell<Option<Rc<Type /*IndexType*/>>>,
 }
 
 impl BaseType {
@@ -572,6 +576,8 @@ impl BaseType {
             restrictive_instantiation: RefCell::new(None),
             immediate_base_constraint: RefCell::new(None),
             resolved_base_constraint: RefCell::new(None),
+            resolved_index_type: RefCell::new(None),
+            resolved_string_index_type: RefCell::new(None),
         }
     }
 }
@@ -636,6 +642,14 @@ impl TypeInterface for BaseType {
 
     fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Rc<Type>>> {
         self.resolved_base_constraint.borrow_mut()
+    }
+
+    fn maybe_resolved_index_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_index_type.borrow_mut()
+    }
+
+    fn maybe_resolved_string_index_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_string_index_type.borrow_mut()
     }
 }
 

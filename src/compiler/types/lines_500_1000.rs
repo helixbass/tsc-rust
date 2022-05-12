@@ -1206,6 +1206,10 @@ impl Node {
     pub fn as_optional_type_node(&self) -> &OptionalTypeNode {
         enum_unwrapped!(self, [Node, OptionalTypeNode])
     }
+
+    pub fn as_intersection_type_node(&self) -> &IntersectionTypeNode {
+        enum_unwrapped!(self, [Node, IntersectionTypeNode])
+    }
 }
 
 #[derive(Debug)]

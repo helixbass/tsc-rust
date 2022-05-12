@@ -3,14 +3,19 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    contains_rc, every, filter, find_index, get_object_flags, index_of_rc, ordered_remove_item_at,
-    reduce_left, some, AccessFlags, BaseUnionOrIntersectionType, Diagnostics, IntersectionType,
-    ObjectFlags, UnionOrIntersectionTypeInterface, UnionReduction, __String,
-    get_name_of_declaration, unescape_leading_underscores, Node, Symbol, SymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    concatenate, contains_rc, every, filter, find_index,
+    get_declaration_modifier_flags_from_symbol, get_object_flags, index_of_rc,
+    is_computed_property_name, is_identifier, is_known_symbol, is_private_identifier, map,
+    ordered_remove_item_at, reduce_left, some, symbol_name, AccessFlags,
+    BaseUnionOrIntersectionType, Diagnostics, IndexInfo, IndexType, InternalSymbolName,
+    IntersectionType, ModifierFlags, ObjectFlags, ObjectTypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction, __String, get_name_of_declaration,
+    unescape_leading_underscores, Node, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -388,14 +393,260 @@ impl TypeChecker {
         intersections
     }
 
+    pub(super) fn get_type_from_intersection_type_node(
+        &self,
+        node: &Node, /*IntersectionTypeNode*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            links.borrow_mut().resolved_type = Some(
+                self.get_intersection_type(
+                    &map(
+                        Some(&*node.as_intersection_type_node().types),
+                        |type_: &Rc<Node>, _| self.get_type_from_type_node_(type_),
+                    )
+                    .unwrap(),
+                    alias_symbol.clone(),
+                    self.get_type_arguments_for_alias_symbol(alias_symbol)
+                        .as_deref(),
+                ),
+            );
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn create_index_type(
+        &self,
+        type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
+        strings_only: bool,
+    ) -> Rc<Type> {
+        let result = self.create_type(TypeFlags::Index);
+        let result: Rc<Type> = IndexType::new(result, type_.type_wrapper(), strings_only).into();
+        result
+    }
+
+    pub(super) fn create_origin_index_type(
+        &self,
+        type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
+    ) -> Rc<Type> {
+        let result = self.create_origin_type(TypeFlags::Index);
+        let result: Rc<Type> =
+            IndexType::new(result, type_.type_wrapper(), false /*this is made up*/).into();
+        result
+    }
+
+    pub(super) fn get_index_type_for_generic_type(
+        &self,
+        type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
+        strings_only: bool,
+    ) -> Rc<Type> {
+        if strings_only {
+            let mut type_resolved_string_index_type = type_.maybe_resolved_string_index_type();
+            if type_resolved_string_index_type.is_none() {
+                *type_resolved_string_index_type = Some(self.create_index_type(type_, true));
+            }
+            type_resolved_string_index_type.clone().unwrap()
+        } else {
+            let mut type_resolved_index_type = type_.maybe_resolved_index_type();
+            if type_resolved_index_type.is_none() {
+                *type_resolved_index_type = Some(self.create_index_type(type_, false));
+            }
+            type_resolved_index_type.clone().unwrap()
+        }
+    }
+
+    pub(super) fn get_index_type_for_mapped_type(
+        &self,
+        type_: &Type, /*MappedType*/
+        strings_only: bool,
+        no_index_signatures: Option<bool>,
+    ) -> Rc<Type> {
+        let type_parameter = self.get_type_parameter_from_mapped_type(type_);
+        let constraint_type = self.get_constraint_type_from_mapped_type(type_);
+        let name_type = self.get_name_type_from_mapped_type(
+            &type_
+                .as_mapped_type()
+                .maybe_target()
+                .unwrap_or_else(|| type_.type_wrapper()),
+        );
+        if name_type.is_none() && !matches!(no_index_signatures, Some(true)) {
+            return constraint_type;
+        }
+        let mut key_types: Vec<Rc<Type>> = vec![];
+        if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
+            if !self.is_generic_index_type(&constraint_type) {
+                let modifiers_type =
+                    self.get_apparent_type(&self.get_modifiers_type_from_mapped_type(type_));
+                self.for_each_mapped_type_property_key_type_and_index_signature_key_type(
+                    &modifiers_type,
+                    TypeFlags::StringOrNumberLiteralOrUnique,
+                    strings_only,
+                    |t| {
+                        self.add_member_for_key_type_get_index_type_for_mapped_type(
+                            name_type.as_ref(),
+                            &type_parameter,
+                            &mut key_types,
+                            type_,
+                            t,
+                        )
+                    },
+                );
+            } else {
+                return self.get_index_type_for_generic_type(type_, strings_only);
+            }
+        } else {
+            self.for_each_type(&self.get_lower_bound_of_key_type(&constraint_type), |t| {
+                self.add_member_for_key_type_get_index_type_for_mapped_type(
+                    name_type.as_ref(),
+                    &type_parameter,
+                    &mut key_types,
+                    type_,
+                    t,
+                );
+                Option::<()>::None
+            });
+        }
+        if self.is_generic_index_type(&constraint_type) {
+            self.for_each_type(&constraint_type, |t| {
+                self.add_member_for_key_type_get_index_type_for_mapped_type(
+                    name_type.as_ref(),
+                    &type_parameter,
+                    &mut key_types,
+                    type_,
+                    t,
+                );
+                Option::<()>::None
+            });
+        }
+        let result = if matches!(no_index_signatures, Some(true)) {
+            self.filter_type(
+                &self.get_union_type(
+                    key_types,
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ),
+                |t| !t.flags().intersects(TypeFlags::Any | TypeFlags::String),
+            )
+        } else {
+            self.get_union_type(
+                key_types,
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        };
+        if result.flags().intersects(TypeFlags::Union)
+            && constraint_type.flags().intersects(TypeFlags::Union)
+            && self.get_type_list_id(Some(result.as_union_type().types()))
+                == self.get_type_list_id(Some(constraint_type.as_union_type().types()))
+        {
+            return constraint_type;
+        }
+        result
+    }
+
+    pub(super) fn add_member_for_key_type_get_index_type_for_mapped_type(
+        &self,
+        name_type: Option<&Rc<Type>>,
+        type_parameter: &Type,
+        key_types: &mut Vec<Rc<Type>>,
+        type_: &Type,
+        key_type: &Type,
+    ) {
+        let prop_name_type = if let Some(name_type) = name_type {
+            self.instantiate_type(
+                Some(&**name_type),
+                Some(&self.append_type_mapping(
+                    type_.as_mapped_type().maybe_mapper().map(Clone::clone),
+                    type_parameter,
+                    &key_type,
+                )),
+            )
+            .unwrap()
+        } else {
+            key_type.type_wrapper()
+        };
+        key_types.push(if Rc::ptr_eq(&prop_name_type, &self.string_type()) {
+            self.string_or_number_type()
+        } else {
+            prop_name_type
+        });
+    }
+
+    pub(super) fn has_distributive_name_type(
+        &self,
+        mapped_type: &Type, /*MappedType*/
+    ) -> bool {
+        let type_variable = self.get_type_parameter_from_mapped_type(mapped_type);
+        self.is_distributive(
+            &type_variable,
+            &self
+                .get_name_type_from_mapped_type(mapped_type)
+                .unwrap_or_else(|| type_variable.clone()),
+        )
+    }
+
+    pub(super) fn is_distributive(&self, type_variable: &Type, type_: &Type) -> bool {
+        if type_.flags().intersects(
+            TypeFlags::AnyOrUnknown
+                | TypeFlags::Primitive
+                | TypeFlags::Never
+                | TypeFlags::TypeParameter
+                | TypeFlags::Object
+                | TypeFlags::NonPrimitive,
+        ) {
+            true
+        } else if type_.flags().intersects(TypeFlags::Conditional) {
+            let type_as_conditional_type = type_.as_conditional_type();
+            type_as_conditional_type.root.is_distributive
+                && ptr::eq(&*type_as_conditional_type.check_type, type_variable)
+        } else if type_
+            .flags()
+            .intersects(TypeFlags::UnionOrIntersection | TypeFlags::TemplateLiteral)
+        {
+            every(
+                if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+                    type_.as_union_or_intersection_type_interface().types()
+                } else {
+                    &*type_.as_template_literal_type().types
+                },
+                |t: &Rc<Type>, _| self.is_distributive(type_variable, t),
+            )
+        } else if type_.flags().intersects(TypeFlags::IndexedAccess) {
+            let type_as_indexed_access_type = type_.as_indexed_access_type();
+            self.is_distributive(type_variable, &type_as_indexed_access_type.object_type)
+                && self.is_distributive(type_variable, &type_as_indexed_access_type.index_type)
+        } else if type_.flags().intersects(TypeFlags::Substitution) {
+            self.is_distributive(type_variable, &type_.as_substitution_type().substitute)
+        } else if type_.flags().intersects(TypeFlags::StringMapping) {
+            self.is_distributive(type_variable, &type_.as_string_mapping_type().type_)
+        } else {
+            false
+        }
+    }
+
     pub(super) fn get_literal_type_from_property_name(
         &self,
         name: &Node, /*PropertyName*/
     ) -> Rc<Type> {
-        if let Node::Identifier(identifier) = name {
-            self.get_string_literal_type(&unescape_leading_underscores(&identifier.escaped_text))
+        if is_private_identifier(name) {
+            return self.never_type();
+        }
+        if is_identifier(name) {
+            self.get_string_literal_type(&unescape_leading_underscores(
+                &name.as_identifier().escaped_text,
+            ))
         } else {
-            unimplemented!()
+            self.get_regular_type_of_literal_type(&*if is_computed_property_name(name) {
+                self.check_computed_property_name(name)
+            } else {
+                self.check_expression(name, None, None)
+            })
         }
     }
 
@@ -406,20 +657,26 @@ impl TypeChecker {
         include_non_public: Option<bool>,
     ) -> Rc<Type> {
         let include_non_public = include_non_public.unwrap_or(false);
-        if include_non_public || true {
-            let mut type_ = None;
+        if include_non_public
+            || !get_declaration_modifier_flags_from_symbol(prop, None)
+                .intersects(ModifierFlags::NonPublicAccessibilityModifier)
+        {
+            let mut type_ = (*self.get_symbol_links(&self.get_late_bound_symbol(prop)))
+                .borrow()
+                .name_type
+                .clone();
             if type_.is_none() {
-                let name = prop
-                    .maybe_value_declaration()
-                    .and_then(|value_declaration| {
-                        get_name_of_declaration(Some(&*value_declaration))
-                    });
-                type_ = if false {
-                    unimplemented!()
+                let name = get_name_of_declaration(prop.maybe_value_declaration());
+                type_ = if prop.escaped_name() == &InternalSymbolName::Default() {
+                    Some(self.get_string_literal_type("default"))
                 } else if let Some(name) = name {
-                    Some(self.get_literal_type_from_property_name(&*name))
+                    Some(self.get_literal_type_from_property_name(&name))
                 } else {
-                    unimplemented!()
+                    if !is_known_symbol(prop) {
+                        Some(self.get_string_literal_type(&symbol_name(prop)))
+                    } else {
+                        None
+                    }
                 }
             }
             if let Some(type_) = type_ {
@@ -428,7 +685,64 @@ impl TypeChecker {
                 }
             }
         }
-        unimplemented!()
+        self.never_type()
+    }
+
+    pub(super) fn is_key_type_included(&self, key_type: &Type, include: TypeFlags) -> bool {
+        key_type.flags().intersects(include)
+            || key_type.flags().intersects(TypeFlags::Intersection)
+                && some(
+                    Some(key_type.as_intersection_type().types()),
+                    Some(|t: &Rc<Type>| self.is_key_type_included(t, include)),
+                )
+    }
+
+    pub(super) fn get_literal_type_from_properties(
+        &self,
+        type_: &Type,
+        include: TypeFlags,
+        include_origin: bool,
+    ) -> Rc<Type> {
+        let origin = if include_origin
+            && (get_object_flags(type_)
+                .intersects(ObjectFlags::ClassOrInterface | ObjectFlags::Reference)
+                || type_.maybe_alias_symbol().is_some())
+        {
+            Some(self.create_origin_index_type(type_))
+        } else {
+            None
+        };
+        let property_types = map(
+            Some(&self.get_properties_of_type(type_)),
+            |prop: &Rc<Symbol>, _| self.get_literal_type_from_property(prop, include, None),
+        )
+        .unwrap();
+        let index_key_types = map(
+            Some(&self.get_index_infos_of_type(type_)),
+            |info: &Rc<IndexInfo>, _| {
+                if !Rc::ptr_eq(info, &self.enum_number_index_info())
+                    && self.is_key_type_included(&info.key_type, include)
+                {
+                    if Rc::ptr_eq(&info.key_type, &self.string_type())
+                        && include.intersects(TypeFlags::Number)
+                    {
+                        self.string_or_number_type()
+                    } else {
+                        info.key_type.clone()
+                    }
+                } else {
+                    self.never_type()
+                }
+            },
+        )
+        .unwrap();
+        self.get_union_type(
+            concatenate(property_types, index_key_types),
+            Some(UnionReduction::Literal),
+            Option::<&Symbol>::None,
+            None,
+            origin,
+        )
     }
 
     pub(super) fn get_index_type(

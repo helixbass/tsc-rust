@@ -913,7 +913,7 @@ impl TypeChecker {
                 include,
                 self.keyof_strings_only,
                 |key_type| {
-                    self.add_member_for_key_type(
+                    self.add_member_for_key_type_resolved_mapped_type_members(
                         type_,
                         name_type.as_deref(),
                         &type_parameter,
@@ -930,7 +930,7 @@ impl TypeChecker {
             self.for_each_type(
                 &self.get_lower_bound_of_key_type(&constraint_type),
                 |key_type| {
-                    self.add_member_for_key_type(
+                    self.add_member_for_key_type_resolved_mapped_type_members(
                         type_,
                         name_type.as_deref(),
                         &type_parameter,
@@ -954,7 +954,7 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn add_member_for_key_type(
+    pub(super) fn add_member_for_key_type_resolved_mapped_type_members(
         &self,
         type_: &Type, /*MappedType*/
         name_type: Option<&Type>,

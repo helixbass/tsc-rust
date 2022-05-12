@@ -2648,6 +2648,10 @@ impl TypeChecker {
         self.silent_never_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn string_or_number_type(&self) -> Rc<Type> {
+        self.string_or_number_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn string_number_symbol_type(&self) -> Rc<Type> {
         self.string_number_symbol_type.as_ref().unwrap().clone()
     }

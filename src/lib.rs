@@ -394,7 +394,7 @@ pub use compiler::utilities::{
     is_in_js_file, is_in_jsdoc, is_in_top_level_context, is_incremental_compilation,
     is_internal_module_import_equals_declaration, is_jsdoc_construct_signature,
     is_jsdoc_index_signature, is_jsdoc_type_alias, is_json_source_file, is_keyword,
-    is_late_visibility_painted_statement, is_literal_import_type_node,
+    is_known_symbol, is_late_visibility_painted_statement, is_literal_import_type_node,
     is_logical_or_coalescing_assignment_operator, is_module_augmentation_external,
     is_module_exports_access_expression, is_module_with_string_literal_name,
     is_namespace_reexport_declaration, is_node_descendant_of, is_object_literal_method,
