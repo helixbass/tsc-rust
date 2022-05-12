@@ -1210,6 +1210,14 @@ impl Node {
     pub fn as_intersection_type_node(&self) -> &IntersectionTypeNode {
         enum_unwrapped!(self, [Node, IntersectionTypeNode])
     }
+
+    pub fn as_template_literal_type_node(&self) -> &TemplateLiteralTypeNode {
+        enum_unwrapped!(self, [Node, TemplateLiteralTypeNode])
+    }
+
+    pub fn as_template_literal_type_span(&self) -> &TemplateLiteralTypeSpan {
+        enum_unwrapped!(self, [Node, TemplateLiteralTypeSpan])
+    }
 }
 
 #[derive(Debug)]

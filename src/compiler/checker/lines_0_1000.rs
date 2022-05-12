@@ -2514,6 +2514,12 @@ impl TypeChecker {
         self.big_int_literal_types.borrow_mut()
     }
 
+    pub(super) fn template_literal_types(
+        &self,
+    ) -> RefMut<HashMap<String, Rc<Type /*TemplateLiteralType*/>>> {
+        self.template_literal_types.borrow_mut()
+    }
+
     pub(super) fn substitution_types(
         &self,
     ) -> RefMut<HashMap<String, Rc<Type /*SubstitutionType*/>>> {

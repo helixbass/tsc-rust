@@ -10,12 +10,12 @@ use crate::{
     concatenate, contains_rc, every, filter, find_index,
     get_declaration_modifier_flags_from_symbol, get_object_flags, index_of_rc,
     is_computed_property_name, is_identifier, is_known_symbol, is_private_identifier, map,
-    ordered_remove_item_at, reduce_left, some, symbol_name, AccessFlags,
-    BaseUnionOrIntersectionType, Diagnostics, IndexInfo, IndexType, InternalSymbolName,
-    IntersectionType, ModifierFlags, ObjectFlags, ObjectTypeInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction, __String, get_name_of_declaration,
-    unescape_leading_underscores, Node, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    ordered_remove_item_at, reduce_left, replace_element, some, symbol_name,
+    walk_up_parenthesized_types, AccessFlags, BaseUnionOrIntersectionType, Debug_, Diagnostics,
+    IndexInfo, IndexType, InternalSymbolName, IntersectionType, ModifierFlags, NodeInterface,
+    ObjectFlags, ObjectTypeInterface, SyntaxKind, UnionOrIntersectionTypeInterface, UnionReduction,
+    __String, get_name_of_declaration, unescape_leading_underscores, Node, Symbol, SymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -752,17 +752,287 @@ impl TypeChecker {
         no_index_signatures: Option<bool>,
     ) -> Rc<Type> {
         let strings_only = strings_only.unwrap_or(self.keyof_strings_only);
-        unimplemented!()
+        let type_ = self.get_reduced_type(type_);
+        if type_.flags().intersects(TypeFlags::Union) {
+            self.get_intersection_type(
+                &map(Some(type_.as_union_type().types()), |t: &Rc<Type>, _| {
+                    self.get_index_type(t, Some(strings_only), no_index_signatures)
+                })
+                .unwrap(),
+                Option::<&Symbol>::None,
+                None,
+            )
+        } else if type_.flags().intersects(TypeFlags::Intersection) {
+            self.get_union_type(
+                map(
+                    Some(type_.as_intersection_type().types()),
+                    |t: &Rc<Type>, _| {
+                        self.get_index_type(t, Some(strings_only), no_index_signatures)
+                    },
+                )
+                .unwrap(),
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        } else if type_
+            .flags()
+            .intersects(TypeFlags::InstantiableNonPrimitive)
+            || self.is_generic_tuple_type(&type_)
+            || self.is_generic_mapped_type(&type_) && !self.has_distributive_name_type(&type_)
+        {
+            self.get_index_type_for_generic_type(&type_, strings_only)
+        } else if get_object_flags(&type_).intersects(ObjectFlags::Mapped) {
+            self.get_index_type_for_mapped_type(&type_, strings_only, no_index_signatures)
+        } else if Rc::ptr_eq(&type_, &self.wildcard_type()) {
+            self.wildcard_type()
+        } else if type_.flags().intersects(TypeFlags::Unknown) {
+            self.never_type()
+        } else if type_.flags().intersects(TypeFlags::Any | TypeFlags::Never) {
+            self.keyof_constraint_type()
+        } else {
+            self.get_literal_type_from_properties(
+                &type_,
+                (if matches!(no_index_signatures, Some(true)) {
+                    TypeFlags::StringLiteral
+                } else {
+                    TypeFlags::StringLike
+                }) | if strings_only {
+                    TypeFlags::None
+                } else {
+                    TypeFlags::NumberLike | TypeFlags::ESSymbolLike
+                },
+                strings_only == self.keyof_strings_only
+                    && !matches!(no_index_signatures, Some(true)),
+            )
+        }
     }
 
     pub(super) fn get_extract_string_type(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        if self.keyof_strings_only {
+            return type_.type_wrapper();
+        }
+        let extract_type_alias = self.get_global_extract_symbol();
+        if let Some(extract_type_alias) = extract_type_alias {
+            self.get_type_alias_instantiation(
+                &extract_type_alias,
+                Some(&[type_.type_wrapper(), self.string_type()]),
+                Option::<&Symbol>::None,
+                None,
+            )
+        } else {
+            self.string_type()
+        }
+    }
+
+    pub(super) fn get_index_type_or_string(&self, type_: &Type) -> Rc<Type> {
+        let index_type = self.get_extract_string_type(&self.get_index_type(type_, None, None));
+        if index_type.flags().intersects(TypeFlags::Never) {
+            self.string_type()
+        } else {
+            index_type
+        }
+    }
+
+    pub(super) fn get_type_from_type_operator_node(
+        &self,
+        node: &Node, /*TypeOperatorNode*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            let node_as_type_operator_node = node.as_type_operator_node();
+            match node_as_type_operator_node.operator {
+                SyntaxKind::KeyOfKeyword => {
+                    links.borrow_mut().resolved_type = Some(self.get_index_type(
+                        &self.get_type_from_type_node_(&node_as_type_operator_node.type_),
+                        None,
+                        None,
+                    ));
+                }
+                SyntaxKind::UniqueKeyword => {
+                    links.borrow_mut().resolved_type = Some(
+                        if node_as_type_operator_node.type_.kind() == SyntaxKind::SymbolKeyword {
+                            self.get_es_symbol_like_type_for_node(
+                                &walk_up_parenthesized_types(&node.parent()).unwrap(),
+                            )
+                        } else {
+                            self.error_type()
+                        },
+                    );
+                }
+                SyntaxKind::KeyOfKeyword => {
+                    links.borrow_mut().resolved_type =
+                        Some(self.get_type_from_type_node_(&node_as_type_operator_node.type_));
+                }
+                _ => {
+                    Debug_.assert_never(node_as_type_operator_node.operator, None);
+                }
+            }
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn get_type_from_template_type_node(
+        &self,
+        node: &Node, /*TemplateLiteralTypeNode*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            let node_as_template_literal_type_node = node.as_template_literal_type_node();
+            let mut texts = vec![node_as_template_literal_type_node
+                .head
+                .as_literal_like_node()
+                .text()
+                .clone()];
+            texts.extend(
+                map(
+                    Some(&*node_as_template_literal_type_node.template_spans),
+                    |span: &Rc<Node>, _| {
+                        span.as_template_literal_type_span()
+                            .literal
+                            .as_literal_like_node()
+                            .text()
+                            .clone()
+                    },
+                )
+                .unwrap()
+                .into_iter(),
+            );
+            links.borrow_mut().resolved_type = Some(
+                self.get_template_literal_type(
+                    &texts,
+                    &map(
+                        Some(&*node_as_template_literal_type_node.template_spans),
+                        |span: &Rc<Node>, _| {
+                            self.get_type_from_type_node_(
+                                &span.as_template_literal_type_span().type_,
+                            )
+                        },
+                    )
+                    .unwrap(),
+                ),
+            );
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
     }
 
     pub(super) fn get_template_literal_type(
         &self,
         texts: &[String],
         types: &[Rc<Type>],
+    ) -> Rc<Type> {
+        let union_index = find_index(
+            types,
+            |t: &Rc<Type>, _| t.flags().intersects(TypeFlags::Never | TypeFlags::Union),
+            None,
+        );
+        if let Some(union_index) = union_index {
+            return if self.check_cross_product_union(types) {
+                self.map_type(
+                    &types[union_index],
+                    &mut |t| {
+                        Some(self.get_template_literal_type(
+                            texts,
+                            &replace_element(types, union_index, t.type_wrapper()),
+                        ))
+                    },
+                    None,
+                )
+                .unwrap()
+            } else {
+                self.error_type()
+            };
+        }
+        if contains_rc(Some(types), &self.wildcard_type()) {
+            return self.wildcard_type();
+        }
+        let mut new_types: Vec<Rc<Type>> = vec![];
+        let mut new_texts: Vec<String> = vec![];
+        let mut text = texts[0].clone();
+        if !self.add_spans(&mut text, &mut new_types, &mut new_texts, texts, types) {
+            return self.string_type();
+        }
+        if new_types.is_empty() {
+            return self.get_string_literal_type(&text);
+        }
+        new_texts.push(text);
+        if every(&new_texts, |t: &String, _| t == "")
+            && every(&new_types, |t: &Rc<Type>, _| {
+                t.flags().intersects(TypeFlags::String)
+            })
+        {
+            return self.string_type();
+        }
+        let id = format!(
+            "{}|{}|{}",
+            self.get_type_list_id(Some(&new_types)),
+            map(Some(&new_texts), |t: &String, _| t.len().to_string())
+                .unwrap()
+                .join(","),
+            new_texts.join("")
+        );
+        let mut type_ = self.template_literal_types().get(&id).map(Clone::clone);
+        if type_.is_none() {
+            type_ = Some(self.create_template_literal_type(new_texts, new_types));
+            self.template_literal_types()
+                .insert(id, type_.clone().unwrap());
+        }
+        type_.unwrap()
+    }
+
+    pub(super) fn add_spans(
+        &self,
+        text: &mut String,
+        new_types: &mut Vec<Rc<Type>>,
+        new_texts: &mut Vec<String>,
+        texts: &[String],
+        types: &[Rc<Type>],
+    ) -> bool {
+        for (i, t) in types.iter().enumerate() {
+            if t.flags()
+                .intersects(TypeFlags::Literal | TypeFlags::Null | TypeFlags::Undefined)
+            {
+                text.push_str(
+                    &self
+                        .get_template_string_for_type(t)
+                        .unwrap_or_else(|| "".to_owned()),
+                );
+                text.push_str(&texts[i + 1]);
+            } else if t.flags().intersects(TypeFlags::TemplateLiteral) {
+                let t_as_template_literal_type = t.as_template_literal_type();
+                text.push_str(&t_as_template_literal_type.texts[0]);
+                if !self.add_spans(
+                    text,
+                    new_types,
+                    new_texts,
+                    &t_as_template_literal_type.texts,
+                    &t_as_template_literal_type.types,
+                ) {
+                    return false;
+                }
+                text.push_str(&texts[i + 1]);
+            } else if self.is_generic_index_type(t) || self.is_pattern_literal_placeholder_type(t) {
+                new_types.push(t.clone());
+                new_texts.push(text.clone());
+                *text = texts[i + 1].clone();
+            } else {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub(super) fn get_template_string_for_type(&self, type_: &Type) -> Option<String> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_template_literal_type(
+        &self,
+        texts: Vec<String>,
+        types: Vec<Rc<Type>>,
     ) -> Rc<Type> {
         unimplemented!()
     }
@@ -803,6 +1073,10 @@ impl TypeChecker {
             }
         }
         None
+    }
+
+    pub(super) fn is_pattern_literal_placeholder_type(&self, type_: &Type) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn is_pattern_literal_type(&self, type_: &Type) -> bool {
