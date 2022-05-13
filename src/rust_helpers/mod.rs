@@ -63,3 +63,20 @@ pub fn are_rc_slices_equal<TItem>(a: &[Rc<TItem>], b: &[Rc<TItem>]) -> bool {
     }
     true
 }
+
+// https://stackoverflow.com/a/38406885
+pub fn capitalize(string: &str) -> String {
+    let mut c = string.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
+pub fn uncapitalize(string: &str) -> String {
+    let mut c = string.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_lowercase().collect::<String>() + c.as_str(),
+    }
+}

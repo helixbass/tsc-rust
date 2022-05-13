@@ -3,11 +3,30 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
-use crate::{AccessFlags, Node, Symbol, Type, TypeChecker, __String};
+use super::{intrinsic_type_kinds, IntrinsicTypeKind};
+use crate::{
+    capitalize, uncapitalize, AccessFlags, Node, Symbol, SymbolInterface, TemplateLiteralType,
+    Type, TypeChecker, __String, pseudo_big_int_to_string, TypeFlags, TypeInterface,
+};
 
 impl TypeChecker {
     pub(super) fn get_template_string_for_type(&self, type_: &Type) -> Option<String> {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::StringLiteral) {
+            Some(type_.as_string_literal_type().value.clone())
+        } else if type_.flags().intersects(TypeFlags::NumberLiteral) {
+            Some(type_.as_number_literal_type().value.to_string())
+        } else if type_.flags().intersects(TypeFlags::BigIntLiteral) {
+            Some(pseudo_big_int_to_string(
+                &type_.as_big_int_literal_type().value,
+            ))
+        } else if type_
+            .flags()
+            .intersects(TypeFlags::BooleanLiteral | TypeFlags::Nullable)
+        {
+            Some(type_.as_intrinsic_type().intrinsic_name().to_owned())
+        } else {
+            None
+        }
     }
 
     pub(super) fn create_template_literal_type(
@@ -15,10 +34,48 @@ impl TypeChecker {
         texts: Vec<String>,
         types: Vec<Rc<Type>>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_ = self.create_type(TypeFlags::TemplateLiteral);
+        let type_: Rc<Type> = TemplateLiteralType::new(type_, texts, types).into();
+        type_
     }
 
     pub(super) fn get_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Rc<Type> {
+        if type_
+            .flags()
+            .intersects(TypeFlags::Union | TypeFlags::Never)
+        {
+            self.map_type(
+                type_,
+                &mut |t| Some(self.get_string_mapping_type(symbol, t)),
+                None,
+            )
+            .unwrap()
+        } else if self.is_generic_index_type(type_) {
+            self.get_string_mapping_type_for_generic_type(symbol, type_)
+        } else if type_.flags().intersects(TypeFlags::StringLiteral) {
+            self.get_string_literal_type(
+                &self.apply_string_mapping(symbol, &type_.as_string_literal_type().value),
+            )
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn apply_string_mapping(&self, symbol: &Symbol, str_: &str) -> String {
+        match intrinsic_type_kinds.get(&**symbol.escaped_name()) {
+            Some(IntrinsicTypeKind::Uppercase) => str_.to_uppercase(),
+            Some(IntrinsicTypeKind::Lowercase) => str_.to_lowercase(),
+            Some(IntrinsicTypeKind::Capitalize) => capitalize(str_),
+            Some(IntrinsicTypeKind::Uncapitalize) => uncapitalize(str_),
+            _ => str_.to_owned(),
+        }
+    }
+
+    pub(super) fn get_string_mapping_type_for_generic_type(
+        &self,
+        symbol: &Symbol,
+        type_: &Type,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
