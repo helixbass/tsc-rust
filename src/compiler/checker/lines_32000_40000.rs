@@ -8,15 +8,11 @@ use super::{CheckMode, IterationUse, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
-    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, ArrayTypeNode, Block,
-    Diagnostic, DiagnosticMessage, Diagnostics, ExpressionStatement, FunctionDeclaration,
-    FunctionFlags, HasTypeParametersInterface, IfStatement, InterfaceDeclaration, IterationTypes,
+    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, AssignmentKind, Diagnostic,
+    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
-    Symbol, SymbolInterface, SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration,
-    TypeChecker, TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
-    UnionOrIntersectionTypeInterface, VariableDeclaration, VariableLikeDeclarationInterface,
-    VariableStatement,
+    PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -37,6 +33,15 @@ impl TypeChecker {
     }
 
     pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_assignment_to_readonly_entity(
+        &self,
+        expr: &Node, /*Expression*/
+        symbol: &Symbol,
+        assignment_kind: AssignmentKind,
+    ) -> bool {
         unimplemented!()
     }
 
@@ -76,12 +81,25 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn is_type_assignable_to_kind(
+        &self,
+        source: &Type,
+        kind: TypeFlags,
+        strict: Option<bool>,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn all_types_assignable_to_kind(
         &self,
         source: &Type,
         kind: TypeFlags,
         strict: Option<bool>,
     ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_const_enum_object_type(&self, type_: &Type) -> bool {
         unimplemented!()
     }
 

@@ -12,12 +12,12 @@ use super::{
 use crate::{
     filter, get_assignment_declaration_kind, get_this_container,
     is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
-    AssignmentDeclarationKind, ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature,
-    SignatureFlags, SignatureKind, SymbolFlags, Ternary, UnionReduction, __String,
-    create_symbol_table, get_effective_type_annotation_node, get_function_flags, get_object_flags,
-    has_initializer, is_object_literal_expression, HasInitializerInterface, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    AssignmentDeclarationKind, ContextFlags, Debug_, Diagnostics, FunctionFlags, NodeFlags,
+    Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction,
+    __String, create_symbol_table, get_effective_type_annotation_node, get_function_flags,
+    get_object_flags, has_initializer, is_object_literal_expression, HasInitializerInterface, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -468,6 +468,10 @@ impl TypeChecker {
             || (type_.flags().intersects(TypeFlags::Intersection) && unimplemented!())
     }
 
+    pub(super) fn get_declaration_node_flags_from_symbol(&self, s: &Symbol) -> NodeFlags {
+        unimplemented!()
+    }
+
     pub(super) fn is_prototype_property(&self, symbol: &Symbol) -> bool {
         unimplemented!()
     }
@@ -496,6 +500,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_this_property_access_in_constructor(
+        &self,
+        node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
+        prop: &Symbol,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_unchecked_js_suggestion<TNode: Borrow<Node>, TSuggestion: Borrow<Symbol>>(
         &self,
         node: Option<TNode>,
@@ -505,9 +517,25 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn type_has_static_property(
+        &self,
+        prop_name: &__String,
+        containing_type: &Type,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_suggested_lib_for_nonexistent_name(
         &self,
         name: ResolveNameNameArg,
+    ) -> Option<String> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_suggestion_for_nonexistent_property<TName: Into<StringOrRcNode>>(
+        &self,
+        name: TName, /*Identifier | PrivateIdentifier*/
+        containing_type: &Type,
     ) -> Option<String> {
         unimplemented!()
     }
@@ -535,6 +563,32 @@ impl TypeChecker {
         name: &Node, /*Identifier*/
         target_module: &Symbol,
     ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_suggestion_for_nonexistent_index_signature(
+        &self,
+        object_type: &Type,
+        name: &Node, /*ElementAccessExpression*/
+        keyed_type: &Type,
+    ) -> Option<String> {
+        unimplemented!()
+    }
+
+    pub(super) fn mark_property_as_referenced<TNodeForCheckWriteOnly: Borrow<Node>>(
+        &self,
+        prop: &Symbol,
+        node_for_check_write_only: Option<TNodeForCheckWriteOnly>,
+        is_self_type_access: bool,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn is_self_type_access<TParent: Borrow<Symbol>>(
+        &self,
+        name: &Node, /*Expression | QualifiedName*/
+        parent: Option<TParent>,
+    ) -> bool {
         unimplemented!()
     }
 

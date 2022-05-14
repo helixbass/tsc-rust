@@ -6,13 +6,17 @@ use std::rc::Rc;
 
 use super::{get_symbol_id, intrinsic_type_kinds, IntrinsicTypeKind};
 use crate::{
-    capitalize, every, find_ancestor, get_combined_node_flags, get_object_flags,
-    get_property_name_for_property_name_node, is_access_expression, is_call_like_expression,
-    is_call_or_new_expression, is_function_like, is_identifier, is_property_name, maybe_every,
-    some, uncapitalize, AccessFlags, IndexedAccessType, Node, NodeFlags, NodeInterface,
-    ObjectFlags, StringMappingType, Symbol, SymbolFlags, SymbolInterface, TemplateLiteralType,
-    Type, TypeChecker, UnionOrIntersectionTypeInterface, __String, pseudo_big_int_to_string,
-    TypeFlags, TypeInterface,
+    append, capitalize, chain_diagnostic_messages, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, every, find_ancestor,
+    get_assignment_target_kind, get_combined_node_flags, get_object_flags,
+    get_property_name_for_property_name_node, get_text_of_node, is_access_expression,
+    is_assignment_target, is_call_like_expression, is_call_or_new_expression, is_delete_target,
+    is_function_like, is_identifier, is_indexed_access_type_node, is_private_identifier,
+    is_property_name, map, maybe_every, some, uncapitalize, unescape_leading_underscores,
+    AccessFlags, AssignmentKind, DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType,
+    LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags, StringMappingType, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TemplateLiteralType, Type, TypeChecker,
+    UnionOrIntersectionTypeInterface, __String, pseudo_big_int_to_string, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -182,33 +186,653 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn get_property_type_for_index_type(
+    pub(super) fn get_property_type_for_index_type<TAccessNode: Borrow<Node>>(
         &self,
         original_object_type: &Type,
         object_type: &Type,
         index_type: &Type,
         full_index_type: &Type,
+        access_node: Option<
+            TAccessNode, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+        >,
+        access_flags: AccessFlags,
     ) -> Option<Rc<Type>> {
-        let prop_name = if false {
-            unimplemented!()
+        let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
+        let access_expression = access_node
+            .as_deref()
+            .filter(|access_node| access_node.kind() == SyntaxKind::ElementAccessExpression);
+        let prop_name = if matches!(access_node.as_ref(), Some(access_node) if is_private_identifier(access_node))
+        {
+            None
         } else {
-            self.get_property_name_from_index(
-                index_type,
-                Option::<&Node>::None, /*TODO: this is wrong*/
-            )
+            self.get_property_name_from_index(index_type, access_node.as_deref())
         };
-        if let Some(prop_name) = prop_name {
+
+        if let Some(prop_name) = prop_name.as_ref() {
+            if access_flags.intersects(AccessFlags::Contextual) {
+                return Some(
+                    self.get_type_of_property_of_contextual_type(object_type, prop_name)
+                        .unwrap_or_else(|| self.any_type()),
+                );
+            }
             let prop = self.get_property_of_type_(object_type, &prop_name, None);
             if let Some(prop) = prop {
-                let prop_type = self.get_type_of_symbol(&*prop);
-                return if false {
-                    unimplemented!()
-                } else {
-                    Some(prop_type)
-                };
+                if access_flags.intersects(AccessFlags::ReportDeprecated) {
+                    if let Some(access_node) = access_node.as_ref() {
+                        let prop_declarations = prop.maybe_declarations();
+                        if let Some(prop_declarations) = prop_declarations.as_deref() {
+                            if self
+                                .get_declaration_node_flags_from_symbol(&prop)
+                                .intersects(NodeFlags::Deprecated)
+                                && self.is_uncalled_function_reference(access_node, &prop)
+                            {
+                                let deprecated_node = access_expression
+                                    .map(|access_expression| {
+                                        access_expression
+                                            .as_element_access_expression()
+                                            .argument_expression
+                                            .clone()
+                                    })
+                                    .unwrap_or_else(|| {
+                                        if is_indexed_access_type_node(access_node) {
+                                            access_node
+                                                .as_indexed_access_type_node()
+                                                .index_type
+                                                .clone()
+                                        } else {
+                                            access_node.clone()
+                                        }
+                                    });
+                                self.add_deprecated_suggestion(
+                                    &deprecated_node,
+                                    prop_declarations,
+                                    &**prop_name,
+                                );
+                            }
+                        }
+                    }
+                }
+                if let Some(access_expression) = access_expression {
+                    let access_expression_as_element_access_expression =
+                        access_expression.as_element_access_expression();
+                    self.mark_property_as_referenced(
+                        &prop,
+                        Some(access_expression),
+                        self.is_self_type_access(
+                            &access_expression_as_element_access_expression.expression,
+                            object_type.maybe_symbol(),
+                        ),
+                    );
+                    if self.is_assignment_to_readonly_entity(
+                        access_expression,
+                        &prop,
+                        get_assignment_target_kind(access_expression),
+                    ) {
+                        self.error(
+                            Some(
+                                &*access_expression_as_element_access_expression
+                                    .argument_expression,
+                            ),
+                            &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
+                            Some(vec![self.symbol_to_string_(
+                                &prop,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            )]),
+                        );
+                        return None;
+                    }
+                    if access_flags.intersects(AccessFlags::CacheSymbol) {
+                        self.get_node_links(access_node.as_ref().unwrap())
+                            .borrow_mut()
+                            .resolved_symbol = Some(prop.clone());
+                    }
+                    if self.is_this_property_access_in_constructor(access_expression, &prop) {
+                        return Some(self.auto_type());
+                    }
+                }
+                let prop_type = self.get_type_of_symbol(&prop);
+                return Some(
+                    if let Some(access_expression) = access_expression.filter(|access_expression| {
+                        get_assignment_target_kind(access_expression) != AssignmentKind::Definite
+                    }) {
+                        self.get_flow_type_of_reference(
+                            access_expression,
+                            &prop_type,
+                            Option::<&Type>::None,
+                            Option::<&Node>::None,
+                        )
+                    } else {
+                        prop_type
+                    },
+                );
+            }
+            if self.every_type(object_type, |type_| self.is_tuple_type(type_))
+                && self.is_numeric_literal_name(&**prop_name)
+                && Into::<Number>::into(&**prop_name).value() >= 0.0
+            {
+                if let Some(access_node) = access_node.as_ref() {
+                    if self.every_type(object_type, |t| {
+                        !t.as_type_reference()
+                            .target
+                            .as_tuple_type()
+                            .has_rest_element
+                    }) && !access_flags.intersects(AccessFlags::NoTupleBoundsCheck)
+                    {
+                        let index_node = self.get_index_node_for_access_expression(access_node);
+                        if self.is_tuple_type(object_type) {
+                            self.error(
+                                Some(index_node),
+                                &Diagnostics::Tuple_type_0_of_length_1_has_no_element_at_index_2,
+                                Some(vec![
+                                    self.type_to_string_(
+                                        object_type,
+                                        Option::<&Node>::None,
+                                        None,
+                                        None,
+                                    ),
+                                    self.get_type_reference_arity(object_type).to_string(),
+                                    unescape_leading_underscores(prop_name),
+                                ]),
+                            );
+                        } else {
+                            self.error(
+                                Some(index_node),
+                                &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                Some(vec![
+                                    unescape_leading_underscores(prop_name),
+                                    self.type_to_string_(
+                                        object_type,
+                                        Option::<&Node>::None,
+                                        None,
+                                        None,
+                                    ),
+                                ]),
+                            );
+                        }
+                    }
+                }
+                self.error_if_writing_to_readonly_index(
+                    access_expression,
+                    object_type,
+                    self.get_index_info_of_type_(object_type, &self.number_type()),
+                );
+                return self.map_type(
+                    object_type,
+                    &mut |t| {
+                        let rest_type = self
+                            .get_rest_type_of_tuple_type(t)
+                            .unwrap_or_else(|| self.undefined_type());
+                        Some(if access_flags.intersects(AccessFlags::IncludeUndefined) {
+                            self.get_union_type(
+                                vec![rest_type, self.undefined_type()],
+                                None,
+                                Option::<&Symbol>::None,
+                                None,
+                                Option::<&Type>::None,
+                            )
+                        } else {
+                            rest_type
+                        })
+                    },
+                    None,
+                );
             }
         }
+        if !index_type.flags().intersects(TypeFlags::Nullable)
+            && self.is_type_assignable_to_kind(
+                index_type,
+                TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
+                None,
+            )
+        {
+            if object_type
+                .flags()
+                .intersects(TypeFlags::Any | TypeFlags::Never)
+            {
+                return Some(object_type.type_wrapper());
+            }
+            let index_info = self
+                .get_applicable_index_info(object_type, index_type)
+                .or_else(|| self.get_index_info_of_type_(object_type, &self.string_type()));
+            if let Some(index_info) = index_info.as_deref() {
+                if access_flags.intersects(AccessFlags::NoIndexSignatures)
+                    && !Rc::ptr_eq(&index_info.key_type, &self.number_type())
+                {
+                    if access_expression.is_some() {
+                        self.error(
+                            access_expression,
+                            &Diagnostics::Type_0_cannot_be_used_to_index_type_1,
+                            Some(vec![
+                                self.type_to_string_(index_type, Option::<&Node>::None, None, None),
+                                self.type_to_string_(
+                                    original_object_type,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                ),
+                            ]),
+                        );
+                    }
+                    return None;
+                }
+                if let Some(access_node) = access_node.as_ref() {
+                    if Rc::ptr_eq(&index_info.key_type, &self.string_type())
+                        && !self.is_type_assignable_to_kind(
+                            index_type,
+                            TypeFlags::String | TypeFlags::Number,
+                            None,
+                        )
+                    {
+                        let index_node = self.get_index_node_for_access_expression(access_node);
+                        self.error(
+                            Some(index_node),
+                            &Diagnostics::Type_0_cannot_be_used_as_an_index_type,
+                            Some(vec![self.type_to_string_(
+                                index_type,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            )]),
+                        );
+                        return Some(if access_flags.intersects(AccessFlags::IncludeUndefined) {
+                            self.get_union_type(
+                                vec![index_info.type_.clone(), self.undefined_type()],
+                                None,
+                                Option::<&Symbol>::None,
+                                None,
+                                Option::<&Type>::None,
+                            )
+                        } else {
+                            index_info.type_.clone()
+                        });
+                    }
+                }
+                self.error_if_writing_to_readonly_index(
+                    access_expression,
+                    object_type,
+                    Some(index_info),
+                );
+                return Some(if access_flags.intersects(AccessFlags::IncludeUndefined) {
+                    self.get_union_type(
+                        vec![index_info.type_.clone(), self.undefined_type()],
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                } else {
+                    index_info.type_.clone()
+                });
+            }
+            if index_type.flags().intersects(TypeFlags::Never) {
+                return Some(self.never_type());
+            }
+            if self.is_js_literal_type(object_type) {
+                return Some(self.any_type());
+            }
+            if let Some(access_expression) = access_expression {
+                if !self.is_const_enum_object_type(object_type) {
+                    if self.is_object_literal_type(object_type) {
+                        if self.no_implicit_any
+                            && index_type
+                                .flags()
+                                .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
+                        {
+                            self.diagnostics().add(Rc::new(
+                                create_diagnostic_for_node(
+                                    access_expression,
+                                    &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                    Some(vec![
+                                        index_type.as_string_literal_type().value.clone(),
+                                        self.type_to_string_(
+                                            object_type,
+                                            Option::<&Node>::None,
+                                            None,
+                                            None,
+                                        ),
+                                    ]),
+                                )
+                                .into(),
+                            ));
+                            return Some(self.undefined_type());
+                        } else if index_type
+                            .flags()
+                            .intersects(TypeFlags::Number | TypeFlags::String)
+                        {
+                            let mut types = map(
+                                Some(&*object_type.as_resolved_type().properties()),
+                                |property: &Rc<Symbol>, _| self.get_type_of_symbol(property),
+                            )
+                            .unwrap();
+                            append(&mut types, Some(self.undefined_type()));
+                            return Some(self.get_union_type(
+                                types,
+                                None,
+                                Option::<&Symbol>::None,
+                                None,
+                                Option::<&Type>::None,
+                            ));
+                        }
+                    }
+
+                    let mut took_if_branch = false;
+                    if matches!(
+                        object_type.maybe_symbol(),
+                        Some(symbol) if Rc::ptr_eq(&symbol, &self.global_this_symbol())
+                    ) {
+                        if let Some(prop_name) = prop_name.as_ref() {
+                            let global_this_symbol_exports =
+                                self.global_this_symbol().maybe_exports().clone().unwrap();
+                            let global_this_symbol_exports = (*global_this_symbol_exports).borrow();
+                            if global_this_symbol_exports.contains_key(prop_name)
+                                && global_this_symbol_exports
+                                    .get(prop_name)
+                                    .unwrap()
+                                    .flags()
+                                    .intersects(SymbolFlags::BlockScoped)
+                            {
+                                took_if_branch = true;
+                                self.error(
+                                    Some(access_expression),
+                                    &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                    Some(vec![
+                                        unescape_leading_underscores(prop_name),
+                                        self.type_to_string_(
+                                            object_type,
+                                            Option::<&Node>::None,
+                                            None,
+                                            None,
+                                        ),
+                                    ]),
+                                );
+                            }
+                        }
+                    }
+                    if !took_if_branch
+                        && self.no_implicit_any
+                        && !matches!(
+                            self.compiler_options.suppress_implicit_any_index_errors,
+                            Some(true)
+                        )
+                        && !access_flags.intersects(AccessFlags::SuppressNoImplicitAnyError)
+                    {
+                        if let Some(prop_name) = prop_name.as_ref().filter(|prop_name| {
+                            self.type_has_static_property(prop_name, object_type)
+                        }) {
+                            let type_name = self.type_to_string_(
+                                object_type,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            );
+                            self.error(
+                                Some(access_expression),
+                                &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
+                                Some(vec![
+                                    (&**prop_name).to_owned(),
+                                    type_name.clone(),
+                                    format!("{}[{}]", type_name, get_text_of_node(&access_expression.as_element_access_expression().argument_expression, None))
+                                ])
+                            );
+                        } else if self
+                            .get_index_type_of_type_(object_type, &self.number_type())
+                            .is_some()
+                        {
+                            self.error(
+                                Some(&*access_expression.as_element_access_expression().argument_expression),
+                                &Diagnostics::Element_implicitly_has_an_any_type_because_index_expression_is_not_of_type_number,
+                                None,
+                            );
+                        } else {
+                            if let Some(suggestion) = prop_name
+                                .as_ref()
+                                .and_then(|prop_name| {
+                                    self.get_suggestion_for_nonexistent_property(
+                                        prop_name.clone().into_string(),
+                                        object_type,
+                                    )
+                                })
+                                .filter(|suggestion| !suggestion.is_empty())
+                            {
+                                self.error(
+                                    Some(&*access_expression.as_element_access_expression().argument_expression),
+                                    &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
+                                    Some(vec![
+                                        prop_name.clone().unwrap().into_string(),
+                                        self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                                        suggestion,
+                                    ])
+                                );
+                            } else {
+                                let suggestion = self
+                                    .get_suggestion_for_nonexistent_index_signature(
+                                        object_type,
+                                        access_expression,
+                                        index_type,
+                                    );
+                                if let Some(suggestion) = suggestion {
+                                    self.error(
+                                        Some(access_expression),
+                                        &Diagnostics::Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature_Did_you_mean_to_call_1,
+                                        Some(vec![
+                                            self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                                            suggestion,
+                                        ])
+                                    );
+                                } else {
+                                    let mut error_info: Option<DiagnosticMessageChain> = None;
+                                    if index_type.flags().intersects(TypeFlags::EnumLiteral) {
+                                        error_info = Some(chain_diagnostic_messages(
+                                            None,
+                                            &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                            Some(vec![
+                                                format!(
+                                                    "[{}]",
+                                                    self.type_to_string_(
+                                                        index_type,
+                                                        Option::<&Node>::None,
+                                                        None,
+                                                        None
+                                                    ),
+                                                ),
+                                                self.type_to_string_(
+                                                    object_type,
+                                                    Option::<&Node>::None,
+                                                    None,
+                                                    None,
+                                                ),
+                                            ]),
+                                        ));
+                                    } else if index_type
+                                        .flags()
+                                        .intersects(TypeFlags::UniqueESSymbol)
+                                    {
+                                        let symbol_name = self.get_fully_qualified_name(
+                                            &index_type.as_unique_es_symbol_type().symbol,
+                                            Some(access_expression),
+                                        );
+                                        error_info = Some(chain_diagnostic_messages(
+                                            None,
+                                            &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                            Some(vec![
+                                                format!("[{}]", symbol_name,),
+                                                self.type_to_string_(
+                                                    object_type,
+                                                    Option::<&Node>::None,
+                                                    None,
+                                                    None,
+                                                ),
+                                            ]),
+                                        ));
+                                    } else if index_type
+                                        .flags()
+                                        .intersects(TypeFlags::StringLiteral)
+                                    {
+                                        error_info = Some(chain_diagnostic_messages(
+                                            None,
+                                            &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                            Some(vec![
+                                                index_type.as_string_literal_type().value.clone(),
+                                                self.type_to_string_(
+                                                    object_type,
+                                                    Option::<&Node>::None,
+                                                    None,
+                                                    None,
+                                                ),
+                                            ]),
+                                        ));
+                                    } else if index_type
+                                        .flags()
+                                        .intersects(TypeFlags::NumberLiteral)
+                                    {
+                                        error_info = Some(chain_diagnostic_messages(
+                                            None,
+                                            &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                            Some(vec![
+                                                index_type
+                                                    .as_number_literal_type()
+                                                    .value
+                                                    .to_string(),
+                                                self.type_to_string_(
+                                                    object_type,
+                                                    Option::<&Node>::None,
+                                                    None,
+                                                    None,
+                                                ),
+                                            ]),
+                                        ));
+                                    } else if index_type
+                                        .flags()
+                                        .intersects(TypeFlags::Number | TypeFlags::String)
+                                    {
+                                        error_info = Some(chain_diagnostic_messages(
+                                            None,
+                                            &Diagnostics::No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1,
+                                            Some(vec![
+                                                self.type_to_string_(index_type, Option::<&Node>::None, None, None),
+                                                self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                                            ])
+                                        ));
+                                    }
+
+                                    error_info = Some(chain_diagnostic_messages(
+                                        error_info,
+                                        &Diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
+                                        Some(vec![
+                                            self.type_to_string_(full_index_type, Option::<&Node>::None, None, None),
+                                            self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                                        ])
+                                    ));
+                                    self.diagnostics().add(Rc::new(
+                                        create_diagnostic_for_node_from_message_chain(
+                                            access_expression,
+                                            error_info.unwrap(),
+                                            None,
+                                        )
+                                        .into(),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    return None;
+                }
+            }
+        }
+        if self.is_js_literal_type(object_type) {
+            return Some(self.any_type());
+        }
+        if let Some(access_node) = access_node.as_ref() {
+            let index_node = self.get_index_node_for_access_expression(access_node);
+            if index_type
+                .flags()
+                .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
+            {
+                self.error(
+                    Some(index_node),
+                    &Diagnostics::Property_0_does_not_exist_on_type_1,
+                    Some(vec![
+                        // TODO: put this in a shared helper?
+                        match index_type {
+                            Type::LiteralType(LiteralType::NumberLiteralType(index_type)) => {
+                                index_type.value.to_string()
+                            }
+                            Type::LiteralType(LiteralType::StringLiteralType(index_type)) => {
+                                index_type.value.clone()
+                            }
+                            _ => panic!("Expected NumberLiteralType or StringLiteralType"),
+                        },
+                        self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                    ]),
+                );
+            } else if index_type
+                .flags()
+                .intersects(TypeFlags::String | TypeFlags::Number)
+            {
+                self.error(
+                    Some(index_node),
+                    &Diagnostics::Type_0_has_no_matching_index_signature_for_type_1,
+                    Some(vec![
+                        self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+                        self.type_to_string_(index_type, Option::<&Node>::None, None, None),
+                    ]),
+                );
+            } else {
+                self.error(
+                    Some(index_node),
+                    &Diagnostics::Type_0_cannot_be_used_as_an_index_type,
+                    Some(vec![self.type_to_string_(
+                        index_type,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    )]),
+                );
+            }
+        }
+        if self.is_type_any(Some(index_type)) {
+            return Some(index_type.type_wrapper());
+        }
         None
+    }
+
+    pub(super) fn error_if_writing_to_readonly_index<TIndexInfo: Borrow<IndexInfo>>(
+        &self,
+        access_expression: Option<&Node>,
+        object_type: &Type,
+        index_info: Option<TIndexInfo>,
+    ) {
+        if let Some(index_info) = index_info {
+            let index_info = index_info.borrow();
+            if index_info.is_readonly {
+                if let Some(access_expression) = access_expression {
+                    if is_assignment_target(access_expression)
+                        || is_delete_target(access_expression)
+                    {
+                        self.error(
+                            Some(access_expression),
+                            &Diagnostics::Index_signature_in_type_0_only_permits_reading,
+                            Some(vec![self.type_to_string_(
+                                object_type,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            )]),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn get_index_node_for_access_expression(
+        &self,
+        access_node: &Node, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+    ) -> Rc<Node> {
+        unimplemented!()
     }
 
     pub(super) fn is_pattern_literal_placeholder_type(&self, type_: &Type) -> bool {
@@ -278,6 +902,8 @@ impl TypeChecker {
             &apparent_object_type,
             index_type,
             index_type,
+            Option::<&Node>::None, // TODO: this is wrong
+            access_flags | AccessFlags::CacheSymbol | AccessFlags::ReportDeprecated,
         )
     }
 

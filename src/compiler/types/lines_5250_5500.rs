@@ -72,7 +72,7 @@ impl LiteralTypeInterface for BaseLiteralType {
 #[type_type]
 pub struct UniqueESSymbolType {
     _type: BaseType,
-    pub symbol: Rc<Symbol>,
+    pub symbol: Rc<Symbol>, // TODO: in Typescript this would overwrite the base Type.symbol field so presumably should also be using that here instead?
     pub escaped_name: __String,
 }
 
