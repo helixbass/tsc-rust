@@ -1,12 +1,18 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
-use super::{intrinsic_type_kinds, IntrinsicTypeKind};
+use super::{get_symbol_id, intrinsic_type_kinds, IntrinsicTypeKind};
 use crate::{
-    capitalize, uncapitalize, AccessFlags, Node, Symbol, SymbolInterface, TemplateLiteralType,
-    Type, TypeChecker, __String, pseudo_big_int_to_string, TypeFlags, TypeInterface,
+    capitalize, every, find_ancestor, get_combined_node_flags, get_object_flags,
+    get_property_name_for_property_name_node, is_access_expression, is_call_like_expression,
+    is_call_or_new_expression, is_function_like, is_identifier, is_property_name, maybe_every,
+    some, uncapitalize, AccessFlags, IndexedAccessType, Node, NodeFlags, NodeInterface,
+    ObjectFlags, StringMappingType, Symbol, SymbolFlags, SymbolInterface, TemplateLiteralType,
+    Type, TypeChecker, UnionOrIntersectionTypeInterface, __String, pseudo_big_int_to_string,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -76,15 +82,104 @@ impl TypeChecker {
         symbol: &Symbol,
         type_: &Type,
     ) -> Rc<Type> {
-        unimplemented!()
+        let id = format!("{},{}", get_symbol_id(symbol), self.get_type_id(type_));
+        let mut result = self.string_mapping_types().get(&id).map(Clone::clone);
+        if result.is_none() {
+            result = Some(self.create_string_mapping_type(symbol, type_));
+            self.string_mapping_types()
+                .insert(id, result.clone().unwrap());
+        }
+        result.unwrap()
     }
 
-    pub(super) fn get_property_name_from_index(&self, index_type: &Type) -> Option<__String> {
-        if self.is_type_usable_as_property_name(index_type) {
-            Some(self.get_property_name_from_type(index_type))
-        } else {
-            unimplemented!()
+    pub(super) fn create_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Rc<Type> {
+        let result = self.create_type(TypeFlags::StringMapping);
+        let result: Rc<Type> =
+            StringMappingType::new(result, symbol.symbol_wrapper(), type_.type_wrapper()).into();
+        result
+    }
+
+    pub(super) fn create_indexed_access_type<TAliasSymbol: Borrow<Symbol>>(
+        &self,
+        object_type: &Type,
+        index_type: &Type,
+        access_flags: AccessFlags,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        let type_ = self.create_type(TypeFlags::IndexedAccess);
+        let type_: Rc<Type> = IndexedAccessType::new(
+            type_,
+            object_type.type_wrapper(),
+            index_type.type_wrapper(),
+            access_flags,
+        )
+        .into();
+        *type_.maybe_alias_symbol() =
+            alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+        *type_.maybe_alias_type_arguments() = alias_type_arguments.map(ToOwned::to_owned);
+        type_
+    }
+
+    pub(super) fn is_js_literal_type(&self, type_: &Type) -> bool {
+        if self.no_implicit_any {
+            return false;
         }
+        if get_object_flags(type_).intersects(ObjectFlags::JSLiteral) {
+            return true;
+        }
+        if type_.flags().intersects(TypeFlags::Union) {
+            return every(type_.as_union_type().types(), |type_: &Rc<Type>, _| {
+                self.is_js_literal_type(type_)
+            });
+        }
+        if type_.flags().intersects(TypeFlags::Intersection) {
+            return some(
+                Some(type_.as_intersection_type().types()),
+                Some(|type_: &Rc<Type>| self.is_js_literal_type(type_)),
+            );
+        }
+        if type_.flags().intersects(TypeFlags::Instantiable) {
+            let constraint = self.get_resolved_base_constraint(type_);
+            return !ptr::eq(&*constraint, type_) && self.is_js_literal_type(&constraint);
+        }
+        false
+    }
+
+    pub(super) fn get_property_name_from_index<TAccessNode: Borrow<Node>>(
+        &self,
+        index_type: &Type,
+        access_node: Option<
+            TAccessNode, /*StringLiteral | Identifier | PrivateIdentifier | ObjectBindingPattern | ArrayBindingPattern | ComputedPropertyName | NumericLiteral | IndexedAccessTypeNode | ElementAccessExpression | SyntheticExpression*/
+        >,
+    ) -> Option<__String> {
+        if self.is_type_usable_as_property_name(index_type) {
+            return Some(self.get_property_name_from_type(index_type));
+        }
+        let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
+        access_node
+            .filter(|access_node| is_property_name(access_node))
+            .and_then(|access_node| get_property_name_for_property_name_node(&access_node))
+    }
+
+    pub(super) fn is_uncalled_function_reference(&self, node: &Node, symbol: &Symbol) -> bool {
+        if symbol
+            .flags()
+            .intersects(SymbolFlags::Function | SymbolFlags::Method)
+        {
+            let parent = find_ancestor(node.maybe_parent(), |n| !is_access_expression(n))
+                .unwrap_or_else(|| node.parent());
+            if is_call_like_expression(&parent) {
+                return is_call_or_new_expression(&parent)
+                    && is_identifier(node)
+                    && self.has_matching_argument(&parent, node);
+            }
+            return maybe_every(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>, _| {
+                !is_function_like(Some(&**d))
+                    || get_combined_node_flags(d).intersects(NodeFlags::Deprecated)
+            });
+        }
+        true
     }
 
     pub(super) fn get_property_type_for_index_type(
@@ -97,7 +192,10 @@ impl TypeChecker {
         let prop_name = if false {
             unimplemented!()
         } else {
-            self.get_property_name_from_index(index_type)
+            self.get_property_name_from_index(
+                index_type,
+                Option::<&Node>::None, /*TODO: this is wrong*/
+            )
         };
         if let Some(prop_name) = prop_name {
             let prop = self.get_property_of_type_(object_type, &prop_name, None);

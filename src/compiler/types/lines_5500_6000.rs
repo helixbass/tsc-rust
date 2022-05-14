@@ -218,7 +218,7 @@ impl TypeParameter {
 }
 
 bitflags! {
-    pub(crate) struct AccessFlags: u32 {
+    pub/*(crate)*/ struct AccessFlags: u32 {
         const None = 0;
         const IncludeUndefined = 1 << 0;
         const NoIndexSignatures = 1 << 1;
@@ -243,6 +243,25 @@ pub struct IndexedAccessType {
     pub(crate) constraint: Option<Rc<Type>>,
     pub(crate) simplified_for_reading: Option<Rc<Type>>,
     pub(crate) simplified_for_writing: Option<Rc<Type>>,
+}
+
+impl IndexedAccessType {
+    pub fn new(
+        base_type: BaseType,
+        object_type: Rc<Type>,
+        index_type: Rc<Type>,
+        access_flags: AccessFlags,
+    ) -> Self {
+        Self {
+            _type: base_type,
+            object_type,
+            index_type,
+            access_flags,
+            constraint: None,
+            simplified_for_reading: None,
+            simplified_for_writing: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
