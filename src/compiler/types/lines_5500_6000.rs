@@ -14,7 +14,7 @@ use super::{
     ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
     TypePredicate,
 };
-use crate::{Debug_, ScriptKind, TypeFlags};
+use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags};
 use local_macros::{enum_unwrapped, type_type};
 
 #[derive(Clone, Debug)]
@@ -347,6 +347,7 @@ impl StringMappingType {
 #[type_type]
 pub struct SubstitutionType {
     _type: BaseType,
+    object_flags: Cell<ObjectFlags>,
     pub base_type: Rc<Type>,
     pub substitute: Rc<Type>,
 }
@@ -355,9 +356,22 @@ impl SubstitutionType {
     pub fn new(_type: BaseType, base_type: Rc<Type>, substitute: Rc<Type>) -> Self {
         Self {
             _type,
+            object_flags: Cell::new(
+                ObjectFlags::None, // this is made up
+            ),
             base_type,
             substitute,
         }
+    }
+}
+
+impl ObjectFlagsTypeInterface for SubstitutionType {
+    fn object_flags(&self) -> ObjectFlags {
+        self.object_flags.get()
+    }
+
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
+        self.object_flags.set(object_flags);
     }
 }
 

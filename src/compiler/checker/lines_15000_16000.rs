@@ -12,11 +12,12 @@ use crate::{
     get_property_name_for_property_name_node, get_text_of_node, is_access_expression,
     is_assignment_target, is_call_like_expression, is_call_or_new_expression, is_delete_target,
     is_function_like, is_identifier, is_indexed_access_type_node, is_private_identifier,
-    is_property_name, map, maybe_every, some, uncapitalize, unescape_leading_underscores,
-    AccessFlags, AssignmentKind, DiagnosticMessageChain, Diagnostics, IndexInfo, IndexedAccessType,
-    LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags, StringMappingType, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TemplateLiteralType, Type, TypeChecker,
-    UnionOrIntersectionTypeInterface, __String, pseudo_big_int_to_string, TypeFlags, TypeInterface,
+    is_property_name, map, maybe_every, reduce_left, some, uncapitalize,
+    unescape_leading_underscores, AccessFlags, AssignmentKind, DiagnosticMessageChain, Diagnostics,
+    IndexInfo, IndexedAccessType, LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
+    ObjectFlagsTypeInterface, StringMappingType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TemplateLiteralType, Type, TypeChecker, UnionOrIntersectionTypeInterface, __String,
+    pseudo_big_int_to_string, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -832,27 +833,104 @@ impl TypeChecker {
         &self,
         access_node: &Node, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
     ) -> Rc<Node> {
-        unimplemented!()
+        if access_node.kind() == SyntaxKind::ElementAccessExpression {
+            access_node
+                .as_element_access_expression()
+                .argument_expression
+                .clone()
+        } else if access_node.kind() == SyntaxKind::IndexedAccessType {
+            access_node.as_indexed_access_type_node().index_type.clone()
+        } else if access_node.kind() == SyntaxKind::ComputedPropertyName {
+            access_node.as_computed_property_name().expression.clone()
+        } else {
+            access_node.node_wrapper()
+        }
     }
 
     pub(super) fn is_pattern_literal_placeholder_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        type_
+            .flags()
+            .intersects(TypeFlags::Any | TypeFlags::String | TypeFlags::Number | TypeFlags::BigInt)
     }
 
     pub(super) fn is_pattern_literal_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        type_.flags().intersects(TypeFlags::TemplateLiteral)
+            && every(
+                &type_.as_template_literal_type().types,
+                |type_: &Rc<Type>, _| self.is_pattern_literal_placeholder_type(type_),
+            )
     }
 
     pub(super) fn is_generic_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.get_generic_object_flags(type_) != ObjectFlags::None
     }
 
     pub(super) fn is_generic_object_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.get_generic_object_flags(type_)
+            .intersects(ObjectFlags::IsGenericObjectType)
     }
 
     pub(super) fn is_generic_index_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.get_generic_object_flags(type_)
+            .intersects(ObjectFlags::IsGenericIndexType)
+    }
+
+    pub(super) fn get_generic_object_flags(&self, type_: &Type) -> ObjectFlags {
+        if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+            let type_as_union_or_intersection_type = type_.as_union_or_intersection_type();
+            if !type_as_union_or_intersection_type
+                .object_flags()
+                .intersects(ObjectFlags::IsGenericTypeComputed)
+            {
+                type_as_union_or_intersection_type.set_object_flags(
+                    type_as_union_or_intersection_type.object_flags()
+                        | ObjectFlags::IsGenericTypeComputed
+                        | reduce_left(
+                            type_.as_union_or_intersection_type().types(),
+                            |flags, t: &Rc<Type>, _| flags | self.get_generic_object_flags(t),
+                            ObjectFlags::None,
+                            None,
+                            None,
+                        ),
+                );
+            }
+            return type_as_union_or_intersection_type.object_flags() & ObjectFlags::IsGenericType;
+        }
+        if type_.flags().intersects(TypeFlags::Substitution) {
+            let type_as_substitution_type = type_.as_substitution_type();
+            if !type_as_substitution_type
+                .object_flags()
+                .intersects(ObjectFlags::IsGenericTypeComputed)
+            {
+                type_as_substitution_type.set_object_flags(
+                    type_as_substitution_type.object_flags()
+                        | ObjectFlags::IsGenericTypeComputed
+                        | self.get_generic_object_flags(&type_as_substitution_type.substitute)
+                        | self.get_generic_object_flags(&type_as_substitution_type.base_type),
+                );
+            }
+            return type_as_substitution_type.object_flags() & ObjectFlags::IsGenericType;
+        }
+        (if type_
+            .flags()
+            .intersects(TypeFlags::InstantiableNonPrimitive)
+            || self.is_generic_mapped_type(type_)
+            || self.is_generic_tuple_type(type_)
+        {
+            ObjectFlags::IsGenericObjectType
+        } else {
+            ObjectFlags::None
+        }) | if type_.flags().intersects(
+            TypeFlags::InstantiableNonPrimitive
+                | TypeFlags::Index
+                | TypeFlags::TemplateLiteral
+                | TypeFlags::StringMapping,
+        ) && !self.is_pattern_literal_type(type_)
+        {
+            ObjectFlags::IsGenericIndexType
+        } else {
+            ObjectFlags::None
+        }
     }
 
     pub(super) fn is_this_type_parameter(&self, type_: &Type) -> bool {
