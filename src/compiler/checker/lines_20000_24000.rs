@@ -1,15 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::ptr;
 use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
     every, for_each, get_object_flags, is_write_only_access, length, node_is_missing, Debug_,
-    DiagnosticMessage, Diagnostics, Identifier, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypePredicate, UnionReduction,
+    DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
+    InferencePriority, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -441,6 +441,19 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn create_inference_context<
+        TSignature: Borrow<Signature>,
+        TCompareTypes: FnMut(&Type, &Type, Option<bool>) -> Ternary,
+    >(
+        &self,
+        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        signature: Option<TSignature>,
+        flags: InferenceFlags,
+        compare_types: Option<TCompareTypes>,
+    ) -> InferenceContext {
+        unimplemented!()
+    }
+
     pub(super) fn could_contain_type_variables(&self, type_: &Type) -> bool {
         let object_flags = get_object_flags(&type_);
         if object_flags.intersects(ObjectFlags::CouldContainTypeVariablesComputed) {
@@ -483,6 +496,19 @@ impl TypeChecker {
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
     ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn infer_types(
+        &self,
+        inferences: &[InferenceInfo],
+        original_source: &Type,
+        original_target: &Type,
+        priority: Option<InferencePriority>,
+        contravariant: Option<bool>,
+    ) {
+        let priority = priority.unwrap_or(InferencePriority::None);
+        let contravariant = contravariant.unwrap_or(false);
         unimplemented!()
     }
 

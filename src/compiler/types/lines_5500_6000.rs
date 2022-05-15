@@ -58,6 +58,20 @@ pub struct MappedType {
 }
 
 impl MappedType {
+    pub fn new(object_type: BaseObjectType, declaration: Rc<Node>) -> Self {
+        Self {
+            _object_type: object_type,
+            declaration,
+            type_parameter: RefCell::new(None),
+            constraint_type: RefCell::new(None),
+            name_type: RefCell::new(None),
+            template_type: RefCell::new(None),
+            modifiers_type: RefCell::new(None),
+            resolved_apparent_type: RefCell::new(None),
+            contains_error: Cell::new(None),
+        }
+    }
+
     pub fn maybe_type_parameter(&self) -> RefMut<Option<Rc<Type>>> {
         self.type_parameter.borrow_mut()
     }
@@ -294,8 +308,12 @@ impl IndexType {
 pub struct ConditionalRoot {
     pub node: Rc<Node /*ConditionalTypeNode*/>,
     pub check_type: Rc<Type>,
+    pub extends_type: Rc<Type>,
     pub is_distributive: bool,
     pub infer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub alias_symbol: Option<Rc<Symbol>>,
+    pub alias_type_arguments: Option<Vec<Rc<Type>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -307,9 +325,29 @@ pub struct ConditionalType {
     pub extends_type: Rc<Type>,
     resolved_default_constraint: RefCell<Option<Rc<Type>>>,
     pub(crate) mapper: Option<TypeMapper>,
+    pub(crate) combined_mapper: Option<TypeMapper>,
 }
 
 impl ConditionalType {
+    pub fn new(
+        base_type: BaseType,
+        root: ConditionalRoot,
+        check_type: Rc<Type>,
+        extends_type: Rc<Type>,
+        mapper: Option<TypeMapper>,
+        combined_mapper: Option<TypeMapper>,
+    ) -> Self {
+        Self {
+            _type: base_type,
+            root,
+            check_type,
+            extends_type,
+            resolved_default_constraint: RefCell::new(None),
+            mapper,
+            combined_mapper,
+        }
+    }
+
     pub(crate) fn maybe_resolved_default_constraint(&self) -> RefMut<Option<Rc<Type>>> {
         self.resolved_default_constraint.borrow_mut()
     }
@@ -614,6 +652,38 @@ impl TypeMapper {
     }
 }
 
+bitflags! {
+    pub struct InferencePriority: i32 {
+        const None = 0;
+        const NakedTypeVariable = 1 << 0;
+        const SpeculativeTuple = 1 << 1;
+        const SubstituteSource = 1 << 2;
+        const HomomorphicMappedType = 1 << 3;
+        const PartialHomomorphicMappedType = 1 << 4;
+        const MappedTypeConstraint = 1 << 5;
+        const ContravariantConditional = 1 << 6;
+        const ReturnType = 1 << 7;
+        const LiteralKeyof = 1 << 8;
+        const NoConstraints = 1 << 9;
+        const AlwaysStrict = 1 << 10;
+        const MaxValue = 1 << 11;
+
+        const PriorityImpliesCombination = Self::ReturnType.bits | Self::MappedTypeConstraint.bits | Self::LiteralKeyof.bits;
+        const Circularity = -1;
+    }
+}
+
+pub(crate) type InferenceInfo = ();
+
+bitflags! {
+    pub(crate) struct InferenceFlags: u32 {
+        const None = 0;
+        const NoDefault = 1 << 0;
+        const AnyDefault = 1 << 1;
+        const SkippedGenericFunction = 1 << 2;
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Ternary {
     False = 0,
@@ -640,6 +710,11 @@ impl BitAndAssign for Ternary {
     fn bitand_assign(&mut self, rhs: Self) {
         *self = (*self as i32 & rhs as i32).try_into().unwrap();
     }
+}
+
+pub(crate) struct InferenceContext {
+    pub inferences: Vec<InferenceInfo>,
+    pub mapper: TypeMapper,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
