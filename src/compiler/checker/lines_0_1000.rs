@@ -2520,6 +2520,12 @@ impl TypeChecker {
         self.string_mapping_types.borrow_mut()
     }
 
+    pub(super) fn indexed_access_types(
+        &self,
+    ) -> RefMut<HashMap<String, Rc<Type /*IndexedAccessType*/>>> {
+        self.indexed_access_types.borrow_mut()
+    }
+
     pub(super) fn template_literal_types(
         &self,
     ) -> RefMut<HashMap<String, Rc<Type /*TemplateLiteralType*/>>> {

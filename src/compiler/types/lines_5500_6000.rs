@@ -229,7 +229,7 @@ bitflags! {
         const ReportDeprecated = 1 << 6;
         const SuppressNoImplicitAnyError = 1 << 7;
         const Contextual = 1 << 8;
-        const PropagatingFlags = Self::IncludeUndefined.bits;
+        const Persistent = Self::IncludeUndefined.bits;
     }
 }
 

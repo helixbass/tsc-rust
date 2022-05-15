@@ -863,7 +863,11 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn is_empty_anonymous_object_type(&self, t: &Type) -> bool {
+    pub(super) fn is_empty_anonymous_object_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_string_index_signature_only_type(&self, type_: &Type) -> bool {
         unimplemented!()
     }
 

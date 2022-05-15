@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
@@ -17,7 +18,8 @@ use crate::{
     IndexInfo, IndexedAccessType, LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectTypeInterface, StringMappingType, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, TemplateLiteralType, Type, TypeChecker,
-    UnionOrIntersectionTypeInterface, __String, pseudo_big_int_to_string, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction, __String, pseudo_big_int_to_string,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -1243,6 +1245,19 @@ impl TypeChecker {
         })
     }
 
+    pub(super) fn index_type_less_than(&self, index_type: &Type, limit: isize) -> bool {
+        self.every_type(index_type, |t| {
+            if t.flags().intersects(TypeFlags::StringOrNumberLiteral) {
+                let prop_name = self.get_property_name_from_type(t);
+                if self.is_numeric_literal_name(&*prop_name) {
+                    let index = prop_name.into_string().parse::<isize>().unwrap();
+                    return index >= 0 && index < limit;
+                }
+            }
+            false
+        })
+    }
+
     pub(super) fn get_indexed_access_type_or_undefined<
         TAccessNode: Borrow<Node>,
         TAliasSymbol: Borrow<Symbol>,
@@ -1257,14 +1272,142 @@ impl TypeChecker {
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Option<Rc<Type>> {
-        let access_flags = access_flags.unwrap_or(AccessFlags::None);
+        let mut access_flags = access_flags.unwrap_or(AccessFlags::None);
+        if ptr::eq(object_type, &*self.wildcard_type())
+            || ptr::eq(index_type, &*self.wildcard_type())
+        {
+            return Some(self.wildcard_type());
+        }
+        let mut index_type = index_type.type_wrapper();
+        if self.is_string_index_signature_only_type(object_type)
+            && !index_type.flags().intersects(TypeFlags::Nullable)
+            && self.is_type_assignable_to_kind(
+                &index_type,
+                TypeFlags::String | TypeFlags::Number,
+                None,
+            )
+        {
+            index_type = self.string_type();
+        }
+        if matches!(
+            self.compiler_options.no_unchecked_indexed_access,
+            Some(true)
+        ) && access_flags.intersects(AccessFlags::ExpressionPosition)
+        {
+            access_flags |= AccessFlags::IncludeUndefined;
+        }
+        let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
+        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+        if self.is_generic_index_type(&index_type)
+            || if matches!(
+                access_node.as_ref(),
+                Some(access_node) if access_node.kind() != SyntaxKind::IndexedAccessType
+            ) {
+                self.is_generic_tuple_type(object_type)
+                    && !self.index_type_less_than(
+                        &index_type,
+                        object_type
+                            .as_type_reference()
+                            .target
+                            .as_tuple_type()
+                            .fixed_length
+                            .try_into()
+                            .unwrap(),
+                    )
+            } else {
+                self.is_generic_object_type(object_type)
+                    && !(self.is_tuple_type(object_type)
+                        && self.index_type_less_than(
+                            &index_type,
+                            object_type
+                                .as_type_reference()
+                                .target
+                                .as_tuple_type()
+                                .fixed_length
+                                .try_into()
+                                .unwrap(),
+                        ))
+            }
+        {
+            if object_type.flags().intersects(TypeFlags::AnyOrUnknown) {
+                return Some(object_type.type_wrapper());
+            }
+            let persistent_access_flags = access_flags & AccessFlags::Persistent;
+            let id = format!(
+                "{},{},{}{}",
+                object_type.id(),
+                index_type.id(),
+                persistent_access_flags.bits(),
+                self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
+            );
+            let mut type_ = self.indexed_access_types().get(&id).map(Clone::clone);
+            if type_.is_none() {
+                type_ = Some(self.create_indexed_access_type(
+                    object_type,
+                    &index_type,
+                    persistent_access_flags,
+                    alias_symbol.as_deref(),
+                    alias_type_arguments,
+                ));
+                self.indexed_access_types()
+                    .insert(id, type_.clone().unwrap());
+            }
+
+            return type_;
+        }
         let apparent_object_type = self.get_reduced_apparent_type(object_type);
+        if index_type.flags().intersects(TypeFlags::Union)
+            && !index_type.flags().intersects(TypeFlags::Boolean)
+        {
+            let mut prop_types: Vec<Rc<Type>> = vec![];
+            let mut was_missing_prop = false;
+            for t in index_type.as_union_type().types() {
+                let prop_type = self.get_property_type_for_index_type(
+                    object_type,
+                    &apparent_object_type,
+                    t,
+                    &index_type,
+                    access_node.as_deref(),
+                    access_flags
+                        | if was_missing_prop {
+                            AccessFlags::SuppressNoImplicitAnyError
+                        } else {
+                            AccessFlags::None
+                        },
+                );
+                if let Some(prop_type) = prop_type {
+                    prop_types.push(prop_type);
+                } else if access_node.is_none() {
+                    return None;
+                } else {
+                    was_missing_prop = true;
+                }
+            }
+            if was_missing_prop {
+                return None;
+            }
+            return Some(if access_flags.intersects(AccessFlags::Writing) {
+                self.get_intersection_type(
+                    &prop_types,
+                    alias_symbol.as_deref(),
+                    alias_type_arguments,
+                )
+            } else {
+                self.get_union_type(
+                    prop_types,
+                    Some(UnionReduction::Literal),
+                    alias_symbol.as_deref(),
+                    alias_type_arguments,
+                    Option::<&Type>::None,
+                )
+            });
+        }
         self.get_property_type_for_index_type(
             object_type,
             &apparent_object_type,
-            index_type,
-            index_type,
-            Option::<&Node>::None, // TODO: this is wrong
+            &index_type,
+            &index_type,
+            access_node,
             access_flags | AccessFlags::CacheSymbol | AccessFlags::ReportDeprecated,
         )
     }
