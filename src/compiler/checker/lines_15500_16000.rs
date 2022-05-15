@@ -380,21 +380,99 @@ impl TypeChecker {
         &self,
         type_: &Type, /*ConditionalType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_as_conditional_type = type_.as_conditional_type();
+        if type_as_conditional_type
+            .maybe_resolved_true_type()
+            .is_none()
+        {
+            *type_as_conditional_type.maybe_resolved_true_type() = Some(
+                self.instantiate_type(
+                    Some(
+                        self.get_type_from_type_node_(
+                            &type_as_conditional_type
+                                .root
+                                .node
+                                .as_conditional_type_node()
+                                .true_type,
+                        ),
+                    ),
+                    type_as_conditional_type.mapper.as_ref(),
+                )
+                .unwrap(),
+            );
+        }
+        type_as_conditional_type
+            .maybe_resolved_true_type()
+            .clone()
+            .unwrap()
     }
 
     pub(super) fn get_false_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_as_conditional_type = type_.as_conditional_type();
+        if type_as_conditional_type
+            .maybe_resolved_false_type()
+            .is_none()
+        {
+            *type_as_conditional_type.maybe_resolved_false_type() = Some(
+                self.instantiate_type(
+                    Some(
+                        self.get_type_from_type_node_(
+                            &type_as_conditional_type
+                                .root
+                                .node
+                                .as_conditional_type_node()
+                                .false_type,
+                        ),
+                    ),
+                    type_as_conditional_type.mapper.as_ref(),
+                )
+                .unwrap(),
+            );
+        }
+        type_as_conditional_type
+            .maybe_resolved_false_type()
+            .clone()
+            .unwrap()
     }
 
     pub(super) fn get_inferred_true_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_as_conditional_type = type_.as_conditional_type();
+        if type_as_conditional_type
+            .maybe_resolved_true_type()
+            .is_none()
+        {
+            *type_as_conditional_type.maybe_resolved_true_type() = Some(
+                if let Some(type_combined_mapper) =
+                    type_as_conditional_type.combined_mapper.as_ref()
+                {
+                    self.instantiate_type(
+                        Some(
+                            self.get_type_from_type_node_(
+                                &type_as_conditional_type
+                                    .root
+                                    .node
+                                    .as_conditional_type_node()
+                                    .true_type,
+                            ),
+                        ),
+                        Some(type_combined_mapper),
+                    )
+                    .unwrap()
+                } else {
+                    self.get_true_type_from_conditional_type(type_)
+                },
+            );
+        }
+        type_as_conditional_type
+            .maybe_resolved_true_type()
+            .clone()
+            .unwrap()
     }
 
     pub(super) fn get_infer_type_parameters(

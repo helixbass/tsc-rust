@@ -323,6 +323,9 @@ pub struct ConditionalType {
     pub root: ConditionalRoot,
     pub check_type: Rc<Type>,
     pub extends_type: Rc<Type>,
+    resolved_true_type: RefCell<Option<Rc<Type>>>,
+    resolved_false_type: RefCell<Option<Rc<Type>>>,
+    resolved_inferred_true_type: RefCell<Option<Rc<Type>>>,
     resolved_default_constraint: RefCell<Option<Rc<Type>>>,
     pub(crate) mapper: Option<TypeMapper>,
     pub(crate) combined_mapper: Option<TypeMapper>,
@@ -342,10 +345,25 @@ impl ConditionalType {
             root,
             check_type,
             extends_type,
+            resolved_true_type: RefCell::new(None),
+            resolved_false_type: RefCell::new(None),
+            resolved_inferred_true_type: RefCell::new(None),
             resolved_default_constraint: RefCell::new(None),
             mapper,
             combined_mapper,
         }
+    }
+
+    pub(crate) fn maybe_resolved_true_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_true_type.borrow_mut()
+    }
+
+    pub(crate) fn maybe_resolved_false_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_false_type.borrow_mut()
+    }
+
+    pub(crate) fn maybe_resolved_inferred_true_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_inferred_true_type.borrow_mut()
     }
 
     pub(crate) fn maybe_resolved_default_constraint(&self) -> RefMut<Option<Rc<Type>>> {
