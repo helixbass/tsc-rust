@@ -15,9 +15,9 @@ use crate::{
     is_property_name, map, maybe_every, reduce_left, some, uncapitalize,
     unescape_leading_underscores, AccessFlags, AssignmentKind, DiagnosticMessageChain, Diagnostics,
     IndexInfo, IndexedAccessType, LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, StringMappingType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TemplateLiteralType, Type, TypeChecker, UnionOrIntersectionTypeInterface, __String,
-    pseudo_big_int_to_string, TypeFlags, TypeInterface,
+    ObjectFlagsTypeInterface, ObjectTypeInterface, StringMappingType, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TemplateLiteralType, Type, TypeChecker,
+    UnionOrIntersectionTypeInterface, __String, pseudo_big_int_to_string, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -1129,15 +1129,85 @@ impl TypeChecker {
         type_: &Type, /*ConditionalType*/
         writing: bool,
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_as_conditional_type = type_.as_conditional_type();
+        let check_type = &type_as_conditional_type.check_type;
+        let extends_type = &type_as_conditional_type.extends_type;
+        let true_type = self.get_true_type_from_conditional_type(type_);
+        let false_type = self.get_false_type_from_conditional_type(type_);
+        if false_type.flags().intersects(TypeFlags::Never)
+            && Rc::ptr_eq(
+                &self.get_actual_type_variable(&true_type),
+                &self.get_actual_type_variable(check_type),
+            )
+        {
+            if check_type.flags().intersects(TypeFlags::Any)
+                || self.is_type_assignable_to(
+                    &self.get_restrictive_instantiation(check_type),
+                    &self.get_restrictive_instantiation(extends_type),
+                )
+            {
+                return self.get_simplified_type(&true_type, writing);
+            } else if self.is_intersection_empty(check_type, extends_type) {
+                return self.never_type();
+            }
+        } else if true_type.flags().intersects(TypeFlags::Never)
+            && Rc::ptr_eq(
+                &self.get_actual_type_variable(&false_type),
+                &self.get_actual_type_variable(check_type),
+            )
+        {
+            if !check_type.flags().intersects(TypeFlags::Any)
+                && self.is_type_assignable_to(
+                    &self.get_restrictive_instantiation(check_type),
+                    &self.get_restrictive_instantiation(extends_type),
+                )
+            {
+                return self.never_type();
+            } else if check_type.flags().intersects(TypeFlags::Any)
+                || self.is_intersection_empty(check_type, extends_type)
+            {
+                return self.get_simplified_type(&false_type, writing);
+            }
+        }
+        type_.type_wrapper()
+    }
+
+    pub(super) fn is_intersection_empty(&self, type1: &Type, type2: &Type) -> bool {
+        self.get_union_type(
+            vec![
+                self.intersect_types(Some(type1), Some(type2)).unwrap(),
+                self.never_type(),
+            ],
+            None,
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        )
+        .flags()
+        .intersects(TypeFlags::Never)
     }
 
     pub(super) fn substitute_indexed_mapped_type(
         &self,
         object_type: &Type, /*MappedType*/
-        index_type: &Type,
+        index: &Type,
     ) -> Rc<Type> {
-        unimplemented!()
+        let mapper = self.create_type_mapper(
+            vec![self.get_type_parameter_from_mapped_type(object_type)],
+            Some(vec![index.type_wrapper()]),
+        );
+        let template_mapper = self.combine_type_mappers(
+            object_type
+                .as_mapped_type()
+                .maybe_mapper()
+                .map(Clone::clone),
+            mapper,
+        );
+        self.instantiate_type(
+            Some(self.get_template_type_from_mapped_type(object_type)),
+            Some(&template_mapper),
+        )
+        .unwrap()
     }
 
     pub(super) fn get_indexed_access_type<
@@ -1155,7 +1225,22 @@ impl TypeChecker {
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
         let access_flags = access_flags.unwrap_or(AccessFlags::None);
-        unimplemented!()
+        let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
+        self.get_indexed_access_type_or_undefined(
+            object_type,
+            index_type,
+            Some(access_flags),
+            access_node.as_deref(),
+            alias_symbol,
+            alias_type_arguments,
+        )
+        .unwrap_or_else(|| {
+            if access_node.is_some() {
+                self.error_type()
+            } else {
+                self.unknown_type()
+            }
+        })
     }
 
     pub(super) fn get_indexed_access_type_or_undefined<

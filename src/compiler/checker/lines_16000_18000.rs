@@ -594,6 +594,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_restrictive_instantiation(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn is_context_sensitive(
         &self,
         node: &Node, /*Expression | MethodDeclaration | ObjectLiteralElementLike | JsxAttributeLike | JsxChild*/
