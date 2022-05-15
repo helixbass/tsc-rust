@@ -241,8 +241,8 @@ pub struct IndexedAccessType {
     pub index_type: Rc<Type>,
     pub(crate) access_flags: AccessFlags,
     pub(crate) constraint: Option<Rc<Type>>,
-    pub(crate) simplified_for_reading: Option<Rc<Type>>,
-    pub(crate) simplified_for_writing: Option<Rc<Type>>,
+    simplified_for_reading: RefCell<Option<Rc<Type>>>,
+    simplified_for_writing: RefCell<Option<Rc<Type>>>,
 }
 
 impl IndexedAccessType {
@@ -258,9 +258,17 @@ impl IndexedAccessType {
             index_type,
             access_flags,
             constraint: None,
-            simplified_for_reading: None,
-            simplified_for_writing: None,
+            simplified_for_reading: RefCell::new(None),
+            simplified_for_writing: RefCell::new(None),
         }
+    }
+
+    pub fn maybe_simplified_for_reading(&self) -> RefMut<Option<Rc<Type>>> {
+        self.simplified_for_reading.borrow_mut()
+    }
+
+    pub fn maybe_simplified_for_writing(&self) -> RefMut<Option<Rc<Type>>> {
+        self.simplified_for_writing.borrow_mut()
     }
 }
 

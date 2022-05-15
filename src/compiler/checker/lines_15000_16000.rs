@@ -934,10 +934,209 @@ impl TypeChecker {
     }
 
     pub(super) fn is_this_type_parameter(&self, type_: &Type) -> bool {
-        unimplemented!()
+        type_.flags().intersects(TypeFlags::TypeParameter)
+            && matches!(type_.as_type_parameter().is_this_type, Some(true))
     }
 
     pub(super) fn get_simplified_type(&self, type_: &Type, writing: bool) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::IndexedAccess) {
+            self.get_simplified_indexed_access_type(type_, writing)
+        } else if type_.flags().intersects(TypeFlags::Conditional) {
+            self.get_simplified_conditional_type(type_, writing)
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn distribute_index_over_object_type(
+        &self,
+        object_type: &Type,
+        index_type: &Type,
+        writing: bool,
+    ) -> Option<Rc<Type>> {
+        if object_type
+            .flags()
+            .intersects(TypeFlags::UnionOrIntersection)
+        {
+            let types = map(
+                Some(
+                    object_type
+                        .as_union_or_intersection_type_interface()
+                        .types(),
+                ),
+                |t: &Rc<Type>, _| {
+                    self.get_simplified_type(
+                        &self.get_indexed_access_type(
+                            t,
+                            index_type,
+                            None,
+                            Option::<&Node>::None,
+                            Option::<&Symbol>::None,
+                            None,
+                        ),
+                        writing,
+                    )
+                },
+            )
+            .unwrap();
+            return Some(
+                if object_type.flags().intersects(TypeFlags::Intersection) || writing {
+                    self.get_intersection_type(&types, Option::<&Symbol>::None, None)
+                } else {
+                    self.get_union_type(
+                        types,
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                },
+            );
+        }
+        None
+    }
+
+    pub(super) fn distribute_object_over_index_type(
+        &self,
+        object_type: &Type,
+        index_type: &Type,
+        writing: bool,
+    ) -> Option<Rc<Type>> {
+        if index_type.flags().intersects(TypeFlags::Union) {
+            let types = map(
+                Some(index_type.as_union_type().types()),
+                |t: &Rc<Type>, _| {
+                    self.get_simplified_type(
+                        &self.get_indexed_access_type(
+                            object_type,
+                            t,
+                            None,
+                            Option::<&Node>::None,
+                            Option::<&Symbol>::None,
+                            None,
+                        ),
+                        writing,
+                    )
+                },
+            )
+            .unwrap();
+            return Some(if writing {
+                self.get_intersection_type(&types, Option::<&Symbol>::None, None)
+            } else {
+                self.get_union_type(
+                    types,
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                )
+            });
+        }
+        None
+    }
+
+    pub(super) fn get_simplified_indexed_access_type(
+        &self,
+        type_: &Type, /*IndexedAccessType*/
+        writing: bool,
+    ) -> Rc<Type> {
+        let type_as_indexed_access_type = type_.as_indexed_access_type();
+        let read_cache = || {
+            if writing {
+                type_as_indexed_access_type
+                    .maybe_simplified_for_writing()
+                    .clone()
+            } else {
+                type_as_indexed_access_type
+                    .maybe_simplified_for_reading()
+                    .clone()
+            }
+        };
+        let write_cache = |simplified_type: Rc<Type>| {
+            if writing {
+                *type_as_indexed_access_type.maybe_simplified_for_writing() = Some(simplified_type);
+            } else {
+                *type_as_indexed_access_type.maybe_simplified_for_reading() = Some(simplified_type);
+            }
+        };
+        if let Some(type_cache) = read_cache() {
+            return if Rc::ptr_eq(&type_cache, &self.circular_constraint_type()) {
+                type_.type_wrapper()
+            } else {
+                type_cache
+            };
+        }
+        write_cache(self.circular_constraint_type());
+        let object_type =
+            self.get_simplified_type(&type_as_indexed_access_type.object_type, writing);
+        let index_type = self.get_simplified_type(&type_as_indexed_access_type.index_type, writing);
+        let distributed_over_index =
+            self.distribute_object_over_index_type(&object_type, &index_type, writing);
+        if let Some(distributed_over_index) = distributed_over_index {
+            write_cache(distributed_over_index.clone());
+            return distributed_over_index;
+        }
+        if !index_type.flags().intersects(TypeFlags::Instantiable) {
+            let distributed_over_object =
+                self.distribute_index_over_object_type(&object_type, &index_type, writing);
+            if let Some(distributed_over_object) = distributed_over_object {
+                write_cache(distributed_over_object.clone());
+                return distributed_over_object;
+            }
+        }
+        if self.is_generic_tuple_type(&object_type)
+            && index_type.flags().intersects(TypeFlags::NumberLike)
+        {
+            let element_type = self.get_element_type_of_slice_of_tuple_type(
+                &object_type,
+                if index_type.flags().intersects(TypeFlags::Number) {
+                    0
+                } else {
+                    object_type
+                        .as_type_reference()
+                        .target
+                        .as_tuple_type()
+                        .fixed_length
+                },
+                Some(0),
+                Some(writing),
+            );
+            if let Some(element_type) = element_type {
+                write_cache(element_type.clone());
+                return element_type;
+            }
+        }
+        if self.is_generic_mapped_type(&object_type) {
+            let ret = self
+                .map_type(
+                    &self.substitute_indexed_mapped_type(
+                        &object_type,
+                        &type_as_indexed_access_type.index_type,
+                    ),
+                    &mut |t| Some(self.get_simplified_type(t, writing)),
+                    None,
+                )
+                .unwrap();
+            write_cache(ret.clone());
+            return ret;
+        }
+        write_cache(type_.type_wrapper());
+        type_.type_wrapper()
+    }
+
+    pub(super) fn get_simplified_conditional_type(
+        &self,
+        type_: &Type, /*ConditionalType*/
+        writing: bool,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn substitute_indexed_mapped_type(
+        &self,
+        object_type: &Type, /*MappedType*/
+        index_type: &Type,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 

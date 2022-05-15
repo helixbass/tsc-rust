@@ -334,6 +334,18 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_element_type_of_slice_of_tuple_type(
+        &self,
+        type_: &Type, /*TupleTypeReference*/
+        index: usize,
+        end_skip_count: Option<usize>,
+        writing: Option<bool>,
+    ) -> Option<Rc<Type>> {
+        let end_skip_count = end_skip_count.unwrap_or(0);
+        let writing = writing.unwrap_or(false);
+        unimplemented!()
+    }
+
     pub(super) fn get_falsy_flags(&self, type_: &Type) -> TypeFlags {
         unimplemented!()
     }
