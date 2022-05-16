@@ -1,14 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    append, filter, is_optional_type_node, is_rest_type_node, is_tuple_type_node, length, map,
+    append, declaration_name_to_string, filter, is_identifier, is_literal_import_type_node,
+    is_optional_type_node, is_rest_type_node, is_tuple_type_node, length, map, node_is_missing,
     AccessFlags, ConditionalRoot, ConditionalType, Diagnostics, InferenceFlags, InferencePriority,
-    MappedType, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, SymbolInterface,
-    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    MappedType, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags, Signature, Symbol,
+    SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -575,7 +577,191 @@ impl TypeChecker {
         ret
     }
 
+    pub(super) fn get_identifier_chain(
+        &self,
+        node: &Node, /*EntityName*/
+    ) -> Vec<Rc<Node /*Identifier*/>> {
+        if is_identifier(node) {
+            vec![node.node_wrapper()]
+        } else {
+            let node_as_qualified_name = node.as_qualified_name();
+            let mut ret = self.get_identifier_chain(&node_as_qualified_name.left);
+            append(&mut ret, Some(node_as_qualified_name.right.clone()));
+            ret
+        }
+    }
+
     pub(super) fn get_alias_symbol_for_type_node(&self, node: &Node) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_from_import_type_node(
+        &self,
+        node: &Node, /*ImportTypeNode*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            let node_as_import_type_node = node.as_import_type_node();
+            if node_as_import_type_node.is_type_of()
+                && node_as_import_type_node.type_arguments.is_some()
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Type_arguments_cannot_be_used_here,
+                    None,
+                );
+                let mut links = links.borrow_mut();
+                links.resolved_symbol = Some(self.unknown_symbol());
+                let ret = self.error_type();
+                links.resolved_type = Some(ret.clone());
+                return ret;
+            }
+            if !is_literal_import_type_node(node) {
+                self.error(
+                    Some(&*node_as_import_type_node.argument),
+                    &Diagnostics::String_literal_expected,
+                    None,
+                );
+                let mut links = links.borrow_mut();
+                links.resolved_symbol = Some(self.unknown_symbol());
+                let ret = self.error_type();
+                links.resolved_type = Some(ret.clone());
+                return ret;
+            }
+            let target_meaning = if node_as_import_type_node.is_type_of() {
+                SymbolFlags::Value
+            } else if node.flags().intersects(NodeFlags::JSDoc) {
+                SymbolFlags::Value | SymbolFlags::Type
+            } else {
+                SymbolFlags::Type
+            };
+            let inner_module_symbol = self.resolve_external_module_name_(
+                node,
+                &node_as_import_type_node
+                    .argument
+                    .as_literal_type_node()
+                    .literal,
+                None,
+            );
+            if inner_module_symbol.is_none() {
+                let mut links = links.borrow_mut();
+                links.resolved_symbol = Some(self.unknown_symbol());
+                let ret = self.error_type();
+                links.resolved_type = Some(ret.clone());
+                return ret;
+            }
+            let inner_module_symbol = inner_module_symbol.unwrap();
+            let module_symbol = self
+                .resolve_external_module_symbol(Some(&*inner_module_symbol), Some(false))
+                .unwrap();
+            if !node_is_missing(node_as_import_type_node.qualifier.as_deref()) {
+                let mut name_stack: Vec<Rc<Node /*Identifier*/>> =
+                    self.get_identifier_chain(node_as_import_type_node.qualifier.as_ref().unwrap());
+                let mut current_namespace = module_symbol.clone();
+                let mut current: Option<Rc<Node /*Identifier*/>>;
+                while {
+                    current = if name_stack.is_empty() {
+                        None
+                    } else {
+                        Some(name_stack.remove(0))
+                    };
+                    current.is_some()
+                } {
+                    let current = current.unwrap();
+                    let meaning = if !name_stack.is_empty() {
+                        SymbolFlags::Namespace
+                    } else {
+                        target_meaning
+                    };
+                    let merged_resolved_symbol = self
+                        .get_merged_symbol(self.resolve_symbol(Some(&*current_namespace), None))
+                        .unwrap();
+                    let next = if node_as_import_type_node.is_type_of() {
+                        self.get_property_of_type_(
+                            &self.get_type_of_symbol(&merged_resolved_symbol),
+                            &current.as_identifier().escaped_text,
+                            None,
+                        )
+                    } else {
+                        self.get_symbol(
+                            &(*self.get_exports_of_symbol(&merged_resolved_symbol)).borrow(),
+                            &current.as_identifier().escaped_text,
+                            meaning,
+                        )
+                    };
+                    if next.is_none() {
+                        self.error(
+                            Some(&*current),
+                            &Diagnostics::Namespace_0_has_no_exported_member_1,
+                            Some(vec![
+                                self.get_fully_qualified_name(
+                                    &current_namespace,
+                                    Option::<&Node>::None,
+                                ),
+                                declaration_name_to_string(Some(&*current)).into_owned(),
+                            ]),
+                        );
+                        let ret = self.error_type();
+                        links.borrow_mut().resolved_type = Some(ret.clone());
+                        return ret;
+                    }
+                    let next = next.unwrap();
+                    self.get_node_links(&current).borrow_mut().resolved_symbol = Some(next.clone());
+                    self.get_node_links(&current.parent())
+                        .borrow_mut()
+                        .resolved_symbol = Some(next.clone());
+                    current_namespace = next;
+                }
+                links.borrow_mut().resolved_type = Some(self.resolve_import_symbol_type(
+                    node,
+                    &links,
+                    &current_namespace,
+                    target_meaning,
+                ));
+            } else {
+                if module_symbol.flags().intersects(target_meaning) {
+                    links.borrow_mut().resolved_type = Some(self.resolve_import_symbol_type(
+                        node,
+                        &links,
+                        &module_symbol,
+                        target_meaning,
+                    ));
+                } else {
+                    let error_message = if target_meaning == SymbolFlags::Value {
+                        &Diagnostics::Module_0_does_not_refer_to_a_value_but_is_used_as_a_value_here
+                    } else {
+                        &Diagnostics::Module_0_does_not_refer_to_a_type_but_is_used_as_a_type_here_Did_you_mean_typeof_import_0
+                    };
+
+                    self.error(
+                        Some(node),
+                        error_message,
+                        Some(vec![node_as_import_type_node
+                            .argument
+                            .as_literal_type_node()
+                            .literal
+                            .as_literal_like_node()
+                            .text()
+                            .clone()]),
+                    );
+
+                    let mut links = links.borrow_mut();
+                    links.resolved_symbol = Some(self.unknown_symbol());
+                    links.resolved_type = Some(self.error_type());
+                }
+            }
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn resolve_import_symbol_type(
+        &self,
+        node: &Node, /*ImportTypeNode*/
+        links: &RefCell<NodeLinks>,
+        symbol: &Symbol,
+        meaning: SymbolFlags,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
