@@ -25,6 +25,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_index_info_with_readonly(
+        &self,
+        info: &Rc<IndexInfo>,
+        readonly: bool,
+    ) -> Rc<IndexInfo> {
+        unimplemented!()
+    }
+
     // pub fn create_literal_type(
     pub fn create_string_literal_type<TTypeRef: Borrow<Type>>(
         &self,

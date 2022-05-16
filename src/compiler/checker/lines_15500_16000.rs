@@ -2,19 +2,20 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::{
-    append, create_symbol_table, declaration_name_to_string, every, filter, find,
-    get_declaration_modifier_flags_from_symbol, is_identifier, is_jsdoc_type_expression,
+    __String, append, concatenate, create_symbol_table, declaration_name_to_string, every, filter,
+    find, get_declaration_modifier_flags_from_symbol, is_identifier, is_jsdoc_type_expression,
     is_jsdoc_type_literal, is_literal_import_type_node, is_optional_type_node,
     is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node, is_type_alias,
-    is_type_operator_node, length, map, node_is_missing, AccessFlags, CheckFlags, ConditionalRoot,
-    ConditionalType, Diagnostics, InferenceFlags, InferencePriority, MappedType, ModifierFlags,
-    Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
+    is_type_operator_node, length, map, maybe_concatenate, node_is_missing, same_map, AccessFlags,
+    CheckFlags, ConditionalRoot, ConditionalType, Diagnostics, IndexInfo, InferenceFlags,
+    InferencePriority, MappedType, ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks,
+    ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -936,6 +937,205 @@ impl TypeChecker {
             spread_as_object_type.object_flags()
                 | ObjectFlags::ObjectLiteral
                 | ObjectFlags::ContainsObjectOrArrayLiteral,
+        );
+        spread
+    }
+
+    pub(super) fn get_spread_type<TSymbol: Borrow<Symbol>>(
+        &self,
+        left: &Type,
+        right: &Type,
+        symbol: Option<TSymbol>,
+        object_flags: ObjectFlags,
+        readonly: bool,
+    ) -> Rc<Type> {
+        if left.flags().intersects(TypeFlags::Any) || right.flags().intersects(TypeFlags::Any) {
+            return self.any_type();
+        }
+        if left.flags().intersects(TypeFlags::Unknown)
+            || right.flags().intersects(TypeFlags::Unknown)
+        {
+            return self.unknown_type();
+        }
+        if left.flags().intersects(TypeFlags::Never) {
+            return right.type_wrapper();
+        }
+        if right.flags().intersects(TypeFlags::Never) {
+            return left.type_wrapper();
+        }
+        let left = self.try_merge_union_of_object_type_and_empty_object(left, readonly);
+        let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
+        if left.flags().intersects(TypeFlags::Union) {
+            return if self.check_cross_product_union(&[left.clone(), right.type_wrapper()]) {
+                self.map_type(
+                    &left,
+                    &mut |t| {
+                        Some(self.get_spread_type(
+                            t,
+                            right,
+                            symbol.as_deref(),
+                            object_flags,
+                            readonly,
+                        ))
+                    },
+                    None,
+                )
+                .unwrap()
+            } else {
+                self.error_type()
+            };
+        }
+        let right = self.try_merge_union_of_object_type_and_empty_object(right, readonly);
+        if right.flags().intersects(TypeFlags::Union) {
+            return if self.check_cross_product_union(&[left.clone(), right.clone()]) {
+                self.map_type(
+                    &right,
+                    &mut |t| {
+                        Some(self.get_spread_type(
+                            &left,
+                            t,
+                            symbol.as_deref(),
+                            object_flags,
+                            readonly,
+                        ))
+                    },
+                    None,
+                )
+                .unwrap()
+            } else {
+                self.error_type()
+            };
+        }
+        if right.flags().intersects(
+            TypeFlags::BooleanLike
+                | TypeFlags::NumberLike
+                | TypeFlags::BigIntLike
+                | TypeFlags::StringLike
+                | TypeFlags::EnumLike
+                | TypeFlags::NonPrimitive
+                | TypeFlags::Index,
+        ) {
+            return left;
+        }
+
+        if self.is_generic_object_type(&left) || self.is_generic_object_type(&right) {
+            if self.is_empty_object_type(&left) {
+                return right;
+            }
+            if left.flags().intersects(TypeFlags::Intersection) {
+                let types = left.as_intersection_type().types();
+                let last_left = &types[types.len() - 1];
+                if self.is_non_generic_object_type(last_left)
+                    && self.is_non_generic_object_type(&right)
+                {
+                    return self.get_intersection_type(
+                        &concatenate(
+                            types[0..types.len() - 1].to_owned(),
+                            vec![self.get_spread_type(
+                                last_left,
+                                &right,
+                                symbol.as_deref(),
+                                object_flags,
+                                readonly,
+                            )],
+                        ),
+                        Option::<&Symbol>::None,
+                        None,
+                    );
+                }
+            }
+            return self.get_intersection_type(&vec![left, right], Option::<&Symbol>::None, None);
+        }
+
+        let mut members = create_symbol_table(None);
+        let mut skipped_private_members: HashSet<__String> = HashSet::new();
+        let index_infos = if Rc::ptr_eq(&left, &self.empty_object_type()) {
+            self.get_index_infos_of_type(&right)
+        } else {
+            self.get_union_index_infos(&[left.clone(), right.clone()])
+        };
+
+        for right_prop in self.get_properties_of_type(&right) {
+            if get_declaration_modifier_flags_from_symbol(&right_prop, None)
+                .intersects(ModifierFlags::Private | ModifierFlags::Protected)
+            {
+                skipped_private_members.insert(right_prop.escaped_name().clone());
+            } else if self.is_spreadable_property(&right_prop) {
+                members.insert(
+                    right_prop.escaped_name().clone(),
+                    self.get_spread_symbol(&right_prop, readonly),
+                );
+            }
+        }
+
+        for left_prop in self.get_properties_of_type(&left) {
+            if skipped_private_members.contains(left_prop.escaped_name())
+                || !self.is_spreadable_property(&left_prop)
+            {
+                continue;
+            }
+            if members.contains_key(left_prop.escaped_name()) {
+                let right_prop = members.get(left_prop.escaped_name()).unwrap();
+                let right_type = self.get_type_of_symbol(right_prop);
+                if right_prop.flags().intersects(SymbolFlags::Optional) {
+                    let declarations = maybe_concatenate(
+                        left_prop.maybe_declarations().clone(),
+                        right_prop.maybe_declarations().clone(),
+                    );
+                    let flags = SymbolFlags::Property | (left_prop.flags() & SymbolFlags::Optional);
+                    let result: Rc<Symbol> = self
+                        .create_symbol(flags, left_prop.escaped_name().clone(), None)
+                        .into();
+                    let result_links = result.as_transient_symbol().symbol_links();
+                    let mut result_links = result_links.borrow_mut();
+                    result_links.type_ = Some(self.get_union_type(
+                        vec![
+                            self.get_type_of_symbol(&left_prop),
+                            self.remove_missing_or_undefined_type(&right_type),
+                        ],
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    ));
+                    result_links.left_spread = Some(left_prop.clone());
+                    result_links.right_spread = Some(right_prop.clone());
+                    if let Some(declarations) = declarations {
+                        result.set_declarations(declarations);
+                    }
+                    result_links.name_type = (*self.get_symbol_links(&left_prop))
+                        .borrow()
+                        .name_type
+                        .clone();
+                    members.insert(left_prop.escaped_name().clone(), result);
+                }
+            } else {
+                members.insert(
+                    left_prop.escaped_name().clone(),
+                    self.get_spread_symbol(&left_prop, readonly),
+                );
+            }
+        }
+
+        let spread: Rc<Type> = self
+            .create_anonymous_type(
+                symbol.as_deref(),
+                Rc::new(RefCell::new(members)),
+                vec![],
+                vec![],
+                same_map(Some(&index_infos), |info: &Rc<IndexInfo>, _| {
+                    self.get_index_info_with_readonly(info, readonly)
+                })
+                .unwrap(),
+            )
+            .into();
+        let spread_as_object_type = spread.as_object_type();
+        spread_as_object_type.set_object_flags(
+            spread_as_object_type.object_flags()
+                | ObjectFlags::ObjectLiteral
+                | ObjectFlags::ContainsObjectOrArrayLiteral
+                | ObjectFlags::ContainsSpread
+                | object_flags,
         );
         spread
     }
