@@ -557,6 +557,24 @@ impl TypeChecker {
         ret
     }
 
+    pub(super) fn get_type_from_infer_type_node(
+        &self,
+        node: &Node, /*InferTypeNode*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            links.borrow_mut().resolved_type = Some(
+                self.get_declared_type_of_type_parameter(
+                    &self
+                        .get_symbol_of_node(&node.as_infer_type_node().type_parameter)
+                        .unwrap(),
+                ),
+            );
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
     pub(super) fn get_alias_symbol_for_type_node(&self, node: &Node) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
