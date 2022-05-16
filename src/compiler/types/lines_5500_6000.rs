@@ -312,8 +312,38 @@ pub struct ConditionalRoot {
     pub is_distributive: bool,
     pub infer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    instantiations: RefCell<Option<HashMap<String, Rc<Type>>>>,
     pub alias_symbol: Option<Rc<Symbol>>,
     pub alias_type_arguments: Option<Vec<Rc<Type>>>,
+}
+
+impl ConditionalRoot {
+    pub fn new(
+        node: Rc<Node>,
+        check_type: Rc<Type>,
+        extends_type: Rc<Type>,
+        is_distributive: bool,
+        infer_type_parameters: Option<Vec<Rc<Type>>>,
+        outer_type_parameters: Option<Vec<Rc<Type>>>,
+        alias_symbol: Option<Rc<Symbol>>,
+        alias_type_arguments: Option<Vec<Rc<Type>>>,
+    ) -> Self {
+        Self {
+            node,
+            check_type,
+            extends_type,
+            is_distributive,
+            infer_type_parameters,
+            outer_type_parameters,
+            instantiations: RefCell::new(None),
+            alias_symbol,
+            alias_type_arguments,
+        }
+    }
+
+    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Rc<Type>>>> {
+        self.instantiations.borrow_mut()
+    }
 }
 
 #[derive(Clone, Debug)]

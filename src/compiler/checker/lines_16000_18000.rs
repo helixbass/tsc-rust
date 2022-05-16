@@ -535,6 +535,14 @@ impl TypeChecker {
         result.into()
     }
 
+    pub(super) fn is_type_parameter_possibly_referenced(
+        &self,
+        tp: &Type, /*TypeParameter*/
+        node: &Node,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_homomorphic_type_variable(
         &self,
         type_: &Type, /*MappedType*/

@@ -1,13 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    append, is_optional_type_node, is_rest_type_node, is_tuple_type_node, length, map, AccessFlags,
-    ConditionalRoot, ConditionalType, Diagnostics, InferenceFlags, InferencePriority, MappedType,
-    Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolInterface, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    append, filter, is_optional_type_node, is_rest_type_node, is_tuple_type_node, length, map,
+    AccessFlags, ConditionalRoot, ConditionalType, Diagnostics, InferenceFlags, InferencePriority,
+    MappedType, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, SymbolInterface,
+    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -479,7 +480,81 @@ impl TypeChecker {
         &self,
         node: &Node, /*ConditionalTypeNode*/
     ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
-        unimplemented!()
+        let mut result: Option<Vec<Rc<Type>>> = None;
+        if let Some(node_locals) = node.maybe_locals().clone() {
+            (*node_locals)
+                .borrow()
+                .values()
+                .for_each(|symbol: &Rc<Symbol>| {
+                    if symbol.flags().intersects(SymbolFlags::TypeParameter) {
+                        if result.is_none() {
+                            result = Some(vec![]);
+                        }
+                        append(
+                            result.as_mut().unwrap(),
+                            Some(self.get_declared_type_of_symbol(symbol)),
+                        );
+                    }
+                });
+        }
+        result
+    }
+
+    pub(super) fn is_distribution_dependent(&self, root: &ConditionalRoot) -> bool {
+        root.is_distributive
+            && (self.is_type_parameter_possibly_referenced(
+                &root.check_type,
+                &root.node.as_conditional_type_node().true_type,
+            ) || self.is_type_parameter_possibly_referenced(
+                &root.check_type,
+                &root.node.as_conditional_type_node().false_type,
+            ))
+    }
+
+    pub(super) fn get_type_from_conditional_type_node(
+        &self,
+        node: &Node, /*ConditionalTypeNode*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            let node_as_conditional_type_node = node.as_conditional_type_node();
+            let check_type =
+                self.get_type_from_type_node_(&node_as_conditional_type_node.check_type);
+            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let alias_type_arguments =
+                self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
+            let all_outer_type_parameters = self.get_outer_type_parameters(node, Some(true));
+            let outer_type_parameters = if alias_type_arguments.is_some() {
+                all_outer_type_parameters
+            } else {
+                filter(all_outer_type_parameters.as_deref(), |tp: &Rc<Type>| {
+                    self.is_type_parameter_possibly_referenced(tp, node)
+                })
+            };
+            let root = ConditionalRoot::new(
+                node.node_wrapper(),
+                check_type.clone(),
+                self.get_type_from_type_node_(&node_as_conditional_type_node.extends_type),
+                check_type.flags().intersects(TypeFlags::TypeParameter),
+                self.get_infer_type_parameters(node),
+                outer_type_parameters.clone(),
+                alias_symbol,
+                alias_type_arguments,
+            );
+            let resolved_type =
+                self.get_conditional_type(&root, None, Option::<&Symbol>::None, None);
+            links.borrow_mut().resolved_type = Some(resolved_type.clone());
+            if let Some(outer_type_parameters) = outer_type_parameters {
+                let mut instantiations: HashMap<String, Rc<Type>> = HashMap::new();
+                instantiations.insert(
+                    self.get_type_list_id(Some(&outer_type_parameters)),
+                    resolved_type,
+                );
+                *root.maybe_instantiations() = Some(instantiations);
+            }
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
     }
 
     pub(super) fn get_alias_symbol_for_type_node(&self, node: &Node) -> Option<Rc<Symbol>> {
