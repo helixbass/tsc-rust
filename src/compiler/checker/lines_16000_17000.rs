@@ -5,9 +5,10 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    get_check_flags, map, pseudo_big_int_to_string, BaseLiteralType, BigIntLiteralType, CheckFlags,
-    IndexInfo, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType, PseudoBigInt,
-    Signature, SignatureFlags, StringLiteralType, StringOrNumber, Symbol, SymbolInterface,
+    get_check_flags, is_class_like, is_private_identifier_class_element_declaration, map,
+    pseudo_big_int_to_string, some, BaseLiteralType, BigIntLiteralType, CheckFlags, IndexInfo,
+    LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType, PseudoBigInt, Signature,
+    SignatureFlags, StringLiteralType, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper, TypePredicate, UnionOrIntersectionType,
 };
@@ -15,7 +16,18 @@ use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn is_spreadable_property(&self, prop: &Symbol) -> bool {
-        unimplemented!()
+        !some(
+            prop.maybe_declarations().as_deref(),
+            Some(|declaration: &Rc<Node>| {
+                is_private_identifier_class_element_declaration(declaration)
+            }),
+        ) && (!prop
+            .flags()
+            .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
+            || !matches!(
+                prop.maybe_declarations().as_ref(),
+                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Rc<Node>| is_class_like(&decl.parent()))
+            ))
     }
 
     pub(super) fn get_spread_symbol(&self, prop: &Symbol, readonly: bool) -> Rc<Symbol> {
