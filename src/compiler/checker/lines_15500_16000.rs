@@ -6,11 +6,15 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    append, declaration_name_to_string, filter, is_identifier, is_literal_import_type_node,
-    is_optional_type_node, is_rest_type_node, is_tuple_type_node, length, map, node_is_missing,
-    AccessFlags, ConditionalRoot, ConditionalType, Diagnostics, InferenceFlags, InferencePriority,
-    MappedType, Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags, Signature, Symbol,
-    SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    append, create_symbol_table, declaration_name_to_string, every, filter, find,
+    get_declaration_modifier_flags_from_symbol, is_identifier, is_jsdoc_type_expression,
+    is_jsdoc_type_literal, is_literal_import_type_node, is_optional_type_node,
+    is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node, is_type_alias,
+    is_type_operator_node, length, map, node_is_missing, AccessFlags, CheckFlags, ConditionalRoot,
+    ConditionalType, Diagnostics, InferenceFlags, InferencePriority, MappedType, ModifierFlags,
+    Node, NodeFlags, NodeInterface, NodeLinks, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -591,10 +595,6 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_alias_symbol_for_type_node(&self, node: &Node) -> Option<Rc<Symbol>> {
-        unimplemented!()
-    }
-
     pub(super) fn get_type_from_import_type_node(
         &self,
         node: &Node, /*ImportTypeNode*/
@@ -762,13 +762,181 @@ impl TypeChecker {
         symbol: &Symbol,
         meaning: SymbolFlags,
     ) -> Rc<Type> {
-        unimplemented!()
+        let resolved_symbol = self.resolve_symbol(Some(symbol), None).unwrap();
+        links.borrow_mut().resolved_symbol = Some(resolved_symbol.clone());
+        if meaning == SymbolFlags::Value {
+            self.get_type_of_symbol(symbol)
+        } else {
+            self.get_type_reference_type(node, &resolved_symbol)
+        }
+    }
+
+    pub(super) fn get_type_from_type_literal_or_function_or_constructor_type_node(
+        &self,
+        node: &Node, /*TypeNode*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            if (*self.get_members_of_symbol(&node.symbol()))
+                .borrow()
+                .is_empty()
+                && alias_symbol.is_none()
+            {
+                links.borrow_mut().resolved_type = Some(self.empty_type_literal_type());
+            } else {
+                let mut type_: Rc<Type> = self
+                    .create_object_type(ObjectFlags::Anonymous, node.maybe_symbol())
+                    .into();
+                *type_.maybe_alias_symbol() = alias_symbol.clone();
+                *type_.maybe_alias_type_arguments() =
+                    self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
+                if is_jsdoc_type_literal(node) && node.as_jsdoc_type_literal().is_array_type {
+                    type_ = self.create_array_type(&type_, None);
+                }
+                links.borrow_mut().resolved_type = Some(type_);
+            }
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn get_alias_symbol_for_type_node(&self, node: &Node) -> Option<Rc<Symbol>> {
+        let mut host = node.parent();
+        while is_parenthesized_type_node(&host)
+            || is_jsdoc_type_expression(&host)
+            || is_type_operator_node(&host)
+                && host.as_type_operator_node().operator == SyntaxKind::ReadonlyKeyword
+        {
+            host = host.parent();
+        }
+        if is_type_alias(&host) {
+            self.get_symbol_of_node(&host)
+        } else {
+            None
+        }
     }
 
     pub(super) fn get_type_arguments_for_alias_symbol<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,
     ) -> Option<Vec<Rc<Type>>> {
-        unimplemented!()
+        symbol.and_then(|symbol| {
+            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol.borrow())
+        })
+    }
+
+    pub(super) fn is_non_generic_object_type(&self, type_: &Type) -> bool {
+        type_.flags().intersects(TypeFlags::Object) && !self.is_generic_mapped_type(type_)
+    }
+
+    pub(super) fn is_empty_object_type_or_spreads_into_empty_object(&self, type_: &Type) -> bool {
+        self.is_empty_object_type(type_)
+            || type_.flags().intersects(
+                TypeFlags::Null
+                    | TypeFlags::Undefined
+                    | TypeFlags::BooleanLike
+                    | TypeFlags::NumberLike
+                    | TypeFlags::BigIntLike
+                    | TypeFlags::StringLike
+                    | TypeFlags::EnumLike
+                    | TypeFlags::NonPrimitive
+                    | TypeFlags::Index,
+            )
+    }
+
+    pub(super) fn try_merge_union_of_object_type_and_empty_object(
+        &self,
+        type_: &Type,
+        readonly: bool,
+    ) -> Rc<Type> {
+        if !type_.flags().intersects(TypeFlags::Union) {
+            return type_.type_wrapper();
+        }
+        let type_as_union_type = type_.as_union_type();
+        if every(type_as_union_type.types(), |type_: &Rc<Type>, _| {
+            self.is_empty_object_type_or_spreads_into_empty_object(type_)
+        }) {
+            return find(type_as_union_type.types(), |type_: &Rc<Type>, _| {
+                self.is_empty_object_type(type_)
+            })
+            .map(Clone::clone)
+            .unwrap_or_else(|| self.empty_object_type());
+        }
+        let first_type = find(type_as_union_type.types(), |type_: &Rc<Type>, _| {
+            !self.is_empty_object_type_or_spreads_into_empty_object(type_)
+        })
+        .map(Clone::clone);
+        if first_type.is_none() {
+            return type_.type_wrapper();
+        }
+        let first_type = first_type.unwrap();
+        let second_type = find(type_as_union_type.types(), |t: &Rc<Type>, _| {
+            !Rc::ptr_eq(t, &first_type)
+                && !self.is_empty_object_type_or_spreads_into_empty_object(type_)
+        })
+        .map(Clone::clone);
+        if second_type.is_some() {
+            return type_.type_wrapper();
+        }
+        self.get_anonymous_partial_type(readonly, &first_type)
+    }
+
+    pub(super) fn get_anonymous_partial_type(&self, readonly: bool, type_: &Type) -> Rc<Type> {
+        let mut members = create_symbol_table(None);
+        for prop in self.get_properties_of_type(type_) {
+            if get_declaration_modifier_flags_from_symbol(&prop, None)
+                .intersects(ModifierFlags::Private | ModifierFlags::Protected)
+            {
+            } else if self.is_spreadable_property(&prop) {
+                let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
+                    && !prop.flags().intersects(SymbolFlags::GetAccessor);
+                let flags = SymbolFlags::Property | SymbolFlags::Optional;
+                let result: Rc<Symbol> = self
+                    .create_symbol(
+                        flags,
+                        prop.escaped_name().clone(),
+                        Some(
+                            self.get_is_late_check_flag(&prop)
+                                | if readonly {
+                                    CheckFlags::Readonly
+                                } else {
+                                    CheckFlags::None
+                                },
+                        ),
+                    )
+                    .into();
+                let result_links = result.as_transient_symbol().symbol_links();
+                let mut result_links = result_links.borrow_mut();
+                result_links.type_ = Some(if is_setonly_accessor {
+                    self.undefined_type()
+                } else {
+                    self.add_optionality(&self.get_type_of_symbol(&prop), Some(true), None)
+                });
+                let prop_declarations = prop.maybe_declarations();
+                if let Some(prop_declarations) = prop_declarations.as_ref() {
+                    result.set_declarations(prop_declarations.clone());
+                }
+                result_links.name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
+                result_links.synthetic_origin = Some(prop.clone());
+                members.insert(prop.escaped_name().clone(), result);
+            }
+        }
+        let spread: Rc<Type> = self
+            .create_anonymous_type(
+                type_.maybe_symbol(),
+                Rc::new(RefCell::new(members)),
+                vec![],
+                vec![],
+                self.get_index_infos_of_type(type_),
+            )
+            .into();
+        let spread_as_object_type = spread.as_object_type();
+        spread_as_object_type.set_object_flags(
+            spread_as_object_type.object_flags()
+                | ObjectFlags::ObjectLiteral
+                | ObjectFlags::ContainsObjectOrArrayLiteral,
+        );
+        spread
     }
 }

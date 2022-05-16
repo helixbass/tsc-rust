@@ -2694,6 +2694,10 @@ impl TypeChecker {
         self.empty_object_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn empty_type_literal_type(&self) -> Rc<Type> {
+        self.empty_type_literal_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn empty_generic_type(&self) -> Rc<Type> {
         self.empty_generic_type.as_ref().unwrap().clone()
     }

@@ -1218,6 +1218,10 @@ impl Node {
     pub fn as_template_literal_type_span(&self) -> &TemplateLiteralTypeSpan {
         enum_unwrapped!(self, [Node, TemplateLiteralTypeSpan])
     }
+
+    pub fn as_jsdoc_type_literal(&self) -> &JSDocTypeLiteral {
+        enum_unwrapped!(self, [Node, JSDocTypeLiteral])
+    }
 }
 
 #[derive(Debug)]
