@@ -1,18 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
     get_check_flags, map, pseudo_big_int_to_string, BaseLiteralType, BigIntLiteralType, CheckFlags,
-    Debug_, DiagnosticMessage, IndexInfo, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, NumberLiteralType, PseudoBigInt, RelationComparisonResult, Signature,
-    SignatureFlags, StringLiteralType, StringOrNumber, Symbol, SymbolInterface, SyntaxKind,
-    Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, UnionOrIntersectionType,
+    IndexInfo, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType, PseudoBigInt,
+    Signature, SignatureFlags, StringLiteralType, StringOrNumber, Symbol, SymbolInterface,
+    SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypePredicate, UnionOrIntersectionType,
 };
 use local_macros::enum_unwrapped;
 
