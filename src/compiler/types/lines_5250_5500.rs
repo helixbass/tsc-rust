@@ -95,6 +95,7 @@ impl StringLiteralType {
         let fresh_type = type_checker.create_string_literal_type(
             self.flags(),
             self.value.clone(),
+            self.maybe_symbol(),
             Some(self.type_wrapper()),
         );
         fresh_type.as_literal_type().set_fresh_type(&fresh_type);
@@ -150,6 +151,7 @@ impl NumberLiteralType {
         let fresh_type = type_checker.create_number_literal_type(
             self.flags(),
             self.value,
+            self.maybe_symbol(),
             Some(self.type_wrapper()),
         );
         fresh_type.as_literal_type().set_fresh_type(&fresh_type);
@@ -205,6 +207,7 @@ impl BigIntLiteralType {
         let fresh_type = type_checker.create_big_int_literal_type(
             self.flags(),
             self.value.clone(),
+            self.maybe_symbol(),
             Some(self.type_wrapper()),
         );
         fresh_type.as_literal_type().set_fresh_type(&fresh_type);

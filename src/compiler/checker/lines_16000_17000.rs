@@ -31,7 +31,39 @@ impl TypeChecker {
     }
 
     pub(super) fn get_spread_symbol(&self, prop: &Symbol, readonly: bool) -> Rc<Symbol> {
-        unimplemented!()
+        let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
+            && !prop.flags().intersects(SymbolFlags::GetAccessor);
+        if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop) {
+            return prop.symbol_wrapper();
+        }
+        let flags = SymbolFlags::Property | (prop.flags() & SymbolFlags::Optional);
+        let result: Rc<Symbol> = self
+            .create_symbol(
+                flags,
+                prop.escaped_name().clone(),
+                Some(
+                    self.get_is_late_check_flag(prop)
+                        | if readonly {
+                            CheckFlags::Readonly
+                        } else {
+                            CheckFlags::None
+                        },
+                ),
+            )
+            .into();
+        let result_links = result.as_transient_symbol().symbol_links();
+        let mut result_links = result_links.borrow_mut();
+        result_links.type_ = Some(if is_setonly_accessor {
+            self.undefined_type()
+        } else {
+            self.get_type_of_symbol(prop)
+        });
+        if let Some(prop_declarations) = prop.maybe_declarations().clone() {
+            result.set_declarations(prop_declarations);
+        }
+        result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
+        result_links.synthetic_origin = Some(prop.symbol_wrapper());
+        result
     }
 
     pub(super) fn get_index_info_with_readonly(
@@ -39,19 +71,30 @@ impl TypeChecker {
         info: &Rc<IndexInfo>,
         readonly: bool,
     ) -> Rc<IndexInfo> {
-        unimplemented!()
+        if info.is_readonly != readonly {
+            Rc::new(self.create_index_info(
+                info.key_type.clone(),
+                info.type_.clone(),
+                readonly,
+                info.declaration.clone(),
+            ))
+        } else {
+            info.clone()
+        }
     }
 
     // pub fn create_literal_type(
-    pub fn create_string_literal_type<TTypeRef: Borrow<Type>>(
+    pub fn create_string_literal_type<TSymbol: Borrow<Symbol>, TRegularType: Borrow<Type>>(
         &self,
         flags: TypeFlags,
         value: String,
-        regular_type: Option<TTypeRef>,
+        symbol: Option<TSymbol>,
+        regular_type: Option<TRegularType>,
     ) -> Rc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = StringLiteralType::new(type_, value).into();
+        type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
             .set_regular_type(&if let Some(regular_type) = regular_type {
@@ -62,15 +105,17 @@ impl TypeChecker {
         type_
     }
 
-    pub fn create_number_literal_type<TTypeRef: Borrow<Type>>(
+    pub fn create_number_literal_type<TSymbol: Borrow<Symbol>, TRegularType: Borrow<Type>>(
         &self,
         flags: TypeFlags,
         value: Number,
-        regular_type: Option<TTypeRef>,
+        symbol: Option<TSymbol>,
+        regular_type: Option<TRegularType>,
     ) -> Rc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = NumberLiteralType::new(type_, value).into();
+        type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
             .set_regular_type(&if let Some(regular_type) = regular_type {
@@ -81,15 +126,17 @@ impl TypeChecker {
         type_
     }
 
-    pub fn create_big_int_literal_type<TTypeRef: Borrow<Type>>(
+    pub fn create_big_int_literal_type<TSymbol: Borrow<Symbol>, TRegularType: Borrow<Type>>(
         &self,
         flags: TypeFlags,
         value: PseudoBigInt,
-        regular_type: Option<TTypeRef>,
+        symbol: Option<TSymbol>,
+        regular_type: Option<TRegularType>,
     ) -> Rc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = BigIntLiteralType::new(type_, value).into();
+        type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
             .set_regular_type(&if let Some(regular_type) = regular_type {
@@ -150,6 +197,7 @@ impl TypeChecker {
         let type_ = self.create_string_literal_type(
             TypeFlags::StringLiteral,
             value.to_string(),
+            Option::<&Symbol>::None,
             Option::<&Type>::None,
         );
         string_literal_types.insert(value.to_string(), type_.clone());
@@ -161,8 +209,12 @@ impl TypeChecker {
         if number_literal_types.contains_key(&value) {
             return number_literal_types.get(&value).unwrap().clone();
         }
-        let type_ =
-            self.create_number_literal_type(TypeFlags::NumberLiteral, value, Option::<&Type>::None);
+        let type_ = self.create_number_literal_type(
+            TypeFlags::NumberLiteral,
+            value,
+            Option::<&Symbol>::None,
+            Option::<&Type>::None,
+        );
         number_literal_types.insert(value, type_.clone());
         type_
     }
@@ -176,6 +228,7 @@ impl TypeChecker {
         let type_ = self.create_big_int_literal_type(
             TypeFlags::BigIntLiteral,
             value,
+            Option::<&Symbol>::None,
             Option::<&Type>::None,
         );
         big_int_literal_types.insert(key, type_.clone());
