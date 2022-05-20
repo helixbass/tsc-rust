@@ -76,6 +76,16 @@ pub struct UniqueESSymbolType {
     pub escaped_name: __String,
 }
 
+impl UniqueESSymbolType {
+    pub fn new(base_type: BaseType, symbol: Rc<Symbol>, escaped_name: __String) -> Self {
+        Self {
+            _type: base_type,
+            symbol,
+            escaped_name,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 #[type_type(ancestors = "LiteralType")]
 pub struct StringLiteralType {
@@ -1002,6 +1012,7 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
 pub struct UnionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
     resolved_reduced_type: RefCell<Option<Rc<Type>>>,
+    regular_type: RefCell<Option<Rc<Type /*UnionType*/>>>,
     pub(crate) origin: Option<Rc<Type>>,
 }
 
@@ -1010,11 +1021,16 @@ impl UnionType {
         Self {
             _union_or_intersection_type: union_or_intersection_type,
             resolved_reduced_type: RefCell::new(None),
+            regular_type: RefCell::new(None),
             origin: None,
         }
     }
 
     pub fn maybe_resolved_reduced_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.resolved_reduced_type.borrow_mut()
+    }
+
+    pub fn maybe_regular_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.regular_type.borrow_mut()
     }
 }

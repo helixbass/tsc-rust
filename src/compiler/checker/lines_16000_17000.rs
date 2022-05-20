@@ -5,12 +5,13 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    get_check_flags, is_class_like, is_private_identifier_class_element_declaration, map,
+    __String, get_check_flags, get_symbol_id, is_class_like,
+    is_private_identifier_class_element_declaration, is_valid_es_symbol_declaration, map,
     pseudo_big_int_to_string, some, BaseLiteralType, BigIntLiteralType, CheckFlags, IndexInfo,
     LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType, PseudoBigInt, Signature,
     SignatureFlags, StringLiteralType, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypePredicate, UnionOrIntersectionType,
+    TypeMapper, TypePredicate, UniqueESSymbolType,
 };
 use local_macros::enum_unwrapped;
 
@@ -148,21 +149,30 @@ impl TypeChecker {
     }
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
-        match type_ {
-            Type::LiteralType(literal_type) => {
-                return literal_type.get_or_initialize_fresh_type(self);
-            }
-            _ => type_.type_wrapper(),
+        if type_.flags().intersects(TypeFlags::Literal) {
+            return type_.as_literal_type().get_or_initialize_fresh_type(self);
         }
+        type_.type_wrapper()
     }
 
     pub(super) fn get_regular_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
-        match type_ {
-            Type::LiteralType(literal_type) => return literal_type.regular_type(),
-            Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(union_type)) => {
-                unimplemented!()
+        if type_.flags().intersects(TypeFlags::Literal) {
+            type_.as_literal_type().regular_type()
+        } else if type_.flags().intersects(TypeFlags::Union) {
+            let type_as_union_type = type_.as_union_type();
+            if type_as_union_type.maybe_regular_type().is_none() {
+                *type_as_union_type.maybe_regular_type() = Some(
+                    self.map_type(
+                        type_,
+                        &mut |type_| Some(self.get_regular_type_of_literal_type(type_)),
+                        None,
+                    )
+                    .unwrap(),
+                );
             }
-            _ => type_.type_wrapper(),
+            type_as_union_type.maybe_regular_type().clone().unwrap()
+        } else {
+            type_.type_wrapper()
         }
     }
 
@@ -172,6 +182,8 @@ impl TypeChecker {
         }
         // TODO: should this be using eg a Type.as_has_fresh_type() "unwrapper-helper" instead?
         // (same question in is_type_related_to() and get_normalized_type() below)
+        // or maybe this looks like it should be a trait that includes `maybe_fresh_type()` that
+        // both of these implement?
         match type_ {
             Type::IntrinsicType(intrinsic_type) => ptr::eq(
                 type_,
@@ -196,11 +208,11 @@ impl TypeChecker {
         }
         let type_ = self.create_string_literal_type(
             TypeFlags::StringLiteral,
-            value.to_string(),
+            value.to_owned(),
             Option::<&Symbol>::None,
             Option::<&Type>::None,
         );
-        string_literal_types.insert(value.to_string(), type_.clone());
+        string_literal_types.insert(value.to_owned(), type_.clone());
         type_
     }
 
@@ -241,7 +253,34 @@ impl TypeChecker {
         enum_id: usize,
         symbol: &Symbol,
     ) -> Rc<Type /*LiteralType*/> {
-        unimplemented!()
+        let key = match value.clone() {
+            StringOrNumber::String(value) => {
+                format!("{}@{}", enum_id, value)
+            }
+            StringOrNumber::Number(value) => {
+                format!("{}#{}", enum_id, value)
+            }
+        };
+        let mut enum_literal_types = self.enum_literal_types();
+        if enum_literal_types.contains_key(&key) {
+            return enum_literal_types.get(&key).unwrap().clone();
+        }
+        let type_: Rc<Type> = match value {
+            StringOrNumber::String(value) => self.create_string_literal_type(
+                TypeFlags::EnumLiteral | TypeFlags::StringLiteral,
+                value,
+                Some(symbol),
+                Option::<&Type>::None,
+            ),
+            StringOrNumber::Number(value) => self.create_number_literal_type(
+                TypeFlags::EnumLiteral | TypeFlags::NumberLiteral,
+                value,
+                Some(symbol),
+                Option::<&Type>::None,
+            ),
+        };
+        enum_literal_types.insert(key, type_.clone());
+        type_
     }
 
     pub(super) fn get_type_from_literal_type_node(
@@ -250,20 +289,47 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let node_as_literal_type_node = node.as_literal_type_node();
         if node_as_literal_type_node.literal.kind() == SyntaxKind::NullKeyword {
-            unimplemented!()
+            return self.null_type();
         }
         let links = self.get_node_links(node);
-        let mut links_ref = links.borrow_mut();
-        if links_ref.resolved_type.is_none() {
-            links_ref.resolved_type = Some(self.get_regular_type_of_literal_type(
+        if (*links).borrow().resolved_type.is_none() {
+            links.borrow_mut().resolved_type = Some(self.get_regular_type_of_literal_type(
                 &self.check_expression(&node_as_literal_type_node.literal, None, None),
             ));
         }
-        links_ref.resolved_type.clone().unwrap()
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn create_unique_es_symbol_type(
+        &self,
+        symbol: &Symbol,
+    ) -> Rc<Type /*UniqueESSymbolType*/> {
+        let type_ = self.create_type(TypeFlags::UniqueESSymbol);
+        let type_: Rc<Type> = UniqueESSymbolType::new(
+            type_,
+            symbol.symbol_wrapper(),
+            __String::new(format!(
+                "__@{}@{}",
+                &**symbol.escaped_name(), // TODO: should just implement Display on __String
+                get_symbol_id(symbol)
+            )),
+        )
+        .into();
+        type_
     }
 
     pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> Rc<Type> {
-        unimplemented!()
+        if is_valid_es_symbol_declaration(node) {
+            let symbol = self.get_symbol_of_node(node).unwrap();
+            let links = self.get_symbol_links(&symbol);
+            if (*links).borrow().unique_es_symbol_type.is_none() {
+                links.borrow_mut().unique_es_symbol_type =
+                    Some(self.create_unique_es_symbol_type(&symbol));
+            }
+            return (*links).borrow().unique_es_symbol_type.clone().unwrap();
+        }
+        self.es_symbol_type()
     }
 
     pub(super) fn get_array_element_type_node(

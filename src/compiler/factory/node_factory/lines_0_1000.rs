@@ -1277,6 +1277,7 @@ impl From<Rc<Node>> for StringOrRcNode {
     }
 }
 
+#[derive(Clone)]
 pub enum StringOrNumber {
     String(String),
     Number(Number),
