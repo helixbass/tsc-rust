@@ -655,9 +655,13 @@ pub struct TypeMapperArray {
     pub targets: Option<Vec<Rc<Type>>>,
 }
 
+pub trait TypeMapperCallback {
+    fn call(&self, checker: &TypeChecker, type_: &Type) -> Rc<Type>;
+}
+
 #[derive(Clone)]
 pub struct TypeMapperFunction {
-    pub func: fn(&TypeChecker, &Type) -> Rc<Type>,
+    pub func: Rc<dyn TypeMapperCallback>,
 }
 
 impl fmt::Debug for TypeMapperFunction {
@@ -681,8 +685,10 @@ impl TypeMapper {
         Self::Array(TypeMapperArray { sources, targets })
     }
 
-    pub fn new_function(func: fn(&TypeChecker, &Type) -> Rc<Type>) -> Self {
-        Self::Function(TypeMapperFunction { func })
+    pub fn new_function<TFunc: 'static + TypeMapperCallback>(func: TFunc) -> Self {
+        Self::Function(TypeMapperFunction {
+            func: Rc::new(func),
+        })
     }
 
     pub fn new_composite(mapper1: TypeMapper, mapper2: TypeMapper) -> Self {
@@ -721,7 +727,9 @@ bitflags! {
     }
 }
 
-pub(crate) type InferenceInfo = ();
+pub(crate) struct InferenceInfo {
+    pub type_parameter: Rc<Type /*TypeParameter*/>,
+}
 
 bitflags! {
     pub(crate) struct InferenceFlags: u32 {
@@ -761,7 +769,7 @@ impl BitAndAssign for Ternary {
 }
 
 pub(crate) struct InferenceContext {
-    pub inferences: Vec<InferenceInfo>,
+    pub inferences: Vec<Rc<InferenceInfo>>,
     pub mapper: TypeMapper,
 }
 

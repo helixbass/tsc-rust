@@ -5,19 +5,46 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    __String, get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc,
-    get_symbol_id, get_this_container, is_binary_expression, is_class_like,
-    is_constructor_declaration, is_function_expression, is_node_descendant_of,
-    is_object_literal_expression, is_private_identifier_class_element_declaration, is_static,
-    is_valid_es_symbol_declaration, map, pseudo_big_int_to_string, some, AssignmentDeclarationKind,
-    BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface,
-    IndexInfo, InterfaceTypeInterface, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
-    Number, NumberLiteralType, PseudoBigInt, Signature, SignatureFlags, StringLiteralType,
-    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, UniqueESSymbolType,
+    find_index, InferenceContext, InferenceInfo, TypeMapperCallback, __String,
+    get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc, get_symbol_id,
+    get_this_container, is_binary_expression, is_class_like, is_constructor_declaration,
+    is_function_expression, is_node_descendant_of, is_object_literal_expression,
+    is_private_identifier_class_element_declaration, is_static, is_valid_es_symbol_declaration,
+    map, pseudo_big_int_to_string, some, AssignmentDeclarationKind, BaseLiteralType,
+    BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface, IndexInfo,
+    InterfaceTypeInterface, LiteralTypeInterface, Node, NodeFlags, NodeInterface, Number,
+    NumberLiteralType, PseudoBigInt, Signature, SignatureFlags, StringLiteralType, StringOrNumber,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UniqueESSymbolType,
 };
 use local_macros::enum_unwrapped;
+
+struct BackreferenceMapperCallback {
+    context_inferences: Vec<Rc<InferenceInfo>>,
+    index: usize,
+}
+
+impl BackreferenceMapperCallback {
+    pub fn new(context: &InferenceContext, index: usize) -> Self {
+        Self {
+            context_inferences: context.inferences.clone(),
+            index,
+        }
+    }
+}
+
+impl TypeMapperCallback for BackreferenceMapperCallback {
+    fn call(&self, checker: &TypeChecker, t: &Type) -> Rc<Type> {
+        if matches!(
+            find_index(&self.context_inferences, |info: &Rc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),
+            Some(found_index) if found_index >= self.index
+        ) {
+            checker.unknown_type()
+        } else {
+            t.type_wrapper()
+        }
+    }
+}
 
 impl TypeChecker {
     pub(super) fn is_spreadable_property(&self, prop: &Symbol) -> bool {
@@ -697,7 +724,7 @@ impl TypeChecker {
                 }
                 type_.type_wrapper()
             }
-            TypeMapper::Function(mapper) => (mapper.func)(self, type_),
+            TypeMapper::Function(mapper) => mapper.func.call(self, type_),
             TypeMapper::Composite(composite_or_merged_mapper)
             | TypeMapper::Merged(composite_or_merged_mapper) => {
                 let t1 = self.get_mapped_type(type_, &composite_or_merged_mapper.mapper1);
@@ -723,9 +750,9 @@ impl TypeChecker {
         TypeMapper::new_array(sources, targets)
     }
 
-    pub(super) fn make_function_type_mapper(
+    pub(super) fn make_function_type_mapper<TFunc: TypeMapperCallback + 'static>(
         &self,
-        func: fn(&TypeChecker, &Type) -> Rc<Type>,
+        func: TFunc,
     ) -> TypeMapper {
         TypeMapper::new_function(func)
     }
@@ -751,6 +778,14 @@ impl TypeChecker {
         sources: Vec<Rc<Type /*TypeParameter*/>>,
     ) -> TypeMapper {
         self.create_type_mapper(sources, None)
+    }
+
+    pub(super) fn create_backreference_mapper(
+        &self,
+        context: &InferenceContext,
+        index: usize,
+    ) -> TypeMapper {
+        self.make_function_type_mapper(BackreferenceMapperCallback::new(context, index))
     }
 
     pub(super) fn combine_type_mappers(

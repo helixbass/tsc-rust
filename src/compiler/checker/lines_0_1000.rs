@@ -26,7 +26,7 @@ use crate::{
     Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
     SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
     SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, TypePredicateKind, VarianceFlags, __String,
+    TypeInterface, TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags, __String,
     create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
     get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
     get_module_instance_state, get_parse_tree_node, get_strict_option_value,
@@ -1158,10 +1158,10 @@ pub fn create_type_checker(
     ));
 
     type_checker.restrictive_mapper = Some(Rc::new(
-        type_checker.make_function_type_mapper(restrictive_mapper_func),
+        type_checker.make_function_type_mapper(RestrictiveMapperFunc::default()),
     ));
     type_checker.permissive_mapper = Some(Rc::new(
-        type_checker.make_function_type_mapper(permissive_mapper_func),
+        type_checker.make_function_type_mapper(PermissiveMapperFunc::default()),
     ));
 
     type_checker.empty_object_type = Some(
@@ -1373,19 +1373,29 @@ pub fn create_type_checker(
     type_checker
 }
 
-fn restrictive_mapper_func(type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
-    if t.flags().intersects(TypeFlags::TypeParameter) {
-        type_checker.get_restrictive_type_parameter(t)
-    } else {
-        t.type_wrapper()
+#[derive(Default)]
+struct RestrictiveMapperFunc {}
+
+impl TypeMapperCallback for RestrictiveMapperFunc {
+    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
+        if t.flags().intersects(TypeFlags::TypeParameter) {
+            type_checker.get_restrictive_type_parameter(t)
+        } else {
+            t.type_wrapper()
+        }
     }
 }
 
-fn permissive_mapper_func(type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
-    if t.flags().intersects(TypeFlags::TypeParameter) {
-        type_checker.wildcard_type()
-    } else {
-        t.type_wrapper()
+#[derive(Default)]
+struct PermissiveMapperFunc {}
+
+impl TypeMapperCallback for PermissiveMapperFunc {
+    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
+        if t.flags().intersects(TypeFlags::TypeParameter) {
+            type_checker.wildcard_type()
+        } else {
+            t.type_wrapper()
+        }
     }
 }
 

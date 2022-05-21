@@ -501,7 +501,7 @@ impl TypeChecker {
 
     pub(super) fn infer_types(
         &self,
-        inferences: &[InferenceInfo],
+        inferences: &[Rc<InferenceInfo>],
         original_source: &Type,
         original_target: &Type,
         priority: Option<InferencePriority>,
