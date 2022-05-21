@@ -46,6 +46,13 @@ impl TypeChecker {
         };
     }
 
+    pub(super) fn get_type_from_jsdoc_variadic_type(
+        &self,
+        node: &Node, /*JSDocVariadicType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn check_source_file(&self, source_file: &Node /*SourceFile*/) {
         self.check_source_file_worker(source_file)
     }

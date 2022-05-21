@@ -5,13 +5,17 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    __String, get_check_flags, get_symbol_id, is_class_like,
-    is_private_identifier_class_element_declaration, is_valid_es_symbol_declaration, map,
-    pseudo_big_int_to_string, some, BaseLiteralType, BigIntLiteralType, CheckFlags, IndexInfo,
-    LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType, PseudoBigInt, Signature,
-    SignatureFlags, StringLiteralType, StringOrNumber, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypePredicate, UniqueESSymbolType,
+    __String, get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc,
+    get_symbol_id, get_this_container, is_binary_expression, is_class_like,
+    is_constructor_declaration, is_function_expression, is_node_descendant_of,
+    is_object_literal_expression, is_private_identifier_class_element_declaration, is_static,
+    is_valid_es_symbol_declaration, map, pseudo_big_int_to_string, some, AssignmentDeclarationKind,
+    BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface,
+    IndexInfo, InterfaceTypeInterface, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
+    Number, NumberLiteralType, PseudoBigInt, Signature, SignatureFlags, StringLiteralType,
+    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, UniqueESSymbolType,
 };
 use local_macros::enum_unwrapped;
 
@@ -332,11 +336,163 @@ impl TypeChecker {
         self.es_symbol_type()
     }
 
+    pub(super) fn get_this_type(&self, node: &Node) -> Rc<Type> {
+        let container = get_this_container(node, false);
+        let parent = /*container &&*/ container.maybe_parent();
+        if let Some(parent) = parent.as_ref().filter(|parent| {
+            is_class_like(parent) || parent.kind() == SyntaxKind::InterfaceDeclaration
+        }) {
+            if !is_static(&container)
+                && (!is_constructor_declaration(&container)
+                    || is_node_descendant_of(
+                        node,
+                        container.as_constructor_declaration().maybe_body(),
+                    ))
+            {
+                return self
+                    .get_declared_type_of_class_or_interface(
+                        &self.get_symbol_of_node(parent).unwrap(),
+                    )
+                    .as_interface_type()
+                    .maybe_this_type()
+                    .unwrap();
+            }
+        }
+
+        if let Some(parent) = parent.as_ref().filter(|parent| {
+            is_object_literal_expression(parent)
+                && is_binary_expression(&parent.parent())
+                && get_assignment_declaration_kind(&parent.parent())
+                    == AssignmentDeclarationKind::Prototype
+        }) {
+            return self
+                .get_declared_type_of_class_or_interface(
+                    &self
+                        .get_symbol_of_node(&parent.parent().as_binary_expression().left)
+                        .unwrap()
+                        .maybe_parent()
+                        .unwrap(),
+                )
+                .as_interface_type()
+                .maybe_this_type()
+                .unwrap();
+        }
+        let host = if node.flags().intersects(NodeFlags::JSDoc) {
+            get_host_signature_from_jsdoc(node)
+        } else {
+            None
+        };
+        if let Some(host) = host.as_ref().filter(|host| {
+            is_function_expression(host)
+                && is_binary_expression(&host.parent())
+                && get_assignment_declaration_kind(&host.parent())
+                    == AssignmentDeclarationKind::PrototypeProperty
+        }) {
+            return self
+                .get_declared_type_of_class_or_interface(
+                    &self
+                        .get_symbol_of_node(&host.parent().as_binary_expression().left)
+                        .unwrap()
+                        .maybe_parent()
+                        .unwrap(),
+                )
+                .as_interface_type()
+                .maybe_this_type()
+                .unwrap();
+        }
+        if self.is_js_constructor(Some(&*container))
+            && is_node_descendant_of(node, container.as_function_like_declaration().maybe_body())
+        {
+            return self
+                .get_declared_type_of_class_or_interface(
+                    &self.get_symbol_of_node(&container).unwrap(),
+                )
+                .as_interface_type()
+                .maybe_this_type()
+                .unwrap();
+        }
+        self.error(
+            Some(node),
+            &Diagnostics::A_this_type_is_available_only_in_a_non_static_member_of_a_class_or_interface,
+            None
+        );
+        self.error_type()
+    }
+
+    pub(super) fn get_type_from_this_type_node(
+        &self,
+        node: &Node, /*ThisExpression | ThisTypeNode*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            links.borrow_mut().resolved_type = Some(self.get_this_type(node));
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn get_type_from_rest_type_node(
+        &self,
+        node: &Node, /*RestTypeNode | NamedTupleMember*/
+    ) -> Rc<Type> {
+        let node_as_has_type = node.as_has_type();
+        self.get_type_from_type_node_(
+            &self
+                .get_array_element_type_node(&node_as_has_type.maybe_type().unwrap())
+                .unwrap_or_else(|| node_as_has_type.maybe_type().unwrap()),
+        )
+    }
+
     pub(super) fn get_array_element_type_node(
         &self,
-        node: &Node, /*ArrayTypeNode*/
+        node: &Node, /*TypeNode*/
     ) -> Option<Rc<Node /*TypeNode*/>> {
-        Some(node.as_array_type_node().element_type.clone())
+        match node.kind() {
+            SyntaxKind::ParenthesizedType => {
+                return self.get_array_element_type_node(&node.as_parenthesized_type_node().type_);
+            }
+            SyntaxKind::TupleType => {
+                let node_as_tuple_type_node = node.as_tuple_type_node();
+                if node_as_tuple_type_node.elements.len() == 1 {
+                    let node = &node_as_tuple_type_node.elements[0];
+                    if node.kind() == SyntaxKind::RestType
+                        || node.kind() == SyntaxKind::NamedTupleMember
+                            && node.as_named_tuple_member().dot_dot_dot_token.is_some()
+                    {
+                        return self.get_array_element_type_node(
+                            &node.as_has_type().maybe_type().unwrap(),
+                        );
+                    }
+                }
+            }
+            SyntaxKind::ArrayType => {
+                return Some(node.as_array_type_node().element_type.clone());
+            }
+            _ => (),
+        }
+        None
+    }
+
+    pub(super) fn get_type_from_named_tuple_type_node(
+        &self,
+        node: &Node, /*NamedTupleMember*/
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_type.is_none() {
+            let node_as_named_tuple_member = node.as_named_tuple_member();
+            links.borrow_mut().resolved_type =
+                Some(if node_as_named_tuple_member.dot_dot_dot_token.is_some() {
+                    self.get_type_from_rest_type_node(node)
+                } else {
+                    self.add_optionality(
+                        &self.get_type_from_type_node_(&node_as_named_tuple_member.type_),
+                        Some(true),
+                        Some(node_as_named_tuple_member.question_token.is_some()),
+                    )
+                });
+        }
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
     }
 
     pub(super) fn get_type_from_type_node_(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
@@ -344,19 +500,90 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
-        match node {
-            Node::KeywordTypeNode(_) => match node.kind() {
-                SyntaxKind::StringKeyword => self.string_type(),
-                SyntaxKind::NumberKeyword => self.number_type(),
-                SyntaxKind::BigIntKeyword => self.bigint_type(),
-                SyntaxKind::BooleanKeyword => self.boolean_type(),
-                _ => unimplemented!(),
-            },
-            Node::LiteralTypeNode(_) => self.get_type_from_literal_type_node(node),
-            Node::TypeReferenceNode(_) => self.get_type_from_type_reference(node),
-            Node::ArrayTypeNode(_) => self.get_type_from_array_or_tuple_type_node(node),
-            Node::UnionTypeNode(_) => self.get_type_from_union_type_node(node),
-            _ => unimplemented!(),
+        match node.kind() {
+            SyntaxKind::AnyKeyword | SyntaxKind::JSDocAllType | SyntaxKind::JSDocUnknownType => {
+                self.any_type()
+            }
+            SyntaxKind::UnknownKeyword => self.unknown_type(),
+            SyntaxKind::StringKeyword => self.string_type(),
+            SyntaxKind::NumberKeyword => self.number_type(),
+            SyntaxKind::BigIntKeyword => self.bigint_type(),
+            SyntaxKind::BooleanKeyword => self.boolean_type(),
+            SyntaxKind::SymbolKeyword => self.es_symbol_type(),
+            SyntaxKind::VoidKeyword => self.void_type(),
+            SyntaxKind::UndefinedKeyword => self.undefined_type(),
+            SyntaxKind::NullKeyword => self.null_type(),
+            SyntaxKind::NeverKeyword => self.never_type(),
+            SyntaxKind::ObjectKeyword => {
+                if node.flags().intersects(NodeFlags::JavaScriptFile) && !self.no_implicit_any {
+                    self.any_type()
+                } else {
+                    self.non_primitive_type()
+                }
+            }
+            SyntaxKind::IntrinsicKeyword => self.intrinsic_marker_type(),
+            SyntaxKind::ThisType | SyntaxKind::ThisKeyword => {
+                self.get_type_from_this_type_node(node)
+            }
+            SyntaxKind::LiteralType => self.get_type_from_literal_type_node(node),
+            SyntaxKind::TypeReference => self.get_type_from_type_reference(node),
+            SyntaxKind::TypePredicate => {
+                if node.as_type_predicate_node().asserts_modifier.is_some() {
+                    self.void_type()
+                } else {
+                    self.boolean_type()
+                }
+            }
+            SyntaxKind::ExpressionWithTypeArguments => self.get_type_from_type_reference(node),
+            SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
+            SyntaxKind::ArrayType | SyntaxKind::TupleType => {
+                self.get_type_from_array_or_tuple_type_node(node)
+            }
+            SyntaxKind::OptionalType => self.get_type_from_optional_type_node(node),
+            SyntaxKind::UnionType => self.get_type_from_union_type_node(node),
+            SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node),
+            SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node),
+            SyntaxKind::JSDocOptionalType => self.add_optionality(
+                &self.get_type_from_type_node_(
+                    node.as_base_jsdoc_unary_type().type_.as_deref().unwrap(),
+                ),
+                None,
+                None,
+            ),
+            SyntaxKind::NamedTupleMember => self.get_type_from_named_tuple_type_node(node),
+            SyntaxKind::ParenthesizedType
+            | SyntaxKind::JSDocNonNullableType
+            | SyntaxKind::JSDocTypeExpression => {
+                self.get_type_from_type_node_(&node.as_has_type().maybe_type().unwrap())
+            }
+            SyntaxKind::RestType => self.get_type_from_rest_type_node(node),
+            SyntaxKind::JSDocVariadicType => self.get_type_from_jsdoc_variadic_type(node),
+            SyntaxKind::FunctionType
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::JSDocTypeLiteral
+            | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::JSDocSignature => {
+                self.get_type_from_type_literal_or_function_or_constructor_type_node(node)
+            }
+            SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node),
+            SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
+            SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
+            SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node),
+            SyntaxKind::InferType => self.get_type_from_infer_type_node(node),
+            SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node),
+            SyntaxKind::ImportType => self.get_type_from_import_type_node(node),
+            SyntaxKind::Identifier
+            | SyntaxKind::QualifiedName
+            | SyntaxKind::PropertyAccessExpression => {
+                let symbol = self.get_symbol_at_location_(node, None);
+                if let Some(symbol) = symbol.as_ref() {
+                    self.get_declared_type_of_symbol(symbol)
+                } else {
+                    self.error_type()
+                }
+            }
+            _ => self.error_type(),
         }
     }
 
