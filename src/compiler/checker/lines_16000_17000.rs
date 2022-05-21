@@ -818,7 +818,12 @@ impl TypeChecker {
         target: &Type,
         mapper: Option<TypeMapper>,
     ) -> TypeMapper {
-        unimplemented!()
+        match mapper {
+            None => self.make_unary_type_mapper(source, target),
+            Some(mapper) => {
+                self.make_merged_type_mapper(self.make_unary_type_mapper(source, target), mapper)
+            }
+        }
     }
 
     pub(super) fn append_type_mapping(
@@ -827,14 +832,34 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
     ) -> TypeMapper {
-        unimplemented!()
+        match mapper {
+            None => self.make_unary_type_mapper(source, target),
+            Some(mapper) => {
+                self.make_merged_type_mapper(mapper, self.make_unary_type_mapper(source, target))
+            }
+        }
     }
 
     pub(super) fn get_restrictive_type_parameter(
         &self,
         tp: &Type, /*TypeParameter*/
     ) -> Rc<Type> {
-        unimplemented!()
+        if matches!(
+            tp.as_type_parameter().maybe_constraint().as_ref(),
+            Some(constraint) if Rc::ptr_eq(constraint, &self.unknown_type())
+        ) {
+            tp.type_wrapper()
+        } else {
+            if tp.maybe_restrictive_instantiation().is_none() {
+                let restrictive_instantiation: Rc<Type> =
+                    self.create_type_parameter(tp.maybe_symbol()).into();
+                *tp.maybe_restrictive_instantiation() = Some(restrictive_instantiation.clone());
+                restrictive_instantiation
+                    .as_type_parameter()
+                    .set_constraint(self.unknown_type());
+            }
+            tp.maybe_restrictive_instantiation().clone().unwrap()
+        }
     }
 
     pub(super) fn clone_type_parameter(
@@ -851,7 +876,12 @@ impl TypeChecker {
         predicate: &TypePredicate,
         mapper: &TypeMapper,
     ) -> TypePredicate {
-        unimplemented!()
+        self.create_type_predicate(
+            predicate.kind,
+            predicate.parameter_name.clone(),
+            predicate.parameter_index,
+            self.instantiate_type(predicate.type_.as_deref(), Some(mapper)),
+        )
     }
 
     pub(super) fn instantiate_signature(
@@ -860,8 +890,8 @@ impl TypeChecker {
         mapper: &TypeMapper,
         erase_type_parameters: Option<bool>,
     ) -> Signature {
-        let mut mapper = mapper.clone();
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
+        let mut mapper = mapper.clone();
         let mut fresh_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
         if let Some(signature_type_parameters) = signature.type_parameters.clone() {
             if !erase_type_parameters {
@@ -907,14 +937,17 @@ impl TypeChecker {
     pub(super) fn instantiate_symbol(&self, symbol: &Symbol, mapper: &TypeMapper) -> Rc<Symbol> {
         let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
-        let links = (*links).borrow();
-        if let Some(type_) = links.type_.as_ref() {
-            if !self.could_contain_type_variables(&type_) {
-                return symbol;
+        {
+            let links = (*links).borrow();
+            if let Some(type_) = links.type_.as_ref() {
+                if !self.could_contain_type_variables(&type_) {
+                    return symbol;
+                }
             }
         }
-        let mut mapper = (*mapper).clone();
+        let mut mapper = mapper.clone();
         if get_check_flags(&symbol).intersects(CheckFlags::Instantiated) {
+            let links = (*links).borrow();
             symbol = links.target.clone().unwrap();
             mapper = self.combine_type_mappers(links.mapper.clone(), mapper);
         }
@@ -923,7 +956,7 @@ impl TypeChecker {
             symbol.escaped_name().clone(),
             Some(
                 CheckFlags::Instantiated
-                    | get_check_flags(&*symbol)
+                    | get_check_flags(&symbol)
                         & (CheckFlags::Readonly
                             | CheckFlags::Late
                             | CheckFlags::OptionalParameter
@@ -933,12 +966,16 @@ impl TypeChecker {
         if let Some(declarations) = &*symbol.maybe_declarations() {
             result.set_declarations(declarations.clone());
         }
-        let symbol_links = result.symbol_links();
-        let mut symbol_links_ref = symbol_links.borrow_mut();
-        symbol_links_ref.target = Some(symbol.clone());
-        symbol_links_ref.mapper = Some(mapper);
-        if let Some(value_declaration) = symbol.maybe_value_declaration() {
-            result.set_value_declaration(value_declaration);
+        result.set_parent(symbol.maybe_parent());
+        let result_links = result.symbol_links();
+        let mut result_links = result_links.borrow_mut();
+        result_links.target = Some(symbol.clone());
+        result_links.mapper = Some(mapper);
+        if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
+            result.set_value_declaration(symbol_value_declaration);
+        }
+        if let Some(links_name_type) = (*links).borrow().name_type.clone() {
+            result_links.name_type = Some(links_name_type);
         }
         result.into()
     }
