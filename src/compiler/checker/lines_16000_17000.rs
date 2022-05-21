@@ -596,19 +596,18 @@ impl TypeChecker {
         mapper: &TypeMapper,
         mut instantiator: TInstantiator,
     ) -> Option<Vec<Rc<TItem>>> {
-        if items.is_none() {
-            return None;
-        }
-        let items = items.unwrap();
-        if
-        /*items &&*/
-        !items.is_empty() {
+        let items = items?;
+        if !items.is_empty() {
             let mut i = 0;
             while i < items.len() {
                 let item = &items[i];
                 let mapped = instantiator(item, mapper);
                 if !Rc::ptr_eq(item, &mapped) {
-                    let mut result = if i == 0 { vec![] } else { items[..i].to_vec() };
+                    let mut result = if i == 0 {
+                        vec![]
+                    } else {
+                        items[..i].to_owned()
+                    };
                     result.push(mapped);
                     i += 1;
                     while i < items.len() {
@@ -621,7 +620,7 @@ impl TypeChecker {
                 i += 1;
             }
         }
-        Some(items.to_vec())
+        Some(items.to_owned())
     }
 
     pub(super) fn instantiate_types(
@@ -629,7 +628,9 @@ impl TypeChecker {
         types: Option<&[Rc<Type>]>,
         mapper: &TypeMapper,
     ) -> Option<Vec<Rc<Type>>> {
-        unimplemented!()
+        self.instantiate_list(types, mapper, |type_: &Rc<Type>, mapper| {
+            self.instantiate_type(Some(&**type_), Some(mapper)).unwrap()
+        })
     }
 
     pub(super) fn instantiate_signatures(
@@ -637,9 +638,13 @@ impl TypeChecker {
         signatures: &[Rc<Signature>],
         mapper: &TypeMapper,
     ) -> Vec<Rc<Signature>> {
-        self.instantiate_list(Some(signatures), mapper, |signature, mapper| {
-            Rc::new(self.instantiate_signature(signature.clone(), mapper, None))
-        })
+        self.instantiate_list(
+            Some(signatures),
+            mapper,
+            |signature: &Rc<Signature>, mapper| {
+                Rc::new(self.instantiate_signature(signature.clone(), mapper, None))
+            },
+        )
         .unwrap()
     }
 
@@ -648,7 +653,12 @@ impl TypeChecker {
         index_infos: &[Rc<IndexInfo>],
         mapper: &TypeMapper,
     ) -> Vec<Rc<IndexInfo>> {
-        unimplemented!()
+        self.instantiate_list(
+            Some(index_infos),
+            mapper,
+            |index_info: &Rc<IndexInfo>, mapper| self.instantiate_index_info(index_info, mapper),
+        )
+        .unwrap()
     }
 
     pub(super) fn create_type_mapper(
@@ -970,6 +980,14 @@ impl TypeChecker {
     }
 
     pub(super) fn get_restrictive_instantiation(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn instantiate_index_info(
+        &self,
+        info: &IndexInfo,
+        mapper: &TypeMapper,
+    ) -> Rc<IndexInfo> {
         unimplemented!()
     }
 
