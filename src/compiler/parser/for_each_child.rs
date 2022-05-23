@@ -1127,12 +1127,14 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             }
         }
         Node::JSDocSignature(node) => {
-            node.type_parameters.as_ref().map(|type_parameters| {
-                for_each(type_parameters, |node, _| {
-                    cb_node(node);
-                    Option::<()>::None
-                })
-            });
+            node.maybe_type_parameters()
+                .as_ref()
+                .map(|type_parameters| {
+                    for_each(type_parameters, |node, _| {
+                        cb_node(node);
+                        Option::<()>::None
+                    })
+                });
             for_each(&node.parameters, |node, _| {
                 cb_node(node);
                 Option::<()>::None

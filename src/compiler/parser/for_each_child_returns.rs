@@ -1416,7 +1416,7 @@ pub fn for_each_child_returns<
             })
         }
         Node::JSDocSignature(node) => {
-            node.type_parameters.as_ref().and_then(|type_parameters| {
+            node.maybe_type_parameters().as_ref().and_then(|type_parameters| {
                 for_each(type_parameters, |node, _| {
                     cb_node(node)
                 })

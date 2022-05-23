@@ -7,8 +7,8 @@ use std::rc::Rc;
 
 use super::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
-    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, ReadonlyTextRange, SyntaxKind,
-    TransformFlags, __String,
+    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
+    ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
 use local_macros::ast_type;
 
@@ -486,13 +486,15 @@ impl TypeParameterDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, HasTypeParametersInterface"
 )]
 pub enum SignatureDeclarationBase {
     FunctionLikeDeclarationBase(FunctionLikeDeclarationBase),
 }
 
-pub trait SignatureDeclarationInterface: NamedDeclarationInterface + HasTypeInterface {
+pub trait SignatureDeclarationInterface:
+    NamedDeclarationInterface + HasTypeInterface + HasTypeParametersInterface
+{
     fn parameters(&self) -> &NodeArray /*<ParameterDeclaration>*/;
 }
 

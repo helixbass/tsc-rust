@@ -6,8 +6,9 @@ use std::rc::Rc;
 
 use super::{
     BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasExpressionInterface,
-    HasIsTypeOnlyInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
-    SignatureDeclarationInterface, SyntaxKind, TextRange,
+    HasIsTypeOnlyInterface, HasTypeInterface, HasTypeParametersInterface,
+    NamedDeclarationInterface, Node, NodeArray, SignatureDeclarationInterface, SyntaxKind,
+    TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -995,7 +996,7 @@ impl JSDocTypeLikeTagInterface for JSDocCallbackTag {
 #[ast_type]
 pub struct JSDocSignature {
     _node: BaseNode,
-    pub type_parameters: Option<NodeArray /*<JSDocTemplateTag>*/>,
+    type_parameters: RefCell<Option<NodeArray /*<JSDocTemplateTag>*/>>,
     pub parameters: NodeArray, /*<JSDocParameterTag>*/
     pub type_: Option<Rc<Node /*JSDocReturnTag*/>>,
 }
@@ -1009,7 +1010,7 @@ impl JSDocSignature {
     ) -> Self {
         Self {
             _node: base_node,
-            type_parameters,
+            type_parameters: RefCell::new(type_parameters),
             parameters,
             type_,
         }
@@ -1043,6 +1044,12 @@ impl HasTypeInterface for JSDocSignature {
 
     fn set_type(&mut self, type_: Option<Rc<Node>>) {
         self.type_ = type_;
+    }
+}
+
+impl HasTypeParametersInterface for JSDocSignature {
+    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>> {
+        self.type_parameters.borrow_mut()
     }
 }
 
