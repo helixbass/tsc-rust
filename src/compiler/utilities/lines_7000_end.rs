@@ -82,6 +82,10 @@ pub fn set_parent_recursive<TNode: Borrow<Node>>(root_node: Option<TNode>, incre
     unimplemented!()
 }
 
+pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/) -> bool {
+    unimplemented!()
+}
+
 pub fn is_function_expression_or_arrow_function(node: &Node) -> bool {
     matches!(
         node.kind(),

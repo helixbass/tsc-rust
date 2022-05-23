@@ -1222,6 +1222,14 @@ impl Node {
     pub fn as_jsdoc_type_literal(&self) -> &JSDocTypeLiteral {
         enum_unwrapped!(self, [Node, JSDocTypeLiteral])
     }
+
+    pub fn as_jsx_attributes(&self) -> &JsxAttributes {
+        enum_unwrapped!(self, [Node, JsxAttributes])
+    }
+
+    pub fn as_jsx_attribute(&self) -> &JsxAttribute {
+        enum_unwrapped!(self, [Node, JsxAttribute])
+    }
 }
 
 #[derive(Debug)]

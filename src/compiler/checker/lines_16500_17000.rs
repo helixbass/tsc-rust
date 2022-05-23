@@ -6,11 +6,14 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, TypeFacts};
 use crate::{
-    are_option_rcs_equal, are_rc_slices_equal, contains_rc, for_each_child_bool, get_object_flags,
-    is_part_of_type_node, map, some, Diagnostics, ElementFlags, IndexInfo, MappedType, Node,
-    NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeReferenceInterface, TypeSystemPropertyName, UnionReduction,
+    are_option_rcs_equal, are_rc_slices_equal, contains_rc, for_each_child_bool,
+    get_effective_return_type_node, get_object_flags, has_context_sensitive_parameters,
+    is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
+    is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, some, Debug_,
+    Diagnostics, ElementFlags, IndexInfo, MappedType, Node, NodeArray, NodeInterface, ObjectFlags,
+    ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeReferenceInterface,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -797,9 +800,139 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression | MethodDeclaration | ObjectLiteralElementLike | JsxAttributeLike | JsxChild*/
     ) -> bool {
-        // match node {
-        // }
-        false
+        Debug_.assert(
+            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
+            None,
+        );
+        match node.kind() {
+            SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::FunctionDeclaration => {
+                self.is_context_sensitive_function_like_declaration(node)
+            }
+            SyntaxKind::ObjectLiteralExpression => some(
+                Some(&node.as_object_literal_expression().properties),
+                Some(|property: &Rc<Node>| self.is_context_sensitive(property)),
+            ),
+            SyntaxKind::ArrayLiteralExpression => some(
+                Some(&node.as_array_literal_expression().elements),
+                Some(|element: &Rc<Node>| self.is_context_sensitive(element)),
+            ),
+            SyntaxKind::ConditionalExpression => {
+                let node_as_conditional_expression = node.as_conditional_expression();
+                self.is_context_sensitive(&node_as_conditional_expression.when_true)
+                    || self.is_context_sensitive(&node_as_conditional_expression.when_false)
+            }
+            SyntaxKind::BinaryExpression => {
+                let node_as_binary_expression = node.as_binary_expression();
+                matches!(
+                    node_as_binary_expression.operator_token.kind(),
+                    SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+                ) && (self.is_context_sensitive(&node_as_binary_expression.left)
+                    || self.is_context_sensitive(&node_as_binary_expression.right))
+            }
+            SyntaxKind::PropertyAssignment => {
+                self.is_context_sensitive(&node.as_property_assignment().initializer)
+            }
+            SyntaxKind::ParenthesizedExpression => {
+                self.is_context_sensitive(&node.as_parenthesized_expression().expression)
+            }
+            SyntaxKind::JsxAttributes => {
+                some(
+                    Some(&node.as_jsx_attributes().properties),
+                    Some(|property: &Rc<Node>| self.is_context_sensitive(property)),
+                ) || is_jsx_opening_element(&node.parent())
+                    && some(
+                        Some(&node.parent().parent().as_jsx_element().children),
+                        Some(|child: &Rc<Node>| self.is_context_sensitive(child)),
+                    )
+            }
+            SyntaxKind::JsxAttribute => {
+                let initializer = node.as_jsx_attribute().initializer.as_ref();
+                matches!(
+                    initializer,
+                    Some(initializer) if self.is_context_sensitive(initializer)
+                )
+            }
+            SyntaxKind::JsxExpression => {
+                let expression = node.as_jsx_expression().expression.as_ref();
+                matches!(
+                    expression,
+                    Some(expression) if self.is_context_sensitive(expression)
+                )
+            }
+            _ => false,
+        }
+    }
+
+    pub(super) fn is_context_sensitive_function_like_declaration(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration*/
+    ) -> bool {
+        (!is_function_declaration(node)
+            || is_in_js_file(Some(node))
+                && self
+                    .get_type_for_declaration_from_jsdoc_comment(node)
+                    .is_some())
+            && (has_context_sensitive_parameters(node)
+                || self.has_context_sensitive_return_expression(node))
+    }
+
+    pub(super) fn has_context_sensitive_return_expression(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration*/
+    ) -> bool {
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        node_as_function_like_declaration
+            .maybe_type_parameters()
+            .is_none()
+            && get_effective_return_type_node(node).is_none()
+            && matches!(
+                node_as_function_like_declaration.maybe_body(),
+                Some(node_body) if node_body.kind() == SyntaxKind::Block && self.is_context_sensitive(&node_body)
+            )
+    }
+
+    pub(super) fn is_context_sensitive_function_or_object_literal_method(
+        &self,
+        func: &Node,
+    ) -> bool {
+        (is_in_js_file(Some(func)) && is_function_declaration(func)
+            || is_function_expression_or_arrow_function(func)
+            || is_object_literal_method(func))
+            && self.is_context_sensitive_function_like_declaration(func)
+    }
+
+    pub(super) fn get_type_without_signatures(&self, type_: &Type) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Object) {
+            let resolved = self.resolve_structured_type_members(type_);
+            let resolved_as_resolved_type = resolved.as_resolved_type();
+            if !resolved_as_resolved_type.construct_signatures().is_empty()
+                || !resolved_as_resolved_type.call_signatures().is_empty()
+            {
+                let result = self.create_object_type(ObjectFlags::Anonymous, type_.maybe_symbol());
+                result.resolve(
+                    resolved_as_resolved_type.members(),
+                    resolved_as_resolved_type.properties().clone(),
+                    vec![],
+                    vec![],
+                    vec![],
+                );
+                return result.into();
+            }
+        } else if type_.flags().intersects(TypeFlags::Intersection) {
+            return self.get_intersection_type(
+                &map(
+                    Some(type_.as_intersection_type().types()),
+                    |type_: &Rc<Type>, _| self.get_type_without_signatures(type_),
+                )
+                .unwrap(),
+                Option::<&Symbol>::None,
+                None,
+            );
+        }
+        type_.type_wrapper()
     }
 
     pub(super) fn is_type_identical_to(&self, source: &Type, target: &Type) -> bool {
