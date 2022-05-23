@@ -540,6 +540,7 @@ pub trait TypeInterface {
     fn maybe_pattern(&self) -> RefMut<Option<Rc<Node /*DestructuringPattern*/>>>;
     fn maybe_alias_symbol(&self) -> RefMut<Option<Rc<Symbol>>>;
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+    fn maybe_permissive_instantiation(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
     // InstantiableType fields
@@ -557,6 +558,7 @@ pub struct BaseType {
     pattern: RefCell<Option<Rc<Node>>>,
     alias_symbol: RefCell<Option<Rc<Symbol>>>,
     alias_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
+    permissive_instantiation: RefCell<Option<Rc<Type>>>,
     restrictive_instantiation: RefCell<Option<Rc<Type>>>,
     immediate_base_constraint: RefCell<Option<Rc<Type>>>,
     // InstantiableType fields
@@ -575,6 +577,7 @@ impl BaseType {
             pattern: RefCell::new(None),
             alias_symbol: RefCell::new(None),
             alias_type_arguments: RefCell::new(None),
+            permissive_instantiation: RefCell::new(None),
             restrictive_instantiation: RefCell::new(None),
             immediate_base_constraint: RefCell::new(None),
             resolved_base_constraint: RefCell::new(None),
@@ -632,6 +635,10 @@ impl TypeInterface for BaseType {
 
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.alias_type_arguments.borrow_mut()
+    }
+
+    fn maybe_permissive_instantiation(&self) -> RefMut<Option<Rc<Type>>> {
+        self.permissive_instantiation.borrow_mut()
     }
 
     fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Rc<Type>>> {

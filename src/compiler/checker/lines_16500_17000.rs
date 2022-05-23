@@ -748,11 +748,36 @@ impl TypeChecker {
     }
 
     pub(super) fn get_permissive_instantiation(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        if type_
+            .flags()
+            .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
+        {
+            type_.type_wrapper()
+        } else {
+            if type_.maybe_permissive_instantiation().is_none() {
+                *type_.maybe_permissive_instantiation() =
+                    Some(self.instantiate_type(type_, self.permissive_mapper.as_deref()));
+            }
+            type_.maybe_permissive_instantiation().clone().unwrap()
+        }
     }
 
     pub(super) fn get_restrictive_instantiation(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        if type_
+            .flags()
+            .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
+        {
+            return type_.type_wrapper();
+        }
+        if let Some(type_restrictive_instantiation) =
+            type_.maybe_restrictive_instantiation().clone()
+        {
+            return type_restrictive_instantiation;
+        }
+        let ret = self.instantiate_type(type_, self.restrictive_mapper.as_deref());
+        *type_.maybe_restrictive_instantiation() = Some(ret.clone());
+        *ret.maybe_restrictive_instantiation() = Some(ret.clone());
+        ret
     }
 
     pub(super) fn instantiate_index_info(
@@ -760,7 +785,12 @@ impl TypeChecker {
         info: &IndexInfo,
         mapper: &TypeMapper,
     ) -> Rc<IndexInfo> {
-        unimplemented!()
+        Rc::new(self.create_index_info(
+            info.key_type.clone(),
+            self.instantiate_type(&info.type_, Some(mapper)),
+            info.is_readonly,
+            info.declaration.clone(),
+        ))
     }
 
     pub(super) fn is_context_sensitive(

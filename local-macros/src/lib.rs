@@ -1200,6 +1200,10 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_restrictive_instantiation()
                     }
 
+                    fn maybe_permissive_instantiation(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.maybe_permissive_instantiation()
+                    }
+
                     fn maybe_resolved_base_constraint(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
                         self.#first_field_name.maybe_resolved_base_constraint()
                     }
@@ -1591,6 +1595,12 @@ fn get_type_enum_interface_impl(
                     fn maybe_restrictive_instantiation(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_restrictive_instantiation()),*
+                        }
+                    }
+
+                    fn maybe_permissive_instantiation(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_permissive_instantiation()),*
                         }
                     }
 
