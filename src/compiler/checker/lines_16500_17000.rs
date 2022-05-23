@@ -6,14 +6,15 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, TypeFacts};
 use crate::{
-    are_option_rcs_equal, are_rc_slices_equal, contains_rc, for_each_child_bool,
+    are_option_rcs_equal, are_rc_slices_equal, contains_rc, every, for_each_child_bool,
     get_effective_return_type_node, get_object_flags, has_context_sensitive_parameters,
     is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
     is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, some, Debug_,
-    Diagnostics, ElementFlags, IndexInfo, MappedType, Node, NodeArray, NodeInterface, ObjectFlags,
-    ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeReferenceInterface,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
+    DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo, MappedType, Node, NodeArray,
+    NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeReferenceInterface, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -936,15 +937,31 @@ impl TypeChecker {
     }
 
     pub(super) fn is_type_identical_to(&self, source: &Type, target: &Type) -> bool {
-        unimplemented!()
+        self.is_type_related_to(source, target, &self.identity_relation())
     }
 
     pub(super) fn compare_types_identical(&self, source: &Type, target: &Type) -> Ternary {
-        unimplemented!()
+        if self.is_type_related_to(source, target, &self.identity_relation()) {
+            Ternary::True
+        } else {
+            Ternary::False
+        }
+    }
+
+    pub(super) fn compare_types_assignable(&self, source: &Type, target: &Type) -> Ternary {
+        if self.is_type_related_to(source, target, &self.assignable_relation()) {
+            Ternary::True
+        } else {
+            Ternary::False
+        }
     }
 
     pub(super) fn compare_types_subtype_of(&self, source: &Type, target: &Type) -> Ternary {
-        unimplemented!()
+        if self.is_type_related_to(source, target, &self.subtype_relation()) {
+            Ternary::True
+        } else {
+            Ternary::False
+        }
     }
 
     pub(super) fn is_type_subtype_of(&self, source: &Type, target: &Type) -> bool {
@@ -956,6 +973,62 @@ impl TypeChecker {
     }
 
     pub(super) fn is_type_derived_from(&self, source: &Type, target: &Type) -> bool {
-        unimplemented!()
+        if source.flags().intersects(TypeFlags::Union) {
+            every(source.as_union_type().types(), |t: &Rc<Type>, _| {
+                self.is_type_derived_from(t, target)
+            })
+        } else if target.flags().intersects(TypeFlags::Union) {
+            some(
+                Some(target.as_union_type().types()),
+                Some(|t: &Rc<Type>| self.is_type_derived_from(source, t)),
+            )
+        } else if source
+            .flags()
+            .intersects(TypeFlags::InstantiableNonPrimitive)
+        {
+            self.is_type_derived_from(
+                &self
+                    .get_base_constraint_of_type(source)
+                    .unwrap_or_else(|| self.unknown_type()),
+                target,
+            )
+        } else if ptr::eq(target, &*self.global_object_type()) {
+            source
+                .flags()
+                .intersects(TypeFlags::Object | TypeFlags::NonPrimitive)
+        } else if ptr::eq(target, &*self.global_function_type()) {
+            source.flags().intersects(TypeFlags::Object) && self.is_function_object_type(source)
+        } else {
+            self.has_base_type(source, Some(self.get_target_type(target)))
+                || self.is_array_type(target)
+                    && !self.is_readonly_array_type(target)
+                    && self.is_type_derived_from(source, &self.global_readonly_array_type())
+        }
+    }
+
+    pub(super) fn is_type_comparable_to(&self, source: &Type, target: &Type) -> bool {
+        self.is_type_related_to(source, target, &self.comparable_relation())
+    }
+
+    pub(super) fn are_types_comparable(&self, type1: &Type, type2: &Type) -> bool {
+        self.is_type_comparable_to(type1, type2) || self.is_type_comparable_to(type2, type1)
+    }
+
+    pub(super) fn check_type_assignable_to<TErrorNode: Borrow<Node>, TExpr: Borrow<Node>>(
+        &self,
+        source: &Type,
+        target: &Type,
+        error_node: Option<TErrorNode>,
+        head_message: Option<DiagnosticMessage>,
+        // TODO: containing_message_chain, error_output_object
+    ) -> bool {
+        self.check_type_related_to(
+            source,
+            target,
+            &self.assignable_relation(),
+            error_node,
+            head_message,
+            // containing_message_chain, error_output_object
+        )
     }
 }
