@@ -1487,17 +1487,16 @@ impl NodeBuilder {
             }));
         }
         if type_.flags().intersects(TypeFlags::StringMapping) {
-            let type_as_string_mapping_type = type_.as_string_mapping_type();
             let type_node = self
                 .type_to_type_node_helper(
                     type_checker,
-                    Some(&*type_as_string_mapping_type.type_),
+                    Some(&*type_.as_string_mapping_type().type_),
                     context,
                 )
                 .unwrap();
             return Some(self.symbol_to_type_node(
                 type_checker,
-                &type_as_string_mapping_type.symbol,
+                &type_.symbol(),
                 context,
                 SymbolFlags::Type,
                 Some(&vec![type_node]),

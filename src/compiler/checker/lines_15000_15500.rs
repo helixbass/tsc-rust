@@ -101,8 +101,8 @@ impl TypeChecker {
 
     pub(super) fn create_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Rc<Type> {
         let result = self.create_type(TypeFlags::StringMapping);
-        let result: Rc<Type> =
-            StringMappingType::new(result, symbol.symbol_wrapper(), type_.type_wrapper()).into();
+        let result: Rc<Type> = StringMappingType::new(result, type_.type_wrapper()).into();
+        result.set_symbol(Some(symbol.symbol_wrapper()));
         result
     }
 

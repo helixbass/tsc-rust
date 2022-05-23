@@ -820,10 +820,9 @@ impl TypeChecker {
             });
         }
         if t.flags().intersects(TypeFlags::StringMapping) {
-            let t_as_string_mapping_type = t.as_string_mapping_type();
-            let constraint = self.get_base_constraint(stack, &t_as_string_mapping_type.type_);
+            let constraint = self.get_base_constraint(stack, &t.as_string_mapping_type().type_);
             return Some(if let Some(constraint) = constraint {
-                self.get_string_mapping_type(&t_as_string_mapping_type.symbol, &constraint)
+                self.get_string_mapping_type(&t.symbol(), &constraint)
             } else {
                 self.string_type()
             });

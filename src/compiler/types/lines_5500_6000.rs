@@ -423,15 +423,13 @@ impl TemplateLiteralType {
 #[type_type]
 pub struct StringMappingType {
     _type: BaseType,
-    pub symbol: Rc<Symbol>,
     pub type_: Rc<Type>,
 }
 
 impl StringMappingType {
-    pub fn new(_type: BaseType, symbol: Rc<Symbol>, type_: Rc<Type>) -> Self {
+    pub fn new(base_type: BaseType, type_: Rc<Type>) -> Self {
         Self {
-            _type,
-            symbol,
+            _type: base_type,
             type_,
         }
     }

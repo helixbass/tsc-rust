@@ -6,10 +6,11 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, TypeFacts};
 use crate::{
-    contains_rc, for_each_child_bool, is_part_of_type_node, map, some, Diagnostics, ElementFlags,
-    IndexInfo, MappedType, Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypeSystemPropertyName,
+    are_option_rcs_equal, are_rc_slices_equal, contains_rc, for_each_child_bool,
+    is_part_of_type_node, map, some, Diagnostics, ElementFlags, IndexInfo, MappedType, Node,
+    NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface,
+    SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeReferenceInterface, TypeSystemPropertyName, UnionReduction,
 };
 
 impl TypeChecker {
@@ -538,17 +539,214 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn instantiate_type_worker<TSymbolRef: Borrow<Symbol>>(
+    pub(super) fn instantiate_type_worker<TSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type,
         mapper: &TypeMapper,
-        alias_symbol: Option<TSymbolRef>,
+        alias_symbol: Option<TSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::TypeParameter) {
             return self.get_mapped_type(type_, mapper);
         }
+        if flags.intersects(TypeFlags::Object) {
+            let object_flags = type_.as_object_flags_type().object_flags();
+            if object_flags
+                .intersects(ObjectFlags::Reference | ObjectFlags::Anonymous | ObjectFlags::Mapped)
+            {
+                if object_flags.intersects(ObjectFlags::Reference)
+                    && type_.as_type_reference().maybe_node().is_none()
+                {
+                    let type_as_type_reference = type_.as_type_reference();
+                    let resolved_type_arguments =
+                        type_as_type_reference.maybe_resolved_type_arguments();
+                    let resolved_type_arguments = resolved_type_arguments.as_deref();
+                    let new_type_arguments =
+                        self.instantiate_types(resolved_type_arguments, mapper);
+                    return if !match (resolved_type_arguments, new_type_arguments.as_deref()) {
+                        (None, None) => true,
+                        (Some(resolved_type_arguments), Some(new_type_arguments)) => {
+                            are_rc_slices_equal(new_type_arguments, resolved_type_arguments)
+                        }
+                        _ => false,
+                    } {
+                        self.create_normalized_type_reference(
+                            &type_as_type_reference.target,
+                            new_type_arguments,
+                        )
+                    } else {
+                        type_.type_wrapper()
+                    };
+                }
+                if object_flags.intersects(ObjectFlags::ReverseMapped) {
+                    return self.instantiate_reverse_mapped_type(type_, mapper);
+                }
+                return self.get_object_type_instantiation(
+                    type_,
+                    mapper,
+                    alias_symbol,
+                    alias_type_arguments,
+                );
+            }
+            return type_.type_wrapper();
+        }
+        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+        if flags.intersects(TypeFlags::UnionOrIntersection) {
+            let origin = if type_.flags().intersects(TypeFlags::Union) {
+                type_.as_union_type().origin.clone()
+            } else {
+                None
+            };
+            let types = if let Some(origin) = origin
+                .as_ref()
+                .filter(|origin| origin.flags().intersects(TypeFlags::UnionOrIntersection))
+            {
+                origin
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned()
+            } else {
+                type_
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned()
+            };
+            let new_types = self.instantiate_types(Some(&types), mapper).unwrap();
+            if are_rc_slices_equal(&new_types, &types)
+                && are_option_rcs_equal(alias_symbol.as_ref(), type_.maybe_alias_symbol().as_ref())
+            {
+                return type_.type_wrapper();
+            }
+            let new_alias_symbol = alias_symbol
+                .clone()
+                .or_else(|| type_.maybe_alias_symbol().clone());
+            let new_alias_type_arguments = if alias_symbol.is_some() {
+                alias_type_arguments.map(ToOwned::to_owned)
+            } else {
+                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), mapper)
+            };
+            return if flags.intersects(TypeFlags::Intersection)
+                || matches!(
+                    origin.as_ref(),
+                    Some(origin) if origin.flags().intersects(TypeFlags::Intersection)
+                ) {
+                self.get_intersection_type(
+                    &new_types,
+                    new_alias_symbol,
+                    new_alias_type_arguments.as_deref(),
+                )
+            } else {
+                self.get_union_type(
+                    new_types,
+                    Some(UnionReduction::Literal),
+                    new_alias_symbol,
+                    new_alias_type_arguments.as_deref(),
+                    Option::<&Type>::None,
+                )
+            };
+        }
+        if flags.intersects(TypeFlags::Index) {
+            return self.get_index_type(
+                &self
+                    .instantiate_type(Some(&*type_.as_index_type().type_), Some(mapper))
+                    .unwrap(),
+                None,
+                None,
+            );
+        }
+        if flags.intersects(TypeFlags::TemplateLiteral) {
+            let type_as_template_literal_type = type_.as_template_literal_type();
+            return self.get_template_literal_type(
+                &type_as_template_literal_type.texts,
+                &self
+                    .instantiate_types(Some(&type_as_template_literal_type.types), mapper)
+                    .unwrap(),
+            );
+        }
+        if flags.intersects(TypeFlags::StringMapping) {
+            return self.get_string_mapping_type(
+                &type_.symbol(),
+                &self
+                    .instantiate_type(Some(&*type_.as_string_mapping_type().type_), Some(mapper))
+                    .unwrap(),
+            );
+        }
+        if flags.intersects(TypeFlags::IndexedAccess) {
+            let new_alias_symbol = alias_symbol
+                .clone()
+                .or_else(|| type_.maybe_alias_symbol().clone());
+            let new_alias_type_arguments = if alias_symbol.is_some() {
+                alias_type_arguments.map(ToOwned::to_owned)
+            } else {
+                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), mapper)
+            };
+            let type_as_indexed_access_type = type_.as_indexed_access_type();
+            return self.get_indexed_access_type(
+                &self
+                    .instantiate_type(
+                        Some(&*type_as_indexed_access_type.object_type),
+                        Some(mapper),
+                    )
+                    .unwrap(),
+                &self
+                    .instantiate_type(Some(&*type_as_indexed_access_type.index_type), Some(mapper))
+                    .unwrap(),
+                Some(type_as_indexed_access_type.access_flags),
+                Option::<&Node>::None,
+                new_alias_symbol,
+                new_alias_type_arguments.as_deref(),
+            );
+        }
+        if flags.intersects(TypeFlags::Conditional) {
+            return self.get_conditional_type_instantiation(
+                type_,
+                &self.combine_type_mappers(
+                    type_.as_conditional_type().mapper.clone(),
+                    mapper.clone(),
+                ),
+                alias_symbol,
+                alias_type_arguments,
+            );
+        }
+        if flags.intersects(TypeFlags::Substitution) {
+            let type_as_substitution_type = type_.as_substitution_type();
+            let maybe_variable = self
+                .instantiate_type(Some(&*type_as_substitution_type.base_type), Some(mapper))
+                .unwrap();
+            if maybe_variable.flags().intersects(TypeFlags::TypeVariable) {
+                return self.get_substitution_type(
+                    &maybe_variable,
+                    &self
+                        .instantiate_type(
+                            Some(&*type_as_substitution_type.substitute),
+                            Some(mapper),
+                        )
+                        .unwrap(),
+                );
+            } else {
+                let sub = self
+                    .instantiate_type(Some(&*type_as_substitution_type.substitute), Some(mapper))
+                    .unwrap();
+                if sub.flags().intersects(TypeFlags::AnyOrUnknown)
+                    || self.is_type_assignable_to(
+                        &self.get_restrictive_instantiation(&maybe_variable),
+                        &self.get_restrictive_instantiation(&sub),
+                    )
+                {
+                    return maybe_variable;
+                }
+                return sub;
+            }
+        }
+        type_.type_wrapper()
+    }
+
+    pub(super) fn instantiate_reverse_mapped_type(
+        &self,
+        type_: &Type, /*ReverseMappedType*/
+        mapper: &TypeMapper,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
