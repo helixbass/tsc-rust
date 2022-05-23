@@ -1,26 +1,11 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    filter, find_index, maybe_add_range, InferenceContext, InferenceInfo, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectTypeInterface, TypeMapperCallback, TypeReferenceInterface,
-    __String, get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc,
-    get_symbol_id, get_this_container, is_binary_expression, is_class_like,
-    is_constructor_declaration, is_function_expression, is_node_descendant_of,
-    is_object_literal_expression, is_private_identifier_class_element_declaration, is_static,
-    is_valid_es_symbol_declaration, map, pseudo_big_int_to_string, some, AssignmentDeclarationKind,
-    BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface,
-    IndexInfo, InterfaceTypeInterface, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
-    Number, NumberLiteralType, PseudoBigInt, Signature, SignatureFlags, StringLiteralType,
-    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, UniqueESSymbolType,
+    IndexInfo, Node, Symbol, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn is_type_parameter_possibly_referenced(

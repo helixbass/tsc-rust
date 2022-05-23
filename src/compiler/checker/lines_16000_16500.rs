@@ -16,9 +16,8 @@ use crate::{
     BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface,
     IndexInfo, InterfaceTypeInterface, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
     Number, NumberLiteralType, PseudoBigInt, Signature, SignatureFlags, StringLiteralType,
-    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, UniqueESSymbolType,
+    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UniqueESSymbolType,
 };
 use local_macros::enum_unwrapped;
 
