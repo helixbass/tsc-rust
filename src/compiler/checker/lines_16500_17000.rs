@@ -7,7 +7,7 @@ use std::rc::Rc;
 use crate::{
     for_each_child_bool, is_part_of_type_node, some, IndexInfo, Node, NodeArray, NodeInterface,
     Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper,
+    TypeMapper, TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -110,15 +110,100 @@ impl TypeChecker {
         &self,
         type_: &Type, /*MappedType*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let constraint_type = self.get_constraint_type_from_mapped_type(type_);
+        if constraint_type.flags().intersects(TypeFlags::Index) {
+            let type_variable =
+                self.get_actual_type_variable(&constraint_type.as_index_type().type_);
+            if type_variable.flags().intersects(TypeFlags::TypeParameter) {
+                return Some(type_variable);
+            }
+        }
+        None
     }
 
     pub(super) fn instantiate_mapped_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*MappedType*/
-        mapper: &TypeMapper,
+        mapper: TypeMapper,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        let type_variable = self.get_homomorphic_type_variable(type_);
+        if let Some(type_variable) = type_variable.as_ref() {
+            let mapped_type_variable = self
+                .instantiate_type(Some(&**type_variable), Some(&mapper))
+                .unwrap();
+            if !Rc::ptr_eq(type_variable, &mapped_type_variable) {
+                let type_as_mapped_type = type_.as_mapped_type();
+                return self.map_type_with_alias(
+                    &self.get_reduced_type(&mapped_type_variable),
+                    &mut |t| {
+                        if t.flags().intersects(TypeFlags::AnyOrUnknown | TypeFlags::InstantiableNonPrimitive | TypeFlags::Object | TypeFlags::Intersection) && !ptr::eq(t, &*self.wildcard_type()) && !self.is_error_type(t) {
+                            if type_as_mapped_type.declaration.as_mapped_type_node().name_type.is_none() {
+                                if self.is_array_type(t) || t.flags().intersects(TypeFlags::Any) && self.find_resolution_cycle_start_index(&type_variable.clone().into(), TypeSystemPropertyName::ImmediateBaseConstraint) < 0 && {
+                                    let constraint = self.get_constraint_of_type_parameter(type_variable);
+                                    matches!(
+                                        constraint.as_ref(),
+                                        Some(constraint) if self.every_type(constraint, |type_| self.is_array_type(type_) || self.is_tuple_type(type_))
+                                    )
+                                } {
+                                    return self.instantiate_mapped_array_type(t, type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())));
+                                }
+                                if self.is_generic_tuple_type(t) {
+                                    return self.instantiate_mapped_generic_tuple_type(t, type_, type_variable, mapper.clone());
+                                }
+                                if self.is_tuple_type(t) {
+                                    return self.instantiate_mapped_tuple_type(t, type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())));
+                                }
+                            }
+                            return self.instantiate_anonymous_type(type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())), Option::<&Symbol>::None, None);
+                        }
+                        t.type_wrapper()
+                    },
+                    alias_symbol,
+                    alias_type_arguments,
+                );
+            }
+        }
+        if Rc::ptr_eq(
+            &self
+                .instantiate_type(
+                    Some(self.get_constraint_type_from_mapped_type(type_)),
+                    Some(&mapper),
+                )
+                .unwrap(),
+            &self.wildcard_type(),
+        ) {
+            self.wildcard_type()
+        } else {
+            self.instantiate_anonymous_type(type_, mapper, alias_symbol, alias_type_arguments)
+        }
+    }
+
+    pub(super) fn instantiate_mapped_generic_tuple_type(
+        &self,
+        tuple_type: &Type,    /*TupleTypeReference*/
+        mapped_type: &Type,   /*MappedType*/
+        type_variable: &Type, /*TypeVariable*/
+        mapper: TypeMapper,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn instantiate_mapped_array_type(
+        &self,
+        array_type: &Type,
+        mapped_type: &Type, /*MappedType*/
+        mapper: TypeMapper,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn instantiate_mapped_tuple_type(
+        &self,
+        tuple_type: &Type,  /*TupleTypeReference*/
+        mapped_type: &Type, /*MappedType*/
+        mapper: TypeMapper,
     ) -> Rc<Type> {
         unimplemented!()
     }

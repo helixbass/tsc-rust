@@ -1100,7 +1100,7 @@ impl TypeChecker {
                     {
                         self.instantiate_mapped_type(
                             &target,
-                            &new_mapper,
+                            new_mapper,
                             new_alias_symbol,
                             new_alias_type_arguments.as_deref(),
                         )

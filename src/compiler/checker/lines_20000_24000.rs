@@ -677,6 +677,19 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn map_type_with_alias<
+        TMapper: FnMut(&Type) -> Rc<Type>,
+        TAliasSymbol: Borrow<Symbol>,
+    >(
+        &self,
+        type_: &Type,
+        mapper: &mut TMapper,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_constituent_count(&self, type_: &Type) -> usize {
         if type_.flags().intersects(TypeFlags::Union) {
             type_
