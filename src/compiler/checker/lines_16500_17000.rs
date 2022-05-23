@@ -419,7 +419,79 @@ impl TypeChecker {
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let root = &type_.as_conditional_type().root;
+        if let Some(root_outer_type_parameters) = root.outer_type_parameters.as_deref() {
+            let type_arguments = map(Some(root_outer_type_parameters), |t: &Rc<Type>, _| {
+                self.get_mapped_type(t, mapper)
+            })
+            .unwrap();
+            let alias_symbol =
+                alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+            let id = format!(
+                "{}{}",
+                self.get_type_list_id(Some(&type_arguments)),
+                self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
+            );
+            let mut result = root
+                .maybe_instantiations()
+                .as_ref()
+                .unwrap()
+                .get(&id)
+                .map(Clone::clone);
+            if result.is_none() {
+                let new_mapper = self.create_type_mapper(
+                    root_outer_type_parameters.to_owned(),
+                    Some(type_arguments),
+                );
+                let check_type = &root.check_type;
+                let distribution_type = if root.is_distributive {
+                    Some(self.get_mapped_type(check_type, &new_mapper))
+                } else {
+                    None
+                };
+                result = Some(
+                    if let Some(distribution_type) =
+                        distribution_type.as_ref().filter(|distribution_type| {
+                            !Rc::ptr_eq(check_type, distribution_type)
+                                && distribution_type
+                                    .flags()
+                                    .intersects(TypeFlags::Union | TypeFlags::Never)
+                        })
+                    {
+                        self.map_type_with_alias(
+                            distribution_type,
+                            &mut |t| {
+                                self.get_conditional_type(
+                                    root,
+                                    Some(self.prepend_type_mapping(
+                                        check_type,
+                                        t,
+                                        Some(new_mapper.clone()),
+                                    )),
+                                    Option::<&Symbol>::None,
+                                    None,
+                                )
+                            },
+                            alias_symbol,
+                            alias_type_arguments,
+                        )
+                    } else {
+                        self.get_conditional_type(
+                            root,
+                            Some(new_mapper),
+                            alias_symbol,
+                            alias_type_arguments,
+                        )
+                    },
+                );
+                root.maybe_instantiations()
+                    .as_mut()
+                    .unwrap()
+                    .insert(id, result.clone().unwrap());
+            }
+            return result.unwrap();
+        }
+        type_.type_wrapper()
     }
 
     pub(super) fn instantiate_type<TTypeRef: Borrow<Type>>(
