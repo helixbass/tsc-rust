@@ -1,21 +1,24 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find_index, InferenceContext, InferenceInfo, TypeMapperCallback, __String,
-    get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc, get_symbol_id,
-    get_this_container, is_binary_expression, is_class_like, is_constructor_declaration,
-    is_function_expression, is_node_descendant_of, is_object_literal_expression,
-    is_private_identifier_class_element_declaration, is_static, is_valid_es_symbol_declaration,
-    map, pseudo_big_int_to_string, some, AssignmentDeclarationKind, BaseLiteralType,
-    BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface, IndexInfo,
-    InterfaceTypeInterface, LiteralTypeInterface, Node, NodeFlags, NodeInterface, Number,
-    NumberLiteralType, PseudoBigInt, Signature, SignatureFlags, StringLiteralType, StringOrNumber,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UniqueESSymbolType,
+    filter, find_index, maybe_add_range, InferenceContext, InferenceInfo, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectTypeInterface, TypeMapperCallback, TypeReferenceInterface,
+    __String, get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc,
+    get_symbol_id, get_this_container, is_binary_expression, is_class_like,
+    is_constructor_declaration, is_function_expression, is_node_descendant_of,
+    is_object_literal_expression, is_private_identifier_class_element_declaration, is_static,
+    is_valid_es_symbol_declaration, map, pseudo_big_int_to_string, some, AssignmentDeclarationKind,
+    BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface,
+    IndexInfo, InterfaceTypeInterface, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
+    Number, NumberLiteralType, PseudoBigInt, Signature, SignatureFlags, StringLiteralType,
+    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, UniqueESSymbolType,
 };
 use local_macros::enum_unwrapped;
 
@@ -980,6 +983,175 @@ impl TypeChecker {
         result.into()
     }
 
+    pub(super) fn get_object_type_instantiation<TAliasSymbol: Borrow<Symbol>>(
+        &self,
+        type_: &Type, /*AnonymousType | DeferredTypeReference*/
+        mapper: &TypeMapper,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        let type_as_object_type = type_.as_object_type();
+        let declaration = if type_as_object_type
+            .object_flags()
+            .intersects(ObjectFlags::Reference)
+        {
+            type_.as_type_reference().maybe_node().clone().unwrap()
+        } else {
+            type_.symbol().maybe_declarations().clone().unwrap()[0].clone()
+        };
+        let links = self.get_node_links(&declaration);
+        let target = if type_as_object_type
+            .object_flags()
+            .intersects(ObjectFlags::Reference)
+        {
+            (*links).borrow().resolved_type.clone().unwrap()
+        } else if type_as_object_type
+            .object_flags()
+            .intersects(ObjectFlags::Instantiated)
+        {
+            type_as_object_type.maybe_target().unwrap()
+        } else {
+            type_.type_wrapper()
+        };
+        let mut type_parameters = (*links).borrow().outer_type_parameters.clone();
+        let target_as_object_type = target.as_object_type();
+        if type_parameters.is_none() {
+            let mut outer_type_parameters =
+                self.get_outer_type_parameters(&declaration, Some(true));
+            if self.is_js_constructor(Some(&*declaration)) {
+                let template_tag_parameters =
+                    self.get_type_parameters_from_declaration(&declaration);
+                outer_type_parameters = maybe_add_range(
+                    outer_type_parameters,
+                    template_tag_parameters.as_deref(),
+                    None,
+                    None,
+                );
+            }
+            type_parameters = Some(outer_type_parameters.unwrap_or_else(|| vec![]));
+            let all_declarations = if type_as_object_type
+                .object_flags()
+                .intersects(ObjectFlags::Reference)
+            {
+                vec![declaration.clone()]
+            } else {
+                type_.symbol().maybe_declarations().clone().unwrap()
+            };
+            type_parameters = if (target_as_object_type
+                .object_flags()
+                .intersects(ObjectFlags::Reference)
+                || target.symbol().flags().intersects(SymbolFlags::Method)
+                || target.symbol().flags().intersects(SymbolFlags::TypeLiteral))
+                && target.maybe_alias_type_arguments().is_none()
+            {
+                filter(type_parameters.as_deref(), |tp: &Rc<Type>| {
+                    some(
+                        Some(&*all_declarations),
+                        Some(|d: &Rc<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
+                    )
+                })
+            } else {
+                type_parameters
+            };
+            links.borrow_mut().outer_type_parameters = type_parameters.clone();
+        }
+        let type_parameters = type_parameters.unwrap();
+        if !type_parameters.is_empty() {
+            let combined_mapper = self.combine_type_mappers(
+                type_as_object_type.maybe_mapper().map(Clone::clone),
+                mapper.clone(),
+            );
+            let type_arguments = map(Some(&*type_parameters), |t: &Rc<Type>, _| {
+                self.get_mapped_type(t, &combined_mapper)
+            })
+            .unwrap();
+            let alias_symbol =
+                alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+            let new_alias_symbol = alias_symbol
+                .clone()
+                .or_else(|| type_.maybe_alias_symbol().clone());
+            let new_alias_type_arguments = if alias_symbol.is_some() {
+                alias_type_arguments.map(ToOwned::to_owned)
+            } else {
+                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), mapper)
+            };
+            let id = format!(
+                "{}{}",
+                self.get_type_list_id(Some(&*type_arguments)),
+                self.get_alias_id(
+                    new_alias_symbol.as_deref(),
+                    new_alias_type_arguments.as_deref()
+                )
+            );
+            if target_as_object_type.maybe_instantiations().is_none() {
+                *target_as_object_type.maybe_instantiations() = Some(HashMap::new());
+                target_as_object_type
+                    .maybe_instantiations()
+                    .as_mut()
+                    .unwrap()
+                    .insert(
+                        format!(
+                            "{}{}",
+                            self.get_type_list_id(Some(&*type_parameters)),
+                            self.get_alias_id(
+                                target.maybe_alias_symbol().as_deref(),
+                                target.maybe_alias_type_arguments().as_deref()
+                            )
+                        ),
+                        target.clone(),
+                    );
+            }
+            let mut result = target_as_object_type
+                .maybe_instantiations()
+                .as_ref()
+                .unwrap()
+                .get(&id)
+                .map(Clone::clone);
+            if result.is_none() {
+                let new_mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
+                result = Some(
+                    if target_as_object_type
+                        .object_flags()
+                        .intersects(ObjectFlags::Reference)
+                    {
+                        let type_as_type_reference = type_.as_type_reference();
+                        self.create_deferred_type_reference(
+                            &type_as_type_reference.target,
+                            &type_as_type_reference.maybe_node().as_ref().unwrap(),
+                            Some(new_mapper),
+                            new_alias_symbol,
+                            new_alias_type_arguments.as_deref(),
+                        )
+                    } else if target_as_object_type
+                        .object_flags()
+                        .intersects(ObjectFlags::Mapped)
+                    {
+                        self.instantiate_mapped_type(
+                            &target,
+                            &new_mapper,
+                            new_alias_symbol,
+                            new_alias_type_arguments.as_deref(),
+                        )
+                    } else {
+                        self.instantiate_anonymous_type(
+                            &target,
+                            new_mapper,
+                            new_alias_symbol,
+                            new_alias_type_arguments.as_deref(),
+                        )
+                    },
+                );
+                target_as_object_type
+                    .maybe_instantiations()
+                    .as_mut()
+                    .unwrap()
+                    .insert(id, result.clone().unwrap());
+            }
+            return result.unwrap();
+        }
+        type_.type_wrapper()
+    }
+
     pub(super) fn is_type_parameter_possibly_referenced(
         &self,
         tp: &Type, /*TypeParameter*/
@@ -992,6 +1164,26 @@ impl TypeChecker {
         &self,
         type_: &Type, /*MappedType*/
     ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn instantiate_mapped_type<TAliasSymbol: Borrow<Symbol>>(
+        &self,
+        type_: &Type, /*MappedType*/
+        mapper: &TypeMapper,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn instantiate_anonymous_type<TAliasSymbol: Borrow<Symbol>>(
+        &self,
+        type_: &Type, /*AnonymousType*/
+        mapper: TypeMapper,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type /*AnonymousType*/> {
         unimplemented!()
     }
 

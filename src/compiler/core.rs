@@ -535,21 +535,39 @@ fn to_offset<TItem>(array: &[TItem], offset: isize) -> usize {
     }
 }
 
-pub fn add_range<TItem: Clone>(
-    to: /*Option<*/ &mut Vec<TItem>, /*>*/
+pub fn maybe_add_range<TItem: Clone>(
+    mut to: Option<Vec<TItem>>,
     from: Option<&[TItem]>,
     start: Option<isize>,
     end: Option<isize>,
-) /*-> Option<Vec<TItem>>*/
-{
+) -> Option<Vec<TItem>> {
     if from.is_none() {
-        return /*to*/;
+        return to;
     }
     let from = from.unwrap();
     if from.is_empty() {
-        return /*to*/;
+        return to;
     }
-    // if to.is_none()
+    if to.is_none() {
+        to = Some(vec![]);
+    }
+    add_range(to.as_mut().unwrap(), Some(from), start, end);
+    to
+}
+
+pub fn add_range<TItem: Clone>(
+    to: &mut Vec<TItem>,
+    from: Option<&[TItem]>,
+    start: Option<isize>,
+    end: Option<isize>,
+) {
+    if from.is_none() {
+        return;
+    }
+    let from = from.unwrap();
+    if from.is_empty() {
+        return;
+    }
     let start: usize = match start {
         None => 0,
         Some(start) => to_offset(from, start),
@@ -564,7 +582,6 @@ pub fn add_range<TItem: Clone>(
         to.push(from[i].clone());
         i += 1;
     }
-    // to
 }
 
 pub fn push_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) -> bool {

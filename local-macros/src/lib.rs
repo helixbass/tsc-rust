@@ -1286,6 +1286,10 @@ fn get_type_struct_interface_impl(
                     fn maybe_mapper(&self) -> ::std::option::Option<&crate::TypeMapper> {
                         self.#first_field_name.maybe_mapper()
                     }
+
+                    fn maybe_instantiations(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<String, ::std::rc::Rc<crate::Type>>>> {
+                        self.#first_field_name.maybe_instantiations()
+                    }
                 }
             }
         }
@@ -1706,6 +1710,12 @@ fn get_type_enum_interface_impl(
                     fn maybe_mapper(&self) -> ::std::option::Option<&crate::TypeMapper> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_mapper()),*
+                        }
+                    }
+
+                    fn maybe_instantiations(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<String, ::std::rc::Rc<crate::Type>>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_instantiations()),*
                         }
                     }
                 }
