@@ -631,7 +631,7 @@ impl TypeChecker {
         mapper: &TypeMapper,
     ) -> Option<Vec<Rc<Type>>> {
         self.instantiate_list(types, mapper, |type_: &Rc<Type>, mapper| {
-            self.instantiate_type(Some(&**type_), Some(mapper)).unwrap()
+            self.instantiate_type(type_, Some(mapper))
         })
     }
 
@@ -704,8 +704,7 @@ impl TypeChecker {
             | TypeMapper::Merged(composite_or_merged_mapper) => {
                 let t1 = self.get_mapped_type(type_, &composite_or_merged_mapper.mapper1);
                 if !ptr::eq(Rc::as_ptr(&t1), type_) && matches!(mapper, TypeMapper::Composite(_)) {
-                    self.instantiate_type(Some(t1), Some(&composite_or_merged_mapper.mapper2))
-                        .unwrap()
+                    self.instantiate_type(&t1, Some(&composite_or_merged_mapper.mapper2))
                 } else {
                     self.get_mapped_type(&t1, &composite_or_merged_mapper.mapper2)
                 }
@@ -855,7 +854,7 @@ impl TypeChecker {
             predicate.kind,
             predicate.parameter_name.clone(),
             predicate.parameter_index,
-            self.instantiate_type(predicate.type_.as_deref(), Some(mapper)),
+            self.maybe_instantiate_type(predicate.type_.as_deref(), Some(mapper)),
         )
     }
 

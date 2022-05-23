@@ -116,7 +116,7 @@ impl TypeChecker {
                 if !(Rc::ptr_eq(s, t)
                     || compare_types(
                         &self
-                            .instantiate_type(
+                            .maybe_instantiate_type(
                                 self.get_constraint_from_type_parameter(s),
                                 Some(&mapper),
                             )
@@ -127,7 +127,7 @@ impl TypeChecker {
                     ) != Ternary::False
                         && compare_types(
                             &self
-                                .instantiate_type(
+                                .maybe_instantiate_type(
                                     self.get_default_from_type_parameter_(s),
                                     Some(&mapper),
                                 )
@@ -477,6 +477,15 @@ impl TypeChecker {
             );
         }
         result
+    }
+
+    pub(super) fn infer_type_for_homomorphic_mapped_type(
+        &self,
+        source: &Type,
+        target: &Type,     /*MappedType*/
+        constraint: &Type, /*IndexType*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn get_type_of_reverse_mapped_symbol(

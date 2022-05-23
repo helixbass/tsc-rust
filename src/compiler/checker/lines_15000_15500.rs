@@ -1206,10 +1206,9 @@ impl TypeChecker {
             mapper,
         );
         self.instantiate_type(
-            Some(self.get_template_type_from_mapped_type(object_type)),
+            &self.get_template_type_from_mapped_type(object_type),
             Some(&template_mapper),
         )
-        .unwrap()
     }
 
     pub(super) fn get_indexed_access_type<

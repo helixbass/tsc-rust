@@ -512,9 +512,7 @@ impl TypeChecker {
             for base_type in base_types {
                 let instantiated_base_type = if let Some(this_argument) = this_argument {
                     self.get_type_with_this_argument(
-                        &self
-                            .instantiate_type(Some(base_type), mapper.as_ref())
-                            .unwrap(),
+                        &self.instantiate_type(&base_type, mapper.as_ref()),
                         Some(&**this_argument),
                         None,
                     )
@@ -1016,15 +1014,12 @@ impl TypeChecker {
                 &self
                     .get_constraint_from_type_parameter(source)
                     .unwrap_or_else(|| self.unknown_type()),
-                &self
-                    .instantiate_type(
-                        Some(
-                            self.get_constraint_from_type_parameter(target)
-                                .unwrap_or_else(|| self.unknown_type()),
-                        ),
-                        Some(&mapper),
-                    )
-                    .unwrap(),
+                &self.instantiate_type(
+                    &self
+                        .get_constraint_from_type_parameter(target)
+                        .unwrap_or_else(|| self.unknown_type()),
+                    Some(&mapper),
+                ),
             ) {
                 return false;
             }

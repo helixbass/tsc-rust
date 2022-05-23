@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, TypeFacts};
 use crate::{
-    are_option_rcs_equal, are_rc_slices_equal, contains_rc, for_each_child_bool,
+    are_option_rcs_equal, are_rc_slices_equal, contains_rc, for_each_child_bool, get_object_flags,
     is_part_of_type_node, map, some, Diagnostics, ElementFlags, IndexInfo, MappedType, Node,
     NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface,
     SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
@@ -133,9 +133,7 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let type_variable = self.get_homomorphic_type_variable(type_);
         if let Some(type_variable) = type_variable.as_ref() {
-            let mapped_type_variable = self
-                .instantiate_type(Some(&**type_variable), Some(&mapper))
-                .unwrap();
+            let mapped_type_variable = self.instantiate_type(type_variable, Some(&mapper));
             if !Rc::ptr_eq(type_variable, &mapped_type_variable) {
                 let type_as_mapped_type = type_.as_mapped_type();
                 return self.map_type_with_alias(
@@ -169,12 +167,10 @@ impl TypeChecker {
             }
         }
         if Rc::ptr_eq(
-            &self
-                .instantiate_type(
-                    Some(self.get_constraint_type_from_mapped_type(type_)),
-                    Some(&mapper),
-                )
-                .unwrap(),
+            &self.instantiate_type(
+                &self.get_constraint_type_from_mapped_type(type_),
+                Some(&mapper),
+            ),
             &self.wildcard_type(),
         ) {
             self.wildcard_type()
@@ -335,19 +331,15 @@ impl TypeChecker {
             &self.get_type_parameter_from_mapped_type(type_),
             key,
         );
-        let prop_type = self
-            .instantiate_type(
-                Some(
-                    self.get_template_type_from_mapped_type(
-                        &type_
-                            .as_mapped_type()
-                            .maybe_target()
-                            .unwrap_or_else(|| type_.type_wrapper()),
-                    ),
-                ),
-                Some(&template_mapper),
-            )
-            .unwrap();
+        let prop_type = self.instantiate_type(
+            &self.get_template_type_from_mapped_type(
+                &type_
+                    .as_mapped_type()
+                    .maybe_target()
+                    .unwrap_or_else(|| type_.type_wrapper()),
+            ),
+            Some(&template_mapper),
+        );
         let modifiers = self.get_mapped_type_modifiers(type_);
         if self.strict_null_checks
             && modifiers.intersects(MappedTypeModifiers::IncludeOptional)
@@ -495,7 +487,11 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn instantiate_type<TType: Borrow<Type>>(
+    pub(super) fn instantiate_type(&self, type_: &Type, mapper: Option<&TypeMapper>) -> Rc<Type> {
+        self.maybe_instantiate_type(Some(type_), mapper).unwrap()
+    }
+
+    pub(super) fn maybe_instantiate_type<TType: Borrow<Type>>(
         &self,
         type_: Option<TType>,
         mapper: Option<&TypeMapper>,
@@ -648,9 +644,7 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Index) {
             return self.get_index_type(
-                &self
-                    .instantiate_type(Some(&*type_.as_index_type().type_), Some(mapper))
-                    .unwrap(),
+                &self.instantiate_type(&type_.as_index_type().type_, Some(mapper)),
                 None,
                 None,
             );
@@ -667,9 +661,7 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::StringMapping) {
             return self.get_string_mapping_type(
                 &type_.symbol(),
-                &self
-                    .instantiate_type(Some(&*type_.as_string_mapping_type().type_), Some(mapper))
-                    .unwrap(),
+                &self.instantiate_type(&type_.as_string_mapping_type().type_, Some(mapper)),
             );
         }
         if flags.intersects(TypeFlags::IndexedAccess) {
@@ -683,15 +675,8 @@ impl TypeChecker {
             };
             let type_as_indexed_access_type = type_.as_indexed_access_type();
             return self.get_indexed_access_type(
-                &self
-                    .instantiate_type(
-                        Some(&*type_as_indexed_access_type.object_type),
-                        Some(mapper),
-                    )
-                    .unwrap(),
-                &self
-                    .instantiate_type(Some(&*type_as_indexed_access_type.index_type), Some(mapper))
-                    .unwrap(),
+                &self.instantiate_type(&type_as_indexed_access_type.object_type, Some(mapper)),
+                &self.instantiate_type(&type_as_indexed_access_type.index_type, Some(mapper)),
                 Some(type_as_indexed_access_type.access_flags),
                 Option::<&Node>::None,
                 new_alias_symbol,
@@ -711,23 +696,16 @@ impl TypeChecker {
         }
         if flags.intersects(TypeFlags::Substitution) {
             let type_as_substitution_type = type_.as_substitution_type();
-            let maybe_variable = self
-                .instantiate_type(Some(&*type_as_substitution_type.base_type), Some(mapper))
-                .unwrap();
+            let maybe_variable =
+                self.instantiate_type(&type_as_substitution_type.base_type, Some(mapper));
             if maybe_variable.flags().intersects(TypeFlags::TypeVariable) {
                 return self.get_substitution_type(
                     &maybe_variable,
-                    &self
-                        .instantiate_type(
-                            Some(&*type_as_substitution_type.substitute),
-                            Some(mapper),
-                        )
-                        .unwrap(),
+                    &self.instantiate_type(&type_as_substitution_type.substitute, Some(mapper)),
                 );
             } else {
-                let sub = self
-                    .instantiate_type(Some(&*type_as_substitution_type.substitute), Some(mapper))
-                    .unwrap();
+                let sub =
+                    self.instantiate_type(&type_as_substitution_type.substitute, Some(mapper));
                 if sub.flags().intersects(TypeFlags::AnyOrUnknown)
                     || self.is_type_assignable_to(
                         &self.get_restrictive_instantiation(&maybe_variable),
@@ -747,7 +725,26 @@ impl TypeChecker {
         type_: &Type, /*ReverseMappedType*/
         mapper: &TypeMapper,
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
+        let inner_mapped_type =
+            self.instantiate_type(&type_as_reverse_mapped_type.mapped_type, Some(mapper));
+        if !get_object_flags(&inner_mapped_type).intersects(ObjectFlags::Mapped) {
+            return type_.type_wrapper();
+        }
+        let inner_index_type =
+            self.instantiate_type(&type_as_reverse_mapped_type.constraint_type, Some(mapper));
+        if !inner_index_type.flags().intersects(TypeFlags::Index) {
+            return type_.type_wrapper();
+        }
+        let instantiated = self.infer_type_for_homomorphic_mapped_type(
+            &self.instantiate_type(&type_as_reverse_mapped_type.source, Some(mapper)),
+            &inner_mapped_type,
+            &inner_index_type,
+        );
+        if let Some(instantiated) = instantiated {
+            return instantiated;
+        }
+        type_.type_wrapper()
     }
 
     pub(super) fn get_permissive_instantiation(&self, type_: &Type) -> Rc<Type> {

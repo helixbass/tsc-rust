@@ -65,13 +65,12 @@ impl TypeChecker {
                 result[i] =
                     if let Some(default_type) = default_type {
                         self.instantiate_type(
-                            Some(default_type),
+                            &default_type,
                             Some(&self.create_type_mapper(
                                 type_parameters.to_owned(),
                                 Some(result.clone()),
                             )),
                         )
-                        .unwrap()
                     } else {
                         base_default_type.clone()
                     };
@@ -585,30 +584,26 @@ impl TypeChecker {
             }
             let mut type_: Rc<Type> = if let Some(signature_target) = signature.target.as_ref() {
                 self.instantiate_type(
-                    Some(self.get_return_type_of_signature(signature_target.clone())),
+                    &self.get_return_type_of_signature(signature_target.clone()),
                     signature.mapper.as_ref(),
                 )
-                .unwrap()
             } else if let Some(signature_composite_signatures) =
                 signature.composite_signatures.as_deref()
             {
                 self.instantiate_type(
-                    Some(
-                        self.get_union_or_intersection_type(
-                            &map(
-                                Some(signature_composite_signatures),
-                                |signature: &Rc<Signature>, _| {
-                                    self.get_return_type_of_signature(signature.clone())
-                                },
-                            )
-                            .unwrap(),
-                            signature.composite_kind,
-                            Some(UnionReduction::Subtype),
-                        ),
+                    &self.get_union_or_intersection_type(
+                        &map(
+                            Some(signature_composite_signatures),
+                            |signature: &Rc<Signature>, _| {
+                                self.get_return_type_of_signature(signature.clone())
+                            },
+                        )
+                        .unwrap(),
+                        signature.composite_kind,
+                        Some(UnionReduction::Subtype),
                     ),
                     signature.mapper.as_ref(),
                 )
-                .unwrap()
             } else {
                 let signature_declaration = signature.declaration.as_ref().unwrap();
                 self.get_return_type_from_annotation(signature_declaration)
@@ -889,7 +884,7 @@ impl TypeChecker {
             );
             let mut base_constraints: Vec<Rc<Type>> =
                 map(Some(type_parameters), |tp: &Rc<Type>, _| {
-                    self.instantiate_type(Some(&**tp), Some(&base_constraint_mapper))
+                    self.maybe_instantiate_type(Some(&**tp), Some(&base_constraint_mapper))
                         .unwrap_or_else(|| self.unknown_type())
                 })
                 .unwrap();

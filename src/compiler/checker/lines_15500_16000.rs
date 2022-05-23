@@ -154,22 +154,18 @@ impl TypeChecker {
                 break;
             }
             let is_unwrapped = self.is_typical_nondistributive_conditional(&root);
-            let check_type = self
-                .instantiate_type(
-                    Some(self.unwrap_nondistributive_conditional_tuple(
-                        &root,
-                        &self.get_actual_type_variable(&root.check_type),
-                    )),
-                    mapper.as_ref(),
-                )
-                .unwrap();
+            let check_type = self.instantiate_type(
+                &self.unwrap_nondistributive_conditional_tuple(
+                    &root,
+                    &self.get_actual_type_variable(&root.check_type),
+                ),
+                mapper.as_ref(),
+            );
             let check_type_instantiable = self.is_generic_type(&check_type);
-            let extends_type = self
-                .instantiate_type(
-                    Some(self.unwrap_nondistributive_conditional_tuple(&root, &root.extends_type)),
-                    mapper.as_ref(),
-                )
-                .unwrap();
+            let extends_type = self.instantiate_type(
+                &self.unwrap_nondistributive_conditional_tuple(&root, &root.extends_type),
+                mapper.as_ref(),
+            );
             if Rc::ptr_eq(&check_type, &self.wildcard_type())
                 || Rc::ptr_eq(&extends_type, &self.wildcard_type())
             {
@@ -200,10 +196,9 @@ impl TypeChecker {
             }
             let inferred_extends_type = if let Some(combined_mapper) = combined_mapper.as_ref() {
                 self.instantiate_type(
-                    Some(self.unwrap_nondistributive_conditional_tuple(&root, &root.extends_type)),
+                    &self.unwrap_nondistributive_conditional_tuple(&root, &root.extends_type),
                     Some(combined_mapper),
                 )
-                .unwrap()
             } else {
                 extends_type.clone()
             };
@@ -221,15 +216,12 @@ impl TypeChecker {
                         if extra_types.is_none() {
                             extra_types = Some(vec![]);
                         }
-                        extra_types.as_mut().unwrap().push(
-                            self.instantiate_type(
-                                Some(self.get_type_from_type_node_(
-                                    &root.node.as_conditional_type_node().true_type,
-                                )),
-                                combined_mapper.as_ref().or_else(|| mapper.as_ref()),
-                            )
-                            .unwrap(),
-                        );
+                        extra_types.as_mut().unwrap().push(self.instantiate_type(
+                            &self.get_type_from_type_node_(
+                                &root.node.as_conditional_type_node().true_type,
+                            ),
+                            combined_mapper.as_ref().or_else(|| mapper.as_ref()),
+                        ));
                     }
                     let false_type = self
                         .get_type_from_type_node_(&root.node.as_conditional_type_node().false_type);
@@ -255,9 +247,7 @@ impl TypeChecker {
                             continue;
                         }
                     }
-                    result = self
-                        .instantiate_type(Some(false_type), mapper.as_ref())
-                        .unwrap();
+                    result = self.instantiate_type(&false_type, mapper.as_ref());
                     break;
                 }
                 if inferred_extends_type
@@ -283,7 +273,7 @@ impl TypeChecker {
                     ) {
                         continue;
                     }
-                    result = self.instantiate_type(Some(true_type), true_mapper).unwrap();
+                    result = self.instantiate_type(&true_type, true_mapper);
                     break;
                 }
             }
@@ -291,10 +281,8 @@ impl TypeChecker {
             result = ConditionalType::new(
                 result_base,
                 root.clone(),
-                self.instantiate_type(Some(&*root.check_type), mapper.as_ref())
-                    .unwrap(),
-                self.instantiate_type(Some(&*root.extends_type), mapper.as_ref())
-                    .unwrap(),
+                self.instantiate_type(&root.check_type, mapper.as_ref()),
+                self.instantiate_type(&root.extends_type, mapper.as_ref()),
                 mapper.clone(),
                 combined_mapper,
             )
@@ -395,18 +383,15 @@ impl TypeChecker {
         {
             *type_as_conditional_type.maybe_resolved_true_type() = Some(
                 self.instantiate_type(
-                    Some(
-                        self.get_type_from_type_node_(
-                            &type_as_conditional_type
-                                .root
-                                .node
-                                .as_conditional_type_node()
-                                .true_type,
-                        ),
+                    &self.get_type_from_type_node_(
+                        &type_as_conditional_type
+                            .root
+                            .node
+                            .as_conditional_type_node()
+                            .true_type,
                     ),
                     type_as_conditional_type.mapper.as_ref(),
-                )
-                .unwrap(),
+                ),
             );
         }
         type_as_conditional_type
@@ -426,18 +411,15 @@ impl TypeChecker {
         {
             *type_as_conditional_type.maybe_resolved_false_type() = Some(
                 self.instantiate_type(
-                    Some(
-                        self.get_type_from_type_node_(
-                            &type_as_conditional_type
-                                .root
-                                .node
-                                .as_conditional_type_node()
-                                .false_type,
-                        ),
+                    &self.get_type_from_type_node_(
+                        &type_as_conditional_type
+                            .root
+                            .node
+                            .as_conditional_type_node()
+                            .false_type,
                     ),
                     type_as_conditional_type.mapper.as_ref(),
-                )
-                .unwrap(),
+                ),
             );
         }
         type_as_conditional_type
@@ -460,18 +442,15 @@ impl TypeChecker {
                     type_as_conditional_type.combined_mapper.as_ref()
                 {
                     self.instantiate_type(
-                        Some(
-                            self.get_type_from_type_node_(
-                                &type_as_conditional_type
-                                    .root
-                                    .node
-                                    .as_conditional_type_node()
-                                    .true_type,
-                            ),
+                        &self.get_type_from_type_node_(
+                            &type_as_conditional_type
+                                .root
+                                .node
+                                .as_conditional_type_node()
+                                .true_type,
                         ),
                         Some(type_combined_mapper),
                     )
-                    .unwrap()
                 } else {
                     self.get_true_type_from_conditional_type(type_)
                 },

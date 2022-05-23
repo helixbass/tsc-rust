@@ -26,12 +26,10 @@ impl TypeChecker {
             .as_ref()
             .map(|type_declaration_name_type| {
                 if type_as_mapped_type.maybe_name_type().is_none() {
-                    let name_type = self
-                        .instantiate_type(
-                            Some(self.get_type_from_type_node_(type_declaration_name_type)),
-                            type_as_mapped_type.maybe_mapper(),
-                        )
-                        .unwrap();
+                    let name_type = self.instantiate_type(
+                        &self.get_type_from_type_node_(type_declaration_name_type),
+                        type_as_mapped_type.maybe_mapper(),
+                    );
                     *type_as_mapped_type.maybe_name_type() = Some(name_type);
                 }
                 type_as_mapped_type.maybe_name_type().clone().unwrap()
@@ -51,19 +49,16 @@ impl TypeChecker {
                 .as_ref()
             {
                 self.instantiate_type(
-                    Some(
-                        self.add_optionality(
-                            &self.get_type_from_type_node_(type_declaration_type),
-                            Some(true),
-                            Some(
-                                self.get_mapped_type_modifiers(type_)
-                                    .intersects(MappedTypeModifiers::IncludeOptional),
-                            ),
+                    &self.add_optionality(
+                        &self.get_type_from_type_node_(type_declaration_type),
+                        Some(true),
+                        Some(
+                            self.get_mapped_type_modifiers(type_)
+                                .intersects(MappedTypeModifiers::IncludeOptional),
                         ),
                     ),
                     type_as_mapped_type.maybe_mapper(),
                 )
-                .unwrap()
             } else {
                 self.error_type()
             };
@@ -103,17 +98,17 @@ impl TypeChecker {
         let type_as_mapped_type = type_.as_mapped_type();
         if type_as_mapped_type.maybe_modifiers_type().is_none() {
             if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
-                *type_as_mapped_type.maybe_modifiers_type() = self.instantiate_type(
-                    Some(
-                        self.get_type_from_type_node_(
+                *type_as_mapped_type.maybe_modifiers_type() = Some(
+                    self.instantiate_type(
+                        &self.get_type_from_type_node_(
                             &self
                                 .get_constraint_declaration_for_mapped_type(type_)
                                 .unwrap()
                                 .as_type_operator_node()
                                 .type_,
                         ),
+                        type_as_mapped_type.maybe_mapper(),
                     ),
-                    type_as_mapped_type.maybe_mapper(),
                 );
             } else {
                 let declared_type =
@@ -131,10 +126,9 @@ impl TypeChecker {
                         })
                     {
                         self.instantiate_type(
-                            Some(&*extended_constraint.as_index_type().type_),
+                            &extended_constraint.as_index_type().type_,
                             type_as_mapped_type.maybe_mapper(),
                         )
-                        .unwrap()
                     } else {
                         self.unknown_type()
                     },
@@ -891,10 +885,9 @@ impl TypeChecker {
                 *type_parameter_as_type_parameter.maybe_default() =
                     Some(if let Some(target_default) = target_default {
                         self.instantiate_type(
-                            Some(target_default),
+                            &target_default,
                             type_parameter_as_type_parameter.maybe_mapper().as_ref(),
                         )
-                        .unwrap()
                     } else {
                         self.no_constraint_type()
                     });
@@ -1003,16 +996,14 @@ impl TypeChecker {
                 if let Some(constraint) = constraint.filter(|constraint| {
                     self.is_array_type(constraint) || self.is_tuple_type(constraint)
                 }) {
-                    return self
-                        .instantiate_type(
-                            Some(type_),
-                            Some(&self.prepend_type_mapping(
-                                &type_variable,
-                                &constraint,
-                                type_as_mapped_type.maybe_mapper().map(Clone::clone),
-                            )),
-                        )
-                        .unwrap();
+                    return self.instantiate_type(
+                        type_,
+                        Some(&self.prepend_type_mapping(
+                            &type_variable,
+                            &constraint,
+                            type_as_mapped_type.maybe_mapper().map(Clone::clone),
+                        )),
+                    );
                 }
             }
         }

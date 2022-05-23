@@ -65,11 +65,7 @@ impl TypeChecker {
                                             )),
                                         );
                                         let constraint = self
-                                            .instantiate_type(
-                                                Some(&*declared_constraint),
-                                                Some(&mapper),
-                                            )
-                                            .unwrap();
+                                            .instantiate_type(&declared_constraint, Some(&mapper));
                                         if !ptr::eq(&*constraint, type_parameter) {
                                             if inferences.is_none() {
                                                 inferences = Some(vec![]);
@@ -157,31 +153,33 @@ impl TypeChecker {
                             }
                             append(
                                 inferences.as_mut().unwrap(),
-                                self.instantiate_type(
-                                    Some(node_type),
-                                    Some(
-                                        &self.make_unary_type_mapper(
-                                            &self.get_declared_type_of_type_parameter(
-                                                &self
-                                                    .get_symbol_of_node(
-                                                        &check_mapped_type.type_parameter,
-                                                    )
-                                                    .unwrap(),
-                                            ),
-                                            &*if let Some(
-                                                check_mapped_type_type_parameter_constraint,
-                                            ) = check_mapped_type
-                                                .type_parameter
-                                                .as_type_parameter_declaration()
-                                                .constraint
-                                                .as_ref()
-                                            {
-                                                self.get_type_from_type_node_(
+                                Some(
+                                    self.instantiate_type(
+                                        &node_type,
+                                        Some(
+                                            &self.make_unary_type_mapper(
+                                                &self.get_declared_type_of_type_parameter(
+                                                    &self
+                                                        .get_symbol_of_node(
+                                                            &check_mapped_type.type_parameter,
+                                                        )
+                                                        .unwrap(),
+                                                ),
+                                                &*if let Some(
                                                     check_mapped_type_type_parameter_constraint,
-                                                )
-                                            } else {
-                                                self.keyof_constraint_type()
-                                            },
+                                                ) = check_mapped_type
+                                                    .type_parameter
+                                                    .as_type_parameter_declaration()
+                                                    .constraint
+                                                    .as_ref()
+                                                {
+                                                    self.get_type_from_type_node_(
+                                                        check_mapped_type_type_parameter_constraint,
+                                                    )
+                                                } else {
+                                                    self.keyof_constraint_type()
+                                                },
+                                            ),
                                         ),
                                     ),
                                 ),
@@ -209,12 +207,10 @@ impl TypeChecker {
                 let target_constraint =
                     self.get_constraint_of_type_parameter(type_parameter_target);
                 type_parameter_as_type_parameter.set_constraint(match target_constraint {
-                    Some(target_constraint) => self
-                        .instantiate_type(
-                            Some(target_constraint),
-                            type_parameter_as_type_parameter.maybe_mapper().as_ref(),
-                        )
-                        .unwrap(),
+                    Some(target_constraint) => self.instantiate_type(
+                        &target_constraint,
+                        type_parameter_as_type_parameter.maybe_mapper().as_ref(),
+                    ),
                     None => self.no_constraint_type(),
                 });
             } else {

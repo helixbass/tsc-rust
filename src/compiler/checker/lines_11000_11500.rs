@@ -34,8 +34,7 @@ impl TypeChecker {
         let this_type = self.get_intersection_type(
             &vec![
                 self.get_type_of_symbol(&left),
-                self.instantiate_type(Some(self.get_type_of_symbol(&right)), mapper)
-                    .unwrap(),
+                self.instantiate_type(&self.get_type_of_symbol(&right), mapper),
             ],
             Option::<&Symbol>::None,
             None,
@@ -71,17 +70,13 @@ impl TypeChecker {
         for i in 0..longest_count {
             let mut longest_param_type = self.try_get_type_at_position(longest, i).unwrap();
             if ptr::eq(longest, right) {
-                longest_param_type = self
-                    .instantiate_type(Some(longest_param_type), mapper)
-                    .unwrap();
+                longest_param_type = self.instantiate_type(&longest_param_type, mapper);
             }
             let mut shorter_param_type = self
                 .try_get_type_at_position(shorter, i)
                 .unwrap_or_else(|| self.unknown_type());
             if ptr::eq(shorter, right) {
-                shorter_param_type = self
-                    .instantiate_type(Some(shorter_param_type), mapper)
-                    .unwrap();
+                shorter_param_type = self.instantiate_type(&shorter_param_type, mapper);
             }
             let union_param_type = self.get_intersection_type(
                 &vec![longest_param_type, shorter_param_type],
@@ -151,7 +146,7 @@ impl TypeChecker {
                 self.create_array_type(&self.get_type_at_position(shorter, longest_count), None),
             );
             if ptr::eq(shorter, right) {
-                let type_ = self.instantiate_type(
+                let type_ = self.maybe_instantiate_type(
                     (*rest_param_symbol.as_transient_symbol().symbol_links())
                         .borrow()
                         .type_
@@ -678,7 +673,7 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         self.instantiate_type(
-            Some(instantiable),
+            instantiable,
             Some(&self.create_type_mapper(
                 vec![
                     type_as_indexed_access_type.index_type.clone(),
@@ -690,7 +685,6 @@ impl TypeChecker {
                 ]),
             )),
         )
-        .unwrap()
     }
 
     pub(super) fn resolve_reverse_mapped_type_members(
@@ -968,14 +962,13 @@ impl TypeChecker {
     ) {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
-                Some(name_type),
+                name_type,
                 Some(&self.append_type_mapping(
                     type_.as_mapped_type().maybe_mapper().map(Clone::clone),
                     type_parameter,
                     key_type,
                 )),
             )
-            .unwrap()
         } else {
             key_type.type_wrapper()
         };
@@ -1128,16 +1121,14 @@ impl TypeChecker {
             } else {
                 prop_name_type.type_wrapper()
             };
-            let prop_type = self
-                .instantiate_type(
-                    Some(template_type),
-                    Some(&self.append_type_mapping(
-                        type_.as_mapped_type().maybe_mapper().map(Clone::clone),
-                        type_parameter,
-                        key_type,
-                    )),
-                )
-                .unwrap();
+            let prop_type = self.instantiate_type(
+                template_type,
+                Some(&self.append_type_mapping(
+                    type_.as_mapped_type().maybe_mapper().map(Clone::clone),
+                    type_parameter,
+                    key_type,
+                )),
+            );
             let index_info = Rc::new(self.create_index_info(
                 index_key_type,
                 prop_type,
@@ -1177,9 +1168,7 @@ impl TypeChecker {
                 &self.get_type_parameter_from_mapped_type(mapped_type),
                 &symbol_as_mapped_symbol.key_type(),
             );
-            let prop_type = self
-                .instantiate_type(Some(&*template_type), Some(&mapper))
-                .unwrap();
+            let prop_type = self.instantiate_type(&template_type, Some(&mapper));
             let mut type_ = if self.strict_null_checks
                 && symbol.flags().intersects(SymbolFlags::Optional)
                 && !self.maybe_type_of_kind(&prop_type, TypeFlags::Undefined | TypeFlags::Void)

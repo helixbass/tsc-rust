@@ -559,14 +559,13 @@ impl TypeChecker {
     ) {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
-                Some(&**name_type),
+                name_type,
                 Some(&self.append_type_mapping(
                     type_.as_mapped_type().maybe_mapper().map(Clone::clone),
                     type_parameter,
                     &key_type,
                 )),
             )
-            .unwrap()
         } else {
             key_type.type_wrapper()
         };
