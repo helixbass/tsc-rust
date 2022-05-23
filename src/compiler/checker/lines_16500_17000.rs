@@ -6,10 +6,10 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, TypeFacts};
 use crate::{
-    contains_rc, for_each_child_bool, is_part_of_type_node, map, some, ElementFlags, IndexInfo,
-    MappedType, Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeSystemPropertyName,
+    contains_rc, for_each_child_bool, is_part_of_type_node, map, some, Diagnostics, ElementFlags,
+    IndexInfo, MappedType, Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -494,9 +494,9 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn instantiate_type<TTypeRef: Borrow<Type>>(
+    pub(super) fn instantiate_type<TType: Borrow<Type>>(
         &self,
-        type_: Option<TTypeRef>,
+        type_: Option<TType>,
         mapper: Option<&TypeMapper>,
     ) -> Option<Rc<Type>> {
         match (type_.as_ref(), mapper) {
@@ -510,15 +510,31 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn instantiate_type_with_alias<TSymbolRef: Borrow<Symbol>>(
+    pub(super) fn instantiate_type_with_alias<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type,
         mapper: &TypeMapper,
-        alias_symbol: Option<TSymbolRef>,
+        alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
+        if !self.could_contain_type_variables(type_) {
+            return type_.type_wrapper();
+        }
+        if self.instantiation_depth() == 100 || self.instantiation_count() >= 5000000 {
+            // tracing?.instant(tracing.Phase.CheckTypes, "instantiateType_DepthLimit", { typeId: type.id, instantiationDepth, instantiationCount });
+            self.error(
+                self.maybe_current_node(),
+                &Diagnostics::Type_instantiation_is_excessively_deep_and_possibly_infinite,
+                None,
+            );
+            return self.error_type();
+        }
+        self.set_total_instantiation_count(self.total_instantiation_count() + 1);
+        self.set_instantiation_count(self.instantiation_count() + 1);
+        self.set_instantiation_depth(self.instantiation_depth() + 1);
         let result =
             self.instantiate_type_worker(type_, mapper, alias_symbol, alias_type_arguments);
+        self.set_instantiation_depth(self.instantiation_depth() - 1);
         result
     }
 

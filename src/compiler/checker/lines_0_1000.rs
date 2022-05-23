@@ -1507,6 +1507,27 @@ impl TypeChecker {
         self.total_instantiation_count.get()
     }
 
+    pub(super) fn set_total_instantiation_count(&self, total_instantiation_count: usize) {
+        self.total_instantiation_count
+            .set(total_instantiation_count);
+    }
+
+    pub(super) fn instantiation_count(&self) -> usize {
+        self.instantiation_count.get()
+    }
+
+    pub(super) fn set_instantiation_count(&self, instantiation_count: usize) {
+        self.instantiation_count.set(instantiation_count);
+    }
+
+    pub(super) fn instantiation_depth(&self) -> usize {
+        self.instantiation_depth.get()
+    }
+
+    pub(super) fn set_instantiation_depth(&self, instantiation_depth: usize) {
+        self.instantiation_depth.set(instantiation_depth);
+    }
+
     pub(super) fn maybe_current_node(&self) -> Option<Rc<Node>> {
         self.current_node.borrow().clone()
     }
