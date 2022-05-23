@@ -4,11 +4,12 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::MappedTypeModifiers;
+use super::{MappedTypeModifiers, TypeFacts};
 use crate::{
-    for_each_child_bool, is_part_of_type_node, map, some, ElementFlags, IndexInfo, Node, NodeArray,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypeSystemPropertyName,
+    contains_rc, for_each_child_bool, is_part_of_type_node, map, some, ElementFlags, IndexInfo,
+    MappedType, Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -265,7 +266,60 @@ impl TypeChecker {
         mapped_type: &Type, /*MappedType*/
         mapper: TypeMapper,
     ) -> Rc<Type> {
-        unimplemented!()
+        let tuple_type_as_type_reference = tuple_type.as_type_reference();
+        let element_flags = &tuple_type_as_type_reference
+            .target
+            .as_tuple_type()
+            .element_flags;
+        let element_types = map(Some(&self.get_type_arguments(tuple_type)), |_, i| {
+            self.instantiate_mapped_type_template(
+                mapped_type,
+                &self.get_string_literal_type(&i.to_string()),
+                element_flags[i].intersects(ElementFlags::Optional),
+                mapper.clone(),
+            )
+        })
+        .unwrap();
+        let modifiers = self.get_mapped_type_modifiers(mapped_type);
+        let new_tuple_modifiers = if modifiers.intersects(MappedTypeModifiers::IncludeOptional) {
+            map(Some(element_flags), |f: &ElementFlags, _| {
+                if f.intersects(ElementFlags::Required) {
+                    ElementFlags::Optional
+                } else {
+                    *f
+                }
+            })
+            .unwrap()
+        } else if modifiers.intersects(MappedTypeModifiers::ExcludeOptional) {
+            map(Some(element_flags), |f: &ElementFlags, _| {
+                if f.intersects(ElementFlags::Optional) {
+                    ElementFlags::Required
+                } else {
+                    *f
+                }
+            })
+            .unwrap()
+        } else {
+            element_flags.clone()
+        };
+        let new_readonly = self.get_modified_readonly_state(
+            tuple_type_as_type_reference.target.as_tuple_type().readonly,
+            modifiers,
+        );
+        if contains_rc(Some(&element_types), &self.error_type()) {
+            self.error_type()
+        } else {
+            self.create_tuple_type(
+                &element_types,
+                Some(&new_tuple_modifiers),
+                Some(new_readonly),
+                tuple_type_as_type_reference
+                    .target
+                    .as_tuple_type()
+                    .labeled_element_declarations
+                    .as_deref(),
+            )
+        }
     }
 
     pub(super) fn instantiate_mapped_type_template(
@@ -275,17 +329,87 @@ impl TypeChecker {
         is_optional: bool,
         mapper: TypeMapper,
     ) -> Rc<Type> {
-        unimplemented!()
+        let template_mapper = self.append_type_mapping(
+            Some(mapper),
+            &self.get_type_parameter_from_mapped_type(type_),
+            key,
+        );
+        let prop_type = self
+            .instantiate_type(
+                Some(
+                    self.get_template_type_from_mapped_type(
+                        &type_
+                            .as_mapped_type()
+                            .maybe_target()
+                            .unwrap_or_else(|| type_.type_wrapper()),
+                    ),
+                ),
+                Some(&template_mapper),
+            )
+            .unwrap();
+        let modifiers = self.get_mapped_type_modifiers(type_);
+        if self.strict_null_checks
+            && modifiers.intersects(MappedTypeModifiers::IncludeOptional)
+            && !self.maybe_type_of_kind(&prop_type, TypeFlags::Undefined | TypeFlags::Void)
+        {
+            self.get_optional_type_(&prop_type, Some(true))
+        } else if self.strict_null_checks
+            && modifiers.intersects(MappedTypeModifiers::ExcludeOptional)
+            && is_optional
+        {
+            self.get_type_with_facts(&prop_type, TypeFacts::NEUndefined)
+        } else {
+            prop_type
+        }
     }
 
     pub(super) fn instantiate_anonymous_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*AnonymousType*/
-        mapper: TypeMapper,
+        mut mapper: TypeMapper,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type /*AnonymousType*/> {
-        unimplemented!()
+        let type_as_object_flags_type = type_.as_object_flags_type();
+        let mut result = self.create_object_type(
+            type_as_object_flags_type.object_flags() | ObjectFlags::Instantiated,
+            type_.maybe_symbol(),
+        );
+        let is_mapped_type = type_as_object_flags_type
+            .object_flags()
+            .intersects(ObjectFlags::Mapped);
+        let mut mapped_type_type_parameter: Option<Rc<Type>> = None;
+        if is_mapped_type {
+            let orig_type_parameter = self.get_type_parameter_from_mapped_type(type_);
+            let fresh_type_parameter = self.clone_type_parameter(&orig_type_parameter);
+            mapped_type_type_parameter = Some(fresh_type_parameter.clone());
+            mapper = self.combine_type_mappers(
+                Some(self.make_unary_type_mapper(&orig_type_parameter, &fresh_type_parameter)),
+                mapper,
+            );
+            fresh_type_parameter
+                .as_type_parameter()
+                .set_mapper(mapper.clone());
+        }
+        result.target = Some(type_.type_wrapper());
+        result.mapper = Some(mapper.clone());
+        let result: Rc<Type> = if is_mapped_type {
+            let result = MappedType::new(result, type_.as_mapped_type().declaration.clone());
+            *result.maybe_type_parameter() = mapped_type_type_parameter;
+            result.into()
+        } else {
+            result.into()
+        };
+        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+        *result.maybe_alias_symbol() = alias_symbol
+            .clone()
+            .or_else(|| type_.maybe_alias_symbol().clone());
+        *result.maybe_alias_type_arguments() = if alias_symbol.is_some() {
+            alias_type_arguments.map(ToOwned::to_owned)
+        } else {
+            self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), &mapper)
+        };
+        result
     }
 
     pub(super) fn get_conditional_type_instantiation<TAliasSymbol: Borrow<Symbol>>(

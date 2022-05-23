@@ -344,7 +344,7 @@ pub struct BaseObjectType {
     index_infos: RefCell<Option<Vec<Rc<IndexInfo>>>>,
     object_type_without_abstract_construct_signatures: RefCell<Option<Rc<Type>>>,
     // AnonymousType fields
-    target: Option<Rc<Type>>,
+    pub target: Option<Rc<Type>>,
     pub mapper: Option<TypeMapper>,
     instantiations: RefCell<Option<HashMap<String, Rc<Type>>>>,
 }
