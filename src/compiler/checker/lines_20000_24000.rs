@@ -210,6 +210,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_readonly_array_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_element_type_of_array_type(&self, type_: &Type) -> Option<Rc<Type>> {
         unimplemented!()
     }

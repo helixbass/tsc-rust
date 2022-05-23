@@ -4,10 +4,11 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
+use super::MappedTypeModifiers;
 use crate::{
-    for_each_child_bool, is_part_of_type_node, some, IndexInfo, Node, NodeArray, NodeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypeSystemPropertyName,
+    for_each_child_bool, is_part_of_type_node, map, some, ElementFlags, IndexInfo, Node, NodeArray,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -180,6 +181,20 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_modified_readonly_state(
+        &self,
+        state: bool,
+        modifiers: MappedTypeModifiers,
+    ) -> bool {
+        if modifiers.intersects(MappedTypeModifiers::IncludeReadonly) {
+            true
+        } else if modifiers.intersects(MappedTypeModifiers::ExcludeReadonly) {
+            false
+        } else {
+            state
+        }
+    }
+
     pub(super) fn instantiate_mapped_generic_tuple_type(
         &self,
         tuple_type: &Type,    /*TupleTypeReference*/
@@ -187,7 +202,40 @@ impl TypeChecker {
         type_variable: &Type, /*TypeVariable*/
         mapper: TypeMapper,
     ) -> Rc<Type> {
-        unimplemented!()
+        let tuple_type_as_type_reference = tuple_type.as_type_reference();
+        let element_flags = &tuple_type_as_type_reference
+            .target
+            .as_tuple_type()
+            .element_flags;
+        let element_types = map(
+            Some(&self.get_type_arguments(tuple_type)),
+            |t: &Rc<Type>, i| {
+                let singleton = if element_flags[i].intersects(ElementFlags::Variadic) {
+                    t.clone()
+                } else if element_flags[i].intersects(ElementFlags::Rest) {
+                    self.create_array_type(t, None)
+                } else {
+                    self.create_tuple_type(&[t.clone()], Some(&[element_flags[i]]), None, None)
+                };
+                self.instantiate_mapped_type(
+                    mapped_type,
+                    self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone())),
+                    Option::<&Symbol>::None,
+                    None,
+                )
+            },
+        )
+        .unwrap();
+        let new_readonly = self.get_modified_readonly_state(
+            tuple_type_as_type_reference.target.as_tuple_type().readonly,
+            self.get_mapped_type_modifiers(mapped_type),
+        );
+        self.create_tuple_type(
+            &element_types,
+            map(Some(&element_types), |_, _| ElementFlags::Variadic).as_deref(),
+            Some(new_readonly),
+            None,
+        )
     }
 
     pub(super) fn instantiate_mapped_array_type(
@@ -196,13 +244,35 @@ impl TypeChecker {
         mapped_type: &Type, /*MappedType*/
         mapper: TypeMapper,
     ) -> Rc<Type> {
-        unimplemented!()
+        let element_type =
+            self.instantiate_mapped_type_template(mapped_type, &self.number_type(), true, mapper);
+        if self.is_error_type(&element_type) {
+            self.error_type()
+        } else {
+            self.create_array_type(
+                &element_type,
+                Some(self.get_modified_readonly_state(
+                    self.is_readonly_array_type(array_type),
+                    self.get_mapped_type_modifiers(mapped_type),
+                )),
+            )
+        }
     }
 
     pub(super) fn instantiate_mapped_tuple_type(
         &self,
         tuple_type: &Type,  /*TupleTypeReference*/
         mapped_type: &Type, /*MappedType*/
+        mapper: TypeMapper,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn instantiate_mapped_type_template(
+        &self,
+        type_: &Type, /*MappedType*/
+        key: &Type,
+        is_optional: bool,
         mapper: TypeMapper,
     ) -> Rc<Type> {
         unimplemented!()
