@@ -1,19 +1,20 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{MappedTypeModifiers, TypeFacts};
+use super::{CheckTypeErrorOutputContainer, MappedTypeModifiers, TypeFacts};
 use crate::{
     are_option_rcs_equal, are_rc_slices_equal, contains_rc, every, for_each_child_bool,
     get_effective_return_type_node, get_object_flags, has_context_sensitive_parameters,
     is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
     is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, some, Debug_,
-    DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo, MappedType, Node, NodeArray,
-    NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeReferenceInterface, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo, MappedType,
+    Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypeReferenceInterface, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
     UnionReduction,
 };
 
@@ -1014,13 +1015,18 @@ impl TypeChecker {
         self.is_type_comparable_to(type1, type2) || self.is_type_comparable_to(type2, type1)
     }
 
-    pub(super) fn check_type_assignable_to<TErrorNode: Borrow<Node>, TExpr: Borrow<Node>>(
+    pub(super) fn check_type_assignable_to<
+        TErrorNode: Borrow<Node>,
+        TExpr: Borrow<Node>,
+        TContainingMessageChain: FnMut() -> Option<Rc<RefCell<DiagnosticMessageChain>>>,
+    >(
         &self,
         source: &Type,
         target: &Type,
         error_node: Option<TErrorNode>,
         head_message: Option<DiagnosticMessage>,
-        // TODO: containing_message_chain, error_output_object
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_object: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
         self.check_type_related_to(
             source,
@@ -1028,7 +1034,8 @@ impl TypeChecker {
             &self.assignable_relation(),
             error_node,
             head_message,
-            // containing_message_chain, error_output_object
+            containing_message_chain,
+            error_output_object,
         )
     }
 }

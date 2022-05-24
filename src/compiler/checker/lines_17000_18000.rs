@@ -1,14 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    Debug_, DiagnosticMessage, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, RelationComparisonResult, Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
+    Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, LiteralTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, RelationComparisonResult, Symbol, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -52,7 +54,15 @@ impl TypeChecker {
         if error_node.is_none()
             || !self.elaborate_error(expr, source, target, relation, head_message.clone())
         {
-            return self.check_type_related_to(source, target, relation, error_node, head_message);
+            return self.check_type_related_to(
+                source,
+                target,
+                relation,
+                error_node,
+                head_message,
+                Option::<fn() -> Option<Rc<RefCell<DiagnosticMessageChain>>>>::None, // TODO: these are wrong
+                None,
+            );
         }
         false
     }
@@ -160,6 +170,8 @@ impl TypeChecker {
                 relation,
                 Option::<&Node>::None,
                 None,
+                Option::<fn() -> Option<Rc<RefCell<DiagnosticMessageChain>>>>::None,
+                None,
             ) {
                 reported_error = true;
                 if true {
@@ -180,6 +192,8 @@ impl TypeChecker {
                             relation,
                             Some(&*prop),
                             error_message,
+                            Option::<fn() -> Option<Rc<RefCell<DiagnosticMessageChain>>>>::None, // TODO: these are wrong
+                            None,
                         );
                     }
                 }
@@ -337,6 +351,8 @@ impl TypeChecker {
                 relation,
                 Option::<&Node>::None,
                 None,
+                Option::<fn() -> Option<Rc<RefCell<DiagnosticMessageChain>>>>::None,
+                None,
             );
         }
         false
@@ -367,13 +383,18 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn check_type_related_to<TErrorNode: Borrow<Node>>(
+    pub(super) fn check_type_related_to<
+        TErrorNode: Borrow<Node>,
+        TContainingMessageChain: FnMut() -> Option<Rc<RefCell<DiagnosticMessageChain>>>,
+    >(
         &self,
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
         error_node: Option<TErrorNode>,
         head_message: Option<DiagnosticMessage>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_object: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
         CheckTypeRelatedTo::new(
             self,
@@ -396,3 +417,8 @@ pub(super) struct ElaborationIteratorItem {
 }
 
 type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage, Option<Vec<String>>);
+
+pub(super) trait CheckTypeErrorOutputContainer {
+    fn push_error(&self, error: Rc<Diagnostic>);
+    fn skip_logging(&self) -> Option<bool>;
+}
