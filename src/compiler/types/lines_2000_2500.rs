@@ -319,6 +319,9 @@ impl TemplateSpan {
 
 pub trait HasExpressionInterface {
     fn expression(&self) -> Rc<Node>;
+    fn maybe_expression(&self) -> Option<Rc<Node>> {
+        Some(self.expression())
+    }
 }
 
 #[derive(Debug)]

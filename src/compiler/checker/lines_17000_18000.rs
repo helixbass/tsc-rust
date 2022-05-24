@@ -8,9 +8,9 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, LiteralTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, RelationComparisonResult, Symbol, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    some, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, LiteralTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, RelationComparisonResult, Symbol, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -18,13 +18,15 @@ impl TypeChecker {
     pub(super) fn check_type_assignable_to_and_optionally_elaborate<
         TErrorNode: Borrow<Node>,
         TExpr: Borrow<Node>,
+        TContainingMessageChain: CheckTypeContainingMessageChain,
     >(
         &self,
         source: &Type,
         target: &Type,
         error_node: Option<TErrorNode>,
         expr: Option<TExpr>,
-        head_message: Option<DiagnosticMessage>,
+        head_message: Option<&'static DiagnosticMessage>,
+        containing_message_chain: Option<TContainingMessageChain>,
     ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
             source,
@@ -33,12 +35,15 @@ impl TypeChecker {
             error_node,
             expr,
             head_message,
+            containing_message_chain,
+            None,
         )
     }
 
     pub(super) fn check_type_related_to_and_optionally_elaborate<
         TErrorNode: Borrow<Node>,
         TExpr: Borrow<Node>,
+        TContainingMessageChain: CheckTypeContainingMessageChain,
     >(
         &self,
         source: &Type,
@@ -46,13 +51,23 @@ impl TypeChecker {
         relation: &HashMap<String, RelationComparisonResult>,
         error_node: Option<TErrorNode>,
         expr: Option<TExpr>,
-        head_message: Option<DiagnosticMessage>,
+        head_message: Option<&'static DiagnosticMessage>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
         if self.is_type_related_to(source, target, relation) {
             return true;
         }
         if error_node.is_none()
-            || !self.elaborate_error(expr, source, target, relation, head_message.clone())
+            || !self.elaborate_error(
+                expr,
+                source,
+                target,
+                relation,
+                head_message,
+                containing_message_chain.clone(),
+                error_output_container,
+            )
         {
             return self.check_type_related_to(
                 source,
@@ -60,33 +75,161 @@ impl TypeChecker {
                 relation,
                 error_node,
                 head_message,
-                Option::<fn() -> Option<Rc<RefCell<DiagnosticMessageChain>>>>::None, // TODO: these are wrong
-                None,
+                containing_message_chain,
+                error_output_container,
             );
         }
         false
     }
 
-    pub(super) fn elaborate_error<TNode: Borrow<Node>>(
+    pub(super) fn is_or_has_generic_conditional(&self, type_: &Type) -> bool {
+        type_.flags().intersects(TypeFlags::Conditional)
+            || type_.flags().intersects(TypeFlags::Intersection)
+                && some(
+                    Some(type_.as_intersection_type().types()),
+                    Some(|type_: &Rc<Type>| self.is_or_has_generic_conditional(type_)),
+                )
+    }
+
+    pub(super) fn elaborate_error<
+        TNode: Borrow<Node>,
+        TContainingMessageChain: CheckTypeContainingMessageChain,
+    >(
         &self,
         node: Option<TNode>,
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
-        head_message: Option<DiagnosticMessage>,
+        head_message: Option<&DiagnosticMessage>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
-        if node.is_none() || false {
+        if node.is_none() || self.is_or_has_generic_conditional(target) {
             return false;
         }
         let node = node.unwrap();
         let node = node.borrow();
-        match node {
-            Node::ObjectLiteralExpression(_) => {
-                return self.elaborate_object_literal(node, source, target, relation);
+        if !self.check_type_related_to(
+            source,
+            target,
+            relation,
+            Option::<&Node>::None,
+            None,
+            Option::<CheckTypeContainingMessageChainDummy>::None,
+            None,
+        ) && self.elaborate_did_you_mean_to_call_or_construct(
+            node,
+            source,
+            target,
+            relation,
+            head_message,
+            containing_message_chain.clone(),
+            error_output_container,
+        ) {
+            return true;
+        }
+        match node.kind() {
+            SyntaxKind::JsxExpression | SyntaxKind::ParenthesizedExpression => {
+                return self.elaborate_error(
+                    node.as_has_expression().maybe_expression(),
+                    source,
+                    target,
+                    relation,
+                    head_message,
+                    containing_message_chain,
+                    error_output_container,
+                );
+            }
+            SyntaxKind::BinaryExpression => {
+                let node_as_binary_expression = node.as_binary_expression();
+                match node_as_binary_expression.operator_token.kind() {
+                    SyntaxKind::EqualsToken | SyntaxKind::CommaToken => {
+                        return self.elaborate_error(
+                            Some(&*node_as_binary_expression.right),
+                            source,
+                            target,
+                            relation,
+                            head_message,
+                            containing_message_chain,
+                            error_output_container,
+                        );
+                    }
+                    _ => (),
+                }
+            }
+            SyntaxKind::ObjectLiteralExpression => {
+                return self.elaborate_object_literal(
+                    node,
+                    source,
+                    target,
+                    relation,
+                    containing_message_chain,
+                    error_output_container,
+                );
+            }
+            SyntaxKind::ArrayLiteralExpression => {
+                return self.elaborate_array_literal(
+                    node,
+                    source,
+                    target,
+                    relation,
+                    containing_message_chain,
+                    error_output_container,
+                );
+            }
+            SyntaxKind::JsxAttributes => {
+                return self.elaborate_jsx_components(
+                    node,
+                    source,
+                    target,
+                    relation,
+                    containing_message_chain,
+                    error_output_container,
+                );
+            }
+            SyntaxKind::ArrowFunction => {
+                return self.elaborate_arrow_function(
+                    node,
+                    source,
+                    target,
+                    relation,
+                    containing_message_chain,
+                    error_output_container,
+                );
             }
             _ => (),
         }
         false
+    }
+
+    pub(super) fn elaborate_did_you_mean_to_call_or_construct<
+        TContainingMessageChain: CheckTypeContainingMessageChain,
+    >(
+        &self,
+        node: &Node, /*Expression*/
+        source: &Type,
+        target: &Type,
+        relation: &HashMap<String, RelationComparisonResult>,
+        head_message: Option<&DiagnosticMessage>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+    ) -> bool {
+        // unimplemented!()
+        false
+    }
+
+    pub(super) fn elaborate_arrow_function<
+        TContainingMessageChain: CheckTypeContainingMessageChain,
+    >(
+        &self,
+        node: &Node, /*ArrowFunction*/
+        source: &Type,
+        target: &Type,
+        relation: &HashMap<String, RelationComparisonResult>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+    ) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn get_best_match_indexed_access_type_or_undefined(
@@ -170,7 +313,7 @@ impl TypeChecker {
                 relation,
                 Option::<&Node>::None,
                 None,
-                Option::<fn() -> Option<Rc<RefCell<DiagnosticMessageChain>>>>::None,
+                Option::<CheckTypeContainingMessageChainDummy>::None,
                 None,
             ) {
                 reported_error = true;
@@ -192,7 +335,7 @@ impl TypeChecker {
                             relation,
                             Some(&*prop),
                             error_message,
-                            Option::<fn() -> Option<Rc<RefCell<DiagnosticMessageChain>>>>::None, // TODO: these are wrong
+                            Option::<CheckTypeContainingMessageChainDummy>::None, // TODO: these are wrong
                             None,
                         );
                     }
@@ -200,6 +343,34 @@ impl TypeChecker {
             }
         }
         reported_error
+    }
+
+    pub(super) fn elaborate_jsx_components<
+        TContainingMessageChain: CheckTypeContainingMessageChain,
+    >(
+        &self,
+        node: &Node, /*JsxAttributes*/
+        source: &Type,
+        target: &Type,
+        relation: &HashMap<String, RelationComparisonResult>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn elaborate_array_literal<
+        TContainingMessageChain: CheckTypeContainingMessageChain,
+    >(
+        &self,
+        node: &Node, /*ArrayLiteralExpression*/
+        source: &Type,
+        target: &Type,
+        relation: &HashMap<String, RelationComparisonResult>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+    ) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn generate_object_literal_elements(
@@ -237,12 +408,16 @@ impl TypeChecker {
             .collect()
     }
 
-    pub(super) fn elaborate_object_literal(
+    pub(super) fn elaborate_object_literal<
+        TContainingMessageChain: CheckTypeContainingMessageChain,
+    >(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
         if target.flags().intersects(TypeFlags::Primitive) {
             return false;
@@ -351,7 +526,7 @@ impl TypeChecker {
                 relation,
                 Option::<&Node>::None,
                 None,
-                Option::<fn() -> Option<Rc<RefCell<DiagnosticMessageChain>>>>::None,
+                Option::<CheckTypeContainingMessageChainDummy>::None,
                 None,
             );
         }
@@ -385,14 +560,14 @@ impl TypeChecker {
 
     pub(super) fn check_type_related_to<
         TErrorNode: Borrow<Node>,
-        TContainingMessageChain: FnMut() -> Option<Rc<RefCell<DiagnosticMessageChain>>>,
+        TContainingMessageChain: CheckTypeContainingMessageChain,
     >(
         &self,
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
         error_node: Option<TErrorNode>,
-        head_message: Option<DiagnosticMessage>,
+        head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_object: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
@@ -413,10 +588,23 @@ pub(super) struct ElaborationIteratorItem {
     pub error_node: Rc<Node>,
     pub inner_expression: Option<Rc<Node /*Expression*/>>,
     name_type: Rc<Type>,
-    error_message: Option<DiagnosticMessage>,
+    error_message: Option<&'static DiagnosticMessage>,
 }
 
 type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage, Option<Vec<String>>);
+
+pub(super) trait CheckTypeContainingMessageChain: Clone {
+    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>>;
+}
+
+#[derive(Clone)]
+pub(super) struct CheckTypeContainingMessageChainDummy;
+
+impl CheckTypeContainingMessageChain for CheckTypeContainingMessageChainDummy {
+    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
+        panic!("dummy implementation")
+    }
+}
 
 pub(super) trait CheckTypeErrorOutputContainer {
     fn push_error(&self, error: Rc<Diagnostic>);

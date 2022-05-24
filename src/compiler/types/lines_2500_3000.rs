@@ -278,6 +278,16 @@ impl JsxExpression {
     }
 }
 
+impl HasExpressionInterface for JsxExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone().unwrap()
+    }
+
+    fn maybe_expression(&self) -> Option<Rc<Node>> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct JsxText {

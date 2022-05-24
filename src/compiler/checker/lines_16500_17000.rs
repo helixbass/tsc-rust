@@ -1,20 +1,21 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckTypeErrorOutputContainer, MappedTypeModifiers, TypeFacts};
+use super::{
+    CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, MappedTypeModifiers, TypeFacts,
+};
 use crate::{
     are_option_rcs_equal, are_rc_slices_equal, contains_rc, every, for_each_child_bool,
     get_effective_return_type_node, get_object_flags, has_context_sensitive_parameters,
     is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
     is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, some, Debug_,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo, MappedType,
-    Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypeReferenceInterface, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo, MappedType, Node, NodeArray,
+    NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeReferenceInterface, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
     UnionReduction,
 };
 
@@ -1018,13 +1019,13 @@ impl TypeChecker {
     pub(super) fn check_type_assignable_to<
         TErrorNode: Borrow<Node>,
         TExpr: Borrow<Node>,
-        TContainingMessageChain: FnMut() -> Option<Rc<RefCell<DiagnosticMessageChain>>>,
+        TContainingMessageChain: CheckTypeContainingMessageChain,
     >(
         &self,
         source: &Type,
         target: &Type,
         error_node: Option<TErrorNode>,
-        head_message: Option<DiagnosticMessage>,
+        head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_object: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {

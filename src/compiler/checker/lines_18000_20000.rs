@@ -19,10 +19,10 @@ pub(super) struct CheckTypeRelatedTo<'type_checker> {
     target: &'type_checker Type,
     relation: &'type_checker HashMap<String, RelationComparisonResult>,
     error_node: Option<Rc<Node>>,
-    head_message: Option<DiagnosticMessage>,
+    head_message: Option<&'static DiagnosticMessage>,
     error_info: RefCell<Option<DiagnosticMessageChain>>,
     expanding_flags: ExpandingFlags,
-    incompatible_stack: RefCell<Vec<(DiagnosticMessage, Option<Vec<String>>)>>,
+    incompatible_stack: RefCell<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>>,
 }
 
 impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
@@ -32,7 +32,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         target: &'type_checker Type,
         relation: &'type_checker HashMap<String, RelationComparisonResult>,
         error_node: Option<Rc<Node>>,
-        head_message: Option<DiagnosticMessage>,
+        head_message: Option<&'static DiagnosticMessage>,
     ) -> Self {
         Self {
             type_checker,
@@ -55,7 +55,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         *self.error_info.borrow_mut() = Some(error_info);
     }
 
-    fn incompatible_stack(&self) -> RefMut<Vec<(DiagnosticMessage, Option<Vec<String>>)>> {
+    fn incompatible_stack(&self) -> RefMut<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>> {
         self.incompatible_stack.borrow_mut()
     }
 
@@ -65,7 +65,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             self.target,
             Some(RecursionFlags::Both),
             self.error_node.is_some(),
-            self.head_message.as_ref(),
+            self.head_message,
             None,
         );
 
@@ -88,7 +88,11 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         result != Ternary::False
     }
 
-    fn report_incompatible_error(&self, message: DiagnosticMessage, args: Option<Vec<String>>) {
+    fn report_incompatible_error(
+        &self,
+        message: &'static DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
         self.incompatible_stack().push((message, args));
     }
 
@@ -532,7 +536,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         if related == Ternary::False {
             if report_errors {
                 self.report_incompatible_error(
-                    Diagnostics::Types_of_property_0_are_incompatible,
+                    &Diagnostics::Types_of_property_0_are_incompatible,
                     Some(vec![self.type_checker.symbol_to_string_(
                         target_prop,
                         Option::<&Node>::None,
