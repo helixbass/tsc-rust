@@ -529,7 +529,8 @@ impl TypeChecker {
         &self,
         name: ResolveNameNameArg,
     ) -> Option<String> {
-        unimplemented!()
+        // unimplemented!()
+        None
     }
 
     pub(super) fn get_suggestion_for_nonexistent_property<TName: Into<StringOrRcNode>>(
@@ -546,7 +547,8 @@ impl TypeChecker {
         outer_name: &__String,
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        // unimplemented!()
+        None
     }
 
     pub(super) fn get_suggestion_for_nonexistent_symbol_<TLocation: Borrow<Node>>(

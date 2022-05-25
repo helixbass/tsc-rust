@@ -1018,7 +1018,6 @@ impl TypeChecker {
 
     pub(super) fn check_type_assignable_to<
         TErrorNode: Borrow<Node>,
-        TExpr: Borrow<Node>,
         TContainingMessageChain: CheckTypeContainingMessageChain,
     >(
         &self,

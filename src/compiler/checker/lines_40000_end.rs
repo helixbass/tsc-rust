@@ -6,11 +6,11 @@ use std::rc::Rc;
 
 use super::UnusedKind;
 use crate::{
-    bind_source_file, for_each, is_accessor, is_external_or_common_js_module,
+    __String, bind_source_file, for_each, is_accessor, is_external_or_common_js_module,
     AllAccessorDeclarations, CancellationTokenDebuggable, Diagnostic, EmitResolver,
     EmitResolverDebuggable, IndexInfo, Node, NodeBuilderFlags, NodeCheckFlags, NodeInterface,
-    Signature, SignatureFlags, SourceFile, StringOrNumber, Symbol, SymbolAccessibilityResult,
-    SymbolFlags, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker,
+    Signature, SignatureFlags, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
+    SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker,
     TypeReferenceSerializationKind,
 };
 
@@ -222,7 +222,8 @@ impl TypeChecker {
             }
         }
 
-        // self.global_array_type = self.get_global_type(__String::new("Array".to_string()));
+        self.global_boolean_type =
+            self.get_global_type(&__String::new("Boolean".to_owned()), 0, true);
     }
 
     pub(super) fn get_accessor_this_parameter(

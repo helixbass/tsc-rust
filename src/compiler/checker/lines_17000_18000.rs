@@ -8,9 +8,10 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    some, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, LiteralTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, RelationComparisonResult, Symbol, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    add_related_info, create_diagnostic_for_node, some, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    NodeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -100,7 +101,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
-        head_message: Option<&DiagnosticMessage>,
+        head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
@@ -210,11 +211,66 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
-        head_message: Option<&DiagnosticMessage>,
+        head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
-        // unimplemented!()
+        let call_signatures = self.get_signatures_of_type(source, SignatureKind::Call);
+        let construct_signatures = self.get_signatures_of_type(source, SignatureKind::Construct);
+        for (signatures_index, signatures) in vec![call_signatures, construct_signatures]
+            .into_iter()
+            .enumerate()
+        {
+            if some(
+                Some(&signatures),
+                Some(|s: &Rc<Signature>| {
+                    let return_type = self.get_return_type_of_signature(s.clone());
+                    !return_type
+                        .flags()
+                        .intersects(TypeFlags::Any | TypeFlags::Never)
+                        && self.check_type_related_to(
+                            &return_type,
+                            target,
+                            relation,
+                            Option::<&Node>::None,
+                            None,
+                            Option::<CheckTypeContainingMessageChainDummy>::None,
+                            None,
+                        )
+                }),
+            ) {
+                let result_obj_default = CheckTypeErrorOutputContainerConcrete::new(None);
+                let result_obj: &dyn CheckTypeErrorOutputContainer =
+                    error_output_container.unwrap_or(&result_obj_default);
+                self.check_type_assignable_to(
+                    source,
+                    target,
+                    Some(node),
+                    head_message,
+                    containing_message_chain.clone(),
+                    Some(result_obj),
+                );
+                let diagnostic = result_obj.get_error(result_obj.errors_len() - 1).unwrap();
+                add_related_info(
+                    &diagnostic,
+                    vec![Rc::new(
+                        create_diagnostic_for_node(
+                            node,
+                            if signatures_index == 1
+                            /*signatures === constructSignatures*/
+                            {
+                                &Diagnostics::Did_you_mean_to_use_new_with_this_expression
+                            } else {
+                                &Diagnostics::Did_you_mean_to_call_this_expression
+                            },
+                            None,
+                        )
+                        .into(),
+                    )],
+                );
+                return true;
+            }
+        }
         false
     }
 
@@ -608,5 +664,39 @@ impl CheckTypeContainingMessageChain for CheckTypeContainingMessageChainDummy {
 
 pub(super) trait CheckTypeErrorOutputContainer {
     fn push_error(&self, error: Rc<Diagnostic>);
+    fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>>;
+    fn errors_len(&self) -> usize;
     fn skip_logging(&self) -> Option<bool>;
+}
+
+pub(super) struct CheckTypeErrorOutputContainerConcrete {
+    errors: RefCell<Vec<Rc<Diagnostic>>>,
+    skip_logging: Option<bool>,
+}
+
+impl CheckTypeErrorOutputContainerConcrete {
+    pub fn new(skip_logging: Option<bool>) -> Self {
+        Self {
+            errors: RefCell::new(vec![]),
+            skip_logging,
+        }
+    }
+}
+
+impl CheckTypeErrorOutputContainer for CheckTypeErrorOutputContainerConcrete {
+    fn push_error(&self, error: Rc<Diagnostic>) {
+        self.errors.borrow_mut().push(error);
+    }
+
+    fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>> {
+        self.errors.borrow().get(index).map(Clone::clone)
+    }
+
+    fn errors_len(&self) -> usize {
+        self.errors.borrow().len()
+    }
+
+    fn skip_logging(&self) -> Option<bool> {
+        self.skip_logging
+    }
 }
