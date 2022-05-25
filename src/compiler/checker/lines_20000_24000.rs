@@ -39,6 +39,23 @@ impl TypeChecker {
         self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral)
     }
 
+    pub(super) fn get_best_matching_type<TIsRelatedTo: Fn(&Type, &Type) -> Ternary>(
+        &self,
+        source: &Type,
+        target: &Type, /*UnionOrIntersectionType*/
+        is_related_to: Option<TIsRelatedTo>,
+    ) -> Option<Rc<Type>> {
+        let is_related_to: Box<dyn Fn(&Type, &Type) -> Ternary> = is_related_to.map_or_else(
+            || {
+                Box::new(|source: &Type, target: &Type| {
+                    self.compare_types_assignable(source, target)
+                }) as Box<dyn Fn(&Type, &Type) -> Ternary>
+            },
+            |is_related_to| Box::new(is_related_to) as Box<dyn Fn(&Type, &Type) -> Ternary>,
+        );
+        unimplemented!()
+    }
+
     pub(super) fn get_type_of_property_in_base_class(&self, property: &Symbol) -> Option<Rc<Type>> {
         unimplemented!()
     }

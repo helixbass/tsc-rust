@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    SignatureDeclarationInterface, SymbolInterface, __String, add_related_info,
+    SignatureDeclarationInterface, SymbolInterface, Ternary, __String, add_related_info,
     create_diagnostic_for_node, get_function_flags, has_type, is_block, length, map, some, Debug_,
     Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
     FunctionLikeDeclarationInterface, LiteralTypeInterface, NamedDeclarationInterface, Node,
@@ -425,7 +425,21 @@ impl TypeChecker {
             return idx;
         }
         if target.flags().intersects(TypeFlags::Union) {
-            unimplemented!()
+            let best = self.get_best_matching_type(
+                source,
+                target,
+                Option::<fn(&Type, &Type) -> Ternary>::None,
+            );
+            if let Some(best) = best.as_ref() {
+                return self.get_indexed_access_type_or_undefined(
+                    best,
+                    name_type,
+                    None,
+                    Option::<&Node>::None,
+                    Option::<&Symbol>::None,
+                    None,
+                );
+            }
         }
         None
     }
