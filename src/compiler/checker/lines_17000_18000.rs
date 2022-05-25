@@ -8,9 +8,10 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    SignatureDeclarationInterface, SymbolInterface, Ternary, __String, add_related_info,
-    create_diagnostic_for_node, get_function_flags, has_type, is_block, length, map, some, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    get_source_file_of_node, unescape_leading_underscores, SignatureDeclarationInterface,
+    SymbolFlags, SymbolInterface, Ternary, __String, add_related_info, create_diagnostic_for_node,
+    get_function_flags, has_type, is_block, length, map, some, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
     FunctionLikeDeclarationInterface, LiteralTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
@@ -460,12 +461,16 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn elaborate_elementwise(
+    pub(super) fn elaborate_elementwise<
+        TContainingMessageChain: CheckTypeContainingMessageChain,
+    >(
         &self,
         iterator: Vec<ElaborationIteratorItem>,
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
         let mut reported_error = false;
         for status in iterator {
@@ -480,7 +485,7 @@ impl TypeChecker {
             if target_prop_type.is_none() {
                 continue;
             }
-            let target_prop_type = target_prop_type.unwrap();
+            let mut target_prop_type = target_prop_type.unwrap();
             if target_prop_type
                 .flags()
                 .intersects(TypeFlags::IndexedAccess)
@@ -498,7 +503,8 @@ impl TypeChecker {
             if source_prop_type.is_none() {
                 continue;
             }
-            let source_prop_type = source_prop_type.unwrap();
+            let mut source_prop_type = source_prop_type.unwrap();
+            let prop_name = self.get_property_name_from_index(&name_type, Option::<&Node>::None);
             if !self.check_type_related_to(
                 &source_prop_type,
                 &target_prop_type,
@@ -508,28 +514,189 @@ impl TypeChecker {
                 Option::<CheckTypeContainingMessageChainDummy>::None,
                 None,
             ) {
+                let elaborated = match next.as_ref() {
+                    None => false,
+                    Some(next) => self.elaborate_error(
+                        Some(&**next),
+                        &source_prop_type,
+                        &target_prop_type,
+                        relation,
+                        None,
+                        containing_message_chain.clone(),
+                        error_output_container,
+                    ),
+                };
                 reported_error = true;
-                if true {
-                    let specific_source = if let Some(next) = next {
+                if !elaborated {
+                    let result_obj_default = CheckTypeErrorOutputContainerConcrete::new(None);
+                    let result_obj: &dyn CheckTypeErrorOutputContainer =
+                        error_output_container.unwrap_or(&result_obj_default);
+                    let specific_source = if let Some(next) = next.as_ref() {
                         self.check_expression_for_mutable_location_with_contextual_type(
-                            &*next,
+                            next,
                             &source_prop_type,
                         )
                     } else {
-                        source_prop_type
+                        source_prop_type.clone()
                     };
-                    if false {
-                        unimplemented!()
+                    if matches!(self.exact_optional_property_types, Some(true))
+                        && self.is_exact_optional_property_mismatch(
+                            Some(&*specific_source),
+                            Some(&*target_prop_type),
+                        )
+                    {
+                        let diag: Rc<Diagnostic> = Rc::new(
+                            create_diagnostic_for_node(
+                                &prop,
+                                &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target,
+                                Some(vec![
+                                    self.type_to_string_(
+                                        &specific_source,
+                                        Option::<&Node>::None,
+                                        None,
+                                        None,
+                                    ),
+                                    self.type_to_string_(
+                                        &target_prop_type,
+                                        Option::<&Node>::None,
+                                        None,
+                                        None,
+                                    ),
+                                ])
+                            ).into()
+                        );
+                        self.diagnostics().add(diag.clone());
+                        result_obj.set_errors(vec![diag]);
                     } else {
+                        let target_is_optional = matches!(
+                            prop_name.as_ref(),
+                            Some(prop_name) if self.get_property_of_type_(target, prop_name, None).unwrap_or_else(|| self.unknown_symbol()).flags().intersects(SymbolFlags::Optional)
+                        );
+                        let source_is_optional = matches!(
+                            prop_name.as_ref(),
+                            Some(prop_name) if self.get_property_of_type_(source, prop_name, None).unwrap_or_else(|| self.unknown_symbol()).flags().intersects(SymbolFlags::Optional)
+                        );
+                        target_prop_type =
+                            self.remove_missing_type(&target_prop_type, target_is_optional);
+                        source_prop_type = self.remove_missing_type(
+                            &source_prop_type,
+                            target_is_optional && source_is_optional,
+                        );
                         let result = self.check_type_related_to(
                             &specific_source,
                             &target_prop_type,
                             relation,
                             Some(&*prop),
                             error_message,
-                            Option::<CheckTypeContainingMessageChainDummy>::None, // TODO: these are wrong
-                            None,
+                            containing_message_chain.clone(),
+                            Some(result_obj),
                         );
+                        if result && !Rc::ptr_eq(&specific_source, &source_prop_type) {
+                            self.check_type_related_to(
+                                &source_prop_type,
+                                &target_prop_type,
+                                relation,
+                                Some(&*prop),
+                                error_message,
+                                containing_message_chain.clone(),
+                                Some(result_obj),
+                            );
+                        }
+                    }
+                    if result_obj.errors_len() > 0 {
+                        let reported_diag =
+                            result_obj.get_error(result_obj.errors_len() - 1).unwrap();
+                        let property_name = if self.is_type_usable_as_property_name(&name_type) {
+                            Some(self.get_property_name_from_type(&name_type))
+                        } else {
+                            None
+                        };
+                        let target_prop = property_name.as_ref().and_then(|property_name| {
+                            self.get_property_of_type_(target, property_name, None)
+                        });
+
+                        let mut issued_elaboration = false;
+                        if target_prop.is_none() {
+                            let index_info = self.get_applicable_index_info(target, &name_type);
+                            if let Some(index_info) = index_info.as_ref() {
+                                if let Some(index_info_declaration) =
+                                    index_info.declaration.as_ref().filter(|declaration| {
+                                        !get_source_file_of_node(Some(&***declaration))
+                                            .unwrap()
+                                            .as_source_file()
+                                            .has_no_default_lib()
+                                    })
+                                {
+                                    issued_elaboration = true;
+                                    add_related_info(
+                                        &reported_diag,
+                                        vec![
+                                            Rc::new(
+                                                create_diagnostic_for_node(
+                                                    index_info_declaration,
+                                                    &Diagnostics::The_expected_type_comes_from_this_index_signature,
+                                                    None,
+                                                ).into()
+                                            )
+                                        ]
+                                    );
+                                }
+                            }
+                        }
+
+                        if !issued_elaboration
+                            && (matches!(
+                                target_prop.as_ref(),
+                                Some(target_prop) if length(target_prop.maybe_declarations().as_deref()) > 0
+                            ) || matches!(
+                                target.maybe_symbol(),
+                                Some(target_symbol) if length(target_symbol.maybe_declarations().as_deref()) > 0
+                            ))
+                        {
+                            let target_node = if let Some(target_prop) =
+                                target_prop.as_ref().filter(|target_prop| {
+                                    length(target_prop.maybe_declarations().as_deref()) > 0
+                                }) {
+                                target_prop.maybe_declarations().as_ref().unwrap()[0].clone()
+                            } else {
+                                target.symbol().maybe_declarations().as_ref().unwrap()[0].clone()
+                            };
+                            if !get_source_file_of_node(Some(&*target_node))
+                                .unwrap()
+                                .as_source_file()
+                                .has_no_default_lib()
+                            {
+                                add_related_info(
+                                    &reported_diag,
+                                    vec![
+                                        Rc::new(
+                                            create_diagnostic_for_node(
+                                                &target_node,
+                                                &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
+                                                Some(vec![
+                                                    if property_name.is_some() && !name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
+                                                        unescape_leading_underscores(property_name.as_ref().unwrap())
+                                                    } else {
+                                                        self.type_to_string_(
+                                                            &name_type,
+                                                            Option::<&Node>::None,
+                                                            None,
+                                                            None,
+                                                        )
+                                                    },
+                                                    self.type_to_string_(
+                                                        target,
+                                                        Option::<&Node>::None,
+                                                        None,
+                                                        None,
+                                                    )
+                                                ])
+                                            ).into()
+                                        )
+                                    ]
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -619,6 +786,8 @@ impl TypeChecker {
             source,
             target,
             relation,
+            containing_message_chain,
+            error_output_container,
         )
     }
 
@@ -800,6 +969,7 @@ impl CheckTypeContainingMessageChain for CheckTypeContainingMessageChainDummy {
 
 pub(super) trait CheckTypeErrorOutputContainer {
     fn push_error(&self, error: Rc<Diagnostic>);
+    fn set_errors(&self, errors: Vec<Rc<Diagnostic>>);
     fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>>;
     fn errors_len(&self) -> usize;
     fn skip_logging(&self) -> Option<bool>;
@@ -822,6 +992,10 @@ impl CheckTypeErrorOutputContainerConcrete {
 impl CheckTypeErrorOutputContainer for CheckTypeErrorOutputContainerConcrete {
     fn push_error(&self, error: Rc<Diagnostic>) {
         self.errors.borrow_mut().push(error);
+    }
+
+    fn set_errors(&self, errors: Vec<Rc<Diagnostic>>) {
+        *self.errors.borrow_mut() = errors;
     }
 
     fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>> {

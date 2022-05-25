@@ -39,6 +39,17 @@ impl TypeChecker {
         self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral)
     }
 
+    pub(super) fn is_exact_optional_property_mismatch<
+        TSource: Borrow<Type>,
+        TTarget: Borrow<Type>,
+    >(
+        &self,
+        source: Option<TSource>,
+        target: Option<TTarget>,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_best_matching_type<TIsRelatedTo: Fn(&Type, &Type) -> Ternary>(
         &self,
         source: &Type,
