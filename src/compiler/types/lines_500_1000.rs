@@ -47,7 +47,7 @@ use super::{
     SwitchStatement, Symbol, SymbolTable, SyntaxKind, SyntaxList, TaggedTemplateExpression,
     TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface,
     TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, ThrowStatement,
-    TransformFlags, TryStatement, TupleTypeNode, TypeAliasDeclaration, TypeAssertion,
+    TransformFlags, TryStatement, TupleTypeNode, Type, TypeAliasDeclaration, TypeAssertion,
     TypeLiteralNode, TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration,
     TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
     UnionTypeNode, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
@@ -179,6 +179,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_flow_node(&self, emit_node: Option<Rc<FlowNode>>);
     fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>>;
     fn set_emit_node(&self, emit_node: Option<EmitNode>);
+    fn maybe_contextual_type(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
@@ -1251,6 +1252,7 @@ pub struct BaseNode {
     next_container: RefCell<Option<Rc<Node>>>,
     local_symbol: RefCell<Option<Rc<Symbol>>>,
     emit_node: RefCell<Option<EmitNode>>,
+    contextual_type: RefCell<Option<Rc<Type>>>,
     flow_node: RefCell<Option<Rc<FlowNode>>>,
     js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
@@ -1283,6 +1285,7 @@ impl BaseNode {
             next_container: RefCell::new(None),
             local_symbol: RefCell::new(None),
             emit_node: RefCell::new(None),
+            contextual_type: RefCell::new(None),
             flow_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
@@ -1440,6 +1443,10 @@ impl NodeInterface for BaseNode {
 
     fn set_emit_node(&self, emit_node: Option<EmitNode>) {
         *self.emit_node.borrow_mut() = emit_node;
+    }
+
+    fn maybe_contextual_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.contextual_type.borrow_mut()
     }
 
     fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {

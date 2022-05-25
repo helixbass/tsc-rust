@@ -449,12 +449,15 @@ impl TypeChecker {
         next: &Node, /*Expression*/
         source_prop_type: &Type,
     ) -> Rc<Type> {
-        self.check_expression_for_mutable_location(
+        *next.maybe_contextual_type() = Some(source_prop_type.type_wrapper());
+        let ret = self.check_expression_for_mutable_location(
             next,
             Some(CheckMode::Contextual),
             Some(source_prop_type),
             None,
-        )
+        );
+        *next.maybe_contextual_type() = None;
+        ret
     }
 
     pub(super) fn elaborate_elementwise(
