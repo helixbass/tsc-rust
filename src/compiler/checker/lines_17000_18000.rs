@@ -8,8 +8,10 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    add_related_info, create_diagnostic_for_node, some, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    SignatureDeclarationInterface, SymbolInterface, __String, add_related_info,
+    create_diagnostic_for_node, get_function_flags, has_type, is_block, length, map, some, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    FunctionLikeDeclarationInterface, LiteralTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
@@ -256,9 +258,9 @@ impl TypeChecker {
                     vec![Rc::new(
                         create_diagnostic_for_node(
                             node,
-                            if signatures_index == 1
+                            if
                             /*signatures === constructSignatures*/
-                            {
+                            signatures_index == 1 {
                                 &Diagnostics::Did_you_mean_to_use_new_with_this_expression
                             } else {
                                 &Diagnostics::Did_you_mean_to_call_this_expression
@@ -285,7 +287,124 @@ impl TypeChecker {
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
-        unimplemented!()
+        let node_as_arrow_function = node.as_arrow_function();
+        if is_block(&node_as_arrow_function.maybe_body().unwrap()) {
+            return false;
+        }
+        if some(
+            Some(node_as_arrow_function.parameters()),
+            Some(|parameter: &Rc<Node>| has_type(parameter)),
+        ) {
+            return false;
+        }
+        let source_sig = self.get_single_call_signature(source);
+        if source_sig.is_none() {
+            return false;
+        }
+        let source_sig = source_sig.unwrap();
+        let target_signatures = self.get_signatures_of_type(target, SignatureKind::Call);
+        if length(Some(&target_signatures)) == 0 {
+            return false;
+        }
+        let return_expression = node_as_arrow_function.maybe_body().unwrap();
+        let source_return = self.get_return_type_of_signature(source_sig);
+        let target_return = self.get_union_type(
+            map(Some(&target_signatures), |signature: &Rc<Signature>, _| {
+                self.get_return_type_of_signature(signature.clone())
+            })
+            .unwrap(),
+            None,
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        );
+        if !self.check_type_related_to(
+            &source_return,
+            &target_return,
+            relation,
+            Option::<&Node>::None,
+            None,
+            Option::<CheckTypeContainingMessageChainDummy>::None,
+            None,
+        ) {
+            let elaborated = /*returnExpression &&*/ self.elaborate_error(
+                Some(&*return_expression),
+                &source_return,
+                &target_return,
+                relation,
+                None,
+                containing_message_chain.clone(),
+                error_output_container,
+            );
+            if elaborated {
+                return elaborated;
+            }
+            let result_obj_default = CheckTypeErrorOutputContainerConcrete::new(None);
+            let result_obj: &dyn CheckTypeErrorOutputContainer =
+                error_output_container.unwrap_or(&result_obj_default);
+            self.check_type_related_to(
+                &source_return,
+                &target_return,
+                relation,
+                Some(&*return_expression),
+                None,
+                containing_message_chain,
+                Some(result_obj),
+            );
+            if result_obj.errors_len() > 0 {
+                if let Some(target_symbol) = target.maybe_symbol() {
+                    let target_symbol_declarations = target_symbol.maybe_declarations();
+                    if let Some(target_symbol_declarations) = target_symbol_declarations
+                        .as_ref()
+                        .filter(|target_symbol_declarations| !target_symbol_declarations.is_empty())
+                    {
+                        add_related_info(
+                            &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
+                            vec![
+                                Rc::new(
+                                    create_diagnostic_for_node(
+                                        &target_symbol_declarations[0],
+                                        &Diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,
+                                        None,
+                                    ).into()
+                                )
+                            ]
+                        );
+                    }
+                }
+                if !get_function_flags(Some(node)).intersects(FunctionFlags::Async)
+                    && self
+                        .get_type_of_property_of_type_(
+                            &source_return,
+                            &__String::new("then".to_owned()),
+                        )
+                        .is_none()
+                    && self.check_type_related_to(
+                        &self.create_promise_type(&source_return),
+                        &target_return,
+                        relation,
+                        Option::<&Node>::None,
+                        None,
+                        Option::<CheckTypeContainingMessageChainDummy>::None,
+                        None,
+                    )
+                {
+                    add_related_info(
+                        &result_obj.get_error(result_obj.errors_len() - 1).unwrap(),
+                        vec![Rc::new(
+                            create_diagnostic_for_node(
+                                node,
+                                &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
+                                None,
+                            )
+                            .into(),
+                        )],
+                    );
+                }
+                return true;
+            }
+        }
+        false
     }
 
     pub(super) fn get_best_match_indexed_access_type_or_undefined(
