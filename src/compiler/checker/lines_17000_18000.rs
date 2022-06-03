@@ -775,7 +775,41 @@ impl TypeChecker {
         name_type: &Type, /*LiteralType*/
         get_invalid_text_diagnostic: &mut TGetInvalidTextDiagnostic,
     ) -> Option<ElaborationIteratorItem> {
-        unimplemented!()
+        match child.kind() {
+            SyntaxKind::JsxExpression => {
+                return Some(ElaborationIteratorItem {
+                    error_node: child.node_wrapper(),
+                    inner_expression: child.as_jsx_expression().expression.clone(),
+                    name_type: name_type.type_wrapper(),
+                    error_message: None,
+                });
+            }
+            SyntaxKind::JsxText => {
+                if child.as_jsx_text().contains_only_trivia_white_spaces {
+                } else {
+                    return Some(ElaborationIteratorItem {
+                        error_node: child.node_wrapper(),
+                        inner_expression: None,
+                        name_type: name_type.type_wrapper(),
+                        error_message: Some(get_invalid_text_diagnostic()),
+                    });
+                }
+            }
+            SyntaxKind::JsxElement
+            | SyntaxKind::JsxSelfClosingElement
+            | SyntaxKind::JsxFragment => {
+                return Some(ElaborationIteratorItem {
+                    error_node: child.node_wrapper(),
+                    inner_expression: Some(child.node_wrapper()),
+                    name_type: name_type.type_wrapper(),
+                    error_message: None,
+                });
+            }
+            _ => {
+                Debug_.assert_never(child, Some("Found invalid jsx child"));
+            }
+        }
+        None
     }
 
     pub(super) fn elaborate_jsx_components<
