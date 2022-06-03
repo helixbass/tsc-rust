@@ -427,6 +427,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_hyphenated_jsx_name(&self, name: &str) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_jsx_attribute(
         &self,
         node: &Node, /*JsxAttribute*/

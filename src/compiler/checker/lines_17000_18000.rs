@@ -8,13 +8,14 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    get_source_file_of_node, unescape_leading_underscores, SignatureDeclarationInterface,
-    SymbolFlags, SymbolInterface, Ternary, __String, add_related_info, create_diagnostic_for_node,
-    get_function_flags, has_type, is_block, length, map, some, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    FunctionLikeDeclarationInterface, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
+    SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary, __String,
+    add_related_info, create_diagnostic_for_node, get_function_flags, has_type, is_block, length,
+    map, some, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
+    FunctionFlags, FunctionLikeDeclarationInterface, LiteralTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, RelationComparisonResult, Signature,
+    SignatureKind, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -702,6 +703,79 @@ impl TypeChecker {
             }
         }
         reported_error
+    }
+
+    pub(super) fn generate_jsx_attributes(
+        &self,
+        node: &Node, /*JsxAttributes*/
+    ) -> Vec<ElaborationIteratorItem> {
+        let node_as_jsx_attributes = node.as_jsx_attributes();
+        if length(Some(&node_as_jsx_attributes.properties)) == 0 {
+            return vec![];
+        }
+        node_as_jsx_attributes
+            .properties
+            .iter()
+            .flat_map(|prop| {
+                if is_jsx_spread_attribute(prop)
+                    || self.is_hyphenated_jsx_name(&id_text(&prop.as_jsx_attribute().name))
+                {
+                    return vec![];
+                }
+                let prop_as_jsx_attribute = prop.as_jsx_attribute();
+                vec![ElaborationIteratorItem {
+                    error_node: prop_as_jsx_attribute.name.clone(),
+                    inner_expression: prop_as_jsx_attribute.initializer.clone(),
+                    name_type: self.get_string_literal_type(&id_text(&prop_as_jsx_attribute.name)),
+                    error_message: None,
+                }]
+            })
+            .collect()
+    }
+
+    pub(super) fn generate_jsx_children<
+        TGetInvalidTextDiagnostic: FnMut() -> &'static DiagnosticMessage,
+    >(
+        &self,
+        node: &Node, /*JsxElement*/
+        mut get_invalid_text_diagnostic: TGetInvalidTextDiagnostic,
+    ) -> Vec<ElaborationIteratorItem> {
+        let node_as_jsx_element = node.as_jsx_element();
+        if length(Some(&node_as_jsx_element.children)) == 0 {
+            return vec![];
+        }
+        let mut member_offset = 0;
+        node_as_jsx_element
+            .children
+            .iter()
+            .enumerate()
+            .flat_map(|(i, child)| {
+                let name_type =
+                    self.get_number_literal_type(Number::new((i - member_offset) as f64));
+                let elem = self.get_elaboration_element_for_jsx_child(
+                    child,
+                    &name_type,
+                    &mut get_invalid_text_diagnostic,
+                );
+                if let Some(elem) = elem {
+                    vec![elem]
+                } else {
+                    member_offset += 1;
+                    vec![]
+                }
+            })
+            .collect()
+    }
+
+    pub(super) fn get_elaboration_element_for_jsx_child<
+        TGetInvalidTextDiagnostic: FnMut() -> &'static DiagnosticMessage,
+    >(
+        &self,
+        child: &Node,     /*JsxChild*/
+        name_type: &Type, /*LiteralType*/
+        get_invalid_text_diagnostic: &mut TGetInvalidTextDiagnostic,
+    ) -> Option<ElaborationIteratorItem> {
+        unimplemented!()
     }
 
     pub(super) fn elaborate_jsx_components<
