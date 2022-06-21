@@ -254,6 +254,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_tuple_like_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_array_or_tuple_like_type(&self, type_: &Type) -> bool {
         unimplemented!()
     }

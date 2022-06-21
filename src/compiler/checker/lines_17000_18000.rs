@@ -12,11 +12,11 @@ use crate::{
     SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary, __String,
     add_related_info, create_diagnostic_for_node, format_message, get_function_flags,
     get_semantic_jsx_children, get_text_of_node, has_type, is_block, is_jsx_element,
-    is_jsx_opening_element, length, map, some, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
-    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
-    RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    is_jsx_opening_element, is_omitted_expression, length, map, some, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    FunctionLikeDeclarationInterface, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Number, RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -1010,6 +1010,39 @@ impl TypeChecker {
             }
         }
         result
+    }
+
+    pub(super) fn generate_limited_tuple_elements(
+        &self,
+        node: &Node, /*ArrayLiteralExpression*/
+        target: &Type,
+    ) -> Vec<ElaborationIteratorItem> {
+        let node_as_array_literal_expression = node.as_array_literal_expression();
+        let len = length(Some(&node_as_array_literal_expression.elements));
+        let mut ret = vec![];
+        if len == 0 {
+            return ret;
+        }
+        for (i, elem) in node_as_array_literal_expression.elements.iter().enumerate() {
+            if self.is_tuple_like_type(target)
+                && self
+                    .get_property_of_type_(target, &__String::new(i.to_string()), None)
+                    .is_none()
+            {
+                continue;
+            }
+            if is_omitted_expression(elem) {
+                continue;
+            }
+            let name_type = self.get_number_literal_type(Number::new(i as f64));
+            ret.push(ElaborationIteratorItem {
+                error_node: elem.clone(),
+                inner_expression: Some(elem.clone()),
+                name_type,
+                error_message: None,
+            });
+        }
+        ret
     }
 
     pub(super) fn elaborate_array_literal<
