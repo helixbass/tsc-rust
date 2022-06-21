@@ -9,14 +9,15 @@ use std::rc::Rc;
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
     get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
-    SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary, __String,
-    add_related_info, create_diagnostic_for_node, format_message, get_function_flags,
-    get_semantic_jsx_children, get_text_of_node, has_type, is_block, is_jsx_element,
-    is_jsx_opening_element, is_omitted_expression, length, map, some, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    FunctionLikeDeclarationInterface, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    HasInitializerInterface, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary,
+    __String, add_related_info, create_diagnostic_for_node, format_message, get_function_flags,
+    get_semantic_jsx_children, get_text_of_node, has_type, is_block, is_computed_non_literal_name,
+    is_jsx_element, is_jsx_opening_element, is_omitted_expression, is_spread_assignment, length,
+    map, some, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
+    FunctionFlags, FunctionLikeDeclarationInterface, LiteralTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, RelationComparisonResult, Signature,
+    SignatureKind, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -1092,28 +1093,48 @@ impl TypeChecker {
         node: &Node, /*ObjectLiteralExpression*/
                      // ) -> impl Iterator<Item = ElaborationIteratorItem> {
     ) -> Vec<ElaborationIteratorItem> {
-        // if node.properties.is_empty() {
-        //     return vec![];
-        // }
-        node.as_object_literal_expression()
+        let node_as_object_literal_expression = node.as_object_literal_expression();
+        if length(Some(&node_as_object_literal_expression.properties)) == 0 {
+            return vec![];
+        }
+        node_as_object_literal_expression
             .properties
             .iter()
             .flat_map(|prop| {
+                if is_spread_assignment(prop) {
+                    return vec![];
+                }
                 let type_ = self.get_literal_type_from_property(
-                    &self.get_symbol_of_node(&**prop).unwrap(),
+                    &self.get_symbol_of_node(prop).unwrap(),
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     None,
                 );
-                if type_.flags().intersects(TypeFlags::Never) {
+                if /* !type ||*/ type_.flags().intersects(TypeFlags::Never) {
                     return vec![];
                 }
-                match &**prop {
-                    Node::PropertyAssignment(property_assignment) => {
+                match prop.kind() {
+                    SyntaxKind::SetAccessor |
+                    SyntaxKind::GetAccessor |
+                    SyntaxKind::MethodDeclaration |
+                    SyntaxKind::ShorthandPropertyAssignment => {
                         vec![ElaborationIteratorItem {
-                            error_node: property_assignment.name(),
-                            inner_expression: Some(property_assignment.initializer.clone()),
+                            error_node: prop.as_named_declaration().name(),
+                            inner_expression: None,
                             name_type: type_,
-                            error_message: if false { unimplemented!() } else { None },
+                            error_message: None,
+                        }]
+                    }
+                    SyntaxKind::PropertyAssignment => {
+                        let prop_as_property_assignment = prop.as_property_assignment();
+                        vec![ElaborationIteratorItem {
+                            error_node: prop_as_property_assignment.name(),
+                            inner_expression: prop_as_property_assignment.maybe_initializer(),
+                            name_type: type_,
+                            error_message: if is_computed_non_literal_name(&prop_as_property_assignment.name()) {
+                                Some(Cow::Borrowed(&Diagnostics::Type_of_computed_property_s_value_is_0_which_is_not_assignable_to_type_1))
+                            } else {
+                                None
+                            },
                         }]
                     }
                     _ => Debug_.assert_never(prop, None),
