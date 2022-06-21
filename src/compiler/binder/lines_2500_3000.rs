@@ -542,11 +542,11 @@ impl BinderType {
                 ));
         }
         let diag = if !is_source_file(&node.parent()) {
-            Some(&Diagnostics::Global_module_exports_may_only_appear_at_top_level)
+            Some(&*Diagnostics::Global_module_exports_may_only_appear_at_top_level)
         } else if !is_external_module(&node.parent()) {
-            Some(&Diagnostics::Global_module_exports_may_only_appear_in_module_files)
+            Some(&*Diagnostics::Global_module_exports_may_only_appear_in_module_files)
         } else if !node.parent().as_source_file().is_declaration_file() {
-            Some(&Diagnostics::Global_module_exports_may_only_appear_in_declaration_files)
+            Some(&*Diagnostics::Global_module_exports_may_only_appear_in_declaration_files)
         } else {
             None
         };

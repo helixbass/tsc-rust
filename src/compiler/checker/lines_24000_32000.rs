@@ -439,6 +439,28 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_jsx_children(
+        &self,
+        node: &Node, /*JsxElement | JsxFragment*/
+        check_mode: Option<CheckMode>,
+    ) -> Vec<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_jsx_namespace_at<TLocation: Borrow<Node>>(
+        &self,
+        location: Option<TLocation>,
+    ) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_jsx_element_children_property_name(
+        &self,
+        jsx_namespace: &Symbol,
+    ) -> Option<__String> {
+        unimplemented!()
+    }
+
     pub(super) fn is_known_property(
         &self,
         target_type: &Type,

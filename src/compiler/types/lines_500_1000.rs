@@ -4,6 +4,8 @@ use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
+use crate::JsxOpeningLikeElementInterface;
+
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
     AssertClause, AssertEntry, AwaitExpression, BaseJSDocTag, BaseJSDocTypeLikeTag,
@@ -681,6 +683,14 @@ impl Node {
             Node::ObjectLiteralExpression(node) => node,
             Node::JsxAttributes(node) => node,
             _ => panic!("Expected has properties"),
+        }
+    }
+
+    pub fn as_jsx_opening_like_element(&self) -> &dyn JsxOpeningLikeElementInterface {
+        match self {
+            Node::JsxOpeningElement(node) => node,
+            Node::JsxSelfClosingElement(node) => node,
+            _ => panic!("Expected JSX opening like element"),
         }
     }
 

@@ -164,7 +164,7 @@ fn create_diagnostic_for_range<TRange: TextRange>(
             Some(source_file.node_wrapper()),
             Some(range.pos()),
             Some(range.end() - range.pos()),
-            message.message.to_owned(),
+            message.message.clone().into_owned(),
         ),
         None,
     ))

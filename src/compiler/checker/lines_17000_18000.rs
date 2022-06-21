@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
@@ -10,12 +10,13 @@ use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
     get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
     SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary, __String,
-    add_related_info, create_diagnostic_for_node, get_function_flags, has_type, is_block, length,
-    map, some, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    FunctionFlags, FunctionLikeDeclarationInterface, LiteralTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, Number, RelationComparisonResult, Signature,
-    SignatureKind, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface,
+    add_related_info, create_diagnostic_for_node, format_message, get_function_flags,
+    get_semantic_jsx_children, get_text_of_node, has_type, is_block, is_jsx_element,
+    is_jsx_opening_element, length, map, some, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
+    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
+    RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -79,7 +80,7 @@ impl TypeChecker {
                 target,
                 relation,
                 error_node,
-                head_message,
+                head_message.map(Cow::Borrowed),
                 containing_message_chain,
                 error_output_container,
             );
@@ -588,7 +589,7 @@ impl TypeChecker {
                             &target_prop_type,
                             relation,
                             Some(&*prop),
-                            error_message,
+                            error_message.clone(),
                             containing_message_chain.clone(),
                             Some(result_obj),
                         );
@@ -734,7 +735,7 @@ impl TypeChecker {
     }
 
     pub(super) fn generate_jsx_children<
-        TGetInvalidTextDiagnostic: FnMut() -> &'static DiagnosticMessage,
+        TGetInvalidTextDiagnostic: FnMut() -> Cow<'static, DiagnosticMessage>,
     >(
         &self,
         node: &Node, /*JsxElement*/
@@ -768,7 +769,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_elaboration_element_for_jsx_child<
-        TGetInvalidTextDiagnostic: FnMut() -> &'static DiagnosticMessage,
+        TGetInvalidTextDiagnostic: FnMut() -> Cow<'static, DiagnosticMessage>,
     >(
         &self,
         child: &Node,     /*JsxChild*/
@@ -823,7 +824,192 @@ impl TypeChecker {
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
-        unimplemented!()
+        let mut result = self.elaborate_elementwise(
+            self.generate_jsx_attributes(node),
+            source,
+            target,
+            relation,
+            containing_message_chain.clone(),
+            error_output_container,
+        );
+        let mut invalid_text_diagnostic: Option<Cow<'static, DiagnosticMessage>> = None;
+        if is_jsx_opening_element(&node.parent()) && is_jsx_element(&node.parent().parent()) {
+            let containing_element = node.parent().parent();
+            let child_prop_name =
+                self.get_jsx_element_children_property_name(&self.get_jsx_namespace_at(Some(node)));
+            let children_prop_name = child_prop_name.map_or_else(
+                || "children".to_owned(),
+                |child_prop_name| unescape_leading_underscores(&child_prop_name),
+            );
+            let children_name_type = self.get_string_literal_type(&children_prop_name);
+            let children_target_type = self.get_indexed_access_type(
+                target,
+                &children_name_type,
+                None,
+                Option::<&Node>::None,
+                Option::<&Symbol>::None,
+                None,
+            );
+            let valid_children =
+                get_semantic_jsx_children(&containing_element.as_jsx_element().children);
+            if length(Some(&valid_children)) == 0 {
+                return result;
+            }
+            let more_than_one_real_children = length(Some(&valid_children)) > 1;
+            let array_like_target_parts = self.filter_type(&children_target_type, |type_| {
+                self.is_array_or_tuple_like_type(type_)
+            });
+            let non_array_like_target_parts = self.filter_type(&children_target_type, |type_| {
+                !self.is_array_or_tuple_like_type(type_)
+            });
+            let mut get_invalid_textual_child_diagnostic = || -> Cow<'static, DiagnosticMessage> {
+                if invalid_text_diagnostic.is_none() {
+                    let tag_name_text = get_text_of_node(
+                        &node.parent().as_jsx_opening_like_element().tag_name(),
+                        None,
+                    );
+                    let child_prop_name = self.get_jsx_element_children_property_name(
+                        &self.get_jsx_namespace_at(Some(node)),
+                    );
+                    let children_prop_name = child_prop_name.map_or_else(
+                        || "children".to_owned(),
+                        |child_prop_name| unescape_leading_underscores(&child_prop_name),
+                    );
+                    let children_target_type = self.get_indexed_access_type(
+                        target,
+                        &self.get_string_literal_type(&children_prop_name),
+                        None,
+                        Option::<&Node>::None,
+                        Option::<&Symbol>::None,
+                        None,
+                    );
+                    let diagnostic = &Diagnostics::_0_components_don_t_accept_text_as_child_elements_Text_in_JSX_has_the_type_string_but_the_expected_type_of_1_is_2;
+                    invalid_text_diagnostic = Some(Cow::Owned(DiagnosticMessage {
+                        code: diagnostic.code,
+                        category: diagnostic.category,
+                        key: "!!ALREADY FORMATTED!!",
+                        message: format_message(
+                            None,
+                            diagnostic,
+                            Some(vec![
+                                tag_name_text.into_owned(),
+                                children_prop_name,
+                                self.type_to_string_(
+                                    &children_target_type,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                ),
+                            ]),
+                        )
+                        .into(),
+                    }));
+                }
+                invalid_text_diagnostic.clone().unwrap()
+            };
+            if more_than_one_real_children {
+                if !Rc::ptr_eq(&array_like_target_parts, &self.never_type()) {
+                    let real_source = self.create_tuple_type(
+                        &self.check_jsx_children(&containing_element, Some(CheckMode::Normal)),
+                        None,
+                        None,
+                        None,
+                    );
+                    let children = self.generate_jsx_children(
+                        &containing_element,
+                        get_invalid_textual_child_diagnostic,
+                    );
+                    result = self.elaborate_elementwise(
+                        children,
+                        &real_source,
+                        &array_like_target_parts,
+                        relation,
+                        containing_message_chain,
+                        error_output_container,
+                    ) || result;
+                } else if !self.is_type_related_to(
+                    &self.get_indexed_access_type(
+                        source,
+                        &children_name_type,
+                        None,
+                        Option::<&Node>::None,
+                        Option::<&Symbol>::None,
+                        None,
+                    ),
+                    &children_target_type,
+                    relation,
+                ) {
+                    result = true;
+                    let diag = self.error(
+                        Some(&*containing_element.as_jsx_element().opening_element.as_jsx_opening_element().tag_name),
+                        &Diagnostics::This_JSX_tag_s_0_prop_expects_a_single_child_of_type_1_but_multiple_children_were_provided,
+                        Some(vec![
+                            children_prop_name,
+                            self.type_to_string_(
+                                &children_target_type,
+                                Option::<&Node>::None,
+                                None, None,
+                            )
+                        ])
+                    );
+                    if let Some(error_output_container) = error_output_container {
+                        if matches!(error_output_container.skip_logging(), Some(true)) {
+                            error_output_container.push_error(diag);
+                        }
+                    }
+                }
+            } else {
+                if !Rc::ptr_eq(&non_array_like_target_parts, &self.never_type()) {
+                    let child = &valid_children[0];
+                    let elem = self.get_elaboration_element_for_jsx_child(
+                        child,
+                        &children_name_type,
+                        &mut get_invalid_textual_child_diagnostic,
+                    );
+                    if let Some(elem) = elem {
+                        result = self.elaborate_elementwise(
+                            vec![elem],
+                            source,
+                            target,
+                            relation,
+                            containing_message_chain,
+                            error_output_container,
+                        ) || result;
+                    }
+                } else if !self.is_type_related_to(
+                    &self.get_indexed_access_type(
+                        source,
+                        &children_name_type,
+                        None,
+                        Option::<&Node>::None,
+                        Option::<&Symbol>::None,
+                        None,
+                    ),
+                    &children_target_type,
+                    relation,
+                ) {
+                    result = true;
+                    let diag = self.error(
+                        Some(&*containing_element.as_jsx_element().opening_element.as_jsx_opening_element().tag_name),
+                        &Diagnostics::This_JSX_tag_s_0_prop_expects_type_1_which_requires_multiple_children_but_only_a_single_child_was_provided,
+                        Some(vec![
+                            children_prop_name,
+                            self.type_to_string_(
+                                &children_target_type,
+                                Option::<&Node>::None,
+                                None, None,
+                            )
+                        ])
+                    );
+                    if let Some(error_output_container) = error_output_container {
+                        if matches!(error_output_container.skip_logging(), Some(true)) {
+                            error_output_container.push_error(diag);
+                        }
+                    }
+                }
+            }
+        }
+        result
     }
 
     pub(super) fn elaborate_array_literal<
@@ -1036,7 +1222,7 @@ impl TypeChecker {
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
         error_node: Option<TErrorNode>,
-        head_message: Option<&'static DiagnosticMessage>,
+        head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_object: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
@@ -1057,7 +1243,7 @@ pub(super) struct ElaborationIteratorItem {
     pub error_node: Rc<Node>,
     pub inner_expression: Option<Rc<Node /*Expression*/>>,
     name_type: Rc<Type>,
-    error_message: Option<&'static DiagnosticMessage>,
+    error_message: Option<Cow<'static, DiagnosticMessage>>,
 }
 
 type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage, Option<Vec<String>>);

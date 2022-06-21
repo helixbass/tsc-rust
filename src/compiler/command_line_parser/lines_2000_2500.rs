@@ -958,7 +958,7 @@ pub(super) fn serialize_option_base_object<TOptions: ToHashMapOfCompilerOptionsV
     let mut result: HashMap<&'static str, CompilerOptionsValue> = HashMap::new();
     for (name, value) in full.into_iter() {
         if options_name_map.contains_key(name)
-            && matches!(options_name_map.get(name).unwrap().maybe_category(), Some(category) if ptr::eq(category, &Diagnostics::Command_line_Options) || ptr::eq(category, &Diagnostics::Output_Formatting))
+            && matches!(options_name_map.get(name).unwrap().maybe_category(), Some(category) if ptr::eq(category, &*Diagnostics::Command_line_Options) || ptr::eq(category, &*Diagnostics::Output_Formatting))
         {
             continue;
         }
@@ -1093,12 +1093,12 @@ fn is_allowed_option_for_output(
     let name = option.name();
     let is_command_line_only = option.is_command_line_only();
     let categories_to_skip = vec![
-        &Diagnostics::Command_line_Options,
-        &Diagnostics::Editor_Support,
-        &Diagnostics::Compiler_Diagnostics,
-        &Diagnostics::Backwards_Compatibility,
-        &Diagnostics::Watch_and_Build_Modes,
-        &Diagnostics::Output_Formatting,
+        &*Diagnostics::Command_line_Options,
+        &*Diagnostics::Editor_Support,
+        &*Diagnostics::Compiler_Diagnostics,
+        &*Diagnostics::Backwards_Compatibility,
+        &*Diagnostics::Watch_and_Build_Modes,
+        &*Diagnostics::Output_Formatting,
     ];
     !is_command_line_only
         && matches!(category, Some(category) if !categories_to_skip.iter().any(|category_to_skip| ptr::eq(*category_to_skip, category)) || compiler_options_map.contains_key(name))

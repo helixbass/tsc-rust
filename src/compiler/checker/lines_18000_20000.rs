@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Cow;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -19,7 +20,7 @@ pub(super) struct CheckTypeRelatedTo<'type_checker> {
     target: &'type_checker Type,
     relation: &'type_checker HashMap<String, RelationComparisonResult>,
     error_node: Option<Rc<Node>>,
-    head_message: Option<&'static DiagnosticMessage>,
+    head_message: Option<Cow<'static, DiagnosticMessage>>,
     error_info: RefCell<Option<DiagnosticMessageChain>>,
     expanding_flags: ExpandingFlags,
     incompatible_stack: RefCell<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>>,
@@ -32,7 +33,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         target: &'type_checker Type,
         relation: &'type_checker HashMap<String, RelationComparisonResult>,
         error_node: Option<Rc<Node>>,
-        head_message: Option<&'static DiagnosticMessage>,
+        head_message: Option<Cow<'static, DiagnosticMessage>>,
     ) -> Self {
         Self {
             type_checker,
@@ -65,7 +66,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             self.target,
             Some(RecursionFlags::Both),
             self.error_node.is_some(),
-            self.head_message,
+            self.head_message.as_deref(),
             None,
         );
 

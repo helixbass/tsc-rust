@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 use serde::Serialize;
+use std::borrow::Cow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -796,7 +797,7 @@ pub struct DiagnosticMessage {
     pub key: &'static str,
     pub category: DiagnosticCategory,
     pub code: u32,
-    pub message: &'static str,
+    pub message: Cow<'static, str>,
 }
 
 #[derive(Clone, Debug)]

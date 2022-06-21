@@ -791,9 +791,9 @@ impl TypeChecker {
         let is_classic = get_emit_module_resolution_kind(&self.compiler_options)
             == ModuleResolutionKind::Classic;
         let error_message = if is_classic {
-            &Diagnostics::Cannot_find_module_0_Did_you_mean_to_set_the_moduleResolution_option_to_node_or_to_add_aliases_to_the_paths_option
+            &*Diagnostics::Cannot_find_module_0_Did_you_mean_to_set_the_moduleResolution_option_to_node_or_to_add_aliases_to_the_paths_option
         } else {
-            &Diagnostics::Cannot_find_module_0_or_its_corresponding_type_declarations
+            &*Diagnostics::Cannot_find_module_0_or_its_corresponding_type_declarations
         };
         self.resolve_external_module_name_worker(
             location,
@@ -990,7 +990,7 @@ impl TypeChecker {
 
         if matches!(resolved_module.as_ref(), Some(resolved_module) if !resolution_extension_is_ts_or_json(resolved_module.extension()))
             && resolution_diagnostic.is_none()
-            || matches!(resolution_diagnostic, Some(resolution_diagnostic) if ptr::eq(resolution_diagnostic, &Diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type))
+            || matches!(resolution_diagnostic, Some(resolution_diagnostic) if ptr::eq(resolution_diagnostic, &*Diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type))
         {
             if is_for_augmentation {
                 let diag = &Diagnostics::Invalid_module_name_in_augmentation_Module_0_resolves_to_an_untyped_module_at_1_which_cannot_be_augmented;

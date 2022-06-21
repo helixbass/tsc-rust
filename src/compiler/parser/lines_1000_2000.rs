@@ -1262,9 +1262,9 @@ impl ParserType {
         let msg_arg = self.scanner().get_token_text();
 
         let default_message = if is_reserved_word {
-            &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here
+            &*Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here
         } else {
-            &Diagnostics::Identifier_expected
+            &*Diagnostics::Identifier_expected
         };
 
         self.create_missing_node(

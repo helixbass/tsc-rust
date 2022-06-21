@@ -982,7 +982,7 @@ impl BinderType {
                             {
                                 &Diagnostics::Cannot_redeclare_block_scoped_variable_0
                             } else {
-                                &Diagnostics::Duplicate_identifier_0
+                                &*Diagnostics::Duplicate_identifier_0
                             };
                             let mut message_needs_name = true;
 
@@ -997,7 +997,7 @@ impl BinderType {
                             if length(symbol_present.maybe_declarations().as_deref()) > 0 {
                                 if is_default_export {
                                     message =
-                                        &Diagnostics::A_module_cannot_have_multiple_default_exports;
+                                        &*Diagnostics::A_module_cannot_have_multiple_default_exports;
                                     message_needs_name = false;
                                     multiple_default_exports = true;
                                 } else {
@@ -1008,7 +1008,7 @@ impl BinderType {
                                                 Some(true)
                                             ))
                                     {
-                                        message = &Diagnostics::A_module_cannot_have_multiple_default_exports;
+                                        message = &*Diagnostics::A_module_cannot_have_multiple_default_exports;
                                         message_needs_name = false;
                                         multiple_default_exports = true;
                                     }

@@ -708,9 +708,9 @@ impl TypeChecker {
                     ));
                 } else {
                     let error_message = if target_meaning == SymbolFlags::Value {
-                        &Diagnostics::Module_0_does_not_refer_to_a_value_but_is_used_as_a_value_here
+                        &*Diagnostics::Module_0_does_not_refer_to_a_value_but_is_used_as_a_value_here
                     } else {
-                        &Diagnostics::Module_0_does_not_refer_to_a_type_but_is_used_as_a_type_here_Did_you_mean_typeof_import_0
+                        &*Diagnostics::Module_0_does_not_refer_to_a_type_but_is_used_as_a_type_here_Did_you_mean_typeof_import_0
                     };
 
                     self.error(

@@ -639,11 +639,11 @@ impl TypeChecker {
                 target.flags().intersects(SymbolFlags::BlockScopedVariable)
                     || source.flags().intersects(SymbolFlags::BlockScopedVariable);
             let message = if is_either_enum {
-                &Diagnostics::Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations
+                &*Diagnostics::Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations
             } else if is_either_block_scoped {
-                &Diagnostics::Cannot_redeclare_block_scoped_variable_0
+                &*Diagnostics::Cannot_redeclare_block_scoped_variable_0
             } else {
-                &Diagnostics::Duplicate_identifier_0
+                &*Diagnostics::Duplicate_identifier_0
             };
             let source_symbol_file =
                 source
@@ -906,7 +906,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(NodeFlags::Ambient)
             {
-                Some(&Diagnostics::Invalid_module_name_in_augmentation_module_0_cannot_be_found)
+                Some(&*Diagnostics::Invalid_module_name_in_augmentation_module_0_cannot_be_found)
             } else {
                 None
             };
@@ -1987,11 +1987,11 @@ impl TypeChecker {
                             let message = if meaning == SymbolFlags::Namespace
                                 || matches!(name_arg.as_ref(), Some(name_arg) if matches!(name_arg.clone().into(), ResolveNameNameArg::Node(name_arg) if node_is_synthesized(&*name_arg)))
                             {
-                                &Diagnostics::Cannot_find_namespace_0_Did_you_mean_1
+                                &*Diagnostics::Cannot_find_namespace_0_Did_you_mean_1
                             } else if is_unchecked_js {
-                                &Diagnostics::Could_not_find_name_0_Did_you_mean_1
+                                &*Diagnostics::Could_not_find_name_0_Did_you_mean_1
                             } else {
-                                &Diagnostics::Cannot_find_name_0_Did_you_mean_1
+                                &*Diagnostics::Cannot_find_name_0_Did_you_mean_1
                             };
                             let diagnostic = self.create_error(
                                 error_location.as_deref(),

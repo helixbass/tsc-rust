@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -408,7 +409,7 @@ pub(super) fn show_additional_info_output(
     let default_value_description = &option.maybe_default_value_description();
     if matches!(
         option.maybe_category(),
-        Some(&Diagnostics::Command_line_Options)
+        Some(category) if ptr::eq(category, &*Diagnostics::Command_line_Options)
     ) {
         return false;
     }
@@ -653,7 +654,7 @@ pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Rc<CommandLine
         &Diagnostics::Compiles_the_current_project_with_additional_settings,
     );
 
-    let cli_commands = simple_options.iter().filter(|opt| opt.is_command_line_only() || matches!(opt.maybe_category(), Some(category) if category == &Diagnostics::Command_line_Options)).map(Clone::clone).collect::<Vec<_>>();
+    let cli_commands = simple_options.iter().filter(|opt| opt.is_command_line_only() || matches!(opt.maybe_category(), Some(category) if category == &*Diagnostics::Command_line_Options)).map(Clone::clone).collect::<Vec<_>>();
     let config_opts = simple_options
         .iter()
         .filter(|opt| !contains_rc(Some(&cli_commands), opt))

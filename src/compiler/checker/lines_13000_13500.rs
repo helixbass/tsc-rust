@@ -540,15 +540,15 @@ impl TypeChecker {
                     && !is_jsdoc_augments_tag(&node.parent());
                 let diag = if min_type_argument_count == type_parameters.len() {
                     if missing_augments_tag {
-                        &Diagnostics::Expected_0_type_arguments_provide_these_with_an_extends_tag
+                        &*Diagnostics::Expected_0_type_arguments_provide_these_with_an_extends_tag
                     } else {
-                        &Diagnostics::Generic_type_0_requires_1_type_argument_s
+                        &*Diagnostics::Generic_type_0_requires_1_type_argument_s
                     }
                 } else {
                     if missing_augments_tag {
-                        &Diagnostics::Expected_0_1_type_arguments_provide_these_with_an_extends_tag
+                        &*Diagnostics::Expected_0_1_type_arguments_provide_these_with_an_extends_tag
                     } else {
-                        &Diagnostics::Generic_type_0_requires_between_1_and_2_type_arguments
+                        &*Diagnostics::Generic_type_0_requires_between_1_and_2_type_arguments
                     }
                 };
 

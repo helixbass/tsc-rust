@@ -41,9 +41,9 @@ impl TypeChecker {
             let type_only_declaration = self.get_type_only_alias_declaration(symbol);
             if let Some(type_only_declaration) = type_only_declaration {
                 let message = if type_only_declaration.kind() == SyntaxKind::ExportSpecifier {
-                    &Diagnostics::_0_cannot_be_used_as_a_value_because_it_was_exported_using_export_type
+                    &*Diagnostics::_0_cannot_be_used_as_a_value_because_it_was_exported_using_export_type
                 } else {
-                    &Diagnostics::_0_cannot_be_used_as_a_value_because_it_was_imported_using_import_type
+                    &*Diagnostics::_0_cannot_be_used_as_a_value_because_it_was_imported_using_import_type
                 };
                 let unescaped_name = unescape_leading_underscores(name);
                 self.add_type_only_declaration_related_info(
@@ -788,14 +788,14 @@ impl TypeChecker {
                 .unwrap();
             let is_export = type_only_declaration.kind() == SyntaxKind::ExportSpecifier;
             let message = if is_export {
-                &Diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_exported_using_export_type
+                &*Diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_exported_using_export_type
             } else {
-                &Diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_imported_using_import_type
+                &*Diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_imported_using_import_type
             };
             let related_message = if is_export {
-                &Diagnostics::_0_was_exported_here
+                &*Diagnostics::_0_was_exported_here
             } else {
-                &Diagnostics::_0_was_imported_here
+                &*Diagnostics::_0_was_imported_here
             };
 
             let name = unescape_leading_underscores(
@@ -1585,26 +1585,26 @@ impl TypeChecker {
     ) {
         if self.module_kind >= ModuleKind::ES2015 {
             let message = if matches!(get_es_module_interop(&self.compiler_options), Some(true)) {
-                &Diagnostics::_0_can_only_be_imported_by_using_a_default_import
+                &*Diagnostics::_0_can_only_be_imported_by_using_a_default_import
             } else {
-                &Diagnostics::_0_can_only_be_imported_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
+                &*Diagnostics::_0_can_only_be_imported_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
             };
             self.error(Some(name), message, Some(vec![declaration_name]));
         } else {
             if is_in_js_file(Some(node)) {
                 let message = if matches!(get_es_module_interop(&self.compiler_options), Some(true))
                 {
-                    &Diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_using_a_default_import
+                    &*Diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_using_a_default_import
                 } else {
-                    &Diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
+                    &*Diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
                 };
                 self.error(Some(name), message, Some(vec![declaration_name]));
             } else {
                 let message = if matches!(get_es_module_interop(&self.compiler_options), Some(true))
                 {
-                    &Diagnostics::_0_can_only_be_imported_by_using_import_1_require_2_or_a_default_import
+                    &*Diagnostics::_0_can_only_be_imported_by_using_import_1_require_2_or_a_default_import
                 } else {
-                    &Diagnostics::_0_can_only_be_imported_by_using_import_1_require_2_or_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
+                    &*Diagnostics::_0_can_only_be_imported_by_using_import_1_require_2_or_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
                 };
                 self.error(
                     Some(name),

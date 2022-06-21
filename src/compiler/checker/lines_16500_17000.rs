@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::ptr;
 use std::rc::Rc;
 
@@ -1033,7 +1033,7 @@ impl TypeChecker {
             target,
             &self.assignable_relation(),
             error_node,
-            head_message,
+            head_message.map(Cow::Borrowed),
             containing_message_chain,
             error_output_object,
         )
