@@ -1056,7 +1056,35 @@ impl TypeChecker {
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
-        unimplemented!()
+        if target.flags().intersects(TypeFlags::Primitive) {
+            return false;
+        }
+        if self.is_tuple_like_type(source) {
+            return self.elaborate_elementwise(
+                self.generate_limited_tuple_elements(node, target),
+                source,
+                target,
+                relation,
+                containing_message_chain,
+                error_output_container,
+            );
+        }
+        let old_context = node.maybe_contextual_type().clone();
+        *node.maybe_contextual_type() = Some(target.type_wrapper());
+        let tupleized_type =
+            self.check_array_literal(node, Some(CheckMode::Contextual), Some(true));
+        *node.maybe_contextual_type() = old_context;
+        if self.is_tuple_like_type(&tupleized_type) {
+            return self.elaborate_elementwise(
+                self.generate_limited_tuple_elements(node, target),
+                &tupleized_type,
+                target,
+                relation,
+                containing_message_chain,
+                error_output_container,
+            );
+        }
+        false
     }
 
     pub(super) fn generate_object_literal_elements(

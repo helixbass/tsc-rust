@@ -367,6 +367,15 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_array_literal(
+        &self,
+        node: &Node, /*ArrayLiteralExpression*/
+        check_mode: Option<CheckMode>,
+        force_tuple: Option<bool>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn is_numeric_literal_name(&self, name: &str) -> bool {
         unimplemented!()
     }
