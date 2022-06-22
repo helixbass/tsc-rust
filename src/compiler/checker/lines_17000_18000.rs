@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, CheckTypeRelatedTo};
+use super::{signature_has_rest_parameter, CheckMode, CheckTypeRelatedTo, SignatureCheckMode};
 use crate::{
     get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
     HasInitializerInterface, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary,
@@ -16,7 +16,7 @@ use crate::{
     map, some, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
     FunctionFlags, FunctionLikeDeclarationInterface, LiteralTypeInterface,
     NamedDeclarationInterface, Node, NodeInterface, Number, RelationComparisonResult, Signature,
-    SignatureKind, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    SignatureKind, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
@@ -1165,6 +1165,83 @@ impl TypeChecker {
             containing_message_chain,
             error_output_container,
         )
+    }
+
+    pub(super) fn check_type_comparable_to<
+        TContainingMessageChain: CheckTypeContainingMessageChain,
+    >(
+        &self,
+        source: &Type,
+        target: &Type,
+        error_node: &Node,
+        head_message: Option<Cow<'static, DiagnosticMessage>>,
+        containing_message_chain: Option<TContainingMessageChain>,
+    ) -> bool {
+        self.check_type_related_to(
+            source,
+            target,
+            &self.comparable_relation(),
+            Some(error_node),
+            head_message,
+            containing_message_chain,
+            None,
+        )
+    }
+
+    pub(super) fn is_signature_assignable_to(
+        &self,
+        source: &Signature,
+        target: &Signature,
+        ignore_return_types: bool,
+    ) -> bool {
+        self.compare_signatures_related(
+            source,
+            target,
+            if ignore_return_types {
+                SignatureCheckMode::IgnoreReturnTypes
+            } else {
+                SignatureCheckMode::None
+            },
+            false,
+            None,
+            Option::<fn(&Type, &Type)>::None,
+            |source, target, _| self.compare_types_assignable(source, target),
+            None,
+        ) != Ternary::False
+    }
+
+    pub(super) fn is_any_signature(&self, s: Rc<Signature>) -> bool {
+        s.type_parameters.is_none()
+            && match s.this_parameter.as_ref() {
+                None => true,
+                Some(s_this_parameter) => {
+                    self.is_type_any(Some(self.get_type_of_parameter(s_this_parameter)))
+                }
+            }
+            && s.parameters().len() == 1
+            && signature_has_rest_parameter(&s)
+            && (Rc::ptr_eq(
+                &self.get_type_of_parameter(&s.parameters()[0]),
+                &self.any_array_type(),
+            ) || self.is_type_any(Some(self.get_type_of_parameter(&s.parameters()[0]))))
+            && self.is_type_any(Some(self.get_return_type_of_signature(s)))
+    }
+
+    pub(super) fn compare_signatures_related<
+        TIncompatibleErrorReporter: FnMut(&Type, &Type),
+        TCompareTypes: FnMut(&Type, &Type, Option<bool>) -> Ternary,
+    >(
+        &self,
+        source: &Signature,
+        target: &Signature,
+        check_mode: SignatureCheckMode,
+        report_errors: bool,
+        error_reporter: Option<ErrorReporter>,
+        incompatible_error_reporter: Option<TIncompatibleErrorReporter>,
+        compare_types: TCompareTypes,
+        report_unreliable_markers: Option<&TypeMapper>,
+    ) -> Ternary {
+        unimplemented!()
     }
 
     pub(super) fn is_empty_resolved_type(&self, t: &Type /*ResolvedType*/) -> bool {
