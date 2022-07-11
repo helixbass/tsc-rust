@@ -174,7 +174,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             }
         };
 
-        let report_error = |message: DiagnosticMessage, args: Option<Vec<String>>| {
+        let mut report_error = |message: Cow<'static, DiagnosticMessage>,
+                                args: Option<Vec<String>>| {
             self.report_error(&message, args);
         };
 
@@ -184,7 +185,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 &*target,
                 self.relation,
                 if report_errors {
-                    Some(&report_error)
+                    Some(&mut report_error)
                 } else {
                     None
                 },

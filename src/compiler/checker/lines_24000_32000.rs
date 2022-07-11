@@ -15,9 +15,9 @@ use crate::{
     AssignmentDeclarationKind, ContextFlags, Debug_, Diagnostics, FunctionFlags, NodeFlags,
     Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction,
     __String, create_symbol_table, get_effective_type_annotation_node, get_function_flags,
-    get_object_flags, has_initializer, is_object_literal_expression, HasInitializerInterface, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    get_object_flags, has_initializer, is_object_literal_expression, HasInitializerInterface,
+    InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -661,6 +661,18 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn instantiate_signature_in_context_of<
+        TCompareTypes: FnMut(&Type, &Type, Option<bool>) -> Ternary,
+    >(
+        &self,
+        signature: &Signature,
+        contextual_signature: &Signature,
+        inference_context: Option<&InferenceContext>,
+        compare_types: Option<&mut TCompareTypes>,
+    ) -> Rc<Signature> {
+        unimplemented!()
+    }
+
     pub(super) fn get_resolved_signature_(
         &self,
         node: &Node, /*CallLikeExpression*/
@@ -851,6 +863,10 @@ impl TypeChecker {
             return !self.is_tuple_type(&rest_type) || unimplemented!();
         }
         false
+    }
+
+    pub(super) fn get_non_array_rest_type(&self, signature: &Signature) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn get_type_of_first_parameter_of_signature(

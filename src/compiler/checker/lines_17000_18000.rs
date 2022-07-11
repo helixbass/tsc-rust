@@ -2,6 +2,7 @@
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::cmp;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -10,13 +11,14 @@ use super::{signature_has_rest_parameter, CheckMode, CheckTypeRelatedTo, Signatu
 use crate::{
     get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
     HasInitializerInterface, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary,
-    __String, add_related_info, create_diagnostic_for_node, format_message, get_function_flags,
-    get_semantic_jsx_children, get_text_of_node, has_type, is_block, is_computed_non_literal_name,
-    is_jsx_element, is_jsx_opening_element, is_omitted_expression, is_spread_assignment, length,
-    map, some, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    FunctionFlags, FunctionLikeDeclarationInterface, LiteralTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, Number, RelationComparisonResult, Signature,
-    SignatureKind, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    __String, add_related_info, are_rc_slices_equal, create_diagnostic_for_node, format_message,
+    get_function_flags, get_semantic_jsx_children, get_text_of_node, has_type, is_block,
+    is_computed_non_literal_name, is_identifier_type_predicate, is_jsx_element,
+    is_jsx_opening_element, is_omitted_expression, is_spread_assignment, length, map, some, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    FunctionLikeDeclarationInterface, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Number, RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
     UnionOrIntersectionTypeInterface,
 };
 use local_macros::enum_unwrapped;
@@ -1190,8 +1192,8 @@ impl TypeChecker {
 
     pub(super) fn is_signature_assignable_to(
         &self,
-        source: &Signature,
-        target: &Signature,
+        source: Rc<Signature>,
+        target: Rc<Signature>,
         ignore_return_types: bool,
     ) -> bool {
         self.compare_signatures_related(
@@ -1203,9 +1205,9 @@ impl TypeChecker {
                 SignatureCheckMode::None
             },
             false,
-            None,
-            Option::<fn(&Type, &Type)>::None,
-            |source, target, _| self.compare_types_assignable(source, target),
+            &mut None,
+            Option::<&fn(&Type, &Type)>::None,
+            &mut |source, target, _| self.compare_types_assignable(source, target),
             None,
         ) != Ternary::False
     }
@@ -1228,18 +1230,334 @@ impl TypeChecker {
     }
 
     pub(super) fn compare_signatures_related<
-        TIncompatibleErrorReporter: FnMut(&Type, &Type),
+        TIncompatibleErrorReporter: Fn(&Type, &Type),
         TCompareTypes: FnMut(&Type, &Type, Option<bool>) -> Ternary,
     >(
         &self,
-        source: &Signature,
-        target: &Signature,
+        mut source: Rc<Signature>,
+        mut target: Rc<Signature>,
         check_mode: SignatureCheckMode,
         report_errors: bool,
-        error_reporter: Option<ErrorReporter>,
-        incompatible_error_reporter: Option<TIncompatibleErrorReporter>,
-        compare_types: TCompareTypes,
+        error_reporter: &mut Option<ErrorReporter>,
+        incompatible_error_reporter: Option<&TIncompatibleErrorReporter>,
+        compare_types: &mut TCompareTypes,
         report_unreliable_markers: Option<&TypeMapper>,
+    ) -> Ternary {
+        if Rc::ptr_eq(&source, &target) {
+            return Ternary::True;
+        }
+
+        if self.is_any_signature(target.clone()) {
+            return Ternary::True;
+        }
+
+        let target_count = self.get_parameter_count(&target);
+        let source_has_more_parameters = !self.has_effective_rest_parameter(&target)
+            && if check_mode.intersects(SignatureCheckMode::StrictArity) {
+                self.has_effective_rest_parameter(&source)
+                    || self.get_parameter_count(&source) > target_count
+            } else {
+                self.get_min_argument_count(&source, None) > target_count
+            };
+        if source_has_more_parameters {
+            return Ternary::False;
+        }
+
+        if matches!(
+            source.type_parameters.as_ref(),
+            Some(source_type_parameters) if !matches!(
+                target.type_parameters.as_ref(),
+                Some(target_type_parameters) if are_rc_slices_equal(source_type_parameters, target_type_parameters)
+            )
+        ) {
+            target = self.get_canonical_signature(target);
+            source = self.instantiate_signature_in_context_of(
+                &source,
+                &target,
+                None,
+                Some(compare_types),
+            );
+        }
+
+        let source_count = self.get_parameter_count(&source);
+        let source_rest_type = self.get_non_array_rest_type(&source);
+        let target_rest_type = self.get_non_array_rest_type(&target);
+        if source_rest_type.is_some() || target_rest_type.is_some() {
+            self.instantiate_type(
+                &source_rest_type
+                    .clone()
+                    .unwrap_or_else(|| target_rest_type.clone().unwrap()),
+                report_unreliable_markers,
+            );
+        }
+        if source_rest_type.is_some() && target_rest_type.is_some() && source_count != target_count
+        {
+            return Ternary::False;
+        }
+
+        let kind = target.declaration.as_ref().map_or_else(
+            || SyntaxKind::Unknown,
+            |target_declaration| target_declaration.kind(),
+        );
+        let strict_variance = !check_mode.intersects(SignatureCheckMode::Callback)
+            && self.strict_function_types
+            && !matches!(
+                kind,
+                SyntaxKind::MethodDeclaration
+                    | SyntaxKind::MethodSignature
+                    | SyntaxKind::Constructor,
+            );
+        let mut result = Ternary::True;
+
+        let source_this_type = self.get_this_type_of_signature(&source);
+        if let Some(source_this_type) = source_this_type
+            .as_ref()
+            .filter(|source_this_type| !Rc::ptr_eq(source_this_type, &self.void_type()))
+        {
+            let target_this_type = self.get_this_type_of_signature(&target);
+            if let Some(target_this_type) = target_this_type.as_ref() {
+                let related = if !strict_variance {
+                    let mut related =
+                        compare_types(source_this_type, target_this_type, Some(false));
+                    if related == Ternary::False {
+                        related =
+                            compare_types(target_this_type, source_this_type, Some(report_errors));
+                    }
+                    related
+                } else {
+                    compare_types(target_this_type, source_this_type, Some(report_errors))
+                };
+                if related == Ternary::False {
+                    if report_errors {
+                        (error_reporter.as_mut().unwrap())(
+                            Cow::Borrowed(
+                                &Diagnostics::The_this_types_of_each_signature_are_incompatible,
+                            ),
+                            None,
+                        );
+                    }
+                    return Ternary::False;
+                }
+                result &= related;
+            }
+        }
+
+        let param_count = if source_rest_type.is_some() || target_rest_type.is_some() {
+            cmp::min(source_count, target_count)
+        } else {
+            cmp::max(source_count, target_count)
+        };
+        let rest_index = if source_rest_type.is_some() || target_rest_type.is_some() {
+            Some(param_count - 1)
+        } else {
+            None
+        };
+
+        for i in 0..param_count {
+            let source_type = if matches!(
+                rest_index,
+                Some(rest_index) if i == rest_index
+            ) {
+                Some(self.get_rest_type_at_position(&source, i))
+            } else {
+                self.try_get_type_at_position(&source, i)
+            };
+            let target_type = if matches!(
+                rest_index,
+                Some(rest_index) if i == rest_index
+            ) {
+                Some(self.get_rest_type_at_position(&target, i))
+            } else {
+                self.try_get_type_at_position(&target, i)
+            };
+            if let Some(source_type) = source_type.as_ref() {
+                if let Some(target_type) = target_type.as_ref() {
+                    let source_sig = if check_mode.intersects(SignatureCheckMode::Callback) {
+                        None
+                    } else {
+                        self.get_single_call_signature(&self.get_non_nullable_type(source_type))
+                    };
+                    let target_sig = if check_mode.intersects(SignatureCheckMode::Callback) {
+                        None
+                    } else {
+                        self.get_single_call_signature(&self.get_non_nullable_type(target_type))
+                    };
+                    let callbacks = matches!(
+                        (source_sig.as_ref(), target_sig.as_ref()),
+                        (Some(source_sig), Some(target_sig)) if
+                            self.get_type_predicate_of_signature(source_sig).is_none() &&
+                            self.get_type_predicate_of_signature(target_sig).is_none() &&
+                            self.get_falsy_flags(source_type) & TypeFlags::Nullable ==
+                            self.get_falsy_flags(target_type) & TypeFlags::Nullable
+                    );
+                    let mut related = if callbacks {
+                        self.compare_signatures_related(
+                            target_sig.unwrap(),
+                            source_sig.unwrap(),
+                            (check_mode & SignatureCheckMode::StrictArity)
+                                | if strict_variance {
+                                    SignatureCheckMode::StrictCallback
+                                } else {
+                                    SignatureCheckMode::BivariantCallback
+                                },
+                            report_errors,
+                            error_reporter,
+                            incompatible_error_reporter.clone(),
+                            compare_types,
+                            report_unreliable_markers,
+                        )
+                    } else {
+                        if !check_mode.intersects(SignatureCheckMode::Callback) && !strict_variance
+                        {
+                            let mut related = compare_types(source_type, target_type, Some(false));
+                            if related == Ternary::False {
+                                related =
+                                    compare_types(target_type, source_type, Some(report_errors));
+                            }
+                            related
+                        } else {
+                            compare_types(target_type, source_type, Some(report_errors))
+                        }
+                    };
+                    if related != Ternary::False
+                        && check_mode.intersects(SignatureCheckMode::StrictArity)
+                        && i >= self.get_min_argument_count(&source, None)
+                        && i < self.get_min_argument_count(&target, None)
+                        && compare_types(source_type, target_type, Some(false)) != Ternary::False
+                    {
+                        related = Ternary::False;
+                    }
+                    if related == Ternary::False {
+                        if report_errors {
+                            (error_reporter.as_mut().unwrap())(
+                                Cow::Borrowed(
+                                    &Diagnostics::Types_of_parameters_0_and_1_are_incompatible,
+                                ),
+                                Some(vec![
+                                    unescape_leading_underscores(
+                                        &self.get_parameter_name_at_position(
+                                            &source,
+                                            i,
+                                            Option::<&Type>::None,
+                                        ),
+                                    ),
+                                    unescape_leading_underscores(
+                                        &self.get_parameter_name_at_position(
+                                            &target,
+                                            i,
+                                            Option::<&Type>::None,
+                                        ),
+                                    ),
+                                ]),
+                            );
+                        }
+                        return Ternary::False;
+                    }
+                    result &= related;
+                }
+            }
+        }
+
+        if !check_mode.intersects(SignatureCheckMode::IgnoreReturnTypes) {
+            let target_return_type = if self.is_resolving_return_type_of_signature(target.clone()) {
+                self.any_type()
+            } else if let Some(target_declaration) = target
+                .declaration
+                .as_ref()
+                .filter(|target_declaration| self.is_js_constructor(Some(&***target_declaration)))
+            {
+                self.get_declared_type_of_class_or_interface(
+                    &self
+                        .get_merged_symbol(target_declaration.maybe_symbol())
+                        .unwrap(),
+                )
+            } else {
+                self.get_return_type_of_signature(target.clone())
+            };
+            if Rc::ptr_eq(&target_return_type, &self.void_type()) {
+                return result;
+            }
+            let source_return_type = if self.is_resolving_return_type_of_signature(source.clone()) {
+                self.any_type()
+            } else if let Some(source_declaration) = source
+                .declaration
+                .as_ref()
+                .filter(|source_declaration| self.is_js_constructor(Some(&***source_declaration)))
+            {
+                self.get_declared_type_of_class_or_interface(
+                    &self
+                        .get_merged_symbol(source_declaration.maybe_symbol())
+                        .unwrap(),
+                )
+            } else {
+                self.get_return_type_of_signature(source.clone())
+            };
+
+            let target_type_predicate = self.get_type_predicate_of_signature(&target);
+            if let Some(target_type_predicate) = target_type_predicate.as_ref() {
+                let source_type_predicate = self.get_type_predicate_of_signature(&source);
+                if let Some(source_type_predicate) = source_type_predicate.as_ref() {
+                    result &= self.compare_type_predicate_related_to(
+                        source_type_predicate,
+                        target_type_predicate,
+                        report_errors,
+                        error_reporter,
+                        compare_types,
+                    );
+                } else if is_identifier_type_predicate(target_type_predicate) {
+                    if report_errors {
+                        (error_reporter.as_mut().unwrap())(
+                            Cow::Borrowed(&Diagnostics::Signature_0_must_be_a_type_predicate),
+                            Some(vec![self.signature_to_string_(
+                                &source,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            )]),
+                        );
+                    }
+                    return Ternary::False;
+                }
+            } else {
+                result &= if check_mode.intersects(SignatureCheckMode::BivariantCallback) {
+                    let mut val =
+                        compare_types(&target_return_type, &source_return_type, Some(false));
+                    if val == Ternary::False {
+                        val = compare_types(
+                            &source_return_type,
+                            &target_return_type,
+                            Some(report_errors),
+                        );
+                    }
+                    val
+                } else {
+                    compare_types(
+                        &source_return_type,
+                        &target_return_type,
+                        Some(report_errors),
+                    )
+                };
+                if result == Ternary::False && report_errors {
+                    if let Some(incompatible_error_reporter) = incompatible_error_reporter {
+                        incompatible_error_reporter(&source_return_type, &target_return_type);
+                    }
+                }
+            }
+        }
+
+        result
+    }
+
+    pub(super) fn compare_type_predicate_related_to<
+        TCompareTypes: FnMut(&Type, &Type, Option<bool>) -> Ternary,
+    >(
+        &self,
+        source: &TypePredicate,
+        target: &TypePredicate,
+        report_errors: bool,
+        error_reporter: &mut Option<ErrorReporter>,
+        compare_types: &mut TCompareTypes,
     ) -> Ternary {
         unimplemented!()
     }
@@ -1405,7 +1723,7 @@ pub(super) struct ElaborationIteratorItem {
     error_message: Option<Cow<'static, DiagnosticMessage>>,
 }
 
-type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage, Option<Vec<String>>);
+type ErrorReporter<'a> = &'a mut dyn FnMut(Cow<'static, DiagnosticMessage>, Option<Vec<String>>);
 
 pub(super) trait CheckTypeContainingMessageChain: Clone {
     fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>>;
