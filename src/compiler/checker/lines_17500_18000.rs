@@ -458,6 +458,11 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn is_ignored_jsx_property(&self, source: &Type, source_prop: &Symbol) -> bool {
+        get_object_flags(source).intersects(ObjectFlags::JsxAttributes)
+            && self.is_hyphenated_jsx_name(&**source_prop.escaped_name())
+    }
+
     pub(super) fn get_normalized_type(&self, type_: &Type) -> Rc<Type> {
         let mut type_ = type_.type_wrapper();
         loop {
