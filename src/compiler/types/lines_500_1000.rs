@@ -139,6 +139,11 @@ bitflags! {
     pub struct RelationComparisonResult: u32 {
         const Succeeded = 1 << 0;
         const Failed = 1 << 1;
+        const Reported = 1 << 2;
+
+        const ReportsUnmeasurable = 1 << 3;
+        const ReportsUnreliable = 1 << 4;
+        const ReportsMask = Self::ReportsUnmeasurable.bits | Self::ReportsUnreliable.bits;
     }
 }
 

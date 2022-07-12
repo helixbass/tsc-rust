@@ -3025,8 +3025,8 @@ impl TypeChecker {
         self.identity_relation.borrow()
     }
 
-    pub(super) fn enum_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
-        self.enum_relation.borrow()
+    pub(super) fn enum_relation(&self) -> RefMut<HashMap<String, RelationComparisonResult>> {
+        self.enum_relation.borrow_mut()
     }
 }
 

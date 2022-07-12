@@ -10,10 +10,11 @@ use super::{
     CheckTypeErrorOutputContainer, CheckTypeRelatedTo, ErrorReporter,
 };
 use crate::{
-    are_option_rcs_equal, every, get_object_flags, some, DiagnosticMessage, Diagnostics,
-    LiteralTypeInterface, Node, NodeInterface, ObjectFlags, ObjectTypeInterface,
-    RelationComparisonResult, Signature, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypePredicate, TypePredicateKind,
+    are_option_rcs_equal, every, get_object_flags, get_symbol_id, some, symbol_name,
+    DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node, NodeInterface, ObjectFlags,
+    ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface,
+    Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
+    TypePredicateKind,
 };
 use local_macros::enum_unwrapped;
 
@@ -175,7 +176,92 @@ impl TypeChecker {
     }
 
     pub(super) fn is_string_index_signature_only_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        type_.flags().intersects(TypeFlags::Object)
+            && !self.is_generic_mapped_type(type_)
+            && self.get_properties_of_type(type_).is_empty()
+            && self.get_index_infos_of_type(type_).len() == 1
+            && self
+                .get_index_info_of_type_(type_, &self.string_type())
+                .is_some()
+            || type_.flags().intersects(TypeFlags::UnionOrIntersection)
+                && every(
+                    type_.as_union_or_intersection_type_interface().types(),
+                    |type_: &Rc<Type>, _| self.is_string_index_signature_only_type(type_),
+                )
+            || false
+    }
+
+    pub(super) fn is_enum_type_related_to(
+        &self,
+        source_symbol: &Symbol,
+        target_symbol: &Symbol,
+        error_reporter: &mut Option<ErrorReporter>,
+    ) -> bool {
+        if ptr::eq(source_symbol, target_symbol) {
+            return true;
+        }
+        let id = format!(
+            "{},{}",
+            get_symbol_id(source_symbol),
+            get_symbol_id(target_symbol)
+        );
+        let entry = self.enum_relation().get(&id).map(Clone::clone);
+        if let Some(entry) = entry.filter(|entry| {
+            !(!entry.intersects(RelationComparisonResult::Reported)
+                && entry.intersects(RelationComparisonResult::Failed)
+                && error_reporter.is_some())
+        }) {
+            return entry.intersects(RelationComparisonResult::Succeeded);
+        }
+        if source_symbol.escaped_name() != target_symbol.escaped_name()
+            || !source_symbol.flags().intersects(SymbolFlags::RegularEnum)
+            || !target_symbol.flags().intersects(SymbolFlags::RegularEnum)
+        {
+            self.enum_relation().insert(
+                id,
+                RelationComparisonResult::Failed | RelationComparisonResult::Reported,
+            );
+            return false;
+        }
+        let target_enum_type = self.get_type_of_symbol(target_symbol);
+        for property in self.get_properties_of_type(&self.get_type_of_symbol(source_symbol)) {
+            if property.flags().intersects(SymbolFlags::EnumMember) {
+                let target_property =
+                    self.get_property_of_type_(&target_enum_type, property.escaped_name(), None);
+                if match target_property {
+                    None => true,
+                    Some(target_property) => {
+                        !target_property.flags().intersects(SymbolFlags::EnumMember)
+                    }
+                } {
+                    if let Some(error_reporter) = error_reporter.as_mut() {
+                        error_reporter(
+                            Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1),
+                            Some(vec![
+                                symbol_name(&property),
+                                self.type_to_string_(
+                                    &self.get_declared_type_of_symbol(target_symbol),
+                                    Option::<&Node>::None,
+                                    Some(TypeFormatFlags::UseFullyQualifiedType),
+                                    None,
+                                ),
+                            ]),
+                        );
+                        self.enum_relation().insert(
+                            id,
+                            RelationComparisonResult::Failed | RelationComparisonResult::Reported,
+                        );
+                    } else {
+                        self.enum_relation()
+                            .insert(id, RelationComparisonResult::Failed);
+                    }
+                    return false;
+                }
+            }
+        }
+        self.enum_relation()
+            .insert(id, RelationComparisonResult::Succeeded);
+        true
     }
 
     pub(super) fn is_simple_type_related_to(
