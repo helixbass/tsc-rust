@@ -1,29 +1,17 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
-use std::cmp;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain,
-    CheckTypeContainingMessageChainDummy, CheckTypeErrorOutputContainer, CheckTypeRelatedTo,
-    ErrorReporter, SignatureCheckMode,
+    CheckTypeContainingMessageChain, CheckTypeContainingMessageChainDummy,
+    CheckTypeErrorOutputContainer, CheckTypeRelatedTo, ErrorReporter,
 };
 use crate::{
-    get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
-    HasInitializerInterface, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary,
-    __String, add_related_info, are_rc_slices_equal, create_diagnostic_for_node, format_message,
-    get_function_flags, get_semantic_jsx_children, get_text_of_node, has_type, is_block,
-    is_computed_non_literal_name, is_identifier_type_predicate, is_jsx_element,
-    is_jsx_opening_element, is_omitted_expression, is_spread_assignment, length, map, some, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    FunctionLikeDeclarationInterface, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
-    UnionOrIntersectionTypeInterface,
+    DiagnosticMessage, LiteralTypeInterface, Node, NodeInterface, RelationComparisonResult,
+    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
 };
 use local_macros::enum_unwrapped;
 

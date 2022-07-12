@@ -4,10 +4,9 @@ use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{signature_has_rest_parameter, CheckMode, CheckTypeRelatedTo, SignatureCheckMode};
+use super::{signature_has_rest_parameter, CheckMode, SignatureCheckMode};
 use crate::{
     get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
     HasInitializerInterface, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary,
@@ -16,12 +15,10 @@ use crate::{
     is_computed_non_literal_name, is_identifier_type_predicate, is_jsx_element,
     is_jsx_opening_element, is_omitted_expression, is_spread_assignment, length, map, some, Debug_,
     Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    FunctionLikeDeclarationInterface, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
-    UnionOrIntersectionTypeInterface,
+    FunctionLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
+    RelationComparisonResult, Signature, SignatureKind, Symbol, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn check_type_assignable_to_and_optionally_elaborate<
