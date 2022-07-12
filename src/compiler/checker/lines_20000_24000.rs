@@ -261,6 +261,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_single_base_for_non_augmenting_subtype(
+        &self,
+        type_: &Type,
+    ) -> Option<Rc<Type>> {
+        // unimplemented!()
+        None
+    }
+
     pub(super) fn is_empty_array_literal_type(&self, type_: &Type) -> bool {
         unimplemented!()
     }

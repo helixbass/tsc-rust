@@ -14,7 +14,7 @@ use crate::{
     DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node, NodeInterface, ObjectFlags,
     ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface,
     Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
-    TypePredicateKind,
+    TypePredicateKind, TypeReferenceInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -463,10 +463,10 @@ impl TypeChecker {
             && self.is_hyphenated_jsx_name(&**source_prop.escaped_name())
     }
 
-    pub(super) fn get_normalized_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> Rc<Type> {
         let mut type_ = type_.type_wrapper();
         loop {
-            let t: Rc<Type> = if self.is_fresh_literal_type(&type_) {
+            let mut t: Rc<Type> = if self.is_fresh_literal_type(&type_) {
                 match &*type_ {
                     Type::IntrinsicType(intrinsic_type) => {
                         enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
@@ -477,9 +477,30 @@ impl TypeChecker {
                     Type::LiteralType(literal_type) => literal_type.regular_type(),
                     _ => panic!("Expected IntrinsicType or LiteralType"),
                 }
+            } else if get_object_flags(&type_).intersects(ObjectFlags::Reference)
+                && type_.as_type_reference().maybe_node().is_some()
+            {
+                self.create_type_reference(
+                    &type_.as_type_reference().target,
+                    Some(self.get_type_arguments(&type_)),
+                )
+            } else if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+                self.get_reduced_type(&type_)
+            } else if type_.flags().intersects(TypeFlags::Substitution) {
+                let type_as_substitution_type = type_.as_substitution_type();
+                if writing {
+                    type_as_substitution_type.base_type.clone()
+                } else {
+                    type_as_substitution_type.substitute.clone()
+                }
+            } else if type_.flags().intersects(TypeFlags::Simplifiable) {
+                self.get_simplified_type(&type_, writing)
             } else {
                 type_.type_wrapper()
             };
+            t = self
+                .get_single_base_for_non_augmenting_subtype(&t)
+                .unwrap_or(t);
             if Rc::ptr_eq(&t, &type_) {
                 break;
             }

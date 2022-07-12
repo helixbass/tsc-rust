@@ -163,8 +163,12 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
         let recursion_flags = recursion_flags.unwrap_or(RecursionFlags::Both);
 
-        let source = self.type_checker.get_normalized_type(&original_source);
-        let target = self.type_checker.get_normalized_type(&original_target);
+        let source = self
+            .type_checker
+            .get_normalized_type(&original_source, false);
+        let target = self
+            .type_checker
+            .get_normalized_type(&original_target, true);
 
         let report_error_results = |source, target, result| {
             if result == Ternary::False && report_errors {
