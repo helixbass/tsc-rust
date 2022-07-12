@@ -309,6 +309,7 @@ pub trait ObjectFlagsTypeInterface {
 }
 
 pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
+    fn maybe_members(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>>;
     fn set_members(&self, members: Option<Rc<RefCell<SymbolTable>>>);
     fn maybe_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>>;
     fn maybe_call_signatures(&self) -> Ref<Option<Vec<Rc<Signature>>>>;
@@ -378,6 +379,10 @@ impl ObjectFlagsTypeInterface for BaseObjectType {
 }
 
 impl ObjectTypeInterface for BaseObjectType {
+    fn maybe_members(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>> {
+        self.members.borrow()
+    }
+
     fn set_members(&self, members: Option<Rc<RefCell<SymbolTable>>>) {
         *self.members.borrow_mut() = members;
     }
@@ -988,6 +993,10 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
 }
 
 impl ObjectTypeInterface for BaseUnionOrIntersectionType {
+    fn maybe_members(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>> {
+        self.members.borrow()
+    }
+
     fn set_members(&self, members: Option<Rc<RefCell<SymbolTable>>>) {
         *self.members.borrow_mut() = members;
     }

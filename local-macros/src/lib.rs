@@ -1281,6 +1281,10 @@ fn get_type_struct_interface_impl(
         "ObjectTypeInterface" => {
             quote! {
                 impl crate::ObjectTypeInterface for #type_type_name {
+                    fn maybe_members(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        self.#first_field_name.maybe_members()
+                    }
+
                     fn set_members(&self, members: ::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>) {
                         self.#first_field_name.set_members(members)
                     }
@@ -1703,6 +1707,12 @@ fn get_type_enum_interface_impl(
         "ObjectTypeInterface" => {
             quote! {
                 impl crate::ObjectTypeInterface for #type_type_name {
+                    fn maybe_members(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_members()),*
+                        }
+                    }
+
                     fn set_members(&self, members: ::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_members(members)),*

@@ -10,9 +10,10 @@ use super::{
     CheckTypeErrorOutputContainer, CheckTypeRelatedTo, ErrorReporter,
 };
 use crate::{
-    are_option_rcs_equal, every, some, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node,
-    NodeInterface, RelationComparisonResult, Signature, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypePredicate, TypePredicateKind,
+    are_option_rcs_equal, every, get_object_flags, some, DiagnosticMessage, Diagnostics,
+    LiteralTypeInterface, Node, NodeInterface, ObjectFlags, ObjectTypeInterface,
+    RelationComparisonResult, Signature, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypePredicate, TypePredicateKind,
 };
 use local_macros::enum_unwrapped;
 
@@ -164,7 +165,13 @@ impl TypeChecker {
     }
 
     pub(super) fn is_empty_anonymous_object_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        get_object_flags(type_).intersects(ObjectFlags::Anonymous)
+            && (type_.as_object_type().maybe_members().is_some()
+                && self.is_empty_resolved_type(type_)
+                || matches!(
+                    type_.maybe_symbol(),
+                    Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) && (*self.get_members_of_symbol(&type_symbol)).borrow().len() == 0
+                ))
     }
 
     pub(super) fn is_string_index_signature_only_type(&self, type_: &Type) -> bool {
