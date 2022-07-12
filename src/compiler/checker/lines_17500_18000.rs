@@ -10,7 +10,7 @@ use super::{
     CheckTypeErrorOutputContainer, CheckTypeRelatedTo, ErrorReporter,
 };
 use crate::{
-    are_option_rcs_equal, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node,
+    are_option_rcs_equal, every, some, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node,
     NodeInterface, RelationComparisonResult, Signature, Ternary, Type, TypeChecker, TypeFlags,
     TypeInterface, TypePredicate, TypePredicateKind,
 };
@@ -143,7 +143,24 @@ impl TypeChecker {
     }
 
     pub(super) fn is_empty_object_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Object) {
+            !self.is_generic_mapped_type(type_)
+                && self.is_empty_resolved_type(&self.resolve_structured_type_members(type_))
+        } else if type_.flags().intersects(TypeFlags::NonPrimitive) {
+            true
+        } else if type_.flags().intersects(TypeFlags::Union) {
+            some(
+                Some(type_.as_union_or_intersection_type_interface().types()),
+                Some(|type_: &Rc<Type>| self.is_empty_object_type(type_)),
+            )
+        } else if type_.flags().intersects(TypeFlags::Intersection) {
+            every(
+                type_.as_union_or_intersection_type_interface().types(),
+                |type_: &Rc<Type>, _| self.is_empty_object_type(type_),
+            )
+        } else {
+            false
+        }
     }
 
     pub(super) fn is_empty_anonymous_object_type(&self, type_: &Type) -> bool {
