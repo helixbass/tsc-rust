@@ -1,15 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{TypeFacts, WideningKind};
+use super::{IntersectionState, TypeFacts, WideningKind};
 use crate::{
     every, for_each, get_object_flags, is_write_only_access, length, node_is_missing, Debug_,
     DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
-    UnionReduction,
+    InferencePriority, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    RelationComparisonResult, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
 
 impl TypeChecker {
@@ -64,6 +65,16 @@ impl TypeChecker {
             },
             |is_related_to| Box::new(is_related_to) as Box<dyn Fn(&Type, &Type) -> Ternary>,
         );
+        unimplemented!()
+    }
+
+    pub(super) fn get_relation_key(
+        &self,
+        source: &Type,
+        target: &Type,
+        intersection_state: IntersectionState,
+        relation: &HashMap<String, RelationComparisonResult>,
+    ) -> String {
         unimplemented!()
     }
 

@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeContainingMessageChainDummy,
-    CheckTypeErrorOutputContainer, CheckTypeRelatedTo, ErrorReporter,
+    CheckTypeErrorOutputContainer, CheckTypeRelatedTo, ErrorReporter, IntersectionState,
 };
 use crate::{
     are_option_rcs_equal, every, get_object_flags, get_symbol_id, some, symbol_name,
@@ -409,12 +409,34 @@ impl TypeChecker {
         if Rc::ptr_eq(&source, &target) {
             return true;
         }
-        if true {
-            if self.is_simple_type_related_to(&source, &target, relation, None) {
+        if relation != &*self.identity_relation() {
+            if relation == &*self.comparable_relation()
+                && !target.flags().intersects(TypeFlags::Never)
+                && self.is_simple_type_related_to(&source, &target, relation, None)
+                || self.is_simple_type_related_to(&target, &source, relation, None)
+            {
                 return true;
             }
         } else {
-            unimplemented!()
+            if source.flags() != target.flags() {
+                return false;
+            }
+            if source.flags().intersects(TypeFlags::Singleton) {
+                return true;
+            }
+        }
+        if source.flags().intersects(TypeFlags::Object)
+            && target.flags().intersects(TypeFlags::Object)
+        {
+            let related = relation.get(&self.get_relation_key(
+                &source,
+                &target,
+                IntersectionState::None,
+                relation,
+            ));
+            if let Some(related) = related {
+                return related.intersects(RelationComparisonResult::Succeeded);
+            }
         }
         if source
             .flags()
