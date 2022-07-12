@@ -269,20 +269,105 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
-        error_reporter: Option<ErrorReporter>,
+        mut error_reporter: Option<ErrorReporter>,
     ) -> bool {
         let s = source.flags();
         let t = target.flags();
+        if t.intersects(TypeFlags::AnyOrUnknown)
+            || s.intersects(TypeFlags::Never)
+            || ptr::eq(source, &*self.wildcard_type())
+        {
+            return true;
+        }
+        if t.intersects(TypeFlags::Never) {
+            return false;
+        }
+        if s.intersects(TypeFlags::StringLike) && t.intersects(TypeFlags::String) {
+            return true;
+        }
+        if s.intersects(TypeFlags::StringLiteral)
+            && s.intersects(TypeFlags::EnumLiteral)
+            && t.intersects(TypeFlags::StringLiteral)
+            && !t.intersects(TypeFlags::EnumLiteral)
+            && source.as_string_literal_type().value == target.as_string_literal_type().value
+        {
+            return true;
+        }
         if s.intersects(TypeFlags::NumberLike) && t.intersects(TypeFlags::Number) {
             return true;
         }
+        if s.intersects(TypeFlags::NumberLiteral)
+            && s.intersects(TypeFlags::EnumLiteral)
+            && t.intersects(TypeFlags::NumberLiteral)
+            && !t.intersects(TypeFlags::EnumLiteral)
+            && source.as_number_literal_type().value == target.as_number_literal_type().value
+        {
+            return true;
+        }
         if s.intersects(TypeFlags::BigIntLike) && t.intersects(TypeFlags::BigInt) {
+            return true;
+        }
+        if s.intersects(TypeFlags::BooleanLike) && t.intersects(TypeFlags::Boolean) {
+            return true;
+        }
+        if s.intersects(TypeFlags::ESSymbolLike) && t.intersects(TypeFlags::ESSymbol) {
+            return true;
+        }
+        if s.intersects(TypeFlags::Enum)
+            && t.intersects(TypeFlags::Enum)
+            && self.is_enum_type_related_to(&source.symbol(), &target.symbol(), &mut error_reporter)
+        {
+            return true;
+        }
+        if s.intersects(TypeFlags::EnumLiteral) && t.intersects(TypeFlags::EnumLiteral) {
+            if s.intersects(TypeFlags::Union)
+                && t.intersects(TypeFlags::Union)
+                && self.is_enum_type_related_to(
+                    &source.symbol(),
+                    &target.symbol(),
+                    &mut error_reporter,
+                )
+            {
+                return true;
+            }
+            if s.intersects(TypeFlags::Literal)
+                && t.intersects(TypeFlags::Literal)
+                && source.as_literal_type().is_value_eq(target)
+                && self.is_enum_type_related_to(
+                    &self.get_parent_of_symbol(&source.symbol()).unwrap(),
+                    &self.get_parent_of_symbol(&target.symbol()).unwrap(),
+                    &mut error_reporter,
+                )
+            {
+                return true;
+            }
+        }
+        if s.intersects(TypeFlags::Undefined)
+            && (!self.strict_null_checks || t.intersects(TypeFlags::Undefined | TypeFlags::Void))
+        {
+            return true;
+        }
+        if s.intersects(TypeFlags::Null)
+            && (!self.strict_null_checks || t.intersects(TypeFlags::Null))
+        {
+            return true;
+        }
+        if s.intersects(TypeFlags::Object) && t.intersects(TypeFlags::NonPrimitive) {
             return true;
         }
         if ptr::eq(relation, &*self.assignable_relation())
             || ptr::eq(relation, &*self.comparable_relation())
         {
             if s.intersects(TypeFlags::Any) {
+                return true;
+            }
+            if s.intersects(TypeFlags::Number | TypeFlags::NumberLiteral)
+                && !s.intersects(TypeFlags::EnumLiteral)
+                && (t.intersects(TypeFlags::Enum)
+                    || ptr::eq(relation, &*self.assignable_relation())
+                        && t.intersects(TypeFlags::NumberLiteral)
+                        && t.intersects(TypeFlags::EnumLiteral))
+            {
                 return true;
             }
         }

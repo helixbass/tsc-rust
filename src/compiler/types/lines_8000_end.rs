@@ -223,3 +223,12 @@ impl PseudoBigInt {
         }
     }
 }
+
+impl PartialEq for PseudoBigInt {
+    fn eq(&self, other: &PseudoBigInt) -> bool {
+        // TODO: is this right?
+        self.negative == other.negative && self.base_10_value == other.base_10_value
+    }
+}
+
+impl Eq for PseudoBigInt {}
