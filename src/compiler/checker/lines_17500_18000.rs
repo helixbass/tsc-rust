@@ -10,8 +10,9 @@ use super::{
     CheckTypeErrorOutputContainer, CheckTypeRelatedTo, ErrorReporter,
 };
 use crate::{
-    DiagnosticMessage, LiteralTypeInterface, Node, NodeInterface, RelationComparisonResult,
-    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
+    are_option_rcs_equal, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node,
+    NodeInterface, RelationComparisonResult, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypePredicate, TypePredicateKind,
 };
 use local_macros::enum_unwrapped;
 
@@ -26,7 +27,81 @@ impl TypeChecker {
         error_reporter: &mut Option<ErrorReporter>,
         compare_types: &mut TCompareTypes,
     ) -> Ternary {
-        unimplemented!()
+        if source.kind != target.kind {
+            if report_errors {
+                (error_reporter.as_mut().unwrap())(
+                    Cow::Borrowed(&Diagnostics::A_this_based_type_guard_is_not_compatible_with_a_parameter_based_type_guard),
+                    None
+                );
+                (error_reporter.as_mut().unwrap())(
+                    Cow::Borrowed(&Diagnostics::Type_predicate_0_is_not_assignable_to_1),
+                    Some(vec![
+                        self.type_predicate_to_string_(source, Option::<&Node>::None, None, None),
+                        self.type_predicate_to_string_(target, Option::<&Node>::None, None, None),
+                    ]),
+                );
+            }
+            return Ternary::False;
+        }
+
+        if matches!(
+            source.kind,
+            TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
+        ) {
+            if source.parameter_index != target.parameter_index {
+                if report_errors {
+                    (error_reporter.as_mut().unwrap())(
+                        Cow::Borrowed(
+                            &Diagnostics::Parameter_0_is_not_in_the_same_position_as_parameter_1,
+                        ),
+                        Some(vec![
+                            source.parameter_name.clone().unwrap(),
+                            target.parameter_name.clone().unwrap(),
+                        ]),
+                    );
+                    (error_reporter.as_mut().unwrap())(
+                        Cow::Borrowed(&Diagnostics::Type_predicate_0_is_not_assignable_to_1),
+                        Some(vec![
+                            self.type_predicate_to_string_(
+                                source,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            ),
+                            self.type_predicate_to_string_(
+                                target,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            ),
+                        ]),
+                    );
+                }
+                return Ternary::False;
+            }
+        }
+
+        let related = if are_option_rcs_equal(source.type_.as_ref(), target.type_.as_ref()) {
+            Ternary::True
+        } else if source.type_.is_some() && target.type_.is_some() {
+            compare_types(
+                source.type_.as_ref().unwrap(),
+                target.type_.as_ref().unwrap(),
+                Some(report_errors),
+            )
+        } else {
+            Ternary::False
+        };
+        if related == Ternary::False && report_errors {
+            (error_reporter.as_mut().unwrap())(
+                Cow::Borrowed(&Diagnostics::Type_predicate_0_is_not_assignable_to_1),
+                Some(vec![
+                    self.type_predicate_to_string_(source, Option::<&Node>::None, None, None),
+                    self.type_predicate_to_string_(target, Option::<&Node>::None, None, None),
+                ]),
+            );
+        }
+        related
     }
 
     pub(super) fn is_empty_resolved_type(&self, t: &Type /*ResolvedType*/) -> bool {
