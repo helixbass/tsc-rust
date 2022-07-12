@@ -133,7 +133,13 @@ impl TypeChecker {
     }
 
     pub(super) fn is_empty_resolved_type(&self, t: &Type /*ResolvedType*/) -> bool {
-        unimplemented!()
+        !ptr::eq(t, &*self.any_function_type()) && {
+            let t_as_resolved_type = t.as_resolved_type();
+            t_as_resolved_type.properties().is_empty()
+                && t_as_resolved_type.call_signatures().is_empty()
+                && t_as_resolved_type.construct_signatures().is_empty()
+                && t_as_resolved_type.index_infos().is_empty()
+        }
     }
 
     pub(super) fn is_empty_object_type(&self, type_: &Type) -> bool {
