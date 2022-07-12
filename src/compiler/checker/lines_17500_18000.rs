@@ -11,8 +11,8 @@ use super::{
 };
 use crate::{
     are_option_rcs_equal, DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node,
-    NodeInterface, RelationComparisonResult, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypePredicate, TypePredicateKind,
+    NodeInterface, RelationComparisonResult, Signature, Ternary, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypePredicate, TypePredicateKind,
 };
 use local_macros::enum_unwrapped;
 
@@ -102,6 +102,34 @@ impl TypeChecker {
             );
         }
         related
+    }
+
+    pub(super) fn is_implementation_compatible_with_overload(
+        &self,
+        implementation: Rc<Signature>,
+        overload: Rc<Signature>,
+    ) -> bool {
+        let erased_source = self.get_erased_signature(implementation.clone());
+        let erased_target = self.get_erased_signature(overload.clone());
+
+        let source_return_type = self.get_return_type_of_signature(erased_source.clone());
+        let target_return_type = self.get_return_type_of_signature(erased_target.clone());
+        if Rc::ptr_eq(&target_return_type, &self.void_type())
+            || self.is_type_related_to(
+                &target_return_type,
+                &source_return_type,
+                &self.assignable_relation(),
+            )
+            || self.is_type_related_to(
+                &source_return_type,
+                &target_return_type,
+                &self.assignable_relation(),
+            )
+        {
+            return self.is_signature_assignable_to(erased_source, erased_target, true);
+        }
+
+        false
     }
 
     pub(super) fn is_empty_resolved_type(&self, t: &Type /*ResolvedType*/) -> bool {
