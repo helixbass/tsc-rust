@@ -520,7 +520,7 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<TContainingMessageChain>,
-        error_output_object: Option<&dyn CheckTypeErrorOutputContainer>,
+        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
         CheckTypeRelatedTo::new(
             self,
@@ -529,6 +529,8 @@ impl TypeChecker {
             relation,
             error_node.map(|error_node| error_node.borrow().node_wrapper()),
             head_message,
+            containing_message_chain,
+            error_output_container,
         )
         .call()
     }

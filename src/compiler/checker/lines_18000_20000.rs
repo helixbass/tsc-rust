@@ -1,32 +1,56 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Cow;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
+use std::ptr;
 use std::rc::Rc;
 
-use super::{ExpandingFlags, IntersectionState, RecursionFlags};
+use super::{
+    CheckTypeContainingMessageChain, CheckTypeContainingMessageChainDummy,
+    CheckTypeErrorOutputContainer, ExpandingFlags, IntersectionState, RecursionFlags,
+};
 use crate::{
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, __String, chain_diagnostic_messages,
-    create_diagnostic_for_node_from_message_chain, first_or_undefined, get_object_flags, Debug_,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, Node,
-    NodeInterface, ObjectFlags, RelationComparisonResult, Symbol, SymbolInterface, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    append, Diagnostic, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, __String,
+    add_related_info, chain_diagnostic_messages, concatenate_diagnostic_message_chains,
+    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, first_or_undefined,
+    get_object_flags, is_import_call, Debug_, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
+    RelationComparisonResult, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
-pub(super) struct CheckTypeRelatedTo<'type_checker> {
+pub(super) struct CheckTypeRelatedTo<
+    'type_checker,
+    TContainingMessageChain: CheckTypeContainingMessageChain,
+> {
     type_checker: &'type_checker TypeChecker,
     source: &'type_checker Type,
     target: &'type_checker Type,
     relation: &'type_checker HashMap<String, RelationComparisonResult>,
     error_node: Option<Rc<Node>>,
     head_message: Option<Cow<'static, DiagnosticMessage>>,
+    containing_message_chain: Option<TContainingMessageChain>,
+    error_output_container: Option<&'type_checker dyn CheckTypeErrorOutputContainer>,
     error_info: RefCell<Option<DiagnosticMessageChain>>,
+    related_info: RefCell<Option<Vec<DiagnosticRelatedInformation>>>,
+    maybe_keys: RefCell<Option<Vec<String>>>,
+    source_stack: RefCell<Option<Vec<Rc<Type>>>>,
+    target_stack: RefCell<Option<Vec<Rc<Type>>>>,
+    maybe_count: Cell<usize>,
+    source_depth: Cell<usize>,
+    target_depth: Cell<usize>,
     expanding_flags: ExpandingFlags,
+    overflow: Cell<bool>,
+    override_next_error_info: Cell<usize>,
+    last_skipped_info: RefCell<Option<(Rc<Type>, Rc<Type>)>>,
     incompatible_stack: RefCell<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>>,
+    in_property_check: Cell<bool>,
 }
 
-impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
+impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
+    CheckTypeRelatedTo<'type_checker, TContainingMessageChain>
+{
     pub(super) fn new(
         type_checker: &'type_checker TypeChecker,
         source: &'type_checker Type,
@@ -34,6 +58,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         relation: &'type_checker HashMap<String, RelationComparisonResult>,
         error_node: Option<Rc<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
+        containing_message_chain: Option<TContainingMessageChain>,
+        error_output_container: Option<&'type_checker dyn CheckTypeErrorOutputContainer>,
     ) -> Self {
         Self {
             type_checker,
@@ -42,13 +68,26 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             relation,
             error_node,
             head_message,
+            containing_message_chain,
+            error_output_container,
             error_info: RefCell::new(None),
+            related_info: RefCell::new(None),
+            maybe_keys: RefCell::new(None),
+            source_stack: RefCell::new(None),
+            target_stack: RefCell::new(None),
+            maybe_count: Cell::new(0),
+            source_depth: Cell::new(0),
+            target_depth: Cell::new(0),
             expanding_flags: ExpandingFlags::None,
+            overflow: Cell::new(false),
+            override_next_error_info: Cell::new(0),
+            last_skipped_info: RefCell::new(None),
             incompatible_stack: RefCell::new(vec![]),
+            in_property_check: Cell::new(false),
         }
     }
 
-    fn error_info(&self) -> Ref<Option<DiagnosticMessageChain>> {
+    fn maybe_error_info(&self) -> Ref<Option<DiagnosticMessageChain>> {
         self.error_info.borrow()
     }
 
@@ -56,11 +95,25 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         *self.error_info.borrow_mut() = Some(error_info);
     }
 
+    fn maybe_related_info(&self) -> Ref<Option<Vec<DiagnosticRelatedInformation>>> {
+        self.related_info.borrow()
+    }
+
+    fn overflow(&self) -> bool {
+        self.overflow.get()
+    }
+
     fn incompatible_stack(&self) -> RefMut<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>> {
         self.incompatible_stack.borrow_mut()
     }
 
     pub(super) fn call(&self) -> bool {
+        Debug_.assert(
+            !ptr::eq(self.relation, &*self.type_checker.identity_relation())
+                || self.error_node.is_none(),
+            Some("no error reporting in identity checking"),
+        );
+
         let result = self.is_related_to(
             self.source,
             self.target,
@@ -69,20 +122,124 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             self.head_message.as_deref(),
             None,
         );
-
         if !self.incompatible_stack().is_empty() {
             self.report_incompatible_stack();
-        } else if false {
-            unimplemented!()
-        } else if self.error_info().is_some() {
-            let related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
-            let diag = create_diagnostic_for_node_from_message_chain(
-                self.error_node.as_ref().unwrap(),
-                self.error_info().clone().unwrap(),
-                related_information,
+        }
+        if self.overflow() {
+            // tracing?.instant(tracing.Phase.CheckTypes, "checkTypeRelatedTo_DepthLimit", { sourceId: source.id, targetId: target.id, depth: sourceDepth, targetDepth });
+            let diag = self.type_checker.error(
+                self.error_node
+                    .clone()
+                    .or_else(|| self.type_checker.maybe_current_node()),
+                &Diagnostics::Excessive_stack_depth_comparing_types_0_and_1,
+                Some(vec![
+                    self.type_checker.type_to_string_(
+                        self.source,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    ),
+                    self.type_checker.type_to_string_(
+                        self.target,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    ),
+                ]),
             );
-            if true {
-                self.type_checker.diagnostics().add(Rc::new(diag.into()));
+            if let Some(error_output_container) = self.error_output_container {
+                error_output_container.push_error(diag);
+            }
+        } else if self.maybe_error_info().is_some() {
+            if let Some(containing_message_chain) = self.containing_message_chain.as_ref() {
+                let chain = containing_message_chain.get();
+                if let Some(chain) = chain {
+                    concatenate_diagnostic_message_chains(
+                        &mut chain.borrow_mut(),
+                        self.maybe_error_info().clone().unwrap(),
+                    );
+                    // TODO: is this ever a problem? Not sure why I made containing_message_chain return an Rc<RefCell<DiagnosticMessageChain>> (vs just DiagnosticMessageChain)
+                    // but seems like .clone()'ing here means that that original Rc'd DiagnosticMessageChain now no longer is "sharing this mutation"
+                    self.set_error_info((*chain).borrow().clone());
+                }
+            }
+
+            let mut related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
+            if let Some(head_message) = self.head_message.as_ref() {
+                if let Some(error_node) = self.error_node.as_ref() {
+                    if result == Ternary::False {
+                        if let Some(source_symbol) = self.source.maybe_symbol() {
+                            let links = self.type_checker.get_symbol_links(&source_symbol);
+                            if let Some(links_originating_import) =
+                                (*links).borrow().originating_import.clone().filter(
+                                    |links_originating_import| {
+                                        !is_import_call(links_originating_import)
+                                    },
+                                )
+                            {
+                                let helpful_retry = self.type_checker.check_type_related_to(
+                                    &self.type_checker.get_type_of_symbol(
+                                        (*links).borrow().target.as_ref().unwrap(),
+                                    ),
+                                    self.target,
+                                    self.relation,
+                                    Option::<&Node>::None,
+                                    None,
+                                    Option::<CheckTypeContainingMessageChainDummy>::None,
+                                    None,
+                                );
+                                if helpful_retry {
+                                    let diag: Rc<DiagnosticRelatedInformation> = Rc::new(create_diagnostic_for_node(
+                                        &links_originating_import,
+                                        &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
+                                        None,
+                                    ).into());
+                                    if related_information.is_none() {
+                                        related_information = Some(vec![]);
+                                        append(related_information.as_mut().unwrap(), Some(diag));
+                                    }
+                                }
+                            };
+                        }
+                    }
+                }
+            }
+            let diag: Rc<Diagnostic> = Rc::new(
+                create_diagnostic_for_node_from_message_chain(
+                    self.error_node.as_ref().unwrap(),
+                    self.maybe_error_info().clone().unwrap(),
+                    related_information,
+                )
+                .into(),
+            );
+            if let Some(related_info) = self.maybe_related_info().clone() {
+                add_related_info(&diag, related_info.into_iter().map(Rc::new).collect());
+            }
+            if let Some(error_output_container) = self.error_output_container {
+                error_output_container.push_error(diag.clone());
+            }
+            if match self.error_output_container {
+                None => true,
+                Some(error_output_container) => {
+                    !matches!(error_output_container.skip_logging(), Some(true))
+                }
+            } {
+                self.type_checker.diagnostics().add(diag);
+            }
+        }
+        if self.error_node.is_some() {
+            if let Some(error_output_container) =
+                self.error_output_container
+                    .filter(|error_output_container| {
+                        matches!(error_output_container.skip_logging(), Some(true),)
+                    })
+            {
+                if result == Ternary::False {
+                    Debug_.assert(
+                        error_output_container.errors_len() > 0,
+                        Some("missed opportunity to interact with error."),
+                    );
+                }
             }
         }
 
@@ -103,7 +260,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn report_error(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
         Debug_.assert(self.error_node.is_some(), None);
-        let error_info = { chain_diagnostic_messages(self.error_info().clone(), message, args) };
+        let error_info =
+            { chain_diagnostic_messages(self.maybe_error_info().clone(), message, args) };
         self.set_error_info(error_info);
     }
 

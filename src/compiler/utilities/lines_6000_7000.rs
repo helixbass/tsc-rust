@@ -38,6 +38,13 @@ pub fn chain_diagnostic_messages(
     )
 }
 
+pub fn concatenate_diagnostic_message_chains(
+    head_chain: &mut DiagnosticMessageChain,
+    tail_chain: DiagnosticMessageChain,
+) {
+    unimplemented!()
+}
+
 fn get_diagnostic_file_path<
     TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface,
 >(
