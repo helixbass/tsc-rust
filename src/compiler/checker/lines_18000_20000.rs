@@ -87,23 +87,33 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         }
     }
 
-    fn maybe_error_info(&self) -> Ref<Option<DiagnosticMessageChain>> {
-        self.error_info.borrow()
+    pub(super) fn maybe_error_info(&self) -> RefMut<Option<DiagnosticMessageChain>> {
+        self.error_info.borrow_mut()
     }
 
-    fn set_error_info(&self, error_info: DiagnosticMessageChain) {
-        *self.error_info.borrow_mut() = Some(error_info);
+    pub(super) fn maybe_related_info(&self) -> RefMut<Option<Vec<DiagnosticRelatedInformation>>> {
+        self.related_info.borrow_mut()
     }
 
-    fn maybe_related_info(&self) -> Ref<Option<Vec<DiagnosticRelatedInformation>>> {
-        self.related_info.borrow()
-    }
-
-    fn overflow(&self) -> bool {
+    pub(super) fn overflow(&self) -> bool {
         self.overflow.get()
     }
 
-    fn incompatible_stack(&self) -> RefMut<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>> {
+    pub(super) fn override_next_error_info(&self) -> usize {
+        self.override_next_error_info.get()
+    }
+
+    pub(super) fn set_override_next_error_info(&self, override_next_error_info: usize) {
+        self.override_next_error_info.set(override_next_error_info);
+    }
+
+    pub(super) fn maybe_last_skipped_info(&self) -> RefMut<Option<(Rc<Type>, Rc<Type>)>> {
+        self.last_skipped_info.borrow_mut()
+    }
+
+    pub(super) fn incompatible_stack(
+        &self,
+    ) -> RefMut<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>> {
         self.incompatible_stack.borrow_mut()
     }
 
@@ -160,7 +170,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                     );
                     // TODO: is this ever a problem? Not sure why I made containing_message_chain return an Rc<RefCell<DiagnosticMessageChain>> (vs just DiagnosticMessageChain)
                     // but seems like .clone()'ing here means that that original Rc'd DiagnosticMessageChain now no longer is "sharing this mutation"
-                    self.set_error_info((*chain).borrow().clone());
+                    *self.maybe_error_info() = Some((*chain).borrow().clone());
                 }
             }
 
@@ -246,7 +256,32 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         result != Ternary::False
     }
 
-    fn report_incompatible_error(
+    pub(super) fn reset_error_info(&self, saved: ErrorCalculationState) {
+        let ErrorCalculationState {
+            error_info,
+            last_skipped_info,
+            incompatible_stack,
+            override_next_error_info,
+            related_info,
+        } = saved;
+        *self.maybe_error_info() = error_info;
+        *self.maybe_last_skipped_info() = last_skipped_info;
+        *self.incompatible_stack() = incompatible_stack;
+        self.set_override_next_error_info(override_next_error_info);
+        *self.maybe_related_info() = related_info;
+    }
+
+    pub(super) fn capture_error_calculation_state(&self) -> ErrorCalculationState {
+        ErrorCalculationState {
+            error_info: self.maybe_error_info().clone(),
+            last_skipped_info: self.maybe_last_skipped_info().clone(),
+            incompatible_stack: self.incompatible_stack().clone(),
+            override_next_error_info: self.override_next_error_info(),
+            related_info: self.maybe_related_info().clone(),
+        }
+    }
+
+    pub(super) fn report_incompatible_error(
         &self,
         message: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
@@ -254,18 +289,18 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         self.incompatible_stack().push((message, args));
     }
 
-    fn report_incompatible_stack(&self) {
+    pub(super) fn report_incompatible_stack(&self) {
         unimplemented!()
     }
 
-    fn report_error(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
+    pub(super) fn report_error(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
         Debug_.assert(self.error_node.is_some(), None);
         let error_info =
             { chain_diagnostic_messages(self.maybe_error_info().clone(), message, args) };
-        self.set_error_info(error_info);
+        *self.maybe_error_info() = Some(error_info);
     }
 
-    fn report_relation_error(
+    pub(super) fn report_relation_error(
         &self,
         mut message: Option<&DiagnosticMessage>,
         source: &Type,
@@ -307,7 +342,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         );
     }
 
-    fn is_related_to(
+    pub(super) fn is_related_to(
         &self,
         original_source: &Type,
         original_target: &Type,
@@ -421,7 +456,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         result
     }
 
-    fn has_excess_properties(
+    pub(super) fn has_excess_properties(
         &self,
         source: &Type, /*FreshObjectLiteralType*/
         target: &Type,
@@ -482,7 +517,11 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         false
     }
 
-    fn should_check_as_excess_property(&self, prop: &Symbol, container: &Symbol) -> bool {
+    pub(super) fn should_check_as_excess_property(
+        &self,
+        prop: &Symbol,
+        container: &Symbol,
+    ) -> bool {
         if let Some(prop_value_declaration) = prop.maybe_value_declaration().as_ref() {
             if let Some(container_value_declaration) = container.maybe_value_declaration().as_ref()
             {
@@ -495,7 +534,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         false
     }
 
-    fn type_related_to_some_type(
+    pub(super) fn type_related_to_some_type(
         &self,
         source: &Type,
         target: &UnionOrIntersectionType,
@@ -525,7 +564,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         Ternary::False
     }
 
-    fn each_type_related_to_type(
+    pub(super) fn each_type_related_to_type(
         &self,
         source: &UnionOrIntersectionType,
         target: &Type,
@@ -551,7 +590,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         result
     }
 
-    fn recursive_type_related_to(
+    pub(super) fn recursive_type_related_to(
         &self,
         source: &Type,
         target: &Type,
@@ -567,7 +606,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         result
     }
 
-    fn structured_type_related_to(
+    pub(super) fn structured_type_related_to(
         &self,
         source: &Type,
         target: &Type,
@@ -583,7 +622,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         result
     }
 
-    fn structured_type_related_to_worker(
+    pub(super) fn structured_type_related_to_worker(
         &self,
         source: &Type,
         target: &Type,
@@ -644,7 +683,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         Ternary::False
     }
 
-    fn exclude_properties(
+    pub(super) fn exclude_properties(
         &self,
         properties: Vec<Rc<Symbol>>,
         excluded_properties: Option<HashSet<__String>>,
@@ -652,7 +691,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         properties
     }
 
-    fn is_property_symbol_type_related(
+    pub(super) fn is_property_symbol_type_related(
         &self,
         source_prop: &Symbol,
         target_prop: &Symbol,
@@ -679,7 +718,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         )
     }
 
-    fn property_related_to(
+    pub(super) fn property_related_to(
         &self,
         source: &Type,
         target: &Type,
@@ -715,7 +754,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         related
     }
 
-    fn properties_related_to(
+    pub(super) fn properties_related_to(
         &self,
         source: &Type,
         target: &Type,
@@ -765,4 +804,12 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         }
         result
     }
+}
+
+pub(super) struct ErrorCalculationState {
+    pub error_info: Option<DiagnosticMessageChain>,
+    pub last_skipped_info: Option<(Rc<Type>, Rc<Type>)>,
+    pub incompatible_stack: Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+    pub override_next_error_info: usize,
+    pub related_info: Option<Vec<DiagnosticRelatedInformation>>,
 }
