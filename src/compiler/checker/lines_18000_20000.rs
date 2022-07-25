@@ -390,9 +390,30 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
 
     pub(super) fn report_error(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
         Debug_.assert(self.error_node.is_some(), None);
+        if !self.incompatible_stack().is_empty() {
+            self.report_incompatible_stack();
+        }
+        if matches!(
+            message.maybe_elided_in_compatability_pyramid(),
+            Some(true)
+        ) {
+            return;
+        }
         let error_info =
             { chain_diagnostic_messages(self.maybe_error_info().clone(), message, args) };
         *self.maybe_error_info() = Some(error_info);
+    }
+
+    pub(super) fn associate_related_info(
+        &self,
+        info: DiagnosticRelatedInformation,
+    ) {
+        Debug_.assert(self.maybe_error_info().is_some(), None);
+        if self.maybe_related_info().is_none() {
+            *self.maybe_related_info() = Some(vec![info]);
+        } else {
+            self.maybe_related_info().as_mut().unwrap().push(info);
+        }
     }
 
     pub(super) fn report_relation_error(
