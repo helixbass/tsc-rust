@@ -612,6 +612,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_suggested_type_for_nonexistent_string_literal_type(
+        &self,
+        source: &Type, /*StringLiteralType*/
+        target: &Type, /*UnionType*/
+    ) -> Option<Rc<Type /*StringLiteralType*/>> {
+        unimplemented!()
+    }
+
     pub(super) fn mark_property_as_referenced<TNodeForCheckWriteOnly: Borrow<Node>>(
         &self,
         prop: &Symbol,

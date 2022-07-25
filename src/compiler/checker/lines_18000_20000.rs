@@ -422,11 +422,14 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         source: &Type,
         target: &Type,
     ) {
+        if !self.incompatible_stack().is_empty() {
+            self.report_incompatible_stack();
+        }
         let (source_type, target_type) = self
             .type_checker
             .get_type_names_for_error_display(source, target);
         let mut generalized_source = source.type_wrapper();
-        let mut generalized_source_type = source_type;
+        let mut generalized_source_type = source_type.clone();
 
         if self.type_checker.is_literal_type(source)
             && !self
@@ -445,11 +448,97 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 .get_type_name_for_error_display(&generalized_source);
         }
 
-        if message.is_none() {
-            if false {
+        if target.flags().intersects(TypeFlags::TypeParameter) {
+            let constraint = self.type_checker.get_base_constraint_of_type(target);
+            let mut needs_original_source: Option<bool> = None;
+            if let Some(constraint) = constraint.as_ref().filter(|constraint|
+                self.type_checker.is_type_assignable_to(
+                    &generalized_source,
+                    constraint
+                ) || {
+                    needs_original_source = Some(
+                        self.type_checker.is_type_assignable_to(
+                            source,
+                            constraint
+                        )
+                    );
+                    matches!(
+                        needs_original_source,
+                        Some(true)
+                    )
+                }
+            ) {
+                self.report_error(
+                    &Diagnostics::_0_is_assignable_to_the_constraint_of_type_1_but_1_could_be_instantiated_with_a_different_subtype_of_constraint_2,
+                    Some(vec![
+                        if matches!(
+                            needs_original_source,
+                            Some(true)
+                        ) {
+                            source_type.clone()
+                        } else {
+                            generalized_source_type.clone()
+                        },
+                        target_type.clone(),
+                        self.type_checker.type_to_string_(
+                            constraint,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                    ])
+                );
             } else {
+                *self.maybe_error_info() = None;
+                self.report_error(
+                    &Diagnostics::_0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1,
+                    Some(vec![
+                        target_type.clone(),
+                        generalized_source_type.clone(),
+                    ])
+                );
+            }
+        }
+
+        if message.is_none() {
+            if ptr::eq(self.relation, &*self.type_checker.comparable_relation()) {
+                message = Some(&Diagnostics::Type_0_is_not_comparable_to_type_1);
+            } else if source_type == target_type {
+                message = Some(&Diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated);
+            } else if matches!(
+                self.type_checker.exact_optional_property_types,
+                Some(true)
+            ) && !self.type_checker.get_exact_optional_unassignable_properties(source, target).is_empty() {
+                message = Some(&Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties);
+            } else {
+                if source.flags().intersects(TypeFlags::StringLiteral) && target.flags().intersects(TypeFlags::Union) {
+                    let suggested_type = self.type_checker.get_suggested_type_for_nonexistent_string_literal_type(source, target);
+                    if let Some(suggested_type) = suggested_type.as_ref() {
+                        self.report_error(
+                            &Diagnostics::Type_0_is_not_assignable_to_type_1_Did_you_mean_2,
+                            Some(vec![
+                                generalized_source_type.clone(),
+                                target_type.clone(),
+                                self.type_checker.type_to_string_(
+                                    suggested_type,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                )
+                            ])
+                        );
+                    }
+                }
                 message = Some(&Diagnostics::Type_0_is_not_assignable_to_type_1);
             }
+        } else if matches!(
+            message,
+            Some(message) if ptr::eq(message, &*Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1)
+        ) && matches!(
+            self.type_checker.exact_optional_property_types,
+            Some(true)
+        ) && !self.type_checker.get_exact_optional_unassignable_properties(source, target).is_empty() {
+            message = Some(&Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties);
         }
 
         self.report_error(

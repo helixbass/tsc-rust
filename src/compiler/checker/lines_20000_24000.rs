@@ -40,6 +40,14 @@ impl TypeChecker {
         self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral)
     }
 
+    pub(super) fn get_exact_optional_unassignable_properties(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) -> Vec<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn is_exact_optional_property_mismatch<
         TSource: Borrow<Type>,
         TTarget: Borrow<Type>,
