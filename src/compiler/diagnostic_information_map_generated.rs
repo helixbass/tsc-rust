@@ -11,12 +11,12 @@ pub mod Diagnostics {
         key: &'static str,
         message: &'static str,
     ) -> DiagnosticMessage {
-        DiagnosticMessage {
+        DiagnosticMessage::new(
             code,
             category,
             key,
-            message: message.into(),
-        }
+            message.into(),
+        )
     }
 
     lazy_static! {

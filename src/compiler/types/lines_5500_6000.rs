@@ -9,6 +9,7 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
+use std::sync::{Arc, Mutex};
 
 use super::{
     BaseObjectType, BaseType, BaseUnionOrIntersectionType, Node, ObjectFlagsTypeInterface,
@@ -792,13 +793,50 @@ pub struct FileExtensionInfo {
     pub script_kind: Option<ScriptKind>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct DiagnosticMessage {
     pub key: &'static str,
     pub category: DiagnosticCategory,
     pub code: u32,
     pub message: Cow<'static, str>,
+    pub(crate) elided_in_compatability_pyramid: Arc<Mutex<Option<bool>>>,
 }
+
+impl DiagnosticMessage {
+    pub fn new(
+        code: u32,
+        category: DiagnosticCategory,
+        key: &'static str,
+        message: Cow<'static, str>,
+    ) -> Self {
+        Self {
+            code,
+            category,
+            key,
+            message,
+            elided_in_compatability_pyramid: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    pub fn maybe_elided_in_compatability_pyramid(&self) -> Option<bool> {
+        self.elided_in_compatability_pyramid.lock().unwrap().clone()
+    }
+
+    pub fn set_elided_in_compatability_pyramid(
+        &self,
+        elided_in_compatability_pyramid: Option<bool>,
+    ) {
+        *self.elided_in_compatability_pyramid.lock().unwrap() = elided_in_compatability_pyramid;
+    }
+}
+
+impl PartialEq for DiagnosticMessage {
+    fn eq(&self, other: &DiagnosticMessage) -> bool {
+        self.code == other.code
+    }
+}
+
+impl Eq for DiagnosticMessage {}
 
 #[derive(Clone, Debug)]
 pub struct DiagnosticMessageChain {

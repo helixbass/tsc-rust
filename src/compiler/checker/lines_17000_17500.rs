@@ -903,6 +903,9 @@ impl TypeChecker {
                             ]),
                         )
                         .into(),
+                        elided_in_compatability_pyramid: diagnostic
+                            .elided_in_compatability_pyramid
+                            .clone(),
                     }));
                 }
                 invalid_text_diagnostic.clone().unwrap()

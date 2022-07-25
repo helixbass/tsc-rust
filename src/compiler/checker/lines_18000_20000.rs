@@ -10,14 +10,15 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeContainingMessageChainDummy,
     CheckTypeErrorOutputContainer, ExpandingFlags, IntersectionState, RecursionFlags,
 };
+use crate::compiler::scanner::is_identifier_text;
 use crate::{
     append, Diagnostic, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, __String,
     add_related_info, chain_diagnostic_messages, concatenate_diagnostic_message_chains,
     create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, first_or_undefined,
-    get_object_flags, is_import_call, Debug_, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
-    RelationComparisonResult, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    get_emit_script_target, get_object_flags, is_import_call, Debug_, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface,
+    ObjectFlags, RelationComparisonResult, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 pub(super) struct CheckTypeRelatedTo<
@@ -286,11 +287,105 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         message: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
+        self.set_override_next_error_info(self.override_next_error_info() + 1);
+        *self.maybe_last_skipped_info() = None;
         self.incompatible_stack().push((message, args));
     }
 
     pub(super) fn report_incompatible_stack(&self) {
-        unimplemented!()
+        let mut stack = self.incompatible_stack().clone();
+        *self.incompatible_stack() = vec![];
+        let info = self.maybe_last_skipped_info().clone();
+        *self.maybe_last_skipped_info() = None;
+        if stack.len() == 1 {
+            let (stack_0_error, stack_0_args) = stack.into_iter().next().unwrap();
+            self.report_error(stack_0_error, stack_0_args);
+            if let Some((info_0, info_1)) = info {
+                self.report_relation_error(None, &info_0, &info_1);
+            }
+            return;
+        }
+        let mut path = "".to_owned();
+        let mut secondary_root_errors: Vec<(&'static DiagnosticMessage, Option<Vec<String>>)> =
+            vec![];
+        while !stack.is_empty() {
+            let (msg, args) = stack.pop().unwrap();
+            if msg.code == Diagnostics::Types_of_property_0_are_incompatible.code {
+                if path.starts_with("new ") {
+                    path = format!("({})", path);
+                }
+                let args = args.unwrap();
+                let str = &args[0];
+                if path.is_empty() {
+                    path = str.clone();
+                } else if is_identifier_text(str, Some(get_emit_script_target(&self.type_checker.compiler_options)), None) {
+                    path = format!("{}.{}", path, str);
+                } else if {
+                    let str_chars: Vec<char> = str.chars().collect();
+                    !str_chars.is_empty() && str_chars[0] == '[' && str_chars[str_chars.len() - 1] == ']'
+                } {
+                    path = format!("{}{}", path, str);
+                } else {
+                    path = format!("{}[{}]", path, str);
+                }
+                break;
+            } else if msg.code == Diagnostics::Call_signature_return_types_0_and_1_are_incompatible.code ||
+                msg.code == Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible.code ||
+                msg.code == Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code ||
+                msg.code == Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code {
+                if path.is_empty() {
+                    let mut mapped_msg = msg;
+                    if msg.code == Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code {
+                        mapped_msg = &Diagnostics::Call_signature_return_types_0_and_1_are_incompatible;
+                    } else if msg.code == Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code {
+                        mapped_msg = &Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible;
+                    }
+                    secondary_root_errors.insert(0, (mapped_msg, args));
+                } else {
+                    let prefix = if msg.code == Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible.code || 
+                        msg.code == Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code {
+                        "new "
+                    } else {
+                        ""
+                    };
+                    let params = if msg.code == Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code || 
+                        msg.code == Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code {
+                        ""
+                    } else {
+                        "..."
+                    };
+                    path = format!("{}{}({})", prefix, path, params);
+                }
+                break;
+            } else if msg.code == Diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target.code {
+                secondary_root_errors.insert(0, (&Diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target, args));
+            } else if msg.code == Diagnostics::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target.code {
+                secondary_root_errors.insert(0, (&Diagnostics::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target, args));
+            } else {
+                Debug_.fail(Some(&format!("Unhandled Diagnostic: {}", msg.code)));
+            }
+        }
+        if !path.is_empty() {
+            self.report_error(
+                if path.chars().last().unwrap() == ')' {
+                    &Diagnostics::The_types_returned_by_0_are_incompatible_between_these_types
+                } else {
+                    &Diagnostics::The_types_of_0_are_incompatible_between_these_types
+                },
+                Some(vec![path])
+            );
+        } else {
+            secondary_root_errors.remove(0);
+        }
+        for (msg, args) in secondary_root_errors {
+            let original_value = msg.maybe_elided_in_compatability_pyramid();
+            msg.set_elided_in_compatability_pyramid(Some(false));
+            self.report_error(msg, args);
+            msg.set_elided_in_compatability_pyramid(original_value);
+        }
+        if let Some((info_0, info_1)) = info {
+            self.report_relation_error(None, &info_0, &info_1);
+        }
     }
 
     pub(super) fn report_error(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
