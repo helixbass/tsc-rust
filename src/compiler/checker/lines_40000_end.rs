@@ -158,6 +158,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn type_has_call_or_construct_signatures(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: &Symbol) -> bool {
         unimplemented!()
     }
@@ -222,6 +226,8 @@ impl TypeChecker {
             }
         }
 
+        self.global_object_type =
+            self.get_global_type(&__String::new("Object".to_owned()), 0, true);
         self.global_boolean_type =
             self.get_global_type(&__String::new("Boolean".to_owned()), 0, true);
     }

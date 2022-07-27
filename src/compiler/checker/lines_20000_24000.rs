@@ -76,6 +76,19 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_weak_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn has_common_properties(
+        &self,
+        source: &Type,
+        target: &Type,
+        is_comparing_jsx_attributes: bool,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_relation_key(
         &self,
         source: &Type,
@@ -783,6 +796,10 @@ impl TypeChecker {
         } else {
             1
         }
+    }
+
+    pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_flow_type_of_reference<
