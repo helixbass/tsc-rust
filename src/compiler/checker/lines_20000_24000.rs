@@ -261,6 +261,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_mutable_array_or_tuple(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_element_type_of_array_type(&self, type_: &Type) -> Option<Rc<Type>> {
         unimplemented!()
     }

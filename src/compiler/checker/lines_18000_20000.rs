@@ -547,6 +547,115 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         );
     }
 
+    pub(super) fn try_elaborate_errors_for_primitives_and_objects(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) {
+        let source_type = if self.type_checker.symbol_value_declaration_is_context_sensitive(&source.symbol()) {
+            self.type_checker.type_to_string_(
+                source,
+                source.symbol().maybe_value_declaration(),
+                None,
+                None,
+            )
+        } else {
+            self.type_checker.type_to_string_(
+                source,
+                Option::<&Node>::None,
+                None,
+                None,
+            )
+        };
+        let target_type = if self.type_checker.symbol_value_declaration_is_context_sensitive(&target.symbol()) {
+            self.type_checker.type_to_string_(
+                target,
+                target.symbol().maybe_value_declaration(),
+                None,
+                None,
+            )
+        } else {
+            self.type_checker.type_to_string_(
+                target,
+                Option::<&Node>::None,
+                None,
+                None,
+            )
+        };
+
+        if (ptr::eq(&*self.type_checker.global_string_type(), source) && ptr::eq(&*self.type_checker.string_type(), target)) ||
+            (ptr::eq(&*self.type_checker.global_number_type(), source) && ptr::eq(&*self.type_checker.number_type(), target)) ||
+            (ptr::eq(&*self.type_checker.global_boolean_type(), source) && ptr::eq(&*self.type_checker.boolean_type(), target)) ||
+            (ptr::eq(&*self.type_checker.get_global_es_symbol_type(false), source) && ptr::eq(&*self.type_checker.es_symbol_type(), target)) {
+            self.report_error(
+                &Diagnostics::_0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible,
+                Some(vec![
+                    target_type,
+                    source_type,
+                ])
+            );
+        }
+    }
+
+    pub(super) fn try_elaborate_array_like_errors(
+        &self,
+        source: &Type,
+        target: &Type,
+        report_errors: bool
+    ) -> bool {
+        if self.type_checker.is_tuple_type(source) {
+            if source.as_type_reference().target.as_tuple_type().readonly && self.type_checker.is_mutable_array_or_tuple(target) {
+                if report_errors {
+                    self.report_error(
+                        &Diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                        Some(vec![
+                            self.type_checker.type_to_string_(
+                                source,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            ),
+                            self.type_checker.type_to_string_(
+                                target,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            ),
+                        ])
+                    );
+                }
+                return false;
+            }
+            return self.type_checker.is_tuple_type(target) || self.type_checker.is_array_type(target);
+        }
+        if self.type_checker.is_readonly_array_type(source) && self.type_checker.is_mutable_array_or_tuple(target) {
+            if report_errors {
+                self.report_error(
+                    &Diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                    Some(vec![
+                        self.type_checker.type_to_string_(
+                            source,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                        self.type_checker.type_to_string_(
+                            target,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                    ])
+                );
+            }
+            return false;
+        }
+        if self.type_checker.is_tuple_type(target) {
+            return self.type_checker.is_array_type(source);
+        }
+        true
+    }
+
     pub(super) fn is_related_to(
         &self,
         original_source: &Type,
