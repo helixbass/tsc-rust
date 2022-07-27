@@ -129,8 +129,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             self.source,
             self.target,
             Some(RecursionFlags::Both),
-            self.error_node.is_some(),
-            self.head_message.as_deref(),
+            Some(self.error_node.is_some()),
+            self.head_message.clone(),
             None,
         );
         if !self.incompatible_stack().is_empty() {
@@ -299,7 +299,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         *self.maybe_last_skipped_info() = None;
         if stack.len() == 1 {
             let (stack_0_error, stack_0_args) = stack.into_iter().next().unwrap();
-            self.report_error(stack_0_error, stack_0_args);
+            self.report_error(Cow::Borrowed(stack_0_error), stack_0_args);
             if let Some((info_0, info_1)) = info {
                 self.report_relation_error(None, &info_0, &info_1);
             }
@@ -342,13 +342,13 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                     }
                     secondary_root_errors.insert(0, (mapped_msg, args));
                 } else {
-                    let prefix = if msg.code == Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible.code || 
+                    let prefix = if msg.code == Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible.code ||
                         msg.code == Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code {
                         "new "
                     } else {
                         ""
                     };
-                    let params = if msg.code == Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code || 
+                    let params = if msg.code == Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code ||
                         msg.code == Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code {
                         ""
                     } else {
@@ -367,12 +367,12 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         }
         if !path.is_empty() {
             self.report_error(
-                if path.chars().last().unwrap() == ')' {
+                Cow::Borrowed(if path.chars().last().unwrap() == ')' {
                     &Diagnostics::The_types_returned_by_0_are_incompatible_between_these_types
                 } else {
                     &Diagnostics::The_types_of_0_are_incompatible_between_these_types
-                },
-                Some(vec![path])
+                }),
+                Some(vec![path]),
             );
         } else {
             secondary_root_errors.remove(0);
@@ -380,7 +380,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         for (msg, args) in secondary_root_errors {
             let original_value = msg.maybe_elided_in_compatability_pyramid();
             msg.set_elided_in_compatability_pyramid(Some(false));
-            self.report_error(msg, args);
+            self.report_error(Cow::Borrowed(msg), args);
             msg.set_elided_in_compatability_pyramid(original_value);
         }
         if let Some((info_0, info_1)) = info {
@@ -388,26 +388,24 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         }
     }
 
-    pub(super) fn report_error(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
+    pub(super) fn report_error(
+        &self,
+        message: Cow<'static, DiagnosticMessage>,
+        args: Option<Vec<String>>,
+    ) {
         Debug_.assert(self.error_node.is_some(), None);
         if !self.incompatible_stack().is_empty() {
             self.report_incompatible_stack();
         }
-        if matches!(
-            message.maybe_elided_in_compatability_pyramid(),
-            Some(true)
-        ) {
+        if matches!(message.maybe_elided_in_compatability_pyramid(), Some(true)) {
             return;
         }
         let error_info =
-            { chain_diagnostic_messages(self.maybe_error_info().clone(), message, args) };
+            { chain_diagnostic_messages(self.maybe_error_info().clone(), &message, args) };
         *self.maybe_error_info() = Some(error_info);
     }
 
-    pub(super) fn associate_related_info(
-        &self,
-        info: DiagnosticRelatedInformation,
-    ) {
+    pub(super) fn associate_related_info(&self, info: DiagnosticRelatedInformation) {
         Debug_.assert(self.maybe_error_info().is_some(), None);
         if self.maybe_related_info().is_none() {
             *self.maybe_related_info() = Some(vec![info]);
@@ -418,7 +416,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
 
     pub(super) fn report_relation_error(
         &self,
-        mut message: Option<&DiagnosticMessage>,
+        mut message: Option<Cow<'static, DiagnosticMessage>>,
         source: &Type,
         target: &Type,
     ) {
@@ -451,25 +449,17 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         if target.flags().intersects(TypeFlags::TypeParameter) {
             let constraint = self.type_checker.get_base_constraint_of_type(target);
             let mut needs_original_source: Option<bool> = None;
-            if let Some(constraint) = constraint.as_ref().filter(|constraint|
-                self.type_checker.is_type_assignable_to(
-                    &generalized_source,
-                    constraint
-                ) || {
-                    needs_original_source = Some(
-                        self.type_checker.is_type_assignable_to(
-                            source,
-                            constraint
-                        )
-                    );
-                    matches!(
-                        needs_original_source,
-                        Some(true)
-                    )
-                }
-            ) {
+            if let Some(constraint) = constraint.as_ref().filter(|constraint| {
+                self.type_checker
+                    .is_type_assignable_to(&generalized_source, constraint)
+                    || {
+                        needs_original_source =
+                            Some(self.type_checker.is_type_assignable_to(source, constraint));
+                        matches!(needs_original_source, Some(true))
+                    }
+            }) {
                 self.report_error(
-                    &Diagnostics::_0_is_assignable_to_the_constraint_of_type_1_but_1_could_be_instantiated_with_a_different_subtype_of_constraint_2,
+                    Cow::Borrowed(&Diagnostics::_0_is_assignable_to_the_constraint_of_type_1_but_1_could_be_instantiated_with_a_different_subtype_of_constraint_2),
                     Some(vec![
                         if matches!(
                             needs_original_source,
@@ -491,7 +481,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             } else {
                 *self.maybe_error_info() = None;
                 self.report_error(
-                    &Diagnostics::_0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1,
+                    Cow::Borrowed(&Diagnostics::_0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1),
                     Some(vec![
                         target_type.clone(),
                         generalized_source_type.clone(),
@@ -502,20 +492,30 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
 
         if message.is_none() {
             if ptr::eq(self.relation, &*self.type_checker.comparable_relation()) {
-                message = Some(&Diagnostics::Type_0_is_not_comparable_to_type_1);
+                message = Some(Cow::Borrowed(
+                    &Diagnostics::Type_0_is_not_comparable_to_type_1,
+                ));
             } else if source_type == target_type {
-                message = Some(&Diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated);
-            } else if matches!(
-                self.type_checker.exact_optional_property_types,
-                Some(true)
-            ) && !self.type_checker.get_exact_optional_unassignable_properties(source, target).is_empty() {
-                message = Some(&Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties);
+                message = Some(Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated));
+            } else if matches!(self.type_checker.exact_optional_property_types, Some(true))
+                && !self
+                    .type_checker
+                    .get_exact_optional_unassignable_properties(source, target)
+                    .is_empty()
+            {
+                message = Some(Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties));
             } else {
-                if source.flags().intersects(TypeFlags::StringLiteral) && target.flags().intersects(TypeFlags::Union) {
-                    let suggested_type = self.type_checker.get_suggested_type_for_nonexistent_string_literal_type(source, target);
+                if source.flags().intersects(TypeFlags::StringLiteral)
+                    && target.flags().intersects(TypeFlags::Union)
+                {
+                    let suggested_type = self
+                        .type_checker
+                        .get_suggested_type_for_nonexistent_string_literal_type(source, target);
                     if let Some(suggested_type) = suggested_type.as_ref() {
                         self.report_error(
-                            &Diagnostics::Type_0_is_not_assignable_to_type_1_Did_you_mean_2,
+                            Cow::Borrowed(
+                                &Diagnostics::Type_0_is_not_assignable_to_type_1_Did_you_mean_2,
+                            ),
                             Some(vec![
                                 generalized_source_type.clone(),
                                 target_type.clone(),
@@ -524,21 +524,25 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                                     Option::<&Node>::None,
                                     None,
                                     None,
-                                )
-                            ])
+                                ),
+                            ]),
                         );
                     }
                 }
-                message = Some(&Diagnostics::Type_0_is_not_assignable_to_type_1);
+                message = Some(Cow::Borrowed(
+                    &Diagnostics::Type_0_is_not_assignable_to_type_1,
+                ));
             }
         } else if matches!(
-            message,
-            Some(message) if ptr::eq(message, &*Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1)
-        ) && matches!(
-            self.type_checker.exact_optional_property_types,
-            Some(true)
-        ) && !self.type_checker.get_exact_optional_unassignable_properties(source, target).is_empty() {
-            message = Some(&Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties);
+            message.as_ref(),
+            Some(message) if ptr::eq(&**message, &*Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1)
+        ) && matches!(self.type_checker.exact_optional_property_types, Some(true))
+            && !self
+                .type_checker
+                .get_exact_optional_unassignable_properties(source, target)
+                .is_empty()
+        {
+            message = Some(Cow::Borrowed(&Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties));
         }
 
         self.report_error(
@@ -552,7 +556,10 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         source: &Type,
         target: &Type,
     ) {
-        let source_type = if self.type_checker.symbol_value_declaration_is_context_sensitive(&source.symbol()) {
+        let source_type = if self
+            .type_checker
+            .symbol_value_declaration_is_context_sensitive(&source.symbol())
+        {
             self.type_checker.type_to_string_(
                 source,
                 source.symbol().maybe_value_declaration(),
@@ -560,14 +567,13 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 None,
             )
         } else {
-            self.type_checker.type_to_string_(
-                source,
-                Option::<&Node>::None,
-                None,
-                None,
-            )
+            self.type_checker
+                .type_to_string_(source, Option::<&Node>::None, None, None)
         };
-        let target_type = if self.type_checker.symbol_value_declaration_is_context_sensitive(&target.symbol()) {
+        let target_type = if self
+            .type_checker
+            .symbol_value_declaration_is_context_sensitive(&target.symbol())
+        {
             self.type_checker.type_to_string_(
                 target,
                 target.symbol().maybe_value_declaration(),
@@ -575,20 +581,21 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 None,
             )
         } else {
-            self.type_checker.type_to_string_(
-                target,
-                Option::<&Node>::None,
-                None,
-                None,
-            )
+            self.type_checker
+                .type_to_string_(target, Option::<&Node>::None, None, None)
         };
 
-        if (ptr::eq(&*self.type_checker.global_string_type(), source) && ptr::eq(&*self.type_checker.string_type(), target)) ||
-            (ptr::eq(&*self.type_checker.global_number_type(), source) && ptr::eq(&*self.type_checker.number_type(), target)) ||
-            (ptr::eq(&*self.type_checker.global_boolean_type(), source) && ptr::eq(&*self.type_checker.boolean_type(), target)) ||
-            (ptr::eq(&*self.type_checker.get_global_es_symbol_type(false), source) && ptr::eq(&*self.type_checker.es_symbol_type(), target)) {
+        if (ptr::eq(&*self.type_checker.global_string_type(), source)
+            && ptr::eq(&*self.type_checker.string_type(), target))
+            || (ptr::eq(&*self.type_checker.global_number_type(), source)
+                && ptr::eq(&*self.type_checker.number_type(), target))
+            || (ptr::eq(&*self.type_checker.global_boolean_type(), source)
+                && ptr::eq(&*self.type_checker.boolean_type(), target))
+            || (ptr::eq(&*self.type_checker.get_global_es_symbol_type(false), source)
+                && ptr::eq(&*self.type_checker.es_symbol_type(), target))
+        {
             self.report_error(
-                &Diagnostics::_0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible,
+                Cow::Borrowed(&Diagnostics::_0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible),
                 Some(vec![
                     target_type,
                     source_type,
@@ -601,13 +608,15 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         &self,
         source: &Type,
         target: &Type,
-        report_errors: bool
+        report_errors: bool,
     ) -> bool {
         if self.type_checker.is_tuple_type(source) {
-            if source.as_type_reference().target.as_tuple_type().readonly && self.type_checker.is_mutable_array_or_tuple(target) {
+            if source.as_type_reference().target.as_tuple_type().readonly
+                && self.type_checker.is_mutable_array_or_tuple(target)
+            {
                 if report_errors {
                     self.report_error(
-                        &Diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                        Cow::Borrowed(&Diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1),
                         Some(vec![
                             self.type_checker.type_to_string_(
                                 source,
@@ -626,12 +635,15 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 }
                 return false;
             }
-            return self.type_checker.is_tuple_type(target) || self.type_checker.is_array_type(target);
+            return self.type_checker.is_tuple_type(target)
+                || self.type_checker.is_array_type(target);
         }
-        if self.type_checker.is_readonly_array_type(source) && self.type_checker.is_mutable_array_or_tuple(target) {
+        if self.type_checker.is_readonly_array_type(source)
+            && self.type_checker.is_mutable_array_or_tuple(target)
+        {
             if report_errors {
                 self.report_error(
-                    &Diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                    Cow::Borrowed(&Diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1),
                     Some(vec![
                         self.type_checker.type_to_string_(
                             source,
@@ -656,19 +668,61 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         true
     }
 
+    pub(super) fn is_related_to_worker(
+        &self,
+        source: &Type,
+        target: &Type,
+        report_errors: bool,
+    ) -> Ternary {
+        self.is_related_to(
+            source,
+            target,
+            Some(RecursionFlags::Both),
+            Some(report_errors),
+            None,
+            None,
+        )
+    }
+
     pub(super) fn is_related_to(
         &self,
         original_source: &Type,
         original_target: &Type,
         recursion_flags: Option<RecursionFlags>,
-        report_errors: bool,
-        head_message: Option<&DiagnosticMessage>,
+        report_errors: Option<bool>,
+        head_message: Option<Cow<'static, DiagnosticMessage>>,
         intersection_state: Option<IntersectionState>,
     ) -> Ternary {
         let original_source = original_source.type_wrapper();
         let original_target = original_target.type_wrapper();
-        let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
         let recursion_flags = recursion_flags.unwrap_or(RecursionFlags::Both);
+        let report_errors = report_errors.unwrap_or(false);
+        let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
+
+        if original_source.flags().intersects(TypeFlags::Object)
+            && original_target.flags().intersects(TypeFlags::Primitive)
+        {
+            if self.type_checker.is_simple_type_related_to(
+                &original_source,
+                &original_target,
+                self.relation,
+                Some(&mut |message, args| {
+                    if report_errors {
+                        self.report_error(message, args);
+                    }
+                }),
+            ) {
+                return Ternary::True;
+            }
+            self.report_error_results(
+                report_errors,
+                head_message.clone(),
+                &original_source,
+                &original_target,
+                Ternary::False,
+                get_object_flags(&original_source).intersects(ObjectFlags::JsxAttributes),
+            );
+        }
 
         let source = self
             .type_checker
@@ -677,17 +731,9 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             .type_checker
             .get_normalized_type(&original_target, true);
 
-        let report_error_results = |source, target, result| {
-            if result == Ternary::False && report_errors {
-                let source = source;
-                let target = target;
-                self.report_relation_error(head_message, source, target);
-            }
-        };
-
         let mut report_error = |message: Cow<'static, DiagnosticMessage>,
                                 args: Option<Vec<String>>| {
-            self.report_error(&message, args);
+            self.report_error(message, args);
         };
 
         if false
@@ -765,9 +811,32 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             );
         }
 
-        report_error_results(&source, &target, result);
+        self.report_error_results(
+            report_errors,
+            head_message,
+            &source,
+            &target,
+            result,
+            /* TODO: this isn't right is_comparing_jsx_attributes*/ false,
+        );
 
         result
+    }
+
+    pub(super) fn report_error_results(
+        &self,
+        report_errors: bool,
+        head_message: Option<Cow<'static, DiagnosticMessage>>,
+        source: &Type,
+        target: &Type,
+        result: Ternary,
+        is_comparing_jsx_attributes: bool,
+    ) {
+        if result == Ternary::False && report_errors {
+            let source = source;
+            let target = target;
+            self.report_relation_error(head_message, source, target);
+        }
     }
 
     pub(super) fn has_excess_properties(
@@ -813,7 +882,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                                 unimplemented!()
                             } else {
                                 self.report_error(
-                                    &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
+                                    Cow::Borrowed(&*Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1),
                                     Some(
                                         vec![
                                             self.type_checker.symbol_to_string_(&prop, Option::<&Node>::None, None, None, None),
@@ -866,7 +935,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 source,
                 &type_,
                 Some(RecursionFlags::Target),
-                false,
+                Some(false),
                 None,
                 None,
             );
@@ -892,7 +961,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 &source_type,
                 target,
                 Some(RecursionFlags::Source),
-                report_errors,
+                Some(report_errors),
                 None,
                 Some(intersection_state),
             );
@@ -1026,7 +1095,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             &effective_source,
             &effective_target,
             Some(RecursionFlags::Both),
-            report_errors,
+            Some(report_errors),
             None,
             Some(intersection_state),
         )
