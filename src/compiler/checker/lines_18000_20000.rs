@@ -11,9 +11,9 @@ use super::{
     CheckTypeErrorOutputContainer, ExpandingFlags, IntersectionState, JsxNames, RecursionFlags,
 };
 use crate::{
-    append, contains_rc, is_identifier_text, some, Diagnostic, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, __String, add_related_info, chain_diagnostic_messages,
-    concatenate_diagnostic_message_chains, create_diagnostic_for_node,
+    append, contains_rc, is_identifier_text, some, Diagnostic, ObjectFlagsTypeInterface,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, __String, add_related_info,
+    chain_diagnostic_messages, concatenate_diagnostic_message_chains, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, first_or_undefined, get_emit_script_target,
     get_object_flags, is_import_call, Debug_, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
@@ -1152,7 +1152,38 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
     }
 
     pub(super) fn trace_unions_or_intersections_too_large(&self, source: &Type, target: &Type) {
-        // unimplemented!()
+        // if (!tracing) {
+        //   return;
+        // }
+
+        if source.flags().intersects(TypeFlags::UnionOrIntersection)
+            && target.flags().intersects(TypeFlags::UnionOrIntersection)
+        {
+            let source_union_or_intersection = source.as_union_or_intersection_type();
+            let target_union_or_intersection = target.as_union_or_intersection_type();
+
+            if (source_union_or_intersection.object_flags()
+                & target_union_or_intersection.object_flags())
+            .intersects(ObjectFlags::PrimitiveUnion)
+            {
+                return;
+            }
+
+            let source_size = source_union_or_intersection.types().len();
+            let target_size = target_union_or_intersection.types().len();
+            if source_size * target_size > 1000000
+            /*1E6*/
+            {
+                // tracing.instant(tracing.Phase.CheckTypes, "traceUnionsOrIntersectionsTooLarge_DepthLimit", {
+                //     sourceId: source.id,
+                //     sourceSize,
+                //     targetId: target.id,
+                //     targetSize,
+                //     pos: errorNode?.pos,
+                //     end: errorNode?.end,
+                //  });
+            }
+        }
     }
 
     pub(super) fn is_identical_to(
@@ -1161,7 +1192,27 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         target: &Type,
         recursion_flags: RecursionFlags,
     ) -> Ternary {
-        unimplemented!()
+        if source.flags() != target.flags() {
+            return Ternary::False;
+        }
+        if source.flags().intersects(TypeFlags::Singleton) {
+            return Ternary::True;
+        }
+        self.trace_unions_or_intersections_too_large(source, target);
+        if source.flags().intersects(TypeFlags::UnionOrIntersection) {
+            let mut result = self.each_type_related_to_some_type(source, target);
+            if result != Ternary::False {
+                result &= self.each_type_related_to_some_type(target, source);
+            }
+            return result;
+        }
+        self.recursive_type_related_to(
+            source,
+            target,
+            false,
+            IntersectionState::None,
+            recursion_flags,
+        )
     }
 
     pub(super) fn has_excess_properties(
@@ -1240,6 +1291,14 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             }
         }
         false
+    }
+
+    pub(super) fn each_type_related_to_some_type(
+        &self,
+        source: &Type, /*UnionOrIntersectionType*/
+        target: &Type, /*UnionOrIntersectionType*/
+    ) -> Ternary {
+        unimplemented!()
     }
 
     pub(super) fn type_related_to_some_type(
