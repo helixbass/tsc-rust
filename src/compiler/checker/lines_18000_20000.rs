@@ -8,17 +8,17 @@ use std::rc::Rc;
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeContainingMessageChainDummy,
-    CheckTypeErrorOutputContainer, ExpandingFlags, IntersectionState, RecursionFlags,
+    CheckTypeErrorOutputContainer, ExpandingFlags, IntersectionState, JsxNames, RecursionFlags,
 };
-use crate::compiler::scanner::is_identifier_text;
 use crate::{
-    append, some, Diagnostic, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, __String,
-    add_related_info, chain_diagnostic_messages, concatenate_diagnostic_message_chains,
-    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, first_or_undefined,
-    get_emit_script_target, get_object_flags, is_import_call, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface,
-    ObjectFlags, RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    append, contains_rc, is_identifier_text, some, Diagnostic, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, __String, add_related_info, chain_diagnostic_messages,
+    concatenate_diagnostic_message_chains, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, first_or_undefined, get_emit_script_target,
+    get_object_flags, is_import_call, Debug_, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
+    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 pub(super) struct CheckTypeRelatedTo<
@@ -732,6 +732,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 head_message.clone(),
                 &original_source,
                 &original_target,
+                &original_source,
+                &original_target,
                 Ternary::False,
                 get_object_flags(&original_source).intersects(ObjectFlags::JsxAttributes),
             );
@@ -1042,6 +1044,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         self.report_error_results(
             report_errors,
             head_message,
+            &original_source,
+            &original_target,
             &source,
             &target,
             result,
@@ -1054,20 +1058,101 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         &self,
         report_errors: bool,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
+        original_source: &Type,
+        original_target: &Type,
         source: &Type,
         target: &Type,
         result: Ternary,
         is_comparing_jsx_attributes: bool,
     ) {
         if result == Ternary::False && report_errors {
-            let source = source;
-            let target = target;
-            self.report_relation_error(head_message, source, target);
+            let source_has_base = self
+                .type_checker
+                .get_single_base_for_non_augmenting_subtype(original_source)
+                .is_some();
+            let target_has_base = self
+                .type_checker
+                .get_single_base_for_non_augmenting_subtype(original_target)
+                .is_some();
+            let source = if original_source.maybe_alias_symbol().is_some() || source_has_base {
+                original_source.type_wrapper()
+            } else {
+                source.type_wrapper()
+            };
+            let target = if original_target.maybe_alias_symbol().is_some() || target_has_base {
+                original_target.type_wrapper()
+            } else {
+                target.type_wrapper()
+            };
+            let mut maybe_suppress = self.override_next_error_info() > 0;
+            if maybe_suppress {
+                self.set_override_next_error_info(self.override_next_error_info() - 1);
+            }
+            if source.flags().intersects(TypeFlags::Object)
+                && target.flags().intersects(TypeFlags::Object)
+            {
+                let current_error = self.maybe_error_info().as_ref().map(|error_info| {
+                    let error_info: *const DiagnosticMessageChain = error_info;
+                    error_info
+                });
+                self.try_elaborate_array_like_errors(&source, &target, report_errors);
+                if !match (self.maybe_error_info().as_ref(), current_error) {
+                    (None, None) => true,
+                    (Some(error_info), Some(current_error)) => {
+                        let error_info: *const DiagnosticMessageChain = error_info;
+                        ptr::eq(error_info, current_error)
+                    }
+                    _ => false,
+                } {
+                    maybe_suppress = self.maybe_error_info().is_some();
+                }
+            }
+            if source.flags().intersects(TypeFlags::Object)
+                && target.flags().intersects(TypeFlags::Primitive)
+            {
+                self.try_elaborate_errors_for_primitives_and_objects(&source, &target);
+            } else if source.maybe_symbol().is_some()
+                && source.flags().intersects(TypeFlags::Object)
+                && Rc::ptr_eq(&self.type_checker.global_object_type(), &source)
+            {
+                self.report_error(
+                    Cow::Borrowed(&Diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead),
+                    None,
+                );
+            } else if is_comparing_jsx_attributes
+                && target.flags().intersects(TypeFlags::Intersection)
+            {
+                let target_types = target.as_union_or_intersection_type_interface().types();
+                let intrinsic_attributes = self
+                    .type_checker
+                    .get_jsx_type(&JsxNames::IntrinsicAttributes, self.error_node.as_deref());
+                let intrinsic_class_attributes = self.type_checker.get_jsx_type(
+                    &JsxNames::IntrinsicClassAttributes,
+                    self.error_node.as_deref(),
+                );
+                if !self.type_checker.is_error_type(&intrinsic_attributes)
+                    && !self.type_checker.is_error_type(&intrinsic_class_attributes)
+                    && (contains_rc(Some(target_types), &intrinsic_attributes)
+                        || contains_rc(Some(target_types), &intrinsic_class_attributes))
+                {
+                    return /*result*/;
+                }
+            } else {
+                let error_info = self
+                    .type_checker
+                    .elaborate_never_intersection(self.maybe_error_info().clone(), original_target);
+                *self.maybe_error_info() = error_info;
+            }
+            if head_message.is_none() && maybe_suppress {
+                *self.maybe_last_skipped_info() = Some((source, target));
+                return /*result*/;
+            }
+            self.report_relation_error(head_message, &source, &target);
         }
     }
 
     pub(super) fn trace_unions_or_intersections_too_large(&self, source: &Type, target: &Type) {
-        unimplemented!()
+        // unimplemented!()
     }
 
     pub(super) fn is_identical_to(

@@ -531,6 +531,51 @@ pub(super) fn is_not_overload(declaration: &Node /*Declaration*/) -> bool {
         .is_some()
 }
 
+pub(super) mod JsxNames {
+    use crate::__String;
+
+    lazy_static! {
+        pub static ref JSX: __String = __String::new("JSX".to_owned());
+    }
+
+    lazy_static! {
+        pub static ref IntrinsicElements: __String = __String::new("IntrinsicElements".to_owned());
+    }
+
+    lazy_static! {
+        pub static ref ElementClass: __String = __String::new("ElementClass".to_owned());
+    }
+
+    lazy_static! {
+        pub static ref ElementAttributesPropertyNameContainer: __String =
+            __String::new("ElementAttributesProperty".to_owned());
+    }
+
+    lazy_static! {
+        pub static ref ElementChildrenAttributeNameContainer: __String =
+            __String::new("ElementChildrenAttribute".to_owned());
+    }
+
+    lazy_static! {
+        pub static ref Element: __String = __String::new("Element".to_owned());
+    }
+
+    lazy_static! {
+        pub static ref IntrinsicAttributes: __String =
+            __String::new("IntrinsicAttributes".to_owned());
+    }
+
+    lazy_static! {
+        pub static ref IntrinsicClassAttributes: __String =
+            __String::new("IntrinsicClassAttributes".to_owned());
+    }
+
+    lazy_static! {
+        pub static ref LibraryManagedAttributes: __String =
+            __String::new("LibraryManagedAttributes".to_owned());
+    }
+}
+
 pub(super) fn signature_has_rest_parameter(s: &Signature) -> bool {
     s.flags.intersects(SignatureFlags::HasRestParameter)
 }

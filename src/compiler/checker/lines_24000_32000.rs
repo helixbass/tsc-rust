@@ -456,6 +456,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_jsx_type<TLocation: Borrow<Node>>(
+        &self,
+        name: &__String,
+        location: Option<TLocation>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_jsx_namespace_at<TLocation: Borrow<Node>>(
         &self,
         location: Option<TLocation>,
