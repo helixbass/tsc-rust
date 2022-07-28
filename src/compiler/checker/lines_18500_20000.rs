@@ -166,18 +166,66 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         Ternary::False
     }
 
+    pub(super) fn get_undefined_stripped_target_if_needed(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) -> Rc<Type> {
+        if source.flags().intersects(TypeFlags::Union)
+            && target.flags().intersects(TypeFlags::Union)
+            && !source.as_union_or_intersection_type_interface().types()[0]
+                .flags()
+                .intersects(TypeFlags::Undefined)
+            && target.as_union_or_intersection_type_interface().types()[0]
+                .flags()
+                .intersects(TypeFlags::Undefined)
+        {
+            return self
+                .type_checker
+                .extract_types_of_kind(target, !TypeFlags::Undefined);
+        }
+        target.type_wrapper()
+    }
+
     pub(super) fn each_type_related_to_type(
         &self,
-        source: &UnionOrIntersectionType,
+        source: &Type, /*UnionOrIntersectionType*/
         target: &Type,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
         let mut result = Ternary::True;
-        let source_types = source.types();
-        for source_type in source_types {
+        let source_types = source.as_union_or_intersection_type_interface().types();
+        let undefined_stripped_target =
+            self.get_undefined_stripped_target_if_needed(source, target);
+        for (i, source_type) in source_types.into_iter().enumerate() {
+            if undefined_stripped_target
+                .flags()
+                .intersects(TypeFlags::Union)
+            {
+                let undefined_stripped_target_as_union_type =
+                    undefined_stripped_target.as_union_type();
+                let undefined_stripped_target_types =
+                    undefined_stripped_target_as_union_type.types();
+                if source_types.len() >= undefined_stripped_target_types.len()
+                    && source_types.len() % undefined_stripped_target_types.len() == 0
+                {
+                    let related = self.is_related_to(
+                        &source_type,
+                        &undefined_stripped_target_types[i % undefined_stripped_target_types.len()],
+                        Some(RecursionFlags::Both),
+                        Some(false),
+                        None,
+                        Some(intersection_state),
+                    );
+                    if related != Ternary::False {
+                        result &= related;
+                        continue;
+                    }
+                }
+            }
             let related = self.is_related_to(
-                &source_type,
+                source_type,
                 target,
                 Some(RecursionFlags::Source),
                 Some(report_errors),
@@ -237,7 +285,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                     unimplemented!()
                 } else {
                     self.each_type_related_to_type(
-                        source.as_union_or_intersection_type(),
+                        source,
                         target,
                         report_errors,
                         intersection_state & !IntersectionState::UnionIntersectionCheck,
