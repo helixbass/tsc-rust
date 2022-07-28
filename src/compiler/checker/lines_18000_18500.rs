@@ -1,8 +1,8 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Cow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::{HashMap, HashSet};
+use std::cell::{Cell, RefCell, RefMut};
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
@@ -12,15 +12,15 @@ use super::{
 };
 use crate::{
     append, are_option_rcs_equal, contains_rc, find_ancestor, is_identifier, is_identifier_text,
-    reduce_left, some, Diagnostic, ObjectFlagsTypeInterface, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, __String, add_related_info, chain_diagnostic_messages,
-    concatenate_diagnostic_message_chains, create_diagnostic_for_node,
-    create_diagnostic_for_node_from_message_chain, first_or_undefined, get_emit_script_target,
-    get_object_flags, get_source_file_of_node, is_import_call, is_jsx_attribute, is_jsx_attributes,
-    is_jsx_opening_like_element, is_object_literal_element_like, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface,
-    ObjectFlags, RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    reduce_left, some, Diagnostic, ObjectFlagsTypeInterface, UnionOrIntersectionTypeInterface,
+    __String, add_related_info, chain_diagnostic_messages, concatenate_diagnostic_message_chains,
+    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, first_or_undefined,
+    get_emit_script_target, get_object_flags, get_source_file_of_node, is_import_call,
+    is_jsx_attribute, is_jsx_attributes, is_jsx_opening_like_element,
+    is_object_literal_element_like, Debug_, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
+    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 pub(super) struct CheckTypeRelatedTo<
