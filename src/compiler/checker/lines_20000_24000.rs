@@ -658,6 +658,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_matching_union_constituent_for_type(
+        &self,
+        union_type: &Type, /*UnionType*/
+        type_: &Type,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn has_matching_argument(
         &self,
         expression: &Node, /*CallExpression | NewExpression*/

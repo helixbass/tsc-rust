@@ -25,7 +25,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             {
                 return Rc::ptr_eq(
                     &prop_value_declaration.parent(),
-                    &container_value_declaration,
+                    container_value_declaration,
                 );
             }
         }
@@ -37,26 +37,50 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         source: &Type, /*UnionOrIntersectionType*/
         target: &Type, /*UnionOrIntersectionType*/
     ) -> Ternary {
-        unimplemented!()
+        let mut result = Ternary::True;
+        let source_types = source.as_union_or_intersection_type_interface().types();
+        for source_type in source_types {
+            let related = self.type_related_to_some_type(source_type, target, false);
+            if related == Ternary::False {
+                return Ternary::False;
+            }
+            result &= related;
+        }
+        result
     }
 
     pub(super) fn type_related_to_some_type(
         &self,
         source: &Type,
-        target: &UnionOrIntersectionType,
+        target: &Type, /*UnionOrIntersectionType*/
         report_errors: bool,
     ) -> Ternary {
-        let target_types = target.types();
+        let target_types = target.as_union_or_intersection_type_interface().types();
         if target.flags().intersects(TypeFlags::Union) {
             if self.type_checker.contains_type(target_types, source) {
                 return Ternary::True;
             }
+            let match_ = self
+                .type_checker
+                .get_matching_union_constituent_for_type(target, source);
+            if let Some(match_) = match_.as_ref() {
+                let related = self.is_related_to(
+                    source,
+                    match_,
+                    Some(RecursionFlags::Target),
+                    Some(false),
+                    None,
+                    None,
+                );
+                if related != Ternary::False {
+                    return related;
+                }
+            }
         }
-
         for type_ in target_types {
             let related = self.is_related_to(
                 source,
-                &type_,
+                type_,
                 Some(RecursionFlags::Target),
                 Some(false),
                 None,
@@ -66,7 +90,79 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 return related;
             }
         }
+        if report_errors {
+            let best_matching_type = self.type_checker.get_best_matching_type(
+                source,
+                target,
+                Some(|source: &Type, target: &Type| {
+                    self.is_related_to(source, target, None, None, None, None)
+                }),
+            );
+            self.is_related_to(
+                source,
+                &best_matching_type.unwrap_or_else(|| target_types[target_types.len() - 1].clone()),
+                Some(RecursionFlags::Target),
+                Some(true),
+                None,
+                None,
+            );
+        }
+        Ternary::False
+    }
 
+    pub(super) fn type_related_to_each_type(
+        &self,
+        source: &Type,
+        target: &Type, /*IntersectionType*/
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let mut result = Ternary::True;
+        let target_types = target.as_union_or_intersection_type_interface().types();
+        for target_type in target_types {
+            let related = self.is_related_to(
+                source,
+                target_type,
+                Some(RecursionFlags::Target),
+                Some(report_errors),
+                None,
+                Some(intersection_state),
+            );
+            if related == Ternary::False {
+                return Ternary::False;
+            }
+            result &= related;
+        }
+        result
+    }
+
+    pub(super) fn some_type_related_to_type(
+        &self,
+        source: &Type, /*UnionOrIntersectionType*/
+        target: &Type,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let source_types = source.as_union_or_intersection_type_interface().types();
+        if source.flags().intersects(TypeFlags::Union)
+            && self.type_checker.contains_type(source_types, target)
+        {
+            return Ternary::True;
+        }
+        let len = source_types.len();
+        for i in 0..len {
+            let related = self.is_related_to(
+                &source_types[i],
+                target,
+                Some(RecursionFlags::Source),
+                Some(report_errors && i == len - 1),
+                None,
+                Some(intersection_state),
+            );
+            if related != Ternary::False {
+                return related;
+            }
+        }
         Ternary::False
     }
 
@@ -151,7 +247,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             if target.flags().intersects(TypeFlags::Union) {
                 return self.type_related_to_some_type(
                     &self.type_checker.get_regular_type_of_object_literal(source),
-                    target.as_union_or_intersection_type(),
+                    target,
                     report_errors
                         && !(source.flags().intersects(TypeFlags::Primitive))
                         && !(target.flags().intersects(TypeFlags::Primitive)),
