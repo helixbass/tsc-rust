@@ -11,14 +11,16 @@ use super::{
     CheckTypeErrorOutputContainer, ExpandingFlags, IntersectionState, JsxNames, RecursionFlags,
 };
 use crate::{
-    append, contains_rc, is_identifier_text, some, Diagnostic, ObjectFlagsTypeInterface,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, __String, add_related_info,
-    chain_diagnostic_messages, concatenate_diagnostic_message_chains, create_diagnostic_for_node,
+    append, are_option_rcs_equal, contains_rc, find_ancestor, is_identifier, is_identifier_text,
+    reduce_left, some, Diagnostic, ObjectFlagsTypeInterface, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, __String, add_related_info, chain_diagnostic_messages,
+    concatenate_diagnostic_message_chains, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, first_or_undefined, get_emit_script_target,
-    get_object_flags, is_import_call, Debug_, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
-    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    get_object_flags, get_source_file_of_node, is_import_call, is_jsx_attribute, is_jsx_attributes,
+    is_jsx_opening_like_element, is_object_literal_element_like, Debug_, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface,
+    ObjectFlags, RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 pub(super) struct CheckTypeRelatedTo<
@@ -1215,34 +1217,179 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         )
     }
 
+    pub(super) fn get_type_of_property_in_types(
+        &self,
+        types: &[Rc<Type>],
+        name: &__String,
+    ) -> Rc<Type> {
+        let append_prop_type =
+            |mut prop_types: Option<Vec<Rc<Type>>>, type_: &Rc<Type>, _| -> Option<Vec<Rc<Type>>> {
+                let type_ = self.type_checker.get_apparent_type(type_);
+                let prop = if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+                    self.type_checker
+                        .get_property_of_union_or_intersection_type(&type_, name, None)
+                } else {
+                    self.type_checker.get_property_of_object_type(&type_, name)
+                };
+                let prop_type = prop
+                    .as_ref()
+                    .map(|prop| self.type_checker.get_type_of_symbol(prop))
+                    .or_else(|| {
+                        self.type_checker
+                            .get_applicable_index_info_for_name(&type_, name)
+                            .map(|index_info| index_info.type_.clone())
+                    })
+                    .unwrap_or_else(|| self.type_checker.undefined_type());
+                if prop_types.is_none() {
+                    prop_types = Some(vec![]);
+                }
+                append(prop_types.as_mut().unwrap(), Some(prop_type));
+                prop_types
+            };
+        self.type_checker.get_union_type(
+            reduce_left(types, append_prop_type, None, None, None).unwrap_or_else(|| vec![]),
+            None,
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        )
+    }
+
     pub(super) fn has_excess_properties(
         &self,
         source: &Type, /*FreshObjectLiteralType*/
         target: &Type,
         report_errors: bool,
     ) -> bool {
-        if !self.type_checker.is_excess_property_check_target(target) || false {
+        if !self.type_checker.is_excess_property_check_target(target)
+            || !self.type_checker.no_implicit_any
+                && get_object_flags(target).intersects(ObjectFlags::JSLiteral)
+        {
             return false;
         }
-        let is_comparing_jsx_attributes = false;
-        let reduced_target = target;
+        let is_comparing_jsx_attributes =
+            get_object_flags(source).intersects(ObjectFlags::JsxAttributes);
+        if (ptr::eq(self.relation, &*self.type_checker.assignable_relation())
+            || ptr::eq(self.relation, &*self.type_checker.comparable_relation()))
+            && (self
+                .type_checker
+                .is_type_subset_of(&self.type_checker.global_object_type(), target)
+                || !is_comparing_jsx_attributes && self.type_checker.is_empty_object_type(target))
+        {
+            return false;
+        }
+        let mut reduced_target = target.type_wrapper();
+        let mut check_types: Option<Vec<Rc<Type>>> = None;
+        if target.flags().intersects(TypeFlags::Union) {
+            reduced_target = self
+                .type_checker
+                .find_matching_discriminant_type(
+                    source,
+                    target,
+                    |source, target| self.is_related_to(source, target, None, None, None, None),
+                    None,
+                )
+                .unwrap_or_else(|| {
+                    self.type_checker
+                        .filter_primitives_if_contains_non_primitive(target)
+                });
+            check_types = Some(if reduced_target.flags().intersects(TypeFlags::Union) {
+                reduced_target
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned()
+            } else {
+                vec![reduced_target.clone()]
+            });
+        }
         for prop in self.type_checker.get_properties_of_type(source) {
-            if self.should_check_as_excess_property(&prop, &source.symbol()) && true {
+            if self.should_check_as_excess_property(&prop, &source.symbol())
+                && !self.type_checker.is_ignored_jsx_property(source, &prop)
+            {
                 if !self.type_checker.is_known_property(
-                    reduced_target,
+                    &reduced_target,
                     prop.escaped_name(),
                     is_comparing_jsx_attributes,
                 ) {
                     if report_errors {
-                        let error_target = self.type_checker.filter_type(reduced_target, |type_| {
-                            self.type_checker.is_excess_property_check_target(type_)
-                        });
-                        let error_node = match self.error_node.as_ref().map(|rc| rc.clone()) {
+                        let error_target =
+                            self.type_checker.filter_type(&reduced_target, |type_| {
+                                self.type_checker.is_excess_property_check_target(type_)
+                            });
+                        let mut error_node = match self.error_node.as_ref() {
                             None => Debug_.fail(None),
-                            Some(error_node) => error_node,
+                            Some(error_node) => error_node.clone(),
                         };
-                        if false {
-                            unimplemented!()
+                        if is_jsx_attributes(&error_node)
+                            || is_jsx_opening_like_element(&error_node)
+                            || is_jsx_opening_like_element(&error_node.parent())
+                        {
+                            if let Some(prop_value_declaration) = prop
+                                .maybe_value_declaration()
+                                .filter(|prop_value_declaration| {
+                                    is_jsx_attribute(prop_value_declaration)
+                                        && are_option_rcs_equal(
+                                            get_source_file_of_node(Some(&*error_node)).as_ref(),
+                                            get_source_file_of_node(Some(
+                                                &*prop_value_declaration.as_jsx_attribute().name,
+                                            ))
+                                            .as_ref(),
+                                        )
+                                })
+                            {
+                                error_node = prop_value_declaration.as_jsx_attribute().name.clone();
+                            }
+                            let prop_name = self.type_checker.symbol_to_string_(
+                                &prop,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            );
+                            let suggestion_symbol = self
+                                .type_checker
+                                .get_suggested_symbol_for_nonexistent_jsx_attribute(
+                                    prop_name.clone(),
+                                    &error_target,
+                                );
+                            let suggestion = suggestion_symbol.as_ref().map(|suggestion_symbol| {
+                                self.type_checker.symbol_to_string_(
+                                    suggestion_symbol,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                    None,
+                                )
+                            });
+                            if let Some(suggestion) = suggestion {
+                                self.report_error(
+                                    Cow::Borrowed(&Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2),
+                                    Some(vec![
+                                        prop_name,
+                                        self.type_checker.type_to_string_(
+                                            &error_target,
+                                            Option::<&Node>::None,
+                                            None, None,
+                                        ),
+                                        suggestion
+                                    ])
+                                );
+                            } else {
+                                self.report_error(
+                                    Cow::Borrowed(
+                                        &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                    ),
+                                    Some(vec![
+                                        prop_name,
+                                        self.type_checker.type_to_string_(
+                                            &error_target,
+                                            Option::<&Node>::None,
+                                            None,
+                                            None,
+                                        ),
+                                    ]),
+                                );
+                            }
                         } else {
                             let object_literal_declaration =
                                 if let Some(symbol) = source.maybe_symbol() {
@@ -1254,11 +1401,53 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                                 } else {
                                     None
                                 };
-                            if false {
-                                unimplemented!()
+                            let mut suggestion: Option<String> = None;
+                            if let Some(prop_value_declaration) = prop.maybe_value_declaration().filter(|prop_value_declaration|
+                                find_ancestor(
+                                    Some(&**prop_value_declaration),
+                                    |d| matches!(
+                                        object_literal_declaration.as_ref(),
+                                        Some(object_literal_declaration) if ptr::eq(d, &**object_literal_declaration)
+                                    )
+                                ).is_some() &&
+                                are_option_rcs_equal(
+                                    get_source_file_of_node(object_literal_declaration.as_deref()).as_ref(),
+                                    get_source_file_of_node(Some(&*error_node)).as_ref(),
+                                )
+                            ) {
+                                let prop_declaration = prop_value_declaration;
+                                Debug_.assert_node(Some(&*prop_declaration), Some(|node: &Node| is_object_literal_element_like(node)), None);
+
+                                error_node = prop_declaration.clone();
+
+                                let name = prop_declaration.as_named_declaration().name();
+                                if is_identifier(&name) {
+                                    suggestion = self.type_checker.get_suggestion_for_nonexistent_property(
+                                        name,
+                                        &error_target
+                                    );
+                                }
+                            }
+                            if let Some(suggestion) = suggestion {
+                                self.report_error(
+                                    Cow::Borrowed(&Diagnostics::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2),
+                                    Some(vec![
+                                        self.type_checker.symbol_to_string_(
+                                            &prop,
+                                            Option::<&Node>::None,
+                                            None, None, None,
+                                        ),
+                                        self.type_checker.type_to_string_(
+                                            &error_target,
+                                            Option::<&Node>::None,
+                                            None, None,
+                                        ),
+                                        suggestion
+                                    ])
+                                );
                             } else {
                                 self.report_error(
-                                    Cow::Borrowed(&*Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1),
+                                    Cow::Borrowed(&Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1),
                                     Some(
                                         vec![
                                             self.type_checker.symbol_to_string_(&prop, Option::<&Node>::None, None, None, None),
@@ -1268,6 +1457,30 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                                 );
                             }
                         }
+                    }
+                    return true;
+                }
+                if matches!(
+                    check_types.as_ref(),
+                    Some(check_types) if self.is_related_to(
+                        &self.type_checker.get_type_of_symbol(&prop),
+                        &self.get_type_of_property_in_types(check_types, prop.escaped_name()),
+                        Some(RecursionFlags::Both),
+                        Some(report_errors),
+                        None, None,
+                    ) != Ternary::False
+                ) {
+                    if report_errors {
+                        self.report_incompatible_error(
+                            &Diagnostics::Types_of_property_0_are_incompatible,
+                            Some(vec![self.type_checker.symbol_to_string_(
+                                &prop,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            )]),
+                        );
                     }
                     return true;
                 }

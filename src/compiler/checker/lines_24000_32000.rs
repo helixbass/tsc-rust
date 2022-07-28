@@ -576,6 +576,16 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<
+        TName: Into<StringOrRcNode>,
+    >(
+        &self,
+        name: TName, /*Identifier | PrivateIdentifier*/
+        containing_type: &Type,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_suggestion_for_nonexistent_property<TName: Into<StringOrRcNode>>(
         &self,
         name: TName, /*Identifier | PrivateIdentifier*/

@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use super::UnusedKind;
 use crate::{
-    __String, bind_source_file, for_each, is_accessor, is_external_or_common_js_module,
+    Ternary, __String, bind_source_file, for_each, is_accessor, is_external_or_common_js_module,
     AllAccessorDeclarations, CancellationTokenDebuggable, Diagnostic, EmitResolver,
     EmitResolverDebuggable, IndexInfo, Node, NodeBuilderFlags, NodeCheckFlags, NodeInterface,
     Signature, SignatureFlags, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
@@ -244,6 +244,23 @@ impl TypeChecker {
         node: &Node, /*NumericLiteral*/
     ) -> bool {
         false
+    }
+
+    pub(super) fn filter_primitives_if_contains_non_primitive(
+        &self,
+        type_: &Type, /*UnionType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn find_matching_discriminant_type<TIsRelatedTo: FnMut(&Type, &Type) -> Ternary>(
+        &self,
+        source: &Type,
+        target: &Type,
+        is_related_to: TIsRelatedTo,
+        skip_partial: Option<bool>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 }
 

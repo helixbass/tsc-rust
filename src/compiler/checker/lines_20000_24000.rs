@@ -683,6 +683,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_type_subset_of(&self, source: &Type, target: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn for_each_type<TReturn, TCallback: FnMut(&Type) -> Option<TReturn>>(
         &self,
         type_: &Type,
