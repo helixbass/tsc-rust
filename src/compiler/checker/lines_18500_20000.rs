@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::collections::HashSet;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -9,7 +10,8 @@ use super::{
 };
 use crate::{
     Diagnostics, Node, NodeInterface, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, __String,
+    TypeFlags, TypeInterface, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
+    VarianceFlags, __String,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -236,6 +238,118 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 return Ternary::False;
             }
             result &= related;
+        }
+        result
+    }
+
+    pub(super) fn type_arguments_related_to(
+        &self,
+        sources: Option<Vec<Rc<Type>>>,
+        targets: Option<Vec<Rc<Type>>>,
+        variances: Option<Vec<VarianceFlags>>,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let sources = sources.unwrap_or_else(|| vec![]);
+        let targets = targets.unwrap_or_else(|| vec![]);
+        let variances = variances.unwrap_or_else(|| vec![]);
+        if sources.len() != targets.len()
+            && ptr::eq(self.relation, &*self.type_checker.identity_relation())
+        {
+            return Ternary::False;
+        }
+        let length = if sources.len() <= targets.len() {
+            sources.len()
+        } else {
+            targets.len()
+        };
+        let mut result = Ternary::True;
+        for i in 0..length {
+            let variance_flags = if i < variances.len() {
+                variances[i]
+            } else {
+                VarianceFlags::Covariant
+            };
+            let variance = variance_flags & VarianceFlags::VarianceMask;
+            if variance != VarianceFlags::Independent {
+                let s = &sources[i];
+                let t = &targets[i];
+                let mut related/* = Ternary::True*/;
+                if variance_flags.intersects(VarianceFlags::Unmeasurable) {
+                    related = if ptr::eq(self.relation, &*self.type_checker.identity_relation()) {
+                        self.is_related_to(
+                            s,
+                            t,
+                            Some(RecursionFlags::Both),
+                            Some(false),
+                            None,
+                            None,
+                        )
+                    } else {
+                        self.type_checker.compare_types_identical(s, t)
+                    };
+                } else if variance == VarianceFlags::Covariant {
+                    related = self.is_related_to(
+                        s,
+                        t,
+                        Some(RecursionFlags::Both),
+                        Some(report_errors),
+                        None,
+                        Some(intersection_state),
+                    );
+                } else if variance == VarianceFlags::Contravariant {
+                    related = self.is_related_to(
+                        t,
+                        s,
+                        Some(RecursionFlags::Both),
+                        Some(report_errors),
+                        None,
+                        Some(intersection_state),
+                    );
+                } else if variance == VarianceFlags::Bivariant {
+                    related = self.is_related_to(
+                        t,
+                        s,
+                        Some(RecursionFlags::Both),
+                        Some(false),
+                        None,
+                        None,
+                    );
+                    if related == Ternary::False {
+                        related = self.is_related_to(
+                            s,
+                            t,
+                            Some(RecursionFlags::Both),
+                            Some(report_errors),
+                            None,
+                            Some(intersection_state),
+                        );
+                    }
+                } else {
+                    related = self.is_related_to(
+                        s,
+                        t,
+                        Some(RecursionFlags::Both),
+                        Some(report_errors),
+                        None,
+                        Some(intersection_state),
+                    );
+                    if related != Ternary::False {
+                        related &= self.is_related_to(
+                            t,
+                            s,
+                            Some(RecursionFlags::Both),
+                            Some(report_errors),
+                            None,
+                            Some(intersection_state),
+                        );
+                    }
+                }
+                if related == Ternary::False {
+                    return Ternary::False;
+                }
+                result &= related;
+            }
         }
         result
     }
