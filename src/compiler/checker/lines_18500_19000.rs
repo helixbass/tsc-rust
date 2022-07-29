@@ -1,7 +1,6 @@
 #![allow(non_upper_case_globals)]
 
 use regex::{Captures, Regex};
-use std::collections::HashSet;
 use std::ptr;
 use std::rc::Rc;
 
@@ -11,10 +10,10 @@ use super::{
 };
 use crate::{
     are_option_rcs_equal, are_rc_slices_equal, get_object_flags, same_map, AccessFlags,
-    DiagnosticMessageChain, Diagnostics, InferenceFlags, InferencePriority, Node, NodeInterface,
-    ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol,
+    DiagnosticMessageChain, InferenceFlags, InferencePriority, Node, NodeInterface, ObjectFlags,
+    ObjectTypeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol,
     SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags, __String,
+    TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
