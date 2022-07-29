@@ -93,6 +93,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_variances(&self, type_: &Type /*GenericType*/) -> Vec<VarianceFlags> {
+        unimplemented!()
+    }
+
     pub(super) fn get_relation_key(
         &self,
         source: &Type,
@@ -589,6 +593,14 @@ impl TypeChecker {
         target: &Type,     /*MappedType*/
         constraint: &Type, /*IndexType*/
     ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn template_literal_types_definitely_unrelated(
+        &self,
+        source: &Type, /*TemplateLiteralType*/
+        target: &Type, /*TemplateLiteralType*/
+    ) -> bool {
         unimplemented!()
     }
 

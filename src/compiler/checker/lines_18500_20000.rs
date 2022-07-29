@@ -10,9 +10,10 @@ use super::{
     MappedTypeModifiers, RecursionFlags,
 };
 use crate::{
-    are_rc_slices_equal, get_object_flags, same_map, AccessFlags, DiagnosticMessageChain,
-    Diagnostics, Node, NodeInterface, ObjectFlags, ObjectTypeInterface, RelationComparisonResult,
-    Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    are_option_rcs_equal, are_rc_slices_equal, get_object_flags, same_map, AccessFlags,
+    DiagnosticMessageChain, Diagnostics, InferenceFlags, InferencePriority, Node, NodeInterface,
+    ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol,
+    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags, __String,
 };
 
@@ -648,7 +649,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 let constraints = same_map(
                     Some(source.as_union_or_intersection_type_interface().types()),
                     |type_: &Rc<Type>, _| self.type_checker.get_base_constraint_or_type(type_),
-                );
+                )
+                .unwrap();
                 if !are_rc_slices_equal(
                     &constraints,
                     source.as_union_or_intersection_type_interface().types(),
@@ -784,7 +786,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         }
 
         let mut result: Ternary;
-        let mut original_error_info: Option<DiagnosticMessageChain> = None;
+        let mut original_error_info: Option<Rc<DiagnosticMessageChain>> = None;
         let mut variance_check_failed = false;
         let save_error_info = self.capture_error_calculation_state();
 
@@ -792,10 +794,12 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::Conditional)
         {
-            if let Some(source_alias_symbol) = source.maybe_alias_symbol() {
-                if let Some(source_alias_type_arguments) = source.maybe_alias_type_arguments() {
+            if let Some(source_alias_symbol) = source.maybe_alias_symbol().as_ref() {
+                if let Some(source_alias_type_arguments) =
+                    source.maybe_alias_type_arguments().as_ref()
+                {
                     if matches!(
-                        target.maybe_alias_symbol(),
+                        target.maybe_alias_symbol().as_ref(),
                         Some(target_alias_symbol) if Rc::ptr_eq(
                             &source_alias_symbol,
                             &target_alias_symbol,
@@ -815,7 +819,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                             }
                             let variance_result = self.relate_variances(
                                 Some(source_alias_type_arguments),
-                                Some(target_alias_type_arguments),
+                                target.maybe_alias_type_arguments().as_deref(),
                                 &variances,
                                 intersection_state,
                             );
@@ -832,40 +836,41 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             .type_checker
             .is_single_element_generic_tuple_type(&source)
             && !source.as_type_reference().target.as_tuple_type().readonly
-            && {
-                result = self.is_related_to(
-                    &self.type_checker.get_type_arguments(&source)[0],
-                    target,
-                    Some(RecursionFlags::Source),
-                    None,
-                    None,
-                    None,
-                );
-                result != Ternary::False
-            }
-            || self
-                .type_checker
-                .is_single_element_generic_tuple_type(target)
-                && (target.as_type_reference().target.as_tuple_type().readonly
-                    || self.type_checker.is_mutable_array_or_tuple(
-                        &self
-                            .type_checker
-                            .get_base_constraint_of_type(&source)
-                            .unwrap_or_else(|| source.clone()),
-                    ))
-                && {
-                    result = self.is_related_to(
-                        &source,
-                        &self.type_checker.get_type_arguments(target)[0],
-                        Some(RecursionFlags::Target),
-                        None,
-                        None,
-                        None,
-                    );
-                    result != Ternary::False
-                }
         {
-            return result;
+            result = self.is_related_to(
+                &self.type_checker.get_type_arguments(&source)[0],
+                target,
+                Some(RecursionFlags::Source),
+                None,
+                None,
+                None,
+            );
+            if result != Ternary::False {
+                return result;
+            }
+        }
+        if self
+            .type_checker
+            .is_single_element_generic_tuple_type(target)
+            && (target.as_type_reference().target.as_tuple_type().readonly
+                || self.type_checker.is_mutable_array_or_tuple(
+                    &self
+                        .type_checker
+                        .get_base_constraint_of_type(&source)
+                        .unwrap_or_else(|| source.clone()),
+                ))
+        {
+            result = self.is_related_to(
+                &source,
+                &self.type_checker.get_type_arguments(target)[0],
+                Some(RecursionFlags::Target),
+                None,
+                None,
+                None,
+            );
+            if result != Ternary::False {
+                return result;
+            }
         }
 
         if target.flags().intersects(TypeFlags::TypeParameter) {
@@ -1094,7 +1099,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                     );
                     if let Some(constraint) = constraint.as_ref() {
                         if report_errors && original_error_info.is_some() {
-                            self.reset_error_info(save_error_info);
+                            self.reset_error_info(save_error_info.clone());
                         }
                         result = self.is_related_to(
                             &source,
@@ -1111,10 +1116,10 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                             if let Some(original_error_info) = original_error_info.clone() {
                                 if let Some(error_info) = self.maybe_error_info().clone() {
                                     *self.maybe_error_info() = Some(
-                                        if self.count_message_chain_breadth(Some(&vec![
-                                            &original_error_info,
+                                        if self.count_message_chain_breadth(Some(&*vec![
+                                            &*original_error_info,
                                         ])) <= self
-                                            .count_message_chain_breadth(Some(&vec![&error_info]))
+                                            .count_message_chain_breadth(Some(&*vec![&*error_info]))
                                         {
                                             original_error_info
                                         } else {
@@ -1253,13 +1258,13 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                         }
                     }
                     original_error_info = self.maybe_error_info().clone();
-                    self.reset_error_info(save_error_info);
+                    self.reset_error_info(save_error_info.clone());
                 }
             }
         } else if target.flags().intersects(TypeFlags::Conditional) {
             if self.type_checker.is_deeply_nested_type(
                 target,
-                self.maybe_target_stack().as_ref(),
+                self.maybe_target_stack().as_ref().unwrap(),
                 self.target_depth(),
                 Some(10),
             ) {
@@ -1322,17 +1327,397 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 }
             }
         } else if target.flags().intersects(TypeFlags::TemplateLiteral) {
+            if source.flags().intersects(TypeFlags::TemplateLiteral) {
+                if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation) {
+                    return if self
+                        .type_checker
+                        .template_literal_types_definitely_unrelated(&source, target)
+                    {
+                        Ternary::False
+                    } else {
+                        Ternary::True
+                    };
+                }
+                self.type_checker.instantiate_type(
+                    &source,
+                    Some(
+                        &self
+                            .type_checker
+                            .make_function_type_mapper(ReportUnreliableMarkers),
+                    ),
+                );
+            }
+            if self
+                .type_checker
+                .is_type_matched_by_template_literal_type(&source, target)
+            {
+                return Ternary::True;
+            }
         }
 
-        if false {
-            unimplemented!()
+        if source.flags().intersects(TypeFlags::TypeVariable) {
+            if !(source.flags().intersects(TypeFlags::IndexedAccess)
+                && target.flags().intersects(TypeFlags::IndexedAccess))
+            {
+                let constraint = self.type_checker.get_constraint_of_type(&source);
+                if match constraint.as_ref() {
+                    None => true,
+                    Some(constraint) => {
+                        source.flags().intersects(TypeFlags::TypeParameter)
+                            && constraint.flags().intersects(TypeFlags::Any)
+                    }
+                } {
+                    result = self.is_related_to(
+                        &self.type_checker.empty_object_type(),
+                        &self
+                            .type_checker
+                            .extract_types_of_kind(target, !TypeFlags::NonPrimitive),
+                        Some(RecursionFlags::Both),
+                        None,
+                        None,
+                        None,
+                    );
+                    if result != Ternary::False {
+                        self.reset_error_info(save_error_info);
+                        return result;
+                    }
+                } else if {
+                    result = self.is_related_to(
+                        constraint.as_ref().unwrap(),
+                        target,
+                        Some(RecursionFlags::Source),
+                        Some(false),
+                        None,
+                        Some(intersection_state),
+                    );
+                    result != Ternary::False
+                } {
+                    self.reset_error_info(save_error_info);
+                    return result;
+                } else if {
+                    result = self.is_related_to(
+                        &self.type_checker.get_type_with_this_argument(
+                            constraint.as_ref().unwrap(),
+                            Some(&*source),
+                            None,
+                        ),
+                        target,
+                        Some(RecursionFlags::Source),
+                        Some(
+                            report_errors
+                                && !(target.flags() & source.flags())
+                                    .intersects(TypeFlags::TypeParameter),
+                        ),
+                        None,
+                        Some(intersection_state),
+                    );
+                    result != Ternary::False
+                } {
+                    self.reset_error_info(save_error_info);
+                    return result;
+                }
+            }
+        } else if source.flags().intersects(TypeFlags::Index) {
+            result = self.is_related_to(
+                &self.type_checker.keyof_constraint_type(),
+                target,
+                Some(RecursionFlags::Source),
+                Some(report_errors),
+                None,
+                None,
+            );
+            if result != Ternary::False {
+                self.reset_error_info(save_error_info);
+                return result;
+            }
+        } else if source.flags().intersects(TypeFlags::TemplateLiteral)
+            && !target.flags().intersects(TypeFlags::Object)
+        {
+            if !target.flags().intersects(TypeFlags::TemplateLiteral) {
+                let constraint = self.type_checker.get_base_constraint_of_type(&source);
+                if let Some(constraint) = constraint
+                    .as_ref()
+                    .filter(|constraint| !Rc::ptr_eq(*constraint, &source))
+                {
+                    result = self.is_related_to(
+                        constraint,
+                        target,
+                        Some(RecursionFlags::Source),
+                        Some(report_errors),
+                        None,
+                        None,
+                    );
+                    if result != Ternary::False {
+                        self.reset_error_info(save_error_info);
+                        return result;
+                    }
+                }
+            }
+        } else if source.flags().intersects(TypeFlags::StringMapping) {
+            if target.flags().intersects(TypeFlags::StringMapping)
+                && Rc::ptr_eq(
+                    &source.as_string_mapping_type().symbol(),
+                    &target.as_string_mapping_type().symbol(),
+                )
+            {
+                result = self.is_related_to(
+                    &source.as_string_mapping_type().type_,
+                    &target.as_string_mapping_type().type_,
+                    Some(RecursionFlags::Both),
+                    Some(report_errors),
+                    None,
+                    None,
+                );
+                if result != Ternary::False {
+                    self.reset_error_info(save_error_info);
+                    return result;
+                }
+            } else {
+                let constraint = self.type_checker.get_base_constraint_of_type(&source);
+                if let Some(constraint) = constraint.as_ref() {
+                    result = self.is_related_to(
+                        constraint,
+                        target,
+                        Some(RecursionFlags::Source),
+                        Some(report_errors),
+                        None,
+                        None,
+                    );
+                    if result != Ternary::False {
+                        self.reset_error_info(save_error_info);
+                        return result;
+                    }
+                }
+            }
+        } else if source.flags().intersects(TypeFlags::Conditional) {
+            if self.type_checker.is_deeply_nested_type(
+                &source,
+                self.maybe_source_stack().as_ref().unwrap(),
+                self.source_depth(),
+                Some(10),
+            ) {
+                self.reset_error_info(save_error_info);
+                return Ternary::Maybe;
+            }
+            if target.flags().intersects(TypeFlags::Conditional) {
+                let source_params = source
+                    .as_conditional_type()
+                    .root
+                    .infer_type_parameters
+                    .as_ref();
+                let mut source_extends = source.as_conditional_type().extends_type.clone();
+                let mut mapper: Option<TypeMapper> = None;
+                if let Some(source_params) = source_params {
+                    let ctx = self.type_checker.create_inference_context(
+                        source_params,
+                        Option::<&Signature>::None,
+                        InferenceFlags::None,
+                        Some(
+                            |source: &Type, target: &Type, report_errors: Option<bool>| {
+                                self.is_related_to_worker(
+                                    source,
+                                    target,
+                                    report_errors.unwrap_or(false), // the default isn't in the Typescript version but that appears to be a type-checking bug there
+                                )
+                            },
+                        ),
+                    );
+                    self.type_checker.infer_types(
+                        &ctx.inferences,
+                        &target.as_conditional_type().extends_type,
+                        &source_extends,
+                        Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),
+                        None,
+                    );
+                    source_extends = self
+                        .type_checker
+                        .instantiate_type(&source_extends, Some(&ctx.mapper));
+                    mapper = Some(ctx.mapper.clone());
+                }
+                if self.type_checker.is_type_identical_to(
+                    &source_extends,
+                    &target.as_conditional_type().extends_type,
+                ) && (self.is_related_to(
+                    &source.as_conditional_type().check_type,
+                    &target.as_conditional_type().check_type,
+                    Some(RecursionFlags::Both),
+                    None,
+                    None,
+                    None,
+                ) != Ternary::False
+                    || self.is_related_to(
+                        &target.as_conditional_type().check_type,
+                        &source.as_conditional_type().check_type,
+                        Some(RecursionFlags::Both),
+                        None,
+                        None,
+                        None,
+                    ) != Ternary::False)
+                {
+                    result = self.is_related_to(
+                        &self.type_checker.instantiate_type(
+                            &self
+                                .type_checker
+                                .get_true_type_from_conditional_type(&source),
+                            mapper.as_ref(),
+                        ),
+                        &self
+                            .type_checker
+                            .get_true_type_from_conditional_type(target),
+                        Some(RecursionFlags::Both),
+                        Some(report_errors),
+                        None,
+                        None,
+                    );
+                    if result != Ternary::False {
+                        result &= self.is_related_to(
+                            &self
+                                .type_checker
+                                .get_false_type_from_conditional_type(&source),
+                            &self
+                                .type_checker
+                                .get_false_type_from_conditional_type(target),
+                            Some(RecursionFlags::Both),
+                            Some(report_errors),
+                            None,
+                            None,
+                        );
+                    }
+                    if result != Ternary::False {
+                        self.reset_error_info(save_error_info);
+                        return result;
+                    }
+                }
+            } else {
+                let distributive_constraint = self
+                    .type_checker
+                    .get_constraint_of_distributive_conditional_type(&source);
+                if let Some(distributive_constraint) = distributive_constraint.as_ref() {
+                    result = self.is_related_to(
+                        distributive_constraint,
+                        target,
+                        Some(RecursionFlags::Source),
+                        Some(report_errors),
+                        None,
+                        None,
+                    );
+                    if result != Ternary::False {
+                        self.reset_error_info(save_error_info);
+                        return result;
+                    }
+                }
+            }
+
+            let default_constraint = self
+                .type_checker
+                .get_default_constraint_of_conditional_type(&source);
+            // if (defaultConstraint) {
+            result = self.is_related_to(
+                &default_constraint,
+                target,
+                Some(RecursionFlags::Source),
+                Some(report_errors),
+                None,
+                None,
+            );
+            if result != Ternary::False {
+                self.reset_error_info(save_error_info);
+                return result;
+            }
+            // }
         } else {
+            if !Rc::ptr_eq(&self.relation, &self.type_checker.subtype_relation)
+                && !Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation)
+                && self.type_checker.is_partial_mapped_type(target)
+                && self.type_checker.is_empty_object_type(&source)
+            {
+                return Ternary::True;
+            }
+            if self.type_checker.is_generic_mapped_type(target) {
+                if self.type_checker.is_generic_mapped_type(&source) {
+                    result = self.mapped_type_related_to(&source, target, report_errors);
+                    if result != Ternary::False {
+                        self.reset_error_info(save_error_info);
+                        return result;
+                    }
+                }
+                return Ternary::False;
+            }
+            let source_is_primitive = source.flags().intersects(TypeFlags::Primitive);
+            if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
+                source = self.type_checker.get_apparent_type(&source);
+            } else if self.type_checker.is_generic_mapped_type(&source) {
+                return Ternary::False;
+            }
+            if get_object_flags(&source).intersects(ObjectFlags::Reference)
+                && get_object_flags(target).intersects(ObjectFlags::Reference)
+                && Rc::ptr_eq(
+                    &source.as_type_reference().target,
+                    &target.as_type_reference().target,
+                )
+                && !self.type_checker.is_tuple_type(&source)
+                && !(get_object_flags(&source).intersects(ObjectFlags::MarkerType)
+                    || get_object_flags(target).intersects(ObjectFlags::MarkerType))
+            {
+                let variances = self
+                    .type_checker
+                    .get_variances(&source.as_type_reference().target);
+                if variances.is_empty() {
+                    return Ternary::Unknown;
+                }
+                let variance_result = self.relate_variances(
+                    Some(&self.type_checker.get_type_arguments(&source)),
+                    Some(&self.type_checker.get_type_arguments(target)),
+                    &variances,
+                    intersection_state,
+                );
+                if let Some(variance_result) = variance_result {
+                    return variance_result;
+                }
+            } else if if self.type_checker.is_readonly_array_type(target) {
+                self.type_checker.is_array_type(&source) || self.type_checker.is_tuple_type(&source)
+            } else {
+                self.type_checker.is_array_type(target)
+                    && self.type_checker.is_tuple_type(&source)
+                    && !source.as_type_reference().target.as_tuple_type().readonly
+            } {
+                if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
+                    return self.is_related_to(
+                        &self
+                            .type_checker
+                            .get_index_type_of_type_(&source, &self.type_checker.number_type())
+                            .unwrap_or_else(|| self.type_checker.any_type()),
+                        &self
+                            .type_checker
+                            .get_index_type_of_type_(target, &self.type_checker.number_type())
+                            .unwrap_or_else(|| self.type_checker.any_type()),
+                        Some(RecursionFlags::Both),
+                        Some(report_errors),
+                        None,
+                        None,
+                    );
+                } else {
+                    return Ternary::False;
+                }
+            } else if (Rc::ptr_eq(&self.relation, &self.type_checker.subtype_relation)
+                || Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation))
+                && self.type_checker.is_empty_object_type(target)
+                && get_object_flags(target).intersects(ObjectFlags::FreshLiteral)
+                && !self.type_checker.is_empty_object_type(&source)
+            {
+                return Ternary::False;
+            }
             if source
                 .flags()
                 .intersects(TypeFlags::Object | TypeFlags::Intersection)
                 && target.flags().intersects(TypeFlags::Object)
             {
-                let report_structural_errors = report_errors && true;
+                let report_structural_errors = report_errors
+                    && are_option_rcs_equal(
+                        self.maybe_error_info().as_ref(),
+                        save_error_info.error_info.as_ref(),
+                    )
+                    && !source_is_primitive;
                 result = self.properties_related_to(
                     &source,
                     target,
@@ -1340,14 +1725,58 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                     None,
                     intersection_state,
                 );
-                if false && result != Ternary::False {
-                    unimplemented!()
+                if result != Ternary::False {
+                    result &= self.signatures_related_to(
+                        &source,
+                        target,
+                        SignatureKind::Call,
+                        report_structural_errors,
+                    );
+                    if result != Ternary::False {
+                        result &= self.signatures_related_to(
+                            &source,
+                            target,
+                            SignatureKind::Construct,
+                            report_structural_errors,
+                        );
+                        if result != Ternary::False {
+                            result &= self.index_signatures_related_to(
+                                &source,
+                                target,
+                                source_is_primitive,
+                                report_structural_errors,
+                                intersection_state,
+                            );
+                        }
+                    }
+                }
+                if variance_check_failed && result != Ternary::False {
+                    let error_info = original_error_info
+                        .or_else(|| self.maybe_error_info().clone())
+                        .or_else(|| save_error_info.error_info.clone());
+                    *self.maybe_error_info() = error_info;
                 } else if result != Ternary::False {
                     return result;
                 }
             }
+            if source
+                .flags()
+                .intersects(TypeFlags::Object | TypeFlags::Intersection)
+                && target.flags().intersects(TypeFlags::Union)
+            {
+                let object_only_target = self.type_checker.extract_types_of_kind(
+                    target,
+                    TypeFlags::Object | TypeFlags::Intersection | TypeFlags::Substitution,
+                );
+                if object_only_target.flags().intersects(TypeFlags::Union) {
+                    let result =
+                        self.type_related_to_discriminated_type(&source, &object_only_target);
+                    if result != Ternary::False {
+                        return result;
+                    }
+                }
+            }
         }
-
         Ternary::False
     }
 
@@ -1365,6 +1794,23 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         variances: &[VarianceFlags],
         intersection_state: IntersectionState,
     ) -> Option<Ternary> {
+        unimplemented!()
+    }
+
+    pub(super) fn mapped_type_related_to(
+        &self,
+        source: &Type, /*MappedType*/
+        target: &Type, /*MappedType*/
+        report_errors: bool,
+    ) -> Ternary {
+        unimplemented!()
+    }
+
+    pub(super) fn type_related_to_discriminated_type(
+        &self,
+        source: &Type,
+        target: &Type, /*UnionType*/
+    ) -> Ternary {
         unimplemented!()
     }
 
@@ -1488,6 +1934,27 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             }
         }
         result
+    }
+
+    pub(super) fn signatures_related_to(
+        &self,
+        source: &Type,
+        target: &Type,
+        kind: SignatureKind,
+        report_errors: bool,
+    ) -> Ternary {
+        unimplemented!()
+    }
+
+    pub(super) fn index_signatures_related_to(
+        &self,
+        source: &Type,
+        target: &Type,
+        source_is_primitive: bool,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        unimplemented!()
     }
 }
 

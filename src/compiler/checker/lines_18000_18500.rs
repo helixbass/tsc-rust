@@ -35,7 +35,7 @@ pub(super) struct CheckTypeRelatedTo<
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
     pub containing_message_chain: Option<TContainingMessageChain>,
     pub error_output_container: Option<&'type_checker dyn CheckTypeErrorOutputContainer>,
-    pub error_info: RefCell<Option<DiagnosticMessageChain>>,
+    pub error_info: RefCell<Option<Rc<DiagnosticMessageChain>>>,
     pub related_info: RefCell<Option<Vec<DiagnosticRelatedInformation>>>,
     pub maybe_keys: RefCell<Option<Vec<String>>>,
     pub source_stack: RefCell<Option<Vec<Rc<Type>>>>,
@@ -90,7 +90,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         }
     }
 
-    pub(super) fn maybe_error_info(&self) -> RefMut<Option<DiagnosticMessageChain>> {
+    pub(super) fn maybe_error_info(&self) -> RefMut<Option<Rc<DiagnosticMessageChain>>> {
         self.error_info.borrow_mut()
     }
 
@@ -225,11 +225,14 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 if let Some(chain) = chain {
                     concatenate_diagnostic_message_chains(
                         &mut chain.borrow_mut(),
-                        self.maybe_error_info().clone().unwrap(),
+                        self.maybe_error_info()
+                            .as_deref()
+                            .map(Clone::clone)
+                            .unwrap(),
                     );
                     // TODO: is this ever a problem? Not sure why I made containing_message_chain return an Rc<RefCell<DiagnosticMessageChain>> (vs just DiagnosticMessageChain)
                     // but seems like .clone()'ing here means that that original Rc'd DiagnosticMessageChain now no longer is "sharing this mutation"
-                    *self.maybe_error_info() = Some((*chain).borrow().clone());
+                    *self.maybe_error_info() = Some(Rc::new((*chain).borrow().clone()));
                 }
             }
 
@@ -276,7 +279,10 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             let diag: Rc<Diagnostic> = Rc::new(
                 create_diagnostic_for_node_from_message_chain(
                     self.error_node.as_ref().unwrap(),
-                    self.maybe_error_info().clone().unwrap(),
+                    self.maybe_error_info()
+                        .as_deref()
+                        .map(Clone::clone)
+                        .unwrap(),
                     related_information,
                 )
                 .into(),
@@ -458,9 +464,14 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         if matches!(message.maybe_elided_in_compatability_pyramid(), Some(true)) {
             return;
         }
-        let error_info =
-            { chain_diagnostic_messages(self.maybe_error_info().clone(), &message, args) };
-        *self.maybe_error_info() = Some(error_info);
+        let error_info = {
+            chain_diagnostic_messages(
+                self.maybe_error_info().as_deref().map(Clone::clone),
+                &message,
+                args,
+            )
+        };
+        *self.maybe_error_info() = Some(Rc::new(error_info));
     }
 
     pub(super) fn associate_related_info(&self, info: DiagnosticRelatedInformation) {
@@ -1144,16 +1155,12 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             if source.flags().intersects(TypeFlags::Object)
                 && target.flags().intersects(TypeFlags::Object)
             {
-                let current_error = self.maybe_error_info().as_ref().map(|error_info| {
-                    let error_info: *const DiagnosticMessageChain = error_info;
-                    error_info
-                });
+                let current_error = self.maybe_error_info().clone();
                 self.try_elaborate_array_like_errors(&source, &target, report_errors);
-                if !match (self.maybe_error_info().as_ref(), current_error) {
+                if !match (self.maybe_error_info().as_ref(), current_error.as_ref()) {
                     (None, None) => true,
                     (Some(error_info), Some(current_error)) => {
-                        let error_info: *const DiagnosticMessageChain = error_info;
-                        ptr::eq(error_info, current_error)
+                        Rc::ptr_eq(error_info, current_error)
                     }
                     _ => false,
                 } {
@@ -1193,7 +1200,11 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             } else {
                 let error_info = self
                     .type_checker
-                    .elaborate_never_intersection(self.maybe_error_info().clone(), original_target);
+                    .elaborate_never_intersection(
+                        self.maybe_error_info().as_deref().map(Clone::clone),
+                        original_target,
+                    )
+                    .map(Rc::new);
                 *self.maybe_error_info() = error_info;
             }
             if head_message.is_none() && maybe_suppress {
@@ -1543,7 +1554,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
 
 #[derive(Clone)]
 pub(super) struct ErrorCalculationState {
-    pub error_info: Option<DiagnosticMessageChain>,
+    pub error_info: Option<Rc<DiagnosticMessageChain>>,
     pub last_skipped_info: Option<(Rc<Type>, Rc<Type>)>,
     pub incompatible_stack: Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>,
     pub override_next_error_info: usize,
