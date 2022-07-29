@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::{Borrow, Cow};
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -120,12 +121,12 @@ impl TypeChecker {
             || self.is_type_related_to(
                 &target_return_type,
                 &source_return_type,
-                &self.assignable_relation(),
+                self.assignable_relation.clone(),
             )
             || self.is_type_related_to(
                 &source_return_type,
                 &target_return_type,
-                &self.assignable_relation(),
+                self.assignable_relation.clone(),
             )
         {
             return self.is_signature_assignable_to(erased_source, erased_target, true);
@@ -378,7 +379,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     ) -> bool {
         let mut source = source.type_wrapper();
         if self.is_fresh_literal_type(&source) {
@@ -409,11 +410,11 @@ impl TypeChecker {
         if Rc::ptr_eq(&source, &target) {
             return true;
         }
-        if relation != &*self.identity_relation() {
-            if relation == &*self.comparable_relation()
+        if !Rc::ptr_eq(&relation, &self.identity_relation) {
+            if Rc::ptr_eq(&relation, &self.comparable_relation)
                 && !target.flags().intersects(TypeFlags::Never)
-                && self.is_simple_type_related_to(&source, &target, relation, None)
-                || self.is_simple_type_related_to(&target, &source, relation, None)
+                && self.is_simple_type_related_to(&source, &target, &(*relation).borrow(), None)
+                || self.is_simple_type_related_to(&target, &source, &(*relation).borrow(), None)
             {
                 return true;
             }
@@ -428,12 +429,15 @@ impl TypeChecker {
         if source.flags().intersects(TypeFlags::Object)
             && target.flags().intersects(TypeFlags::Object)
         {
-            let related = relation.get(&self.get_relation_key(
-                &source,
-                &target,
-                IntersectionState::None,
-                relation,
-            ));
+            let related = (*relation)
+                .borrow()
+                .get(&self.get_relation_key(
+                    &source,
+                    &target,
+                    IntersectionState::None,
+                    &(*relation).borrow(),
+                ))
+                .map(Clone::clone);
             if let Some(related) = related {
                 return related.intersects(RelationComparisonResult::Succeeded);
             }
@@ -516,7 +520,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<TErrorNode>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<TContainingMessageChain>,

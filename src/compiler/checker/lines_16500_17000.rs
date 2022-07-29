@@ -939,11 +939,11 @@ impl TypeChecker {
     }
 
     pub(super) fn is_type_identical_to(&self, source: &Type, target: &Type) -> bool {
-        self.is_type_related_to(source, target, &self.identity_relation())
+        self.is_type_related_to(source, target, self.identity_relation.clone())
     }
 
     pub(super) fn compare_types_identical(&self, source: &Type, target: &Type) -> Ternary {
-        if self.is_type_related_to(source, target, &self.identity_relation()) {
+        if self.is_type_related_to(source, target, self.identity_relation.clone()) {
             Ternary::True
         } else {
             Ternary::False
@@ -951,7 +951,7 @@ impl TypeChecker {
     }
 
     pub(super) fn compare_types_assignable(&self, source: &Type, target: &Type) -> Ternary {
-        if self.is_type_related_to(source, target, &self.assignable_relation()) {
+        if self.is_type_related_to(source, target, self.assignable_relation.clone()) {
             Ternary::True
         } else {
             Ternary::False
@@ -959,7 +959,7 @@ impl TypeChecker {
     }
 
     pub(super) fn compare_types_subtype_of(&self, source: &Type, target: &Type) -> Ternary {
-        if self.is_type_related_to(source, target, &self.subtype_relation()) {
+        if self.is_type_related_to(source, target, self.subtype_relation.clone()) {
             Ternary::True
         } else {
             Ternary::False
@@ -967,11 +967,11 @@ impl TypeChecker {
     }
 
     pub(super) fn is_type_subtype_of(&self, source: &Type, target: &Type) -> bool {
-        self.is_type_related_to(source, target, &self.subtype_relation())
+        self.is_type_related_to(source, target, self.subtype_relation.clone())
     }
 
     pub(super) fn is_type_assignable_to(&self, source: &Type, target: &Type) -> bool {
-        self.is_type_related_to(source, target, &self.assignable_relation())
+        self.is_type_related_to(source, target, self.assignable_relation.clone())
     }
 
     pub(super) fn is_type_derived_from(&self, source: &Type, target: &Type) -> bool {
@@ -1009,7 +1009,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_type_comparable_to(&self, source: &Type, target: &Type) -> bool {
-        self.is_type_related_to(source, target, &self.comparable_relation())
+        self.is_type_related_to(source, target, self.comparable_relation.clone())
     }
 
     pub(super) fn are_types_comparable(&self, type1: &Type, type2: &Type) -> bool {
@@ -1031,7 +1031,7 @@ impl TypeChecker {
         self.check_type_related_to(
             source,
             target,
-            &self.assignable_relation(),
+            self.assignable_relation.clone(),
             error_node,
             head_message.map(Cow::Borrowed),
             containing_message_chain,

@@ -37,7 +37,7 @@ impl TypeChecker {
         self.check_type_related_to_and_optionally_elaborate(
             source,
             target,
-            &self.assignable_relation(),
+            self.assignable_relation.clone(),
             error_node,
             expr,
             head_message,
@@ -54,14 +54,14 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<TErrorNode>,
         expr: Option<TExpr>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
-        if self.is_type_related_to(source, target, relation) {
+        if self.is_type_related_to(source, target, relation.clone()) {
             return true;
         }
         if error_node.is_none()
@@ -69,7 +69,7 @@ impl TypeChecker {
                 expr,
                 source,
                 target,
-                relation,
+                relation.clone(),
                 head_message,
                 containing_message_chain.clone(),
                 error_output_container,
@@ -105,7 +105,7 @@ impl TypeChecker {
         node: Option<TNode>,
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
@@ -118,7 +118,7 @@ impl TypeChecker {
         if !self.check_type_related_to(
             source,
             target,
-            relation,
+            relation.clone(),
             Option::<&Node>::None,
             None,
             Option::<CheckTypeContainingMessageChainDummy>::None,
@@ -127,7 +127,7 @@ impl TypeChecker {
             node,
             source,
             target,
-            relation,
+            relation.clone(),
             head_message,
             containing_message_chain.clone(),
             error_output_container,
@@ -215,7 +215,7 @@ impl TypeChecker {
         node: &Node, /*Expression*/
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
@@ -236,7 +236,7 @@ impl TypeChecker {
                         && self.check_type_related_to(
                             &return_type,
                             target,
-                            relation,
+                            relation.clone(),
                             Option::<&Node>::None,
                             None,
                             Option::<CheckTypeContainingMessageChainDummy>::None,
@@ -286,7 +286,7 @@ impl TypeChecker {
         node: &Node, /*ArrowFunction*/
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
@@ -324,7 +324,7 @@ impl TypeChecker {
         if !self.check_type_related_to(
             &source_return,
             &target_return,
-            relation,
+            relation.clone(),
             Option::<&Node>::None,
             None,
             Option::<CheckTypeContainingMessageChainDummy>::None,
@@ -334,7 +334,7 @@ impl TypeChecker {
                 Some(&*return_expression),
                 &source_return,
                 &target_return,
-                relation,
+                relation.clone(),
                 None,
                 containing_message_chain.clone(),
                 error_output_container,
@@ -348,7 +348,7 @@ impl TypeChecker {
             self.check_type_related_to(
                 &source_return,
                 &target_return,
-                relation,
+                relation.clone(),
                 Some(&*return_expression),
                 None,
                 containing_message_chain,
@@ -470,7 +470,7 @@ impl TypeChecker {
         iterator: Vec<ElaborationIteratorItem>,
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
@@ -510,7 +510,7 @@ impl TypeChecker {
             if !self.check_type_related_to(
                 &source_prop_type,
                 &target_prop_type,
-                relation,
+                relation.clone(),
                 Option::<&Node>::None,
                 None,
                 Option::<CheckTypeContainingMessageChainDummy>::None,
@@ -522,7 +522,7 @@ impl TypeChecker {
                         Some(&**next),
                         &source_prop_type,
                         &target_prop_type,
-                        relation,
+                        relation.clone(),
                         None,
                         containing_message_chain.clone(),
                         error_output_container,
@@ -587,7 +587,7 @@ impl TypeChecker {
                         let result = self.check_type_related_to(
                             &specific_source,
                             &target_prop_type,
-                            relation,
+                            relation.clone(),
                             Some(&*prop),
                             error_message.clone(),
                             containing_message_chain.clone(),
@@ -597,7 +597,7 @@ impl TypeChecker {
                             self.check_type_related_to(
                                 &source_prop_type,
                                 &target_prop_type,
-                                relation,
+                                relation.clone(),
                                 Some(&*prop),
                                 error_message,
                                 containing_message_chain.clone(),
@@ -820,7 +820,7 @@ impl TypeChecker {
         node: &Node, /*JsxAttributes*/
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
@@ -828,7 +828,7 @@ impl TypeChecker {
             self.generate_jsx_attributes(node),
             source,
             target,
-            relation,
+            relation.clone(),
             containing_message_chain.clone(),
             error_output_container,
         );
@@ -926,7 +926,7 @@ impl TypeChecker {
                         children,
                         &real_source,
                         &array_like_target_parts,
-                        relation,
+                        relation.clone(),
                         containing_message_chain,
                         error_output_container,
                     ) || result;
@@ -974,7 +974,7 @@ impl TypeChecker {
                             vec![elem],
                             source,
                             target,
-                            relation,
+                            relation.clone(),
                             containing_message_chain,
                             error_output_container,
                         ) || result;
@@ -1055,7 +1055,7 @@ impl TypeChecker {
         node: &Node, /*ArrayLiteralExpression*/
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
@@ -1152,7 +1152,7 @@ impl TypeChecker {
         node: &Node, /*ObjectLiteralExpression*/
         source: &Type,
         target: &Type,
-        relation: &HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         containing_message_chain: Option<TContainingMessageChain>,
         error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
     ) -> bool {
@@ -1182,7 +1182,7 @@ impl TypeChecker {
         self.check_type_related_to(
             source,
             target,
-            &self.comparable_relation(),
+            self.comparable_relation.clone(),
             Some(error_node),
             head_message,
             containing_message_chain,

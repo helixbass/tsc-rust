@@ -559,12 +559,15 @@ impl TypeChecker {
                                 }
                             }
                         }
-                        if self.is_type_related_to(&source, target, &self.strict_subtype_relation())
-                            && (!get_object_flags(&self.get_target_type(&source))
+                        if self.is_type_related_to(
+                            &source,
+                            target,
+                            self.strict_subtype_relation.clone(),
+                        ) && (!get_object_flags(&self.get_target_type(&source))
+                            .intersects(ObjectFlags::Class)
+                            || !get_object_flags(&self.get_target_type(target))
                                 .intersects(ObjectFlags::Class)
-                                || !get_object_flags(&self.get_target_type(target))
-                                    .intersects(ObjectFlags::Class)
-                                || self.is_type_derived_from(&source, target))
+                            || self.is_type_derived_from(&source, target))
                         {
                             ordered_remove_item_at(&mut types, i);
                             break;

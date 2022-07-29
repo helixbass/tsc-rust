@@ -802,12 +802,12 @@ pub fn create_type_checker(
         _jsx_factory_entity: RefCell::new(None),
         // TODO: how to implement outofbandVarianceMarkerHandler?
 
-        subtype_relation: RefCell::new(HashMap::new()),
-        strict_subtype_relation: RefCell::new(HashMap::new()),
-        assignable_relation: RefCell::new(HashMap::new()),
-        comparable_relation: RefCell::new(HashMap::new()),
-        identity_relation: RefCell::new(HashMap::new()),
-        enum_relation: RefCell::new(HashMap::new()),
+        subtype_relation: Rc::new(RefCell::new(HashMap::new())),
+        strict_subtype_relation: Rc::new(RefCell::new(HashMap::new())),
+        assignable_relation: Rc::new(RefCell::new(HashMap::new())),
+        comparable_relation: Rc::new(RefCell::new(HashMap::new())),
+        identity_relation: Rc::new(RefCell::new(HashMap::new())),
+        enum_relation: Rc::new(RefCell::new(HashMap::new())),
 
         builtin_globals: RefCell::new(None),
 
@@ -2761,6 +2761,14 @@ impl TypeChecker {
         self.marker_super_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn marker_sub_type(&self) -> Rc<Type> {
+        self.marker_sub_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn marker_other_type(&self) -> Rc<Type> {
+        self.marker_other_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn no_type_predicate(&self) -> Rc<TypePredicate> {
         self.no_type_predicate.as_ref().unwrap().clone()
     }
@@ -3006,23 +3014,23 @@ impl TypeChecker {
     }
 
     pub(super) fn subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
-        self.subtype_relation.borrow()
+        (*self.subtype_relation).borrow()
     }
 
     pub(super) fn strict_subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
-        self.strict_subtype_relation.borrow()
+        (*self.strict_subtype_relation).borrow()
     }
 
     pub(super) fn assignable_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
-        self.assignable_relation.borrow()
+        (*self.assignable_relation).borrow()
     }
 
     pub(super) fn comparable_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
-        self.comparable_relation.borrow()
+        (*self.comparable_relation).borrow()
     }
 
     pub(super) fn identity_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
-        self.identity_relation.borrow()
+        (*self.identity_relation).borrow()
     }
 
     pub(super) fn enum_relation(&self) -> RefMut<HashMap<String, RelationComparisonResult>> {

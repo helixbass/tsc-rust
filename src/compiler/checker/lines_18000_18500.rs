@@ -30,7 +30,7 @@ pub(super) struct CheckTypeRelatedTo<
     pub type_checker: &'type_checker TypeChecker,
     pub source: &'type_checker Type,
     pub target: &'type_checker Type,
-    pub relation: &'type_checker HashMap<String, RelationComparisonResult>,
+    pub relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     pub error_node: Option<Rc<Node>>,
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
     pub containing_message_chain: Option<TContainingMessageChain>,
@@ -43,7 +43,7 @@ pub(super) struct CheckTypeRelatedTo<
     pub maybe_count: Cell<usize>,
     pub source_depth: Cell<usize>,
     pub target_depth: Cell<usize>,
-    pub expanding_flags: ExpandingFlags,
+    pub expanding_flags: Cell<ExpandingFlags>,
     pub overflow: Cell<bool>,
     pub override_next_error_info: Cell<usize>,
     pub last_skipped_info: RefCell<Option<(Rc<Type>, Rc<Type>)>>,
@@ -58,7 +58,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         type_checker: &'type_checker TypeChecker,
         source: &'type_checker Type,
         target: &'type_checker Type,
-        relation: &'type_checker HashMap<String, RelationComparisonResult>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<Rc<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<TContainingMessageChain>,
@@ -81,7 +81,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             maybe_count: Cell::new(0),
             source_depth: Cell::new(0),
             target_depth: Cell::new(0),
-            expanding_flags: ExpandingFlags::None,
+            expanding_flags: Cell::new(ExpandingFlags::None),
             overflow: Cell::new(false),
             override_next_error_info: Cell::new(0),
             last_skipped_info: RefCell::new(None),
@@ -98,8 +98,56 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         self.related_info.borrow_mut()
     }
 
+    pub(super) fn maybe_keys(&self) -> RefMut<Option<Vec<String>>> {
+        self.maybe_keys.borrow_mut()
+    }
+
+    pub(super) fn maybe_source_stack(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.source_stack.borrow_mut()
+    }
+
+    pub(super) fn maybe_target_stack(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.target_stack.borrow_mut()
+    }
+
+    pub(super) fn maybe_count(&self) -> usize {
+        self.maybe_count.get()
+    }
+
+    pub(super) fn set_maybe_count(&self, maybe_count: usize) {
+        self.maybe_count.set(maybe_count);
+    }
+
+    pub(super) fn source_depth(&self) -> usize {
+        self.source_depth.get()
+    }
+
+    pub(super) fn set_source_depth(&self, source_depth: usize) {
+        self.source_depth.set(source_depth);
+    }
+
+    pub(super) fn target_depth(&self) -> usize {
+        self.target_depth.get()
+    }
+
+    pub(super) fn set_target_depth(&self, target_depth: usize) {
+        self.target_depth.set(target_depth);
+    }
+
+    pub(super) fn expanding_flags(&self) -> ExpandingFlags {
+        self.expanding_flags.get()
+    }
+
+    pub(super) fn set_expanding_flags(&self, expanding_flags: ExpandingFlags) {
+        self.expanding_flags.set(expanding_flags);
+    }
+
     pub(super) fn overflow(&self) -> bool {
         self.overflow.get()
+    }
+
+    pub(super) fn set_overflow(&self, overflow: bool) {
+        self.overflow.set(overflow);
     }
 
     pub(super) fn override_next_error_info(&self) -> usize {
@@ -130,7 +178,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
 
     pub(super) fn call(&self) -> bool {
         Debug_.assert(
-            !ptr::eq(self.relation, &*self.type_checker.identity_relation())
+            !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation)
                 || self.error_node.is_none(),
             Some("no error reporting in identity checking"),
         );
@@ -203,7 +251,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                                         (*links).borrow().target.as_ref().unwrap(),
                                     ),
                                     self.target,
-                                    self.relation,
+                                    self.relation.clone(),
                                     Option::<&Node>::None,
                                     None,
                                     Option::<CheckTypeContainingMessageChainDummy>::None,
@@ -501,7 +549,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         }
 
         if message.is_none() {
-            if ptr::eq(self.relation, &*self.type_checker.comparable_relation()) {
+            if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation) {
                 message = Some(Cow::Borrowed(
                     &Diagnostics::Type_0_is_not_comparable_to_type_1,
                 ));
@@ -720,7 +768,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             if self.type_checker.is_simple_type_related_to(
                 &original_source,
                 &original_target,
-                self.relation,
+                &(*self.relation).borrow(),
                 if report_errors {
                     Some(&mut report_error)
                 } else {
@@ -753,7 +801,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             return Ternary::True;
         }
 
-        if ptr::eq(self.relation, &*self.type_checker.identity_relation()) {
+        if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
             return self.is_identical_to(&source, &target, recursion_flags);
         }
 
@@ -793,15 +841,18 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             }
         }
 
-        if ptr::eq(self.relation, &*self.type_checker.comparable_relation())
+        if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
             && !target.flags().intersects(TypeFlags::Never)
-            && self
-                .type_checker
-                .is_simple_type_related_to(&target, &source, self.relation, None)
+            && self.type_checker.is_simple_type_related_to(
+                &target,
+                &source,
+                &(*self.relation).borrow(),
+                None,
+            )
             || self.type_checker.is_simple_type_related_to(
                 &source,
                 &target,
-                self.relation,
+                &(*self.relation).borrow(),
                 if report_errors {
                     Some(&mut report_error)
                 } else {
@@ -836,7 +887,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         }
 
         let is_performing_common_property_checks =
-            !ptr::eq(self.relation, &*self.type_checker.comparable_relation())
+            !Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
                 && !intersection_state.intersects(IntersectionState::Target)
                 && source
                     .flags()
@@ -1269,8 +1320,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         }
         let is_comparing_jsx_attributes =
             get_object_flags(source).intersects(ObjectFlags::JsxAttributes);
-        if (ptr::eq(self.relation, &*self.type_checker.assignable_relation())
-            || ptr::eq(self.relation, &*self.type_checker.comparable_relation()))
+        if (Rc::ptr_eq(&self.relation, &self.type_checker.assignable_relation)
+            || Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation))
             && (self
                 .type_checker
                 .is_type_subset_of(&self.type_checker.global_object_type(), target)

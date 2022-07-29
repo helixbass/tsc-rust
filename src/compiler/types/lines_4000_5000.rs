@@ -374,12 +374,12 @@ pub struct TypeChecker {
     pub(crate) _jsx_namespace: RefCell<Option<__String>>,
     pub(crate) _jsx_factory_entity: RefCell<Option<Rc<Node /*EntityName*/>>>,
 
-    pub(crate) subtype_relation: RefCell<HashMap<String, RelationComparisonResult>>,
-    pub(crate) strict_subtype_relation: RefCell<HashMap<String, RelationComparisonResult>>,
-    pub(crate) assignable_relation: RefCell<HashMap<String, RelationComparisonResult>>,
-    pub(crate) comparable_relation: RefCell<HashMap<String, RelationComparisonResult>>,
-    pub(crate) identity_relation: RefCell<HashMap<String, RelationComparisonResult>>,
-    pub(crate) enum_relation: RefCell<HashMap<String, RelationComparisonResult>>,
+    pub(crate) subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) strict_subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) assignable_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) comparable_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) identity_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) enum_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
 
     pub(crate) builtin_globals: RefCell<Option<SymbolTable>>,
 

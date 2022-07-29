@@ -1,5 +1,8 @@
 #![allow(non_upper_case_globals)]
 
+use regex::{Captures, Regex};
+use std::cell::RefMut;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ptr;
 use std::rc::Rc;
@@ -9,9 +12,9 @@ use super::{
     RecursionFlags,
 };
 use crate::{
-    Diagnostics, Node, NodeInterface, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
-    VarianceFlags, __String,
+    Diagnostics, Node, NodeInterface, RelationComparisonResult, Symbol, SymbolInterface, Ternary,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapperCallback,
+    UnionOrIntersectionTypeInterface, VarianceFlags, __String,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -254,7 +257,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         let targets = targets.unwrap_or_else(|| vec![]);
         let variances = variances.unwrap_or_else(|| vec![]);
         if sources.len() != targets.len()
-            && ptr::eq(self.relation, &*self.type_checker.identity_relation())
+            && Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation)
         {
             return Ternary::False;
         }
@@ -276,7 +279,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 let t = &targets[i];
                 let mut related/* = Ternary::True*/;
                 if variance_flags.intersects(VarianceFlags::Unmeasurable) {
-                    related = if ptr::eq(self.relation, &*self.type_checker.identity_relation()) {
+                    related = if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
                         self.is_related_to(
                             s,
                             t,
@@ -362,11 +365,207 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         intersection_state: IntersectionState,
         recursion_flags: RecursionFlags,
     ) -> Ternary {
-        let result = if self.expanding_flags != ExpandingFlags::Both {
+        if self.overflow() {
+            return Ternary::False;
+        }
+        let id = self.type_checker.get_relation_key(
+            source,
+            target,
+            intersection_state
+                | (if self.in_property_check() {
+                    IntersectionState::InPropertyCheck
+                } else {
+                    IntersectionState::None
+                }),
+            &(*self.relation).borrow(),
+        );
+        let entry = (*self.relation).borrow().get(&id).map(Clone::clone);
+        if let Some(entry) = entry.as_ref() {
+            if report_errors
+                && entry.intersects(RelationComparisonResult::Failed)
+                && !entry.intersects(RelationComparisonResult::Reported)
+            {
+            } else {
+                // if (outofbandVarianceMarkerHandler) {
+                if false {
+                    let saved = *entry & RelationComparisonResult::ReportsMask;
+                    if saved.intersects(RelationComparisonResult::ReportsUnmeasurable) {
+                        self.type_checker.instantiate_type(
+                            source,
+                            Some(
+                                &self
+                                    .type_checker
+                                    .make_function_type_mapper(ReportUnmeasurableMarkers),
+                            ),
+                        );
+                    }
+                    if saved.intersects(RelationComparisonResult::ReportsUnreliable) {
+                        self.type_checker.instantiate_type(
+                            source,
+                            Some(
+                                &self
+                                    .type_checker
+                                    .make_function_type_mapper(ReportUnreliableMarkers),
+                            ),
+                        );
+                    }
+                }
+                return if entry.intersects(RelationComparisonResult::Succeeded) {
+                    Ternary::True
+                } else {
+                    Ternary::False
+                };
+            }
+        }
+        if self.maybe_keys().is_none() {
+            *self.maybe_keys() = Some(vec![]);
+            *self.maybe_source_stack() = Some(vec![]);
+            *self.maybe_target_stack() = Some(vec![]);
+        } else {
+            lazy_static! {
+                static ref DASH_DIGITS_REGEX: Regex = Regex::new(r"-\d+").unwrap();
+            }
+            lazy_static! {
+                static ref DASH_OR_EQUALS_REGEX: Regex = Regex::new(r"[-=]").unwrap();
+            }
+            let broadest_equivalent_id = id
+                .split(",")
+                .map(|i| {
+                    DASH_DIGITS_REGEX.replace_all(i, |captures: &Captures| {
+                        let offset = captures.get(0).unwrap().start();
+                        let index = DASH_OR_EQUALS_REGEX.find_iter(&id[0..offset]).count();
+                        format!("={}", index)
+                    })
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            for i in 0..self.maybe_count() {
+                if matches!(
+                    self.maybe_keys().as_ref().unwrap().get(i),
+                    Some(maybe_key) if &id == maybe_key || &broadest_equivalent_id == maybe_key
+                ) {
+                    return Ternary::Maybe;
+                }
+            }
+            if self.source_depth() == 100 || self.target_depth() == 100 {
+                self.set_overflow(true);
+                return Ternary::False;
+            }
+        }
+        let maybe_start = self.maybe_count();
+        self.maybe_keys().as_mut().unwrap().push(id.clone());
+        self.set_maybe_count(self.maybe_count() + 1);
+        let save_expanding_flags = self.expanding_flags();
+        if recursion_flags.intersects(RecursionFlags::Source) {
+            self.maybe_source_stack()
+                .as_mut()
+                .unwrap()
+                .push(source.type_wrapper());
+            self.set_source_depth(self.source_depth() + 1);
+            if !self.expanding_flags().intersects(ExpandingFlags::Source)
+                && self.type_checker.is_deeply_nested_type(
+                    source,
+                    self.maybe_source_stack().as_deref().unwrap(),
+                    self.source_depth(),
+                    None,
+                )
+            {
+                self.set_expanding_flags(self.expanding_flags() | ExpandingFlags::Source);
+            }
+        }
+        if recursion_flags.intersects(RecursionFlags::Target) {
+            self.maybe_target_stack()
+                .as_mut()
+                .unwrap()
+                .push(target.type_wrapper());
+            self.set_target_depth(self.target_depth() + 1);
+            if !self.expanding_flags().intersects(ExpandingFlags::Target)
+                && self.type_checker.is_deeply_nested_type(
+                    target,
+                    self.maybe_target_stack().as_deref().unwrap(),
+                    self.target_depth(),
+                    None,
+                )
+            {
+                self.set_expanding_flags(self.expanding_flags() | ExpandingFlags::Target);
+            }
+        }
+        // let originalHandler: typeof outofbandVarianceMarkerHandler;
+        let mut propagating_variance_flags = RelationComparisonResult::None;
+        // if (outofbandVarianceMarkerHandler) {
+        //     originalHandler = outofbandVarianceMarkerHandler;
+        //     outofbandVarianceMarkerHandler = onlyUnreliable => {
+        //         propagatingVarianceFlags |= onlyUnreliable ? RelationComparisonResult.ReportsUnreliable : RelationComparisonResult.ReportsUnmeasurable;
+        //         return originalHandler!(onlyUnreliable);
+        //     };
+        // }
+
+        if self.expanding_flags() == ExpandingFlags::Both {
+            // tracing?.instant(tracing.Phase.CheckTypes, "recursiveTypeRelatedTo_DepthLimit", {
+            //     sourceId: source.id,
+            //     sourceIdStack: sourceStack.map(t => t.id),
+            //     targetId: target.id,
+            //     targetIdStack: targetStack.map(t => t.id),
+            //     depth: sourceDepth,
+            //     targetDepth
+            // });
+        }
+
+        let result = if self.expanding_flags() != ExpandingFlags::Both {
             self.structured_type_related_to(source, target, report_errors, intersection_state)
         } else {
             Ternary::Maybe
         };
+        // if (outofbandVarianceMarkerHandler) {
+        //     outofbandVarianceMarkerHandler = originalHandler;
+        // }
+        if recursion_flags.intersects(RecursionFlags::Source) {
+            self.set_source_depth(self.source_depth() - 1);
+            self.maybe_source_stack()
+                .as_mut()
+                .unwrap()
+                .truncate(self.source_depth());
+        }
+        if recursion_flags.intersects(RecursionFlags::Target) {
+            self.set_target_depth(self.target_depth() - 1);
+            self.maybe_target_stack()
+                .as_mut()
+                .unwrap()
+                .truncate(self.target_depth());
+        }
+        self.set_expanding_flags(save_expanding_flags);
+        if result != Ternary::False {
+            if result == Ternary::True || self.source_depth() == 0 && self.target_depth() == 0 {
+                if matches!(result, Ternary::True | Ternary::Maybe) {
+                    for i in maybe_start..self.maybe_count() {
+                        self.relation.borrow_mut().insert(
+                            self.maybe_keys().as_ref().unwrap()[i].clone(),
+                            RelationComparisonResult::Succeeded | propagating_variance_flags,
+                        );
+                    }
+                }
+                self.set_maybe_count(maybe_start);
+                self.maybe_keys()
+                    .as_mut()
+                    .unwrap()
+                    .truncate(self.maybe_count());
+            }
+        } else {
+            self.relation.borrow_mut().insert(
+                id,
+                (if report_errors {
+                    RelationComparisonResult::Reported
+                } else {
+                    RelationComparisonResult::None
+                }) | RelationComparisonResult::Failed
+                    | propagating_variance_flags,
+            );
+            self.set_maybe_count(maybe_start);
+            self.maybe_keys()
+                .as_mut()
+                .unwrap()
+                .truncate(self.maybe_count());
+        }
         result
     }
 
@@ -567,5 +766,37 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             }
         }
         result
+    }
+}
+
+struct ReportUnmeasurableMarkers;
+impl TypeMapperCallback for ReportUnmeasurableMarkers {
+    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
+        if
+        /*(outofbandVarianceMarkerHandler*/
+        false
+            && (ptr::eq(p, &*checker.marker_super_type())
+                || ptr::eq(p, &*checker.marker_sub_type())
+                || ptr::eq(p, &*checker.marker_other_type()))
+        {
+            // outofbandVarianceMarkerHandler(/*onlyUnreliable*/ false);
+        }
+        p.type_wrapper()
+    }
+}
+
+struct ReportUnreliableMarkers;
+impl TypeMapperCallback for ReportUnreliableMarkers {
+    fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
+        if
+        /*(outofbandVarianceMarkerHandler*/
+        false
+            && (ptr::eq(p, &*checker.marker_super_type())
+                || ptr::eq(p, &*checker.marker_sub_type())
+                || ptr::eq(p, &*checker.marker_other_type()))
+        {
+            // outofbandVarianceMarkerHandler(/*onlyUnreliable*/ true);
+        }
+        p.type_wrapper()
     }
 }

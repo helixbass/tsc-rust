@@ -137,6 +137,7 @@ bitflags! {
 
 bitflags! {
     pub struct RelationComparisonResult: u32 {
+        const None = 0;
         const Succeeded = 1 << 0;
         const Failed = 1 << 1;
         const Reported = 1 << 2;
