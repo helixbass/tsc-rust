@@ -1202,6 +1202,17 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_alias_type_arguments()
                     }
 
+                    fn maybe_alias_type_arguments_contains_marker(&self) -> ::std::option::Option<bool> {
+                        self.#first_field_name.maybe_alias_type_arguments_contains_marker()
+                    }
+
+                    fn set_alias_type_arguments_contains_marker(
+                        &self,
+                        alias_type_arguments_contains_marker: ::std::option::Option<bool>,
+                    ) {
+                        self.#first_field_name.set_alias_type_arguments_contains_marker(alias_type_arguments_contains_marker);
+                    }
+
                     fn maybe_immediate_base_constraint(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
                         self.#first_field_name.maybe_immediate_base_constraint()
                     }
@@ -1597,6 +1608,21 @@ fn get_type_enum_interface_impl(
                     fn maybe_alias_type_arguments(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Type>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_alias_type_arguments()),*
+                        }
+                    }
+
+                    fn maybe_alias_type_arguments_contains_marker(&self) -> ::std::option::Option<bool> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_alias_type_arguments_contains_marker()),*
+                        }
+                    }
+
+                    fn set_alias_type_arguments_contains_marker(
+                        &self,
+                        alias_type_arguments_contains_marker: ::std::option::Option<bool>,
+                    ) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_alias_type_arguments_contains_marker(alias_type_arguments_contains_marker)),*
                         }
                     }
 

@@ -10,7 +10,7 @@ use crate::{
     DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
     InferencePriority, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
     RelationComparisonResult, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypePredicate, UnionReduction,
+    TypeFlags, TypeInterface, TypePredicate, UnionReduction, VarianceFlags,
 };
 
 impl TypeChecker {
@@ -86,6 +86,10 @@ impl TypeChecker {
         target: &Type,
         is_comparing_jsx_attributes: bool,
     ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_alias_variances(&self, symbol: &Symbol) -> Vec<VarianceFlags> {
         unimplemented!()
     }
 
@@ -401,6 +405,10 @@ impl TypeChecker {
     }
 
     pub(super) fn is_generic_tuple_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_single_element_generic_tuple_type(&self, type_: &Type) -> bool {
         unimplemented!()
     }
 

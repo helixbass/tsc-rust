@@ -540,6 +540,11 @@ pub trait TypeInterface {
     fn maybe_pattern(&self) -> RefMut<Option<Rc<Node /*DestructuringPattern*/>>>;
     fn maybe_alias_symbol(&self) -> RefMut<Option<Rc<Symbol>>>;
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+    fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool>;
+    fn set_alias_type_arguments_contains_marker(
+        &self,
+        alias_type_arguments_contains_marker: Option<bool>,
+    );
     fn maybe_permissive_instantiation(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
@@ -558,6 +563,7 @@ pub struct BaseType {
     pattern: RefCell<Option<Rc<Node>>>,
     alias_symbol: RefCell<Option<Rc<Symbol>>>,
     alias_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
+    alias_type_arguments_contains_marker: Cell<Option<bool>>,
     permissive_instantiation: RefCell<Option<Rc<Type>>>,
     restrictive_instantiation: RefCell<Option<Rc<Type>>>,
     immediate_base_constraint: RefCell<Option<Rc<Type>>>,
@@ -577,6 +583,7 @@ impl BaseType {
             pattern: RefCell::new(None),
             alias_symbol: RefCell::new(None),
             alias_type_arguments: RefCell::new(None),
+            alias_type_arguments_contains_marker: Cell::new(None),
             permissive_instantiation: RefCell::new(None),
             restrictive_instantiation: RefCell::new(None),
             immediate_base_constraint: RefCell::new(None),
@@ -635,6 +642,18 @@ impl TypeInterface for BaseType {
 
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.alias_type_arguments.borrow_mut()
+    }
+
+    fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool> {
+        self.alias_type_arguments_contains_marker.get()
+    }
+
+    fn set_alias_type_arguments_contains_marker(
+        &self,
+        alias_type_arguments_contains_marker: Option<bool>,
+    ) {
+        self.alias_type_arguments_contains_marker
+            .set(alias_type_arguments_contains_marker);
     }
 
     fn maybe_permissive_instantiation(&self) -> RefMut<Option<Rc<Type>>> {
