@@ -9,13 +9,13 @@ use std::rc::Rc;
 use super::{
     anon, CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState,
     IntersectionState, RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
-    SignatureCheckMode,
+    SignatureCheckMode, TypeFacts,
 };
 use crate::{
     are_option_rcs_equal, cartesian_product, create_diagnostic_for_node, factory,
     get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
     is_named_declaration, is_private_identifier, length, push_if_unique_rc, reduce_left, some,
-    CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags,
+    CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo,
     ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
     TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags,
@@ -1490,6 +1490,95 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             result &= related;
         }
         result
+    }
+
+    pub(super) fn members_related_to_index_info(
+        &self,
+        source: &Type,
+        target_info: &IndexInfo,
+        report_errors: bool,
+    ) -> Ternary {
+        let mut result = Ternary::True;
+        let key_type = &target_info.key_type;
+        let props = if source.flags().intersects(TypeFlags::Intersection) {
+            self.type_checker
+                .get_properties_of_union_or_intersection_type(source)
+        } else {
+            self.type_checker.get_properties_of_object_type(source)
+        };
+        for prop in &props {
+            if self.type_checker.is_ignored_jsx_property(source, prop) {
+                continue;
+            }
+            if self.type_checker.is_applicable_index_type(
+                &self.type_checker.get_literal_type_from_property(
+                    prop,
+                    TypeFlags::StringOrNumberLiteralOrUnique,
+                    None,
+                ),
+                key_type,
+            ) {
+                let prop_type = self.type_checker.get_non_missing_type_of_symbol(prop);
+                let type_ = if matches!(self.type_checker.exact_optional_property_types, Some(true))
+                    || prop_type.flags().intersects(TypeFlags::Undefined)
+                    || Rc::ptr_eq(key_type, &self.type_checker.number_type())
+                    || !prop.flags().intersects(SymbolFlags::Optional)
+                {
+                    prop_type
+                } else {
+                    self.type_checker
+                        .get_type_with_facts(&prop_type, TypeFacts::NEUndefined)
+                };
+                let related = self.is_related_to(
+                    &type_,
+                    &target_info.type_,
+                    Some(RecursionFlags::Both),
+                    Some(report_errors),
+                    None,
+                    None,
+                );
+                if related == Ternary::False {
+                    if report_errors {
+                        self.report_error(
+                            Cow::Borrowed(
+                                &Diagnostics::Property_0_is_incompatible_with_index_signature,
+                            ),
+                            Some(vec![self.type_checker.symbol_to_string_(
+                                prop,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            )]),
+                        );
+                    }
+                    return Ternary::False;
+                }
+                result &= related;
+            }
+        }
+        for info in &self.type_checker.get_index_infos_of_type(source) {
+            if self
+                .type_checker
+                .is_applicable_index_type(&info.key_type, key_type)
+            {
+                let related = self.index_info_related_to(info, target_info, report_errors);
+                if related == Ternary::False {
+                    return Ternary::False;
+                }
+                result &= related;
+            }
+        }
+        result
+    }
+
+    pub(super) fn index_info_related_to(
+        &self,
+        source_info: &IndexInfo,
+        target_info: &IndexInfo,
+        report_errors: bool,
+    ) -> Ternary {
+        unimplemented!()
     }
 
     pub(super) fn index_signatures_related_to(
