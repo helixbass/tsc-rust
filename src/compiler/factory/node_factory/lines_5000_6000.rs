@@ -290,4 +290,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
         inner_expression.node_wrapper()
     }
+
+    pub fn get_declaration_name<TNode: Borrow<Node>>(
+        &self,
+        node: Option<TNode /*Declaration*/>,
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
+    ) -> Rc<Node /*Identifier*/> {
+        unimplemented!()
+    }
 }

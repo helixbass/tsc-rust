@@ -5,11 +5,11 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use super::{
-    CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState, IntersectionState,
+anon,    CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState, IntersectionState,
     RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
 };
 use crate::{
-    are_option_rcs_equal, cartesian_product, get_declaration_modifier_flags_from_symbol,
+create_diagnostic_for_node, length, factory, get_symbol_name_for_private_identifier,is_named_declaration, is_private_identifier,    are_option_rcs_equal, cartesian_product, get_declaration_modifier_flags_from_symbol,
     push_if_unique_rc, reduce_left, some, CheckFlags, DiagnosticMessageChain, Diagnostics,
     ModifierFlags, Node, SignatureKind, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
     TypeFlags, TypeInterface, VarianceFlags, __String, get_check_flags,
@@ -542,6 +542,146 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             return Ternary::False;
         }
         related
+    }
+
+    pub(super) fn report_unmatched_property(
+        &self,
+        source: &Type,
+        target: &Type,
+        unmatched_property: &Symbol,
+        require_optional_properties: bool,
+    ) {
+        let mut should_skip_elaboration = false;
+        if let Some(unmatched_property_value_declaration) = unmatched_property.maybe_value_declaration().as_ref().filter(|unmatched_property_value_declaration|
+            is_named_declaration(unmatched_property_value_declaration) && is_private_identifier(&unmatched_property_value_declaration.as_named_declaration().name())
+        ) {
+            if let Some(source_symbol) = source.maybe_symbol().as_ref().filter(|source_symbol| source_symbol.flags().intersects(SymbolFlags::Class)) {
+                let private_identifier_description = unmatched_property_value_declaration.as_named_declaration().name().as_private_identifier().escaped_text.clone();
+                let symbol_table_key = get_symbol_name_for_private_identifier(source_symbol, &private_identifier_description);
+                if /*symbolTableKey &&*/ self.type_checker.get_property_of_type_(source, &symbol_table_key, None).is_some() {
+                    let source_name =
+                        factory.with(|factory_| {
+                            factory_.get_declaration_name(source_symbol.maybe_value_declaration(), None, None)
+                        });
+                    let target_name =
+                        factory.with(|factory_| {
+                            factory_.get_declaration_name(target.symbol().maybe_value_declaration(), None, None)
+                        });
+                    self.report_error(
+                        Cow::Borrowed(&Diagnostics::Property_0_in_type_1_refers_to_a_different_member_that_cannot_be_accessed_from_within_type_2),
+                        Some(vec![
+                            self.type_checker.diagnostic_name(private_identifier_description.clone().into()).into_owned(),
+                            self.type_checker.diagnostic_name(if source_name.as_identifier().escaped_text.eq_str("") {
+                                anon.clone().into()
+                            } else {
+                                source_name.into()
+                            }).into_owned(),
+                            self.type_checker.diagnostic_name(if target_name.as_identifier().escaped_text.eq_str("") {
+                                anon.clone().into()
+                            } else {
+                                target_name.into()
+                            }).into_owned(),
+                        ])
+                    );
+                    return;
+                }
+            }
+        }
+        let props = self.type_checker.get_unmatched_properties(
+            source,
+            target,
+            require_optional_properties,
+            false,
+        );
+        if match self.head_message.as_ref() {
+            None => true,
+            Some(head_message) => head_message.code != Diagnostics::Class_0_incorrectly_implements_interface_1.code &&
+                head_message.code != Diagnostics::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass.code 
+        } {
+            should_skip_elaboration = true;
+        }
+        if props.len() == 1 {
+            let prop_name = self.type_checker.symbol_to_string_(
+                unmatched_property,
+                Option::<&Node>::None,
+                None, None, None
+            );
+            let (source_string, target_string) = self.type_checker.get_type_names_for_error_display(source, target);
+            self.report_error(
+                Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2),
+                Some(vec![
+                    prop_name.clone(),
+                    source_string,
+                    target_string,
+                ])
+            );
+            if length(unmatched_property.maybe_declarations().as_deref()) > 0 {
+                self.associate_related_info(
+                    create_diagnostic_for_node(
+                       &unmatched_property.maybe_declarations().as_ref().unwrap()[0],
+                       &Diagnostics::_0_is_declared_here,
+                       Some(vec![
+                           prop_name,
+                       ])
+                    ).into()
+                );
+            }
+            if should_skip_elaboration && self.maybe_error_info().is_some() {
+                self.set_override_next_error_info(self.override_next_error_info() + 1);
+            }
+        } else if self.try_elaborate_array_like_errors(source, target, false) {
+            if props.len() > 5 {
+                self.report_error(
+                    Cow::Borrowed(&Diagnostics::Type_0_is_missing_the_following_properties_from_type_1_Colon_2_and_3_more),
+                    Some(vec![
+                        self.type_checker.type_to_string_(
+                            source,
+                            Option::<&Node>::None,
+                            None, None,
+                        ),
+                        self.type_checker.type_to_string_(
+                            target,
+                            Option::<&Node>::None,
+                            None, None,
+                        ),
+                        (&props[0..3]).into_iter().map(|p: &Rc<Symbol>|
+                            self.type_checker.symbol_to_string_(
+                                p,
+                                Option::<&Node>::None,
+                                None, None, None,
+                            )
+                        ).collect::<Vec<_>>().join(", "),
+                        (props.len() - 4).to_string(),
+                    ])
+                )
+            } else {
+                self.report_error(
+                    Cow::Borrowed(&Diagnostics::Type_0_is_missing_the_following_properties_from_type_1_Colon_2),
+                    Some(vec![
+                        self.type_checker.type_to_string_(
+                            source,
+                            Option::<&Node>::None,
+                            None, None,
+                        ),
+                        self.type_checker.type_to_string_(
+                            target,
+                            Option::<&Node>::None,
+                            None, None,
+                        ),
+                        props.iter().map(|p: &Rc<Symbol>|
+                            self.type_checker.symbol_to_string_(
+                                p,
+                                Option::<&Node>::None,
+                                None, None, None,
+                            )
+                        ).collect::<Vec<_>>().join(", "),
+                    ])
+                )
+            }
+            if should_skip_elaboration && self.maybe_error_info().is_some() {
+                self.set_override_next_error_info(self.override_next_error_info() + 1);
+            }
+        }
     }
 
     pub(super) fn properties_related_to(
