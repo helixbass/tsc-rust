@@ -1,25 +1,7 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::{Borrow, Cow};
-use std::cmp;
-use std::collections::HashSet;
-use std::ptr;
-use std::rc::Rc;
-
-use super::{
-    anon, CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState,
-    IntersectionState, RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
-    SignatureCheckMode, TypeFacts,
-};
-use crate::{
-    are_option_rcs_equal, cartesian_product, create_diagnostic_for_node, factory,
-    get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
-    is_named_declaration, is_private_identifier, length, push_if_unique_rc, reduce_left, some,
-    CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo,
-    ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
-    TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags,
-};
+use super::{CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState};
+use crate::{IndexInfo, Signature, Ternary, Type};
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
     CheckTypeRelatedTo<'type_checker, TContainingMessageChain>
