@@ -3,6 +3,7 @@
 use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::collections::HashSet;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -14,8 +15,9 @@ use crate::{
     get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
     is_named_declaration, is_private_identifier, length, push_if_unique_rc, reduce_left, some,
     CheckFlags, DiagnosticMessageChain, Diagnostics, ElementFlags, ModifierFlags, Node,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeFlags, TypeInterface,
-    VarianceFlags, __String, get_check_flags,
+    NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags, TypeInterface,
+    VarianceFlags, __String, get_check_flags, get_object_flags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -1138,6 +1140,298 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         kind: SignatureKind,
         report_errors: bool,
     ) -> Ternary {
+        if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
+            return self.signatures_identical_to(source, target, kind);
+        }
+        if ptr::eq(target, &*self.type_checker.any_function_type())
+            || ptr::eq(source, &*self.type_checker.any_function_type())
+        {
+            return Ternary::True;
+        }
+
+        let source_is_js_constructor = matches!(
+            source.maybe_symbol().as_ref(),
+            Some(source_symbol) if self.type_checker.is_js_constructor(source_symbol.maybe_value_declaration())
+        );
+        let target_is_js_constructor = matches!(
+            target.maybe_symbol().as_ref(),
+            Some(target_symbol) if self.type_checker.is_js_constructor(target_symbol.maybe_value_declaration())
+        );
+
+        let source_signatures = self.type_checker.get_signatures_of_type(
+            source,
+            if source_is_js_constructor && kind == SignatureKind::Construct {
+                SignatureKind::Call
+            } else {
+                kind
+            },
+        );
+        let target_signatures = self.type_checker.get_signatures_of_type(
+            target,
+            if target_is_js_constructor && kind == SignatureKind::Construct {
+                SignatureKind::Call
+            } else {
+                kind
+            },
+        );
+
+        if kind == SignatureKind::Construct
+            && !source_signatures.is_empty()
+            && !target_signatures.is_empty()
+        {
+            let source_is_abstract = source_signatures[0]
+                .flags
+                .intersects(SignatureFlags::Abstract);
+            let target_is_abstract = target_signatures[0]
+                .flags
+                .intersects(SignatureFlags::Abstract);
+            if source_is_abstract && !target_is_abstract {
+                if report_errors {
+                    self.report_error(
+                        Cow::Borrowed(&Diagnostics::Cannot_assign_an_abstract_constructor_type_to_a_non_abstract_constructor_type),
+                        None,
+                    );
+                }
+                return Ternary::False;
+            }
+            if !self.constructor_visibilities_are_compatible(
+                &source_signatures[0],
+                &target_signatures[0],
+                report_errors,
+            ) {
+                return Ternary::False;
+            }
+        }
+
+        let mut result = Ternary::True;
+        let save_error_info = self.capture_error_calculation_state();
+        let incompatible_reporter: fn(&Self, &Signature, &Signature) -> fn(&Self, &Type, &Type) =
+            if kind == SignatureKind::Construct {
+                Self::report_incompatible_call_signature_return
+            } else {
+                Self::report_incompatible_construct_signature_return
+            };
+        let source_object_flags = get_object_flags(source);
+        let target_object_flags = get_object_flags(target);
+        if source_object_flags.intersects(ObjectFlags::Instantiated)
+            && target_object_flags.intersects(ObjectFlags::Instantiated)
+            && are_option_rcs_equal(
+                source.maybe_symbol().as_ref(),
+                target.maybe_symbol().as_ref(),
+            )
+        {
+            for i in 0..target_signatures.len() {
+                let related = self.signature_related_to(
+                    &source_signatures[i],
+                    &target_signatures[i],
+                    true,
+                    report_errors,
+                    incompatible_reporter(self, &source_signatures[i], &target_signatures[i]),
+                );
+                if related == Ternary::False {
+                    return Ternary::False;
+                }
+                result &= related;
+            }
+        } else if source_signatures.len() == 1 && target_signatures.len() == 1 {
+            let erase_generics = Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
+                || matches!(
+                    self.type_checker.compiler_options.no_strict_generic_checks,
+                    Some(true)
+                );
+            let source_signature = &source_signatures[0];
+            let target_signature = &target_signatures[0];
+            result = self.signature_related_to(
+                source_signature,
+                target_signature,
+                erase_generics,
+                report_errors,
+                incompatible_reporter(self, source_signature, target_signature),
+            );
+            if result == Ternary::False
+                && report_errors
+                && kind == SignatureKind::Construct
+                && source_object_flags & target_object_flags != ObjectFlags::None
+                && (matches!(
+                    target_signature.declaration.as_ref(),
+                    Some(target_signature_declaration) if target_signature_declaration.kind() == SyntaxKind::Constructor
+                ) || matches!(
+                    source_signature.declaration.as_ref(),
+                    Some(source_signature_declaration) if source_signature_declaration.kind() == SyntaxKind::Constructor
+                ))
+            {
+                let construct_signature_to_string = |signature: &Signature| -> String {
+                    self.type_checker.signature_to_string_(
+                        signature,
+                        Option::<&Node>::None,
+                        Some(TypeFormatFlags::WriteArrowStyleSignature),
+                        Some(kind),
+                        None,
+                    )
+                };
+                self.report_error(
+                    Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1),
+                    Some(vec![
+                        construct_signature_to_string(source_signature),
+                        construct_signature_to_string(target_signature),
+                    ]),
+                );
+                self.report_error(
+                    Cow::Borrowed(&Diagnostics::Types_of_construct_signatures_are_incompatible),
+                    None,
+                );
+                return result;
+            }
+        } else {
+            'outer: for t in &target_signatures {
+                let mut should_elaborate_errors = report_errors;
+                for s in &source_signatures {
+                    let related = self.signature_related_to(
+                        s,
+                        t,
+                        true,
+                        should_elaborate_errors,
+                        incompatible_reporter(self, s, t),
+                    );
+                    if related != Ternary::False {
+                        result &= related;
+                        self.reset_error_info(save_error_info.clone());
+                        continue 'outer;
+                    }
+                    should_elaborate_errors = false;
+                }
+
+                if should_elaborate_errors {
+                    self.report_error(
+                        Cow::Borrowed(&Diagnostics::Type_0_provides_no_match_for_the_signature_1),
+                        Some(vec![
+                            self.type_checker.type_to_string_(
+                                source,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            ),
+                            self.type_checker.signature_to_string_(
+                                t,
+                                Option::<&Node>::None,
+                                None,
+                                Some(kind),
+                                None,
+                            ),
+                        ]),
+                    );
+                }
+                return Ternary::False;
+            }
+        }
+        result
+    }
+
+    pub(super) fn report_incompatible_call_signature_return(
+        &self,
+        siga: &Signature,
+        sigb: &Signature,
+    ) -> fn(&Self, &Type, &Type) {
+        if siga.parameters().is_empty() && sigb.parameters().is_empty() {
+            Self::report_incompatible_call_signature_return_no_arguments
+        } else {
+            Self::report_incompatible_call_signature_return_some_arguments
+        }
+    }
+
+    pub(super) fn report_incompatible_call_signature_return_no_arguments(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) {
+        self.report_incompatible_error(
+            &Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
+            Some(vec![
+                self.type_checker
+                    .type_to_string_(source, Option::<&Node>::None, None, None),
+                self.type_checker
+                    .type_to_string_(target, Option::<&Node>::None, None, None),
+            ]),
+        )
+    }
+
+    pub(super) fn report_incompatible_call_signature_return_some_arguments(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) {
+        self.report_incompatible_error(
+            &Diagnostics::Call_signature_return_types_0_and_1_are_incompatible,
+            Some(vec![
+                self.type_checker
+                    .type_to_string_(source, Option::<&Node>::None, None, None),
+                self.type_checker
+                    .type_to_string_(target, Option::<&Node>::None, None, None),
+            ]),
+        )
+    }
+
+    pub(super) fn report_incompatible_construct_signature_return(
+        &self,
+        siga: &Signature,
+        sigb: &Signature,
+    ) -> fn(&Self, &Type, &Type) {
+        if siga.parameters().is_empty() && sigb.parameters().is_empty() {
+            Self::report_incompatible_construct_signature_return_no_arguments
+        } else {
+            Self::report_incompatible_construct_signature_return_some_arguments
+        }
+    }
+
+    pub(super) fn report_incompatible_construct_signature_return_no_arguments(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) {
+        self.report_incompatible_error(
+            &Diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1,
+            Some(vec![
+                self.type_checker
+                    .type_to_string_(source, Option::<&Node>::None, None, None),
+                self.type_checker
+                    .type_to_string_(target, Option::<&Node>::None, None, None),
+            ]),
+        )
+    }
+
+    pub(super) fn report_incompatible_construct_signature_return_some_arguments(
+        &self,
+        source: &Type,
+        target: &Type,
+    ) {
+        self.report_incompatible_error(
+            &Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible,
+            Some(vec![
+                self.type_checker
+                    .type_to_string_(source, Option::<&Node>::None, None, None),
+                self.type_checker
+                    .type_to_string_(target, Option::<&Node>::None, None, None),
+            ]),
+        )
+    }
+
+    pub(super) fn signature_related_to(
+        &self,
+        source: &Signature,
+        target: &Signature,
+        erase: bool,
+        report_errors: bool,
+        incompatible_reporter: fn(&Self, &Type, &Type),
+    ) -> Ternary {
+        unimplemented!()
+    }
+
+    pub(super) fn signatures_identical_to(
+        &self,
+        source: &Type,
+        target: &Type,
+        kind: SignatureKind,
+    ) -> Ternary {
         unimplemented!()
     }
 
@@ -1149,6 +1443,15 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
+        unimplemented!()
+    }
+
+    pub(super) fn constructor_visibilities_are_compatible(
+        &self,
+        source_signature: &Signature,
+        target_signature: &Signature,
+        report_errors: bool,
+    ) -> bool {
         unimplemented!()
     }
 }
