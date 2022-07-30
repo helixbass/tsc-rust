@@ -9,15 +9,16 @@ use std::rc::Rc;
 use super::{
     anon, CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState,
     IntersectionState, RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
+    SignatureCheckMode,
 };
 use crate::{
     are_option_rcs_equal, cartesian_product, create_diagnostic_for_node, factory,
     get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
     is_named_declaration, is_private_identifier, length, push_if_unique_rc, reduce_left, some,
-    CheckFlags, DiagnosticMessageChain, Diagnostics, ElementFlags, ModifierFlags, Node,
-    NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags, TypeInterface,
-    VarianceFlags, __String, get_check_flags, get_object_flags,
+    CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags,
+    ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
+    TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -1222,8 +1223,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         {
             for i in 0..target_signatures.len() {
                 let related = self.signature_related_to(
-                    &source_signatures[i],
-                    &target_signatures[i],
+                    source_signatures[i].clone(),
+                    target_signatures[i].clone(),
                     true,
                     report_errors,
                     incompatible_reporter(self, &source_signatures[i], &target_signatures[i]),
@@ -1242,8 +1243,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             let source_signature = &source_signatures[0];
             let target_signature = &target_signatures[0];
             result = self.signature_related_to(
-                source_signature,
-                target_signature,
+                source_signature.clone(),
+                target_signature.clone(),
                 erase_generics,
                 report_errors,
                 incompatible_reporter(self, source_signature, target_signature),
@@ -1287,8 +1288,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 let mut should_elaborate_errors = report_errors;
                 for s in &source_signatures {
                     let related = self.signature_related_to(
-                        s,
-                        t,
+                        s.clone(),
+                        t.clone(),
                         true,
                         should_elaborate_errors,
                         incompatible_reporter(self, s, t),
@@ -1417,13 +1418,47 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
 
     pub(super) fn signature_related_to(
         &self,
-        source: &Signature,
-        target: &Signature,
+        source: Rc<Signature>,
+        target: Rc<Signature>,
         erase: bool,
         report_errors: bool,
         incompatible_reporter: fn(&Self, &Type, &Type),
     ) -> Ternary {
-        unimplemented!()
+        self.type_checker.compare_signatures_related(
+            if erase {
+                self.type_checker.get_erased_signature(source)
+            } else {
+                source
+            },
+            if erase {
+                self.type_checker.get_erased_signature(target)
+            } else {
+                target
+            },
+            if Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation) {
+                SignatureCheckMode::StrictArity
+            } else {
+                SignatureCheckMode::None
+            },
+            report_errors,
+            &mut Some(&mut |message: Cow<'static, DiagnosticMessage>,
+                            args: Option<Vec<String>>| {
+                self.report_error(message, args)
+            }),
+            Some(&|source: &Type, target: &Type| incompatible_reporter(self, source, target)),
+            &mut |source: &Type, target: &Type, report_errors: Option<bool>| {
+                self.is_related_to_worker(
+                    source,
+                    target,
+                    report_errors.unwrap_or(false), // again here this default false isn't in the Typescript version but appears to be a type-checking error there
+                )
+            },
+            Some(
+                &self
+                    .type_checker
+                    .make_function_type_mapper(ReportUnreliableMarkers),
+            ),
+        )
     }
 
     pub(super) fn signatures_identical_to(
