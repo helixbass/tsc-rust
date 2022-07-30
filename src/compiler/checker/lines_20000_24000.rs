@@ -97,6 +97,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn has_covariant_void_argument(
+        &self,
+        type_arguments: &[Rc<Type>],
+        variances: &[VarianceFlags],
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_relation_key(
         &self,
         source: &Type,

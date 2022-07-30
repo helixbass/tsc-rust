@@ -784,7 +784,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             return Ternary::False;
         }
 
-        let mut result: Ternary;
+        // The Typescript version doesn't initialize result but otherwise we'd run into type-checking issues
+        let mut result = Ternary::False;
         let mut original_error_info: Option<Rc<DiagnosticMessageChain>> = None;
         let mut variance_check_failed = false;
         let save_error_info = self.capture_error_calculation_state();
@@ -817,6 +818,11 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                                 return Ternary::Unknown;
                             }
                             let variance_result = self.relate_variances(
+                                &mut result,
+                                report_errors,
+                                &mut original_error_info,
+                                &save_error_info,
+                                &mut variance_check_failed,
                                 Some(source_alias_type_arguments),
                                 target.maybe_alias_type_arguments().as_deref(),
                                 &variances,
@@ -1665,6 +1671,11 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                     return Ternary::Unknown;
                 }
                 let variance_result = self.relate_variances(
+                    &mut result,
+                    report_errors,
+                    &mut original_error_info,
+                    &save_error_info,
+                    &mut variance_check_failed,
                     Some(&self.type_checker.get_type_arguments(&source)),
                     Some(&self.type_checker.get_type_arguments(target)),
                     &variances,
@@ -1780,7 +1791,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
     }
 }
 
-struct ReportUnmeasurableMarkers;
+pub(super) struct ReportUnmeasurableMarkers;
 impl TypeMapperCallback for ReportUnmeasurableMarkers {
     fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
         if
@@ -1796,7 +1807,7 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
     }
 }
 
-struct ReportUnreliableMarkers;
+pub(super) struct ReportUnreliableMarkers;
 impl TypeMapperCallback for ReportUnreliableMarkers {
     fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
         if

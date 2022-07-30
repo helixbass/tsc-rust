@@ -7,7 +7,7 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
-use std::ops::BitAndAssign;
+use std::ops::{BitAnd, BitAndAssign};
 use std::rc::{Rc, Weak};
 use std::sync::{Arc, Mutex};
 
@@ -762,9 +762,17 @@ impl TryFrom<i32> for Ternary {
     }
 }
 
+impl BitAnd for Ternary {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        (self as i32 & rhs as i32).try_into().unwrap()
+    }
+}
+
 impl BitAndAssign for Ternary {
     fn bitand_assign(&mut self, rhs: Self) {
-        *self = (*self as i32 & rhs as i32).try_into().unwrap();
+        *self = *self & rhs;
     }
 }
 

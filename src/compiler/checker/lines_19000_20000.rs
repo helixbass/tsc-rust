@@ -1,34 +1,90 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::rc::Rc;
 
 use super::{
-    CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
+    CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState, IntersectionState,
+    RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
 };
 use crate::{
-    DiagnosticMessageChain, Diagnostics, Node, SignatureKind, Symbol, SymbolInterface, Ternary,
-    Type, TypeChecker, VarianceFlags, __String,
+    are_option_rcs_equal, reduce_left, some, DiagnosticMessageChain, Diagnostics, Node,
+    SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker, VarianceFlags, __String,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
     CheckTypeRelatedTo<'type_checker, TContainingMessageChain>
 {
-    pub(super) fn count_message_chain_breadth(
+    pub(super) fn count_message_chain_breadth<TItem: Borrow<DiagnosticMessageChain>>(
         &self,
-        info: Option<&[&DiagnosticMessageChain]>,
+        info: Option<&[TItem]>,
     ) -> usize {
-        unimplemented!()
+        if info.is_none() {
+            return 0;
+        }
+        reduce_left(
+            info.unwrap(),
+            |value, chain: &TItem, _| {
+                value + 1 + self.count_message_chain_breadth(chain.borrow().next.as_deref())
+            },
+            0,
+            None,
+            None,
+        )
     }
 
     pub(super) fn relate_variances(
         &self,
+        result: &mut Ternary,
+        report_errors: bool,
+        original_error_info: &mut Option<Rc<DiagnosticMessageChain>>,
+        save_error_info: &ErrorCalculationState,
+        variance_check_failed: &mut bool,
         source_type_arguments: Option<&[Rc<Type>]>,
         target_type_arguments: Option<&[Rc<Type>]>,
         variances: &[VarianceFlags],
         intersection_state: IntersectionState,
     ) -> Option<Ternary> {
-        unimplemented!()
+        *result = self.type_arguments_related_to(
+            source_type_arguments.map(ToOwned::to_owned),
+            target_type_arguments.map(ToOwned::to_owned),
+            Some(variances.to_owned()),
+            report_errors,
+            intersection_state,
+        );
+        if *result != Ternary::False {
+            return Some(*result);
+        }
+        if some(
+            Some(&variances),
+            Some(|v: &VarianceFlags| v.intersects(VarianceFlags::AllowsStructuralFallback)),
+        ) {
+            *original_error_info = None;
+            self.reset_error_info(save_error_info.clone());
+            return None;
+        }
+        let allow_structural_fallback = matches!(
+            target_type_arguments,
+            Some(target_type_arguments) if self.type_checker.has_covariant_void_argument(target_type_arguments, variances)
+        );
+        *variance_check_failed = !allow_structural_fallback;
+        if !variances.is_empty() && !allow_structural_fallback {
+            if *variance_check_failed
+                && !(report_errors
+                    && some(
+                        Some(variances),
+                        Some(|v: &VarianceFlags| {
+                            *v & VarianceFlags::VarianceMask == VarianceFlags::Invariant
+                        }),
+                    ))
+            {
+                return Some(Ternary::False);
+            }
+            *original_error_info = self.maybe_error_info().clone();
+            self.reset_error_info(save_error_info.clone());
+        }
+        None
     }
 
     pub(super) fn mapped_type_related_to(
@@ -37,7 +93,85 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         target: &Type, /*MappedType*/
         report_errors: bool,
     ) -> Ternary {
-        unimplemented!()
+        let modifiers_related = Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
+            || if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
+                self.type_checker.get_mapped_type_modifiers(source)
+                    == self.type_checker.get_mapped_type_modifiers(target)
+            } else {
+                self.type_checker
+                    .get_combined_mapped_type_optionality(source)
+                    <= self
+                        .type_checker
+                        .get_combined_mapped_type_optionality(target)
+            };
+        if modifiers_related {
+            let result: Ternary;
+            let target_constraint = self
+                .type_checker
+                .get_constraint_type_from_mapped_type(target);
+            let source_constraint = self.type_checker.instantiate_type(
+                &self
+                    .type_checker
+                    .get_constraint_type_from_mapped_type(source),
+                Some(&if self
+                    .type_checker
+                    .get_combined_mapped_type_optionality(source)
+                    < 0
+                {
+                    self.type_checker
+                        .make_function_type_mapper(ReportUnmeasurableMarkers)
+                } else {
+                    self.type_checker
+                        .make_function_type_mapper(ReportUnreliableMarkers)
+                }),
+            );
+            result = self.is_related_to(
+                &target_constraint,
+                &source_constraint,
+                Some(RecursionFlags::Both),
+                Some(report_errors),
+                None,
+                None,
+            );
+            if result != Ternary::False {
+                let mapper = self.type_checker.create_type_mapper(
+                    vec![self
+                        .type_checker
+                        .get_type_parameter_from_mapped_type(source)],
+                    Some(vec![self
+                        .type_checker
+                        .get_type_parameter_from_mapped_type(target)]),
+                );
+                if are_option_rcs_equal(
+                    self.type_checker
+                        .maybe_instantiate_type(
+                            self.type_checker.get_name_type_from_mapped_type(source),
+                            Some(&mapper),
+                        )
+                        .as_ref(),
+                    self.type_checker
+                        .maybe_instantiate_type(
+                            self.type_checker.get_name_type_from_mapped_type(target),
+                            Some(&mapper),
+                        )
+                        .as_ref(),
+                ) {
+                    return result
+                        & self.is_related_to(
+                            &self.type_checker.instantiate_type(
+                                &self.type_checker.get_template_type_from_mapped_type(source),
+                                Some(&mapper),
+                            ),
+                            &self.type_checker.get_template_type_from_mapped_type(target),
+                            Some(RecursionFlags::Both),
+                            Some(report_errors),
+                            None,
+                            None,
+                        );
+                }
+            }
+        }
+        Ternary::False
     }
 
     pub(super) fn type_related_to_discriminated_type(
