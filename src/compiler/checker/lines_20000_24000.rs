@@ -686,6 +686,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn find_discriminant_properties(
+        &self,
+        source_properties: &[Rc<Symbol>],
+        target: &Type,
+    ) -> Option<Vec<Rc<Symbol>>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_matching_union_constituent_for_type(
         &self,
         union_type: &Type, /*UnionType*/
@@ -760,6 +768,10 @@ impl TypeChecker {
         } else {
             self.never_type()
         }
+    }
+
+    pub(super) fn count_types(&self, type_: &Type) -> usize {
+        unimplemented!()
     }
 
     pub(super) fn map_type<TMapper: FnMut(&Type) -> Option<Rc<Type>>>(
