@@ -1,16 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{IntersectionState, TypeFacts, WideningKind};
+use super::{TypeFacts, WideningKind};
 use crate::{
-    every, for_each, get_object_flags, is_write_only_access, length, node_is_missing, Debug_,
+    every, get_object_flags, is_write_only_access, length, node_is_missing, Debug_,
     DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    RelationComparisonResult, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypePredicate, UnionReduction, VarianceFlags,
+    InferencePriority, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
+    UnionReduction,
 };
 
 impl TypeChecker {

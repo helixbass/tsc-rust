@@ -4,15 +4,10 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{
-    CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, TypeFacts, WideningKind,
-};
+use super::{CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState};
 use crate::{
-    every, for_each, get_object_flags, is_write_only_access, length, node_is_missing, Debug_,
-    DiagnosticMessage, Diagnostics, IndexInfo, InferenceContext, InferenceFlags, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    RelationComparisonResult, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypePredicate, UnionReduction, VarianceFlags,
+    for_each, IndexInfo, RelationComparisonResult, Signature, Symbol, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface, VarianceFlags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
