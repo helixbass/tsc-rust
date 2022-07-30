@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -9,9 +9,10 @@ use super::{
     RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
 };
 use crate::{
-    are_option_rcs_equal, cartesian_product, push_if_unique_rc, reduce_left, some, CheckFlags,
-    DiagnosticMessageChain, Diagnostics, Node, SignatureKind, Symbol, SymbolInterface, Ternary,
-    Type, TypeFlags, TypeInterface, VarianceFlags, __String, get_check_flags,
+    are_option_rcs_equal, cartesian_product, get_declaration_modifier_flags_from_symbol,
+    push_if_unique_rc, reduce_left, some, CheckFlags, DiagnosticMessageChain, Diagnostics,
+    ModifierFlags, Node, SignatureKind, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
+    TypeFlags, TypeInterface, VarianceFlags, __String, get_check_flags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -362,6 +363,128 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         intersection_state: IntersectionState,
         skip_optional: bool,
     ) -> Ternary {
+        let source_prop_flags = get_declaration_modifier_flags_from_symbol(source_prop, None);
+        let target_prop_flags = get_declaration_modifier_flags_from_symbol(target_prop, None);
+        if source_prop_flags.intersects(ModifierFlags::Private)
+            || target_prop_flags.intersects(ModifierFlags::Private)
+        {
+            if !are_option_rcs_equal(
+                source_prop.maybe_value_declaration().as_ref(),
+                target_prop.maybe_value_declaration().as_ref(),
+            ) {
+                if report_errors {
+                    if source_prop_flags.intersects(ModifierFlags::Private)
+                        && target_prop_flags.intersects(ModifierFlags::Private)
+                    {
+                        self.report_error(
+                            Cow::Borrowed(&Diagnostics::Types_have_separate_declarations_of_a_private_property_0),
+                            Some(vec![
+                                self.type_checker.symbol_to_string_(
+                                    target_prop,
+                                    Option::<&Node>::None,
+                                    None, None, None
+                                )
+                            ])
+                        );
+                    } else {
+                        self.report_error(
+                            Cow::Borrowed(
+                                &Diagnostics::Property_0_is_private_in_type_1_but_not_in_type_2,
+                            ),
+                            Some(vec![
+                                self.type_checker.symbol_to_string_(
+                                    target_prop,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                    None,
+                                ),
+                                self.type_checker.type_to_string_(
+                                    if source_prop_flags.intersects(ModifierFlags::Private) {
+                                        source
+                                    } else {
+                                        target
+                                    },
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                ),
+                                self.type_checker.type_to_string_(
+                                    if source_prop_flags.intersects(ModifierFlags::Private) {
+                                        target
+                                    } else {
+                                        source
+                                    },
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                ),
+                            ]),
+                        );
+                    }
+                }
+                return Ternary::False;
+            }
+        } else if target_prop_flags.intersects(ModifierFlags::Protected) {
+            if !self
+                .type_checker
+                .is_valid_override_of(source_prop, target_prop)
+            {
+                if report_errors {
+                    self.report_error(
+                        Cow::Borrowed(&Diagnostics::Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2),
+                        Some(vec![
+                            self.type_checker.symbol_to_string_(
+                                target_prop,
+                                Option::<&Node>::None,
+                                None, None, None
+                            ),
+                            self.type_checker.type_to_string_(
+                                &self.type_checker.get_declaring_class(source_prop).unwrap_or_else(|| source.type_wrapper()),
+                                Option::<&Node>::None,
+                                None, None,
+                            ),
+                            self.type_checker.type_to_string_(
+                                &self.type_checker.get_declaring_class(target_prop).unwrap_or_else(|| target.type_wrapper()),
+                                Option::<&Node>::None,
+                                None, None,
+                            ),
+                        ])
+                    );
+                }
+                return Ternary::False;
+            }
+        } else if source_prop_flags.intersects(ModifierFlags::Protected) {
+            if report_errors {
+                self.report_error(
+                    Cow::Borrowed(
+                        &Diagnostics::Property_0_is_protected_in_type_1_but_public_in_type_2,
+                    ),
+                    Some(vec![
+                        self.type_checker.symbol_to_string_(
+                            target_prop,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        ),
+                        self.type_checker.type_to_string_(
+                            source,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                        self.type_checker.type_to_string_(
+                            target,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                    ]),
+                );
+            }
+            return Ternary::False;
+        }
         let related = self.is_property_symbol_type_related(
             source_prop,
             target_prop,
@@ -380,6 +503,40 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                         None,
                         None,
                     )]),
+                );
+            }
+            return Ternary::False;
+        }
+        if !skip_optional
+            && source_prop.flags().intersects(SymbolFlags::Optional)
+            && !target_prop.flags().intersects(SymbolFlags::Optional)
+        {
+            if report_errors {
+                self.report_error(
+                    Cow::Borrowed(
+                        &Diagnostics::Property_0_is_optional_in_type_1_but_required_in_type_2,
+                    ),
+                    Some(vec![
+                        self.type_checker.symbol_to_string_(
+                            target_prop,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        ),
+                        self.type_checker.type_to_string_(
+                            source,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                        self.type_checker.type_to_string_(
+                            target,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                    ]),
                 );
             }
             return Ternary::False;

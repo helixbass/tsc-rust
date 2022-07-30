@@ -115,7 +115,15 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_declaring_class(&self, prop: &Symbol) -> Option<Rc<Type /*InterfaceType*/>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_of_property_in_base_class(&self, property: &Symbol) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_valid_override_of(&self, source_prop: &Symbol, target_prop: &Symbol) -> bool {
         unimplemented!()
     }
 
