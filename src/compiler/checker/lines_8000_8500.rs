@@ -144,14 +144,14 @@ impl TypeChecker {
         result /*|| types*/
     }
 
-    pub(super) fn visibility_to_string(&self, flags: ModifierFlags) -> Option<&'static str> {
+    pub(super) fn visibility_to_string(&self, flags: ModifierFlags) -> &'static str /*>*/ {
         if flags == ModifierFlags::Private {
-            return Some("private");
+            return "private";
         }
         if flags == ModifierFlags::Protected {
-            return Some("protected");
+            return "protected";
         }
-        Some("public")
+        "public"
     }
 
     pub(super) fn get_type_alias_for_type_literal(&self, type_: &Type) -> Option<Rc<Symbol>> {

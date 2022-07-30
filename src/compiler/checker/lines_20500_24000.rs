@@ -342,6 +342,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_object_type_with_inferable_index(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn create_symbol_with_type<TType: Borrow<Type>>(
         &self,
         source: &Symbol,

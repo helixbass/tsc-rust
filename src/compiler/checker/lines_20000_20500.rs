@@ -8,8 +8,9 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
 };
 use crate::{
-    for_each, some, Diagnostics, IndexInfo, Node, RelationComparisonResult, Signature, Symbol,
-    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, VarianceFlags,
+    for_each, get_selected_effective_modifier_flags, some, Diagnostics, IndexInfo, ModifierFlags,
+    Node, RelationComparisonResult, Signature, Symbol, Ternary, Type, TypeChecker, TypeFlags,
+    TypeInterface, VarianceFlags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -120,11 +121,60 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        unimplemented!()
+        let source_info = self
+            .type_checker
+            .get_applicable_index_info(source, &target_info.key_type);
+        if let Some(source_info) = source_info.as_ref() {
+            return self.index_info_related_to(source_info, target_info, report_errors);
+        }
+        if !intersection_state.intersects(IntersectionState::Source)
+            && self
+                .type_checker
+                .is_object_type_with_inferable_index(source)
+        {
+            return self.members_related_to_index_info(source, target_info, report_errors);
+        }
+        if report_errors {
+            self.report_error(
+                Cow::Borrowed(&Diagnostics::Index_signature_for_type_0_is_missing_in_type_1),
+                Some(vec![
+                    self.type_checker.type_to_string_(
+                        &target_info.key_type,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    ),
+                    self.type_checker
+                        .type_to_string_(source, Option::<&Node>::None, None, None),
+                ]),
+            );
+        }
+        Ternary::False
     }
 
     pub(super) fn index_signatures_identical_to(&self, source: &Type, target: &Type) -> Ternary {
-        unimplemented!()
+        let source_infos = self.type_checker.get_index_infos_of_type(source);
+        let target_infos = self.type_checker.get_index_infos_of_type(target);
+        if source_infos.len() != target_infos.len() {
+            return Ternary::False;
+        }
+        for target_info in &target_infos {
+            let source_info = self
+                .type_checker
+                .get_index_info_of_type_(source, &target_info.key_type);
+            if !matches!(
+                source_info.as_ref(),
+                Some(source_info) if self.is_related_to(
+                    &source_info.type_,
+                    &target_info.type_,
+                    Some(RecursionFlags::Both),
+                    None, None, None
+                ) != Ternary::False && source_info.is_readonly == target_info.is_readonly
+            ) {
+                return Ternary::False;
+            }
+        }
+        Ternary::True
     }
 
     pub(super) fn constructor_visibilities_are_compatible(
@@ -133,7 +183,54 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         target_signature: &Signature,
         report_errors: bool,
     ) -> bool {
-        unimplemented!()
+        if source_signature.declaration.is_none() || target_signature.declaration.is_none() {
+            return true;
+        }
+        let source_signature_declaration = source_signature.declaration.as_ref().unwrap();
+        let target_signature_declaration = target_signature.declaration.as_ref().unwrap();
+
+        let source_accessibility = get_selected_effective_modifier_flags(
+            source_signature_declaration,
+            ModifierFlags::NonPublicAccessibilityModifier,
+        );
+        let target_accessibility = get_selected_effective_modifier_flags(
+            target_signature_declaration,
+            ModifierFlags::NonPublicAccessibilityModifier,
+        );
+
+        if target_accessibility == ModifierFlags::Private {
+            return true;
+        }
+
+        if target_accessibility == ModifierFlags::Protected
+            && source_accessibility != ModifierFlags::Private
+        {
+            return true;
+        }
+
+        if target_accessibility != ModifierFlags::Protected
+            && source_accessibility == ModifierFlags::None
+        {
+            return true;
+        }
+
+        if report_errors {
+            self.report_error(
+                Cow::Borrowed(
+                    &Diagnostics::Cannot_assign_a_0_constructor_type_to_a_1_constructor_type,
+                ),
+                Some(vec![
+                    self.type_checker
+                        .visibility_to_string(source_accessibility)
+                        .to_owned(),
+                    self.type_checker
+                        .visibility_to_string(target_accessibility)
+                        .to_owned(),
+                ]),
+            );
+        }
+
+        false
     }
 }
 

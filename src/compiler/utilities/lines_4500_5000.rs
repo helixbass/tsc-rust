@@ -435,7 +435,7 @@ pub fn has_effective_readonly_modifier(node: &Node) -> bool {
     has_effective_modifier(node, ModifierFlags::Readonly)
 }
 
-fn get_selected_effective_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
+pub fn get_selected_effective_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
     get_effective_modifier_flags(node) & flags
 }
 
