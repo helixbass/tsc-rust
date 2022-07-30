@@ -1,13 +1,15 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState};
+use super::{
+    CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
+};
 use crate::{
-    for_each, IndexInfo, RelationComparisonResult, Signature, Symbol, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, VarianceFlags,
+    for_each, some, Diagnostics, IndexInfo, Node, RelationComparisonResult, Signature, Symbol,
+    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, VarianceFlags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -19,7 +21,46 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         target_info: &IndexInfo,
         report_errors: bool,
     ) -> Ternary {
-        unimplemented!()
+        let related = self.is_related_to(
+            &source_info.type_,
+            &target_info.type_,
+            Some(RecursionFlags::Both),
+            Some(report_errors),
+            None,
+            None,
+        );
+        if related == Ternary::False && report_errors {
+            if Rc::ptr_eq(&source_info.key_type, &target_info.key_type) {
+                self.report_error(
+                    Cow::Borrowed(&Diagnostics::_0_index_signatures_are_incompatible),
+                    Some(vec![self.type_checker.type_to_string_(
+                        &source_info.key_type,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    )]),
+                );
+            } else {
+                self.report_error(
+                    Cow::Borrowed(&Diagnostics::_0_and_1_index_signatures_are_incompatible),
+                    Some(vec![
+                        self.type_checker.type_to_string_(
+                            &source_info.key_type,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                        self.type_checker.type_to_string_(
+                            &target_info.key_type,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                    ]),
+                );
+            };
+        }
+        related
     }
 
     pub(super) fn index_signatures_related_to(
@@ -30,6 +71,59 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
+        if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
+            return self.index_signatures_identical_to(source, target);
+        }
+        let index_infos = self.type_checker.get_index_infos_of_type(target);
+        let target_has_string_index = some(
+            Some(&index_infos),
+            Some(|info: &Rc<IndexInfo>| {
+                Rc::ptr_eq(&info.key_type, &self.type_checker.string_type())
+            }),
+        );
+        let mut result = Ternary::True;
+        for target_info in &index_infos {
+            let related = if !source_is_primitive
+                && target_has_string_index
+                && target_info.type_.flags().intersects(TypeFlags::Any)
+            {
+                Ternary::True
+            } else if self.type_checker.is_generic_mapped_type(source) && target_has_string_index {
+                self.is_related_to(
+                    &self.type_checker.get_template_type_from_mapped_type(source),
+                    &target_info.type_,
+                    Some(RecursionFlags::Both),
+                    Some(report_errors),
+                    None,
+                    None,
+                )
+            } else {
+                self.type_related_to_index_info(
+                    source,
+                    target_info,
+                    report_errors,
+                    intersection_state,
+                )
+            };
+            if related == Ternary::False {
+                return Ternary::False;
+            }
+            result &= related;
+        }
+        result
+    }
+
+    pub(super) fn type_related_to_index_info(
+        &self,
+        source: &Type,
+        target_info: &IndexInfo,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        unimplemented!()
+    }
+
+    pub(super) fn index_signatures_identical_to(&self, source: &Type, target: &Type) -> Ternary {
         unimplemented!()
     }
 
