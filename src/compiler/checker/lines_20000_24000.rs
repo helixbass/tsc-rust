@@ -622,6 +622,16 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_unmatched_property(
+        &self,
+        source: &Type,
+        target: &Type,
+        require_optional_properties: bool,
+        match_discriminant_properties: bool,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn template_literal_types_definitely_unrelated(
         &self,
         source: &Type, /*TemplateLiteralType*/

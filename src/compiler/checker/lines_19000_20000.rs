@@ -3,13 +3,14 @@
 use std::borrow::{Borrow, Cow};
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::cmp;
 
 use super::{
 anon,    CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState, IntersectionState,
     RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
 };
 use crate::{
-create_diagnostic_for_node, length, factory, get_symbol_name_for_private_identifier,is_named_declaration, is_private_identifier,    are_option_rcs_equal, cartesian_product, get_declaration_modifier_flags_from_symbol,
+ElementFlags,create_diagnostic_for_node, length, factory, get_symbol_name_for_private_identifier,is_named_declaration, is_private_identifier,    are_option_rcs_equal, cartesian_product, get_declaration_modifier_flags_from_symbol,
     push_if_unique_rc, reduce_left, some, CheckFlags, DiagnosticMessageChain, Diagnostics,
     ModifierFlags, Node, SignatureKind, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
     TypeFlags, TypeInterface, VarianceFlags, __String, get_check_flags,
@@ -692,25 +693,277 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         excluded_properties: Option<&HashSet<__String>>,
         intersection_state: IntersectionState,
     ) -> Ternary {
+        if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
+            return self.properties_identical_to(source, target, excluded_properties);
+        }
         let mut result = Ternary::True;
-        let require_optional_properties = false;
-        // let unmatched_property =
-        //     self.get_unmatched_property(source, target, require_optional_properties, false);
-        // if let Some(unmatched_property) = unmatched_property {
-        //     if report_errors {
-        //         self.report_unmatched_property(
-        //             source,
-        //             target,
-        //             unmatched_property,
-        //             require_optional_properties,
-        //         );
-        //     }
-        //     return Ternary::False;
-        // }
+        if self.type_checker.is_tuple_type(target) {
+            let target_as_type_reference = target.as_type_reference();
+            let target_target_as_tuple_type = target_as_type_reference.target.as_tuple_type();
+            if self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source) {
+                if !target_target_as_tuple_type.readonly && (
+                    self.type_checker.is_readonly_array_type(source) ||
+                    self.type_checker.is_tuple_type(source) && source.as_type_reference().target.as_tuple_type().readonly
+                ) {
+                    return Ternary::False;
+                }
+                let source_arity = self.type_checker.get_type_reference_arity(source);
+                let target_arity = self.type_checker.get_type_reference_arity(target);
+                let source_rest_flag = if self.type_checker.is_tuple_type(source) {
+                    source.as_type_reference().target.as_tuple_type().combined_flags & ElementFlags::Rest
+                } else {
+                    ElementFlags::Rest
+                };
+                let target_rest_flag = target_target_as_tuple_type.combined_flags & ElementFlags::Rest;
+                let source_min_length = if self.type_checker.is_tuple_type(source) {
+                    source.as_type_reference().target.as_tuple_type().min_length
+                } else {
+                    0
+                };
+                let target_min_length = target_target_as_tuple_type.min_length;
+                if source_rest_flag == ElementFlags::None && source_arity < target_min_length {
+                    if report_errors {
+                        self.report_error(
+                            Cow::Borrowed(&Diagnostics::Source_has_0_element_s_but_target_requires_1),
+                            Some(vec![
+                                source_arity.to_string(),
+                                target_min_length.to_string(),
+                            ])
+                        );
+                    }
+                    return Ternary::False;
+                }
+                if target_rest_flag == ElementFlags::None && target_arity < source_min_length {
+                    if report_errors {
+                        self.report_error(
+                            Cow::Borrowed(&Diagnostics::Source_has_0_element_s_but_target_allows_only_1),
+                            Some(vec![
+                                source_min_length.to_string(),
+                                target_arity.to_string(),
+                            ])
+                        );
+                    }
+                    return Ternary::False;
+                }
+                if target_rest_flag == ElementFlags::None && (source_rest_flag == ElementFlags::None || target_arity < source_arity) {
+                    if report_errors {
+                        if source_min_length < target_min_length {
+                            self.report_error(
+                                Cow::Borrowed(&Diagnostics::Target_requires_0_element_s_but_source_may_have_fewer),
+                                Some(vec![
+                                    target_min_length.to_string(),
+                                ])
+                            );
+                        } else {
+                            self.report_error(
+                                Cow::Borrowed(&Diagnostics::Target_allows_only_0_element_s_but_source_may_have_more),
+                                Some(vec![
+                                    target_arity.to_string(),
+                                ])
+                            );
+                        }
+                    }
+                    return Ternary::False;
+                }
+                let source_type_arguments = self.type_checker.get_type_arguments(source);
+                let target_type_arguments = self.type_checker.get_type_arguments(target);
+                let start_count = cmp::min(
+                    if self.type_checker.is_tuple_type(source) {
+                        self.type_checker.get_start_element_count(&source.as_type_reference().target, ElementFlags::NonRest)
+                    } else {
+                        0
+                    },
+                    self.type_checker.get_start_element_count(&target_as_type_reference.target, ElementFlags::NonRest)
+                );
+                let end_count = cmp::min(
+                    if self.type_checker.is_tuple_type(source) {
+                        self.type_checker.get_end_element_count(&source.as_type_reference().target, ElementFlags::NonRest)
+                    } else {
+                        0
+                    },
+                    if target_rest_flag != ElementFlags::None {
+                        self.type_checker.get_end_element_count(&target_as_type_reference.target, ElementFlags::NonRest)
+                    } else {
+                        0
+                    }
+                );
+                let mut can_exclude_discriminants = excluded_properties.is_some();
+                for i in 0..target_arity {
+                    let source_index = if i < target_arity - end_count {
+                        i
+                    } else {
+                        i + source_arity - target_arity
+                    };
+                    let source_flags = if self.type_checker.is_tuple_type(source) && (
+                        i < start_count || i >= target_arity - end_count
+                    ) {
+                        source.as_type_reference().target.as_tuple_type().element_flags[source_index]
+                    } else {
+                        ElementFlags::Rest
+                    };
+                    let target_flags = target_target_as_tuple_type.element_flags[i];
+                    if target_flags.intersects(ElementFlags::Variadic) && !source_flags.intersects(ElementFlags::Variadic) {
+                        if report_errors {
+                            self.report_error(
+                                Cow::Borrowed(&Diagnostics::Source_provides_no_match_for_variadic_element_at_position_0_in_target),
+                                Some(vec![
+                                    i.to_string(),
+                                ])
+                            );
+                        }
+                        return Ternary::False;
+                    }
+                    if source_flags.intersects(ElementFlags::Variadic) && !target_flags.intersects(ElementFlags::Variable) {
+                        if report_errors {
+                            self.report_error(
+                                Cow::Borrowed(&Diagnostics::Variadic_element_at_position_0_in_source_does_not_match_element_at_position_1_in_target),
+                                Some(vec![
+                                    source_index.to_string(),
+                                    i.to_string(),
+                                ])
+                            );
+                        }
+                        return Ternary::False;
+                    }
+                    if target_flags.intersects(ElementFlags::Required) && !source_flags.intersects(ElementFlags::Required) {
+                        if report_errors {
+                            self.report_error(
+                                Cow::Borrowed(&Diagnostics::Source_provides_no_match_for_required_element_at_position_0_in_target),
+                                Some(vec![
+                                    i.to_string(),
+                                ])
+                            );
+                        }
+                        return Ternary::False;
+                    }
+                    if can_exclude_discriminants {
+                        if source_flags.intersects(ElementFlags::Variable) || target_flags.intersects(ElementFlags::Variable) {
+                            can_exclude_discriminants = false;
+                        }
+                        if can_exclude_discriminants && matches!(
+                            excluded_properties,
+                            Some(excluded_properties) if excluded_properties.contains(&__String::new(i.to_string()))
+                        ) {
+                            continue;
+                        }
+                    }
+                    let source_type = if !self.type_checker.is_tuple_type(source) {
+                        source_type_arguments[0].clone()
+                    } else if i < start_count || i >= target_arity - end_count {
+                        self.type_checker.remove_missing_type(
+                            &source_type_arguments[source_index],
+                            (source_flags & target_flags).intersects(ElementFlags::Optional)
+                        )
+                    } else {
+                        self.type_checker.get_element_type_of_slice_of_tuple_type(
+                            source,
+                            start_count,
+                            Some(end_count),
+                            None,
+                        ).unwrap_or_else(|| self.type_checker.never_type())
+                    };
+                    let target_type = &target_type_arguments[i];
+                    let target_check_type = if source_flags.intersects(ElementFlags::Variadic) && target_flags.intersects(ElementFlags::Rest) {
+                        self.type_checker.create_array_type(target_type, None)
+                    } else {
+                        self.type_checker.remove_missing_type(
+                            target_type,
+                            target_flags.intersects(ElementFlags::Optional)
+                        )
+                    };
+                    let related = self.is_related_to(
+                        &source_type,
+                        &target_check_type,
+                        Some(RecursionFlags::Both),
+                        Some(report_errors),
+                        None,
+                        Some(intersection_state)
+                    );
+                    if related == Ternary::False {
+                        if report_errors && (target_arity > 1 || source_arity > 1) {
+                            if i < start_count || i >= target_arity - end_count || source_arity - start_count - end_count == 1 {
+                                self.report_incompatible_error(
+                                    &Diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target,
+                                    Some(vec![
+                                        source_index.to_string(),
+                                        i.to_string(),
+                                    ])
+                                );
+                            } else {
+                                self.report_incompatible_error(
+                                    &Diagnostics::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target,
+                                    Some(vec![
+                                        start_count.to_string(),
+                                        (source_arity - end_count - 1).to_string(),
+                                        i.to_string(),
+                                    ])
+                                );
+                            }
+                        }
+                        return Ternary::False;
+                    }
+                    result &= related;
+                }
+                return result;
+            }
+            if target_target_as_tuple_type.combined_flags.intersects(ElementFlags::Variable) {
+                return Ternary::False;
+            }
+        }
+        let require_optional_properties = (Rc::ptr_eq(&self.relation, &self.type_checker.subtype_relation) || Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation)) &&
+            !self.type_checker.is_object_literal_type(source) &&
+            !self.type_checker.is_empty_array_literal_type(source) &&
+            !self.type_checker.is_tuple_type(source);
+        let unmatched_property =
+            self.type_checker.get_unmatched_property(source, target, require_optional_properties, false);
+        if let Some(unmatched_property) = unmatched_property.as_ref() {
+            if report_errors {
+                self.report_unmatched_property(
+                    source,
+                    target,
+                    unmatched_property,
+                    require_optional_properties,
+                );
+            }
+            return Ternary::False;
+        }
+        if self.type_checker.is_object_literal_type(target) {
+            for source_prop in &self.exclude_properties(
+                &self.type_checker.get_properties_of_type(source),
+                excluded_properties,
+            ) {
+                if self.type_checker.get_property_of_object_type(target, source_prop.escaped_name()).is_none() {
+                    let source_type = self.type_checker.get_type_of_symbol(source_prop);
+                    if !source_type.flags().intersects(TypeFlags::Undefined) {
+                        if report_errors {
+                            self.report_error(
+                                Cow::Borrowed(&Diagnostics::Property_0_does_not_exist_on_type_1),
+                                Some(vec![
+                                    self.type_checker.symbol_to_string_(
+                                        source_prop,
+                                        Option::<&Node>::None,
+                                        None, None, None,
+                                    ),
+                                    self.type_checker.type_to_string_(
+                                        target,
+                                        Option::<&Node>::None,
+                                        None, None,
+                                    ),
+                                ])
+                            );
+                        }
+                        return Ternary::False;
+                    }
+                }
+            }
+        }
         let properties = self.type_checker.get_properties_of_type(target);
-        for target_prop in self.exclude_properties(&properties, excluded_properties) {
+        let numeric_names_only = self.type_checker.is_tuple_type(source) && self.type_checker.is_tuple_type(target);
+        for target_prop in &self.exclude_properties(&properties, excluded_properties) {
             let name = target_prop.escaped_name();
-            if true {
+            if !target_prop.flags().intersects(SymbolFlags::Prototype) && (
+                !numeric_names_only || self.type_checker.is_numeric_literal_name(&**name) || name.eq_str("length")
+            ) {
                 let source_prop = self.type_checker.get_property_of_type_(source, name, None);
                 if let Some(source_prop) = source_prop {
                     if !Rc::ptr_eq(&source_prop, &target_prop) {
@@ -722,7 +975,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                             |symbol| self.type_checker.get_non_missing_type_of_symbol(symbol),
                             report_errors,
                             intersection_state,
-                            true,
+                            Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation),
                         );
                         if related == Ternary::False {
                             return Ternary::False;
@@ -733,6 +986,15 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             }
         }
         result
+    }
+
+    pub(super) fn properties_identical_to(
+        &self,
+        source: &Type,
+        target: &Type,
+        excluded_properties: Option<&HashSet<__String>>,
+    ) -> Ternary {
+        unimplemented!()
     }
 
     pub(super) fn signatures_related_to(
