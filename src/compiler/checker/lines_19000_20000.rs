@@ -1467,7 +1467,29 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         target: &Type,
         kind: SignatureKind,
     ) -> Ternary {
-        unimplemented!()
+        let source_signatures = self.type_checker.get_signatures_of_type(source, kind);
+        let target_signatures = self.type_checker.get_signatures_of_type(target, kind);
+        if source_signatures.len() != target_signatures.len() {
+            return Ternary::False;
+        }
+        let mut result = Ternary::True;
+        for i in 0..source_signatures.len() {
+            let related = self.type_checker.compare_signatures_identical(
+                source_signatures[i].clone(),
+                target_signatures[i].clone(),
+                false,
+                false,
+                false,
+                |source: &Type, target: &Type| {
+                    self.is_related_to(source, target, None, None, None, None)
+                },
+            );
+            if related == Ternary::False {
+                return Ternary::False;
+            }
+            result &= related;
+        }
+        result
     }
 
     pub(super) fn index_signatures_related_to(
