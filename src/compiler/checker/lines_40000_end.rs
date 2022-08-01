@@ -6,7 +6,8 @@ use std::rc::Rc;
 
 use super::UnusedKind;
 use crate::{
-    are_option_rcs_equal, filter, find, get_object_flags, length, ObjectFlags, SignatureKind,
+    are_option_rcs_equal, filter, find, get_object_flags, is_spread_element, length,
+    DiagnosticMessage, Diagnostics, ModuleKind, NodeArray, ObjectFlags, SignatureKind,
     SymbolInterface, Ternary, TypeFlags, TypeInterface, __String, bind_source_file, for_each,
     is_accessor, is_external_or_common_js_module, AllAccessorDeclarations,
     CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
@@ -233,6 +234,15 @@ impl TypeChecker {
             self.get_global_type(&__String::new("Boolean".to_owned()), 0, true);
     }
 
+    pub(super) fn check_grammar_for_disallowed_trailing_comma(
+        &self,
+        list: Option<&NodeArray>,
+        diag: Option<&'static DiagnosticMessage>,
+    ) -> bool {
+        let diag = diag.unwrap_or(&Diagnostics::Trailing_comma_not_allowed);
+        unimplemented!()
+    }
+
     pub(super) fn get_accessor_this_parameter(
         &self,
         accessor: &Node, /*AccessorDeclaration*/
@@ -240,10 +250,75 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn grammar_error_on_node(
+        &self,
+        node: &Node,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_numeric_literal(
         &self,
         node: &Node, /*NumericLiteral*/
     ) -> bool {
+        false
+    }
+
+    pub(super) fn check_grammar_import_call_expression(
+        &self,
+        node: &Node, /*ImportCall*/
+    ) -> bool {
+        if self.module_kind == ModuleKind::ES2015 {
+            return self.grammar_error_on_node(
+                node,
+                &Diagnostics::Dynamic_imports_are_only_supported_when_the_module_flag_is_set_to_es2020_es2022_esnext_commonjs_amd_system_umd_node12_or_nodenext,
+                None,
+            );
+        }
+
+        let node_as_call_expression = node.as_call_expression();
+        if node_as_call_expression.type_arguments.is_some() {
+            return self.grammar_error_on_node(
+                node,
+                &Diagnostics::Dynamic_import_cannot_have_type_arguments,
+                None,
+            );
+        }
+
+        let node_arguments = &node_as_call_expression.arguments;
+        if self.module_kind != ModuleKind::ESNext {
+            self.check_grammar_for_disallowed_trailing_comma(Some(node_arguments), None);
+
+            if node_arguments.len() > 1 {
+                let assertion_argument = &node_arguments[1];
+                return self.grammar_error_on_node(
+                    assertion_argument,
+                    &Diagnostics::Dynamic_imports_only_support_a_second_argument_when_the_module_option_is_set_to_esnext,
+                    None,
+                );
+            }
+        }
+
+        if node_arguments.is_empty() || node_arguments.len() > 2 {
+            return self.grammar_error_on_node(
+                node,
+                &Diagnostics::Dynamic_imports_can_only_accept_a_module_specifier_and_an_optional_assertion_as_arguments,
+                None,
+            );
+        }
+
+        let spread_element = find(node_arguments, |argument: &Rc<Node>, _| {
+            is_spread_element(argument)
+        });
+        if let Some(spread_element) = spread_element {
+            return self.grammar_error_on_node(
+                spread_element,
+                &Diagnostics::Argument_of_dynamic_import_cannot_be_spread_element,
+                None,
+            );
+        }
         false
     }
 
