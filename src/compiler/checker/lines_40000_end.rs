@@ -6,12 +6,12 @@ use std::rc::Rc;
 
 use super::UnusedKind;
 use crate::{
-    Ternary, __String, bind_source_file, for_each, is_accessor, is_external_or_common_js_module,
-    AllAccessorDeclarations, CancellationTokenDebuggable, Diagnostic, EmitResolver,
-    EmitResolverDebuggable, IndexInfo, Node, NodeBuilderFlags, NodeCheckFlags, NodeInterface,
-    Signature, SignatureFlags, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
-    SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker,
-    TypeReferenceSerializationKind,
+    SymbolInterface, Ternary, TypeFlags, TypeInterface, __String, bind_source_file, for_each,
+    is_accessor, is_external_or_common_js_module, AllAccessorDeclarations,
+    CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
+    NodeBuilderFlags, NodeCheckFlags, NodeInterface, Signature, SignatureFlags, StringOrNumber,
+    Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker, SymbolVisibilityResult,
+    SyntaxKind, Type, TypeChecker, TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -289,10 +289,43 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-        is_related_to: TIsRelatedTo,
+        mut is_related_to: TIsRelatedTo,
         skip_partial: Option<bool>,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if target.flags().intersects(TypeFlags::Union)
+            && source
+                .flags()
+                .intersects(TypeFlags::Intersection | TypeFlags::Object)
+        {
+            let match_ = self.get_matching_union_constituent_for_type(target, source);
+            if match_.is_some() {
+                return match_;
+            }
+            let source_properties = self.get_properties_of_type(source);
+            // if (sourceProperties) {
+            let source_properties_filtered =
+                self.find_discriminant_properties(&source_properties, target);
+            if let Some(source_properties_filtered) = source_properties_filtered.as_ref() {
+                return self.discriminate_type_by_discriminable_items(
+                    target,
+                    &*source_properties_filtered
+                        .into_iter()
+                        .map(|p: &Rc<Symbol>| {
+                            let p_clone = p.clone();
+                            (
+                                move || self.get_type_of_symbol(&p_clone),
+                                p.escaped_name().clone(),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                    |source: &Type, target: &Type| is_related_to(source, target) != Ternary::False,
+                    Option::<&Type>::None,
+                    skip_partial,
+                );
+            }
+            // }
+        }
+        None
     }
 }
 

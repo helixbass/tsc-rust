@@ -9,7 +9,7 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
 };
 use crate::{
-    for_each_bool, get_selected_effective_modifier_flags, some, Diagnostics, IndexInfo,
+    __String, for_each_bool, get_selected_effective_modifier_flags, some, Diagnostics, IndexInfo,
     ModifierFlags, Node, RelationComparisonResult, Signature, Symbol, SymbolInterface, Ternary,
     Type, TypeChecker, TypeFlags, TypeInterface, VarianceFlags,
 };
@@ -322,6 +322,21 @@ impl TypeChecker {
             .or_else(|| self.find_best_type_for_object_literal(source, target))
             .or_else(|| self.find_best_type_for_invokable(source, target))
             .or_else(|| self.find_most_overlappy_type(source, target))
+    }
+
+    pub(super) fn discriminate_type_by_discriminable_items<
+        TDiscriminatorsCallback: Fn() -> Rc<Type>,
+        TRelated: FnMut(&Type, &Type) -> bool,
+        TDefaultValue: Borrow<Type>,
+    >(
+        &self,
+        target: &Type, /*UnionType*/
+        discriminators: &[(TDiscriminatorsCallback, __String)],
+        related: TRelated,
+        default_value: Option<TDefaultValue>,
+        skip_partial: Option<bool>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn is_weak_type(&self, type_: &Type) -> bool {
