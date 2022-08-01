@@ -9,9 +9,10 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
 };
 use crate::{
-    __String, for_each_bool, get_selected_effective_modifier_flags, some, Diagnostics, IndexInfo,
-    ModifierFlags, Node, RelationComparisonResult, Signature, Symbol, SymbolInterface, Ternary,
-    Type, TypeChecker, TypeFlags, TypeInterface, VarianceFlags,
+    __String, for_each_bool, get_check_flags, get_selected_effective_modifier_flags, some,
+    CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node, RelationComparisonResult, Signature,
+    Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -332,11 +333,68 @@ impl TypeChecker {
         &self,
         target: &Type, /*UnionType*/
         discriminators: &[(TDiscriminatorsCallback, __String)],
-        related: TRelated,
+        mut related: TRelated,
         default_value: Option<TDefaultValue>,
         skip_partial: Option<bool>,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let target_as_union_type = target.as_union_type();
+        let target_types = target_as_union_type.types();
+        let mut discriminable: Vec<Option<bool>> = target_types
+            .into_iter()
+            .map(|_| Option::<bool>::None)
+            .collect();
+        for (get_discriminating_type, property_name) in discriminators {
+            let target_prop = self.get_union_or_intersection_property(target, property_name, None);
+            if matches!(skip_partial, Some(true))
+                && matches!(
+                    target_prop.as_ref(),
+                    Some(target_prop) if get_check_flags(target_prop).intersects(CheckFlags::ReadPartial)
+                )
+            {
+                continue;
+            }
+            let mut i = 0;
+            for type_ in target_types {
+                let target_type = self.get_type_of_property_of_type_(type_, property_name);
+                if matches!(
+                    target_type.as_ref(),
+                    Some(target_type) if related(&get_discriminating_type(), target_type)
+                ) {
+                    discriminable[i] = if discriminable[i].is_none() {
+                        Some(true)
+                    } else {
+                        discriminable[i]
+                    };
+                } else {
+                    discriminable[i] = Some(false);
+                }
+                i += 1;
+            }
+        }
+        let match_ = discriminable.iter().position(|item| *item == Some(true));
+        let default_value =
+            default_value.map(|default_value| default_value.borrow().type_wrapper());
+        if match_.is_none() {
+            return default_value;
+        }
+        let match_ = match_.unwrap();
+        let mut next_match = discriminable
+            .iter()
+            .skip(match_ + 1)
+            .position(|item| *item == Some(true))
+            .map(|position| position + match_ + 1);
+        while let Some(next_match_present) = next_match {
+            if !self.is_type_identical_to(&target_types[match_], &target_types[next_match_present])
+            {
+                return default_value;
+            }
+            next_match = discriminable
+                .iter()
+                .skip(next_match_present + 1)
+                .position(|item| *item == Some(true))
+                .map(|position| position + next_match_present + 1);
+        }
+        Some(target_types[match_].clone())
     }
 
     pub(super) fn is_weak_type(&self, type_: &Type) -> bool {
