@@ -246,6 +246,38 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn find_matching_type_reference_or_type_alias_reference(
+        &self,
+        source: &Type,
+        union_target: &Type, /*UnionOrIntersectionType*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn find_best_type_for_object_literal(
+        &self,
+        source: &Type,
+        union_target: &Type, /*UnionOrIntersectionType*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn find_best_type_for_invokable(
+        &self,
+        source: &Type,
+        union_target: &Type, /*UnionOrIntersectionType*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn find_most_overlappy_type(
+        &self,
+        source: &Type,
+        union_target: &Type, /*UnionOrIntersectionType*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn filter_primitives_if_contains_non_primitive(
         &self,
         type_: &Type, /*UnionType*/

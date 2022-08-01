@@ -338,6 +338,10 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn contains_missing_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn remove_missing_or_undefined_type(&self, type_: &Type) -> Rc<Type> {
         unimplemented!()
     }

@@ -2,15 +2,16 @@
 
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
     CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
 };
 use crate::{
-    for_each, get_selected_effective_modifier_flags, some, Diagnostics, IndexInfo, ModifierFlags,
-    Node, RelationComparisonResult, Signature, Symbol, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface, VarianceFlags,
+    for_each_bool, get_selected_effective_modifier_flags, some, Diagnostics, IndexInfo,
+    ModifierFlags, Node, RelationComparisonResult, Signature, Symbol, SymbolInterface, Ternary,
+    Type, TypeChecker, TypeFlags, TypeInterface, VarianceFlags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -241,21 +242,20 @@ impl TypeChecker {
         }
 
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            return for_each(
+            return for_each_bool(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_, _| {
-                    if self.type_could_have_top_level_singleton_types(type_) {
-                        Some(())
-                    } else {
-                        None
-                    }
-                },
-            )
-            .is_some();
+                |type_: &Rc<Type>, _| self.type_could_have_top_level_singleton_types(type_),
+            );
         }
 
         if type_.flags().intersects(TypeFlags::Instantiable) {
-            unimplemented!()
+            let constraint = self.get_constraint_of_type(type_);
+            if let Some(constraint) = constraint
+                .as_ref()
+                .filter(|constraint| !ptr::eq(&***constraint, type_))
+            {
+                return self.type_could_have_top_level_singleton_types(constraint);
+            }
         }
 
         self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral)
@@ -266,7 +266,18 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
     ) -> Vec<Rc<Symbol>> {
-        unimplemented!()
+        if self.is_tuple_type(source) && self.is_tuple_type(target) {
+            return vec![];
+        }
+        self.get_properties_of_type(target)
+            .into_iter()
+            .filter(|target_prop: &Rc<Symbol>| {
+                self.is_exact_optional_property_mismatch(
+                    self.get_type_of_property_of_type_(source, target_prop.escaped_name()),
+                    Some(self.get_type_of_symbol(target_prop)),
+                )
+            })
+            .collect()
     }
 
     pub(super) fn is_exact_optional_property_mismatch<
@@ -277,7 +288,23 @@ impl TypeChecker {
         source: Option<TSource>,
         target: Option<TTarget>,
     ) -> bool {
-        unimplemented!()
+        if source.is_none() || target.is_none() {
+            return false;
+        }
+        let source = source.unwrap();
+        let source = source.borrow();
+        let target = target.unwrap();
+        let target = target.borrow();
+        self.maybe_type_of_kind(source, TypeFlags::Undefined) && self.contains_missing_type(target)
+    }
+
+    pub(super) fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Rc<Symbol>> {
+        self.get_properties_of_type(type_)
+            .into_iter()
+            .filter(|target_prop: &Rc<Symbol>| {
+                self.contains_missing_type(&self.get_type_of_symbol(target_prop))
+            })
+            .collect()
     }
 
     pub(super) fn get_best_matching_type<TIsRelatedTo: Fn(&Type, &Type) -> Ternary>(
@@ -286,15 +313,15 @@ impl TypeChecker {
         target: &Type, /*UnionOrIntersectionType*/
         is_related_to: Option<TIsRelatedTo>,
     ) -> Option<Rc<Type>> {
-        let is_related_to: Box<dyn Fn(&Type, &Type) -> Ternary> = is_related_to.map_or_else(
-            || {
-                Box::new(|source: &Type, target: &Type| {
-                    self.compare_types_assignable(source, target)
-                }) as Box<dyn Fn(&Type, &Type) -> Ternary>
-            },
-            |is_related_to| Box::new(is_related_to) as Box<dyn Fn(&Type, &Type) -> Ternary>,
-        );
-        unimplemented!()
+        let is_related_to = |source: &Type, target: &Type| match is_related_to.as_ref() {
+            None => self.compare_types_assignable(source, target),
+            Some(is_related_to) => is_related_to(source, target),
+        };
+        self.find_matching_discriminant_type(source, target, is_related_to, Some(true))
+            .or_else(|| self.find_matching_type_reference_or_type_alias_reference(source, target))
+            .or_else(|| self.find_best_type_for_object_literal(source, target))
+            .or_else(|| self.find_best_type_for_invokable(source, target))
+            .or_else(|| self.find_most_overlappy_type(source, target))
     }
 
     pub(super) fn is_weak_type(&self, type_: &Type) -> bool {
