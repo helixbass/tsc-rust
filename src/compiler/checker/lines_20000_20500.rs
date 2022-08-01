@@ -460,6 +460,8 @@ impl TypeChecker {
     }
 
     pub(super) fn get_alias_variances(&self, symbol: &Symbol) -> Vec<VarianceFlags> {
+        let links = self.get_symbol_links(symbol);
+        // self.get_variances_worker()
         unimplemented!()
     }
 

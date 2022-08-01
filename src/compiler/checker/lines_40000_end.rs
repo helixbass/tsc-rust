@@ -6,8 +6,8 @@ use std::rc::Rc;
 
 use super::UnusedKind;
 use crate::{
-    SymbolInterface, Ternary, TypeFlags, TypeInterface, __String, bind_source_file, for_each,
-    is_accessor, is_external_or_common_js_module, AllAccessorDeclarations,
+    filter, length, SymbolInterface, Ternary, TypeFlags, TypeInterface, __String, bind_source_file,
+    for_each, is_accessor, is_external_or_common_js_module, AllAccessorDeclarations,
     CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
     NodeBuilderFlags, NodeCheckFlags, NodeInterface, Signature, SignatureFlags, StringOrNumber,
     Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker, SymbolVisibilityResult,
@@ -275,14 +275,56 @@ impl TypeChecker {
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let mut best_match: Option<Rc<Type>> = None;
+        let mut matching_count = 0;
+        for target in union_target
+            .as_union_or_intersection_type_interface()
+            .types()
+        {
+            let overlap = self.get_intersection_type(
+                &vec![
+                    self.get_index_type(source, None, None),
+                    self.get_index_type(target, None, None),
+                ],
+                Option::<&Symbol>::None,
+                None,
+            );
+            if overlap.flags().intersects(TypeFlags::Index) {
+                best_match = Some(target.clone());
+                matching_count = usize::MAX;
+            } else if overlap.flags().intersects(TypeFlags::Union) {
+                let len = length(
+                    filter(
+                        Some(overlap.as_union_or_intersection_type_interface().types()),
+                        |type_: &Rc<Type>| self.is_unit_type(type_),
+                    )
+                    .as_deref(),
+                );
+                if len >= matching_count {
+                    best_match = Some(target.clone());
+                    matching_count = len;
+                }
+            } else if self.is_unit_type(&overlap) && 1 >= matching_count {
+                best_match = Some(target.clone());
+                matching_count = 1;
+            }
+        }
+        best_match
     }
 
     pub(super) fn filter_primitives_if_contains_non_primitive(
         &self,
         type_: &Type, /*UnionType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        if self.maybe_type_of_kind(type_, TypeFlags::NonPrimitive) {
+            let result = self.filter_type(type_, |t: &Type| {
+                !t.flags().intersects(TypeFlags::Primitive)
+            });
+            if !result.flags().intersects(TypeFlags::Never) {
+                return result;
+            }
+        }
+        type_.type_wrapper()
     }
 
     pub(super) fn find_matching_discriminant_type<TIsRelatedTo: FnMut(&Type, &Type) -> Ternary>(
