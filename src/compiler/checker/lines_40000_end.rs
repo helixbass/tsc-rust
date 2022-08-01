@@ -6,8 +6,9 @@ use std::rc::Rc;
 
 use super::UnusedKind;
 use crate::{
-    filter, length, SymbolInterface, Ternary, TypeFlags, TypeInterface, __String, bind_source_file,
-    for_each, is_accessor, is_external_or_common_js_module, AllAccessorDeclarations,
+    are_option_rcs_equal, filter, find, get_object_flags, length, ObjectFlags, SignatureKind,
+    SymbolInterface, Ternary, TypeFlags, TypeInterface, __String, bind_source_file, for_each,
+    is_accessor, is_external_or_common_js_module, AllAccessorDeclarations,
     CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
     NodeBuilderFlags, NodeCheckFlags, NodeInterface, Signature, SignatureFlags, StringOrNumber,
     Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker, SymbolVisibilityResult,
@@ -251,7 +252,37 @@ impl TypeChecker {
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let source_object_flags = get_object_flags(source);
+        if source_object_flags.intersects(ObjectFlags::Reference | ObjectFlags::Anonymous)
+            && union_target.flags().intersects(TypeFlags::Union)
+        {
+            return find(
+                union_target
+                    .as_union_or_intersection_type_interface()
+                    .types(),
+                |target: &Rc<Type>, _| {
+                    if target.flags().intersects(TypeFlags::Object) {
+                        let overlap_obj_flags = source_object_flags & get_object_flags(target);
+                        if overlap_obj_flags.intersects(ObjectFlags::Reference) {
+                            return Rc::ptr_eq(
+                                &source.as_type_reference().target,
+                                &target.as_type_reference().target,
+                            );
+                        }
+                        if overlap_obj_flags.intersects(ObjectFlags::Anonymous) {
+                            return source.maybe_alias_symbol().is_some()
+                                && are_option_rcs_equal(
+                                    source.maybe_alias_symbol().as_ref(),
+                                    target.maybe_alias_symbol().as_ref(),
+                                );
+                        }
+                    }
+                    false
+                },
+            )
+            .map(Clone::clone);
+        }
+        None
     }
 
     pub(super) fn find_best_type_for_object_literal(
@@ -259,7 +290,18 @@ impl TypeChecker {
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if get_object_flags(source).intersects(ObjectFlags::ObjectLiteral)
+            && self.some_type(union_target, |type_: &Type| self.is_array_like_type(type_))
+        {
+            return find(
+                union_target
+                    .as_union_or_intersection_type_interface()
+                    .types(),
+                |t: &Rc<Type>, _| !self.is_array_like_type(t),
+            )
+            .map(Clone::clone);
+        }
+        None
     }
 
     pub(super) fn find_best_type_for_invokable(
@@ -267,7 +309,26 @@ impl TypeChecker {
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let mut signature_kind = SignatureKind::Call;
+        let has_signatures = !self
+            .get_signatures_of_type(source, signature_kind)
+            .is_empty()
+            || {
+                signature_kind = SignatureKind::Construct;
+                !self
+                    .get_signatures_of_type(source, signature_kind)
+                    .is_empty()
+            };
+        if has_signatures {
+            return find(
+                union_target
+                    .as_union_or_intersection_type_interface()
+                    .types(),
+                |t: &Rc<Type>, _| !self.get_signatures_of_type(t, signature_kind).is_empty(),
+            )
+            .map(Clone::clone);
+        }
+        None
     }
 
     pub(super) fn find_most_overlappy_type(
