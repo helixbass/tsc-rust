@@ -9,9 +9,10 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
 };
 use crate::{
-    __String, for_each_bool, get_check_flags, get_selected_effective_modifier_flags, some,
-    CheckFlags, Diagnostics, IndexInfo, ModifierFlags, Node, RelationComparisonResult, Signature,
-    Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    __String, every, for_each_bool, get_check_flags, get_selected_effective_modifier_flags, map,
+    some, CheckFlags, Diagnostics, IndexInfo, InterfaceTypeInterface, ModifierFlags, Node,
+    ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult, Signature, Symbol,
+    SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
@@ -398,7 +399,25 @@ impl TypeChecker {
     }
 
     pub(super) fn is_weak_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Object) {
+            let resolved = self.resolve_structured_type_members(type_);
+            let resolved_as_resolved_type = resolved.as_resolved_type();
+            return resolved_as_resolved_type.call_signatures().is_empty()
+                && resolved_as_resolved_type.construct_signatures().is_empty()
+                && resolved_as_resolved_type.index_infos().is_empty()
+                && !resolved_as_resolved_type.properties().is_empty()
+                && every(
+                    &*resolved_as_resolved_type.properties(),
+                    |p: &Rc<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
+                );
+        }
+        if type_.flags().intersects(TypeFlags::Intersection) {
+            return every(
+                type_.as_union_or_intersection_type_interface().types(),
+                |type_: &Rc<Type>, _| self.is_weak_type(type_),
+            );
+        }
+        false
     }
 
     pub(super) fn has_common_properties(
@@ -407,7 +426,37 @@ impl TypeChecker {
         target: &Type,
         is_comparing_jsx_attributes: bool,
     ) -> bool {
-        unimplemented!()
+        for prop in &self.get_properties_of_type(source) {
+            if self.is_known_property(target, prop.escaped_name(), is_comparing_jsx_attributes) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn get_marker_type_reference(
+        &self,
+        type_: &Type,  /*GenericType*/
+        source: &Type, /*TypeParameter*/
+        target: &Type,
+    ) -> Rc<Type /*TypeReference*/> {
+        let result = self.create_type_reference(
+            type_,
+            map(
+                type_.as_generic_type().maybe_type_parameters(),
+                |t: &Rc<Type>, _| {
+                    if ptr::eq(&**t, source) {
+                        target.type_wrapper()
+                    } else {
+                        t.clone()
+                    }
+                },
+            ),
+        );
+        result
+            .as_type_reference()
+            .set_object_flags(result.as_type_reference().object_flags() | ObjectFlags::MarkerType);
+        result
     }
 
     pub(super) fn get_alias_variances(&self, symbol: &Symbol) -> Vec<VarianceFlags> {

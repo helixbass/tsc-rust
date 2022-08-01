@@ -788,7 +788,13 @@ pub trait GenericableTypeInterface: TypeInterface {
     fn genericize(&self, instantiations: HashMap<String, Rc<Type /*TypeReference*/>>);
 }
 
-pub trait GenericTypeInterface: TypeReferenceInterface {
+pub trait GenericTypeInterface:
+    ObjectFlagsTypeInterface
+    + ObjectTypeInterface
+    + InterfaceTypeWithDeclaredMembersInterface
+    + InterfaceTypeInterface
+    + TypeReferenceInterface
+{
     fn instantiations(&self) -> RefMut<HashMap<String, Rc<Type /*TypeReference*/>>>;
     fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>>;
     fn set_variances(&self, variances: Vec<VarianceFlags>);
