@@ -528,6 +528,8 @@ impl Node {
         match self {
             Node::ObjectBindingPattern(node) => node,
             Node::ArrayBindingPattern(node) => node,
+            Node::NamedImports(node) => node,
+            Node::NamedExports(node) => node,
             _ => panic!("Expected has elements"),
         }
     }

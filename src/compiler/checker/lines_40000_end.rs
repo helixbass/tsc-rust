@@ -2,18 +2,22 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::UnusedKind;
+use super::{ambient_module_symbol_regex, UnusedKind};
 use crate::{
-    are_option_rcs_equal, filter, find, get_object_flags, is_spread_element, length,
-    DiagnosticMessage, Diagnostics, ModuleKind, NodeArray, ObjectFlags, SignatureKind,
-    SymbolInterface, Ternary, TypeFlags, TypeInterface, __String, bind_source_file, for_each,
-    is_accessor, is_external_or_common_js_module, AllAccessorDeclarations,
-    CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
-    NodeBuilderFlags, NodeCheckFlags, NodeInterface, Signature, SignatureFlags, StringOrNumber,
-    Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker, SymbolVisibilityResult,
-    SyntaxKind, Type, TypeChecker, TypeReferenceSerializationKind,
+    are_option_rcs_equal, filter, find, get_object_flags, is_spread_element, length, text_span_end,
+    DiagnosticMessage, Diagnostics, LiteralLikeNodeInterface, LiteralTypeInterface, ModuleKind,
+    NodeArray, ObjectFlags, ReadonlyTextRange, SignatureKind, SymbolInterface, Ternary, TokenFlags,
+    TypeFlags, TypeInterface, __String, bind_source_file, create_file_diagnostic, for_each,
+    for_each_bool, get_source_file_of_node, get_span_of_token_at_position, is_accessor,
+    is_external_or_common_js_module, is_literal_type_node, is_prefix_unary_expression,
+    AllAccessorDeclarations, CancellationTokenDebuggable, Diagnostic, EmitResolver,
+    EmitResolverDebuggable, IndexInfo, Node, NodeBuilderFlags, NodeCheckFlags, NodeInterface,
+    ScriptTarget, Signature, SignatureFlags, StringOrNumber, Symbol, SymbolAccessibilityResult,
+    SymbolFlags, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker,
+    TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -250,6 +254,19 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn has_parse_diagnostics(&self, source_file: &Node /*SourceFile*/) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn grammar_error_on_first_token(
+        &self,
+        node: &Node,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn grammar_error_on_node(
         &self,
         node: &Node,
@@ -264,6 +281,124 @@ impl TypeChecker {
         node: &Node, /*NumericLiteral*/
     ) -> bool {
         false
+    }
+
+    pub(super) fn check_numeric_literal_value_size(&self, node: &Node /*NumericLiteral*/) {
+        let node_as_numeric_literal = node.as_numeric_literal();
+        if node_as_numeric_literal
+            .numeric_literal_flags
+            .intersects(TokenFlags::Scientific)
+            || node_as_numeric_literal.text().len() <= 15
+            || node_as_numeric_literal
+                .text()
+                .chars()
+                .position(|ch| ch == '.')
+                .is_some()
+        {
+            return;
+        }
+
+        // let apparent_value =
+        unimplemented!()
+    }
+
+    pub(super) fn check_grammar_big_int_literal(&self, node: &Node /*BigIntLiteral*/) -> bool {
+        let literal_type = is_literal_type_node(&node.parent())
+            || is_prefix_unary_expression(&node.parent())
+                && is_literal_type_node(&node.parent().parent());
+        if !literal_type {
+            if self.language_version < ScriptTarget::ES2020 {
+                if self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::BigInt_literals_are_not_available_when_targeting_lower_than_ES2020,
+                    None,
+                ) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub(super) fn grammar_error_after_first_token(
+        &self,
+        node: &Node,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) -> bool {
+        let source_file = get_source_file_of_node(Some(node)).unwrap();
+        if !self.has_parse_diagnostics(&source_file) {
+            let span = get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap());
+            self.diagnostics().add(Rc::new(
+                create_file_diagnostic(&source_file, text_span_end(&span), 0, message, args).into(),
+            ));
+            return true;
+        }
+        false
+    }
+
+    pub(super) fn get_ambient_modules(&self) -> Vec<Rc<Symbol>> {
+        if self.ambient_modules_cache.borrow().is_none() {
+            let mut ambient_modules_cache = self.ambient_modules_cache.borrow_mut();
+            *ambient_modules_cache = Some(vec![]);
+            let ambient_modules_cache = ambient_modules_cache.as_mut().unwrap();
+            for (sym, global) in &*(*self.globals).borrow() {
+                if ambient_module_symbol_regex.is_match(&**sym) {
+                    ambient_modules_cache.push(global.clone());
+                }
+            }
+        }
+        self.ambient_modules_cache.borrow().clone().unwrap()
+    }
+
+    pub(super) fn check_grammar_import_clause(&self, node: &Node /*ImportClause*/) -> bool {
+        let node_as_import_clause = node.as_import_clause();
+        if node_as_import_clause.is_type_only
+            && node_as_import_clause.name.is_some()
+            && node_as_import_clause.named_bindings.is_some()
+        {
+            return self.grammar_error_on_node(
+                node,
+                &Diagnostics::A_type_only_import_can_specify_a_default_import_or_named_bindings_but_not_both,
+                None,
+            );
+        }
+        if node_as_import_clause.is_type_only {
+            if let Some(node_named_bindings) =
+                node_as_import_clause
+                    .named_bindings
+                    .as_ref()
+                    .filter(|node_named_bindings| {
+                        node_named_bindings.kind() == SyntaxKind::NamedImports
+                    })
+            {
+                return self.check_grammar_named_imports_or_exports(node_named_bindings);
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_named_imports_or_exports(
+        &self,
+        named_bindings: &Node, /*NamedImportsOrExports*/
+    ) -> bool {
+        for_each_bool(
+            named_bindings.as_has_elements().elements(),
+            |specifier: &Rc<Node>, _| {
+                if specifier.as_has_is_type_only().is_type_only() {
+                    return self.grammar_error_on_first_token(
+                        specifier,
+                        if specifier.kind() == SyntaxKind::ImportSpecifier {
+                            &Diagnostics::The_type_modifier_cannot_be_used_on_a_named_import_when_import_type_is_used_on_its_import_statement
+                        } else {
+                            &Diagnostics::The_type_modifier_cannot_be_used_on_a_named_export_when_export_type_is_used_on_its_export_statement
+                        },
+                        None
+                    );
+                }
+                false
+            },
+        )
     }
 
     pub(super) fn check_grammar_import_call_expression(

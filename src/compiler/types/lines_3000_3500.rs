@@ -5,8 +5,8 @@ use std::cell::{Cell, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
-    BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasExpressionInterface,
-    HasIsTypeOnlyInterface, HasTypeInterface, HasTypeParametersInterface,
+    BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasElementsInterface,
+    HasExpressionInterface, HasIsTypeOnlyInterface, HasTypeInterface, HasTypeParametersInterface,
     NamedDeclarationInterface, Node, NodeArray, SignatureDeclarationInterface, SyntaxKind,
     TextRange,
 };
@@ -236,6 +236,12 @@ impl NamedImports {
     }
 }
 
+impl HasElementsInterface for NamedImports {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct NamedExports {
@@ -249,6 +255,12 @@ impl NamedExports {
             _node: base_node,
             elements,
         }
+    }
+}
+
+impl HasElementsInterface for NamedExports {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
     }
 }
 

@@ -18,6 +18,7 @@ use crate::{
     Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo, IterationTypes,
     IterationTypesResolver, MappedSymbol, NodeBuilder, Number, PatternAmbientModule,
     ReverseMappedSymbol, StringOrNumber, TypeId, TypeSystemEntity, TypeSystemPropertyName,
+    VarianceFlags,
 };
 use local_macros::{enum_unwrapped, symbol_type};
 
@@ -1098,6 +1099,7 @@ pub struct SymbolLinks {
     pub late_symbol: Option<Rc<Symbol>>,
     pub extended_containers: Option<Vec<Rc<Symbol>>>,
     pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Rc<Symbol>>>>,
+    pub variances: Option<Vec<VarianceFlags>>,
     pub deferral_constituents: Option<Vec<Rc<Type>>>,
     pub deferral_parent: Option<Rc<Type>>,
     pub cjs_export_merged: Option<Rc<Symbol>>,
@@ -1133,6 +1135,7 @@ impl SymbolLinks {
             late_symbol: None,
             extended_containers: None,
             extended_containers_by_file: None,
+            variances: None,
             deferral_constituents: None,
             deferral_parent: None,
             cjs_export_merged: None,

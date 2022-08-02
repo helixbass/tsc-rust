@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::{Borrow, Cow};
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -9,11 +10,11 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
 };
 use crate::{
-    __String, every, for_each_bool, get_check_flags, get_selected_effective_modifier_flags, map,
-    some, CheckFlags, Diagnostics, IndexInfo, InterfaceTypeInterface, ModifierFlags, Node,
-    ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult, Signature, Symbol,
-    SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, VarianceFlags,
+    SymbolLinks, __String, every, for_each_bool, get_check_flags,
+    get_selected_effective_modifier_flags, map, some, CheckFlags, Diagnostics, IndexInfo,
+    ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult,
+    Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
@@ -461,8 +462,83 @@ impl TypeChecker {
 
     pub(super) fn get_alias_variances(&self, symbol: &Symbol) -> Vec<VarianceFlags> {
         let links = self.get_symbol_links(symbol);
-        // self.get_variances_worker()
-        unimplemented!()
+        let ret = self.get_variances_worker(
+            (*links).borrow().type_parameters.clone().as_deref(),
+            links.clone(),
+            |_links: &GetVariancesCache, param: &Type /*TypeParameter*/, marker: &Type| {
+                let type_ = self.get_type_alias_instantiation(
+                    symbol,
+                    self.instantiate_types(
+                        (*links).borrow().type_parameters.clone().as_deref(),
+                        &self.make_unary_type_mapper(param, marker),
+                    )
+                    .as_deref(),
+                    Option::<&Symbol>::None,
+                    None,
+                );
+                type_.set_alias_type_arguments_contains_marker(Some(true));
+                type_
+            },
+        );
+        ret
+    }
+
+    pub(super) fn get_variances_worker<
+        TCache: Into<GetVariancesCache>,
+        TCreateMarkerType: FnMut(&GetVariancesCache, &Type /*TypeParameter*/, &Type) -> Rc<Type>,
+    >(
+        &self,
+        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        cache: TCache,
+        mut create_marker_type: TCreateMarkerType,
+    ) -> Vec<VarianceFlags> {
+        let type_parameters = type_parameters.map_or_else(|| vec![], ToOwned::to_owned);
+        let cache = cache.into();
+        if cache.maybe_variances().is_none() {
+            // tracing?.push(tracing.Phase.CheckTypes, "getVariancesWorker", { arity: typeParameters.length, id: (cache as any).id ?? (cache as any).declaredType?.id ?? -1 });
+            *cache.maybe_variances() = Some(vec![]);
+            let mut variances: Vec<VarianceFlags> = vec![];
+            for tp in &type_parameters {
+                let mut unmeasurable = false;
+                let mut unreliable = false;
+                // const oldHandler = outofbandVarianceMarkerHandler;
+                // outofbandVarianceMarkerHandler = (onlyUnreliable) => onlyUnreliable ? unreliable = true : unmeasurable = true;
+                let type_with_super = create_marker_type(&cache, tp, &self.marker_super_type());
+                let type_with_sub = create_marker_type(&cache, tp, &self.marker_sub_type());
+                let mut variance =
+                    if self.is_type_assignable_to(&type_with_sub, &type_with_super) {
+                        VarianceFlags::Covariant
+                    } else {
+                        VarianceFlags::Invariant
+                    } | if self.is_type_assignable_to(&type_with_super, &type_with_sub) {
+                        VarianceFlags::Contravariant
+                    } else {
+                        VarianceFlags::Invariant
+                    };
+                if variance == VarianceFlags::Bivariant
+                    && self.is_type_assignable_to(
+                        &create_marker_type(&cache, tp, &self.marker_other_type()),
+                        &type_with_super,
+                    )
+                {
+                    variance = VarianceFlags::Independent;
+                }
+                // outofbandVarianceMarkerHandler = oldHandler;
+                if unmeasurable || unreliable {
+                    if unmeasurable {
+                        variance |= VarianceFlags::Unmeasurable;
+                    }
+                    if unreliable {
+                        variance |= VarianceFlags::Unreliable;
+                    }
+                }
+                variances.push(variance);
+            }
+            *cache.maybe_variances() = Some(variances);
+            // tracing?.pop();
+        }
+        let ret = cache.maybe_variances().clone().unwrap();
+        ret
     }
 
     pub(super) fn get_variances(&self, type_: &Type /*GenericType*/) -> Vec<VarianceFlags> {
@@ -541,5 +617,35 @@ impl TypeChecker {
             return true;
         }
         false
+    }
+}
+
+pub(super) enum GetVariancesCache {
+    SymbolLinks(Rc<RefCell<SymbolLinks>>),
+    GenericType(Rc<Type /*GenericType*/>),
+}
+
+impl GetVariancesCache {
+    pub(super) fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>> {
+        match self {
+            Self::SymbolLinks(symbol_links) => {
+                RefMut::map(symbol_links.borrow_mut(), |symbol_links| {
+                    &mut symbol_links.variances
+                })
+            }
+            Self::GenericType(generic_type) => generic_type.as_generic_type().maybe_variances(),
+        }
+    }
+}
+
+impl From<Rc<RefCell<SymbolLinks>>> for GetVariancesCache {
+    fn from(value: Rc<RefCell<SymbolLinks>>) -> Self {
+        Self::SymbolLinks(value)
+    }
+}
+
+impl From<Rc<Type>> for GetVariancesCache {
+    fn from(value: Rc<Type>) -> Self {
+        Self::GenericType(value)
     }
 }
