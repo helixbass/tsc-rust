@@ -16,6 +16,7 @@ use crate::{
     Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
+use local_macros::enum_unwrapped;
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
     CheckTypeRelatedTo<'type_checker, TContainingMessageChain>
@@ -542,7 +543,30 @@ impl TypeChecker {
     }
 
     pub(super) fn get_variances(&self, type_: &Type /*GenericType*/) -> Vec<VarianceFlags> {
-        unimplemented!()
+        let type_as_generic_type = type_.as_generic_type();
+        if ptr::eq(type_, &*self.global_array_type())
+            || ptr::eq(type_, &*self.global_readonly_array_type())
+            || type_as_generic_type
+                .object_flags()
+                .intersects(ObjectFlags::Tuple)
+        {
+            return self.array_variances();
+        }
+        self.get_variances_worker(
+            type_as_generic_type.maybe_type_parameters(),
+            type_.type_wrapper(),
+            |input: &GetVariancesCache, param: &Type, marker: &Type| {
+                self.get_marker_type_reference(
+                    // enum_unwrapped!(input, [GetVariancesCache, GenericType]),
+                    match input {
+                        GetVariancesCache::GenericType(input) => input,
+                        _ => panic!("Expected GenericType"),
+                    },
+                    param,
+                    marker,
+                )
+            },
+        )
     }
 
     pub(super) fn has_covariant_void_argument(
