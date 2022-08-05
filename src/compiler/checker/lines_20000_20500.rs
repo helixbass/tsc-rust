@@ -10,13 +10,13 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
 };
 use crate::{
-    get_object_flags, SymbolLinks, TypeReferenceInterface, __String, every, for_each_bool,
+    get_declaration_modifier_flags_from_symbol, get_object_flags, SymbolLinks,
+    TransientSymbolInterface, TypeReferenceInterface, __String, every, for_each_bool,
     get_check_flags, get_selected_effective_modifier_flags, map, some, CheckFlags, Diagnostics,
     IndexInfo, ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface,
     RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
-use local_macros::enum_unwrapped;
 
 impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
     CheckTypeRelatedTo<'type_checker, TContainingMessageChain>
@@ -669,16 +669,111 @@ impl TypeChecker {
         format!("{},{}{}", source.id(), target.id(), post_fix)
     }
 
+    pub(super) fn for_each_property<TReturn, TCallback: FnMut(&Symbol) -> TReturn>(
+        &self,
+        prop: &Symbol,
+        callback: &mut TCallback,
+    ) -> Option<TReturn> {
+        if get_check_flags(prop).intersects(CheckFlags::Synthetic) {
+            for t in (*prop.as_transient_symbol().symbol_links())
+                .borrow()
+                .containing_type
+                .clone()
+                .unwrap()
+                .as_union_or_intersection_type_interface()
+                .types()
+            {
+                let p = self.get_property_of_type_(t, prop.escaped_name(), None);
+                let result = p.as_ref().and_then(|p| self.for_each_property(p, callback));
+                if result.is_some() {
+                    return result;
+                }
+            }
+            return None;
+        }
+        Some(callback(prop))
+    }
+
+    pub(super) fn for_each_property_bool<TCallback: FnMut(&Symbol) -> bool>(
+        &self,
+        prop: &Symbol,
+        callback: &mut TCallback,
+    ) -> bool {
+        self.for_each_property(prop, &mut |symbol: &Symbol| {
+            if callback(symbol) {
+                Some(())
+            } else {
+                None
+            }
+        })
+        .is_some()
+    }
+
     pub(super) fn get_declaring_class(&self, prop: &Symbol) -> Option<Rc<Type /*InterfaceType*/>> {
-        unimplemented!()
+        prop.maybe_parent()
+            .filter(|prop_parent| prop_parent.flags().intersects(SymbolFlags::Class))
+            .map(|_prop_parent| {
+                self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prop).unwrap())
+            })
     }
 
     pub(super) fn get_type_of_property_in_base_class(&self, property: &Symbol) -> Option<Rc<Type>> {
-        unimplemented!()
+        let class_type = self.get_declaring_class(property);
+        let base_class_type = class_type
+            .as_ref()
+            .and_then(|class_type| self.get_base_types(class_type).get(0).map(Clone::clone));
+        base_class_type.as_ref().and_then(|base_class_type| {
+            self.get_type_of_property_of_type_(base_class_type, property.escaped_name())
+        })
+    }
+
+    pub(super) fn is_property_in_class_derived_from<TBaseClass: Borrow<Type>>(
+        &self,
+        prop: &Symbol,
+        base_class: Option<TBaseClass>,
+    ) -> bool {
+        let base_class = base_class.map(|base_class| base_class.borrow().type_wrapper());
+        self.for_each_property_bool(prop, &mut |sp: &Symbol| {
+            let source_class = self.get_declaring_class(sp);
+            if let Some(source_class) = source_class.as_ref() {
+                self.has_base_type(source_class, base_class.as_deref())
+            } else {
+                false
+            }
+        })
     }
 
     pub(super) fn is_valid_override_of(&self, source_prop: &Symbol, target_prop: &Symbol) -> bool {
-        unimplemented!()
+        !self.for_each_property_bool(target_prop, &mut |tp: &Symbol| {
+            if get_declaration_modifier_flags_from_symbol(tp, None)
+                .intersects(ModifierFlags::Protected)
+            {
+                !self.is_property_in_class_derived_from(source_prop, self.get_declaring_class(tp))
+            } else {
+                false
+            }
+        })
+    }
+
+    pub(super) fn is_class_derived_from_declaring_classes(
+        &self,
+        check_class: &Type,
+        prop: &Symbol,
+        writing: bool,
+    ) -> Option<Rc<Type>> {
+        if self.for_each_property_bool(prop, &mut |p: &Symbol| {
+            if get_declaration_modifier_flags_from_symbol(p, Some(writing))
+                .intersects(ModifierFlags::Protected)
+            {
+                !self.has_base_type(check_class, self.get_declaring_class(p))
+            } else {
+                false
+            }
+        }) {
+            None
+        } else {
+            Some(check_class.type_wrapper())
+        }
     }
 
     pub(super) fn is_deeply_nested_type(
