@@ -10,11 +10,11 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
 };
 use crate::{
-    SymbolLinks, __String, every, for_each_bool, get_check_flags,
-    get_selected_effective_modifier_flags, map, some, CheckFlags, Diagnostics, IndexInfo,
-    ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult,
-    Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
+    get_object_flags, SymbolLinks, TypeReferenceInterface, __String, every, for_each_bool,
+    get_check_flags, get_selected_effective_modifier_flags, map, some, CheckFlags, Diagnostics,
+    IndexInfo, ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface,
+    RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -574,7 +574,66 @@ impl TypeChecker {
         type_arguments: &[Rc<Type>],
         variances: &[VarianceFlags],
     ) -> bool {
-        unimplemented!()
+        for i in 0..variances.len() {
+            if variances[i] & VarianceFlags::VarianceMask == VarianceFlags::Covariant
+                && type_arguments[i].flags().intersects(TypeFlags::Void)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn is_unconstrained_type_parameter(&self, type_: &Type) -> bool {
+        type_.flags().intersects(TypeFlags::TypeParameter)
+            && self.get_constraint_of_type_parameter(type_).is_none()
+    }
+
+    pub(super) fn is_non_deferred_type_reference(&self, type_: &Type) -> bool {
+        get_object_flags(type_).intersects(ObjectFlags::Reference)
+            && type_.as_type_reference().maybe_node().is_none()
+    }
+
+    pub(super) fn is_type_reference_with_generic_arguments(&self, type_: &Type) -> bool {
+        self.is_non_deferred_type_reference(type_)
+            && some(
+                Some(&*self.get_type_arguments(type_)),
+                Some(|t: &Rc<Type>| {
+                    t.flags().intersects(TypeFlags::TypeParameter)
+                        || self.is_type_reference_with_generic_arguments(t)
+                }),
+            )
+    }
+
+    pub(super) fn get_type_reference_id(
+        &self,
+        type_: &Type, /*TypeReference*/
+        type_parameters: &mut Vec<Rc<Type>>,
+        depth: Option<usize>,
+    ) -> String {
+        let depth = depth.unwrap_or(0);
+        let mut result = type_.as_type_reference().target.id().to_string();
+        for t in &self.get_type_arguments(type_) {
+            if self.is_unconstrained_type_parameter(t) {
+                let mut index = type_parameters
+                    .iter()
+                    .position(|type_| Rc::ptr_eq(type_, t));
+                if index.is_none() {
+                    index = Some(type_parameters.len());
+                    type_parameters.push(t.clone());
+                }
+                let index = index.unwrap();
+                result.push_str(&format!("={}", index));
+            } else if depth < 4 && self.is_type_reference_with_generic_arguments(t) {
+                result.push_str(&format!(
+                    "<{}>",
+                    self.get_type_reference_id(t, type_parameters, Some(depth + 1))
+                ));
+            } else {
+                result.push_str(&format!("-{}", t.id()));
+            }
+        }
+        result
     }
 
     pub(super) fn get_relation_key(
@@ -584,7 +643,30 @@ impl TypeChecker {
         intersection_state: IntersectionState,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> String {
-        unimplemented!()
+        let mut source = source.type_wrapper();
+        let mut target = target.type_wrapper();
+        if ptr::eq(relation, &*self.identity_relation()) && source.id() > target.id() {
+            let temp = source.clone();
+            let source = target.clone();
+            let target = temp;
+        }
+        let post_fix = if intersection_state != IntersectionState::None {
+            format!(":{}", intersection_state.bits())
+        } else {
+            "".to_owned()
+        };
+        if self.is_type_reference_with_generic_arguments(&source)
+            && self.is_type_reference_with_generic_arguments(&target)
+        {
+            let mut type_parameters: Vec<Rc<Type>> = vec![];
+            return format!(
+                "{},{}{}",
+                self.get_type_reference_id(&source, &mut type_parameters, None),
+                self.get_type_reference_id(&target, &mut type_parameters, None),
+                post_fix
+            );
+        }
+        format!("{},{}{}", source.id(), target.id(), post_fix)
     }
 
     pub(super) fn get_declaring_class(&self, prop: &Symbol) -> Option<Rc<Type /*InterfaceType*/>> {
