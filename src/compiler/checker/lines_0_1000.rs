@@ -2855,6 +2855,12 @@ impl TypeChecker {
         self.any_readonly_array_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn maybe_deferred_global_non_nullable_type_alias(
+        &self,
+    ) -> RefMut<Option<Rc<Symbol>>> {
+        self.deferred_global_non_nullable_type_alias.borrow_mut()
+    }
+
     pub(super) fn maybe_deferred_global_es_symbol_constructor_symbol(
         &self,
     ) -> RefMut<Option<Rc<Symbol>>> {

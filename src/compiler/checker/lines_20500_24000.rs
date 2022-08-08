@@ -6,12 +6,12 @@ use std::rc::Rc;
 
 use super::{IterationTypeKind, TypeFacts, WideningKind};
 use crate::{
-    ElementFlags, Number, __String, are_option_rcs_equal, every, filter, find, get_object_flags,
-    is_write_only_access, last, length, node_is_missing, reduce_left_no_initial_value, some,
-    Debug_, DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
-    InferencePriority, InterfaceTypeInterface, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SyntaxKind, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypePredicate, UnionReduction,
+    is_outermost_optional_chain, ElementFlags, Number, __String, are_option_rcs_equal, every,
+    filter, find, get_object_flags, is_write_only_access, last, length, node_is_missing,
+    reduce_left_no_initial_value, some, Debug_, DiagnosticMessage, Diagnostics, InferenceContext,
+    InferenceFlags, InferenceInfo, InferencePriority, InterfaceTypeInterface, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SyntaxKind, Ternary,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
 
 impl TypeChecker {
@@ -836,20 +836,105 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Undefined) {
             type_.type_wrapper()
         } else {
-            unimplemented!()
+            self.get_union_type(
+                vec![
+                    type_.type_wrapper(),
+                    if is_property {
+                        self.missing_type()
+                    } else {
+                        self.undefined_type()
+                    },
+                ],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        }
+    }
+
+    pub(super) fn get_global_non_nullable_type_instantiation(&self, type_: &Type) -> Rc<Type> {
+        let reduced_type = self.get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull);
+        if self
+            .maybe_deferred_global_non_nullable_type_alias()
+            .is_none()
+        {
+            *self.maybe_deferred_global_non_nullable_type_alias() = Some(
+                self.get_global_symbol(
+                    &__String::new("NonNullable".to_owned()),
+                    SymbolFlags::TypeAlias,
+                    None,
+                )
+                .unwrap_or_else(|| self.unknown_symbol()),
+            );
+        }
+        if let Some(deferred_global_non_nullable_type_alias) = self
+            .maybe_deferred_global_non_nullable_type_alias()
+            .clone()
+            .as_ref()
+            .filter(|deferred_global_non_nullable_type_alias| {
+                !Rc::ptr_eq(
+                    deferred_global_non_nullable_type_alias,
+                    &self.unknown_symbol(),
+                )
+            })
+        {
+            self.get_type_alias_instantiation(
+                deferred_global_non_nullable_type_alias,
+                Some(&vec![reduced_type]),
+                Option::<&Symbol>::None,
+                None,
+            )
+        } else {
+            reduced_type
         }
     }
 
     pub(super) fn get_non_nullable_type(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        if self.strict_null_checks {
+            self.get_global_non_nullable_type_instantiation(type_)
+        } else {
+            type_.type_wrapper()
+        }
     }
 
     pub(super) fn add_optional_type_marker(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        if self.strict_null_checks {
+            self.get_union_type(
+                vec![type_.type_wrapper(), self.optional_type()],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        } else {
+            type_.type_wrapper()
+        }
     }
 
     pub(super) fn remove_optional_type_marker(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        if self.strict_null_checks {
+            self.remove_type(type_, &self.optional_type())
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn propagate_optional_type_marker(
+        &self,
+        type_: &Type,
+        node: &Node, /*OptionalChain*/
+        was_optional: bool,
+    ) -> Rc<Type> {
+        if was_optional {
+            if is_outermost_optional_chain(node) {
+                self.get_optional_type_(type_, None)
+            } else {
+                self.add_optional_type_marker(type_)
+            }
+        } else {
+            type_.type_wrapper()
+        }
     }
 
     pub(super) fn remove_missing_type(&self, type_: &Type, is_optional: bool) -> Rc<Type> {
@@ -1172,6 +1257,10 @@ impl TypeChecker {
         } else {
             self.never_type()
         }
+    }
+
+    pub(super) fn remove_type(&self, type_: &Type, target_type: &Type) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn count_types(&self, type_: &Type) -> usize {
