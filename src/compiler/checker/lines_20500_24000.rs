@@ -5,11 +5,11 @@ use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
-    every, get_object_flags, is_write_only_access, length, node_is_missing, Debug_,
-    DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
-    UnionReduction,
+    are_option_rcs_equal, every, filter, get_object_flags, is_write_only_access, length,
+    node_is_missing, reduce_left_no_initial_value, Debug_, DiagnosticMessage, Diagnostics,
+    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
 
 impl TypeChecker {
@@ -121,15 +121,92 @@ impl TypeChecker {
         target: Option<TTarget>,
         compare_types: TCompareTypes,
     ) -> Ternary {
-        unimplemented!()
-        // match (source, target) {
-        //     (Some(source), Some(target) => {
-        //         if !self.type_predicate_kinds_match(source, target) {
-        //             Ternary::False
-        //         } else
-        //     }
-        //     _ => Ternary::False,
-        // }
+        match (source, target) {
+            (Some(source), Some(target)) => {
+                let source = source.borrow();
+                let target = target.borrow();
+                if !self.type_predicate_kinds_match(source, target) {
+                    Ternary::False
+                } else if are_option_rcs_equal(source.type_.as_ref(), target.type_.as_ref()) {
+                    Ternary::True
+                } else if let (Some(source_type), Some(target_type)) =
+                    (source.type_.as_ref(), target.type_.as_ref())
+                {
+                    compare_types(source_type, target_type)
+                } else {
+                    Ternary::False
+                }
+            }
+            _ => Ternary::False,
+        }
+    }
+
+    pub(super) fn literal_types_with_same_base_type(&self, types: &[Rc<Type>]) -> bool {
+        let mut common_base_type: Option<Rc<Type>> = None;
+        for t in types {
+            let base_type = self.get_base_type_of_literal_type(t);
+            if common_base_type.is_none() {
+                common_base_type = Some(base_type.clone());
+            }
+            if Rc::ptr_eq(&base_type, t)
+                || !Rc::ptr_eq(&base_type, common_base_type.as_ref().unwrap())
+            {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub(super) fn get_supertype_or_union(&self, types: &[Rc<Type>]) -> Rc<Type> {
+        if types.len() == 1 {
+            return types[0].clone();
+        }
+        if self.literal_types_with_same_base_type(types) {
+            self.get_union_type(
+                types.to_owned(),
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        } else {
+            reduce_left_no_initial_value(
+                types,
+                |s: Rc<Type>, t: &Rc<Type>, _| {
+                    if self.is_type_subtype_of(&s, t) {
+                        t.clone()
+                    } else {
+                        s
+                    }
+                },
+                None,
+                None,
+            )
+        }
+    }
+
+    pub(super) fn get_common_supertype(&self, types: &[Rc<Type>]) -> Rc<Type> {
+        if !self.strict_null_checks {
+            return self.get_supertype_or_union(types);
+        }
+        let primary_types = filter(Some(types), |t: &Rc<Type>| {
+            !t.flags().intersects(TypeFlags::Nullable)
+        })
+        .unwrap();
+        if !primary_types.is_empty() {
+            self.get_nullable_type(
+                &self.get_supertype_or_union(&primary_types),
+                self.get_falsy_flags_of_types(types) & TypeFlags::Nullable,
+            )
+        } else {
+            self.get_union_type(
+                types.to_owned(),
+                Some(UnionReduction::Subtype),
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        }
     }
 
     pub(super) fn is_array_type(&self, type_: &Type) -> bool {
@@ -297,6 +374,10 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         let end_skip_count = end_skip_count.unwrap_or(0);
         let writing = writing.unwrap_or(false);
+        unimplemented!()
+    }
+
+    pub(super) fn get_falsy_flags_of_types(&self, types: &[Rc<Type>]) -> TypeFlags {
         unimplemented!()
     }
 
