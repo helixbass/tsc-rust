@@ -6,12 +6,12 @@ use std::rc::Rc;
 
 use super::{IterationTypeKind, TypeFacts, WideningKind};
 use crate::{
-    __String, are_option_rcs_equal, every, filter, find, get_object_flags, is_write_only_access,
-    last, length, node_is_missing, reduce_left_no_initial_value, some, Debug_, DiagnosticMessage,
-    Diagnostics, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
-    InterfaceTypeInterface, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    Symbol, SymbolFlags, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypePredicate, UnionReduction,
+    ElementFlags, Number, __String, are_option_rcs_equal, every, filter, find, get_object_flags,
+    is_write_only_access, last, length, node_is_missing, reduce_left_no_initial_value, some,
+    Debug_, DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
+    InferencePriority, InterfaceTypeInterface, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SyntaxKind, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
 
 impl TypeChecker {
@@ -592,25 +592,50 @@ impl TypeChecker {
     }
 
     pub(super) fn is_generic_tuple_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.is_tuple_type(type_)
+            && type_
+                .as_type_reference()
+                .target
+                .as_tuple_type()
+                .combined_flags
+                .intersects(ElementFlags::Variadic)
     }
 
     pub(super) fn is_single_element_generic_tuple_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.is_generic_tuple_type(type_)
+            && type_
+                .as_type_reference()
+                .target
+                .as_tuple_type()
+                .element_flags
+                .len()
+                == 1
     }
 
     pub(super) fn get_rest_type_of_tuple_type(
         &self,
         type_: &Type, /*TupleTypeReference*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        self.get_element_type_of_slice_of_tuple_type(
+            type_,
+            type_
+                .as_type_reference()
+                .target
+                .as_tuple_type()
+                .fixed_length,
+            None,
+            None,
+        )
     }
 
     pub(super) fn get_rest_array_type_of_tuple_type(
         &self,
         type_: &Type, /*TupleTypeReference*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let rest_type = self.get_rest_type_of_tuple_type(type_);
+        rest_type
+            .as_ref()
+            .map(|rest_type| self.create_array_type(rest_type, None))
     }
 
     pub(super) fn get_element_type_of_slice_of_tuple_type(
@@ -622,19 +647,187 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         let end_skip_count = end_skip_count.unwrap_or(0);
         let writing = writing.unwrap_or(false);
-        unimplemented!()
+        let length = self.get_type_reference_arity(type_) - end_skip_count;
+        if index < length {
+            let type_arguments = self.get_type_arguments(type_);
+            let mut element_types: Vec<Rc<Type>> = vec![];
+            for i in index..length {
+                let t = &type_arguments[i];
+                element_types.push(
+                    if type_
+                        .as_type_reference()
+                        .target
+                        .as_tuple_type()
+                        .element_flags[i]
+                        .intersects(ElementFlags::Variadic)
+                    {
+                        self.get_indexed_access_type(
+                            t,
+                            &self.number_type(),
+                            None,
+                            Option::<&Node>::None,
+                            Option::<&Symbol>::None,
+                            None,
+                        )
+                    } else {
+                        t.clone()
+                    },
+                );
+            }
+            return Some(if writing {
+                self.get_intersection_type(&element_types, Option::<&Symbol>::None, None)
+            } else {
+                self.get_union_type(
+                    element_types,
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                )
+            });
+        }
+        None
+    }
+
+    pub(super) fn is_tuple_type_structure_matching(
+        &self,
+        t1: &Type, /*TupleTypeReference*/
+        t2: &Type, /*TupleTypeReference*/
+    ) -> bool {
+        self.get_type_reference_arity(t1) == self.get_type_reference_arity(t2)
+            && every(
+                &t1.as_type_reference().target.as_tuple_type().element_flags,
+                |f: &ElementFlags, i| {
+                    *f & ElementFlags::Variable
+                        == t2.as_type_reference().target.as_tuple_type().element_flags[i]
+                            & ElementFlags::Variable
+                },
+            )
+    }
+
+    pub(super) fn is_zero_big_int(&self, type_: &Type /*BigIntLiteralType*/) -> bool {
+        type_.as_big_int_literal_type().value.base_10_value == "0"
     }
 
     pub(super) fn get_falsy_flags_of_types(&self, types: &[Rc<Type>]) -> TypeFlags {
-        unimplemented!()
+        let mut result = TypeFlags::None;
+        for t in types {
+            result |= self.get_falsy_flags(t);
+        }
+        result
     }
 
     pub(super) fn get_falsy_flags(&self, type_: &Type) -> TypeFlags {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Union) {
+            self.get_falsy_flags_of_types(type_.as_union_or_intersection_type_interface().types())
+        } else if type_.flags().intersects(TypeFlags::StringLiteral) {
+            if type_.as_string_literal_type().value == "" {
+                TypeFlags::StringLiteral
+            } else {
+                TypeFlags::None
+            }
+        } else if type_.flags().intersects(TypeFlags::NumberLiteral) {
+            if type_.as_number_literal_type().value == Number::new(0.0) {
+                TypeFlags::NumberLiteral
+            } else {
+                TypeFlags::None
+            }
+        } else if type_.flags().intersects(TypeFlags::BigIntLiteral) {
+            if self.is_zero_big_int(type_) {
+                TypeFlags::BigIntLiteral
+            } else {
+                TypeFlags::None
+            }
+        } else if type_.flags().intersects(TypeFlags::BooleanLiteral) {
+            if ptr::eq(type_, &*self.false_type()) || ptr::eq(type_, &*self.regular_false_type()) {
+                TypeFlags::BooleanLiteral
+            } else {
+                TypeFlags::None
+            }
+        } else {
+            TypeFlags::PossiblyFalsy
+        }
+    }
+
+    pub(super) fn remove_definitely_falsy_types(&self, type_: &Type) -> Rc<Type> {
+        if self
+            .get_falsy_flags(type_)
+            .intersects(TypeFlags::DefinitelyFalsy)
+        {
+            self.filter_type(type_, |t: &Type| {
+                !self
+                    .get_falsy_flags(t)
+                    .intersects(TypeFlags::DefinitelyFalsy)
+            })
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn extract_definitely_falsy_types(&self, type_: &Type) -> Rc<Type> {
+        self.map_type(
+            type_,
+            &mut |type_: &Type| Some(self.get_definitely_falsy_part_of_type(type_)),
+            None,
+        )
+        .unwrap()
+    }
+
+    pub(super) fn get_definitely_falsy_part_of_type(&self, type_: &Type) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::String) {
+            self.empty_string_type()
+        } else if type_.flags().intersects(TypeFlags::Number) {
+            self.zero_type()
+        } else if type_.flags().intersects(TypeFlags::BigInt) {
+            self.zero_big_int_type()
+        } else if ptr::eq(type_, &*self.regular_false_type())
+            || ptr::eq(type_, &*self.false_type())
+            || type_.flags().intersects(
+                TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Null | TypeFlags::AnyOrUnknown,
+            )
+            || type_.flags().intersects(TypeFlags::StringLiteral)
+                && type_.as_string_literal_type().value == ""
+            || type_.flags().intersects(TypeFlags::BigIntLiteral) && self.is_zero_big_int(type_)
+        {
+            type_.type_wrapper()
+        } else {
+            self.never_type()
+        }
     }
 
     pub(super) fn get_nullable_type(&self, type_: &Type, flags: TypeFlags) -> Rc<Type> {
-        unimplemented!()
+        let missing = (flags & !type_.flags()) & (TypeFlags::Undefined | TypeFlags::Null);
+        if missing == TypeFlags::None {
+            type_.type_wrapper()
+        } else if missing == TypeFlags::Undefined {
+            self.get_union_type(
+                vec![type_.type_wrapper(), self.undefined_type()],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        } else if missing == TypeFlags::Null {
+            self.get_union_type(
+                vec![type_.type_wrapper(), self.null_type()],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        } else {
+            self.get_union_type(
+                vec![
+                    type_.type_wrapper(),
+                    self.undefined_type(),
+                    self.null_type(),
+                ],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        }
     }
 
     pub(super) fn get_optional_type_(&self, type_: &Type, is_property: Option<bool>) -> Rc<Type> {

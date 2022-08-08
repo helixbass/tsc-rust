@@ -2989,6 +2989,18 @@ impl TypeChecker {
         self.deferred_global_big_int_type.borrow_mut()
     }
 
+    pub(super) fn empty_string_type(&self) -> Rc<Type> {
+        self.empty_string_type.clone().unwrap()
+    }
+
+    pub(super) fn zero_type(&self) -> Rc<Type> {
+        self.zero_type.clone().unwrap()
+    }
+
+    pub(super) fn zero_big_int_type(&self) -> Rc<Type> {
+        self.zero_big_int_type.clone().unwrap()
+    }
+
     pub(super) fn resolution_targets(&self) -> RefMut<Vec<TypeSystemEntity>> {
         self.resolution_targets.borrow_mut()
     }
