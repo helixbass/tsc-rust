@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
@@ -13,7 +14,41 @@ use crate::{
 
 impl TypeChecker {
     pub(super) fn get_regular_type_of_object_literal(&self, type_: &Type) -> Rc<Type> {
-        type_.type_wrapper()
+        if !(self.is_object_literal_type(type_)
+            && get_object_flags(type_).intersects(ObjectFlags::FreshLiteral))
+        {
+            return type_.type_wrapper();
+        }
+        let regular_type = type_
+            .as_fresh_object_literal_type()
+            .maybe_regular_type()
+            .clone();
+        if let Some(regular_type) = regular_type {
+            return regular_type;
+        }
+
+        let resolved = type_.type_wrapper();
+        let resolved_as_resolved_type = resolved.as_resolved_type();
+        let members = self.transform_type_of_members(type_, |type_: &Type| {
+            self.get_regular_type_of_object_literal(type_)
+        });
+        let regular_new: Rc<Type> = self
+            .create_anonymous_type(
+                resolved.maybe_symbol(),
+                Rc::new(RefCell::new(members)),
+                resolved_as_resolved_type.call_signatures().clone(),
+                resolved_as_resolved_type.construct_signatures().clone(),
+                resolved_as_resolved_type.index_infos().clone(),
+            )
+            .into();
+        regular_new.set_flags(resolved.flags());
+        let regular_new_as_object_flags_type = regular_new.as_object_flags_type();
+        regular_new_as_object_flags_type.set_object_flags(
+            regular_new_as_object_flags_type.object_flags()
+                | resolved_as_resolved_type.object_flags() & !ObjectFlags::FreshLiteral,
+        );
+        *type_.as_fresh_object_literal_type().maybe_regular_type() = Some(regular_new.clone());
+        regular_new
     }
 
     pub(super) fn get_widened_type(&self, type_: &Type) -> Rc<Type> {

@@ -9,7 +9,7 @@ use super::{
     BaseType, IndexInfo, IntersectionType, MappedType, Node, PseudoBigInt, ResolvedTypeInterface,
     ReverseMappedType, Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
-use crate::{Number, TypeMapper, WeakSelf, __String};
+use crate::{FreshObjectLiteralTypeInterface, Number, TypeMapper, WeakSelf, __String};
 use local_macros::type_type;
 
 pub trait LiteralTypeInterface: TypeInterface {
@@ -334,7 +334,7 @@ pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
 
 #[derive(Clone, Debug)]
 #[type_type(
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
 pub enum ObjectType {
     BaseObjectType(BaseObjectType),
@@ -359,6 +359,8 @@ pub struct BaseObjectType {
     pub target: Option<Rc<Type>>,
     pub mapper: Option<TypeMapper>,
     instantiations: RefCell<Option<HashMap<String, Rc<Type>>>>,
+    // FreshObjectLiteralType fields
+    regular_type: RefCell<Option<Rc<Type /*ResolvedType*/>>>,
 }
 
 impl BaseObjectType {
@@ -375,6 +377,7 @@ impl BaseObjectType {
             target: None,
             mapper: None,
             instantiations: RefCell::new(None),
+            regular_type: RefCell::new(None),
         }
     }
 }
@@ -507,10 +510,16 @@ impl ResolvedTypeInterface for BaseObjectType {
     }
 }
 
+impl FreshObjectLiteralTypeInterface for BaseObjectType {
+    fn maybe_regular_type(&self) -> RefMut<Option<Rc<Type /*ResolvedType*/>>> {
+        self.regular_type.borrow_mut()
+    }
+}
+
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InterfaceTypeInterface, TypeReferenceInterface, GenericTypeInterface, GenericableTypeInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InterfaceTypeInterface, TypeReferenceInterface, GenericTypeInterface, GenericableTypeInterface, FreshObjectLiteralTypeInterface"
 )]
 pub enum InterfaceType {
     BaseInterfaceType(BaseInterfaceType),
@@ -520,7 +529,7 @@ pub enum InterfaceType {
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "InterfaceType, ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
 pub struct BaseInterfaceType {
     _object_type: BaseObjectType,
@@ -721,7 +730,7 @@ impl TypeReferenceInterface for BaseInterfaceType {
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
 pub struct TypeReference {
     _object_type: BaseObjectType,
@@ -823,7 +832,7 @@ bitflags! {
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "InterfaceType, ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, GenericableTypeInterface, GenericTypeInterface, InterfaceTypeInterface, TypeReferenceInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, GenericableTypeInterface, GenericTypeInterface, InterfaceTypeInterface, TypeReferenceInterface, FreshObjectLiteralTypeInterface"
 )]
 pub struct TupleType {
     _interface_type: BaseInterfaceType,
@@ -1015,6 +1024,12 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
     }
 }
 
+impl FreshObjectLiteralTypeInterface for BaseUnionOrIntersectionType {
+    fn maybe_regular_type(&self) -> RefMut<Option<Rc<Type /*ResolvedType*/>>> {
+        panic!("Shouldn't call regular_type() on BaseUnionOrIntersectionType?")
+    }
+}
+
 impl ObjectTypeInterface for BaseUnionOrIntersectionType {
     fn maybe_members(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>> {
         self.members.borrow()
@@ -1048,7 +1063,7 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "UnionOrIntersectionType",
-    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
 pub struct UnionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,

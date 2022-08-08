@@ -22,7 +22,7 @@ use local_macros::{enum_unwrapped, type_type};
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "UnionOrIntersectionType",
-    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
 pub struct IntersectionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
@@ -45,7 +45,7 @@ impl IntersectionType {
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
 pub struct MappedType {
     _object_type: BaseObjectType,
@@ -110,7 +110,7 @@ impl MappedType {
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
 pub struct ReverseMappedType {
     _object_type: BaseObjectType,
@@ -135,6 +135,10 @@ pub trait ResolvedTypeInterface:
         &self,
         object_type_without_abstract_construct_signatures: Option<Rc<Type>>,
     );
+}
+
+pub trait FreshObjectLiteralTypeInterface: ResolvedTypeInterface {
+    fn maybe_regular_type(&self) -> RefMut<Option<Rc<Type /*ResolvedType*/>>>;
 }
 
 #[derive(Debug)]

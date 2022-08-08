@@ -1383,6 +1383,15 @@ fn get_type_struct_interface_impl(
                 }
             }
         }
+        "FreshObjectLiteralTypeInterface" => {
+            quote! {
+                impl crate::FreshObjectLiteralTypeInterface for #type_type_name {
+                    fn maybe_regular_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.maybe_regular_type()
+                    }
+                }
+            }
+        }
         "UnionOrIntersectionTypeInterface" => {
             quote! {
                 impl crate::UnionOrIntersectionTypeInterface for #type_type_name {
@@ -1857,6 +1866,17 @@ fn get_type_enum_interface_impl(
                     ) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_object_type_without_abstract_construct_signatures(object_type_without_abstract_construct_signatures)),*
+                        }
+                    }
+                }
+            }
+        }
+        "FreshObjectLiteralTypeInterface" => {
+            quote! {
+                impl crate::FreshObjectLiteralTypeInterface for #type_type_name {
+                    fn maybe_regular_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_regular_type()),*
                         }
                     }
                 }

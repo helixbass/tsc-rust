@@ -14,7 +14,10 @@ use super::{
     SubstitutionType, Symbol, TemplateLiteralType, TupleType, TypeParameter, TypeReference,
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, UniqueESSymbolType,
 };
-use crate::{BaseTransientSymbol, GenericTypeInterface, Node, ObjectFlags, Pattern, WeakSelf};
+use crate::{
+    BaseTransientSymbol, FreshObjectLiteralTypeInterface, GenericTypeInterface, Node, ObjectFlags,
+    Pattern, WeakSelf,
+};
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
 #[derive(Debug)]
@@ -379,6 +382,18 @@ impl Type {
                 object_type
             }
             _ => panic!("Expected resolved type"),
+        }
+    }
+
+    pub fn as_fresh_object_literal_type(&self) -> &dyn FreshObjectLiteralTypeInterface {
+        match self {
+            Type::ObjectType(object_type) => {
+                if !object_type.is_resolved() {
+                    panic!("Not resolved")
+                }
+                object_type
+            }
+            _ => panic!("Expected fresh object literal type"),
         }
     }
 
