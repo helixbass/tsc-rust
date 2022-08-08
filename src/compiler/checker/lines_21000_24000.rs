@@ -7,10 +7,11 @@ use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
-    SymbolInterface, __String, get_object_flags, is_write_only_access, node_is_missing,
-    DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, Ternary,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext,
+    create_symbol_table, same_map, some, IndexInfo, SymbolInterface, __String, get_object_flags,
+    is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics, InferenceContext,
+    InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature,
+    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    WideningContext,
 };
 
 impl TypeChecker {
@@ -152,6 +153,57 @@ impl TypeChecker {
         result
     }
 
+    pub(super) fn get_widened_type_of_object_literal(
+        &self,
+        type_: &Type,
+        context: Option<Rc<RefCell<WideningContext>>>,
+    ) -> Rc<Type> {
+        let mut members = create_symbol_table(None);
+        for prop in &self.get_properties_of_object_type(type_) {
+            members.insert(
+                prop.escaped_name().clone(),
+                self.get_widened_property(prop, context.clone()),
+            );
+        }
+        if let Some(context) = context {
+            for prop in &self.get_properties_of_context(context) {
+                if !members.contains_key(prop.escaped_name()) {
+                    members.insert(
+                        prop.escaped_name().clone(),
+                        self.get_undefined_property(prop),
+                    );
+                }
+            }
+        }
+        let result: Rc<Type> = self
+            .create_anonymous_type(
+                type_.maybe_symbol(),
+                Rc::new(RefCell::new(members)),
+                vec![],
+                vec![],
+                same_map(
+                    Some(&self.get_index_infos_of_type(type_)),
+                    |info: &Rc<IndexInfo>, _| {
+                        Rc::new(self.create_index_info(
+                            info.key_type.clone(),
+                            self.get_widened_type(&info.type_),
+                            info.is_readonly,
+                            None,
+                        ))
+                    },
+                )
+                .unwrap(),
+            )
+            .into();
+        let result_as_object_flags_type = result.as_object_flags_type();
+        result_as_object_flags_type.set_object_flags(
+            result_as_object_flags_type.object_flags()
+                | (get_object_flags(type_)
+                    & (ObjectFlags::JSLiteral | ObjectFlags::NonInferrableType)),
+        );
+        result
+    }
+
     pub(super) fn get_widened_type(&self, type_: &Type) -> Rc<Type> {
         self.get_widened_type_with_context(type_, None)
     }
@@ -161,6 +213,87 @@ impl TypeChecker {
         type_: &Type,
         context: Option<Rc<RefCell<WideningContext>>>,
     ) -> Rc<Type> {
+        if get_object_flags(type_).intersects(ObjectFlags::RequiresWidening) {
+            if context.is_none() {
+                if let Some(type_widened) = type_.maybe_widened().clone() {
+                    return type_widened;
+                }
+            }
+            let mut result: Option<Rc<Type>> = None;
+            if type_
+                .flags()
+                .intersects(TypeFlags::Any | TypeFlags::Nullable)
+            {
+                result = Some(self.any_type());
+            } else if self.is_object_literal_type(type_) {
+                result = Some(self.get_widened_type_of_object_literal(type_, context.clone()));
+            } else if type_.flags().intersects(TypeFlags::Union) {
+                let union_context = context.clone().unwrap_or_else(|| {
+                    Rc::new(RefCell::new(
+                        self.create_widening_context(
+                            None,
+                            None,
+                            Some(
+                                type_
+                                    .as_union_or_intersection_type_interface()
+                                    .types()
+                                    .to_owned(),
+                            ),
+                        ),
+                    ))
+                });
+                let widened_types = same_map(
+                    Some(type_.as_union_or_intersection_type_interface().types()),
+                    |t: &Rc<Type>, _| {
+                        if t.flags().intersects(TypeFlags::Nullable) {
+                            t.clone()
+                        } else {
+                            self.get_widened_type_with_context(t, Some(union_context.clone()))
+                        }
+                    },
+                )
+                .unwrap();
+                let union_reduction = if some(
+                    Some(&widened_types),
+                    Some(|type_: &Rc<Type>| self.is_empty_object_type(type_)),
+                ) {
+                    UnionReduction::Subtype
+                } else {
+                    UnionReduction::Literal
+                };
+                result = Some(self.get_union_type(
+                    widened_types,
+                    Some(union_reduction),
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ));
+            } else if type_.flags().intersects(TypeFlags::Intersection) {
+                result = Some(
+                    self.get_intersection_type(
+                        &same_map(
+                            Some(type_.as_union_or_intersection_type_interface().types()),
+                            |type_: &Rc<Type>, _| self.get_widened_type(type_),
+                        )
+                        .unwrap(),
+                        Option::<&Symbol>::None,
+                        None,
+                    ),
+                );
+            } else if self.is_array_type(type_) || self.is_tuple_type(type_) {
+                result = Some(self.create_type_reference(
+                    &type_.as_type_reference().target,
+                    same_map(
+                        Some(&self.get_type_arguments(type_)),
+                        |type_: &Rc<Type>, _| self.get_widened_type(type_),
+                    ),
+                ));
+            }
+            if result.is_some() && context.is_none() {
+                *type_.maybe_widened() = result.clone();
+            }
+            return result.unwrap_or_else(|| type_.type_wrapper());
+        }
         type_.type_wrapper()
     }
 

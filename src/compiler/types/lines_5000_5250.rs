@@ -563,6 +563,7 @@ pub trait TypeInterface {
     fn maybe_permissive_instantiation(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_widened(&self) -> RefMut<Option<Rc<Type>>>;
     // InstantiableType fields
     fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_resolved_index_type(&self) -> RefMut<Option<Rc<Type /*IndexType*/>>>;
@@ -582,6 +583,7 @@ pub struct BaseType {
     permissive_instantiation: RefCell<Option<Rc<Type>>>,
     restrictive_instantiation: RefCell<Option<Rc<Type>>>,
     immediate_base_constraint: RefCell<Option<Rc<Type>>>,
+    widened: RefCell<Option<Rc<Type>>>,
     // InstantiableType fields
     resolved_base_constraint: RefCell<Option<Rc<Type>>>,
     resolved_index_type: RefCell<Option<Rc<Type /*IndexType*/>>>,
@@ -602,6 +604,7 @@ impl BaseType {
             permissive_instantiation: RefCell::new(None),
             restrictive_instantiation: RefCell::new(None),
             immediate_base_constraint: RefCell::new(None),
+            widened: RefCell::new(None),
             resolved_base_constraint: RefCell::new(None),
             resolved_index_type: RefCell::new(None),
             resolved_string_index_type: RefCell::new(None),
@@ -681,6 +684,10 @@ impl TypeInterface for BaseType {
 
     fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>> {
         self.immediate_base_constraint.borrow_mut()
+    }
+
+    fn maybe_widened(&self) -> RefMut<Option<Rc<Type>>> {
+        self.widened.borrow_mut()
     }
 
     fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Rc<Type>>> {
