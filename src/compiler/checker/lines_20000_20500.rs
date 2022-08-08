@@ -10,7 +10,7 @@ use super::{
     CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
 };
 use crate::{
-    get_declaration_modifier_flags_from_symbol, get_object_flags, SymbolLinks,
+    get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot, SymbolLinks,
     TransientSymbolInterface, TypeReferenceInterface, __String, every, for_each_bool,
     get_check_flags, get_selected_effective_modifier_flags, map, some, CheckFlags, Diagnostics,
     IndexInfo, ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface,
@@ -784,6 +784,22 @@ impl TypeChecker {
         max_depth: Option<usize>,
     ) -> bool {
         let max_depth = max_depth.unwrap_or(5);
+        if depth >= max_depth {
+            let identity = self.get_recursion_identity(type_);
+            let mut count = 0;
+            for i in 0..depth {
+                if self.get_recursion_identity(&stack[i]) == identity {
+                    count += 1;
+                    if count >= max_depth {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    pub(super) fn get_recursion_identity(&self, type_: &Type) -> RecursionIdentity {
         unimplemented!()
     }
 
@@ -848,5 +864,50 @@ impl From<Rc<RefCell<SymbolLinks>>> for GetVariancesCache {
 impl From<Rc<Type>> for GetVariancesCache {
     fn from(value: Rc<Type>) -> Self {
         Self::GenericType(value)
+    }
+}
+
+pub(super) enum RecursionIdentity {
+    Node(Rc<Node>),
+    Symbol(Rc<Symbol>),
+    Type(Rc<Type>),
+    ConditionalRoot(Rc<ConditionalRoot>),
+}
+
+impl PartialEq for RecursionIdentity {
+    fn eq(&self, other: &RecursionIdentity) -> bool {
+        match (self, other) {
+            (Self::Node(a), Self::Node(b)) => Rc::ptr_eq(a, b),
+            (Self::Symbol(a), Self::Symbol(b)) => Rc::ptr_eq(a, b),
+            (Self::Type(a), Self::Type(b)) => Rc::ptr_eq(a, b),
+            (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Rc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for RecursionIdentity {}
+
+impl From<Rc<Node>> for RecursionIdentity {
+    fn from(value: Rc<Node>) -> Self {
+        Self::Node(value)
+    }
+}
+
+impl From<Rc<Symbol>> for RecursionIdentity {
+    fn from(value: Rc<Symbol>) -> Self {
+        Self::Symbol(value)
+    }
+}
+
+impl From<Rc<Type>> for RecursionIdentity {
+    fn from(value: Rc<Type>) -> Self {
+        Self::Type(value)
+    }
+}
+
+impl From<Rc<ConditionalRoot>> for RecursionIdentity {
+    fn from(value: Rc<ConditionalRoot>) -> Self {
+        Self::ConditionalRoot(value)
     }
 }
