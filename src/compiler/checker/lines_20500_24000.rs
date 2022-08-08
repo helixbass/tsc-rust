@@ -4,10 +4,10 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{TypeFacts, WideningKind};
+use super::{IterationTypeKind, TypeFacts, WideningKind};
 use crate::{
-    __String, are_option_rcs_equal, every, filter, get_object_flags, is_write_only_access, last,
-    length, node_is_missing, reduce_left_no_initial_value, some, Debug_, DiagnosticMessage,
+    __String, are_option_rcs_equal, every, filter, find, get_object_flags, is_write_only_access,
+    last, length, node_is_missing, reduce_left_no_initial_value, some, Debug_, DiagnosticMessage,
     Diagnostics, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
     InterfaceTypeInterface, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
     Symbol, SymbolFlags, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -411,6 +411,19 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn extract_unit_type(&self, type_: &Type) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Intersection) {
+            find(
+                type_.as_union_or_intersection_type_interface().types(),
+                |type_: &Rc<Type>, _| self.is_unit_type(type_),
+            )
+            .map(Clone::clone)
+            .unwrap_or_else(|| type_.type_wrapper())
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
     pub(super) fn is_literal_type(&self, type_: &Type) -> bool {
         if type_.flags().intersects(TypeFlags::Boolean) {
             true
@@ -420,7 +433,7 @@ impl TypeChecker {
             } else {
                 every(
                     type_.as_union_or_intersection_type_interface().types(),
-                    |type_, _| self.is_unit_type(&**type_),
+                    |type_, _| self.is_unit_type(type_),
                 )
             }
         } else {
@@ -430,9 +443,9 @@ impl TypeChecker {
 
     pub(super) fn get_base_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::EnumLiteral) {
-            unimplemented!()
+            self.get_base_type_of_enum_literal_type(type_)
         } else if type_.flags().intersects(TypeFlags::StringLiteral) {
-            unimplemented!()
+            self.string_type()
         } else if type_.flags().intersects(TypeFlags::NumberLiteral) {
             self.number_type()
         } else if type_.flags().intersects(TypeFlags::BigIntLiteral) {
@@ -454,9 +467,9 @@ impl TypeChecker {
     pub(super) fn get_widened_literal_type(&self, type_: &Type) -> Rc<Type> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::EnumLiteral) && self.is_fresh_literal_type(type_) {
-            unimplemented!()
+            self.get_base_type_of_enum_literal_type(type_)
         } else if flags.intersects(TypeFlags::StringLiteral) && self.is_fresh_literal_type(type_) {
-            unimplemented!()
+            self.string_type()
         } else if flags.intersects(TypeFlags::NumberLiteral) && self.is_fresh_literal_type(type_) {
             self.number_type()
         } else if flags.intersects(TypeFlags::BigIntLiteral) && self.is_fresh_literal_type(type_) {
@@ -476,17 +489,94 @@ impl TypeChecker {
     }
 
     pub(super) fn get_widened_unique_es_symbol_type(&self, type_: &Type) -> Rc<Type> {
-        type_.type_wrapper()
+        if type_.flags().intersects(TypeFlags::UniqueESSymbol) {
+            self.es_symbol_type()
+        } else if type_.flags().intersects(TypeFlags::Union) {
+            self.map_type(
+                type_,
+                &mut |type_| Some(self.get_widened_unique_es_symbol_type(type_)),
+                None,
+            )
+            .unwrap()
+        } else {
+            type_.type_wrapper()
+        }
     }
 
-    pub(super) fn get_widened_literal_like_type_for_contextual_type<TTypeRef: Borrow<Type>>(
+    pub(super) fn get_widened_literal_like_type_for_contextual_type<
+        TContextualType: Borrow<Type>,
+    >(
         &self,
         type_: &Type,
-        contextual_type: Option<TTypeRef>,
+        contextual_type: Option<TContextualType>,
     ) -> Rc<Type> {
         let mut type_ = type_.type_wrapper();
         if !self.is_literal_of_contextual_type(&type_, contextual_type) {
             type_ = self.get_widened_unique_es_symbol_type(&self.get_widened_literal_type(&type_));
+        }
+        type_
+    }
+
+    pub(super) fn get_widened_literal_like_type_for_contextual_return_type_if_needed<
+        TType: Borrow<Type>,
+        TContextualSignatureReturnType: Borrow<Type>,
+    >(
+        &self,
+        type_: Option<TType>,
+        contextual_signature_return_type: Option<TContextualSignatureReturnType>,
+        is_async: bool,
+    ) -> Option<Rc<Type>> {
+        let mut type_ = type_.map(|type_| type_.borrow().type_wrapper());
+        if let Some(type_present) = type_.as_ref().filter(|type_| self.is_unit_type(type_)) {
+            let contextual_type =
+                contextual_signature_return_type.and_then(|contextual_signature_return_type| {
+                    let contextual_signature_return_type =
+                        contextual_signature_return_type.borrow();
+                    if is_async {
+                        self.get_promised_type_of_promise(
+                            contextual_signature_return_type,
+                            Option::<&Node>::None,
+                        )
+                    } else {
+                        Some(contextual_signature_return_type.type_wrapper())
+                    }
+                });
+            type_ =
+                Some(self.get_widened_literal_like_type_for_contextual_type(
+                    type_present,
+                    contextual_type,
+                ));
+        }
+        type_
+    }
+
+    pub(super) fn get_widened_literal_like_type_for_contextual_iteration_type_if_needed<
+        TType: Borrow<Type>,
+        TContextualSignatureReturnType: Borrow<Type>,
+    >(
+        &self,
+        type_: Option<TType>,
+        contextual_signature_return_type: Option<TContextualSignatureReturnType>,
+        kind: IterationTypeKind,
+        is_async_generator: bool,
+    ) -> Option<Rc<Type>> {
+        let mut type_ = type_.map(|type_| type_.borrow().type_wrapper());
+        if let Some(type_present) = type_.as_ref().filter(|type_| self.is_unit_type(type_)) {
+            let contextual_type =
+                contextual_signature_return_type.and_then(|contextual_signature_return_type| {
+                    let contextual_signature_return_type =
+                        contextual_signature_return_type.borrow();
+                    self.get_iteration_type_of_generator_function_return_type(
+                        kind,
+                        contextual_signature_return_type,
+                        is_async_generator,
+                    )
+                });
+            type_ =
+                Some(self.get_widened_literal_like_type_for_contextual_type(
+                    type_present,
+                    contextual_type,
+                ));
         }
         type_
     }

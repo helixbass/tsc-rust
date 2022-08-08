@@ -4,7 +4,9 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, CheckTypeContainingMessageChainDummy, IterationUse, UnusedKind};
+use super::{
+    CheckMode, CheckTypeContainingMessageChainDummy, IterationTypeKind, IterationUse, UnusedKind,
+};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
@@ -431,6 +433,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_promised_type_of_promise<TErrorNode: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        error_node: Option<TErrorNode>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn check_awaited_type(
         &self,
         type_: &Type,
@@ -660,6 +670,15 @@ impl TypeChecker {
         let return_type = return_type.unwrap_or_else(|| self.never_type());
         let next_type = next_type.unwrap_or_else(|| self.unknown_type());
         IterationTypes::new(yield_type, return_type, next_type)
+    }
+
+    pub(super) fn get_iteration_type_of_generator_function_return_type(
+        &self,
+        kind: IterationTypeKind,
+        return_type: &Type,
+        is_async_generator: bool,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn unwrap_return_type(
