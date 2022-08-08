@@ -220,7 +220,7 @@ use compiler::types::{
     diagnostic_category_name, AccessFlags, CommandLineOptionType, CommentDirectivesMap, EmitNode,
     ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, InferenceContext, InferenceFlags,
     InferenceInfo, IterationTypes, PragmaArgumentType, ReadonlyPragmaMap, ReferencedFile,
-    StringOrDiagnosticMessage,
+    StringOrDiagnosticMessage, WideningContext,
 };
 pub use compiler::types::{
     extend_compiler_options, extend_watch_options, maybe_extend_compiler_options,

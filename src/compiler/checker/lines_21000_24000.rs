@@ -6,10 +6,10 @@ use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
-    get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics,
-    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
-    ObjectFlags, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionReduction,
+    __String, get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage,
+    Diagnostics, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node,
+    NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction, WideningContext,
 };
 
 impl TypeChecker {
@@ -49,6 +49,20 @@ impl TypeChecker {
         );
         *type_.as_fresh_object_literal_type().maybe_regular_type() = Some(regular_new.clone());
         regular_new
+    }
+
+    pub(super) fn create_widening_context(
+        &self,
+        parent: Option<Rc<RefCell<WideningContext>>>,
+        property_name: Option<__String>,
+        siblings: Option<Vec<Rc<Type>>>,
+    ) -> WideningContext {
+        WideningContext {
+            parent,
+            property_name,
+            siblings,
+            resolved_properties: None,
+        }
     }
 
     pub(super) fn get_widened_type(&self, type_: &Type) -> Rc<Type> {

@@ -16,7 +16,7 @@ use super::{
     ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
     TypePredicate,
 };
-use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags};
+use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String};
 use local_macros::{enum_unwrapped, type_type};
 
 #[derive(Clone, Debug)]
@@ -783,6 +783,13 @@ impl BitAndAssign for Ternary {
 pub(crate) struct InferenceContext {
     pub inferences: Vec<Rc<InferenceInfo>>,
     pub mapper: TypeMapper,
+}
+
+pub(crate) struct WideningContext {
+    pub parent: Option<Rc<RefCell<WideningContext>>>,
+    pub property_name: Option<__String>,
+    pub siblings: Option<Vec<Rc<Type>>>,
+    pub resolved_properties: Option<Vec<Rc<Symbol>>>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
