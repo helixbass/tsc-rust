@@ -835,13 +835,55 @@ impl TypeChecker {
         type_.type_wrapper().into()
     }
 
+    pub(super) fn is_property_identical_to(
+        &self,
+        source_prop: &Symbol,
+        target_prop: &Symbol,
+    ) -> bool {
+        self.compare_properties(source_prop, target_prop, |a: &Type, b: &Type| {
+            self.compare_types_identical(a, b)
+        }) != Ternary::False
+    }
+
     pub(super) fn compare_properties<TCompareTypes: FnMut(&Type, &Type) -> Ternary>(
         &self,
         source_prop: &Symbol,
         target_prop: &Symbol,
         mut compare_types: TCompareTypes,
     ) -> Ternary {
-        unimplemented!()
+        if ptr::eq(source_prop, target_prop) {
+            return Ternary::True;
+        }
+        let source_prop_accessibility =
+            get_declaration_modifier_flags_from_symbol(source_prop, None)
+                & ModifierFlags::NonPublicAccessibilityModifier;
+        let target_prop_accessibility =
+            get_declaration_modifier_flags_from_symbol(target_prop, None)
+                & ModifierFlags::NonPublicAccessibilityModifier;
+        if source_prop_accessibility != target_prop_accessibility {
+            return Ternary::False;
+        }
+        if source_prop_accessibility != ModifierFlags::None {
+            if !Rc::ptr_eq(
+                &self.get_target_symbol(source_prop),
+                &self.get_target_symbol(target_prop),
+            ) {
+                return Ternary::False;
+            }
+        } else {
+            if source_prop.flags() & SymbolFlags::Optional
+                != target_prop.flags() & SymbolFlags::Optional
+            {
+                return Ternary::False;
+            }
+        }
+        if self.is_readonly_symbol(source_prop) != self.is_readonly_symbol(target_prop) {
+            return Ternary::False;
+        }
+        return compare_types(
+            &self.get_type_of_symbol(source_prop),
+            &self.get_type_of_symbol(target_prop),
+        );
     }
 
     pub(super) fn is_matching_signature(
