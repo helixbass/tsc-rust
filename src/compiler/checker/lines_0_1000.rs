@@ -2847,6 +2847,10 @@ impl TypeChecker {
         self.auto_array_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn any_readonly_array_type(&self) -> Rc<Type> {
+        self.any_readonly_array_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn maybe_deferred_global_es_symbol_constructor_symbol(
         &self,
     ) -> RefMut<Option<Rc<Symbol>>> {

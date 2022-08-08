@@ -209,24 +209,56 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_common_subtype(&self, types: &[Rc<Type>]) -> Rc<Type> {
+        reduce_left_no_initial_value(
+            types,
+            |s: Rc<Type>, t: &Rc<Type>, _| {
+                if self.is_type_subtype_of(t, &s) {
+                    t.clone()
+                } else {
+                    s
+                }
+            },
+            None,
+            None,
+        )
+    }
+
     pub(super) fn is_array_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        get_object_flags(type_).intersects(ObjectFlags::Reference)
+            && (Rc::ptr_eq(&type_.as_type_reference().target, &self.global_array_type())
+                || Rc::ptr_eq(
+                    &type_.as_type_reference().target,
+                    &self.global_readonly_array_type(),
+                ))
     }
 
     pub(super) fn is_readonly_array_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        get_object_flags(type_).intersects(ObjectFlags::Reference)
+            && Rc::ptr_eq(
+                &type_.as_type_reference().target,
+                &self.global_readonly_array_type(),
+            )
     }
 
     pub(super) fn is_mutable_array_or_tuple(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.is_array_type(type_) && !self.is_readonly_array_type(type_)
+            || self.is_tuple_type(type_)
+                && !type_.as_type_reference().target.as_tuple_type().readonly
     }
 
     pub(super) fn get_element_type_of_array_type(&self, type_: &Type) -> Option<Rc<Type>> {
-        unimplemented!()
+        if self.is_array_type(type_) {
+            self.get_type_arguments(type_).get(0).map(Clone::clone)
+        } else {
+            None
+        }
     }
 
     pub(super) fn is_array_like_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.is_array_type(type_)
+            || !type_.flags().intersects(TypeFlags::Nullable)
+                && self.is_type_assignable_to(type_, &self.any_readonly_array_type())
     }
 
     pub(super) fn get_single_base_for_non_augmenting_subtype(
