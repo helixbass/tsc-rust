@@ -717,8 +717,12 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 }
             }
             if flags.intersects(TypeFlags::Conditional) {
-                if source.as_conditional_type().root.is_distributive
-                    == target.as_conditional_type().root.is_distributive
+                if (*source.as_conditional_type().root)
+                    .borrow()
+                    .is_distributive
+                    == (*target.as_conditional_type().root)
+                        .borrow()
+                        .is_distributive
                 {
                     result = self.is_related_to(
                         &source.as_conditional_type().check_type,
@@ -1278,10 +1282,13 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             }
             let c = target;
             let c_as_conditional_type = c.as_conditional_type();
-            if c_as_conditional_type.root.infer_type_parameters.is_none()
+            if (*c_as_conditional_type.root)
+                .borrow()
+                .infer_type_parameters
+                .is_none()
                 && !self
                     .type_checker
-                    .is_distribution_dependent(&c_as_conditional_type.root)
+                    .is_distribution_dependent(&(*c_as_conditional_type.root).borrow())
             {
                 let skip_true = !self.type_checker.is_type_assignable_to(
                     &self
@@ -1505,14 +1512,13 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 return Ternary::Maybe;
             }
             if target.flags().intersects(TypeFlags::Conditional) {
-                let source_params = source
-                    .as_conditional_type()
-                    .root
+                let source_params = (*source.as_conditional_type().root)
+                    .borrow()
                     .infer_type_parameters
-                    .as_ref();
+                    .clone();
                 let mut source_extends = source.as_conditional_type().extends_type.clone();
                 let mut mapper: Option<TypeMapper> = None;
-                if let Some(source_params) = source_params {
+                if let Some(source_params) = source_params.as_ref() {
                     let ctx = self.type_checker.create_inference_context(
                         source_params,
                         Option::<&Signature>::None,

@@ -517,7 +517,7 @@ impl TypeChecker {
         type_: &Type, /*ConditionalType*/
     ) -> Option<Rc<Type>> {
         let type_as_conditional_type = type_.as_conditional_type();
-        if type_as_conditional_type.root.is_distributive
+        if (*type_as_conditional_type.root).borrow().is_distributive
             && !matches!(
                 type_.maybe_restrictive_instantiation().as_deref(),
                 Some(restrictive_instantiation) if ptr::eq(restrictive_instantiation, type_)
@@ -535,7 +535,7 @@ impl TypeChecker {
                 let instantiated = self.get_conditional_type_instantiation(
                     type_,
                     &self.prepend_type_mapping(
-                        &type_as_conditional_type.root.check_type,
+                        &(*type_as_conditional_type.root).borrow().check_type.clone(),
                         &constraint,
                         type_as_conditional_type.mapper.clone(),
                     ),

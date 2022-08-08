@@ -352,7 +352,7 @@ impl ConditionalRoot {
 #[type_type]
 pub struct ConditionalType {
     _type: BaseType,
-    pub root: ConditionalRoot,
+    pub root: Rc<RefCell<ConditionalRoot>>,
     pub check_type: Rc<Type>,
     pub extends_type: Rc<Type>,
     resolved_true_type: RefCell<Option<Rc<Type>>>,
@@ -366,7 +366,7 @@ pub struct ConditionalType {
 impl ConditionalType {
     pub fn new(
         base_type: BaseType,
-        root: ConditionalRoot,
+        root: Rc<RefCell<ConditionalRoot>>,
         check_type: Rc<Type>,
         extends_type: Rc<Type>,
         mapper: Option<TypeMapper>,

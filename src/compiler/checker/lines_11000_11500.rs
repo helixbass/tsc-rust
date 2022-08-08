@@ -797,14 +797,14 @@ impl TypeChecker {
         }
         if type_.flags().intersects(TypeFlags::Conditional) {
             let type_as_conditional_type = type_.as_conditional_type();
-            if type_as_conditional_type.root.is_distributive {
+            if (*type_as_conditional_type.root).borrow().is_distributive {
                 let check_type = &type_as_conditional_type.check_type;
                 let constraint = self.get_lower_bound_of_key_type(check_type);
                 if !Rc::ptr_eq(&constraint, check_type) {
                     return self.get_conditional_type_instantiation(
                         type_,
                         &self.prepend_type_mapping(
-                            &type_as_conditional_type.root.check_type,
+                            &(*type_as_conditional_type.root).borrow().check_type.clone(),
                             &constraint,
                             type_as_conditional_type.mapper.clone(),
                         ),

@@ -515,6 +515,10 @@ impl TypeChecker {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral)
     }
 
+    pub(super) fn is_object_or_array_literal_type(&self, type_: &Type) -> bool {
+        get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral | ObjectFlags::ArrayLiteral)
+    }
+
     pub(super) fn get_default_type_argument_type(&self, is_in_java_script_file: bool) -> Rc<Type> {
         unimplemented!()
     }

@@ -418,8 +418,10 @@ impl TypeChecker {
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
-        let root = &type_.as_conditional_type().root;
-        if let Some(root_outer_type_parameters) = root.outer_type_parameters.as_deref() {
+        let root = type_.as_conditional_type().root.clone();
+        if let Some(root_outer_type_parameters) =
+            (*root).borrow().outer_type_parameters.clone().as_deref()
+        {
             let type_arguments = map(Some(root_outer_type_parameters), |t: &Rc<Type>, _| {
                 self.get_mapped_type(t, mapper)
             })
@@ -431,7 +433,8 @@ impl TypeChecker {
                 self.get_type_list_id(Some(&type_arguments)),
                 self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
             );
-            let mut result = root
+            let mut result = (*root)
+                .borrow()
                 .maybe_instantiations()
                 .as_ref()
                 .unwrap()
@@ -442,16 +445,16 @@ impl TypeChecker {
                     root_outer_type_parameters.to_owned(),
                     Some(type_arguments),
                 );
-                let check_type = &root.check_type;
-                let distribution_type = if root.is_distributive {
-                    Some(self.get_mapped_type(check_type, &new_mapper))
+                let check_type = (*root).borrow().check_type.clone();
+                let distribution_type = if (*root).borrow().is_distributive {
+                    Some(self.get_mapped_type(&check_type, &new_mapper))
                 } else {
                     None
                 };
                 result = Some(
                     if let Some(distribution_type) =
                         distribution_type.as_ref().filter(|distribution_type| {
-                            !Rc::ptr_eq(check_type, distribution_type)
+                            !Rc::ptr_eq(&check_type, distribution_type)
                                 && distribution_type
                                     .flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
@@ -461,9 +464,9 @@ impl TypeChecker {
                             distribution_type,
                             &mut |t| {
                                 self.get_conditional_type(
-                                    root,
+                                    root.clone(),
                                     Some(self.prepend_type_mapping(
-                                        check_type,
+                                        &check_type,
                                         t,
                                         Some(new_mapper.clone()),
                                     )),
@@ -476,14 +479,16 @@ impl TypeChecker {
                         )
                     } else {
                         self.get_conditional_type(
-                            root,
+                            root.clone(),
                             Some(new_mapper),
                             alias_symbol,
                             alias_type_arguments,
                         )
                     },
                 );
-                root.maybe_instantiations()
+                (*root)
+                    .borrow()
+                    .maybe_instantiations()
                     .as_mut()
                     .unwrap()
                     .insert(id, result.clone().unwrap());

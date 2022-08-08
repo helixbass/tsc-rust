@@ -800,7 +800,39 @@ impl TypeChecker {
     }
 
     pub(super) fn get_recursion_identity(&self, type_: &Type) -> RecursionIdentity {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Object)
+            && !self.is_object_or_array_literal_type(type_)
+        {
+            if get_object_flags(type_).intersects(ObjectFlags::Reference) {
+                if let Some(type_node) = type_.as_type_reference().maybe_node().clone() {
+                    return type_node.into();
+                }
+            }
+            if let Some(type_symbol) = type_.maybe_symbol().filter(|type_symbol| {
+                !(get_object_flags(type_).intersects(ObjectFlags::Anonymous)
+                    && type_symbol.flags().intersects(SymbolFlags::Class))
+            }) {
+                return type_symbol.into();
+            }
+            if self.is_tuple_type(type_) {
+                return type_.as_type_reference().target.clone().into();
+            }
+        }
+        if type_.flags().intersects(TypeFlags::TypeParameter) {
+            return type_.symbol().into();
+        }
+        if type_.flags().intersects(TypeFlags::IndexedAccess) {
+            let mut type_ = type_.type_wrapper();
+            while {
+                type_ = type_.as_indexed_access_type().object_type.clone();
+                type_.flags().intersects(TypeFlags::IndexedAccess)
+            } {}
+            return type_.into();
+        }
+        if type_.flags().intersects(TypeFlags::Conditional) {
+            return type_.as_conditional_type().root.clone().into();
+        }
+        type_.type_wrapper().into()
     }
 
     pub(super) fn compare_properties<TCompareTypes: FnMut(&Type, &Type) -> Ternary>(
@@ -871,7 +903,7 @@ pub(super) enum RecursionIdentity {
     Node(Rc<Node>),
     Symbol(Rc<Symbol>),
     Type(Rc<Type>),
-    ConditionalRoot(Rc<ConditionalRoot>),
+    ConditionalRoot(Rc<RefCell<ConditionalRoot>>),
 }
 
 impl PartialEq for RecursionIdentity {
@@ -906,8 +938,8 @@ impl From<Rc<Type>> for RecursionIdentity {
     }
 }
 
-impl From<Rc<ConditionalRoot>> for RecursionIdentity {
-    fn from(value: Rc<ConditionalRoot>) -> Self {
+impl From<Rc<RefCell<ConditionalRoot>>> for RecursionIdentity {
+    fn from(value: Rc<RefCell<ConditionalRoot>>) -> Self {
         Self::ConditionalRoot(value)
     }
 }

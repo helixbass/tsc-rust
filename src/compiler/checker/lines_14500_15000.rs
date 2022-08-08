@@ -601,7 +601,7 @@ impl TypeChecker {
             true
         } else if type_.flags().intersects(TypeFlags::Conditional) {
             let type_as_conditional_type = type_.as_conditional_type();
-            type_as_conditional_type.root.is_distributive
+            (*type_as_conditional_type.root).borrow().is_distributive
                 && ptr::eq(&*type_as_conditional_type.check_type, type_variable)
         } else if type_
             .flags()
