@@ -6,12 +6,15 @@ use std::rc::Rc;
 
 use super::{IterationTypeKind, TypeFacts, WideningKind};
 use crate::{
-    is_outermost_optional_chain, ElementFlags, Number, __String, are_option_rcs_equal, every,
-    filter, find, get_object_flags, is_write_only_access, last, length, node_is_missing,
-    reduce_left_no_initial_value, some, Debug_, DiagnosticMessage, Diagnostics, InferenceContext,
-    InferenceFlags, InferenceInfo, InferencePriority, InterfaceTypeInterface, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SyntaxKind, Ternary,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate, UnionReduction,
+    get_check_flags, is_outermost_optional_chain, CheckFlags, ElementFlags, Number,
+    SymbolInterface, SymbolTable, TransientSymbolInterface, __String, are_option_rcs_equal,
+    compiler::utilities_public::is_expression_of_optional_chain_root, create_symbol_table, every,
+    filter, find, get_object_flags, is_optional_chain, is_write_only_access, last, length,
+    node_is_missing, reduce_left_no_initial_value, some, Debug_, DiagnosticMessage, Diagnostics,
+    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, InterfaceTypeInterface,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags,
+    SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -937,24 +940,70 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_optional_expression_type(
+        &self,
+        expr_type: &Type,
+        expression: &Node, /*Expression*/
+    ) -> Rc<Type> {
+        if is_expression_of_optional_chain_root(expression) {
+            self.get_non_nullable_type(expr_type)
+        } else if is_optional_chain(expression) {
+            self.remove_optional_type_marker(expr_type)
+        } else {
+            expr_type.type_wrapper()
+        }
+    }
+
     pub(super) fn remove_missing_type(&self, type_: &Type, is_optional: bool) -> Rc<Type> {
-        if matches!(self.exact_optional_property_types, Some(true)) && is_optional {
-            unimplemented!()
+        if self.exact_optional_property_types == Some(true) && is_optional {
+            self.remove_type(type_, &self.missing_type())
         } else {
             type_.type_wrapper()
         }
     }
 
     pub(super) fn contains_missing_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.exact_optional_property_types == Some(true)
+            && (ptr::eq(type_, &*self.missing_type())
+                || type_.flags().intersects(TypeFlags::Union)
+                    && self.contains_type(
+                        type_.as_union_or_intersection_type_interface().types(),
+                        &self.missing_type(),
+                    ))
     }
 
     pub(super) fn remove_missing_or_undefined_type(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        if self.exact_optional_property_types == Some(true) {
+            self.remove_type(type_, &self.missing_type())
+        } else {
+            self.get_type_with_facts(type_, TypeFacts::NEUndefined)
+        }
+    }
+
+    pub(super) fn is_coercible_under_double_equals(&self, source: &Type, target: &Type) -> bool {
+        source
+            .flags()
+            .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::BooleanLiteral)
+            && target
+                .flags()
+                .intersects(TypeFlags::Number | TypeFlags::String | TypeFlags::Boolean)
     }
 
     pub(super) fn is_object_type_with_inferable_index(&self, type_: &Type) -> bool {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Intersection) {
+            every(
+                type_.as_union_or_intersection_type_interface().types(),
+                |type_: &Rc<Type>, _| self.is_object_type_with_inferable_index(type_),
+            )
+        } else {
+            matches!(
+                type_.maybe_symbol().as_ref(),
+                Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::ObjectLiteral | SymbolFlags::TypeLiteral | SymbolFlags::Enum | SymbolFlags::ValueModule)
+            ) && !self.type_has_call_or_construct_signatures(type_)
+                || get_object_flags(type_).intersects(ObjectFlags::ReverseMapped)
+                    && self
+                        .is_object_type_with_inferable_index(&type_.as_reverse_mapped_type().source)
+        }
     }
 
     pub(super) fn create_symbol_with_type<TType: Borrow<Type>>(
@@ -962,7 +1011,48 @@ impl TypeChecker {
         source: &Symbol,
         type_: Option<TType>,
     ) -> Rc<Symbol> {
-        unimplemented!()
+        let symbol: Rc<Symbol> = self
+            .create_symbol(
+                source.flags(),
+                source.escaped_name().clone(),
+                Some(get_check_flags(source) & CheckFlags::Readonly),
+            )
+            .into();
+        *symbol.maybe_declarations_mut() = source.maybe_declarations().clone();
+        symbol.set_parent(source.maybe_parent());
+        let symbol_links = symbol.as_transient_symbol().symbol_links();
+        let mut symbol_links = symbol_links.borrow_mut();
+        symbol_links.type_ = type_.map(|type_| type_.borrow().type_wrapper());
+        symbol_links.target = Some(source.symbol_wrapper());
+        if let Some(source_value_declaration) = source.maybe_value_declaration() {
+            symbol.set_value_declaration(source_value_declaration);
+        }
+        let name_type = (*self.get_symbol_links(source)).borrow().name_type.clone();
+        if let Some(name_type) = name_type {
+            symbol_links.name_type = Some(name_type);
+        }
+        symbol
+    }
+
+    pub(super) fn transform_type_of_members<TCallback: FnMut(&Type) -> Rc<Type>>(
+        &self,
+        type_: &Type,
+        mut f: TCallback,
+    ) -> SymbolTable {
+        let mut members = create_symbol_table(None);
+        for property in &self.get_properties_of_object_type(type_) {
+            let original = self.get_type_of_symbol(property);
+            let updated = f(&original);
+            members.insert(
+                property.escaped_name().clone(),
+                if Rc::ptr_eq(&updated, &original) {
+                    property.clone()
+                } else {
+                    self.create_symbol_with_type(property, Some(updated))
+                },
+            );
+        }
+        members
     }
 
     pub(super) fn get_regular_type_of_object_literal(&self, type_: &Type) -> Rc<Type> {
