@@ -4,17 +4,15 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{IterationTypeKind, TypeFacts, WideningKind};
+use super::{IterationTypeKind, TypeFacts};
 use crate::{
     get_check_flags, is_outermost_optional_chain, CheckFlags, ElementFlags, Number,
     SymbolInterface, SymbolTable, TransientSymbolInterface, __String, are_option_rcs_equal,
     compiler::utilities_public::is_expression_of_optional_chain_root, create_symbol_table, every,
-    filter, find, get_object_flags, is_optional_chain, is_write_only_access, last, length,
-    node_is_missing, reduce_left_no_initial_value, some, Debug_, DiagnosticMessage, Diagnostics,
-    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, InterfaceTypeInterface,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags,
-    SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
-    UnionReduction,
+    filter, find, get_object_flags, is_optional_chain, last, length, reduce_left_no_initial_value,
+    some, Debug_, InterfaceTypeInterface, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SyntaxKind, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
 
 impl TypeChecker {
