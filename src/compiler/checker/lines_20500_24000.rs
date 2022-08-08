@@ -1,15 +1,17 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
-    are_option_rcs_equal, every, filter, get_object_flags, is_write_only_access, length,
-    node_is_missing, reduce_left_no_initial_value, Debug_, DiagnosticMessage, Diagnostics,
-    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypePredicate, UnionReduction,
+    __String, are_option_rcs_equal, every, filter, get_object_flags, is_write_only_access, last,
+    length, node_is_missing, reduce_left_no_initial_value, some, Debug_, DiagnosticMessage,
+    Diagnostics, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
+    InterfaceTypeInterface, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    Symbol, SymbolFlags, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypePredicate, UnionReduction,
 };
 
 impl TypeChecker {
@@ -265,24 +267,148 @@ impl TypeChecker {
         &self,
         type_: &Type,
     ) -> Option<Rc<Type>> {
-        // unimplemented!()
-        None
+        if !get_object_flags(type_).intersects(ObjectFlags::Reference)
+            || !get_object_flags(&type_.as_type_reference().target)
+                .intersects(ObjectFlags::ClassOrInterface)
+        {
+            return None;
+        }
+        let type_as_type_reference = type_.as_type_reference();
+        if get_object_flags(type_).intersects(ObjectFlags::IdenticalBaseTypeCalculated) {
+            return if get_object_flags(type_).intersects(ObjectFlags::IdenticalBaseTypeExists) {
+                type_as_type_reference
+                    .maybe_cached_equivalent_base_type()
+                    .clone()
+            } else {
+                None
+            };
+        }
+        type_as_type_reference.set_object_flags(
+            type_as_type_reference.object_flags() | ObjectFlags::IdenticalBaseTypeCalculated,
+        );
+        let target = &type_as_type_reference.target;
+        if get_object_flags(target).intersects(ObjectFlags::Class) {
+            let base_type_node = self.get_base_type_node_of_class(target);
+            if matches!(
+                base_type_node.as_ref(),
+                Some(base_type_node) if !matches!(
+                    base_type_node.as_expression_with_type_arguments().expression.kind(),
+                    SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression
+                )
+            ) {
+                return None;
+            }
+        }
+        let bases = self.get_base_types(target);
+        if bases.len() != 1 {
+            return None;
+        }
+        if !(*self.get_members_of_symbol(&type_.symbol()))
+            .borrow()
+            .is_empty()
+        {
+            return None;
+        }
+        let target_as_interface_type = target.as_interface_type();
+        let mut instantiated_base = if length(target_as_interface_type.maybe_type_parameters()) == 0
+        {
+            bases[0].clone()
+        } else {
+            let target_type_parameters = target_as_interface_type
+                .maybe_type_parameters()
+                .map(ToOwned::to_owned)
+                .unwrap();
+            let target_type_parameters_len = target_type_parameters.len();
+            self.instantiate_type(
+                &bases[0],
+                Some(&self.create_type_mapper(
+                    target_type_parameters,
+                    Some(self.get_type_arguments(type_)[0..target_type_parameters_len].to_owned()),
+                )),
+            )
+        };
+        if length(Some(&self.get_type_arguments(type_)))
+            > length(target_as_interface_type.maybe_type_parameters())
+        {
+            instantiated_base = self.get_type_with_this_argument(
+                &instantiated_base,
+                Some(&**last(&self.get_type_arguments(type_))),
+                None,
+            );
+        }
+        type_as_type_reference.set_object_flags(
+            type_as_type_reference.object_flags() | ObjectFlags::IdenticalBaseTypeExists,
+        );
+        *type_as_type_reference.maybe_cached_equivalent_base_type() =
+            Some(instantiated_base.clone());
+        Some(instantiated_base)
+    }
+
+    pub(super) fn is_empty_literal_type(&self, type_: &Type) -> bool {
+        if self.strict_null_checks {
+            ptr::eq(type_, &*self.implicit_never_type())
+        } else {
+            ptr::eq(type_, &*self.undefined_widening_type())
+        }
     }
 
     pub(super) fn is_empty_array_literal_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        let element_type = self.get_element_type_of_array_type(type_);
+        matches!(
+            element_type.as_ref(),
+            Some(element_type) if self.is_empty_literal_type(element_type)
+        )
     }
 
     pub(super) fn is_tuple_like_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.is_tuple_type(type_)
+            || self
+                .get_property_of_type_(type_, &__String::new("0".to_owned()), None)
+                .is_some()
     }
 
     pub(super) fn is_array_or_tuple_like_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        self.is_array_like_type(type_) || self.is_tuple_like_type(type_)
+    }
+
+    pub(super) fn get_tuple_element_type(&self, type_: &Type, index: usize) -> Option<Rc<Type>> {
+        let prop_type =
+            self.get_type_of_property_of_type_(type_, &__String::new(index.to_string()));
+        if prop_type.is_some() {
+            return prop_type;
+        }
+        if self.every_type(type_, |type_: &Type| self.is_tuple_type(type_)) {
+            return self.map_type(
+                type_,
+                &mut |t: &Type| {
+                    Some(
+                        self.get_rest_type_of_tuple_type(t)
+                            .unwrap_or_else(|| self.undefined_type()),
+                    )
+                },
+                None,
+            );
+        }
+        None
+    }
+
+    pub(super) fn is_neither_unit_type_nor_never(&self, type_: &Type) -> bool {
+        !type_.flags().intersects(TypeFlags::Unit | TypeFlags::Never)
     }
 
     pub(super) fn is_unit_type(&self, type_: &Type) -> bool {
         type_.flags().intersects(TypeFlags::Unit)
+    }
+
+    pub(super) fn is_unit_like_type(&self, type_: &Type) -> bool {
+        if type_.flags().intersects(TypeFlags::Intersection) {
+            some(
+                Some(type_.as_union_or_intersection_type_interface().types()),
+                Some(|type_: &Rc<Type>| self.is_unit_type(type_)),
+            )
+        } else {
+            type_.flags().intersects(TypeFlags::Unit)
+        }
     }
 
     pub(super) fn is_literal_type(&self, type_: &Type) -> bool {
