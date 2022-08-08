@@ -2577,6 +2577,10 @@ impl TypeChecker {
         self.subtype_reduction_cache.borrow_mut()
     }
 
+    pub(super) fn undefined_properties(&self) -> RefMut<SymbolTable> {
+        self.undefined_properties.borrow_mut()
+    }
+
     pub(super) fn unknown_symbol(&self) -> Rc<Symbol> {
         self.unknown_symbol.as_ref().unwrap().clone()
     }

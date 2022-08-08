@@ -2,14 +2,15 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
-    __String, get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage,
-    Diagnostics, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node,
-    NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionReduction, WideningContext,
+    SymbolInterface, __String, get_object_flags, is_write_only_access, node_is_missing,
+    DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo,
+    InferencePriority, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, Ternary,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext,
 };
 
 impl TypeChecker {
@@ -65,11 +66,101 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_widened_type(&self, type_: &Type) -> Rc<Type> {
-        self.get_widened_type_with_context(type_)
+    pub(super) fn get_siblings_of_context(
+        &self,
+        context: Rc<RefCell<WideningContext>>,
+    ) -> Vec<Rc<Type>> {
+        if (*context).borrow().siblings.is_none() {
+            let mut siblings: Vec<Rc<Type>> = vec![];
+            for type_ in &self.get_siblings_of_context((*context).borrow().parent.clone().unwrap())
+            {
+                if self.is_object_literal_type(type_) {
+                    let prop = self.get_property_of_object_type(
+                        type_,
+                        (*context).borrow().property_name.as_ref().unwrap(),
+                    );
+                    if let Some(prop) = prop.as_ref() {
+                        self.for_each_type(&self.get_type_of_symbol(prop), |t: &Type| {
+                            siblings.push(t.type_wrapper());
+                            Option::<()>::None
+                        });
+                    }
+                }
+            }
+            context.borrow_mut().siblings = Some(siblings);
+        }
+        (*context).borrow().siblings.clone().unwrap()
     }
 
-    pub(super) fn get_widened_type_with_context(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_properties_of_context(
+        &self,
+        context: Rc<RefCell<WideningContext>>,
+    ) -> Vec<Rc<Symbol>> {
+        if (*context).borrow().resolved_properties.is_none() {
+            let mut names: HashMap<__String, Rc<Symbol>> = HashMap::new();
+            for t in &self.get_siblings_of_context(context.clone()) {
+                if self.is_object_literal_type(t)
+                    && !get_object_flags(t).intersects(ObjectFlags::ContainsSpread)
+                {
+                    for prop in self.get_properties_of_type(t) {
+                        names.insert(prop.escaped_name().clone(), prop);
+                    }
+                }
+            }
+            context.borrow_mut().resolved_properties =
+                Some(names.values().map(Clone::clone).collect());
+        }
+        (*context).borrow().resolved_properties.clone().unwrap()
+    }
+
+    pub(super) fn get_widened_property(
+        &self,
+        prop: &Symbol,
+        context: Option<Rc<RefCell<WideningContext>>>,
+    ) -> Rc<Symbol> {
+        if !prop.flags().intersects(SymbolFlags::Property) {
+            return prop.symbol_wrapper();
+        }
+        let original = self.get_type_of_symbol(prop);
+        let prop_context = context.map(|context| {
+            Rc::new(RefCell::new(self.create_widening_context(
+                Some(context),
+                Some(prop.escaped_name().clone()),
+                None,
+            )))
+        });
+        let widened = self.get_widened_type_with_context(&original, prop_context);
+        if Rc::ptr_eq(&widened, &original) {
+            prop.symbol_wrapper()
+        } else {
+            self.create_symbol_with_type(prop, Some(widened))
+        }
+    }
+
+    pub(super) fn get_undefined_property(&self, prop: &Symbol) -> Rc<Symbol> {
+        let cached = self
+            .undefined_properties()
+            .get(prop.escaped_name())
+            .map(Clone::clone);
+        if let Some(cached) = cached {
+            return cached;
+        }
+        let result = self.create_symbol_with_type(prop, Some(self.missing_type()));
+        result.set_flags(result.flags() | SymbolFlags::Optional);
+        self.undefined_properties()
+            .insert(prop.escaped_name().clone(), result.clone());
+        result
+    }
+
+    pub(super) fn get_widened_type(&self, type_: &Type) -> Rc<Type> {
+        self.get_widened_type_with_context(type_, None)
+    }
+
+    pub(super) fn get_widened_type_with_context(
+        &self,
+        type_: &Type,
+        context: Option<Rc<RefCell<WideningContext>>>,
+    ) -> Rc<Type> {
         type_.type_wrapper()
     }
 
