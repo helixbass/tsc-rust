@@ -3,15 +3,16 @@
 use std::borrow::Borrow;
 use std::cell::Cell;
 use std::cmp;
+use std::ptr;
 use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    create_scanner, get_check_flags, get_object_flags, is_write_only_access, node_is_missing, some,
-    CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags, InferenceContext, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, ScriptTarget, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction,
+    arrays_equal, create_scanner, every, get_check_flags, get_object_flags, is_write_only_access,
+    map, node_is_missing, some, CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags,
+    InferenceContext, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags,
+    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -207,11 +208,116 @@ impl TypeChecker {
             && !flags.intersects(TokenFlags::ContainsSeparator)
     }
 
+    pub(super) fn is_valid_type_for_template_literal_placeholder(
+        &self,
+        source: &Type,
+        target: &Type, /*TemplateLiteralType*/
+    ) -> bool {
+        if ptr::eq(source, target)
+            || target
+                .flags()
+                .intersects(TypeFlags::Any | TypeFlags::String)
+        {
+            return true;
+        }
+        if source.flags().intersects(TypeFlags::StringLiteral) {
+            let value = &source.as_string_literal_type().value;
+            return target.flags().intersects(TypeFlags::Number)
+                && value != ""
+                && value.parse::<f64>().is_ok()
+                || target.flags().intersects(TypeFlags::BigInt)
+                    && value != ""
+                    && self.is_valid_big_int_string(value)
+                || target
+                    .flags()
+                    .intersects(TypeFlags::BooleanLiteral | TypeFlags::Nullable)
+                    && value == target.as_intrinsic_type().intrinsic_name();
+        }
+        if source.flags().intersects(TypeFlags::TemplateLiteral) {
+            let texts = &source.as_template_literal_type().texts;
+            return texts.len() == 2
+                && texts[0] == ""
+                && texts[1] == ""
+                && self.is_type_assignable_to(&source.as_template_literal_type().types[0], target);
+        }
+        self.is_type_assignable_to(source, target)
+    }
+
+    pub(super) fn infer_types_from_template_literal_type(
+        &self,
+        source: &Type,
+        target: &Type, /*TemplateLiteralType*/
+    ) -> Option<Vec<Rc<Type>>> {
+        let target_as_template_literal_type = target.as_template_literal_type();
+        if source.flags().intersects(TypeFlags::StringLiteral) {
+            self.infer_from_literal_parts_to_template_literal(
+                &vec![source.as_string_literal_type().value.clone()],
+                &vec![],
+                target,
+            )
+        } else if source.flags().intersects(TypeFlags::TemplateLiteral) {
+            let source_as_template_literal_type = source.as_template_literal_type();
+            if arrays_equal(
+                &source_as_template_literal_type.texts,
+                &target_as_template_literal_type.texts,
+            ) {
+                Some(map(
+                    &source_as_template_literal_type.types,
+                    |type_: &Rc<Type>, _| self.get_string_like_type_for_type(type_),
+                ))
+            } else {
+                self.infer_from_literal_parts_to_template_literal(
+                    &source_as_template_literal_type.texts,
+                    &source_as_template_literal_type.types,
+                    target,
+                )
+            }
+        } else {
+            None
+        }
+    }
+
     pub(super) fn is_type_matched_by_template_literal_type(
         &self,
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
     ) -> bool {
+        let inferences = self.infer_types_from_template_literal_type(source, target);
+        let target_as_template_literal_type = target.as_template_literal_type();
+        matches!(
+            inferences.as_ref(),
+            Some(inferences) if every(
+                inferences,
+                |r: &Rc<Type>, i| {
+                    self.is_valid_type_for_template_literal_placeholder(
+                        r,
+                        &target_as_template_literal_type.types[i],
+                    )
+                }
+            )
+        )
+    }
+
+    pub(super) fn get_string_like_type_for_type(&self, type_: &Type) -> Rc<Type> {
+        if type_
+            .flags()
+            .intersects(TypeFlags::Any | TypeFlags::StringLike)
+        {
+            type_.type_wrapper()
+        } else {
+            self.get_template_literal_type(
+                &vec!["".to_owned(), "".to_owned()],
+                &vec![type_.type_wrapper()],
+            )
+        }
+    }
+
+    pub(super) fn infer_from_literal_parts_to_template_literal(
+        &self,
+        source_texts: &[String],
+        source_types: &[Rc<Type>],
+        target: &Type, /*TemplateLiteralType*/
+    ) -> Option<Vec<Rc<Type>>> {
         unimplemented!()
     }
 
