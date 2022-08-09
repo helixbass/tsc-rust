@@ -1,12 +1,13 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::cmp;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::TypeFacts;
+use super::{ExpandingFlags, RecursionIdentity, TypeFacts};
 use crate::{
     arrays_equal, create_scanner, every, get_check_flags, get_object_flags, is_write_only_access,
     map, node_is_missing, some, CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags,
@@ -493,7 +494,13 @@ impl TypeChecker {
     ) {
         let priority = priority.unwrap_or(InferencePriority::None);
         let contravariant = contravariant.unwrap_or(false);
-        unimplemented!()
+        InferTypes::new(
+            self.rc_wrapper(),
+            inferences.to_owned(),
+            priority,
+            contravariant,
+        )
+        .infer_from_types(original_source, original_target);
     }
 
     pub(super) fn is_object_literal_type(&self, type_: &Type) -> bool {
@@ -743,6 +750,49 @@ impl TypeChecker {
             || declared_type.type_wrapper(),
             |initial_type| initial_type.borrow().type_wrapper(),
         );
+        unimplemented!()
+    }
+}
+
+pub(super) struct InferTypes {
+    pub type_checker: Rc<TypeChecker>,
+    pub inferences: Vec<Rc<InferenceInfo>>,
+    pub priority: InferencePriority,
+    pub contravariant: bool,
+    bivariant: Cell<bool>,
+    propagation_type: RefCell<Option<Rc<Type>>>,
+    inference_priority: Cell<InferencePriority>,
+    allow_complex_constraint_inference: Cell<bool>,
+    visited: RefCell<Option<HashMap<String, InferencePriority>>>,
+    source_stack: RefCell<Option<Vec<RecursionIdentity>>>,
+    target_stack: RefCell<Option<Vec<RecursionIdentity>>>,
+    expanding_flags: Cell<ExpandingFlags>,
+}
+
+impl InferTypes {
+    pub fn new(
+        type_checker: Rc<TypeChecker>,
+        inferences: Vec<Rc<InferenceInfo>>,
+        priority: InferencePriority,
+        contravariant: bool,
+    ) -> Self {
+        Self {
+            type_checker,
+            inferences,
+            priority,
+            contravariant,
+            bivariant: Cell::new(false),
+            propagation_type: RefCell::new(None),
+            inference_priority: Cell::new(InferencePriority::MaxValue),
+            allow_complex_constraint_inference: Cell::new(true),
+            visited: RefCell::new(None),
+            source_stack: RefCell::new(None),
+            target_stack: RefCell::new(None),
+            expanding_flags: Cell::new(ExpandingFlags::None),
+        }
+    }
+
+    pub fn infer_from_types(&self, source: &Type, target: &Type) {
         unimplemented!()
     }
 }
