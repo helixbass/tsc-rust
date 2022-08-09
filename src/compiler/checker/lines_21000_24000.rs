@@ -9,9 +9,10 @@ use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
-    create_symbol_table, filter, find_ancestor, get_declaration_of_kind, is_function_type_node,
-    is_identifier, is_method_signature, map, same_map, some, FindAncestorCallbackReturn, IndexInfo,
-    NamedDeclarationInterface, SymbolInterface, SyntaxKind, TypeComparer, TypeMapper,
+    create_symbol_table, escape_leading_underscores, filter, find_ancestor,
+    get_declaration_of_kind, is_function_type_node, is_identifier, is_method_signature, map,
+    same_map, some, FindAncestorCallbackReturn, IndexInfo, NamedDeclarationInterface,
+    SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeComparer, TypeMapper,
     TypeMapperCallback, TypeReferenceInterface, __String, declaration_name_to_string,
     for_each_bool, get_name_of_declaration, get_object_flags, get_source_file_of_node,
     is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
@@ -875,6 +876,73 @@ impl TypeChecker {
             }
         }
         false
+    }
+
+    pub(super) fn is_type_parameter_at_top_level(
+        &self,
+        type_: &Type,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> bool {
+        ptr::eq(type_, type_parameter)
+            || type_.flags().intersects(TypeFlags::UnionOrIntersection)
+                && some(
+                    Some(type_.as_union_or_intersection_type_interface().types()),
+                    Some(|t: &Rc<Type>| self.is_type_parameter_at_top_level(t, type_parameter)),
+                )
+            || type_.flags().intersects(TypeFlags::Conditional)
+                && (ptr::eq(
+                    &*self.get_true_type_from_conditional_type(type_),
+                    type_parameter,
+                ) || ptr::eq(
+                    &*self.get_false_type_from_conditional_type(type_),
+                    type_parameter,
+                ))
+    }
+
+    pub(super) fn create_empty_object_type_from_string_literal(&self, type_: &Type) -> Rc<Type> {
+        let mut members = create_symbol_table(None);
+        self.for_each_type(type_, |t: &Type| -> Option<()> {
+            if !t.flags().intersects(TypeFlags::StringLiteral) {
+                return None;
+            }
+            let name = escape_leading_underscores(&t.as_string_literal_type().value);
+            let literal_prop: Rc<Symbol> = self
+                .create_symbol(SymbolFlags::Property, name.clone(), None)
+                .into();
+            literal_prop
+                .as_transient_symbol()
+                .symbol_links()
+                .borrow_mut()
+                .type_ = Some(self.any_type());
+            if let Some(ref t_symbol) = t.maybe_symbol() {
+                if let Some(t_symbol_declarations) = t_symbol.maybe_declarations().clone() {
+                    literal_prop.set_declarations(t_symbol_declarations);
+                }
+                if let Some(t_symbol_value_declaration) = t_symbol.maybe_value_declaration() {
+                    literal_prop.set_value_declaration(t_symbol_value_declaration);
+                }
+            }
+            members.insert(name, literal_prop);
+            None
+        });
+        let index_infos = if type_.flags().intersects(TypeFlags::String) {
+            vec![Rc::new(self.create_index_info(
+                self.string_type(),
+                self.empty_object_type(),
+                false,
+                None,
+            ))]
+        } else {
+            vec![]
+        };
+        self.create_anonymous_type(
+            Option::<&Symbol>::None,
+            Rc::new(RefCell::new(members)),
+            vec![],
+            vec![],
+            index_infos,
+        )
+        .into()
     }
 
     pub(super) fn infer_type_for_homomorphic_mapped_type(
