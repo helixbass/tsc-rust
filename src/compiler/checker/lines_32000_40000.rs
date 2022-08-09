@@ -4,9 +4,7 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    CheckMode, CheckTypeContainingMessageChainDummy, IterationTypeKind, IterationUse, UnusedKind,
-};
+use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
@@ -566,7 +564,7 @@ impl TypeChecker {
                         Some(node),
                         Some(&*initializer),
                         None,
-                        Option::<CheckTypeContainingMessageChainDummy>::None,
+                        None,
                     );
                 }
             }
@@ -726,7 +724,7 @@ impl TypeChecker {
                     Some(node),
                     node_as_return_statement.expression.clone(),
                     None,
-                    Option::<CheckTypeContainingMessageChainDummy>::None,
+                    None,
                 );
                 // }
             }

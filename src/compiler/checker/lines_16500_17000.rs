@@ -1021,17 +1021,14 @@ impl TypeChecker {
         self.is_type_comparable_to(type1, type2) || self.is_type_comparable_to(type2, type1)
     }
 
-    pub(super) fn check_type_assignable_to<
-        TErrorNode: Borrow<Node>,
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn check_type_assignable_to<TErrorNode: Borrow<Node>>(
         &self,
         source: &Type,
         target: &Type,
         error_node: Option<TErrorNode>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_object: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_object: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         self.check_type_related_to(
             source,

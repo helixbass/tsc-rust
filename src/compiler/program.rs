@@ -681,7 +681,7 @@ impl Program {
             self.diagnostics_producing_type_checker.borrow_mut();
         if diagnostics_producing_type_checker.is_none() {
             *diagnostics_producing_type_checker =
-                Some(Rc::new(create_type_checker(self.rc_wrapper(), true)));
+                Some(create_type_checker(self.rc_wrapper(), true));
         }
         diagnostics_producing_type_checker.as_ref().unwrap().clone()
     }

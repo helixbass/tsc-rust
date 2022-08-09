@@ -5,20 +5,17 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    CheckTypeContainingMessageChain, CheckTypeRelatedTo, ExpandingFlags, IntersectionState,
-    MappedTypeModifiers, RecursionFlags,
+    CheckTypeRelatedTo, ExpandingFlags, IntersectionState, MappedTypeModifiers, RecursionFlags,
 };
 use crate::{
     are_option_rcs_equal, are_rc_slices_equal, get_object_flags, same_map, AccessFlags,
     DiagnosticMessageChain, InferenceFlags, InferencePriority, Node, NodeInterface, ObjectFlags,
     ObjectTypeInterface, RelationComparisonResult, Signature, SignatureKind, Symbol,
-    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags,
+    SymbolInterface, Ternary, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface,
+    TypeMapper, TypeMapperCallback, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
-impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
-    CheckTypeRelatedTo<'type_checker, TContainingMessageChain>
-{
+impl CheckTypeRelatedTo {
     pub(super) fn should_check_as_excess_property(
         &self,
         prop: &Symbol,
@@ -1521,17 +1518,11 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 if let Some(source_params) = source_params.as_ref() {
                     let ctx = self.type_checker.create_inference_context(
                         source_params,
-                        Option::<&Signature>::None,
+                        None,
                         InferenceFlags::None,
-                        Some(
-                            |source: &Type, target: &Type, report_errors: Option<bool>| {
-                                self.is_related_to_worker(
-                                    source,
-                                    target,
-                                    report_errors.unwrap_or(false), // the default isn't in the Typescript version but that appears to be a type-checking bug there
-                                )
-                            },
-                        ),
+                        Some(Rc::new(TypeComparerIsRelatedToWorker::new(
+                            self.rc_wrapper(),
+                        ))),
                     );
                     self.type_checker.infer_types(
                         &ctx.inferences,
@@ -1542,8 +1533,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                     );
                     source_extends = self
                         .type_checker
-                        .instantiate_type(&source_extends, Some(&ctx.mapper));
-                    mapper = Some(ctx.mapper.clone());
+                        .instantiate_type(&source_extends, Some(&ctx.mapper()));
+                    mapper = Some(ctx.mapper().clone());
                 }
                 if self.type_checker.is_type_identical_to(
                     &source_extends,
@@ -1826,5 +1817,27 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
             // outofbandVarianceMarkerHandler(/*onlyUnreliable*/ true);
         }
         p.type_wrapper()
+    }
+}
+
+struct TypeComparerIsRelatedToWorker {
+    check_type_related_to: Rc<CheckTypeRelatedTo>,
+}
+
+impl TypeComparerIsRelatedToWorker {
+    pub fn new(check_type_related_to: Rc<CheckTypeRelatedTo>) -> Self {
+        Self {
+            check_type_related_to,
+        }
+    }
+}
+
+impl TypeComparer for TypeComparerIsRelatedToWorker {
+    fn call(&self, s: &Type, t: &Type, report_errors: Option<bool>) -> Ternary {
+        self.check_type_related_to.is_related_to_worker(
+            s,
+            t,
+            report_errors.unwrap_or(false), // the default isn't in the Typescript version but that appears to be a type-checking bug there
+        )
     }
 }

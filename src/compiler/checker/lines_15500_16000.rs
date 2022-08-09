@@ -197,9 +197,9 @@ impl TypeChecker {
             {
                 let context = self.create_inference_context(
                     root_infer_type_parameters,
-                    Option::<&Signature>::None,
+                    None,
                     InferenceFlags::None,
-                    Option::<fn(&Type, &Type, Option<bool>) -> Ternary>::None,
+                    None,
                 );
                 if !check_type_instantiable {
                     self.infer_types(
@@ -211,9 +211,9 @@ impl TypeChecker {
                     );
                 }
                 combined_mapper = Some(if let Some(mapper) = mapper.as_ref() {
-                    self.combine_type_mappers(Some(context.mapper.clone()), mapper.clone())
+                    self.combine_type_mappers(Some(context.mapper().clone()), mapper.clone())
                 } else {
-                    context.mapper.clone()
+                    context.mapper().clone()
                 });
             }
             let inferred_extends_type = if let Some(combined_mapper) = combined_mapper.as_ref() {

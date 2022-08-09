@@ -24,7 +24,6 @@ impl TypeChecker {
     pub(super) fn check_type_assignable_to_and_optionally_elaborate<
         TErrorNode: Borrow<Node>,
         TExpr: Borrow<Node>,
-        TContainingMessageChain: CheckTypeContainingMessageChain,
     >(
         &self,
         source: &Type,
@@ -32,7 +31,7 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         expr: Option<TExpr>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<TContainingMessageChain>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
     ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
             source,
@@ -49,7 +48,6 @@ impl TypeChecker {
     pub(super) fn check_type_related_to_and_optionally_elaborate<
         TErrorNode: Borrow<Node>,
         TExpr: Borrow<Node>,
-        TContainingMessageChain: CheckTypeContainingMessageChain,
     >(
         &self,
         source: &Type,
@@ -58,8 +56,8 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         expr: Option<TExpr>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         if self.is_type_related_to(source, target, relation.clone()) {
             return true;
@@ -72,7 +70,7 @@ impl TypeChecker {
                 relation.clone(),
                 head_message,
                 containing_message_chain.clone(),
-                error_output_container,
+                error_output_container.clone(),
             )
         {
             return self.check_type_related_to(
@@ -97,18 +95,15 @@ impl TypeChecker {
                 )
     }
 
-    pub(super) fn elaborate_error<
-        TNode: Borrow<Node>,
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn elaborate_error<TNode: Borrow<Node>>(
         &self,
         node: Option<TNode>,
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         if node.is_none() || self.is_or_has_generic_conditional(target) {
             return false;
@@ -121,7 +116,7 @@ impl TypeChecker {
             relation.clone(),
             Option::<&Node>::None,
             None,
-            Option::<CheckTypeContainingMessageChainDummy>::None,
+            None,
             None,
         ) && self.elaborate_did_you_mean_to_call_or_construct(
             node,
@@ -130,7 +125,7 @@ impl TypeChecker {
             relation.clone(),
             head_message,
             containing_message_chain.clone(),
-            error_output_container,
+            error_output_container.clone(),
         ) {
             return true;
         }
@@ -208,17 +203,15 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn elaborate_did_you_mean_to_call_or_construct<
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn elaborate_did_you_mean_to_call_or_construct(
         &self,
         node: &Node, /*Expression*/
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         let call_signatures = self.get_signatures_of_type(source, SignatureKind::Call);
         let construct_signatures = self.get_signatures_of_type(source, SignatureKind::Construct);
@@ -239,21 +232,20 @@ impl TypeChecker {
                             relation.clone(),
                             Option::<&Node>::None,
                             None,
-                            Option::<CheckTypeContainingMessageChainDummy>::None,
+                            None,
                             None,
                         )
                 }),
             ) {
-                let result_obj_default = CheckTypeErrorOutputContainerConcrete::new(None);
-                let result_obj: &dyn CheckTypeErrorOutputContainer =
-                    error_output_container.unwrap_or(&result_obj_default);
+                let result_obj = error_output_container
+                    .unwrap_or_else(|| Rc::new(CheckTypeErrorOutputContainerConcrete::new(None)));
                 self.check_type_assignable_to(
                     source,
                     target,
                     Some(node),
                     head_message,
                     containing_message_chain.clone(),
-                    Some(result_obj),
+                    Some(result_obj.clone()),
                 );
                 let diagnostic = result_obj.get_error(result_obj.errors_len() - 1).unwrap();
                 add_related_info(
@@ -279,16 +271,14 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn elaborate_arrow_function<
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn elaborate_arrow_function(
         &self,
         node: &Node, /*ArrowFunction*/
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         let node_as_arrow_function = node.as_arrow_function();
         if is_block(&node_as_arrow_function.maybe_body().unwrap()) {
@@ -327,7 +317,7 @@ impl TypeChecker {
             relation.clone(),
             Option::<&Node>::None,
             None,
-            Option::<CheckTypeContainingMessageChainDummy>::None,
+            None,
             None,
         ) {
             let elaborated = /*returnExpression &&*/ self.elaborate_error(
@@ -337,14 +327,13 @@ impl TypeChecker {
                 relation.clone(),
                 None,
                 containing_message_chain.clone(),
-                error_output_container,
+                error_output_container.clone(),
             );
             if elaborated {
                 return elaborated;
             }
-            let result_obj_default = CheckTypeErrorOutputContainerConcrete::new(None);
-            let result_obj: &dyn CheckTypeErrorOutputContainer =
-                error_output_container.unwrap_or(&result_obj_default);
+            let result_obj = error_output_container
+                .unwrap_or_else(|| Rc::new(CheckTypeErrorOutputContainerConcrete::new(None)));
             self.check_type_related_to(
                 &source_return,
                 &target_return,
@@ -352,7 +341,7 @@ impl TypeChecker {
                 Some(&*return_expression),
                 None,
                 containing_message_chain,
-                Some(result_obj),
+                Some(result_obj.clone()),
             );
             if result_obj.errors_len() > 0 {
                 if let Some(target_symbol) = target.maybe_symbol() {
@@ -388,7 +377,7 @@ impl TypeChecker {
                         relation,
                         Option::<&Node>::None,
                         None,
-                        Option::<CheckTypeContainingMessageChainDummy>::None,
+                        None,
                         None,
                     )
                 {
@@ -463,16 +452,14 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn elaborate_elementwise<
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn elaborate_elementwise(
         &self,
         iterator: Vec<ElaborationIteratorItem>,
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         let mut reported_error = false;
         for status in iterator {
@@ -513,7 +500,7 @@ impl TypeChecker {
                 relation.clone(),
                 Option::<&Node>::None,
                 None,
-                Option::<CheckTypeContainingMessageChainDummy>::None,
+                None,
                 None,
             ) {
                 let elaborated = match next.as_ref() {
@@ -525,14 +512,15 @@ impl TypeChecker {
                         relation.clone(),
                         None,
                         containing_message_chain.clone(),
-                        error_output_container,
+                        error_output_container.clone(),
                     ),
                 };
                 reported_error = true;
                 if !elaborated {
-                    let result_obj_default = CheckTypeErrorOutputContainerConcrete::new(None);
-                    let result_obj: &dyn CheckTypeErrorOutputContainer =
-                        error_output_container.unwrap_or(&result_obj_default);
+                    let result_obj_default: Rc<dyn CheckTypeErrorOutputContainer> =
+                        Rc::new(CheckTypeErrorOutputContainerConcrete::new(None));
+                    let result_obj: Rc<dyn CheckTypeErrorOutputContainer> =
+                        error_output_container.clone().unwrap_or(result_obj_default);
                     let specific_source = if let Some(next) = next.as_ref() {
                         self.check_expression_for_mutable_location_with_contextual_type(
                             next,
@@ -591,7 +579,7 @@ impl TypeChecker {
                             Some(&*prop),
                             error_message.clone(),
                             containing_message_chain.clone(),
-                            Some(result_obj),
+                            Some(result_obj.clone()),
                         );
                         if result && !Rc::ptr_eq(&specific_source, &source_prop_type) {
                             self.check_type_related_to(
@@ -601,7 +589,7 @@ impl TypeChecker {
                                 Some(&*prop),
                                 error_message,
                                 containing_message_chain.clone(),
-                                Some(result_obj),
+                                Some(result_obj.clone()),
                             );
                         }
                     }
@@ -813,16 +801,14 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn elaborate_jsx_components<
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn elaborate_jsx_components(
         &self,
         node: &Node, /*JsxAttributes*/
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         let mut result = self.elaborate_elementwise(
             self.generate_jsx_attributes(node),
@@ -830,7 +816,7 @@ impl TypeChecker {
             target,
             relation.clone(),
             containing_message_chain.clone(),
-            error_output_container,
+            error_output_container.clone(),
         );
         let mut invalid_text_diagnostic: Option<Cow<'static, DiagnosticMessage>> = None;
         if is_jsx_opening_element(&node.parent()) && is_jsx_element(&node.parent().parent()) {
@@ -955,7 +941,7 @@ impl TypeChecker {
                             )
                         ])
                     );
-                    if let Some(error_output_container) = error_output_container {
+                    if let Some(error_output_container) = error_output_container.as_ref() {
                         if matches!(error_output_container.skip_logging(), Some(true)) {
                             error_output_container.push_error(diag);
                         }
@@ -1004,7 +990,7 @@ impl TypeChecker {
                             )
                         ])
                     );
-                    if let Some(error_output_container) = error_output_container {
+                    if let Some(error_output_container) = error_output_container.as_ref() {
                         if matches!(error_output_container.skip_logging(), Some(true)) {
                             error_output_container.push_error(diag);
                         }
@@ -1048,16 +1034,14 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn elaborate_array_literal<
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn elaborate_array_literal(
         &self,
         node: &Node, /*ArrayLiteralExpression*/
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         if target.flags().intersects(TypeFlags::Primitive) {
             return false;
@@ -1145,16 +1129,14 @@ impl TypeChecker {
             .collect()
     }
 
-    pub(super) fn elaborate_object_literal<
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn elaborate_object_literal(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         if target.flags().intersects(TypeFlags::Primitive) {
             return false;
@@ -1169,15 +1151,13 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_type_comparable_to<
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn check_type_comparable_to(
         &self,
         source: &Type,
         target: &Type,
         error_node: &Node,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<TContainingMessageChain>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
     ) -> bool {
         self.check_type_related_to(
             source,
@@ -1561,17 +1541,8 @@ pub(super) struct ElaborationIteratorItem {
 pub(super) type ErrorReporter<'a> =
     &'a mut dyn FnMut(Cow<'static, DiagnosticMessage>, Option<Vec<String>>);
 
-pub(super) trait CheckTypeContainingMessageChain: Clone {
+pub(super) trait CheckTypeContainingMessageChain {
     fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>>;
-}
-
-#[derive(Clone)]
-pub(super) struct CheckTypeContainingMessageChainDummy;
-
-impl CheckTypeContainingMessageChain for CheckTypeContainingMessageChainDummy {
-    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
-        panic!("dummy implementation")
-    }
 }
 
 pub(super) trait CheckTypeErrorOutputContainer {

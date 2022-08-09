@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::cmp;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -9,12 +10,13 @@ use std::rc::Rc;
 use super::{TypeFacts, WideningKind};
 use crate::{
     create_symbol_table, is_function_type_node, is_identifier, is_method_signature, same_map, some,
-    IndexInfo, NamedDeclarationInterface, SymbolInterface, SyntaxKind, __String,
-    declaration_name_to_string, get_name_of_declaration, get_object_flags, get_source_file_of_node,
-    is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
-    is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics, InferenceContext,
-    InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature,
-    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    IndexInfo, NamedDeclarationInterface, SymbolInterface, SyntaxKind, TypeComparer,
+    TypeMapperCallback, __String, declaration_name_to_string, get_name_of_declaration,
+    get_object_flags, get_source_file_of_node, is_call_signature_declaration,
+    is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, is_write_only_access,
+    node_is_missing, DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags,
+    InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature, Symbol,
+    SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
     WideningContext,
 };
 
@@ -578,16 +580,139 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_inference_context<
-        TSignature: Borrow<Signature>,
-        TCompareTypes: FnMut(&Type, &Type, Option<bool>) -> Ternary,
-    >(
+    pub(super) fn apply_to_parameter_types<TCallback: FnMut(&Type, &Type)>(
+        &self,
+        source: &Signature,
+        target: &Signature,
+        mut callback: TCallback,
+    ) {
+        let source_count = self.get_parameter_count(source);
+        let target_count = self.get_parameter_count(target);
+        let source_rest_type = self.get_effective_rest_type(source);
+        let target_rest_type = self.get_effective_rest_type(target);
+        let target_non_rest_count = if target_rest_type.is_some() {
+            target_count - 1
+        } else {
+            target_count
+        };
+        let param_count = if source_rest_type.is_some() {
+            target_non_rest_count
+        } else {
+            cmp::min(source_count, target_non_rest_count)
+        };
+        let source_this_type = self.get_this_type_of_signature(source);
+        if let Some(source_this_type) = source_this_type.as_ref() {
+            let target_this_type = self.get_this_type_of_signature(target);
+            if let Some(target_this_type) = target_this_type.as_ref() {
+                callback(source_this_type, target_this_type);
+            }
+        }
+        for i in 0..param_count {
+            callback(
+                &self.get_type_at_position(source, i),
+                &self.get_type_at_position(target, i),
+            );
+        }
+        if let Some(target_rest_type) = target_rest_type.as_ref() {
+            callback(
+                &self.get_rest_type_at_position(source, param_count),
+                target_rest_type,
+            );
+        }
+    }
+
+    pub(super) fn apply_to_return_types<TCallback: FnMut(&Type, &Type)>(
+        &self,
+        source: Rc<Signature>,
+        target: Rc<Signature>,
+        mut callback: TCallback,
+    ) {
+        let source_type_predicate = self.get_type_predicate_of_signature(&source);
+        let target_type_predicate = self.get_type_predicate_of_signature(&target);
+        let mut took_if_branch = false;
+        if let Some(source_type_predicate) = source_type_predicate.as_ref() {
+            if let Some(target_type_predicate) = target_type_predicate.as_ref() {
+                if self.type_predicate_kinds_match(source_type_predicate, target_type_predicate) {
+                    if let Some(source_type_predicate_type) = source_type_predicate.type_.as_ref() {
+                        if let Some(target_type_predicate_type) =
+                            target_type_predicate.type_.as_ref()
+                        {
+                            callback(source_type_predicate_type, target_type_predicate_type);
+                            took_if_branch = true;
+                        }
+                    }
+                }
+            }
+        }
+        if !took_if_branch {
+            callback(
+                &self.get_return_type_of_signature(source),
+                &self.get_return_type_of_signature(target),
+            );
+        }
+    }
+
+    pub(super) fn create_inference_context(
         &self,
         type_parameters: &[Rc<Type /*TypeParameter*/>],
-        signature: Option<TSignature>,
+        signature: Option<Rc<Signature>>,
         flags: InferenceFlags,
-        compare_types: Option<TCompareTypes>,
-    ) -> InferenceContext {
+        compare_types: Option<Rc<dyn TypeComparer>>,
+    ) -> Rc<InferenceContext> {
+        self.create_inference_context_worker(
+            type_parameters
+                .into_iter()
+                .map(|type_parameter: &Rc<Type>| {
+                    Rc::new(self.create_inference_info(type_parameter))
+                })
+                .collect(),
+            signature,
+            flags,
+            compare_types.unwrap_or_else(|| {
+                Rc::new(TypeComparerCompareTypesAssignable::new(self.rc_wrapper()))
+            }),
+        )
+    }
+
+    pub(super) fn create_inference_context_worker(
+        &self,
+        inferences: Vec<Rc<InferenceInfo>>,
+        signature: Option<Rc<Signature>>,
+        flags: InferenceFlags,
+        compare_types: Rc<dyn TypeComparer>,
+    ) -> Rc<InferenceContext> {
+        let context = Rc::new(InferenceContext::new(
+            inferences,
+            signature,
+            flags,
+            compare_types,
+            None,
+            None,
+            None,
+            None,
+        ));
+        context.set_mapper(self.make_function_type_mapper(
+            CreateInferenceContextWorkerMapperCallback::new(context.clone()),
+        ));
+        context.set_non_fixing_mapper(self.make_function_type_mapper(
+            CreateInferenceContextWorkerNonFixingMapperCallback::new(context.clone()),
+        ));
+        context
+    }
+
+    pub(super) fn map_to_inferred_type(
+        &self,
+        context: &InferenceContext,
+        t: &Type,
+        fix: bool,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_inference_info(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> InferenceInfo {
         unimplemented!()
     }
 
@@ -930,5 +1055,53 @@ impl TypeChecker {
             |initial_type| initial_type.borrow().type_wrapper(),
         );
         unimplemented!()
+    }
+}
+
+pub(super) struct CreateInferenceContextWorkerMapperCallback {
+    inference_context: Rc<InferenceContext>,
+}
+
+impl CreateInferenceContextWorkerMapperCallback {
+    pub fn new(inference_context: Rc<InferenceContext>) -> Self {
+        Self { inference_context }
+    }
+}
+
+impl TypeMapperCallback for CreateInferenceContextWorkerMapperCallback {
+    fn call(&self, checker: &TypeChecker, t: &Type) -> Rc<Type> {
+        checker.map_to_inferred_type(&self.inference_context, t, true)
+    }
+}
+
+pub(super) struct CreateInferenceContextWorkerNonFixingMapperCallback {
+    inference_context: Rc<InferenceContext>,
+}
+
+impl CreateInferenceContextWorkerNonFixingMapperCallback {
+    pub fn new(inference_context: Rc<InferenceContext>) -> Self {
+        Self { inference_context }
+    }
+}
+
+impl TypeMapperCallback for CreateInferenceContextWorkerNonFixingMapperCallback {
+    fn call(&self, checker: &TypeChecker, t: &Type) -> Rc<Type> {
+        checker.map_to_inferred_type(&self.inference_context, t, false)
+    }
+}
+
+struct TypeComparerCompareTypesAssignable {
+    type_checker: Rc<TypeChecker>,
+}
+
+impl TypeComparerCompareTypesAssignable {
+    pub fn new(type_checker: Rc<TypeChecker>) -> Self {
+        Self { type_checker }
+    }
+}
+
+impl TypeComparer for TypeComparerCompareTypesAssignable {
+    fn call(&self, s: &Type, t: &Type, _report_errors: Option<bool>) -> Ternary {
+        self.type_checker.compare_types_assignable(s, t)
     }
 }

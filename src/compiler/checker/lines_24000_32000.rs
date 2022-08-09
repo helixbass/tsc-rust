@@ -891,6 +891,10 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn get_effective_rest_type(&self, signature: &Signature) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_non_array_rest_type(&self, signature: &Signature) -> Option<Rc<Type>> {
         unimplemented!()
     }

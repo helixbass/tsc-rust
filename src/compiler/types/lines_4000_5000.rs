@@ -131,6 +131,7 @@ pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
 pub struct TypeChecker {
     pub(crate) host: Rc<dyn TypeCheckerHostDebuggable>,
     pub(crate) produce_diagnostics: bool,
+    pub(crate) _rc_wrapper: RefCell<Option<Rc<TypeChecker>>>,
     pub(crate) _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
     pub(crate) _packages_map: RefCell<Option<HashMap<String, bool>>>,
     pub(crate) cancellation_token: RefCell<Option<Rc<dyn CancellationTokenDebuggable>>>,

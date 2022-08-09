@@ -7,8 +7,8 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    CheckTypeContainingMessageChain, CheckTypeContainingMessageChainDummy,
-    CheckTypeErrorOutputContainer, CheckTypeRelatedTo, ErrorReporter, IntersectionState,
+    CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, CheckTypeRelatedTo,
+    ErrorReporter, IntersectionState,
 };
 use crate::{
     are_option_rcs_equal, every, get_object_flags, get_symbol_id, some, symbol_name,
@@ -455,7 +455,7 @@ impl TypeChecker {
                 relation,
                 Option::<&Node>::None,
                 None,
-                Option::<CheckTypeContainingMessageChainDummy>::None,
+                None,
                 None,
             );
         }
@@ -513,18 +513,15 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn check_type_related_to<
-        TErrorNode: Borrow<Node>,
-        TContainingMessageChain: CheckTypeContainingMessageChain,
-    >(
+    pub(super) fn check_type_related_to<TErrorNode: Borrow<Node>>(
         &self,
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<TErrorNode>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         CheckTypeRelatedTo::new(
             self,

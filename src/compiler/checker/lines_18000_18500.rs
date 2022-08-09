@@ -7,8 +7,8 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    CheckTypeContainingMessageChain, CheckTypeContainingMessageChainDummy,
-    CheckTypeErrorOutputContainer, ExpandingFlags, IntersectionState, JsxNames, RecursionFlags,
+    CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, ExpandingFlags,
+    IntersectionState, JsxNames, RecursionFlags,
 };
 use crate::{
     append, are_option_rcs_equal, contains_rc, find_ancestor, is_identifier, is_identifier_text,
@@ -23,18 +23,16 @@ use crate::{
     TypeFlags, TypeInterface,
 };
 
-pub(super) struct CheckTypeRelatedTo<
-    'type_checker,
-    TContainingMessageChain: CheckTypeContainingMessageChain,
-> {
-    pub type_checker: &'type_checker TypeChecker,
-    pub source: &'type_checker Type,
-    pub target: &'type_checker Type,
+pub(super) struct CheckTypeRelatedTo {
+    _rc_wrapper: RefCell<Option<Rc<CheckTypeRelatedTo>>>,
+    pub type_checker: Rc<TypeChecker>,
+    pub source: Rc<Type>,
+    pub target: Rc<Type>,
     pub relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     pub error_node: Option<Rc<Node>>,
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
-    pub containing_message_chain: Option<TContainingMessageChain>,
-    pub error_output_container: Option<&'type_checker dyn CheckTypeErrorOutputContainer>,
+    pub containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+    pub error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
     pub error_info: RefCell<Option<Rc<DiagnosticMessageChain>>>,
     pub related_info: RefCell<Option<Vec<DiagnosticRelatedInformation>>>,
     pub maybe_keys: RefCell<Option<Vec<String>>>,
@@ -51,23 +49,22 @@ pub(super) struct CheckTypeRelatedTo<
     pub in_property_check: Cell<bool>,
 }
 
-impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
-    CheckTypeRelatedTo<'type_checker, TContainingMessageChain>
-{
+impl CheckTypeRelatedTo {
     pub(super) fn new(
-        type_checker: &'type_checker TypeChecker,
-        source: &'type_checker Type,
-        target: &'type_checker Type,
+        type_checker: &TypeChecker,
+        source: &Type,
+        target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<Rc<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<TContainingMessageChain>,
-        error_output_container: Option<&'type_checker dyn CheckTypeErrorOutputContainer>,
-    ) -> Self {
-        Self {
-            type_checker,
-            source,
-            target,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+    ) -> Rc<Self> {
+        let instance = Self {
+            _rc_wrapper: RefCell::new(None),
+            type_checker: type_checker.rc_wrapper(),
+            source: source.type_wrapper(),
+            target: target.type_wrapper(),
             relation,
             error_node,
             head_message,
@@ -87,7 +84,18 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             last_skipped_info: RefCell::new(None),
             incompatible_stack: RefCell::new(vec![]),
             in_property_check: Cell::new(false),
-        }
+        };
+        let rc_wrapped = Rc::new(instance);
+        rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
+        rc_wrapped
+    }
+
+    pub(super) fn set_rc_wrapper(&self, rc_wrapper: Rc<CheckTypeRelatedTo>) {
+        *self._rc_wrapper.borrow_mut() = Some(rc_wrapper);
+    }
+
+    pub(super) fn rc_wrapper(&self) -> Rc<CheckTypeRelatedTo> {
+        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_error_info(&self) -> RefMut<Option<Rc<DiagnosticMessageChain>>> {
@@ -184,8 +192,8 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         );
 
         let result = self.is_related_to(
-            self.source,
-            self.target,
+            &self.source,
+            &self.target,
             Some(RecursionFlags::Both),
             Some(self.error_node.is_some()),
             self.head_message.clone(),
@@ -203,20 +211,20 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                 &Diagnostics::Excessive_stack_depth_comparing_types_0_and_1,
                 Some(vec![
                     self.type_checker.type_to_string_(
-                        self.source,
+                        &self.source,
                         Option::<&Node>::None,
                         None,
                         None,
                     ),
                     self.type_checker.type_to_string_(
-                        self.target,
+                        &self.target,
                         Option::<&Node>::None,
                         None,
                         None,
                     ),
                 ]),
             );
-            if let Some(error_output_container) = self.error_output_container {
+            if let Some(error_output_container) = self.error_output_container.as_ref() {
                 error_output_container.push_error(diag);
             }
         } else if self.maybe_error_info().is_some() {
@@ -253,11 +261,11 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
                                     &self.type_checker.get_type_of_symbol(
                                         (*links).borrow().target.as_ref().unwrap(),
                                     ),
-                                    self.target,
+                                    &self.target,
                                     self.relation.clone(),
                                     Option::<&Node>::None,
                                     None,
-                                    Option::<CheckTypeContainingMessageChainDummy>::None,
+                                    None,
                                     None,
                                 );
                                 if helpful_retry {
@@ -290,10 +298,10 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
             if let Some(related_info) = self.maybe_related_info().clone() {
                 add_related_info(&diag, related_info.into_iter().map(Rc::new).collect());
             }
-            if let Some(error_output_container) = self.error_output_container {
+            if let Some(error_output_container) = self.error_output_container.as_ref() {
                 error_output_container.push_error(diag.clone());
             }
-            if match self.error_output_container {
+            if match self.error_output_container.as_ref() {
                 None => true,
                 Some(error_output_container) => {
                     !matches!(error_output_container.skip_logging(), Some(true))
@@ -305,6 +313,7 @@ impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
         if self.error_node.is_some() {
             if let Some(error_output_container) =
                 self.error_output_container
+                    .as_ref()
                     .filter(|error_output_container| {
                         matches!(error_output_container.skip_logging(), Some(true),)
                     })

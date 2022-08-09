@@ -660,6 +660,7 @@ pub struct TypeMapperArray {
 }
 
 pub trait TypeMapperCallback {
+    // TODO: now that TypeChecker is wrapped in Rc should remove the checker argument here?
     fn call(&self, checker: &TypeChecker, type_: &Type) -> Rc<Type>;
 }
 
@@ -780,9 +781,61 @@ impl BitAndAssign for Ternary {
     }
 }
 
+pub trait TypeComparer {
+    fn call(&self, s: &Type, t: &Type, report_errors: Option<bool>) -> Ternary;
+}
+
 pub(crate) struct InferenceContext {
     pub inferences: Vec<Rc<InferenceInfo>>,
-    pub mapper: TypeMapper,
+    pub signature: Option<Rc<Signature>>,
+    pub flags: InferenceFlags,
+    pub compare_types: Rc<dyn TypeComparer>,
+    mapper: RefCell<Option<TypeMapper>>,
+    non_fixing_mapper: RefCell<Option<TypeMapper>>,
+    pub return_mapper: Option<TypeMapper>,
+    pub inferred_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+}
+
+impl InferenceContext {
+    pub fn new(
+        inferences: Vec<Rc<InferenceInfo>>,
+        signature: Option<Rc<Signature>>,
+        flags: InferenceFlags,
+        compare_types: Rc<dyn TypeComparer>,
+        mapper: Option<TypeMapper>,
+        non_fixing_mapper: Option<TypeMapper>,
+        return_mapper: Option<TypeMapper>,
+        inferred_type_parameters: Option<Vec<Rc<Type>>>,
+    ) -> Self {
+        Self {
+            inferences,
+            signature,
+            flags,
+            compare_types,
+            mapper: RefCell::new(mapper),
+            non_fixing_mapper: RefCell::new(non_fixing_mapper),
+            return_mapper,
+            inferred_type_parameters,
+        }
+    }
+
+    pub fn mapper(&self) -> Ref<TypeMapper> {
+        Ref::map(self.mapper.borrow(), |mapper| mapper.as_ref().unwrap())
+    }
+
+    pub fn set_mapper(&self, mapper: TypeMapper) {
+        *self.mapper.borrow_mut() = Some(mapper);
+    }
+
+    pub fn non_fixing_mapper(&self) -> Ref<TypeMapper> {
+        Ref::map(self.non_fixing_mapper.borrow(), |non_fixing_mapper| {
+            non_fixing_mapper.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_non_fixing_mapper(&self, non_fixing_mapper: TypeMapper) {
+        *self.non_fixing_mapper.borrow_mut() = Some(non_fixing_mapper);
+    }
 }
 
 pub(crate) struct WideningContext {

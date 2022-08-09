@@ -512,11 +512,12 @@ pub fn is_instantiated_module(
 pub fn create_type_checker(
     host: Rc<dyn TypeCheckerHostDebuggable>,
     produce_diagnostics: bool,
-) -> TypeChecker {
+) -> Rc<TypeChecker> {
     let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
         host,
         produce_diagnostics,
+        _rc_wrapper: RefCell::new(None),
         _types_needing_strong_references: RefCell::new(vec![]),
         _packages_map: RefCell::new(None),
         cancellation_token: RefCell::new(None),
@@ -1370,7 +1371,9 @@ pub fn create_type_checker(
 
     type_checker.initialize_type_checker();
 
-    type_checker
+    let rc_wrapped = Rc::new(type_checker);
+    rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
+    rc_wrapped
 }
 
 #[derive(Default)]
@@ -1430,6 +1433,14 @@ pub(crate) struct DuplicateInfoForFiles {
 }
 
 impl TypeChecker {
+    pub fn rc_wrapper(&self) -> Rc<TypeChecker> {
+        self._rc_wrapper.borrow().clone().unwrap()
+    }
+
+    fn set_rc_wrapper(&self, wrapper: Rc<TypeChecker>) {
+        *self._rc_wrapper.borrow_mut() = Some(wrapper);
+    }
+
     pub fn keep_strong_reference_to_type(&self, type_: Rc<Type>) {
         self._types_needing_strong_references
             .borrow_mut()

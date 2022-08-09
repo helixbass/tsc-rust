@@ -21,9 +21,7 @@ use crate::{
     TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags,
 };
 
-impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
-    CheckTypeRelatedTo<'type_checker, TContainingMessageChain>
-{
+impl CheckTypeRelatedTo {
     pub(super) fn count_message_chain_breadth<TItem: Borrow<DiagnosticMessageChain>>(
         &self,
         info: Option<&[TItem]>,

@@ -320,7 +320,7 @@ pub use compiler::types::{
     TransformerFactoryOrCustomTransformerFactory, TransientSymbol, TransientSymbolInterface,
     TryStatement, TsConfigOnlyOption, TupleType, TupleTypeNode, Type, TypeAcquisition,
     TypeAliasDeclaration, TypeAssertion, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper,
+    TypeComparer, TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper,
     TypeMapperCallback, TypeOfExpression, TypeOperatorNode, TypeParameter,
     TypeParameterDeclaration, TypePredicate, TypePredicateKind, TypePredicateNode, TypeQueryNode,
     TypeReference, TypeReferenceInterface, TypeReferenceNode, TypeReferenceSerializationKind,

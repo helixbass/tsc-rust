@@ -6,9 +6,7 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    CheckTypeContainingMessageChain, CheckTypeRelatedTo, IntersectionState, RecursionFlags,
-};
+use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot, SymbolLinks,
     TransientSymbolInterface, TypeReferenceInterface, __String, every, for_each_bool,
@@ -18,9 +16,7 @@ use crate::{
     TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
-impl<'type_checker, TContainingMessageChain: CheckTypeContainingMessageChain>
-    CheckTypeRelatedTo<'type_checker, TContainingMessageChain>
-{
+impl CheckTypeRelatedTo {
     pub(super) fn index_info_related_to(
         &self,
         source_info: &IndexInfo,
