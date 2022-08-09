@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cmp;
 use std::rc::Rc;
 
 use super::TypeFacts;
@@ -168,7 +169,19 @@ impl TypeChecker {
         source: &Type, /*TemplateLiteralType*/
         target: &Type, /*TemplateLiteralType*/
     ) -> bool {
-        unimplemented!()
+        let source_as_template_literal_type = source.as_template_literal_type();
+        let target_as_template_literal_type = target.as_template_literal_type();
+        let source_start = &source_as_template_literal_type.texts[0];
+        let target_start = &target_as_template_literal_type.texts[0];
+        let source_end =
+            &source_as_template_literal_type.texts[source_as_template_literal_type.texts.len() - 1];
+        let target_end =
+            &target_as_template_literal_type.texts[target_as_template_literal_type.texts.len() - 1];
+        let start_len = cmp::min(source_start.len(), target_start.len());
+        let end_len = cmp::min(source_end.len(), target_end.len());
+        &source_start[0..start_len] != &target_start[0..start_len]
+            || &source_end[source_end.len() - end_len..]
+                != &target_end[target_end.len() - end_len..]
     }
 
     pub(super) fn is_type_matched_by_template_literal_type(
