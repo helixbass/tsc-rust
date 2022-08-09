@@ -318,7 +318,169 @@ impl TypeChecker {
         source_types: &[Rc<Type>],
         target: &Type, /*TemplateLiteralType*/
     ) -> Option<Vec<Rc<Type>>> {
-        unimplemented!()
+        let last_source_index = source_texts.len() - 1;
+        let source_start_text = &source_texts[0];
+        // TODO: should be using chars for any of this instead?
+        let source_end_text = &source_texts[last_source_index];
+        let target_texts = &target.as_template_literal_type().texts;
+        let last_target_index = target_texts.len() - 1;
+        let target_start_text = &target_texts[0];
+        let target_end_text = &target_texts[last_target_index];
+        if last_source_index == 0
+            && source_start_text.len() < target_start_text.len() + target_end_text.len()
+            || !source_start_text.starts_with(target_start_text)
+            || !source_end_text.ends_with(target_end_text)
+        {
+            return None;
+        }
+        let remaining_end_text = &source_end_text[0..source_end_text.len() - target_end_text.len()];
+        let mut matches: Vec<Rc<Type>> = vec![];
+        let mut seg = 0;
+        let mut pos = target_start_text.len();
+        for i in 1..last_target_index {
+            let delim = &target_texts[i];
+            if !delim.is_empty() {
+                let mut s = seg;
+                let mut p = pos;
+                loop {
+                    let maybe_p = self.get_source_text(
+                        source_texts,
+                        remaining_end_text,
+                        last_source_index,
+                        s,
+                    )[p..]
+                        .find(delim)
+                        .map(|position| position + p);
+                    if let Some(maybe_p) = maybe_p {
+                        p = maybe_p;
+                        break;
+                    }
+                    s += 1;
+                    if s == source_texts.len() {
+                        return None;
+                    }
+                    p = 0;
+                }
+                self.add_match(
+                    source_texts,
+                    remaining_end_text,
+                    last_source_index,
+                    &mut seg,
+                    &mut pos,
+                    &mut matches,
+                    source_types,
+                    s,
+                    p,
+                );
+                pos += delim.len();
+            } else if pos
+                < self
+                    .get_source_text(source_texts, remaining_end_text, last_source_index, seg)
+                    .len()
+            {
+                let s = seg;
+                let p = pos + 1;
+                self.add_match(
+                    source_texts,
+                    remaining_end_text,
+                    last_source_index,
+                    &mut seg,
+                    &mut pos,
+                    &mut matches,
+                    source_types,
+                    s,
+                    p,
+                );
+            } else if seg < last_source_index {
+                let s = seg + 1;
+                self.add_match(
+                    source_texts,
+                    remaining_end_text,
+                    last_source_index,
+                    &mut seg,
+                    &mut pos,
+                    &mut matches,
+                    source_types,
+                    s,
+                    0,
+                );
+            } else {
+                return None;
+            }
+        }
+        self.add_match(
+            source_texts,
+            remaining_end_text,
+            last_source_index,
+            &mut seg,
+            &mut pos,
+            &mut matches,
+            source_types,
+            last_source_index,
+            self.get_source_text(
+                source_texts,
+                remaining_end_text,
+                last_source_index,
+                last_source_index,
+            )
+            .len(),
+        );
+        Some(matches)
+    }
+
+    pub(super) fn get_source_text<'args>(
+        &self,
+        source_texts: &'args [String],
+        remaining_end_text: &'args str,
+        last_source_index: usize,
+        index: usize,
+    ) -> &'args str {
+        if index < last_source_index {
+            &source_texts[index]
+        } else {
+            remaining_end_text
+        }
+    }
+
+    pub(super) fn add_match(
+        &self,
+        source_texts: &[String],
+        remaining_end_text: &str,
+        last_source_index: usize,
+        seg: &mut usize,
+        pos: &mut usize,
+        matches: &mut Vec<Rc<Type>>,
+        source_types: &[Rc<Type>],
+        s: usize,
+        p: usize,
+    ) {
+        let match_type = if s == *seg {
+            self.get_string_literal_type(
+                &self.get_source_text(source_texts, remaining_end_text, last_source_index, s)
+                    [*pos..p],
+            )
+        } else {
+            self.get_template_literal_type(
+                &{
+                    let mut texts: Vec<String> = vec![source_texts[*seg][*pos..].to_owned()];
+                    texts.extend_from_slice(&source_texts[*seg + 1..s]);
+                    texts.push(
+                        self.get_source_text(
+                            source_texts,
+                            remaining_end_text,
+                            last_source_index,
+                            s,
+                        )[0..p]
+                            .to_owned(),
+                    );
+                    texts
+                },
+                &source_types[*seg..s],
+            )
+        };
+        matches.push(match_type);
+        *seg = s;
+        *pos = p;
     }
 
     pub(super) fn infer_types(
