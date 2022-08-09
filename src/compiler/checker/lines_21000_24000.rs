@@ -9,10 +9,11 @@ use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
-    create_symbol_table, filter, is_function_type_node, is_identifier, is_method_signature, map,
-    same_map, some, IndexInfo, NamedDeclarationInterface, SymbolInterface, SyntaxKind,
-    TypeComparer, TypeMapperCallback, __String, declaration_name_to_string,
-    get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    create_symbol_table, filter, find_ancestor, get_declaration_of_kind, is_function_type_node,
+    is_identifier, is_method_signature, map, same_map, some, FindAncestorCallbackReturn, IndexInfo,
+    NamedDeclarationInterface, SymbolInterface, SyntaxKind, TypeComparer, TypeMapper,
+    TypeMapperCallback, TypeReferenceInterface, __String, declaration_name_to_string,
+    for_each_bool, get_name_of_declaration, get_object_flags, get_source_file_of_node,
     is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
     is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics, InferenceContext,
     InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature,
@@ -795,12 +796,47 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_mapper_from_context(
+        &self,
+        context: Option<&InferenceContext>,
+    ) -> Option<TypeMapper> {
+        context.map(|context| context.mapper().clone())
+    }
+
     pub(super) fn could_contain_type_variables(&self, type_: &Type) -> bool {
         let object_flags = get_object_flags(&type_);
         if object_flags.intersects(ObjectFlags::CouldContainTypeVariablesComputed) {
             return object_flags.intersects(ObjectFlags::CouldContainTypeVariables);
         }
-        let result = type_.flags().intersects(TypeFlags::Instantiable) || unimplemented!();
+        let result = type_.flags().intersects(TypeFlags::Instantiable)
+            || type_.flags().intersects(TypeFlags::Object)
+                && !self.is_non_generic_top_level_type(type_)
+                && (object_flags.intersects(ObjectFlags::Reference)
+                    && (type_.as_type_reference().maybe_node().is_some()
+                        || for_each_bool(
+                            &self.get_type_arguments(type_),
+                            |type_argument: &Rc<Type>, _| {
+                                self.could_contain_type_variables(type_argument)
+                            },
+                        ))
+                    || object_flags.intersects(ObjectFlags::Anonymous)
+                        && matches!(
+                            type_.maybe_symbol().as_ref(),
+                            Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::Function | SymbolFlags::Method | SymbolFlags::Class | SymbolFlags::TypeLiteral | SymbolFlags::ObjectLiteral) &&
+                                type_symbol.maybe_declarations().is_some()
+                        )
+                    || object_flags.intersects(
+                        ObjectFlags::Mapped
+                            | ObjectFlags::ReverseMapped
+                            | ObjectFlags::ObjectRestType,
+                    ))
+            || type_.flags().intersects(TypeFlags::UnionOrIntersection)
+                && !type_.flags().intersects(TypeFlags::EnumLiteral)
+                && !self.is_non_generic_top_level_type(type_)
+                && some(
+                    Some(type_.as_union_or_intersection_type_interface().types()),
+                    Some(|type_: &Rc<Type>| self.could_contain_type_variables(type_)),
+                );
         if type_.flags().intersects(TypeFlags::ObjectFlagsType) {
             let type_as_has_object_flags = type_.as_object_flags_type();
             type_as_has_object_flags.set_object_flags(
@@ -814,6 +850,31 @@ impl TypeChecker {
             );
         }
         result
+    }
+
+    pub(super) fn is_non_generic_top_level_type(&self, type_: &Type) -> bool {
+        if let Some(ref type_alias_symbol) = type_.maybe_alias_symbol().clone() {
+            if type_.maybe_alias_type_arguments().is_none() {
+                let declaration =
+                    get_declaration_of_kind(type_alias_symbol, SyntaxKind::TypeAliasDeclaration);
+                return matches!(
+                    declaration.as_ref(),
+                    Some(declaration) if find_ancestor(
+                        declaration.maybe_parent(),
+                        |n: &Node| {
+                            if n.kind() == SyntaxKind::SourceFile {
+                                FindAncestorCallbackReturn::Bool(true)
+                            } else if n.kind() == SyntaxKind::ModuleDeclaration {
+                                FindAncestorCallbackReturn::Bool(false)
+                            } else {
+                                FindAncestorCallbackReturn::Quit
+                            }
+                        }
+                    ).is_some()
+                );
+            }
+        }
+        false
     }
 
     pub(super) fn infer_type_for_homomorphic_mapped_type(
