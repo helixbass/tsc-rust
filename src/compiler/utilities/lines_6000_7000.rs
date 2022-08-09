@@ -15,8 +15,8 @@ use crate::{
     CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
-    MapLike, ModuleKind, ModuleResolutionKind, Pattern, PluginImport, ScriptKind, ScriptTarget,
-    TypeAcquisition, WatchOptions,
+    MapLike, ModuleKind, ModuleResolutionKind, Node, Pattern, PluginImport, ScriptKind,
+    ScriptTarget, TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -844,6 +844,13 @@ pub fn extension_is_ts(ext: Extension) -> bool {
 
 pub fn resolution_extension_is_ts_or_json(ext: Extension) -> bool {
     extension_is_ts(ext) || ext == Extension::Json
+}
+
+pub fn is_check_js_enabled_for_file(
+    source_file: &Node, /*SourceFile*/
+    compiler_options: &CompilerOptions,
+) -> bool {
+    unimplemented!()
 }
 
 pub fn slice_after<'arr, TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(

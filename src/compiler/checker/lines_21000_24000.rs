@@ -3,11 +3,15 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
-    create_symbol_table, same_map, some, IndexInfo, SymbolInterface, __String, get_object_flags,
+    create_symbol_table, is_function_type_node, is_identifier, is_method_signature, same_map, some,
+    IndexInfo, NamedDeclarationInterface, SymbolInterface, SyntaxKind, __String,
+    declaration_name_to_string, get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
     is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics, InferenceContext,
     InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature,
     Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
@@ -298,7 +302,60 @@ impl TypeChecker {
     }
 
     pub(super) fn report_widening_errors_in_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        let mut error_reported = false;
+        if get_object_flags(type_).intersects(ObjectFlags::ContainsWideningType) {
+            if type_.flags().intersects(TypeFlags::Union) {
+                if some(
+                    Some(type_.as_union_or_intersection_type_interface().types()),
+                    Some(|type_: &Rc<Type>| self.is_empty_object_type(type_)),
+                ) {
+                    error_reported = true;
+                } else {
+                    for t in type_.as_union_or_intersection_type_interface().types() {
+                        if self.report_widening_errors_in_type(t) {
+                            error_reported = true;
+                        }
+                    }
+                }
+            }
+            if self.is_array_type(type_) || self.is_tuple_type(type_) {
+                for t in &self.get_type_arguments(type_) {
+                    if self.report_widening_errors_in_type(t) {
+                        error_reported = true;
+                    }
+                }
+            }
+            if self.is_object_literal_type(type_) {
+                for p in &self.get_properties_of_object_type(type_) {
+                    let t = self.get_type_of_symbol(p);
+                    if get_object_flags(&t).intersects(ObjectFlags::ContainsWideningType) {
+                        if !self.report_widening_errors_in_type(&t) {
+                            self.error(
+                                p.maybe_value_declaration(),
+                                &Diagnostics::Object_literal_s_property_0_implicitly_has_an_1_type,
+                                Some(vec![
+                                    self.symbol_to_string_(
+                                        p,
+                                        Option::<&Node>::None,
+                                        None,
+                                        None,
+                                        None,
+                                    ),
+                                    self.type_to_string_(
+                                        &self.get_widened_type(&t),
+                                        Option::<&Node>::None,
+                                        None,
+                                        None,
+                                    ),
+                                ]),
+                            );
+                        }
+                        error_reported = true;
+                    }
+                }
+            }
+        }
+        error_reported
     }
 
     pub(super) fn report_implicit_any(
@@ -307,7 +364,198 @@ impl TypeChecker {
         type_: &Type,
         widening_kind: Option<WideningKind>,
     ) {
-        unimplemented!()
+        let type_as_string = self.type_to_string_(
+            &self.get_widened_type(type_),
+            Option::<&Node>::None,
+            None,
+            None,
+        );
+        if is_in_js_file(Some(declaration))
+            && !is_check_js_enabled_for_file(
+                &get_source_file_of_node(Some(declaration)).unwrap(),
+                &self.compiler_options,
+            )
+        {
+            return;
+        }
+        let diagnostic: &'static DiagnosticMessage;
+        match declaration.kind() {
+            SyntaxKind::BinaryExpression
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature => {
+                diagnostic = if self.no_implicit_any {
+                    &Diagnostics::Member_0_implicitly_has_an_1_type
+                } else {
+                    &Diagnostics::Member_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage
+                };
+            }
+            SyntaxKind::Parameter => {
+                let param = declaration;
+                let param_as_parameter_declaration = param.as_parameter_declaration();
+                if is_identifier(&param_as_parameter_declaration.name())
+                    && (is_call_signature_declaration(&param.parent())
+                        || is_method_signature(&param.parent())
+                        || is_function_type_node(&param.parent()))
+                    && param
+                        .parent()
+                        .as_function_like_declaration()
+                        .parameters()
+                        .into_iter()
+                        .position(|parameter: &Rc<Node>| ptr::eq(param, &**parameter))
+                        .is_some()
+                    && (self
+                        .resolve_name_(
+                            Some(param),
+                            &param_as_parameter_declaration
+                                .name()
+                                .as_identifier()
+                                .escaped_text,
+                            SymbolFlags::Type,
+                            None,
+                            Some(
+                                param_as_parameter_declaration
+                                    .name()
+                                    .as_identifier()
+                                    .escaped_text
+                                    .clone(),
+                            ),
+                            true,
+                            None,
+                        )
+                        .is_some()
+                        || matches!(
+                            param_as_parameter_declaration.name().as_identifier().original_keyword_kind,
+                            Some(param_name_original_keyword_kind) if is_type_node_kind(param_name_original_keyword_kind)
+                        ))
+                {
+                    let new_name = format!(
+                        "arg{}",
+                        param
+                            .parent()
+                            .as_function_like_declaration()
+                            .parameters()
+                            .into_iter()
+                            .position(|parameter: &Rc<Node>| ptr::eq(param, &**parameter))
+                            .unwrap()
+                            .to_string()
+                    );
+                    let type_name = format!(
+                        "{}{}",
+                        declaration_name_to_string(Some(param_as_parameter_declaration.name())),
+                        if param_as_parameter_declaration.dot_dot_dot_token.is_some() {
+                            "[]"
+                        } else {
+                            ""
+                        }
+                    );
+                    self.error_or_suggestion(
+                        self.no_implicit_any,
+                        declaration,
+                        Diagnostics::Parameter_has_a_name_but_no_type_Did_you_mean_0_Colon_1
+                            .clone()
+                            .into(),
+                        Some(vec![new_name, type_name]),
+                    );
+                    return;
+                }
+                diagnostic = if declaration
+                    .as_parameter_declaration()
+                    .dot_dot_dot_token
+                    .is_some()
+                {
+                    if self.no_implicit_any {
+                        &Diagnostics::Rest_parameter_0_implicitly_has_an_any_type
+                    } else {
+                        &Diagnostics::Rest_parameter_0_implicitly_has_an_any_type_but_a_better_type_may_be_inferred_from_usage
+                    }
+                } else {
+                    if self.no_implicit_any {
+                        &Diagnostics::Parameter_0_implicitly_has_an_1_type
+                    } else {
+                        &Diagnostics::Parameter_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage
+                    }
+                };
+            }
+            SyntaxKind::BindingElement => {
+                diagnostic = &Diagnostics::Binding_element_0_implicitly_has_an_1_type;
+                if !self.no_implicit_any {
+                    return;
+                }
+            }
+            SyntaxKind::JSDocFunctionType => {
+                self.error(
+                    Some(declaration),
+                    &Diagnostics::Function_type_which_lacks_return_type_annotation_implicitly_has_an_0_return_type,
+                    Some(vec![
+                        type_as_string
+                    ])
+                );
+                return;
+            }
+            SyntaxKind::FunctionDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction => {
+                if self.no_implicit_any && declaration.as_named_declaration().maybe_name().is_none()
+                {
+                    if widening_kind == Some(WideningKind::GeneratorYield) {
+                        self.error(
+                            Some(declaration),
+                            &Diagnostics::Generator_implicitly_has_yield_type_0_because_it_does_not_yield_any_values_Consider_supplying_a_return_type_annotation,
+                            Some(vec![
+                                type_as_string
+                            ])
+                        );
+                    } else {
+                        self.error(
+                            Some(declaration),
+                            &Diagnostics::Function_expression_which_lacks_return_type_annotation_implicitly_has_an_0_return_type,
+                            Some(vec![
+                                type_as_string
+                            ])
+                        );
+                    }
+                    return;
+                }
+                diagnostic = if !self.no_implicit_any {
+                    &Diagnostics::_0_implicitly_has_an_1_return_type_but_a_better_type_may_be_inferred_from_usage
+                } else if widening_kind == Some(WideningKind::GeneratorYield) {
+                    &Diagnostics::_0_which_lacks_return_type_annotation_implicitly_has_an_1_yield_type
+                } else {
+                    &Diagnostics::_0_which_lacks_return_type_annotation_implicitly_has_an_1_return_type
+                };
+            }
+            SyntaxKind::MappedType => {
+                if self.no_implicit_any {
+                    self.error(
+                        Some(declaration),
+                        &Diagnostics::Mapped_object_type_implicitly_has_an_any_template_type,
+                        None,
+                    );
+                }
+                return;
+            }
+            _ => {
+                diagnostic = if self.no_implicit_any {
+                    &Diagnostics::Variable_0_implicitly_has_an_1_type
+                } else {
+                    &Diagnostics::Variable_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage
+                };
+            }
+        }
+        self.error_or_suggestion(
+            self.no_implicit_any,
+            declaration,
+            // TODO: should this type contain &'static DiagnosticMessage instead of DiagnosticMessage?
+            diagnostic.clone().into(),
+            Some(vec![
+                declaration_name_to_string(get_name_of_declaration(Some(declaration))).into_owned(),
+                type_as_string,
+            ]),
+        );
     }
 
     pub(super) fn report_errors_from_widening(
