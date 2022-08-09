@@ -275,8 +275,7 @@ impl TypeChecker {
         node: &Node, /*SignatureDeclaration*/
     ) -> Option<Rc<Signature>> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Call);
-        let applicable_by_arity =
-            filter(Some(&signatures), |s| !self.is_arity_smaller(s, node)).unwrap();
+        let applicable_by_arity = filter(&signatures, |s| !self.is_arity_smaller(s, node));
         if applicable_by_arity.len() == 1 {
             Some(applicable_by_arity[0].clone())
         } else {

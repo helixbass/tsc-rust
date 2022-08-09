@@ -196,32 +196,29 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
                 if let Some(serde_json::Value::Array(base_raw_property)) = base_raw_property {
                     let mut raw_property = raw.entry(property_name);
                     raw_property.or_insert_with(|| {
-                        serde_json::Value::Array(
-                            map(Some(base_raw_property), |path, _| {
-                                let path = match path {
-                                    serde_json::Value::String(path) => path,
-                                    _ => panic!("Expected string"),
-                                };
-                                serde_json::Value::String(if is_rooted_disk_path(path) {
-                                    path.to_owned()
-                                } else {
-                                    if relative_difference.is_none() {
-                                        relative_difference = Some(convert_to_relative_path(
-                                            &get_directory_path(own_config_extended_config_path),
-                                            &base_path,
-                                            create_get_canonical_file_name(
-                                                host.use_case_sensitive_file_names(),
-                                            ),
-                                        ));
-                                    }
-                                    combine_paths(
-                                        relative_difference.as_ref().unwrap(),
-                                        &*vec![Some(&**path)],
-                                    )
-                                })
+                        serde_json::Value::Array(map(base_raw_property, |path, _| {
+                            let path = match path {
+                                serde_json::Value::String(path) => path,
+                                _ => panic!("Expected string"),
+                            };
+                            serde_json::Value::String(if is_rooted_disk_path(path) {
+                                path.to_owned()
+                            } else {
+                                if relative_difference.is_none() {
+                                    relative_difference = Some(convert_to_relative_path(
+                                        &get_directory_path(own_config_extended_config_path),
+                                        &base_path,
+                                        create_get_canonical_file_name(
+                                            host.use_case_sensitive_file_names(),
+                                        ),
+                                    ));
+                                }
+                                combine_paths(
+                                    relative_difference.as_ref().unwrap(),
+                                    &*vec![Some(&**path)],
+                                )
                             })
-                            .unwrap(),
-                        )
+                        }))
                     });
                 }
             };

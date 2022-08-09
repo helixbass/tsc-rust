@@ -192,10 +192,9 @@ impl TypeChecker {
         if !self.strict_null_checks {
             return self.get_supertype_or_union(types);
         }
-        let primary_types = filter(Some(types), |t: &Rc<Type>| {
+        let primary_types = filter(types, |t: &Rc<Type>| {
             !t.flags().intersects(TypeFlags::Nullable)
-        })
-        .unwrap();
+        });
         if !primary_types.is_empty() {
             self.get_nullable_type(
                 &self.get_supertype_or_union(&primary_types),

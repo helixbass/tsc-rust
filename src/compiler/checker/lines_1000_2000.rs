@@ -1282,7 +1282,7 @@ impl TypeChecker {
                             let prop_name = declaration.as_property_declaration().name();
                             if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                                 let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(declaration).unwrap());
-                                let static_blocks = filter(Some(declaration.parent().as_class_like_declaration().members()), |node: &Rc<Node>| is_class_static_block_declaration(node)).unwrap();
+                                let static_blocks = filter(declaration.parent().as_class_like_declaration().members(), |node: &Rc<Node>| is_class_static_block_declaration(node));
                                 if self.is_property_initialized_in_static_blocks(&prop_name, &type_, &static_blocks, declaration.parent().pos(), current.pos()) {
                                     return true.into();
                                 }

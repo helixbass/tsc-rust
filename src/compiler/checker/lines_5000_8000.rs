@@ -560,23 +560,19 @@ impl NodeBuilder {
         }
 
         let abstract_signatures = filter(
-            Some(&*resolved_as_resolved_type.construct_signatures()),
+            &*resolved_as_resolved_type.construct_signatures(),
             |signature: &Rc<Signature>| signature.flags.intersects(SignatureFlags::Abstract),
         );
         if some(
-            abstract_signatures.as_deref(),
+            Some(&abstract_signatures),
             Option::<fn(&Rc<Signature>) -> bool>::None,
         ) {
-            let mut types = map(
-                abstract_signatures.as_deref(),
-                |signature: &Rc<Signature>, _| {
-                    type_checker.get_or_create_type_from_signature(signature.clone())
-                },
-            )
-            .unwrap();
+            let mut types = map(&abstract_signatures, |signature: &Rc<Signature>, _| {
+                type_checker.get_or_create_type_from_signature(signature.clone())
+            });
             let type_element_count = resolved_as_resolved_type.call_signatures().len()
                 + (resolved_as_resolved_type.construct_signatures().len()
-                    - abstract_signatures.as_ref().unwrap().len())
+                    - abstract_signatures.len())
                 + resolved_as_resolved_type.index_infos().len()
                 + if context
                     .flags()

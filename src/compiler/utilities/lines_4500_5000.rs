@@ -11,20 +11,19 @@ use super::{
     get_set_accessor_value_parameter,
 };
 use crate::{
-    compute_line_and_character_of_position, factory, filter, flat_map,
-    get_jsdoc_deprecated_tag_no_cache, get_jsdoc_override_tag_no_cache,
-    get_jsdoc_private_tag_no_cache, get_jsdoc_protected_tag_no_cache,
-    get_jsdoc_public_tag_no_cache, get_jsdoc_readonly_tag_no_cache, get_jsdoc_return_type,
-    get_jsdoc_tags, get_jsdoc_type, get_leading_comment_ranges, is_binary_expression,
-    is_class_element, is_class_like, is_class_static_block_declaration,
-    is_expression_with_type_arguments, is_function_declaration, is_heritage_clause, is_in_js_file,
-    is_jsdoc_property_like_tag, is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_alias,
-    is_left_hand_side_expression, is_parameter, is_pinned_comment,
-    is_property_access_entity_name_expression, is_white_space_single_line, last,
-    maybe_text_char_at_index, skip_trivia, synthetic_factory, text_char_at_index, text_substring,
-    trim_string, CharacterCodes, CommentRange, EmitTextWriter, Extension, ModifierFlags,
-    ModifiersArray, Node, NodeArray, NodeFlags, NodeInterface, SourceTextAsChars, SyntaxKind,
-    TextRange,
+    compute_line_and_character_of_position, factory, flat_map, get_jsdoc_deprecated_tag_no_cache,
+    get_jsdoc_override_tag_no_cache, get_jsdoc_private_tag_no_cache,
+    get_jsdoc_protected_tag_no_cache, get_jsdoc_public_tag_no_cache,
+    get_jsdoc_readonly_tag_no_cache, get_jsdoc_return_type, get_jsdoc_tags, get_jsdoc_type,
+    get_leading_comment_ranges, is_binary_expression, is_class_element, is_class_like,
+    is_class_static_block_declaration, is_expression_with_type_arguments, is_function_declaration,
+    is_heritage_clause, is_in_js_file, is_jsdoc_property_like_tag, is_jsdoc_signature,
+    is_jsdoc_template_tag, is_jsdoc_type_alias, is_left_hand_side_expression, is_parameter,
+    is_pinned_comment, is_property_access_entity_name_expression, is_white_space_single_line, last,
+    maybe_filter, maybe_text_char_at_index, skip_trivia, synthetic_factory, text_char_at_index,
+    text_substring, trim_string, CharacterCodes, CommentRange, EmitTextWriter, Extension,
+    ModifierFlags, ModifiersArray, Node, NodeArray, NodeFlags, NodeInterface, SourceTextAsChars,
+    SyntaxKind, TextRange,
 };
 
 pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
@@ -214,7 +213,7 @@ pub fn emit_detached_comments<
         if node.pos() == 0 {
             let is_pinned_comment_local =
                 |comment: &CommentRange| is_pinned_comment(text, comment.pos().try_into().unwrap());
-            leading_comments = filter(
+            leading_comments = maybe_filter(
                 get_leading_comment_ranges(text, node.pos().try_into().unwrap()).as_deref(),
                 is_pinned_comment_local,
             );

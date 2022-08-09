@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use super::signature_has_rest_parameter;
 use crate::{
-    declaration_name_to_string, filter, find_index, first_defined, for_each_child_bool,
+    declaration_name_to_string, find_index, first_defined, for_each_child_bool,
     get_declaration_of_kind, get_effective_constraint_of_type_parameter,
     get_effective_return_type_node, get_immediately_invoked_function_expression,
     get_jsdoc_parameter_tags, get_jsdoc_tags, get_jsdoc_type, get_jsdoc_type_tag,
@@ -17,13 +17,13 @@ use crate::{
     is_jsdoc_construct_signature, is_jsdoc_parameter_tag, is_jsdoc_signature,
     is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
     is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map_defined,
-    node_is_missing, node_starts_new_lexical_environment, some, CheckFlags, Debug_,
-    HasInitializerInterface, HasTypeInterface, IndexInfo, InterfaceTypeInterface,
-    InternalSymbolName, ModifierFlags, NodeArray, NodeCheckFlags, ReadonlyTextRange, Signature,
-    SignatureDeclarationInterface, SignatureFlags, SymbolTable, TransientSymbolInterface,
-    TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction, __String,
-    map, Diagnostics, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    maybe_filter, maybe_map, node_is_missing, node_starts_new_lexical_environment, some,
+    CheckFlags, Debug_, HasInitializerInterface, HasTypeInterface, IndexInfo,
+    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, NodeArray, NodeCheckFlags,
+    ReadonlyTextRange, Signature, SignatureDeclarationInterface, SignatureFlags, SymbolTable,
+    TransientSymbolInterface, TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName,
+    UnionReduction, __String, map, Diagnostics, Node, NodeInterface, ObjectFlags, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -593,12 +593,11 @@ impl TypeChecker {
                 self.instantiate_type(
                     &self.get_union_or_intersection_type(
                         &map(
-                            Some(signature_composite_signatures),
+                            signature_composite_signatures,
                             |signature: &Rc<Signature>, _| {
                                 self.get_return_type_of_signature(signature.clone())
                             },
-                        )
-                        .unwrap(),
+                        ),
                         signature.composite_kind,
                         Some(UnionReduction::Subtype),
                     ),
@@ -853,7 +852,7 @@ impl TypeChecker {
     pub(super) fn create_canonical_signature(&self, signature: Rc<Signature>) -> Rc<Signature> {
         self.get_signature_instantiation(
             signature.clone(),
-            map(signature.type_parameters.as_deref(), |tp: &Rc<Type>, _| {
+            maybe_map(signature.type_parameters.as_deref(), |tp: &Rc<Type>, _| {
                 tp.as_type_parameter()
                     .target
                     .clone()
@@ -877,17 +876,15 @@ impl TypeChecker {
             let type_eraser = self.create_type_eraser(type_parameters.clone());
             let base_constraint_mapper = self.create_type_mapper(
                 type_parameters.clone(),
-                map(Some(type_parameters), |tp: &Rc<Type>, _| {
+                Some(map(type_parameters, |tp: &Rc<Type>, _| {
                     self.get_constraint_of_type_parameter(tp)
                         .unwrap_or_else(|| self.unknown_type())
-                }),
+                })),
             );
-            let mut base_constraints: Vec<Rc<Type>> =
-                map(Some(type_parameters), |tp: &Rc<Type>, _| {
-                    self.maybe_instantiate_type(Some(&**tp), Some(&base_constraint_mapper))
-                        .unwrap_or_else(|| self.unknown_type())
-                })
-                .unwrap();
+            let mut base_constraints: Vec<Rc<Type>> = map(type_parameters, |tp: &Rc<Type>, _| {
+                self.maybe_instantiate_type(Some(&**tp), Some(&base_constraint_mapper))
+                    .unwrap_or_else(|| self.unknown_type())
+            });
             for _i in 0..type_parameters.len() - 1 {
                 base_constraints = self
                     .instantiate_types(Some(&base_constraints), &base_constraint_mapper)
@@ -1053,7 +1050,7 @@ impl TypeChecker {
         type_: &Type, /*TypeParameter*/
     ) -> Option<Rc<Node /*TypeNode*/>> {
         map_defined(
-            filter(
+            maybe_filter(
                 type_
                     .maybe_symbol()
                     .and_then(|symbol| symbol.maybe_declarations().clone())

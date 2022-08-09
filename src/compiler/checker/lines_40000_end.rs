@@ -564,13 +564,10 @@ impl TypeChecker {
                 best_match = Some(target.clone());
                 matching_count = usize::MAX;
             } else if overlap.flags().intersects(TypeFlags::Union) {
-                let len = length(
-                    filter(
-                        Some(overlap.as_union_or_intersection_type_interface().types()),
-                        |type_: &Rc<Type>| self.is_unit_type(type_),
-                    )
-                    .as_deref(),
-                );
+                let len = length(Some(&filter(
+                    overlap.as_union_or_intersection_type_interface().types(),
+                    |type_: &Rc<Type>| self.is_unit_type(type_),
+                )));
                 if len >= matching_count {
                     best_match = Some(target.clone());
                     matching_count = len;

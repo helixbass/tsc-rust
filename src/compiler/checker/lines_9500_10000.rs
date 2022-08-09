@@ -13,12 +13,12 @@ use crate::{
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_object_flags, get_parameter_symbol_from_jsdoc, is_access_expression, is_binary_expression,
     is_export_assignment, is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol,
-    is_source_file, is_type_alias, length, map, maybe_append_if_unique_rc, maybe_first_defined,
-    resolving_empty_array, same_map, some, AssignmentDeclarationKind, CheckFlags, Debug_,
-    Diagnostics, ElementFlags, InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, Signature, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeFormatFlags, TypeInterface, TypeSystemPropertyName,
+    is_source_file, is_type_alias, length, maybe_append_if_unique_rc, maybe_first_defined,
+    maybe_map, resolving_empty_array, same_map, some, AssignmentDeclarationKind, CheckFlags,
+    Debug_, Diagnostics, ElementFlags, InterfaceTypeInterface, InternalSymbolName, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, Signature,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -668,7 +668,7 @@ impl TypeChecker {
         let type_arg_count = length(type_argument_nodes);
         let is_javascript = is_in_js_file(Some(location));
         filter(
-            Some(&self.get_signatures_of_type(type_, SignatureKind::Construct)),
+            &self.get_signatures_of_type(type_, SignatureKind::Construct),
             |sig: &Rc<Signature>| {
                 (is_javascript
                     || type_arg_count
@@ -676,7 +676,6 @@ impl TypeChecker {
                     && type_arg_count <= length(sig.type_parameters.as_deref())
             },
         )
-        .unwrap()
     }
 
     pub(super) fn get_instantiated_constructors_for_type_arguments(
@@ -687,7 +686,7 @@ impl TypeChecker {
     ) -> Vec<Rc<Signature>> {
         let signatures =
             self.get_constructors_for_type_arguments(type_, type_argument_nodes, location);
-        let type_arguments = map(type_argument_nodes, |type_argument_node: &Rc<Node>, _| {
+        let type_arguments = maybe_map(type_argument_nodes, |type_argument_node: &Rc<Node>, _| {
             self.get_type_from_type_node_(type_argument_node)
         });
         same_map(Some(&signatures), |sig: &Rc<Signature>, _| {

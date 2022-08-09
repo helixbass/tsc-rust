@@ -58,17 +58,13 @@ impl TypeChecker {
                 None,
             );
             if let Some(union_index) = union_index {
-                return if self.check_cross_product_union(
-                    &map(Some(&*element_types), |t: &Rc<Type>, i| {
-                        if target_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic)
-                        {
-                            t.clone()
-                        } else {
-                            self.unknown_type()
-                        }
-                    })
-                    .unwrap(),
-                ) {
+                return if self.check_cross_product_union(&map(&element_types, |t: &Rc<Type>, i| {
+                    if target_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic) {
+                        t.clone()
+                    } else {
+                        self.unknown_type()
+                    }
+                })) {
                     self.map_type(
                         &element_types[union_index],
                         &mut |t: &Type| {
@@ -615,10 +611,9 @@ impl TypeChecker {
         &self,
         types: &mut Vec<Rc<Type>>,
     ) {
-        let templates = filter(Some(types), |type_: &Rc<Type>| {
+        let templates = filter(types, |type_: &Rc<Type>| {
             self.is_pattern_literal_type(type_)
-        })
-        .unwrap();
+        });
         if !templates.is_empty() {
             let mut i = types.len();
             while i > 0 {
@@ -958,11 +953,9 @@ impl TypeChecker {
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
             links.borrow_mut().resolved_type = Some(
                 self.get_union_type(
-                    map(
-                        Some(&node.as_union_type_node().types),
-                        |type_: &Rc<Node>, _| self.get_type_from_type_node_(type_),
-                    )
-                    .unwrap(),
+                    map(&node.as_union_type_node().types, |type_: &Rc<Node>, _| {
+                        self.get_type_from_type_node_(type_)
+                    }),
                     Some(UnionReduction::Literal),
                     alias_symbol.clone(),
                     self.get_type_arguments_for_alias_symbol(alias_symbol)

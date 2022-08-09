@@ -506,10 +506,9 @@ impl TypeChecker {
                             .intersects(TypeFlags::Number | TypeFlags::String)
                         {
                             let mut types = map(
-                                Some(&*object_type.as_resolved_type().properties()),
+                                &*object_type.as_resolved_type().properties(),
                                 |property: &Rc<Symbol>, _| self.get_type_of_symbol(property),
-                            )
-                            .unwrap();
+                            );
                             append(&mut types, Some(self.undefined_type()));
                             return Some(self.get_union_type(
                                 types,
@@ -961,11 +960,9 @@ impl TypeChecker {
             .intersects(TypeFlags::UnionOrIntersection)
         {
             let types = map(
-                Some(
-                    object_type
-                        .as_union_or_intersection_type_interface()
-                        .types(),
-                ),
+                object_type
+                    .as_union_or_intersection_type_interface()
+                    .types(),
                 |t: &Rc<Type>, _| {
                     self.get_simplified_type(
                         &self.get_indexed_access_type(
@@ -979,8 +976,7 @@ impl TypeChecker {
                         writing,
                     )
                 },
-            )
-            .unwrap();
+            );
             return Some(
                 if object_type.flags().intersects(TypeFlags::Intersection) || writing {
                     self.get_intersection_type(&types, Option::<&Symbol>::None, None)
@@ -1005,23 +1001,19 @@ impl TypeChecker {
         writing: bool,
     ) -> Option<Rc<Type>> {
         if index_type.flags().intersects(TypeFlags::Union) {
-            let types = map(
-                Some(index_type.as_union_type().types()),
-                |t: &Rc<Type>, _| {
-                    self.get_simplified_type(
-                        &self.get_indexed_access_type(
-                            object_type,
-                            t,
-                            None,
-                            Option::<&Node>::None,
-                            Option::<&Symbol>::None,
-                            None,
-                        ),
-                        writing,
-                    )
-                },
-            )
-            .unwrap();
+            let types = map(index_type.as_union_type().types(), |t: &Rc<Type>, _| {
+                self.get_simplified_type(
+                    &self.get_indexed_access_type(
+                        object_type,
+                        t,
+                        None,
+                        Option::<&Node>::None,
+                        Option::<&Symbol>::None,
+                        None,
+                    ),
+                    writing,
+                )
+            });
             return Some(if writing {
                 self.get_intersection_type(&types, Option::<&Symbol>::None, None)
             } else {

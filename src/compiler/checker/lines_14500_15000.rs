@@ -50,10 +50,9 @@ impl TypeChecker {
 
     pub(super) fn extract_redundant_template_literals(&self, types: &mut Vec<Rc<Type>>) -> bool {
         let mut i = types.len();
-        let literals = filter(Some(types), |t: &Rc<Type>| {
+        let literals = filter(types, |t: &Rc<Type>| {
             t.flags().intersects(TypeFlags::StringLiteral)
-        })
-        .unwrap();
+        });
         while i > 0 {
             i -= 1;
             let t = types[i].clone();
@@ -402,10 +401,9 @@ impl TypeChecker {
             links.borrow_mut().resolved_type = Some(
                 self.get_intersection_type(
                     &map(
-                        Some(&*node.as_intersection_type_node().types),
+                        &*node.as_intersection_type_node().types,
                         |type_: &Rc<Node>, _| self.get_type_from_type_node_(type_),
-                    )
-                    .unwrap(),
+                    ),
                     alias_symbol.clone(),
                     self.get_type_arguments_for_alias_symbol(alias_symbol)
                         .as_deref(),
@@ -711,12 +709,11 @@ impl TypeChecker {
             None
         };
         let property_types = map(
-            Some(&self.get_properties_of_type(type_)),
+            &self.get_properties_of_type(type_),
             |prop: &Rc<Symbol>, _| self.get_literal_type_from_property(prop, include, None),
-        )
-        .unwrap();
+        );
         let index_key_types = map(
-            Some(&self.get_index_infos_of_type(type_)),
+            &self.get_index_infos_of_type(type_),
             |info: &Rc<IndexInfo>, _| {
                 if !Rc::ptr_eq(info, &self.enum_number_index_info())
                     && self.is_key_type_included(&info.key_type, include)
@@ -732,8 +729,7 @@ impl TypeChecker {
                     self.never_type()
                 }
             },
-        )
-        .unwrap();
+        );
         self.get_union_type(
             concatenate(property_types, index_key_types),
             Some(UnionReduction::Literal),
@@ -753,22 +749,17 @@ impl TypeChecker {
         let type_ = self.get_reduced_type(type_);
         if type_.flags().intersects(TypeFlags::Union) {
             self.get_intersection_type(
-                &map(Some(type_.as_union_type().types()), |t: &Rc<Type>, _| {
+                &map(type_.as_union_type().types(), |t: &Rc<Type>, _| {
                     self.get_index_type(t, Some(strings_only), no_index_signatures)
-                })
-                .unwrap(),
+                }),
                 Option::<&Symbol>::None,
                 None,
             )
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             self.get_union_type(
-                map(
-                    Some(type_.as_intersection_type().types()),
-                    |t: &Rc<Type>, _| {
-                        self.get_index_type(t, Some(strings_only), no_index_signatures)
-                    },
-                )
-                .unwrap(),
+                map(type_.as_intersection_type().types(), |t: &Rc<Type>, _| {
+                    self.get_index_type(t, Some(strings_only), no_index_signatures)
+                }),
                 None,
                 Option::<&Symbol>::None,
                 None,
@@ -886,7 +877,7 @@ impl TypeChecker {
                 .clone()];
             texts.extend(
                 map(
-                    Some(&*node_as_template_literal_type_node.template_spans),
+                    &*node_as_template_literal_type_node.template_spans,
                     |span: &Rc<Node>, _| {
                         span.as_template_literal_type_span()
                             .literal
@@ -895,23 +886,17 @@ impl TypeChecker {
                             .clone()
                     },
                 )
-                .unwrap()
                 .into_iter(),
             );
-            links.borrow_mut().resolved_type = Some(
-                self.get_template_literal_type(
-                    &texts,
-                    &map(
-                        Some(&*node_as_template_literal_type_node.template_spans),
-                        |span: &Rc<Node>, _| {
-                            self.get_type_from_type_node_(
-                                &span.as_template_literal_type_span().type_,
-                            )
-                        },
-                    )
-                    .unwrap(),
+            links.borrow_mut().resolved_type = Some(self.get_template_literal_type(
+                &texts,
+                &map(
+                    &*node_as_template_literal_type_node.template_spans,
+                    |span: &Rc<Node>, _| {
+                        self.get_type_from_type_node_(&span.as_template_literal_type_span().type_)
+                    },
                 ),
-            );
+            ));
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();
         ret
@@ -967,9 +952,7 @@ impl TypeChecker {
         let id = format!(
             "{}|{}|{}",
             self.get_type_list_id(Some(&new_types)),
-            map(Some(&new_texts), |t: &String, _| t.len().to_string())
-                .unwrap()
-                .join(","),
+            map(&new_texts, |t: &String, _| t.len().to_string()).join(","),
             new_texts.join("")
         );
         let mut type_ = self.template_literal_types().get(&id).map(Clone::clone);

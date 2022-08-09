@@ -9,10 +9,10 @@ use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
     is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, AssignmentKind, Diagnostic,
-    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface,
+    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceInfo,
+    IterationTypes, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -275,6 +275,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn has_inference_candidates(&self, info: &InferenceInfo) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_quick_type_of_expression(
         &self,
         node: &Node, /*Expression*/
@@ -373,10 +377,10 @@ impl TypeChecker {
         type_parameters: &[Rc<Type /*TypeParameter*/>],
     ) -> Vec<Rc<Type>> {
         self.fill_missing_type_arguments(
-            map(
-                Some(node.as_has_type_arguments().maybe_type_arguments().unwrap()),
+            Some(map(
+                node.as_has_type_arguments().maybe_type_arguments().unwrap(),
                 |type_argument, _| self.get_type_from_type_node_(type_argument),
-            ),
+            )),
             Some(type_parameters),
             0, // TODO: this is wrong
             false,

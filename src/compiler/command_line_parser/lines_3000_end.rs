@@ -21,12 +21,12 @@ use crate::{
     get_regular_expressions_for_wildcards, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module,
     get_ts_config_prop_array_element_value, has_extension, is_implicit_glob, length, map,
-    normalize_path, normalize_slashes, set_type_acquisition_value, set_watch_option_value,
-    starts_with, to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic,
-    DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, Extension, FileExtensionInfo,
-    Node, ParseConfigHost, ToHashMapOfCompilerOptionsValues, TypeAcquisition, WatchDirectoryFlags,
-    WatchOptions,
+    maybe_filter, maybe_map, normalize_path, normalize_slashes, set_type_acquisition_value,
+    set_watch_option_value, starts_with, to_file_name_lower_case, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
+    ConfigFileSpecs, Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics,
+    Extension, FileExtensionInfo, Node, ParseConfigHost, ToHashMapOfCompilerOptionsValues,
+    TypeAcquisition, WatchDirectoryFlags, WatchOptions,
 };
 
 pub struct ExtendedConfigCacheEntry {
@@ -448,15 +448,11 @@ pub(super) fn normalize_option_value(
                 return match value {
                     serde_json::Value::Array(value) => CompilerOptionsValue::VecString(Some(
                         filter(
-                            Some(
-                                &map(Some(value), |v, _| {
-                                    normalize_option_value(&list_option.element, base_path, Some(v))
-                                })
-                                .unwrap(),
-                            ),
+                            &map(value, |v, _| {
+                                normalize_option_value(&list_option.element, base_path, Some(v))
+                            }),
                             |v| v.is_some(),
                         )
-                        .unwrap()
                         .into_iter()
                         .map(|item| match item {
                             CompilerOptionsValue::String(Some(item)) => item,
@@ -702,7 +698,7 @@ pub(crate) fn get_file_names_from_config_specs<THost: ParseConfigHost>(
                             .iter()
                             .filter(|s| ends_with(s, Extension::Json.to_str()))
                             .collect::<Vec<_>>();
-                        let include_file_patterns = map(
+                        let include_file_patterns = maybe_map(
                             get_regular_expressions_for_wildcards(
                                 Some(&includes),
                                 &base_path,
@@ -839,7 +835,7 @@ pub(crate) fn matches_exclude(
 ) -> bool {
     matches_exclude_worker(
         path_to_check,
-        filter(exclude_specs, |spec| {
+        maybe_filter(exclude_specs, |spec| {
             !invalid_dot_dot_after_recursive_wildcard(spec)
         })
         .as_deref(),

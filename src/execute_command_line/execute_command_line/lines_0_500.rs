@@ -156,10 +156,9 @@ pub(super) fn get_options_for_help(command_line: &ParsedCommandLine) -> Vec<Rc<C
             })
             .to_vec()
         } else {
-            filter(Some(&*option_declarations_), |v| {
+            filter(option_declarations_, |v: &Rc<CommandLineOption>| {
                 v.show_in_simplified_help_view()
             })
-            .unwrap()
         }
     })
 }

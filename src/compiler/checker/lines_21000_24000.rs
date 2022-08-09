@@ -9,14 +9,14 @@ use std::rc::Rc;
 
 use super::{TypeFacts, WideningKind};
 use crate::{
-    create_symbol_table, is_function_type_node, is_identifier, is_method_signature, map, same_map,
-    some, IndexInfo, NamedDeclarationInterface, SymbolInterface, SyntaxKind, TypeComparer,
-    TypeMapperCallback, __String, declaration_name_to_string, get_name_of_declaration,
-    get_object_flags, get_source_file_of_node, is_call_signature_declaration,
-    is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, is_write_only_access,
-    node_is_missing, DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags,
-    InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature, Symbol,
-    SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    create_symbol_table, filter, is_function_type_node, is_identifier, is_method_signature, map,
+    same_map, some, IndexInfo, NamedDeclarationInterface, SymbolInterface, SyntaxKind,
+    TypeComparer, TypeMapperCallback, __String, declaration_name_to_string,
+    get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
+    is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics, InferenceContext,
+    InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature,
+    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
     WideningContext,
 };
 
@@ -682,13 +682,9 @@ impl TypeChecker {
         let extra_flags = extra_flags.unwrap_or(InferenceFlags::None);
         context.map(|context| {
             self.create_inference_context_worker(
-                map(
-                    Some(&context.inferences),
-                    |inference: &Rc<InferenceInfo>, _| {
-                        Rc::new(self.clone_inference_info(inference))
-                    },
-                )
-                .unwrap(),
+                map(&context.inferences, |inference: &Rc<InferenceInfo>, _| {
+                    Rc::new(self.clone_inference_info(inference))
+                }),
                 context.signature.clone(),
                 context.flags | extra_flags,
                 context.compare_types.clone(),
@@ -776,6 +772,27 @@ impl TypeChecker {
             inference.is_fixed(),
             inference.implied_arity,
         )
+    }
+
+    pub(super) fn clone_inferred_part_of_context(
+        &self,
+        context: &InferenceContext,
+    ) -> Option<Rc<InferenceContext>> {
+        let inferences = filter(&context.inferences, |inference: &Rc<InferenceInfo>| {
+            self.has_inference_candidates(inference)
+        });
+        if !inferences.is_empty() {
+            Some(self.create_inference_context_worker(
+                map(&inferences, |inference: &Rc<InferenceInfo>, _| {
+                    Rc::new(self.clone_inference_info(inference))
+                }),
+                context.signature.clone(),
+                context.flags,
+                context.compare_types.clone(),
+            ))
+        } else {
+            None
+        }
     }
 
     pub(super) fn could_contain_type_variables(&self, type_: &Type) -> bool {

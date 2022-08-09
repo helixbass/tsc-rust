@@ -1549,7 +1549,7 @@ impl TypeChecker {
                 {
                     add_related_info(
                         &diagnostic,
-                        map(Some(local_symbol_declarations), |decl: &Rc<Node>, index| {
+                        map(local_symbol_declarations, |decl: &Rc<Node>, index| {
                             Rc::new(
                                 create_diagnostic_for_node(
                                     decl,
@@ -1562,8 +1562,7 @@ impl TypeChecker {
                                 )
                                 .into(),
                             )
-                        })
-                        .unwrap(),
+                        }),
                     );
                 }
             }

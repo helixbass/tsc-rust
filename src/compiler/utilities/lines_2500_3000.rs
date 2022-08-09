@@ -5,7 +5,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    add_range, filter, find, find_ancestor, first_or_undefined, for_each_bool,
+    add_range, find, find_ancestor, first_or_undefined, for_each_bool,
     get_assignment_declaration_kind, get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache,
     get_jsdoc_type_parameter_tags, get_jsdoc_type_parameter_tags_no_cache, get_name_of_declaration,
     get_right_most_assigned_expression, has_initializer, has_jsdoc_nodes, is_arrow_function,
@@ -17,8 +17,8 @@ use crate::{
     is_method_or_accessor, is_module_declaration, is_namespace_export, is_namespace_import,
     is_parenthesized_expression, is_qualified_name, is_require_call, is_source_file,
     is_string_literal, is_type_alias_declaration, is_variable_like, is_variable_statement, last,
-    last_or_undefined, skip_outer_expressions, try_cast, AssignmentDeclarationKind, Debug_,
-    FunctionLikeDeclarationInterface, HasTypeInterface, NamedDeclarationInterface, Node,
+    last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, AssignmentDeclarationKind,
+    Debug_, FunctionLikeDeclarationInterface, HasTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, OuterExpressionKinds, SignatureDeclarationInterface, Symbol, SyntaxKind,
 };
 
@@ -410,7 +410,7 @@ fn filter_owned_jsdoc_tags(
     js_doc: &Node, /*JSDoc | JSDocTag*/
 ) -> Option<Vec<Rc<Node /*JSDoc | JSDocTag*/>>> {
     if is_jsdoc(js_doc) {
-        let owned_tags = filter(js_doc.as_jsdoc().tags.as_deref(), |tag| {
+        let owned_tags = maybe_filter(js_doc.as_jsdoc().tags.as_deref(), |tag| {
             owns_jsdoc_tag(host_node, tag)
         });
         return if match (js_doc.as_jsdoc().tags.as_ref(), owned_tags.as_ref()) {

@@ -211,32 +211,28 @@ impl TypeChecker {
             .target
             .as_tuple_type()
             .element_flags;
-        let element_types = map(
-            Some(&self.get_type_arguments(tuple_type)),
-            |t: &Rc<Type>, i| {
-                let singleton = if element_flags[i].intersects(ElementFlags::Variadic) {
-                    t.clone()
-                } else if element_flags[i].intersects(ElementFlags::Rest) {
-                    self.create_array_type(t, None)
-                } else {
-                    self.create_tuple_type(&[t.clone()], Some(&[element_flags[i]]), None, None)
-                };
-                self.instantiate_mapped_type(
-                    mapped_type,
-                    self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone())),
-                    Option::<&Symbol>::None,
-                    None,
-                )
-            },
-        )
-        .unwrap();
+        let element_types = map(&self.get_type_arguments(tuple_type), |t: &Rc<Type>, i| {
+            let singleton = if element_flags[i].intersects(ElementFlags::Variadic) {
+                t.clone()
+            } else if element_flags[i].intersects(ElementFlags::Rest) {
+                self.create_array_type(t, None)
+            } else {
+                self.create_tuple_type(&[t.clone()], Some(&[element_flags[i]]), None, None)
+            };
+            self.instantiate_mapped_type(
+                mapped_type,
+                self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone())),
+                Option::<&Symbol>::None,
+                None,
+            )
+        });
         let new_readonly = self.get_modified_readonly_state(
             tuple_type_as_type_reference.target.as_tuple_type().readonly,
             self.get_mapped_type_modifiers(mapped_type),
         );
         self.create_tuple_type(
             &element_types,
-            map(Some(&element_types), |_, _| ElementFlags::Variadic).as_deref(),
+            Some(&map(&element_types, |_, _| ElementFlags::Variadic)),
             Some(new_readonly),
             None,
         )
@@ -274,34 +270,31 @@ impl TypeChecker {
             .target
             .as_tuple_type()
             .element_flags;
-        let element_types = map(Some(&self.get_type_arguments(tuple_type)), |_, i| {
+        let element_types = map(&self.get_type_arguments(tuple_type), |_, i| {
             self.instantiate_mapped_type_template(
                 mapped_type,
                 &self.get_string_literal_type(&i.to_string()),
                 element_flags[i].intersects(ElementFlags::Optional),
                 mapper.clone(),
             )
-        })
-        .unwrap();
+        });
         let modifiers = self.get_mapped_type_modifiers(mapped_type);
         let new_tuple_modifiers = if modifiers.intersects(MappedTypeModifiers::IncludeOptional) {
-            map(Some(element_flags), |f: &ElementFlags, _| {
+            map(element_flags, |f: &ElementFlags, _| {
                 if f.intersects(ElementFlags::Required) {
                     ElementFlags::Optional
                 } else {
                     *f
                 }
             })
-            .unwrap()
         } else if modifiers.intersects(MappedTypeModifiers::ExcludeOptional) {
-            map(Some(element_flags), |f: &ElementFlags, _| {
+            map(element_flags, |f: &ElementFlags, _| {
                 if f.intersects(ElementFlags::Optional) {
                     ElementFlags::Required
                 } else {
                     *f
                 }
             })
-            .unwrap()
         } else {
             element_flags.clone()
         };
@@ -422,10 +415,9 @@ impl TypeChecker {
         if let Some(root_outer_type_parameters) =
             (*root).borrow().outer_type_parameters.clone().as_deref()
         {
-            let type_arguments = map(Some(root_outer_type_parameters), |t: &Rc<Type>, _| {
+            let type_arguments = map(root_outer_type_parameters, |t: &Rc<Type>, _| {
                 self.get_mapped_type(t, mapper)
-            })
-            .unwrap();
+            });
             let alias_symbol =
                 alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
             let id = format!(
@@ -932,10 +924,9 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
                 &map(
-                    Some(type_.as_intersection_type().types()),
+                    type_.as_intersection_type().types(),
                     |type_: &Rc<Type>, _| self.get_type_without_signatures(type_),
-                )
-                .unwrap(),
+                ),
                 Option::<&Symbol>::None,
                 None,
             );

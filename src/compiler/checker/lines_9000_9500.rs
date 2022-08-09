@@ -228,7 +228,7 @@ impl TypeChecker {
                 self.any_array_type()
             };
         }
-        let element_types = map(Some(&**elements), |e: &Rc<Node>, _| {
+        let element_types = map(elements, |e: &Rc<Node>, _| {
             if is_omitted_expression(e) {
                 self.any_type()
             } else {
@@ -238,8 +238,7 @@ impl TypeChecker {
                     Some(report_errors),
                 )
             }
-        })
-        .unwrap();
+        });
         let min_length: usize = (find_last_index(
             &**elements,
             |e: &Rc<Node>, _| {
@@ -251,7 +250,7 @@ impl TypeChecker {
         ) + 1)
             .try_into()
             .unwrap();
-        let element_flags = map(Some(&**elements), |e: &Rc<Node>, i| {
+        let element_flags = map(elements, |e: &Rc<Node>, i| {
             if matches!(rest_element.as_ref(), Some(rest_element) if Rc::ptr_eq(e, rest_element)) {
                 ElementFlags::Rest
             } else if i >= min_length {
@@ -259,8 +258,7 @@ impl TypeChecker {
             } else {
                 ElementFlags::Required
             }
-        })
-        .unwrap();
+        });
         let mut result: Rc<Type> =
             self.create_tuple_type(&element_types, Some(&element_flags), None, None);
         if include_pattern_in_type {

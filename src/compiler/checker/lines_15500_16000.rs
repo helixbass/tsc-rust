@@ -6,16 +6,16 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::{
-    __String, append, concatenate, create_symbol_table, declaration_name_to_string, every, filter,
-    find, get_declaration_modifier_flags_from_symbol, is_identifier, is_jsdoc_type_expression,
+    __String, append, concatenate, create_symbol_table, declaration_name_to_string, every, find,
+    get_declaration_modifier_flags_from_symbol, is_identifier, is_jsdoc_type_expression,
     is_jsdoc_type_literal, is_literal_import_type_node, is_optional_type_node,
     is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node, is_type_alias,
-    is_type_operator_node, length, map, maybe_concatenate, node_is_missing, same_map, AccessFlags,
-    CheckFlags, ConditionalRoot, ConditionalType, Diagnostics, IndexInfo, InferenceFlags,
-    InferencePriority, MappedType, ModifierFlags, Node, NodeFlags, NodeInterface, NodeLinks,
-    ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, UnionOrIntersectionTypeInterface,
+    is_type_operator_node, length, map, maybe_concatenate, maybe_filter, node_is_missing, same_map,
+    AccessFlags, CheckFlags, ConditionalRoot, ConditionalType, Diagnostics, IndexInfo,
+    InferenceFlags, InferencePriority, MappedType, ModifierFlags, Node, NodeFlags, NodeInterface,
+    NodeLinks, ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -384,11 +384,9 @@ impl TypeChecker {
                         new_type_as_conditional_type.mapper.clone(),
                         new_mapper.clone(),
                     );
-                    let type_arguments =
-                        map(Some(new_root_outer_type_parameters), |t: &Rc<Type>, _| {
-                            self.get_mapped_type(t, &type_param_mapper)
-                        })
-                        .unwrap();
+                    let type_arguments = map(new_root_outer_type_parameters, |t: &Rc<Type>, _| {
+                        self.get_mapped_type(t, &type_param_mapper)
+                    });
                     let new_root_mapper = self.create_type_mapper(
                         new_root_outer_type_parameters.clone(),
                         Some(type_arguments),
@@ -569,7 +567,7 @@ impl TypeChecker {
             let outer_type_parameters = if alias_type_arguments.is_some() {
                 all_outer_type_parameters
             } else {
-                filter(all_outer_type_parameters.as_deref(), |tp: &Rc<Type>| {
+                maybe_filter(all_outer_type_parameters.as_deref(), |tp: &Rc<Type>| {
                     self.is_type_parameter_possibly_referenced(tp, node)
                 })
             };

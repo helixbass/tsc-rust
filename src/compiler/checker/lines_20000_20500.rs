@@ -10,8 +10,8 @@ use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot, SymbolLinks,
     TransientSymbolInterface, TypeReferenceInterface, __String, every, for_each_bool,
-    get_check_flags, get_selected_effective_modifier_flags, map, some, CheckFlags, Diagnostics,
-    IndexInfo, ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface,
+    get_check_flags, get_selected_effective_modifier_flags, maybe_map, some, CheckFlags,
+    Diagnostics, IndexInfo, ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface,
     RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
@@ -440,7 +440,7 @@ impl TypeChecker {
     ) -> Rc<Type /*TypeReference*/> {
         let result = self.create_type_reference(
             type_,
-            map(
+            maybe_map(
                 type_.as_generic_type().maybe_type_parameters(),
                 |t: &Rc<Type>, _| {
                     if ptr::eq(&**t, source) {

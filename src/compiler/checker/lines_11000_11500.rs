@@ -232,30 +232,27 @@ impl TypeChecker {
             if every(types, |t: &Rc<Type>, _| {
                 self.get_index_info_of_type_(t, index_type).is_some()
             }) {
-                result.push(Rc::new(
-                    self.create_index_info(
-                        index_type.clone(),
-                        self.get_union_type(
-                            map(Some(types), |t: &Rc<Type>, _| {
-                                self.get_index_type_of_type_(t, index_type).unwrap()
-                            })
-                            .unwrap(),
-                            None,
-                            Option::<&Symbol>::None,
-                            None,
-                            Option::<&Type>::None,
-                        ),
-                        some(
-                            Some(types),
-                            Some(|t: &Rc<Type>| {
-                                self.get_index_info_of_type_(t, index_type)
-                                    .unwrap()
-                                    .is_readonly
-                            }),
-                        ),
+                result.push(Rc::new(self.create_index_info(
+                    index_type.clone(),
+                    self.get_union_type(
+                        map(types, |t: &Rc<Type>, _| {
+                            self.get_index_type_of_type_(t, index_type).unwrap()
+                        }),
                         None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
                     ),
-                ));
+                    some(
+                        Some(types),
+                        Some(|t: &Rc<Type>| {
+                            self.get_index_info_of_type_(t, index_type)
+                                .unwrap()
+                                .is_readonly
+                        }),
+                    ),
+                    None,
+                )));
             }
         }
         result
@@ -265,22 +262,18 @@ impl TypeChecker {
 
     pub(super) fn resolve_union_type_members(&self, type_: &Type /*UnionType*/) {
         let type_as_union_type = type_.as_union_type();
-        let call_signatures = self.get_union_signatures(
-            &map(Some(type_as_union_type.types()), |t: &Rc<Type>, _| {
+        let call_signatures =
+            self.get_union_signatures(&map(type_as_union_type.types(), |t: &Rc<Type>, _| {
                 if Rc::ptr_eq(t, &self.global_function_type()) {
                     vec![self.unknown_signature()]
                 } else {
                     self.get_signatures_of_type(t, SignatureKind::Call)
                 }
-            })
-            .unwrap(),
-        );
-        let construct_signatures = self.get_union_signatures(
-            &map(Some(type_as_union_type.types()), |t: &Rc<Type>, _| {
+            }));
+        let construct_signatures = self
+            .get_union_signatures(&map(type_as_union_type.types(), |t: &Rc<Type>, _| {
                 self.get_signatures_of_type(t, SignatureKind::Construct)
-            })
-            .unwrap(),
-        );
+            }));
         let index_infos = self.get_union_index_infos(type_as_union_type.types());
         self.set_structured_type_members(
             type_as_union_type,
@@ -315,10 +308,7 @@ impl TypeChecker {
                 .get_signatures_of_type(t, SignatureKind::Construct)
                 .is_empty()
         });
-        let mut mixin_flags = map(Some(types), |t: &Rc<Type>, _| {
-            self.is_mixin_constructor_type(t)
-        })
-        .unwrap();
+        let mut mixin_flags = map(types, |t: &Rc<Type>, _| self.is_mixin_constructor_type(t));
         if constructor_type_count > 0
             && constructor_type_count == count_where(Some(&mixin_flags), |b: &bool, _| *b)
         {
@@ -363,7 +353,7 @@ impl TypeChecker {
             if !mixin_flags[i] {
                 let mut signatures = self.get_signatures_of_type(t, SignatureKind::Construct);
                 if !signatures.is_empty() && mixin_count > 0 {
-                    signatures = map(Some(&signatures), |s: &Rc<Signature>, _| {
+                    signatures = map(&signatures, |s: &Rc<Signature>, _| {
                         let clone = self.clone_signature(s);
                         *clone.maybe_resolved_return_type() = Some(self.include_mixin_type(
                             &self.get_return_type_of_signature(s.clone()),
@@ -372,8 +362,7 @@ impl TypeChecker {
                             i,
                         ));
                         Rc::new(clone)
-                    })
-                    .unwrap();
+                    });
                 }
                 self.append_signatures(&mut construct_signatures, &signatures);
             }

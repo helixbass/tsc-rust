@@ -656,27 +656,24 @@ impl TypeChecker {
             }
         }
         if let Some(applicable_infos) = applicable_infos {
-            Some(Rc::new(
-                self.create_index_info(
-                    self.unknown_type(),
-                    self.get_intersection_type(
-                        &map(Some(&applicable_infos), |info: &Rc<IndexInfo>, _| {
-                            info.type_.clone()
-                        })
-                        .unwrap(),
-                        Option::<&Symbol>::None,
-                        None,
-                    ),
-                    reduce_left(
-                        &applicable_infos,
-                        |is_readonly, info: &Rc<IndexInfo>, _| is_readonly && info.is_readonly,
-                        true,
-                        None,
-                        None,
-                    ),
+            Some(Rc::new(self.create_index_info(
+                self.unknown_type(),
+                self.get_intersection_type(
+                    &map(&applicable_infos, |info: &Rc<IndexInfo>, _| {
+                        info.type_.clone()
+                    }),
+                    Option::<&Symbol>::None,
                     None,
                 ),
-            ))
+                reduce_left(
+                    &applicable_infos,
+                    |is_readonly, info: &Rc<IndexInfo>, _| is_readonly && info.is_readonly,
+                    true,
+                    None,
+                    None,
+                ),
+                None,
+            )))
         } else if applicable_info.is_some() {
             applicable_info
         } else if string_index_info.is_some()

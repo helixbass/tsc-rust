@@ -8,13 +8,13 @@ use std::rc::Rc;
 
 use crate::{
     add_synthetic_leading_comment, append_if_unique_rc, contains_rc, create_printer,
-    create_text_writer, default_maximum_truncation_length, every, factory, filter,
-    get_first_identifier, get_object_flags, get_source_file_of_node, get_text_of_node,
+    create_text_writer, default_maximum_truncation_length, every, factory, get_first_identifier,
+    get_object_flags, get_source_file_of_node, get_text_of_node,
     get_trailing_semicolon_deferring_writer, has_syntactic_modifier, id_text, is_binding_element,
     is_expression, is_expression_with_type_arguments_in_class_extends_clause,
     is_external_or_common_js_module, is_identifier_text, is_import_type_node, is_in_js_file,
     is_late_visibility_painted_statement, is_module_with_string_literal_name,
-    is_type_reference_node, is_variable_declaration, is_variable_statement, map,
+    is_type_reference_node, is_variable_declaration, is_variable_statement, map, maybe_filter,
     no_truncation_maximum_truncation_length, pseudo_big_int_to_string, set_emit_flags, symbol_name,
     synthetic_factory, using_single_line_string_writer, Debug_, EmitFlags, EmitHint,
     EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilderFlags,
@@ -43,7 +43,7 @@ impl TypeChecker {
             Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
         > = RefCell::new(None);
         if !every(
-            &filter(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>| {
+            &maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>| {
                 d.kind() != SyntaxKind::Identifier
             })
             .unwrap_or_else(|| vec![]),
@@ -1437,7 +1437,7 @@ impl NodeBuilder {
             let template_spans = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     factory_.create_node_array(
-                        map(Some(types), |t: &Rc<Type>, i| -> Rc<Node> {
+                        Some(map(types, |t: &Rc<Type>, i| -> Rc<Node> {
                             factory_
                                 .create_template_literal_type_span(
                                     synthetic_factory_,
@@ -1468,7 +1468,7 @@ impl NodeBuilder {
                                     },
                                 )
                                 .into()
-                        }),
+                        })),
                         None,
                     )
                 })

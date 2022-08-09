@@ -6,7 +6,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    filter, find_index, maybe_add_range, InferenceContext, InferenceInfo, ObjectFlags,
+    find_index, maybe_add_range, maybe_filter, InferenceContext, InferenceInfo, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectTypeInterface, TypeMapperCallback, TypeReferenceInterface,
     __String, get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc,
     get_symbol_id, get_this_container, is_binary_expression, is_class_like,
@@ -869,10 +869,10 @@ impl TypeChecker {
         let mut fresh_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
         if let Some(signature_type_parameters) = signature.type_parameters.clone() {
             if !erase_type_parameters {
-                fresh_type_parameters = map(
-                    Some(signature_type_parameters.clone()),
-                    |type_parameter, _| self.clone_type_parameter(&type_parameter),
-                );
+                fresh_type_parameters =
+                    Some(map(&signature_type_parameters, |type_parameter, _| {
+                        self.clone_type_parameter(&type_parameter)
+                    }));
                 mapper = self.combine_type_mappers(
                     Some(self.create_type_mapper(
                         signature_type_parameters,
@@ -1015,7 +1015,7 @@ impl TypeChecker {
                 || target.symbol().flags().intersects(SymbolFlags::TypeLiteral))
                 && target.maybe_alias_type_arguments().is_none()
             {
-                filter(type_parameters.as_deref(), |tp: &Rc<Type>| {
+                maybe_filter(type_parameters.as_deref(), |tp: &Rc<Type>| {
                     some(
                         Some(&*all_declarations),
                         Some(|d: &Rc<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
@@ -1032,10 +1032,9 @@ impl TypeChecker {
                 type_as_object_type.maybe_mapper().map(Clone::clone),
                 mapper.clone(),
             );
-            let type_arguments = map(Some(&*type_parameters), |t: &Rc<Type>, _| {
+            let type_arguments = map(&type_parameters, |t: &Rc<Type>, _| {
                 self.get_mapped_type(t, &combined_mapper)
-            })
-            .unwrap();
+            });
             let alias_symbol =
                 alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
             let new_alias_symbol = alias_symbol

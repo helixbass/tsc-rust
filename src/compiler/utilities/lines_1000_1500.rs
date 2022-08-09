@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use crate::{
     concatenate, contains_rc, create_file_diagnostic, create_scanner, create_text_span,
-    create_text_span_from_bounds, every, filter, for_each_child, for_each_child_bool,
+    create_text_span_from_bounds, every, for_each_child, for_each_child_bool,
     get_combined_modifier_flags, get_combined_node_flags, get_emit_flags, get_end_line_position,
     get_leading_comment_ranges, get_line_and_character_of_position, get_source_file_of_node,
     get_trailing_comment_ranges, has_effective_readonly_modifier, has_static_modifier, is_accessor,
@@ -15,13 +15,14 @@ use crate::{
     is_function_like, is_identifier, is_import_type_node, is_jsdoc, is_jsx_text,
     is_literal_type_node, is_meta_property, is_parameter_property_declaration,
     is_property_declaration, is_property_signature, is_string_literal, is_variable_declaration,
-    is_variable_statement, maybe_text_char_at_index, node_is_missing, single_or_undefined,
-    skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation, CharacterCodes,
-    ClassLikeDeclarationInterface, CommentRange, Debug_, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticWithLocation, EmitFlags,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange,
-    ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange, TextSpan,
+    is_variable_statement, maybe_filter, maybe_text_char_at_index, node_is_missing,
+    single_or_undefined, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    CharacterCodes, ClassLikeDeclarationInterface, CommentRange, Debug_, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticWithLocation, EmitFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
+    TextSpan,
 };
 
 pub fn create_diagnostic_for_node(
@@ -492,7 +493,7 @@ pub fn get_jsdoc_comment_ranges<TNode: NodeInterface>(
     } else {
         get_leading_comment_ranges(text, node.pos().try_into().unwrap())
     };
-    filter(comment_ranges.as_deref(), |comment| {
+    maybe_filter(comment_ranges.as_deref(), |comment| {
         matches!(maybe_text_char_at_index(text, (comment.pos() + 1).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
             && matches!(maybe_text_char_at_index(text, (comment.pos() + 2).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
             && match maybe_text_char_at_index(text, (comment.pos() + 3).try_into().unwrap()) {

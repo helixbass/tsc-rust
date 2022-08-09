@@ -663,7 +663,7 @@ impl TypeChecker {
         {
             self.create_type_reference(
                 &class_type,
-                map(Some(class_type_type_parameters), |_, _| self.any_type()),
+                Some(map(class_type_type_parameters, |_, _| self.any_type())),
             )
         } else {
             class_type
@@ -739,10 +739,9 @@ impl TypeChecker {
                 .unwrap();
         }
         let omit_key_type = self.get_union_type(
-            map(Some(properties), |property: &Rc<Node>, _| {
+            map(properties, |property: &Rc<Node>, _| {
                 self.get_literal_type_from_property_name(property)
-            })
-            .unwrap(),
+            }),
             None,
             Option::<&Symbol>::None,
             None,

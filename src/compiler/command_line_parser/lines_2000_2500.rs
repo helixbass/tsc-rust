@@ -17,7 +17,7 @@ use crate::{
     extend_compiler_options, get_directory_path, get_file_matcher_patterns,
     get_locale_specific_message, get_normalized_absolute_path, get_regex_from_pattern,
     get_relative_path_from_file, get_text_of_property_name, is_computed_non_literal_name,
-    is_string_double_quoted, is_string_literal, map, unescape_leading_underscores,
+    is_string_double_quoted, is_string_literal, maybe_map, unescape_leading_underscores,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CommandLineOptionType, CompilerOptions, CompilerOptionsValue, Diagnostic, Diagnostics,
     DidYouMeanOptionsDiagnostics, FileMatcherPatterns, JsonConversionNotifier, MultiMap,
@@ -760,7 +760,7 @@ pub(crate) fn convert_to_tsconfig(
     let mut config = TSConfig {
         compiler_options: Rc::new(compiler_options),
         // watch_options: watch_option_map.map(|watch_option_map| Rc::new(hash_map_to_watch_options(&watch_option_map))),
-        references: map(config_parse_result.project_references.as_ref(), |r, _| {
+        references: maybe_map(config_parse_result.project_references.as_ref(), |r, _| {
             Rc::new(ProjectReference {
                 path: r
                     .original_path

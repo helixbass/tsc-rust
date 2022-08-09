@@ -445,10 +445,9 @@ impl TypeChecker {
                     vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)]
                 } else {
                     map(
-                        Some(&*node.as_tuple_type_node().elements),
+                        &node.as_tuple_type_node().elements,
                         |element: &Rc<Node>, _| self.get_type_from_type_node_(element),
                     )
-                    .unwrap()
                 }
             };
             if self.pop_type_resolution() {

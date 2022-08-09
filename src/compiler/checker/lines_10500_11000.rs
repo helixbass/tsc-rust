@@ -543,10 +543,9 @@ impl TypeChecker {
                         ))]
                     };
                 let inherited_index_infos_filtered =
-                    filter(Some(&*inherited_index_infos), |info: &Rc<IndexInfo>| {
+                    filter(&inherited_index_infos, |info: &Rc<IndexInfo>| {
                         self.find_index_info(&index_infos, &info.key_type).is_none()
-                    })
-                    .unwrap();
+                    });
                 index_infos = concatenate(index_infos, inherited_index_infos_filtered);
             }
         }
@@ -727,12 +726,11 @@ impl TypeChecker {
                 )
             {
                 return map(
-                    Some(rest_type.as_union_or_intersection_type_interface().types()),
+                    rest_type.as_union_or_intersection_type_interface().types(),
                     |t: &Rc<Type>, _| {
                         self.expand_signature_parameters_with_tuple_members(sig, t, rest_index)
                     },
-                )
-                .unwrap();
+                );
             }
         }
         return vec![sig.parameters().to_owned()];
@@ -750,7 +748,7 @@ impl TypeChecker {
         let associated_names = rest_type_target_as_tuple_type
             .labeled_element_declarations
             .as_ref();
-        let rest_params = map(Some(&element_types), |t: &Rc<Type>, i| {
+        let rest_params = map(&element_types, |t: &Rc<Type>, i| {
             let tuple_label_name = associated_names
                 .map(|associated_names| self.get_tuple_element_label(&associated_names[i]));
             let name = tuple_label_name.unwrap_or_else(|| {
@@ -777,8 +775,7 @@ impl TypeChecker {
                 t.clone()
             });
             symbol
-        })
-        .unwrap();
+        });
         concatenate(sig.parameters()[0..rest_index].to_owned(), rest_params)
     }
 

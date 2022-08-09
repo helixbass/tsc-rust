@@ -492,10 +492,9 @@ impl TypeChecker {
                     .map(|type_| self.add_optionality(&type_, Some(true), Some(is_optional)));
             } else {
                 let static_blocks = filter(
-                    Some(declaration.parent().as_class_like_declaration().members()),
+                    declaration.parent().as_class_like_declaration().members(),
                     |member: &Rc<Node>| is_class_static_block_declaration(member),
-                )
-                .unwrap();
+                );
                 let type_ = if !static_blocks.is_empty() {
                     self.get_flow_type_in_static_blocks(&declaration.symbol(), &static_blocks)
                 } else if get_effective_modifier_flags(declaration)

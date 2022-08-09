@@ -782,12 +782,11 @@ pub fn get_binary_operator_precedence(kind: SyntaxKind) -> OperatorPrecedence {
 }
 
 pub fn get_semantic_jsx_children(children: &[Rc<Node /*JsxChild*/>]) -> Vec<Rc<Node>> {
-    filter(Some(children), |i| match i.kind() {
+    filter(children, |i: &Rc<Node>| match i.kind() {
         SyntaxKind::JsxExpression => i.as_jsx_expression().expression.is_some(),
         SyntaxKind::JsxText => !i.as_jsx_text().contains_only_trivia_white_spaces,
         _ => true,
     })
-    .unwrap()
 }
 
 pub fn create_diagnostic_collection() -> DiagnosticCollection {

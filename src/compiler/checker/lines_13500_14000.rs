@@ -9,7 +9,7 @@ use std::rc::Rc;
 use super::get_node_id;
 use crate::{
     count_where, create_symbol_table, find, is_assertion_expression, is_const_type_reference,
-    is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, some,
+    is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, maybe_map, some,
     symbol_name, BaseInterfaceType, CheckFlags, ElementFlags, GenericableTypeInterface,
     InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, NodeInterface, Number,
     ObjectFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, TypeFlags,
@@ -81,7 +81,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NodeWithTypeArguments*/
     ) -> Option<Vec<Rc<Type>>> {
-        map(
+        maybe_map(
             node.as_has_type_arguments().maybe_type_arguments(),
             |type_argument, _| self.get_type_from_type_node_(&**type_argument),
         )
@@ -762,10 +762,9 @@ impl TypeChecker {
         }
         let node_as_tuple_type_node = node.as_tuple_type_node();
         let element_flags = map(
-            Some(&node_as_tuple_type_node.elements),
+            &node_as_tuple_type_node.elements,
             |element: &Rc<Node>, _| self.get_tuple_element_flags(element),
-        )
-        .unwrap();
+        );
         let missing_name = some(
             Some(&node_as_tuple_type_node.elements),
             Some(|e: &Rc<Node>| e.kind() != SyntaxKind::NamedTupleMember),
@@ -914,13 +913,12 @@ impl TypeChecker {
                 );
             } else {
                 let element_types = if node.kind() == SyntaxKind::ArrayType {
-                    vec![self.get_type_from_type_node_(&*node.as_array_type_node().element_type)]
+                    vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)]
                 } else {
                     map(
-                        Some(&*node.as_tuple_type_node().elements),
+                        &node.as_tuple_type_node().elements,
                         |element: &Rc<Node>, _| self.get_type_from_type_node_(element),
                     )
-                    .unwrap()
                 };
                 links.borrow_mut().resolved_type =
                     Some(self.create_normalized_type_reference(&target, Some(element_types)));
@@ -944,9 +942,9 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let readonly = readonly.unwrap_or(false);
         let tuple_target = self.get_tuple_target_type(
-            &element_flags.map(ToOwned::to_owned).unwrap_or_else(|| {
-                map(Some(element_types), |_, _| ElementFlags::Required).unwrap()
-            }),
+            &element_flags
+                .map(ToOwned::to_owned)
+                .unwrap_or_else(|| map(element_types, |_, _| ElementFlags::Required)),
             readonly,
             named_member_declarations,
         );
@@ -974,7 +972,7 @@ impl TypeChecker {
         }
         let key = format!(
             "{}{}{}",
-            map(Some(element_flags), |f: &ElementFlags, _| {
+            map(element_flags, |f: &ElementFlags, _| {
                 if f.intersects(ElementFlags::Required) {
                     "#"
                 } else if f.intersects(ElementFlags::Optional) {
@@ -985,7 +983,6 @@ impl TypeChecker {
                     "*"
                 }
             })
-            .unwrap()
             .join(""),
             if readonly { "R" } else { "" },
             if let Some(named_member_declarations) = named_member_declarations
@@ -994,13 +991,12 @@ impl TypeChecker {
                 format!(
                     ",{}",
                     map(
-                        Some(named_member_declarations),
+                        named_member_declarations,
                         |named_member_declaration: &Rc<Node>, _| get_node_id(
                             named_member_declaration
                         )
                         .to_string()
                     )
-                    .unwrap()
                     .join(",")
                 )
             } else {

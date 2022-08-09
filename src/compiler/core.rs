@@ -201,16 +201,21 @@ pub fn count_where<TItem, TPredicate: FnMut(&TItem, usize) -> bool>(
 }
 
 pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
-    array: Option<&[TItem]>,
+    array: &[TItem],
     mut predicate: TCallback,
+) -> Vec<TItem> {
+    array
+        .into_iter()
+        .filter(|item| predicate(item))
+        .map(Clone::clone)
+        .collect()
+}
+
+pub fn maybe_filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+    array: Option<&[TItem]>,
+    predicate: TCallback,
 ) -> Option<Vec<TItem>> {
-    array.map(|array| {
-        array
-            .into_iter()
-            .filter(|item| predicate(item))
-            .map(Clone::clone)
-            .collect()
-    })
+    array.map(|array| filter(array, predicate))
 }
 
 pub fn filter_owning<TItem, TCallback: FnMut(&TItem) -> bool>(
@@ -236,18 +241,25 @@ pub fn map<
     TReturn,
     TCallback: FnMut(TCollection::Item, usize) -> TReturn,
 >(
-    array: Option<TCollection>,
+    array: TCollection,
     mut f: TCallback,
-) -> Option<Vec<TReturn>> {
-    let mut result: Option<Vec<_>> = None;
-    if let Some(array) = array {
-        let mut some_result = vec![];
-        for (i, item) in array.into_iter().enumerate() {
-            some_result.push(f(item, i));
-        }
-        result = Some(some_result);
+) -> Vec<TReturn> {
+    let mut result = vec![];
+    for (i, item) in array.into_iter().enumerate() {
+        result.push(f(item, i));
     }
     result
+}
+
+pub fn maybe_map<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> TReturn,
+>(
+    array: Option<TCollection>,
+    f: TCallback,
+) -> Option<Vec<TReturn>> {
+    array.map(|array| map(array, f))
 }
 
 // TODO: this currently just mimics map(), I think could do the intended avoiding allocation by

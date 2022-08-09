@@ -292,11 +292,10 @@ impl TypeChecker {
         {
             return type_object_type_without_abstract_construct_signatures;
         }
-        let construct_signatures = filter(
-            Some(&*type_construct_signatures),
-            |signature: &Rc<Signature>| !signature.flags.intersects(SignatureFlags::Abstract),
-        )
-        .unwrap();
+        let construct_signatures =
+            filter(&*type_construct_signatures, |signature: &Rc<Signature>| {
+                !signature.flags.intersects(SignatureFlags::Abstract)
+            });
         if type_construct_signatures.len() == construct_signatures.len() {
             return type_.type_wrapper();
         }
