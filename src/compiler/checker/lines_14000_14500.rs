@@ -205,7 +205,7 @@ impl TypeChecker {
                 last_optional_or_rest_index.try_into().unwrap();
             expanded_types[first_rest_index] = self.get_union_type(
                 same_map(
-                    Some(&expanded_types[first_rest_index..last_optional_or_rest_index + 1]),
+                    &expanded_types[first_rest_index..last_optional_or_rest_index + 1],
                     |t: &Rc<Type>, i| {
                         if expanded_flags[first_rest_index + i].intersects(ElementFlags::Variadic) {
                             self.get_indexed_access_type(
@@ -220,8 +220,7 @@ impl TypeChecker {
                             t.clone()
                         }
                     },
-                )
-                .unwrap(),
+                ),
                 None,
                 Option::<&Symbol>::None,
                 None,

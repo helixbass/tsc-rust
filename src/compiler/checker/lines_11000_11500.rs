@@ -816,10 +816,9 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
                 &same_map(
-                    Some(type_.as_union_or_intersection_type_interface().types()),
+                    type_.as_union_or_intersection_type_interface().types(),
                     |type_: &Rc<Type>, _| self.get_lower_bound_of_key_type(type_),
-                )
-                .unwrap(),
+                ),
                 Option::<&Symbol>::None,
                 None,
             );

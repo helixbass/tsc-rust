@@ -7,9 +7,10 @@ use crate::{
     get_leftmost_expression, get_operator_associativity, get_operator_precedence,
     is_binary_expression, is_block, is_call_expression, is_comma_sequence,
     is_function_or_constructor_type_node, is_left_hand_side_expression, is_literal_kind,
-    is_unary_expression, same_map, set_text_range, skip_partially_emitted_expressions, some,
-    Associativity, BaseNodeFactory, Comparison, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
+    is_unary_expression, maybe_same_map, same_map, set_text_range,
+    skip_partially_emitted_expressions, some, Associativity, BaseNodeFactory, Comparison, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OperatorPrecedence,
+    OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -405,11 +406,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         elements: NodeArrayOrVec,
     ) -> NodeArray {
-        let result = same_map(Some(&elements), |element, _| {
+        let result = same_map(&elements, |element, _| {
             self.parenthesize_expression_for_disallowed_comma(base_node_factory, element)
         });
         let node_array = self.factory.create_node_array(
-            result,
+            Some(result),
             match &elements {
                 NodeArrayOrVec::NodeArray(elements) => Some(elements.has_trailing_comma),
                 NodeArrayOrVec::Vec(_) => None,
@@ -591,9 +592,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             NodeArrayOrVec::Vec(members) => members,
         };
         self.factory.create_node_array(
-            same_map(Some(&members), |member, _| {
+            Some(same_map(&members, |member, _| {
                 self.parenthesize_member_of_element_type(base_node_factory, member)
-            }),
+            })),
             None,
         )
     }
@@ -608,7 +609,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             Option::<fn(&Rc<Node>) -> bool>::None,
         ) {
             return Some(self.factory.create_node_array(
-                same_map(type_arguments.as_deref(), |type_arguments, index| {
+                maybe_same_map(type_arguments.as_deref(), |type_arguments, index| {
                     self.parenthesize_ordinal_type_argument(
                         base_node_factory,
                         type_arguments,

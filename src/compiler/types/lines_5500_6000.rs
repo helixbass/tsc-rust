@@ -119,6 +119,22 @@ pub struct ReverseMappedType {
     pub constraint_type: Rc<Type /*IndexType*/>,
 }
 
+impl ReverseMappedType {
+    pub fn new(
+        base_object_type: BaseObjectType,
+        source: Rc<Type>,
+        mapped_type: Rc<Type /*MappedType*/>,
+        constraint_type: Rc<Type /*IndexType*/>,
+    ) -> Self {
+        Self {
+            _object_type: base_object_type,
+            source,
+            mapped_type,
+            constraint_type,
+        }
+    }
+}
+
 pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {

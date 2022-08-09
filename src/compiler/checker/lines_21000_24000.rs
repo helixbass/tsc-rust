@@ -7,13 +7,13 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{TypeFacts, WideningKind};
+use super::{MappedTypeModifiers, TypeFacts, WideningKind};
 use crate::{
     create_symbol_table, escape_leading_underscores, filter, find_ancestor,
     get_declaration_of_kind, is_function_type_node, is_identifier, is_method_signature, map,
-    same_map, some, FindAncestorCallbackReturn, IndexInfo, NamedDeclarationInterface,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeComparer, TypeMapper,
-    TypeMapperCallback, TypeReferenceInterface, __String, declaration_name_to_string,
+    same_map, some, ElementFlags, FindAncestorCallbackReturn, IndexInfo, NamedDeclarationInterface,
+    ReverseMappedType, SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeComparer,
+    TypeMapper, TypeMapperCallback, TypeReferenceInterface, __String, declaration_name_to_string,
     for_each_bool, get_name_of_declaration, get_object_flags, get_source_file_of_node,
     is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
     is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics, InferenceContext,
@@ -190,7 +190,7 @@ impl TypeChecker {
                 vec![],
                 vec![],
                 same_map(
-                    Some(&self.get_index_infos_of_type(type_)),
+                    &self.get_index_infos_of_type(type_),
                     |info: &Rc<IndexInfo>, _| {
                         Rc::new(self.create_index_info(
                             info.key_type.clone(),
@@ -199,8 +199,7 @@ impl TypeChecker {
                             None,
                         ))
                     },
-                )
-                .unwrap(),
+                ),
             )
             .into();
         let result_as_object_flags_type = result.as_object_flags_type();
@@ -251,7 +250,7 @@ impl TypeChecker {
                     ))
                 });
                 let widened_types = same_map(
-                    Some(type_.as_union_or_intersection_type_interface().types()),
+                    type_.as_union_or_intersection_type_interface().types(),
                     |t: &Rc<Type>, _| {
                         if t.flags().intersects(TypeFlags::Nullable) {
                             t.clone()
@@ -259,8 +258,7 @@ impl TypeChecker {
                             self.get_widened_type_with_context(t, Some(union_context.clone()))
                         }
                     },
-                )
-                .unwrap();
+                );
                 let union_reduction = if some(
                     Some(&widened_types),
                     Some(|type_: &Rc<Type>| self.is_empty_object_type(type_)),
@@ -277,24 +275,21 @@ impl TypeChecker {
                     Option::<&Type>::None,
                 ));
             } else if type_.flags().intersects(TypeFlags::Intersection) {
-                result = Some(
-                    self.get_intersection_type(
-                        &same_map(
-                            Some(type_.as_union_or_intersection_type_interface().types()),
-                            |type_: &Rc<Type>, _| self.get_widened_type(type_),
-                        )
-                        .unwrap(),
-                        Option::<&Symbol>::None,
-                        None,
+                result = Some(self.get_intersection_type(
+                    &same_map(
+                        type_.as_union_or_intersection_type_interface().types(),
+                        |type_: &Rc<Type>, _| self.get_widened_type(type_),
                     ),
-                );
+                    Option::<&Symbol>::None,
+                    None,
+                ));
             } else if self.is_array_type(type_) || self.is_tuple_type(type_) {
                 result = Some(self.create_type_reference(
                     &type_.as_type_reference().target,
-                    same_map(
-                        Some(&self.get_type_arguments(type_)),
+                    Some(same_map(
+                        &self.get_type_arguments(type_),
                         |type_: &Rc<Type>, _| self.get_widened_type(type_),
-                    ),
+                    )),
                 ));
             }
             if result.is_some() && context.is_none() {
@@ -951,7 +946,123 @@ impl TypeChecker {
         target: &Type,     /*MappedType*/
         constraint: &Type, /*IndexType*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if self.in_infer_type_for_homomorphic_mapped_type() {
+            return None;
+        }
+        let key = format!("{},{},{}", source.id(), target.id(), constraint.id());
+        if self.reverse_mapped_cache().contains_key(&key) {
+            return self
+                .reverse_mapped_cache()
+                .get(&key)
+                .map(Clone::clone)
+                .unwrap();
+        }
+        self.set_in_infer_type_for_homomorphic_mapped_type(true);
+        let type_ = self.create_reverse_mapped_type(source, target, constraint);
+        self.set_in_infer_type_for_homomorphic_mapped_type(false);
+        self.reverse_mapped_cache().insert(key, type_.clone());
+        type_
+    }
+
+    pub(super) fn is_partially_inferable_type(&self, type_: &Type) -> bool {
+        !get_object_flags(type_).intersects(ObjectFlags::NonInferrableType)
+            || self.is_object_literal_type(type_)
+                && some(
+                    Some(&self.get_properties_of_type(type_)),
+                    Some(|prop: &Rc<Symbol>| {
+                        self.is_partially_inferable_type(&self.get_type_of_symbol(prop))
+                    }),
+                )
+            || self.is_tuple_type(type_)
+                && some(
+                    Some(&self.get_type_arguments(type_)),
+                    Some(|type_argument: &Rc<Type>| {
+                        self.is_partially_inferable_type(type_argument)
+                    }),
+                )
+    }
+
+    pub(super) fn create_reverse_mapped_type(
+        &self,
+        source: &Type,
+        target: &Type,     /*MappedType*/
+        constraint: &Type, /*IndexType*/
+    ) -> Option<Rc<Type>> {
+        if !(self
+            .get_index_info_of_type_(source, &self.string_type())
+            .is_some()
+            || !self.get_properties_of_type(source).is_empty()
+                && self.is_partially_inferable_type(source))
+        {
+            return None;
+        }
+        if self.is_array_type(source) {
+            return Some(self.create_array_type(
+                &self.infer_reverse_mapped_type(
+                    &self.get_type_arguments(source)[0],
+                    target,
+                    constraint,
+                ),
+                Some(self.is_readonly_array_type(source)),
+            ));
+        }
+        if self.is_tuple_type(source) {
+            let element_types = map(&self.get_type_arguments(source), |t: &Rc<Type>, _| {
+                self.infer_reverse_mapped_type(t, target, constraint)
+            });
+            let element_flags = if self
+                .get_mapped_type_modifiers(target)
+                .intersects(MappedTypeModifiers::IncludeOptional)
+            {
+                same_map(
+                    &source
+                        .as_type_reference()
+                        .target
+                        .as_tuple_type()
+                        .element_flags,
+                    |f: &ElementFlags, _| {
+                        if f.intersects(ElementFlags::Optional) {
+                            ElementFlags::Required
+                        } else {
+                            *f
+                        }
+                    },
+                )
+            } else {
+                source
+                    .as_type_reference()
+                    .target
+                    .as_tuple_type()
+                    .element_flags
+                    .clone()
+            };
+            return Some(
+                self.create_tuple_type(
+                    &element_types,
+                    Some(&element_flags),
+                    Some(source.as_type_reference().target.as_tuple_type().readonly),
+                    source
+                        .as_type_reference()
+                        .target
+                        .as_tuple_type()
+                        .labeled_element_declarations
+                        .as_deref(),
+                ),
+            );
+        }
+        let reversed = self.create_object_type(
+            ObjectFlags::ReverseMapped | ObjectFlags::Anonymous,
+            Option::<&Symbol>::None,
+        );
+        Some(
+            ReverseMappedType::new(
+                reversed,
+                source.type_wrapper(),
+                target.type_wrapper(),
+                constraint.type_wrapper(),
+            )
+            .into(),
+        )
     }
 
     pub(super) fn get_type_of_reverse_mapped_symbol(

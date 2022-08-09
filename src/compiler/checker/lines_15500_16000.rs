@@ -1156,10 +1156,9 @@ impl TypeChecker {
                 Rc::new(RefCell::new(members)),
                 vec![],
                 vec![],
-                same_map(Some(&index_infos), |info: &Rc<IndexInfo>, _| {
+                same_map(&index_infos, |info: &Rc<IndexInfo>, _| {
                     self.get_index_info_with_readonly(info, readonly)
-                })
-                .unwrap(),
+                }),
             )
             .into();
         let spread_as_object_type = spread.as_object_type();

@@ -265,18 +265,21 @@ pub fn maybe_map<
 // TODO: this currently just mimics map(), I think could do the intended avoiding allocation by
 // returning Cow?
 pub fn same_map<TItem: Clone, TCallback: FnMut(&TItem, usize) -> TItem>(
-    array: Option<&[TItem]>,
+    array: &[TItem],
     mut f: TCallback,
-) -> Option<Vec<TItem>> {
-    let mut result: Option<Vec<_>> = None;
-    if let Some(array) = array {
-        let mut some_result = vec![];
-        for (i, item) in array.into_iter().enumerate() {
-            some_result.push(f(item, i));
-        }
-        result = Some(some_result);
+) -> Vec<TItem> {
+    let mut result = vec![];
+    for (i, item) in array.into_iter().enumerate() {
+        result.push(f(item, i));
     }
     result
+}
+
+pub fn maybe_same_map<TItem: Clone, TCallback: FnMut(&TItem, usize) -> TItem>(
+    array: Option<&[TItem]>,
+    f: TCallback,
+) -> Option<Vec<TItem>> {
+    array.map(|array| same_map(array, f))
 }
 
 pub fn flatten<TItem: Clone>(array: &[Vec<TItem>]) -> Vec<TItem> {

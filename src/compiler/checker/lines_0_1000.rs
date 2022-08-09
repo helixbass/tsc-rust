@@ -2806,6 +2806,22 @@ impl TypeChecker {
         self.amalgamated_duplicates.borrow_mut()
     }
 
+    pub(super) fn reverse_mapped_cache(&self) -> RefMut<HashMap<String, Option<Rc<Type>>>> {
+        self.reverse_mapped_cache.borrow_mut()
+    }
+
+    pub(super) fn in_infer_type_for_homomorphic_mapped_type(&self) -> bool {
+        self.in_infer_type_for_homomorphic_mapped_type.get()
+    }
+
+    pub(super) fn set_in_infer_type_for_homomorphic_mapped_type(
+        &self,
+        in_infer_type_for_homomorphic_mapped_type: bool,
+    ) {
+        self.in_infer_type_for_homomorphic_mapped_type
+            .set(in_infer_type_for_homomorphic_mapped_type);
+    }
+
     pub(super) fn maybe_pattern_ambient_modules(
         &self,
     ) -> RefMut<Option<Vec<PatternAmbientModule>>> {

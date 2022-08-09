@@ -462,11 +462,9 @@ impl TypeChecker {
 
     pub(super) fn get_reduced_union_type(&self, union_type: &Type /*UnionType*/) -> Rc<Type> {
         let union_type_as_union_type = union_type.as_union_type();
-        let reduced_types = same_map(
-            Some(union_type_as_union_type.types()),
-            |type_: &Rc<Type>, _| self.get_reduced_type(type_),
-        )
-        .unwrap();
+        let reduced_types = same_map(union_type_as_union_type.types(), |type_: &Rc<Type>, _| {
+            self.get_reduced_type(type_)
+        });
         if are_rc_slices_equal(&reduced_types, union_type_as_union_type.types()) {
             return union_type.type_wrapper();
         }

@@ -643,10 +643,9 @@ impl CheckTypeRelatedTo {
                 && target.flags().intersects(TypeFlags::Primitive)
             {
                 let constraints = same_map(
-                    Some(source.as_union_or_intersection_type_interface().types()),
+                    source.as_union_or_intersection_type_interface().types(),
                     |type_: &Rc<Type>, _| self.type_checker.get_base_constraint_or_type(type_),
-                )
-                .unwrap();
+                );
                 if !are_rc_slices_equal(
                     &constraints,
                     source.as_union_or_intersection_type_interface().types(),

@@ -405,7 +405,7 @@ impl TypeChecker {
             }
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             let types = same_map(
-                Some(type_.as_union_or_intersection_type_interface().types()),
+                type_.as_union_or_intersection_type_interface().types(),
                 |t: &Rc<Type>, _| {
                     self.get_type_with_this_argument(
                         t,
@@ -413,8 +413,7 @@ impl TypeChecker {
                         need_apparent_type,
                     )
                 },
-            )
-            .unwrap();
+            );
             return if !are_rc_slices_equal(
                 &types,
                 type_.as_union_or_intersection_type_interface().types(),

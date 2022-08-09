@@ -708,13 +708,12 @@ impl NodeBuilder {
             .intersects(ObjectFlags::Tuple)
         {
             let type_target_as_tuple_type = type_as_type_reference.target.as_tuple_type();
-            let type_arguments = same_map(Some(&*type_arguments), |t: &Rc<Type>, i| {
+            let type_arguments = same_map(&type_arguments, |t: &Rc<Type>, i| {
                 type_checker.remove_missing_type(
                     t,
                     type_target_as_tuple_type.element_flags[i].intersects(ElementFlags::Optional),
                 )
-            })
-            .unwrap();
+            });
             if !type_arguments.is_empty() {
                 let arity = type_checker.get_type_reference_arity(type_);
                 let tuple_constituent_nodes = self.map_to_type_nodes(
