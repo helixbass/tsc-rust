@@ -736,7 +736,7 @@ pub(crate) struct InferenceInfo {
     pub type_parameter: Rc<Type /*TypeParameter*/>,
     pub candidates: Option<Vec<Rc<Type>>>,
     pub contra_candidates: Option<Vec<Rc<Type>>>,
-    pub inferred_type: Option<Rc<Type>>,
+    inferred_type: RefCell<Option<Rc<Type>>>,
     pub priority: Option<InferencePriority>,
     pub top_level: bool,
     pub is_fixed: Cell<bool>,
@@ -744,12 +744,38 @@ pub(crate) struct InferenceInfo {
 }
 
 impl InferenceInfo {
+    pub fn new(
+        type_parameter: Rc<Type /*TypeParameter*/>,
+        candidates: Option<Vec<Rc<Type>>>,
+        contra_candidates: Option<Vec<Rc<Type>>>,
+        inferred_type: Option<Rc<Type>>,
+        priority: Option<InferencePriority>,
+        top_level: bool,
+        is_fixed: bool,
+        implied_arity: Option<usize>,
+    ) -> Self {
+        Self {
+            type_parameter,
+            candidates,
+            contra_candidates,
+            inferred_type: RefCell::new(inferred_type),
+            priority,
+            top_level,
+            is_fixed: Cell::new(is_fixed),
+            implied_arity,
+        }
+    }
+
     pub fn is_fixed(&self) -> bool {
         self.is_fixed.get()
     }
 
     pub fn set_is_fixed(&self, is_fixed: bool) {
         self.is_fixed.set(is_fixed);
+    }
+
+    pub fn maybe_inferred_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.inferred_type.borrow_mut()
     }
 }
 

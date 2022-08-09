@@ -742,18 +742,40 @@ impl TypeChecker {
     }
 
     pub(super) fn clear_cached_inferences(&self, inferences: &[Rc<InferenceInfo>]) {
-        unimplemented!()
+        for inference in inferences {
+            if !inference.is_fixed() {
+                *inference.maybe_inferred_type() = None;
+            }
+        }
     }
 
     pub(super) fn create_inference_info(
         &self,
         type_parameter: &Type, /*TypeParameter*/
     ) -> InferenceInfo {
-        unimplemented!()
+        InferenceInfo::new(
+            type_parameter.type_wrapper(),
+            None,
+            None,
+            None,
+            None,
+            true,
+            false,
+            None,
+        )
     }
 
     pub(super) fn clone_inference_info(&self, inference: &InferenceInfo) -> InferenceInfo {
-        unimplemented!()
+        InferenceInfo::new(
+            inference.type_parameter.clone(),
+            inference.candidates.clone(),
+            inference.contra_candidates.clone(),
+            inference.maybe_inferred_type().clone(),
+            inference.priority,
+            inference.top_level,
+            inference.is_fixed(),
+            inference.implied_arity,
+        )
     }
 
     pub(super) fn could_contain_type_variables(&self, type_: &Type) -> bool {
