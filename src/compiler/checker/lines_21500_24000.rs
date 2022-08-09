@@ -5,9 +5,10 @@ use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics,
-    InferenceContext, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Symbol,
-    SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    get_check_flags, get_object_flags, is_write_only_access, node_is_missing, some, CheckFlags,
+    DiagnosticMessage, Diagnostics, ElementFlags, InferenceContext, InferenceInfo,
+    InferencePriority, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, SymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -17,7 +18,25 @@ impl TypeChecker {
         target: &Type,     /*MappedType*/
         constraint: &Type, /*IndexType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_parameter = self.get_indexed_access_type(
+            &constraint.as_index_type().type_,
+            &self.get_type_parameter_from_mapped_type(target),
+            None,
+            Option::<&Node>::None,
+            Option::<&Symbol>::None,
+            None,
+        );
+        let template_type = self.get_template_type_from_mapped_type(target);
+        let inference = Rc::new(self.create_inference_info(&type_parameter));
+        self.infer_types(
+            &vec![inference.clone()],
+            source_type,
+            &template_type,
+            None,
+            None,
+        );
+        self.get_type_from_inference(&inference)
+            .unwrap_or_else(|| self.unknown_type())
     }
 
     pub(super) fn get_unmatched_properties(
@@ -27,7 +46,42 @@ impl TypeChecker {
         require_optional_properties: bool,
         match_discriminant_properties: bool,
     ) -> Vec<Rc<Symbol>> {
-        unimplemented!()
+        let properties = self.get_properties_of_type(target);
+        let mut ret = vec![];
+        for target_prop in &properties {
+            if self.is_static_private_identifier_property(target_prop) {
+                continue;
+            }
+            if require_optional_properties
+                || !(target_prop.flags().intersects(SymbolFlags::Optional)
+                    || get_check_flags(target_prop).intersects(CheckFlags::Partial))
+            {
+                let source_prop =
+                    self.get_property_of_type_(source, target_prop.escaped_name(), None);
+                match source_prop {
+                    None => {
+                        ret.push(target_prop.clone());
+                    }
+                    Some(ref source_prop) => {
+                        if match_discriminant_properties {
+                            let target_type = self.get_type_of_symbol(target_prop);
+                            if target_type.flags().intersects(TypeFlags::Unit) {
+                                let source_type = self.get_type_of_symbol(source_prop);
+                                if !(source_type.flags().intersects(TypeFlags::Any)
+                                    || Rc::ptr_eq(
+                                        &self.get_regular_type_of_literal_type(&source_type),
+                                        &self.get_regular_type_of_literal_type(&target_type),
+                                    ))
+                                {
+                                    ret.push(target_prop.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
     }
 
     pub(super) fn get_unmatched_property(
@@ -37,7 +91,76 @@ impl TypeChecker {
         require_optional_properties: bool,
         match_discriminant_properties: bool,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let result = self.get_unmatched_properties(
+            source,
+            target,
+            require_optional_properties,
+            match_discriminant_properties,
+        );
+        result.get(0).map(Clone::clone)
+    }
+
+    pub(super) fn tuple_types_definitely_unrelated(
+        &self,
+        source: &Type, /*TupleTypeReference*/
+        target: &Type, /*TupleTypeReference*/
+    ) -> bool {
+        let source_target_as_tuple_type = source.as_type_reference().target.as_tuple_type();
+        let target_target_as_tuple_type = target.as_type_reference().target.as_tuple_type();
+        !target_target_as_tuple_type
+            .combined_flags
+            .intersects(ElementFlags::Variadic)
+            && target_target_as_tuple_type.min_length > source_target_as_tuple_type.min_length
+            || !target_target_as_tuple_type.has_rest_element
+                && (source_target_as_tuple_type.has_rest_element
+                    || target_target_as_tuple_type.fixed_length
+                        < source_target_as_tuple_type.fixed_length)
+    }
+
+    pub(super) fn types_definitely_unrelated(&self, source: &Type, target: &Type) -> bool {
+        if self.is_tuple_type(source) && self.is_tuple_type(target) {
+            self.tuple_types_definitely_unrelated(source, target)
+        } else {
+            self.get_unmatched_property(source, target, false, true)
+                .is_some()
+                && self
+                    .get_unmatched_property(target, source, false, false)
+                    .is_some()
+        }
+    }
+
+    pub(super) fn get_type_from_inference(&self, inference: &InferenceInfo) -> Option<Rc<Type>> {
+        if let Some(inference_candidates) = inference.candidates.as_ref() {
+            Some(self.get_union_type(
+                inference_candidates.clone(),
+                Some(UnionReduction::Subtype),
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            ))
+        } else if let Some(inference_contra_candidates) = inference.contra_candidates.as_ref() {
+            Some(self.get_intersection_type(
+                inference_contra_candidates,
+                Option::<&Symbol>::None,
+                None,
+            ))
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn has_skip_direct_inference_flag(&self, node: &Node) -> bool {
+        (*self.get_node_links(node)).borrow().skip_direct_inference == Some(true)
+    }
+
+    pub(super) fn is_from_inference_blocked_source(&self, type_: &Type) -> bool {
+        matches!(
+            type_.maybe_symbol().as_ref(),
+            Some(type_symbol) if some(
+                type_symbol.maybe_declarations().as_deref(),
+                Some(|declaration: &Rc<Node>| self.has_skip_direct_inference_flag(declaration))
+            )
+        )
     }
 
     pub(super) fn template_literal_types_definitely_unrelated(
