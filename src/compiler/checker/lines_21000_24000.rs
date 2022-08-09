@@ -728,6 +728,20 @@ impl TypeChecker {
         t: &Type,
         fix: bool,
     ) -> Rc<Type> {
+        let inferences = &context.inferences;
+        for (i, inference) in inferences.into_iter().enumerate() {
+            if ptr::eq(t, &*inference.type_parameter) {
+                if fix && !inference.is_fixed() {
+                    self.clear_cached_inferences(inferences);
+                    inference.set_is_fixed(true);
+                }
+                return self.get_inferred_type(context, i);
+            }
+        }
+        t.type_wrapper()
+    }
+
+    pub(super) fn clear_cached_inferences(&self, inferences: &[Rc<InferenceInfo>]) {
         unimplemented!()
     }
 
@@ -843,6 +857,10 @@ impl TypeChecker {
 
     pub(super) fn is_object_or_array_literal_type(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral | ObjectFlags::ArrayLiteral)
+    }
+
+    pub(super) fn get_inferred_type(&self, context: &InferenceContext, index: usize) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_default_type_argument_type(&self, is_in_java_script_file: bool) -> Rc<Type> {

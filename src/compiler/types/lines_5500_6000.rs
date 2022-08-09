@@ -734,6 +734,23 @@ bitflags! {
 
 pub(crate) struct InferenceInfo {
     pub type_parameter: Rc<Type /*TypeParameter*/>,
+    pub candidates: Option<Vec<Rc<Type>>>,
+    pub contra_candidates: Option<Vec<Rc<Type>>>,
+    pub inferred_type: Option<Rc<Type>>,
+    pub priority: Option<InferencePriority>,
+    pub top_level: bool,
+    pub is_fixed: Cell<bool>,
+    pub implied_arity: Option<usize>,
+}
+
+impl InferenceInfo {
+    pub fn is_fixed(&self) -> bool {
+        self.is_fixed.get()
+    }
+
+    pub fn set_is_fixed(&self, is_fixed: bool) {
+        self.is_fixed.set(is_fixed);
+    }
 }
 
 bitflags! {
