@@ -1069,7 +1069,17 @@ impl TypeChecker {
         &self,
         symbol: &Symbol, /*ReverseMappedSymbol*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let links = self.get_symbol_links(symbol);
+        if (*links).borrow().type_.is_none() {
+            let symbol_as_reverse_mapped_symbol = symbol.as_reverse_mapped_symbol();
+            links.borrow_mut().type_ = Some(self.infer_reverse_mapped_type(
+                &symbol_as_reverse_mapped_symbol.property_type,
+                &symbol_as_reverse_mapped_symbol.mapped_type,
+                &symbol_as_reverse_mapped_symbol.constraint_type,
+            ));
+        }
+        let ret = (*links).borrow().type_.clone().unwrap();
+        ret
     }
 
     pub(super) fn infer_reverse_mapped_type(
