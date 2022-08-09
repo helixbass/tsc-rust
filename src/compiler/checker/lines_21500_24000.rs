@@ -1,25 +1,13 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::cmp;
-use std::collections::HashMap;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{MappedTypeModifiers, TypeFacts, WideningKind};
+use super::TypeFacts;
 use crate::{
-    create_symbol_table, escape_leading_underscores, filter, find_ancestor,
-    get_declaration_of_kind, is_function_type_node, is_identifier, is_method_signature, map,
-    same_map, some, ElementFlags, FindAncestorCallbackReturn, IndexInfo, NamedDeclarationInterface,
-    ReverseMappedType, SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeComparer,
-    TypeMapper, TypeMapperCallback, TypeReferenceInterface, __String, declaration_name_to_string,
-    for_each_bool, get_name_of_declaration, get_object_flags, get_source_file_of_node,
-    is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
-    is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics, InferenceContext,
-    InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature,
-    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
-    WideningContext,
+    get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics,
+    InferenceContext, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Symbol,
+    SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
