@@ -1,15 +1,17 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::Cell;
 use std::cmp;
 use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    get_check_flags, get_object_flags, is_write_only_access, node_is_missing, some, CheckFlags,
-    DiagnosticMessage, Diagnostics, ElementFlags, InferenceContext, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, SymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    create_scanner, get_check_flags, get_object_flags, is_write_only_access, node_is_missing, some,
+    CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags, InferenceContext, InferenceInfo,
+    InferencePriority, Node, NodeInterface, ObjectFlags, ScriptTarget, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -182,6 +184,27 @@ impl TypeChecker {
         &source_start[0..start_len] != &target_start[0..start_len]
             || &source_end[source_end.len() - end_len..]
                 != &target_end[target_end.len() - end_len..]
+    }
+
+    pub(super) fn is_valid_big_int_string(&self, s: &str) -> bool {
+        let mut scanner = create_scanner(ScriptTarget::ESNext, false, None, None, None, None, None);
+        // TODO: if ErrorCallback was FnMut instead of Fn then using Cell here presumably wouldn't be necessary
+        let success = Cell::new(true);
+        let text = format!("{}n", s);
+        scanner.set_text(Some(text.chars().collect()), Some(text), None, None);
+        let mut result = scanner.scan(Some(&|_, _| {
+            success.set(false);
+        }));
+        if result == SyntaxKind::MinusToken {
+            result = scanner.scan(Some(&|_, _| {
+                success.set(false);
+            }));
+        }
+        let flags = scanner.get_token_flags();
+        success.get()
+            && result == SyntaxKind::BigIntLiteral
+            && scanner.get_text_pos() == s.len() + 1
+            && !flags.intersects(TokenFlags::ContainsSeparator)
     }
 
     pub(super) fn is_type_matched_by_template_literal_type(
