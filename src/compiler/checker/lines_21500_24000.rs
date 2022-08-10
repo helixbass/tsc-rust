@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use super::{ExpandingFlags, RecursionIdentity, TypeFacts};
 use crate::{
-    arrays_equal, contains_rc, create_scanner, every, get_check_flags, get_object_flags,
+    arrays_equal, contains, contains_rc, create_scanner, every, get_check_flags, get_object_flags,
     is_write_only_access, map, node_is_missing, some, CheckFlags, DiagnosticMessage, Diagnostics,
     ElementFlags, InferenceContext, InferenceInfo, InferencePriority, Node, NodeInterface,
     ObjectFlags, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type,
@@ -826,6 +826,10 @@ impl InferTypes {
         self.bivariant.get()
     }
 
+    pub(super) fn maybe_propagation_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.propagation_type.borrow_mut()
+    }
+
     pub(super) fn inference_priority(&self) -> InferencePriority {
         self.inference_priority.get()
     }
@@ -846,8 +850,24 @@ impl InferTypes {
             .set(allow_complex_constraint_inference);
     }
 
-    pub(super) fn maybe_propagation_type(&self) -> RefMut<Option<Rc<Type>>> {
-        self.propagation_type.borrow_mut()
+    pub(super) fn maybe_visited(&self) -> RefMut<Option<HashMap<String, InferencePriority>>> {
+        self.visited.borrow_mut()
+    }
+
+    pub(super) fn maybe_source_stack(&self) -> RefMut<Option<Vec<RecursionIdentity>>> {
+        self.source_stack.borrow_mut()
+    }
+
+    pub(super) fn maybe_target_stack(&self) -> RefMut<Option<Vec<RecursionIdentity>>> {
+        self.target_stack.borrow_mut()
+    }
+
+    pub(super) fn expanding_flags(&self) -> ExpandingFlags {
+        self.expanding_flags.get()
+    }
+
+    pub(super) fn set_expanding_flags(&self, expanding_flags: ExpandingFlags) {
+        self.expanding_flags.set(expanding_flags);
     }
 
     pub(super) fn infer_from_types(&self, source: &Type, target: &Type) {
@@ -1203,16 +1223,72 @@ impl InferTypes {
         target: &Type,
         new_priority: InferencePriority,
     ) {
-        unimplemented!()
+        let save_priority = self.priority();
+        self.set_priority(self.priority() | new_priority);
+        self.infer_from_types(source, target);
+        self.set_priority(save_priority);
     }
 
     pub(super) fn invoke_once<TAction: FnMut(&Type, &Type)>(
         &self,
         source: &Type,
         target: &Type,
-        action: TAction,
+        mut action: TAction,
     ) {
-        unimplemented!()
+        let key = format!("{},{}", source.id(), target.id());
+        let status = self
+            .maybe_visited()
+            .as_ref()
+            .and_then(|visited| visited.get(&key).copied());
+        if let Some(status) = status {
+            self.set_inference_priority(cmp::min(self.inference_priority(), status));
+            return;
+        }
+        if self.maybe_visited().is_none() {
+            *self.maybe_visited() = Some(HashMap::new());
+        }
+        self.maybe_visited()
+            .as_mut()
+            .unwrap()
+            .insert(key.clone(), InferencePriority::Circularity);
+        let save_inference_priority = self.inference_priority();
+        self.set_inference_priority(InferencePriority::MaxValue);
+        let save_expanding_flags = self.expanding_flags();
+        let source_identity = self.type_checker.get_recursion_identity(source);
+        let target_identity = self.type_checker.get_recursion_identity(target);
+        if contains(self.maybe_source_stack().as_deref(), &source_identity) {
+            self.set_expanding_flags(self.expanding_flags() | ExpandingFlags::Source);
+        }
+        if contains(self.maybe_target_stack().as_deref(), &target_identity) {
+            self.set_expanding_flags(self.expanding_flags() | ExpandingFlags::Target);
+        }
+        if self.expanding_flags() != ExpandingFlags::Both {
+            if self.maybe_source_stack().is_none() {
+                *self.maybe_source_stack() = Some(vec![]);
+            }
+            self.maybe_source_stack()
+                .as_mut()
+                .unwrap()
+                .push(source_identity);
+            if self.maybe_target_stack().is_none() {
+                *self.maybe_target_stack() = Some(vec![]);
+            }
+            self.maybe_target_stack()
+                .as_mut()
+                .unwrap()
+                .push(target_identity);
+            action(source, target);
+            self.maybe_target_stack().as_mut().unwrap().pop();
+            self.maybe_source_stack().as_mut().unwrap().pop();
+        } else {
+            self.set_inference_priority(InferencePriority::Circularity);
+        }
+        self.set_expanding_flags(save_expanding_flags);
+        self.maybe_visited()
+            .as_mut()
+            .unwrap()
+            .insert(key, self.inference_priority());
+        self.set_inference_priority(cmp::min(self.inference_priority(), save_inference_priority));
     }
 
     pub(super) fn infer_from_matching_types<TMatches: FnMut(&Type, &Type) -> bool>(
