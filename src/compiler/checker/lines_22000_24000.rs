@@ -1,14 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cmp;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{InferTypes, TypeFacts};
 use crate::{
-    find, get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics,
-    InferenceContext, InferenceInfo, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    find, flat_map, get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage,
+    Diagnostics, InferenceContext, InferenceInfo, InferencePriority, Node, NodeInterface,
+    ObjectFlags, Symbol, SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl InferTypes {
@@ -59,7 +60,94 @@ impl InferTypes {
         targets: &[Rc<Type>],
         target_flags: TypeFlags,
     ) {
-        unimplemented!()
+        let mut type_variable_count = 0;
+        if target_flags.intersects(TypeFlags::Union) {
+            let mut naked_type_variable: Option<Rc<Type>> = None;
+            let sources = if source.flags().intersects(TypeFlags::Union) {
+                source
+                    .as_union_or_intersection_type_interface()
+                    .types()
+                    .to_owned()
+            } else {
+                vec![source.type_wrapper()]
+            };
+            let mut matched = vec![false; sources.len()];
+            let mut inference_circularity = false;
+            for t in targets {
+                if self.get_inference_info_for_type(t).is_some() {
+                    naked_type_variable = Some(t.clone());
+                    type_variable_count += 1;
+                } else {
+                    for i in 0..sources.len() {
+                        let save_inference_priority = self.inference_priority();
+                        self.set_inference_priority(InferencePriority::MaxValue);
+                        self.infer_from_types(&sources[i], t);
+                        if self.inference_priority() == self.priority() {
+                            matched[i] = true;
+                        }
+                        inference_circularity = inference_circularity
+                            || self.inference_priority() == InferencePriority::Circularity;
+                        self.set_inference_priority(cmp::min(
+                            self.inference_priority(),
+                            save_inference_priority,
+                        ));
+                    }
+                }
+            }
+            if type_variable_count == 0 {
+                let intersection_type_variable =
+                    self.get_single_type_variable_from_intersection_types(targets);
+                if let Some(intersection_type_variable) = intersection_type_variable.as_ref() {
+                    self.infer_with_priority(
+                        source,
+                        intersection_type_variable,
+                        InferencePriority::NakedTypeVariable,
+                    );
+                }
+                return;
+            }
+            if type_variable_count == 1 && !inference_circularity {
+                let unmatched = flat_map(Some(&sources), |s: &Rc<Type>, i| {
+                    if matched[i] {
+                        vec![]
+                    } else {
+                        vec![s.clone()]
+                    }
+                });
+                if !unmatched.is_empty() {
+                    self.infer_from_types(
+                        &self.type_checker.get_union_type(
+                            unmatched,
+                            None,
+                            Option::<&Symbol>::None,
+                            None,
+                            Option::<&Type>::None,
+                        ),
+                        naked_type_variable.as_deref().unwrap(),
+                    );
+                    return;
+                }
+            }
+        } else {
+            for t in targets {
+                if self.get_inference_info_for_type(t).is_some() {
+                    type_variable_count += 1;
+                } else {
+                    self.infer_from_types(source, t);
+                }
+            }
+        }
+        if if target_flags.intersects(TypeFlags::Intersection) {
+            type_variable_count == 1
+        } else {
+            type_variable_count > 0
+        } {
+            for t in targets {
+                if self.get_inference_info_for_type(t).is_some() {
+                    self.infer_with_priority(source, t, InferencePriority::NakedTypeVariable);
+                }
+            }
+        }
     }
 
     pub(super) fn infer_to_conditional_type(
