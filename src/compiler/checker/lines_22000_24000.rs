@@ -1,14 +1,87 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{InferTypes, TypeFacts};
 use crate::{
-    get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics,
+    find, get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage, Diagnostics,
     InferenceContext, InferenceInfo, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
+
+impl InferTypes {
+    pub(super) fn get_inference_info_for_type(&self, type_: &Type) -> Option<Rc<InferenceInfo>> {
+        if type_.flags().intersects(TypeFlags::TypeVariable) {
+            for inference in &self.inferences {
+                if ptr::eq(type_, &*inference.type_parameter) {
+                    return Some(inference.clone());
+                }
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_single_type_variable_from_intersection_types(
+        &self,
+        types: &[Rc<Type>],
+    ) -> Option<Rc<Type>> {
+        let mut type_variable: Option<Rc<Type>> = None;
+        for type_ in types {
+            let t = if type_.flags().intersects(TypeFlags::Intersection) {
+                find(
+                    type_.as_union_or_intersection_type_interface().types(),
+                    |t: &Rc<Type>, _| self.get_inference_info_for_type(t).is_some(),
+                )
+                .map(Clone::clone)
+            } else {
+                None
+            };
+            if t.is_none() {
+                return None;
+            }
+            let t = t.unwrap();
+            if matches!(
+                type_variable.as_ref(),
+                Some(type_variable) if !Rc::ptr_eq(&t, type_variable)
+            ) {
+                return None;
+            }
+            type_variable = Some(t);
+        }
+        type_variable
+    }
+
+    pub(super) fn infer_to_multiple_types(
+        &self,
+        source: &Type,
+        targets: &[Rc<Type>],
+        target_flags: TypeFlags,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn infer_to_conditional_type(
+        &self,
+        source: &Type,
+        target: &Type, /*ConditionalType*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn infer_to_template_literal_type(
+        &self,
+        source: &Type,
+        target: &Type, /*TemplateLiteralType*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn infer_from_object_types(&self, source: &Type, target: &Type) {
+        unimplemented!()
+    }
+}
 
 impl TypeChecker {
     pub(super) fn is_type_or_base_identical_to(&self, s: &Type, t: &Type) -> bool {
@@ -266,41 +339,6 @@ impl TypeChecker {
             || declared_type.type_wrapper(),
             |initial_type| initial_type.borrow().type_wrapper(),
         );
-        unimplemented!()
-    }
-}
-
-impl InferTypes {
-    pub(super) fn get_inference_info_for_type(&self, type_: &Type) -> Option<Rc<InferenceInfo>> {
-        unimplemented!()
-    }
-
-    pub(super) fn infer_to_multiple_types(
-        &self,
-        source: &Type,
-        targets: &[Rc<Type>],
-        target_flags: TypeFlags,
-    ) {
-        unimplemented!()
-    }
-
-    pub(super) fn infer_to_conditional_type(
-        &self,
-        source: &Type,
-        target: &Type, /*ConditionalType*/
-    ) {
-        unimplemented!()
-    }
-
-    pub(super) fn infer_to_template_literal_type(
-        &self,
-        source: &Type,
-        target: &Type, /*TemplateLiteralType*/
-    ) {
-        unimplemented!()
-    }
-
-    pub(super) fn infer_from_object_types(&self, source: &Type, target: &Type) {
         unimplemented!()
     }
 }
