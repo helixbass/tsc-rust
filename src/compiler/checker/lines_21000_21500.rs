@@ -759,11 +759,11 @@ impl TypeChecker {
     pub(super) fn clone_inference_info(&self, inference: &InferenceInfo) -> InferenceInfo {
         InferenceInfo::new(
             inference.type_parameter.clone(),
-            inference.candidates.clone(),
-            inference.contra_candidates.clone(),
+            inference.maybe_candidates().clone(),
+            inference.maybe_contra_candidates().clone(),
             inference.maybe_inferred_type().clone(),
-            inference.priority,
-            inference.top_level,
+            inference.maybe_priority(),
+            inference.top_level(),
             inference.is_fixed(),
             inference.implied_arity,
         )

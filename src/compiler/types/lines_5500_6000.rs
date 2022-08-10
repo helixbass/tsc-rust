@@ -750,12 +750,12 @@ bitflags! {
 
 pub(crate) struct InferenceInfo {
     pub type_parameter: Rc<Type /*TypeParameter*/>,
-    pub candidates: Option<Vec<Rc<Type>>>,
-    pub contra_candidates: Option<Vec<Rc<Type>>>,
+    candidates: RefCell<Option<Vec<Rc<Type>>>>,
+    contra_candidates: RefCell<Option<Vec<Rc<Type>>>>,
     inferred_type: RefCell<Option<Rc<Type>>>,
-    pub priority: Option<InferencePriority>,
-    pub top_level: bool,
-    pub is_fixed: Cell<bool>,
+    priority: Cell<Option<InferencePriority>>,
+    top_level: Cell<bool>,
+    is_fixed: Cell<bool>,
     pub implied_arity: Option<usize>,
 }
 
@@ -772,14 +772,42 @@ impl InferenceInfo {
     ) -> Self {
         Self {
             type_parameter,
-            candidates,
-            contra_candidates,
+            candidates: RefCell::new(candidates),
+            contra_candidates: RefCell::new(contra_candidates),
             inferred_type: RefCell::new(inferred_type),
-            priority,
-            top_level,
+            priority: Cell::new(priority),
+            top_level: Cell::new(top_level),
             is_fixed: Cell::new(is_fixed),
             implied_arity,
         }
+    }
+
+    pub fn maybe_candidates(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.candidates.borrow_mut()
+    }
+
+    pub fn maybe_contra_candidates(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.contra_candidates.borrow_mut()
+    }
+
+    pub fn maybe_inferred_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.inferred_type.borrow_mut()
+    }
+
+    pub fn maybe_priority(&self) -> Option<InferencePriority> {
+        self.priority.get()
+    }
+
+    pub fn set_priority(&self, priority: Option<InferencePriority>) {
+        self.priority.set(priority);
+    }
+
+    pub fn top_level(&self) -> bool {
+        self.top_level.get()
+    }
+
+    pub fn set_top_level(&self, top_level: bool) {
+        self.top_level.set(top_level);
     }
 
     pub fn is_fixed(&self) -> bool {
@@ -788,10 +816,6 @@ impl InferenceInfo {
 
     pub fn set_is_fixed(&self, is_fixed: bool) {
         self.is_fixed.set(is_fixed);
-    }
-
-    pub fn maybe_inferred_type(&self) -> RefMut<Option<Rc<Type>>> {
-        self.inferred_type.borrow_mut()
     }
 }
 
