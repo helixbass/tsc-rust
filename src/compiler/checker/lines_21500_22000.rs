@@ -1,20 +1,18 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
 use std::cell::{Cell, RefCell, RefMut};
 use std::cmp;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{ExpandingFlags, RecursionIdentity, TypeFacts};
+use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
     append_if_unique_rc, arrays_equal, contains, contains_rc, create_scanner, every, filter,
-    get_check_flags, get_object_flags, is_write_only_access, map, node_is_missing, some,
-    CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags, InferenceContext, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, ScriptTarget, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReferenceInterface, UnionReduction, VarianceFlags,
+    get_check_flags, get_object_flags, map, some, CheckFlags, ElementFlags, InferenceInfo,
+    InferencePriority, Node, ObjectFlags, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface,
+    UnionReduction, VarianceFlags,
 };
 
 impl TypeChecker {
