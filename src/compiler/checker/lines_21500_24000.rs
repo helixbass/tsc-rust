@@ -9,11 +9,12 @@ use std::rc::Rc;
 
 use super::{ExpandingFlags, RecursionIdentity, TypeFacts};
 use crate::{
-    arrays_equal, contains, contains_rc, create_scanner, every, get_check_flags, get_object_flags,
-    is_write_only_access, map, node_is_missing, some, CheckFlags, DiagnosticMessage, Diagnostics,
-    ElementFlags, InferenceContext, InferenceInfo, InferencePriority, Node, NodeInterface,
-    ObjectFlags, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface, UnionReduction, VarianceFlags,
+    append_if_unique_rc, arrays_equal, contains, contains_rc, create_scanner, every, filter,
+    get_check_flags, get_object_flags, is_write_only_access, map, node_is_missing, some,
+    CheckFlags, DiagnosticMessage, Diagnostics, ElementFlags, InferenceContext, InferenceInfo,
+    InferencePriority, Node, NodeInterface, ObjectFlags, ScriptTarget, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceInterface, UnionReduction, VarianceFlags,
 };
 
 impl TypeChecker {
@@ -1295,9 +1296,41 @@ impl InferTypes {
         &self,
         sources: &[Rc<Type>],
         targets: &[Rc<Type>],
-        matches: TMatches,
+        mut matches: TMatches,
     ) -> (Vec<Rc<Type>>, Vec<Rc<Type>>) {
-        unimplemented!()
+        let mut matched_sources: Option<Vec<Rc<Type>>> = None;
+        let mut matched_targets: Option<Vec<Rc<Type>>> = None;
+        for t in targets {
+            for s in sources {
+                if matches(s, t) {
+                    self.infer_from_types(s, t);
+                    if matched_sources.is_none() {
+                        matched_sources = Some(vec![]);
+                    }
+                    append_if_unique_rc(matched_sources.as_mut().unwrap(), s);
+                    if matched_targets.is_none() {
+                        matched_targets = Some(vec![]);
+                    }
+                    append_if_unique_rc(matched_targets.as_mut().unwrap(), t);
+                }
+            }
+        }
+        (
+            if let Some(matched_sources) = matched_sources.as_ref() {
+                filter(sources, |t: &Rc<Type>| {
+                    !contains_rc(Some(matched_sources), t)
+                })
+            } else {
+                sources.to_owned()
+            },
+            if let Some(matched_targets) = matched_targets.as_ref() {
+                filter(targets, |t: &Rc<Type>| {
+                    !contains_rc(Some(matched_targets), t)
+                })
+            } else {
+                targets.to_owned()
+            },
+        )
     }
 
     pub(super) fn infer_from_type_arguments(
@@ -1306,7 +1339,32 @@ impl InferTypes {
         target_types: &[Rc<Type>],
         variances: &[VarianceFlags],
     ) {
-        unimplemented!()
+        let count = if source_types.len() < target_types.len() {
+            source_types.len()
+        } else {
+            target_types.len()
+        };
+        for i in 0..count {
+            if i < variances.len()
+                && variances[i] & VarianceFlags::VarianceMask == VarianceFlags::Contravariant
+            {
+                self.infer_from_contravariant_types(&source_types[i], &target_types[i]);
+            } else {
+                self.infer_from_types(&source_types[i], &target_types[i]);
+            }
+        }
+    }
+
+    pub(super) fn infer_from_contravariant_types(&self, source: &Type, target: &Type) {
+        if self.type_checker.strict_function_types
+            || self.priority().intersects(InferencePriority::AlwaysStrict)
+        {
+            self.set_contravariant(!self.contravariant());
+            self.infer_from_types(source, target);
+            self.set_contravariant(!self.contravariant());
+        } else {
+            self.infer_from_types(source, target);
+        }
     }
 
     pub(super) fn get_inference_info_for_type(&self, type_: &Type) -> Option<Rc<InferenceInfo>> {
