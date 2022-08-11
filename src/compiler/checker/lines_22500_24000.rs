@@ -5,16 +5,16 @@ use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    is_write_only_access, node_is_missing, Node, NodeInterface, Symbol, SymbolFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    __String, find_ancestor, get_node_id, get_symbol_id, is_this_in_type_query,
+    is_write_only_access, node_is_missing, FindAncestorCallbackReturn, Node, NodeInterface, Symbol,
+    SymbolFlags, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
     pub(super) fn get_resolved_symbol(&self, node: &Node /*Identifier*/) -> Rc<Symbol> {
         let links = self.get_node_links(node);
-        let mut links_ref = links.borrow_mut();
-        if links_ref.resolved_symbol.is_none() {
-            links_ref.resolved_symbol = Some(if !node_is_missing(Some(node)) {
+        if (*links).borrow().resolved_symbol.is_none() {
+            links.borrow_mut().resolved_symbol = Some(if !node_is_missing(Some(node)) {
                 self.resolve_name_(
                     Some(node),
                     &node.as_identifier().escaped_text,
@@ -29,14 +29,124 @@ impl TypeChecker {
                 self.unknown_symbol()
             });
         }
-        links_ref.resolved_symbol.clone().unwrap()
+        let ret = (*links).borrow().resolved_symbol.clone().unwrap();
+        ret
     }
 
     pub(super) fn is_in_type_query(&self, node: &Node) -> bool {
-        unimplemented!()
+        find_ancestor(Some(node), |n: &Node| {
+            if n.kind() == SyntaxKind::TypeQuery {
+                true.into()
+            } else if matches!(n.kind(), SyntaxKind::Identifier | SyntaxKind::QualifiedName) {
+                false.into()
+            } else {
+                FindAncestorCallbackReturn::Quit
+            }
+        })
+        .is_some()
+    }
+
+    pub(super) fn get_flow_cache_key<TFlowContainer: Borrow<Node>>(
+        &self,
+        node: &Node,
+        declared_type: &Type,
+        initial_type: &Type,
+        flow_container: Option<TFlowContainer>,
+    ) -> Option<String> {
+        let flow_container =
+            flow_container.map(|flow_container| flow_container.borrow().node_wrapper());
+        match node.kind() {
+            SyntaxKind::Identifier => {
+                if !is_this_in_type_query(node) {
+                    let symbol = self.get_resolved_symbol(node);
+                    return if !Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
+                        Some(format!(
+                            "{}|{}|{}|{}",
+                            if let Some(flow_container) = flow_container.as_ref() {
+                                get_node_id(flow_container).to_string()
+                            } else {
+                                "-1".to_owned()
+                            },
+                            self.get_type_id(declared_type),
+                            self.get_type_id(initial_type),
+                            get_symbol_id(&symbol)
+                        ))
+                    } else {
+                        None
+                    };
+                }
+                return Some(format!(
+                    "0|{}|{}|{}",
+                    if let Some(flow_container) = flow_container.as_ref() {
+                        get_node_id(flow_container).to_string()
+                    } else {
+                        "-1".to_owned()
+                    },
+                    self.get_type_id(declared_type),
+                    self.get_type_id(initial_type),
+                ));
+            }
+            SyntaxKind::ThisKeyword => {
+                return Some(format!(
+                    "0|{}|{}|{}",
+                    if let Some(flow_container) = flow_container.as_ref() {
+                        get_node_id(flow_container).to_string()
+                    } else {
+                        "-1".to_owned()
+                    },
+                    self.get_type_id(declared_type),
+                    self.get_type_id(initial_type),
+                ));
+            }
+            SyntaxKind::NonNullExpression | SyntaxKind::ParenthesizedExpression => {
+                return self.get_flow_cache_key(
+                    &node.as_has_expression().expression(),
+                    declared_type,
+                    initial_type,
+                    flow_container,
+                );
+            }
+            SyntaxKind::QualifiedName => {
+                let node_as_qualified_name = node.as_qualified_name();
+                let left = self.get_flow_cache_key(
+                    &node_as_qualified_name.left,
+                    declared_type,
+                    initial_type,
+                    flow_container.as_deref(),
+                );
+                return left.map(|left| {
+                    format!(
+                        "{}.{}",
+                        left,
+                        &*node_as_qualified_name.right.as_identifier().escaped_text,
+                    )
+                });
+            }
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                let prop_name = self.get_accessed_property_name(node);
+                if let Some(prop_name) = prop_name.as_ref() {
+                    let key = self.get_flow_cache_key(
+                        &node.as_has_expression().expression(),
+                        declared_type,
+                        initial_type,
+                        flow_container.as_deref(),
+                    );
+                    return key.map(|key| format!("{}.{}", key, &**prop_name));
+                }
+            }
+            _ => (),
+        }
+        None
     }
 
     pub(super) fn is_matching_reference(&self, source: &Node, target: &Node) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_accessed_property_name(
+        &self,
+        access: &Node, /*AccessExpression | BindingElement */
+    ) -> Option<__String> {
         unimplemented!()
     }
 
