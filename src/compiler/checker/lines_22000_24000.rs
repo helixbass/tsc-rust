@@ -903,17 +903,52 @@ impl TypeChecker {
     }
 
     pub(super) fn get_default_type_argument_type(&self, is_in_java_script_file: bool) -> Rc<Type> {
-        unimplemented!()
+        if is_in_java_script_file {
+            self.any_type()
+        } else {
+            self.unknown_type()
+        }
+    }
+
+    pub(super) fn get_inferred_types(&self, context: &InferenceContext) -> Vec<Rc<Type>> {
+        let mut result: Vec<Rc<Type>> = vec![];
+        for i in 0..context.inferences.len() {
+            result.push(self.get_inferred_type(context, i));
+        }
+        result
     }
 
     pub(super) fn get_cannot_find_name_diagnostic_for_name(
         &self,
         node: &Node,
     ) -> &'static DiagnosticMessage {
-        match node.as_identifier().escaped_text {
+        match &*node.as_identifier().escaped_text {
+            "document" | "console" => &Diagnostics::Cannot_find_name_0_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_include_dom,
+            "$" => {
+                if self.compiler_options.types.is_some() {
+                    &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_jQuery_Try_npm_i_save_dev_types_Slashjquery_and_then_add_jquery_to_the_types_field_in_your_tsconfig
+                } else {
+                    &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_jQuery_Try_npm_i_save_dev_types_Slashjquery
+                }
+            }
+            "describe" | "suite" | "it" | "test" => {
+                if self.compiler_options.types.is_some() {
+                    &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_a_test_runner_Try_npm_i_save_dev_types_Slashjest_or_npm_i_save_dev_types_Slashmocha_and_then_add_jest_or_mocha_to_the_types_field_in_your_tsconfig
+                } else {
+                    &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_a_test_runner_Try_npm_i_save_dev_types_Slashjest_or_npm_i_save_dev_types_Slashmocha
+                }
+            }
+            "process" | "require" | "Buffer" | "module" => {
+                if self.compiler_options.types.is_some() {
+                    &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_Slashnode_and_then_add_node_to_the_types_field_in_your_tsconfig
+                } else {
+                    &Diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_Slashnode
+                }
+            }
+            "Map" | "Set" | "Promise" | "Symbol" | "WeakMap" | "WeakSet" | "Iterator" | "AsyncIterator" | "SharedArrayBuffer" | "Atomics" | "AsyncIterable" | "AsyncIterableIterator" | "AsyncGenerator" | "AsyncGeneratorFunction" | "BigInt" | "Reflect" | "BigInt64Array" | "BigUint64Array" => &Diagnostics::Cannot_find_name_0_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_1_or_later,
             _ => {
-                if false {
-                    unimplemented!()
+                if node.parent().kind() == SyntaxKind::ShorthandPropertyAssignment {
+                    &Diagnostics::No_value_exists_in_scope_for_the_shorthand_property_0_Either_declare_one_or_provide_an_initializer
                 } else {
                     &Diagnostics::Cannot_find_name_0
                 }
