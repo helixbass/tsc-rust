@@ -7,9 +7,10 @@ use std::rc::Rc;
 
 use super::{InferTypes, TypeFacts};
 use crate::{
-    find, flat_map, get_object_flags, is_write_only_access, node_is_missing, DiagnosticMessage,
-    Diagnostics, InferenceContext, InferenceInfo, InferencePriority, Node, NodeInterface,
-    ObjectFlags, Symbol, SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    concatenate, find, flat_map, get_object_flags, is_write_only_access, map, node_is_missing,
+    DiagnosticMessage, Diagnostics, IndexInfo, InferenceContext, InferenceInfo, InferencePriority,
+    Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionReduction,
 };
 
 impl InferTypes {
@@ -148,6 +149,89 @@ impl InferTypes {
                 }
             }
         }
+    }
+
+    pub(super) fn infer_to_mapped_type(
+        &self,
+        source: &Type,
+        target: &Type, /*MappedType*/
+        constraint_type: &Type,
+    ) -> bool {
+        if constraint_type.flags().intersects(TypeFlags::Union) {
+            let mut result = false;
+            for type_ in constraint_type
+                .as_union_or_intersection_type_interface()
+                .types()
+            {
+                result = self.infer_to_mapped_type(source, target, type_) || result;
+            }
+            return result;
+        }
+        if constraint_type.flags().intersects(TypeFlags::Index) {
+            let inference =
+                self.get_inference_info_for_type(&constraint_type.as_index_type().type_);
+            if let Some(inference) = inference.as_ref().filter(|inference| {
+                !inference.is_fixed() && !self.type_checker.is_from_inference_blocked_source(source)
+            }) {
+                let inferred_type = self.type_checker.infer_type_for_homomorphic_mapped_type(
+                    source,
+                    target,
+                    constraint_type,
+                );
+                if let Some(inferred_type) = inferred_type.as_ref() {
+                    self.infer_with_priority(
+                        inferred_type,
+                        &inference.type_parameter,
+                        if get_object_flags(source).intersects(ObjectFlags::NonInferrableType) {
+                            InferencePriority::PartialHomomorphicMappedType
+                        } else {
+                            InferencePriority::HomomorphicMappedType
+                        },
+                    );
+                }
+            }
+            return true;
+        }
+        if constraint_type.flags().intersects(TypeFlags::TypeParameter) {
+            self.infer_with_priority(
+                &self.type_checker.get_index_type(source, None, None),
+                constraint_type,
+                InferencePriority::MappedTypeConstraint,
+            );
+            let extended_constraint = self.type_checker.get_constraint_of_type(constraint_type);
+            if matches!(
+                extended_constraint.as_ref(),
+                Some(extended_constraint) if self.infer_to_mapped_type(source, target, extended_constraint)
+            ) {
+                return true;
+            }
+            let prop_types = map(
+                &self.type_checker.get_properties_of_type(source),
+                |property: &Rc<Symbol>, _| self.type_checker.get_type_of_symbol(property),
+            );
+            let index_types = map(
+                &self.type_checker.get_index_infos_of_type(source),
+                |info: &Rc<IndexInfo>, _| {
+                    if !Rc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
+                        info.type_.clone()
+                    } else {
+                        self.type_checker.never_type()
+                    }
+                },
+            );
+            self.infer_from_types(
+                &self.type_checker.get_union_type(
+                    concatenate(prop_types, index_types),
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ),
+                &self.type_checker.get_template_type_from_mapped_type(target),
+            );
+            return true;
+        }
+        false
     }
 
     pub(super) fn infer_to_conditional_type(
