@@ -9,7 +9,7 @@ use super::{
     BaseType, IndexInfo, IntersectionType, MappedType, Node, PseudoBigInt, ResolvedTypeInterface,
     ReverseMappedType, Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
-use crate::{FreshObjectLiteralTypeInterface, Number, TypeMapper, WeakSelf, __String};
+use crate::{FreshObjectLiteralTypeInterface, Number, TypeId, TypeMapper, WeakSelf, __String};
 use local_macros::type_type;
 
 pub trait LiteralTypeInterface: TypeInterface {
@@ -1070,6 +1070,8 @@ pub struct UnionType {
     resolved_reduced_type: RefCell<Option<Rc<Type>>>,
     regular_type: RefCell<Option<Rc<Type /*UnionType*/>>>,
     pub(crate) origin: Option<Rc<Type>>,
+    key_property_name: RefCell<Option<__String>>,
+    constituent_map: RefCell<Option<HashMap<TypeId, Rc<Type>>>>,
 }
 
 impl UnionType {
@@ -1079,6 +1081,8 @@ impl UnionType {
             resolved_reduced_type: RefCell::new(None),
             regular_type: RefCell::new(None),
             origin: None,
+            key_property_name: RefCell::new(None),
+            constituent_map: RefCell::new(None),
         }
     }
 
@@ -1088,5 +1092,13 @@ impl UnionType {
 
     pub fn maybe_regular_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.regular_type.borrow_mut()
+    }
+
+    pub fn maybe_key_property_name(&self) -> RefMut<Option<__String>> {
+        self.key_property_name.borrow_mut()
+    }
+
+    pub fn maybe_constituent_map(&self) -> RefMut<Option<HashMap<TypeId, Rc<Type>>>> {
+        self.constituent_map.borrow_mut()
     }
 }

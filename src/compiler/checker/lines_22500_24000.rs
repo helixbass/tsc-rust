@@ -6,14 +6,14 @@ use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    CheckFlags, TransientSymbolInterface, __String, are_option_rcs_equal,
-    escape_leading_underscores, find_ancestor, get_check_flags, get_node_id, get_symbol_id,
-    is_access_expression, is_assignment_expression, is_binary_expression, is_binding_element,
-    is_identifier, is_optional_chain, is_string_or_numeric_literal_like, is_this_in_type_query,
-    is_variable_declaration, is_write_only_access, node_is_missing, FindAncestorCallbackReturn,
-    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    UnionReduction,
+    count_where, for_each, CheckFlags, TransientSymbolInterface, UnionOrIntersectionTypeInterface,
+    __String, are_option_rcs_equal, escape_leading_underscores, find_ancestor, get_check_flags,
+    get_node_id, get_object_flags, get_symbol_id, is_access_expression, is_assignment_expression,
+    is_binary_expression, is_binding_element, is_identifier, is_optional_chain,
+    is_string_or_numeric_literal_like, is_this_in_type_query, is_variable_declaration,
+    is_write_only_access, node_is_missing, FindAncestorCallbackReturn, HasInitializerInterface,
+    HasTypeInterface, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -434,6 +434,58 @@ impl TypeChecker {
         }
         if count >= 10 && count * 2 >= types.len() {
             Some(map)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_key_property_name(
+        &self,
+        union_type: &Type, /*UnionType*/
+    ) -> Option<__String> {
+        let union_type_as_union_type = union_type.as_union_type();
+        let types = union_type_as_union_type.types();
+        if types.len() < 10
+            || get_object_flags(union_type).intersects(ObjectFlags::PrimitiveUnion)
+            || count_where(Some(types), |t: &Rc<Type>, _| {
+                t.flags()
+                    .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
+            }) < 10
+        {
+            return None;
+        }
+        if union_type_as_union_type.maybe_key_property_name().is_none() {
+            let key_property_name = for_each(types, |t: &Rc<Type>, _| {
+                if t.flags()
+                    .intersects(TypeFlags::Object | TypeFlags::InstantiableNonPrimitive)
+                {
+                    for_each(&self.get_properties_of_type(t), |p: &Rc<Symbol>, _| {
+                        if self.is_unit_type(&self.get_type_of_symbol(p)) {
+                            Some(p.escaped_name().clone())
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                }
+            });
+            let map_by_key_property = key_property_name.as_ref().and_then(|key_property_name| {
+                self.map_types_by_key_property(types, key_property_name)
+            });
+            *union_type_as_union_type.maybe_key_property_name() = if map_by_key_property.is_some() {
+                key_property_name
+            } else {
+                Some(__String::new("".to_owned()))
+            };
+            *union_type_as_union_type.maybe_constituent_map() = map_by_key_property;
+        }
+        let union_type_key_property_name = union_type_as_union_type
+            .maybe_key_property_name()
+            .clone()
+            .unwrap();
+        if !union_type_key_property_name.is_empty() {
+            Some(union_type_key_property_name)
         } else {
             None
         }
