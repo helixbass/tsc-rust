@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use super::{InferTypes, TypeFacts};
 use crate::{
-    concatenate, every, find, flat_map, get_object_flags, is_write_only_access, map,
+    concatenate, every, filter, find, flat_map, get_object_flags, is_write_only_access, map,
     node_is_missing, DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo, InferenceContext,
     InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature, SignatureKind,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -677,11 +677,49 @@ impl InferTypes {
 
 impl TypeChecker {
     pub(super) fn is_type_or_base_identical_to(&self, s: &Type, t: &Type) -> bool {
-        unimplemented!()
+        if self.exact_optional_property_types == Some(true) && ptr::eq(t, &*self.missing_type()) {
+            ptr::eq(s, t)
+        } else {
+            self.is_type_identical_to(s, t)
+                || (t.flags().intersects(TypeFlags::String)
+                    && s.flags().intersects(TypeFlags::StringLiteral)
+                    || t.flags().intersects(TypeFlags::Number)
+                        && s.flags().intersects(TypeFlags::NumberLiteral))
+        }
     }
 
     pub(super) fn is_type_closely_matched_by(&self, s: &Type, t: &Type) -> bool {
-        unimplemented!()
+        s.flags().intersects(TypeFlags::Object)
+            && t.flags().intersects(TypeFlags::Object)
+            && matches!(
+                s.maybe_symbol().as_ref(),
+                Some(s_symbol) if matches!(
+                    t.maybe_symbol().as_ref(),
+                    Some(t_symbol) if Rc::ptr_eq(s_symbol, t_symbol)
+                )
+            )
+            || matches!(
+                s.maybe_alias_symbol().as_ref(),
+                Some(s_alias_symbol) if matches!(
+                    t.maybe_alias_symbol().as_ref(),
+                    Some(t_alias_symbol) if Rc::ptr_eq(s_alias_symbol, t_alias_symbol)
+                )
+            ) && s.maybe_alias_type_arguments().is_some()
+    }
+
+    pub(super) fn has_primitive_constraint(&self, type_: &Type /*TypeParameter*/) -> bool {
+        let constraint = self.get_constraint_of_type_parameter(type_);
+        matches!(
+            constraint.as_ref(),
+            Some(constraint) if self.maybe_type_of_kind(
+                &*if constraint.flags().intersects(TypeFlags::Conditional) {
+                    self.get_default_constraint_of_conditional_type(constraint)
+                } else {
+                    constraint.clone()
+                },
+                TypeFlags::Primitive | TypeFlags::Index | TypeFlags::TemplateLiteral | TypeFlags::StringMapping
+            )
+        )
     }
 
     pub(super) fn is_object_literal_type(&self, type_: &Type) -> bool {
@@ -690,6 +728,48 @@ impl TypeChecker {
 
     pub(super) fn is_object_or_array_literal_type(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral | ObjectFlags::ArrayLiteral)
+    }
+
+    pub(super) fn union_object_and_array_literal_candidates(
+        &self,
+        candidates: &[Rc<Type>],
+    ) -> Vec<Rc<Type>> {
+        if candidates.len() > 1 {
+            let object_literals = filter(candidates, |candidate: &Rc<Type>| {
+                self.is_object_or_array_literal_type(candidate)
+            });
+            if !object_literals.is_empty() {
+                let literals_type = self.get_union_type(
+                    object_literals,
+                    Some(UnionReduction::Subtype),
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                );
+                return concatenate(
+                    filter(candidates, |t: &Rc<Type>| {
+                        !self.is_object_or_array_literal_type(t)
+                    }),
+                    vec![literals_type],
+                );
+            }
+        }
+        candidates.to_owned()
+    }
+
+    pub(super) fn get_contravariant_inference(&self, inference: &InferenceInfo) -> Rc<Type> {
+        if matches!(
+            inference.maybe_priority(),
+            Some(inference_priority) if inference_priority.intersects(InferencePriority::PriorityImpliesCombination)
+        ) {
+            self.get_intersection_type(
+                inference.maybe_contra_candidates().as_deref().unwrap(),
+                Option::<&Symbol>::None,
+                None,
+            )
+        } else {
+            self.get_common_subtype(inference.maybe_contra_candidates().as_deref().unwrap())
+        }
     }
 
     pub(super) fn get_inferred_type(&self, context: &InferenceContext, index: usize) -> Rc<Type> {
