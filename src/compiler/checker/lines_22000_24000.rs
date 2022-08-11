@@ -7,10 +7,10 @@ use std::rc::Rc;
 
 use super::{InferTypes, TypeFacts};
 use crate::{
-    concatenate, find, flat_map, get_object_flags, is_write_only_access, map, node_is_missing,
-    DiagnosticMessage, Diagnostics, IndexInfo, InferenceContext, InferenceInfo, InferencePriority,
-    Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionReduction,
+    concatenate, every, find, flat_map, get_object_flags, is_write_only_access, map,
+    node_is_missing, DiagnosticMessage, Diagnostics, IndexInfo, InferenceContext, InferenceInfo,
+    InferencePriority, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl InferTypes {
@@ -239,7 +239,52 @@ impl InferTypes {
         source: &Type,
         target: &Type, /*ConditionalType*/
     ) {
-        unimplemented!()
+        let target_as_conditional_type = target.as_conditional_type();
+        if source.flags().intersects(TypeFlags::Conditional) {
+            let source_as_conditional_type = source.as_conditional_type();
+            self.infer_from_types(
+                &source_as_conditional_type.check_type,
+                &target_as_conditional_type.check_type,
+            );
+            self.infer_from_types(
+                &source_as_conditional_type.extends_type,
+                &target_as_conditional_type.extends_type,
+            );
+            self.infer_from_types(
+                &self
+                    .type_checker
+                    .get_true_type_from_conditional_type(source),
+                &self
+                    .type_checker
+                    .get_true_type_from_conditional_type(target),
+            );
+            self.infer_from_types(
+                &self
+                    .type_checker
+                    .get_false_type_from_conditional_type(source),
+                &self
+                    .type_checker
+                    .get_false_type_from_conditional_type(target),
+            );
+        } else {
+            let save_priority = self.priority();
+            self.set_priority(
+                self.priority()
+                    | if self.contravariant() {
+                        InferencePriority::ContravariantConditional
+                    } else {
+                        InferencePriority::None
+                    },
+            );
+            let target_types = vec![
+                self.type_checker
+                    .get_true_type_from_conditional_type(target),
+                self.type_checker
+                    .get_false_type_from_conditional_type(target),
+            ];
+            self.infer_to_multiple_types(source, &target_types, target.flags());
+            self.set_priority(save_priority);
+        }
     }
 
     pub(super) fn infer_to_template_literal_type(
@@ -247,7 +292,27 @@ impl InferTypes {
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
     ) {
-        unimplemented!()
+        let matches = self
+            .type_checker
+            .infer_types_from_template_literal_type(source, target);
+        let target_as_template_literal_type = target.as_template_literal_type();
+        let types = &target_as_template_literal_type.types;
+        if matches.is_some()
+            || every(&target_as_template_literal_type.texts, |s: &String, _| {
+                s.is_empty()
+            })
+        {
+            for i in 0..types.len() {
+                self.infer_from_types(
+                    &*if let Some(matches) = matches.as_ref() {
+                        matches[i].clone()
+                    } else {
+                        self.type_checker.never_type()
+                    },
+                    &types[i],
+                );
+            }
+        }
     }
 
     pub(super) fn infer_from_object_types(&self, source: &Type, target: &Type) {
