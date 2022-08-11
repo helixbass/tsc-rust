@@ -8,10 +8,10 @@ use std::rc::Rc;
 use super::{InferTypes, TypeFacts};
 use crate::{
     concatenate, every, filter, find, flat_map, get_object_flags, is_write_only_access, map,
-    node_is_missing, same_map, DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo,
-    InferenceContext, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags,
-    Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionReduction,
+    node_is_missing, same_map, some, DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo,
+    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
+    ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl InferTypes {
@@ -817,7 +817,89 @@ impl TypeChecker {
     }
 
     pub(super) fn get_inferred_type(&self, context: &InferenceContext, index: usize) -> Rc<Type> {
-        unimplemented!()
+        let inference = &context.inferences[index];
+        if inference.maybe_inferred_type().is_none() {
+            let mut inferred_type: Option<Rc<Type>> = None;
+            let signature = context.signature.as_ref();
+            if let Some(signature) = signature {
+                let inferred_covariant_type = if inference.maybe_candidates().is_some() {
+                    Some(self.get_covariant_inference(inference, signature.clone()))
+                } else {
+                    None
+                };
+                if let Some(inference_contra_candidates) =
+                    inference.maybe_contra_candidates().as_ref()
+                {
+                    inferred_type = Some(
+                        if let Some(inferred_covariant_type) = inferred_covariant_type
+                            .as_ref()
+                            .filter(|inferred_covariant_type| {
+                                !inferred_covariant_type.flags().intersects(TypeFlags::Never)
+                                    && some(
+                                        Some(inference_contra_candidates),
+                                        Some(|t: &Rc<Type>| {
+                                            self.is_type_subtype_of(inferred_covariant_type, t)
+                                        }),
+                                    )
+                            })
+                        {
+                            inferred_covariant_type.clone()
+                        } else {
+                            self.get_contravariant_inference(inference)
+                        },
+                    );
+                } else if let Some(inferred_covariant_type) = inferred_covariant_type.as_ref() {
+                    inferred_type = Some(inferred_covariant_type.clone());
+                } else if context.flags.intersects(InferenceFlags::NoDefault) {
+                    inferred_type = Some(self.silent_never_type());
+                } else {
+                    let default_type =
+                        self.get_default_from_type_parameter_(&inference.type_parameter);
+                    if let Some(default_type) = default_type.as_ref() {
+                        inferred_type = Some(self.instantiate_type(
+                            default_type,
+                            Some(&self.merge_type_mappers(
+                                Some(self.create_backreference_mapper(context, index)),
+                                context.non_fixing_mapper().clone(),
+                            )),
+                        ));
+                    }
+                }
+            } else {
+                inferred_type = self.get_type_from_inference(inference);
+            }
+
+            *inference.maybe_inferred_type() = Some(inferred_type.clone().unwrap_or_else(|| {
+                self.get_default_type_argument_type(
+                    context.flags.intersects(InferenceFlags::AnyDefault),
+                )
+            }));
+
+            let constraint = self.get_constraint_of_type_parameter(&inference.type_parameter);
+            if let Some(constraint) = constraint.as_ref() {
+                let instantiated_constraint =
+                    self.instantiate_type(constraint, Some(&context.non_fixing_mapper()));
+                if match inferred_type.as_ref() {
+                    None => true,
+                    Some(inferred_type) => {
+                        context.compare_types.call(
+                            inferred_type,
+                            &self.get_type_with_this_argument(
+                                &instantiated_constraint,
+                                Some(&**inferred_type),
+                                None,
+                            ),
+                            None,
+                        ) == Ternary::False
+                    }
+                } {
+                    inferred_type = Some(instantiated_constraint.clone());
+                    *inference.maybe_inferred_type() = Some(instantiated_constraint);
+                }
+            }
+        }
+
+        inference.maybe_inferred_type().clone().unwrap()
     }
 
     pub(super) fn get_default_type_argument_type(&self, is_in_java_script_file: bool) -> Rc<Type> {
