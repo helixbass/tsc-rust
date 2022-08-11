@@ -1,17 +1,12 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cmp;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{InferTypes, TypeFacts};
+use super::TypeFacts;
 use crate::{
-    concatenate, every, filter, find, flat_map, get_object_flags, is_write_only_access, map,
-    node_is_missing, same_map, some, DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo,
-    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, Node, NodeInterface,
-    ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    is_write_only_access, node_is_missing, Node, NodeInterface, Symbol, SymbolFlags, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
