@@ -6,14 +6,15 @@ use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    count_where, for_each, CheckFlags, TransientSymbolInterface, UnionOrIntersectionTypeInterface,
-    __String, are_option_rcs_equal, escape_leading_underscores, find_ancestor, get_check_flags,
-    get_node_id, get_object_flags, get_symbol_id, is_access_expression, is_assignment_expression,
-    is_binary_expression, is_binding_element, is_identifier, is_optional_chain,
-    is_string_or_numeric_literal_like, is_this_in_type_query, is_variable_declaration,
-    is_write_only_access, node_is_missing, FindAncestorCallbackReturn, HasInitializerInterface,
-    HasTypeInterface, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, UnionReduction,
+    count_where, find, for_each, CheckFlags, TransientSymbolInterface,
+    UnionOrIntersectionTypeInterface, __String, are_option_rcs_equal, escape_leading_underscores,
+    find_ancestor, get_check_flags, get_node_id, get_object_flags, get_symbol_id,
+    is_access_expression, is_assignment_expression, is_binary_expression, is_binding_element,
+    is_identifier, is_optional_chain, is_string_or_numeric_literal_like, is_this_in_type_query,
+    is_variable_declaration, is_write_only_access, node_is_missing, FindAncestorCallbackReturn,
+    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, ObjectFlags, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -491,12 +492,71 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_constituent_type_for_key_type(
+        &self,
+        union_type: &Type, /*UnionType*/
+        key_type: &Type,
+    ) -> Option<Rc<Type>> {
+        let result = union_type
+            .as_union_type()
+            .maybe_constituent_map()
+            .as_ref()
+            .and_then(|union_type_constituent_map| {
+                union_type_constituent_map
+                    .get(&self.get_type_id(&self.get_regular_type_of_literal_type(key_type)))
+                    .map(Clone::clone)
+            });
+        result.filter(|result| !Rc::ptr_eq(result, &self.unknown_type()))
+    }
+
     pub(super) fn get_matching_union_constituent_for_type(
         &self,
         union_type: &Type, /*UnionType*/
         type_: &Type,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let key_property_name = self.get_key_property_name(union_type);
+        let prop_type = key_property_name.as_ref().and_then(|key_property_name| {
+            self.get_type_of_property_of_type(type_, key_property_name)
+        });
+        prop_type
+            .as_ref()
+            .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type))
+    }
+
+    pub(super) fn get_matching_union_constituent_for_object_literal(
+        &self,
+        union_type: &Type, /*UnionType*/
+        node: &Node,       /*ObjectLiteralExpression*/
+    ) -> Option<Rc<Type>> {
+        let key_property_name = self.get_key_property_name(union_type);
+        let prop_node = key_property_name.as_ref().and_then(|key_property_name| {
+            find(
+                &node.as_object_literal_expression().properties,
+                |p: &Rc<Node>, _| {
+                    let p_symbol = p.maybe_symbol();
+                    if p_symbol.is_none() {
+                        return false;
+                    }
+                    let p_symbol = p_symbol.unwrap();
+                    if p.kind() != SyntaxKind::PropertyAssignment {
+                        return false;
+                    }
+                    p_symbol.escaped_name() == key_property_name
+                        && self.is_possibly_discriminant_value(
+                            &p.as_has_initializer().maybe_initializer().unwrap(),
+                        )
+                },
+            )
+            .map(Clone::clone)
+        });
+        let prop_type = prop_node.map(|prop_node| {
+            self.get_context_free_type_of_expression(
+                &prop_node.as_has_initializer().maybe_initializer().unwrap(),
+            )
+        });
+        prop_type
+            .as_ref()
+            .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type))
     }
 
     pub(super) fn has_matching_argument(

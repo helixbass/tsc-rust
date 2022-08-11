@@ -298,6 +298,13 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn get_context_free_type_of_expression(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn check_expression(
         &self,
         node: &Node, /*Expression | QualifiedName*/

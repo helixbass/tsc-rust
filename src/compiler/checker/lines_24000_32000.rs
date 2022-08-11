@@ -198,6 +198,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_possibly_discriminant_value(&self, node: &Node /*Expression*/) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_apparent_type_of_contextual_type(
         &self,
         node: &Node, /*Expression | MethodDeclaration*/
