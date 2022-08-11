@@ -8,10 +8,10 @@ use std::rc::Rc;
 use super::{InferTypes, TypeFacts};
 use crate::{
     concatenate, every, filter, find, flat_map, get_object_flags, is_write_only_access, map,
-    node_is_missing, DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo, InferenceContext,
-    InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction,
+    node_is_missing, same_map, DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo,
+    InferenceContext, InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags,
+    Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl InferTypes {
@@ -770,6 +770,50 @@ impl TypeChecker {
         } else {
             self.get_common_subtype(inference.maybe_contra_candidates().as_deref().unwrap())
         }
+    }
+
+    pub(super) fn get_covariant_inference(
+        &self,
+        inference: &InferenceInfo,
+        signature: Rc<Signature>,
+    ) -> Rc<Type> {
+        let candidates = self.union_object_and_array_literal_candidates(
+            inference.maybe_candidates().as_deref().unwrap(),
+        );
+        let primitive_constraint = self.has_primitive_constraint(&inference.type_parameter);
+        let widen_literal_types = !primitive_constraint
+            && inference.top_level()
+            && (inference.is_fixed()
+                || !self.is_type_parameter_at_top_level(
+                    &self.get_return_type_of_signature(signature),
+                    &inference.type_parameter,
+                ));
+        let base_candidates = if primitive_constraint {
+            same_map(&candidates, |candidate: &Rc<Type>, _| {
+                self.get_regular_type_of_literal_type(candidate)
+            })
+        } else if widen_literal_types {
+            same_map(&candidates, |candidate: &Rc<Type>, _| {
+                self.get_widened_literal_type(candidate)
+            })
+        } else {
+            candidates
+        };
+        let unwidened_type = if matches!(
+            inference.maybe_priority(),
+            Some(inference_priority) if inference_priority.intersects(InferencePriority::PriorityImpliesCombination)
+        ) {
+            self.get_union_type(
+                base_candidates,
+                Some(UnionReduction::Subtype),
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        } else {
+            self.get_common_supertype(&base_candidates)
+        };
+        self.get_widened_type(&unwidened_type)
     }
 
     pub(super) fn get_inferred_type(&self, context: &InferenceContext, index: usize) -> Rc<Type> {
