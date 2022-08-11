@@ -29,6 +29,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_const_variable(&self, symbol: &Symbol) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_identifier(
         &self,
         node: &Node, /*Identifier*/

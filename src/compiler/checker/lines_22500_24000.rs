@@ -1,14 +1,19 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    __String, are_option_rcs_equal, find_ancestor, get_node_id, get_symbol_id,
-    is_access_expression, is_assignment_expression, is_binary_expression, is_this_in_type_query,
-    is_write_only_access, node_is_missing, FindAncestorCallbackReturn, Node, NodeInterface, Symbol,
-    SymbolFlags, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    CheckFlags, TransientSymbolInterface, __String, are_option_rcs_equal,
+    escape_leading_underscores, find_ancestor, get_check_flags, get_node_id, get_symbol_id,
+    is_access_expression, is_assignment_expression, is_binary_expression, is_binding_element,
+    is_identifier, is_optional_chain, is_string_or_numeric_literal_like, is_this_in_type_query,
+    is_variable_declaration, is_write_only_access, node_is_missing, FindAncestorCallbackReturn,
+    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -231,11 +236,143 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn get_property_access(&self, expr: &Node /*Expression*/) -> Option<Rc<Node>> {
+        if is_access_expression(expr) {
+            return Some(expr.node_wrapper());
+        }
+        if is_identifier(expr) {
+            let symbol = self.get_resolved_symbol(expr);
+            if self.is_const_variable(&symbol) {
+                let declaration = symbol.maybe_value_declaration().unwrap();
+                if is_variable_declaration(&declaration) {
+                    let declaration_as_variable_declaration = declaration.as_variable_declaration();
+                    if declaration_as_variable_declaration.maybe_type().is_none() {
+                        if let Some(declaration_initializer) = declaration_as_variable_declaration
+                            .maybe_initializer()
+                            .filter(|declaration_initializer| {
+                                is_access_expression(declaration_initializer)
+                            })
+                        {
+                            return Some(declaration_initializer);
+                        }
+                    }
+                }
+                if is_binding_element(&declaration)
+                    && declaration
+                        .as_has_initializer()
+                        .maybe_initializer()
+                        .is_none()
+                {
+                    let parent = declaration.parent().parent();
+                    if is_variable_declaration(&parent) {
+                        let parent_as_variable_declaration = parent.as_variable_declaration();
+                        if parent_as_variable_declaration.maybe_type().is_none()
+                            && matches!(
+                                parent_as_variable_declaration.maybe_initializer().as_ref(),
+                                Some(parent_initializer) if is_identifier(parent_initializer) || is_access_expression(parent_initializer)
+                            )
+                        {
+                            return Some(declaration);
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
     pub(super) fn get_accessed_property_name(
         &self,
         access: &Node, /*AccessExpression | BindingElement */
     ) -> Option<__String> {
-        unimplemented!()
+        let mut property_name: Option<String> = None;
+        if access.kind() == SyntaxKind::PropertyAccessExpression {
+            Some(
+                access
+                    .as_property_access_expression()
+                    .name
+                    .as_identifier()
+                    .escaped_text
+                    .clone(),
+            )
+        } else if access.kind() == SyntaxKind::ElementAccessExpression
+            && is_string_or_numeric_literal_like(
+                &access.as_element_access_expression().argument_expression,
+            )
+        {
+            Some(escape_leading_underscores(
+                &access
+                    .as_element_access_expression()
+                    .argument_expression
+                    .as_literal_like_node()
+                    .text(),
+            ))
+        } else if access.kind() == SyntaxKind::BindingElement && {
+            property_name = self.get_destructuring_property_name(access);
+            property_name.is_some()
+        } {
+            Some(escape_leading_underscores(property_name.as_ref().unwrap()))
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn contains_matching_reference(&self, source: &Node, target: &Node) -> bool {
+        let mut source = source.node_wrapper();
+        while is_access_expression(&source) {
+            source = source.as_has_expression().expression();
+            if self.is_matching_reference(&source, target) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn optional_chain_contains_reference(&self, source: &Node, target: &Node) -> bool {
+        let mut source = source.node_wrapper();
+        while is_optional_chain(&source) {
+            source = source.as_has_expression().expression();
+            if self.is_matching_reference(&source, target) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn is_discriminant_property<TType: Borrow<Type>>(
+        &self,
+        type_: Option<TType>,
+        name: &__String,
+    ) -> bool {
+        if let Some(type_) = type_ {
+            let type_ = type_.borrow();
+            if type_.flags().intersects(TypeFlags::Union) {
+                let prop = self.get_union_or_intersection_property(type_, name, None);
+                if let Some(prop) = prop
+                    .as_ref()
+                    .filter(|prop| get_check_flags(prop).intersects(CheckFlags::SyntheticProperty))
+                {
+                    let prop_as_transient_symbol = prop.as_transient_symbol();
+                    let prop_symbol_links = prop_as_transient_symbol.symbol_links();
+                    if (*prop_symbol_links)
+                        .borrow()
+                        .is_discriminant_property
+                        .is_none()
+                    {
+                        prop_symbol_links.borrow_mut().is_discriminant_property = Some(
+                            prop_as_transient_symbol.check_flags() & CheckFlags::Discriminant
+                                == CheckFlags::Discriminant
+                                && !self.is_generic_type(&self.get_type_of_symbol(&prop)),
+                        );
+                    }
+                    return (*prop_symbol_links)
+                        .borrow()
+                        .is_discriminant_property
+                        .unwrap();
+                }
+            }
+        }
+        false
     }
 
     pub(super) fn find_discriminant_properties(
@@ -243,7 +380,63 @@ impl TypeChecker {
         source_properties: &[Rc<Symbol>],
         target: &Type,
     ) -> Option<Vec<Rc<Symbol>>> {
-        unimplemented!()
+        let mut result: Option<Vec<Rc<Symbol>>> = None;
+        for source_property in source_properties {
+            if self.is_discriminant_property(Some(target), source_property.escaped_name()) {
+                if result.is_some() {
+                    result.as_mut().unwrap().push(source_property.clone());
+                    continue;
+                }
+                result = Some(vec![source_property.clone()]);
+            }
+        }
+        result
+    }
+
+    pub(super) fn map_types_by_key_property(
+        &self,
+        types: &[Rc<Type>],
+        name: &__String,
+    ) -> Option<HashMap<TypeId, Rc<Type>>> {
+        let mut map: HashMap<TypeId, Rc<Type>> = HashMap::new();
+        let mut count = 0;
+        for type_ in types {
+            if type_.flags().intersects(
+                TypeFlags::Object | TypeFlags::Intersection | TypeFlags::InstantiableNonPrimitive,
+            ) {
+                let discriminant = self.get_type_of_property_of_type_(type_, name);
+                if let Some(discriminant) = discriminant.as_ref() {
+                    if !self.is_literal_type(discriminant) {
+                        return None;
+                    }
+                    let mut duplicate = false;
+                    self.for_each_type(discriminant, |t: &Type| -> Option<()> {
+                        let id = self.get_type_id(&self.get_regular_type_of_literal_type(t));
+                        let existing = map.get(&id);
+                        match existing {
+                            None => {
+                                map.insert(id, type_.clone());
+                            }
+                            Some(existing) => {
+                                if !Rc::ptr_eq(existing, &self.unknown_type()) {
+                                    map.insert(id, self.unknown_type());
+                                    duplicate = true;
+                                }
+                            }
+                        }
+                        None
+                    });
+                    if !duplicate {
+                        count += 1;
+                    }
+                }
+            }
+        }
+        if count >= 10 && count * 2 >= types.len() {
+            Some(map)
+        } else {
+            None
+        }
     }
 
     pub(super) fn get_matching_union_constituent_for_type(
