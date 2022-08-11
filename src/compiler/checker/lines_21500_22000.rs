@@ -567,6 +567,10 @@ impl InferTypes {
         self.bivariant.get()
     }
 
+    pub(super) fn set_bivariant(&self, bivariant: bool) {
+        self.bivariant.set(bivariant);
+    }
+
     pub(super) fn maybe_propagation_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.propagation_type.borrow_mut()
     }

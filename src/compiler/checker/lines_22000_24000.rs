@@ -9,8 +9,9 @@ use super::{InferTypes, TypeFacts};
 use crate::{
     concatenate, every, find, flat_map, get_object_flags, is_write_only_access, map,
     node_is_missing, DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo, InferenceContext,
-    InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, SignatureKind, Symbol,
-    SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, Signature, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction,
 };
 
 impl InferTypes {
@@ -537,15 +538,140 @@ impl InferTypes {
     }
 
     pub(super) fn infer_from_properties(&self, source: &Type, target: &Type) {
-        unimplemented!()
+        let properties = self.type_checker.get_properties_of_object_type(target);
+        for target_prop in &properties {
+            let source_prop =
+                self.type_checker
+                    .get_property_of_type_(source, target_prop.escaped_name(), None);
+            if let Some(source_prop) = source_prop.as_ref() {
+                self.infer_from_types(
+                    &self.type_checker.get_type_of_symbol(source_prop),
+                    &self.type_checker.get_type_of_symbol(target_prop),
+                );
+            }
+        }
     }
 
     pub(super) fn infer_from_signatures(&self, source: &Type, target: &Type, kind: SignatureKind) {
-        unimplemented!()
+        let source_signatures = self.type_checker.get_signatures_of_type(source, kind);
+        let target_signatures = self.type_checker.get_signatures_of_type(target, kind);
+        let source_len = source_signatures.len();
+        let target_len = target_signatures.len();
+        let len = if source_len < target_len {
+            source_len
+        } else {
+            target_len
+        };
+        let skip_parameters = get_object_flags(source).intersects(ObjectFlags::NonInferrableType);
+        for i in 0..len {
+            self.infer_from_signature(
+                self.type_checker
+                    .get_base_signature(source_signatures[source_len - len + i].clone()),
+                self.type_checker
+                    .get_erased_signature(target_signatures[target_len - len + i].clone()),
+                skip_parameters,
+            );
+        }
+    }
+
+    pub(super) fn infer_from_signature(
+        &self,
+        source: Rc<Signature>,
+        target: Rc<Signature>,
+        skip_parameters: bool,
+    ) {
+        if !skip_parameters {
+            let save_bivariant = self.bivariant();
+            let kind = if let Some(target_declaration) = target.declaration.as_ref() {
+                target_declaration.kind()
+            } else {
+                SyntaxKind::Unknown
+            };
+            self.set_bivariant(
+                self.bivariant()
+                    || matches!(
+                        kind,
+                        SyntaxKind::MethodDeclaration
+                            | SyntaxKind::MethodSignature
+                            | SyntaxKind::Constructor
+                    ),
+            );
+            self.type_checker
+                .apply_to_parameter_types(&source, &target, |s: &Type, t: &Type| {
+                    self.infer_from_contravariant_types(s, t)
+                });
+            self.set_bivariant(save_bivariant);
+        }
+        self.type_checker
+            .apply_to_return_types(source, target, |s: &Type, t: &Type| {
+                self.infer_from_types(s, t)
+            });
     }
 
     pub(super) fn infer_from_index_types(&self, source: &Type, target: &Type) {
-        unimplemented!()
+        let priority = if (get_object_flags(source) & get_object_flags(target))
+            .intersects(ObjectFlags::Mapped)
+        {
+            InferencePriority::HomomorphicMappedType
+        } else {
+            InferencePriority::None
+        };
+        let index_infos = self.type_checker.get_index_infos_of_type(target);
+        if self
+            .type_checker
+            .is_object_type_with_inferable_index(source)
+        {
+            for target_info in &index_infos {
+                let mut prop_types: Vec<Rc<Type>> = vec![];
+                for prop in &self.type_checker.get_properties_of_type(source) {
+                    if self.type_checker.is_applicable_index_type(
+                        &self.type_checker.get_literal_type_from_property(
+                            prop,
+                            TypeFlags::StringOrNumberLiteralOrUnique,
+                            None,
+                        ),
+                        &target_info.key_type,
+                    ) {
+                        let prop_type = self.type_checker.get_type_of_symbol(prop);
+                        prop_types.push(if prop.flags().intersects(SymbolFlags::Optional) {
+                            self.type_checker
+                                .remove_missing_or_undefined_type(&prop_type)
+                        } else {
+                            prop_type
+                        });
+                    }
+                }
+                for info in &self.type_checker.get_index_infos_of_type(source) {
+                    if self
+                        .type_checker
+                        .is_applicable_index_type(&info.key_type, &target_info.key_type)
+                    {
+                        prop_types.push(info.type_.clone());
+                    }
+                }
+                if !prop_types.is_empty() {
+                    self.infer_with_priority(
+                        &self.type_checker.get_union_type(
+                            prop_types,
+                            None,
+                            Option::<&Symbol>::None,
+                            None,
+                            Option::<&Type>::None,
+                        ),
+                        &target_info.type_,
+                        priority,
+                    );
+                }
+            }
+        }
+        for target_info in &index_infos {
+            let source_info = self
+                .type_checker
+                .get_applicable_index_info(source, &target_info.key_type);
+            if let Some(source_info) = source_info.as_ref() {
+                self.infer_with_priority(&source_info.type_, &target_info.type_, priority);
+            }
+        }
     }
 }
 
