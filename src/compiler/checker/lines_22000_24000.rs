@@ -8,9 +8,9 @@ use std::rc::Rc;
 use super::{InferTypes, TypeFacts};
 use crate::{
     concatenate, every, find, flat_map, get_object_flags, is_write_only_access, map,
-    node_is_missing, DiagnosticMessage, Diagnostics, IndexInfo, InferenceContext, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionReduction,
+    node_is_missing, DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo, InferenceContext,
+    InferenceInfo, InferencePriority, Node, NodeInterface, ObjectFlags, SignatureKind, Symbol,
+    SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl InferTypes {
@@ -316,6 +316,235 @@ impl InferTypes {
     }
 
     pub(super) fn infer_from_object_types(&self, source: &Type, target: &Type) {
+        if get_object_flags(source).intersects(ObjectFlags::Reference)
+            && get_object_flags(target).intersects(ObjectFlags::Reference)
+            && (Rc::ptr_eq(
+                &source.as_type_reference().target,
+                &target.as_type_reference().target,
+            ) || self.type_checker.is_array_type(source)
+                && self.type_checker.is_array_type(target))
+        {
+            self.infer_from_type_arguments(
+                &self.type_checker.get_type_arguments(source),
+                &self.type_checker.get_type_arguments(target),
+                &self
+                    .type_checker
+                    .get_variances(&source.as_type_reference().target),
+            );
+            return;
+        }
+        if self.type_checker.is_generic_mapped_type(source)
+            && self.type_checker.is_generic_mapped_type(target)
+        {
+            self.infer_from_types(
+                &self
+                    .type_checker
+                    .get_constraint_type_from_mapped_type(source),
+                &self
+                    .type_checker
+                    .get_constraint_type_from_mapped_type(target),
+            );
+            self.infer_from_types(
+                &self.type_checker.get_template_type_from_mapped_type(source),
+                &self.type_checker.get_template_type_from_mapped_type(target),
+            );
+            let source_name_type = self.type_checker.get_name_type_from_mapped_type(source);
+            let target_name_type = self.type_checker.get_name_type_from_mapped_type(target);
+            if let (Some(source_name_type), Some(target_name_type)) =
+                (source_name_type.as_ref(), target_name_type.as_ref())
+            {
+                self.infer_from_types(source_name_type, target_name_type);
+            }
+        }
+        if !self.type_checker.types_definitely_unrelated(source, target) {
+            if self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source) {
+                if self.type_checker.is_tuple_type(target) {
+                    let source_arity = self.type_checker.get_type_reference_arity(source);
+                    let target_arity = self.type_checker.get_type_reference_arity(target);
+                    let element_types = self.type_checker.get_type_arguments(target);
+                    let target_target_as_tuple_type =
+                        target.as_type_reference().target.as_tuple_type();
+                    let element_flags = &target_target_as_tuple_type.element_flags;
+                    if self.type_checker.is_tuple_type(source)
+                        && self
+                            .type_checker
+                            .is_tuple_type_structure_matching(source, target)
+                    {
+                        for i in 0..target_arity {
+                            self.infer_from_types(
+                                &self.type_checker.get_type_arguments(source)[i],
+                                &element_types[i],
+                            );
+                        }
+                        return;
+                    }
+                    let start_length = if self.type_checker.is_tuple_type(source) {
+                        cmp::min(
+                            source
+                                .as_type_reference()
+                                .target
+                                .as_tuple_type()
+                                .fixed_length,
+                            target_target_as_tuple_type.fixed_length,
+                        )
+                    } else {
+                        0
+                    };
+                    let end_length = cmp::min(
+                        if self.type_checker.is_tuple_type(source) {
+                            self.type_checker.get_end_element_count(
+                                &source.as_type_reference().target,
+                                ElementFlags::Fixed,
+                            )
+                        } else {
+                            0
+                        },
+                        if target_target_as_tuple_type.has_rest_element {
+                            self.type_checker.get_end_element_count(
+                                &target.as_type_reference().target,
+                                ElementFlags::Fixed,
+                            )
+                        } else {
+                            0
+                        },
+                    );
+                    for i in 0..start_length {
+                        self.infer_from_types(
+                            &self.type_checker.get_type_arguments(source)[i],
+                            &element_types[i],
+                        );
+                    }
+                    if !self.type_checker.is_tuple_type(source)
+                        || source_arity - start_length - end_length == 1
+                            && source
+                                .as_type_reference()
+                                .target
+                                .as_tuple_type()
+                                .element_flags[start_length]
+                                .intersects(ElementFlags::Rest)
+                    {
+                        let rest_type =
+                            self.type_checker.get_type_arguments(source)[start_length].clone();
+                        for i in start_length..target_arity - end_length {
+                            self.infer_from_types(
+                                &*if element_flags[i].intersects(ElementFlags::Variadic) {
+                                    self.type_checker.create_array_type(&rest_type, None)
+                                } else {
+                                    rest_type.clone()
+                                },
+                                &element_types[i],
+                            );
+                        }
+                    } else {
+                        let middle_length = target_arity - start_length - end_length;
+                        if middle_length == 2
+                            && (element_flags[start_length] & element_flags[start_length + 1])
+                                .intersects(ElementFlags::Variadic)
+                            && self.type_checker.is_tuple_type(source)
+                        {
+                            let target_info =
+                                self.get_inference_info_for_type(&element_types[start_length]);
+                            if let Some(target_info) = target_info
+                                .as_ref()
+                                .filter(|target_info| target_info.implied_arity.is_some())
+                            {
+                                self.infer_from_types(
+                                    &self.type_checker.slice_tuple_type(
+                                        source,
+                                        start_length,
+                                        Some(
+                                            end_length + source_arity
+                                                - target_info.implied_arity.unwrap(),
+                                        ),
+                                    ),
+                                    &element_types[start_length],
+                                );
+                                self.infer_from_types(
+                                    &self.type_checker.slice_tuple_type(
+                                        source,
+                                        start_length + target_info.implied_arity.unwrap(),
+                                        Some(end_length),
+                                    ),
+                                    &element_types[start_length + 1],
+                                );
+                            }
+                        } else if middle_length == 1
+                            && element_flags[start_length].intersects(ElementFlags::Variadic)
+                        {
+                            let ends_in_optional = target_target_as_tuple_type.element_flags
+                                [target_arity - 1]
+                                .intersects(ElementFlags::Optional);
+                            let source_slice = if self.type_checker.is_tuple_type(source) {
+                                self.type_checker.slice_tuple_type(
+                                    source,
+                                    start_length,
+                                    Some(end_length),
+                                )
+                            } else {
+                                self.type_checker.create_array_type(
+                                    &self.type_checker.get_type_arguments(source)[0],
+                                    None,
+                                )
+                            };
+                            self.infer_with_priority(
+                                &source_slice,
+                                &element_types[start_length],
+                                if ends_in_optional {
+                                    InferencePriority::SpeculativeTuple
+                                } else {
+                                    InferencePriority::None
+                                },
+                            );
+                        } else if middle_length == 1
+                            && element_flags[start_length].intersects(ElementFlags::Rest)
+                        {
+                            let rest_type = if self.type_checker.is_tuple_type(source) {
+                                self.type_checker.get_element_type_of_slice_of_tuple_type(
+                                    source,
+                                    start_length,
+                                    Some(end_length),
+                                    None,
+                                )
+                            } else {
+                                self.type_checker
+                                    .get_type_arguments(source)
+                                    .get(0)
+                                    .map(Clone::clone)
+                            };
+                            if let Some(rest_type) = rest_type.as_ref() {
+                                self.infer_from_types(rest_type, &element_types[start_length]);
+                            }
+                        }
+                    }
+                    for i in 0..end_length {
+                        self.infer_from_types(
+                            &self.type_checker.get_type_arguments(source)[source_arity - i - 1],
+                            &element_types[target_arity - i - 1],
+                        );
+                    }
+                    return;
+                }
+                if self.type_checker.is_array_type(target) {
+                    self.infer_from_index_types(source, target);
+                    return;
+                }
+            }
+            self.infer_from_properties(source, target);
+            self.infer_from_signatures(source, target, SignatureKind::Call);
+            self.infer_from_signatures(source, target, SignatureKind::Construct);
+            self.infer_from_index_types(source, target);
+        }
+    }
+
+    pub(super) fn infer_from_properties(&self, source: &Type, target: &Type) {
+        unimplemented!()
+    }
+
+    pub(super) fn infer_from_signatures(&self, source: &Type, target: &Type, kind: SignatureKind) {
+        unimplemented!()
+    }
+
+    pub(super) fn infer_from_index_types(&self, source: &Type, target: &Type) {
         unimplemented!()
     }
 }
