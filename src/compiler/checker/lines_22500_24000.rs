@@ -5,7 +5,8 @@ use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    __String, find_ancestor, get_node_id, get_symbol_id, is_this_in_type_query,
+    __String, are_option_rcs_equal, find_ancestor, get_node_id, get_symbol_id,
+    is_access_expression, is_assignment_expression, is_binary_expression, is_this_in_type_query,
     is_write_only_access, node_is_missing, FindAncestorCallbackReturn, Node, NodeInterface, Symbol,
     SymbolFlags, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
@@ -140,7 +141,94 @@ impl TypeChecker {
     }
 
     pub(super) fn is_matching_reference(&self, source: &Node, target: &Node) -> bool {
-        unimplemented!()
+        match target.kind() {
+            SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
+                return self
+                    .is_matching_reference(source, &target.as_has_expression().expression());
+            }
+            SyntaxKind::BinaryExpression => {
+                let target_as_binary_expression = target.as_binary_expression();
+                return is_assignment_expression(target, None)
+                    && self.is_matching_reference(source, &target_as_binary_expression.left)
+                    || is_binary_expression(target)
+                        && target_as_binary_expression.operator_token.kind()
+                            == SyntaxKind::CommaToken
+                        && self.is_matching_reference(source, &target_as_binary_expression.right);
+            }
+            _ => (),
+        }
+        match source.kind() {
+            SyntaxKind::MetaProperty => {
+                return target.kind() == SyntaxKind::MetaProperty && {
+                    let source_as_meta_property = source.as_meta_property();
+                    let target_as_meta_property = target.as_meta_property();
+                    source_as_meta_property.keyword_token == target_as_meta_property.keyword_token
+                        && source_as_meta_property.name.as_identifier().escaped_text
+                            == target_as_meta_property.name.as_identifier().escaped_text
+                };
+            }
+            SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => {
+                return if is_this_in_type_query(source) {
+                    target.kind() == SyntaxKind::ThisKeyword
+                } else {
+                    target.kind() == SyntaxKind::Identifier
+                        && Rc::ptr_eq(
+                            &self.get_resolved_symbol(source),
+                            &self.get_resolved_symbol(target),
+                        )
+                        || matches!(
+                            target.kind(),
+                            SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
+                        ) && are_option_rcs_equal(
+                            self.get_export_symbol_of_value_symbol_if_exported(Some(
+                                self.get_resolved_symbol(source),
+                            ))
+                            .as_ref(),
+                            self.get_symbol_of_node(target).as_ref(),
+                        )
+                };
+            }
+            SyntaxKind::ThisKeyword => {
+                return target.kind() == SyntaxKind::ThisKeyword;
+            }
+            SyntaxKind::SuperKeyword => {
+                return target.kind() == SyntaxKind::SuperKeyword;
+            }
+            SyntaxKind::NonNullExpression | SyntaxKind::ParenthesizedExpression => {
+                return self
+                    .is_matching_reference(&source.as_has_expression().expression(), target);
+            }
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                return is_access_expression(target)
+                    && self.get_accessed_property_name(source)
+                        == self.get_accessed_property_name(target)
+                    && self.is_matching_reference(
+                        &source.as_has_expression().expression(),
+                        &target.as_has_expression().expression(),
+                    );
+            }
+            SyntaxKind::QualifiedName => {
+                let source_as_qualified_name = source.as_qualified_name();
+                return is_access_expression(target)
+                    && matches!(
+                        self.get_accessed_property_name(target).as_ref(),
+                        Some(accessed_property_name) if &source_as_qualified_name.right.as_identifier().escaped_text == accessed_property_name
+                    )
+                    && self.is_matching_reference(
+                        &source_as_qualified_name.left,
+                        &target.as_has_expression().expression(),
+                    );
+            }
+            SyntaxKind::BinaryExpression => {
+                return is_binary_expression(source) && {
+                    let source_as_binary_expression = source.as_binary_expression();
+                    source_as_binary_expression.operator_token.kind() == SyntaxKind::CommaToken
+                        && self.is_matching_reference(&source_as_binary_expression.right, target)
+                };
+            }
+            _ => (),
+        }
+        false
     }
 
     pub(super) fn get_accessed_property_name(
