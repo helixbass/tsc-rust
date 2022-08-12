@@ -3,7 +3,9 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
-use crate::{CompilerOptions, Node, NodeInterface, PseudoBigInt, ReadonlyTextRange, SyntaxKind};
+use crate::{
+    CompilerOptions, Node, NodeInterface, PseudoBigInt, ReadonlyTextRange, Symbol, SyntaxKind,
+};
 
 pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
     source_file: &Node, /*SourceFile*/
@@ -83,6 +85,10 @@ pub fn set_parent_recursive<TNode: Borrow<Node>>(root_node: Option<TNode>, incre
 }
 
 pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/) -> bool {
+    unimplemented!()
+}
+
+pub fn is_parameter_or_catch_clause_variable(symbol: &Symbol) -> bool {
     unimplemented!()
 }
 

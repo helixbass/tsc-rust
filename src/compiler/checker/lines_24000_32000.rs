@@ -29,6 +29,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_symbol_assigned(&self, symbol: &Symbol) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_const_variable(&self, symbol: &Symbol) -> bool {
         unimplemented!()
     }

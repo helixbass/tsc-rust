@@ -3082,6 +3082,10 @@ impl TypeChecker {
         self.flow_node_reachable.borrow_mut()
     }
 
+    pub(super) fn flow_node_post_super(&self) -> RefMut<HashMap<usize, bool>> {
+        self.flow_node_post_super.borrow_mut()
+    }
+
     pub(super) fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
         self.diagnostics.borrow_mut()
     }

@@ -486,6 +486,10 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Rc<Type> {
+        self.filter_type(type_, |t: &Type| t.flags().intersects(kind))
+    }
+
     pub(super) fn replace_primitives_with_literals(
         &self,
         type_with_primitives: &Type,
