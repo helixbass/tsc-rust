@@ -16,7 +16,7 @@ use crate::{
     is_variable_declaration, is_write_only_access, node_is_missing, FindAncestorCallbackReturn,
     FlowNode, HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
-    TypeInterface, UnionReduction,
+    TypeInterface,
 };
 
 impl TypeChecker {

@@ -1,23 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{get_next_flow_id, increment_next_flow_id, IterationUse, TypeFacts};
-use crate::{
-    count_where, find, for_each, reduce_left, CheckFlags, FlowNodeBase, TransientSymbolInterface,
-    UnionOrIntersectionTypeInterface, __String, are_option_rcs_equal, escape_leading_underscores,
-    find_ancestor, get_check_flags, get_node_id, get_object_flags, get_symbol_id,
-    is_access_expression, is_assignment_expression, is_binary_expression, is_binding_element,
-    is_identifier, is_optional_chain, is_string_or_numeric_literal_like, is_this_in_type_query,
-    is_variable_declaration, is_write_only_access, node_is_missing, FindAncestorCallbackReturn,
-    FlowNode, HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
-    TypeInterface, UnionReduction,
-};
+use crate::{Node, Symbol, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction};
 
 impl TypeChecker {
     pub(super) fn get_type_of_initializer(&self, node: &Node /*Expression*/) -> Rc<Type> {
