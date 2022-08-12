@@ -70,6 +70,17 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_explicit_this_type(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_super_expression(&self, node: &Node) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_contextual_this_parameter_type(
         &self,
         func: &Node, /*SignatureDeclaration*/
@@ -526,11 +537,22 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_non_null_expression(
+        &self,
+        node: &Node, /*Expression | QualifiedName*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn is_nullable_type(&self, type_: &Type) -> bool {
         unimplemented!()
     }
 
     pub(super) fn get_non_nullable_type_if_needed(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_non_null_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
         unimplemented!()
     }
 

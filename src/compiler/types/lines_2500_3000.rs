@@ -424,7 +424,7 @@ impl Block {
 }
 
 impl HasStatementsInterface for Block {
-    fn statements(&self) -> &[Rc<Node>] {
+    fn statements(&self) -> &NodeArray {
         &self.statements
     }
 }
@@ -1486,7 +1486,7 @@ impl ModuleBlock {
 }
 
 impl HasStatementsInterface for ModuleBlock {
-    fn statements(&self) -> &[Rc<Node>] {
+    fn statements(&self) -> &NodeArray {
         &self.statements
     }
 }

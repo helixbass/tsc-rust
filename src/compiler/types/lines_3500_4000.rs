@@ -105,7 +105,7 @@ pub struct RedirectInfo {
 }
 
 pub trait HasStatementsInterface {
-    fn statements(&self) -> &[Rc<Node>];
+    fn statements(&self) -> &NodeArray;
 }
 
 #[derive(Debug)]
@@ -600,7 +600,7 @@ impl SourceFileLike for SourceFile {
 impl PragmaContext for SourceFile {}
 
 impl HasStatementsInterface for SourceFile {
-    fn statements(&self) -> &[Rc<Node>] {
+    fn statements(&self) -> &NodeArray {
         &self.statements
     }
 }

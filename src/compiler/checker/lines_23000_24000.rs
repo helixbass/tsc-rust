@@ -1,21 +1,26 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
 use super::IterationUse;
 use crate::{
-    add_related_info, contains_rc, create_diagnostic_for_node, every, filter, for_each,
-    for_each_bool, get_check_flags, get_effective_return_type_node,
-    get_effective_type_annotation_node, get_object_flags, has_initializer, is_assignment_target,
-    is_function_expression_or_arrow_function, is_identifier, is_in_js_file, is_parameter,
+    add_related_info, contains_rc, create_diagnostic_for_node, create_file_diagnostic, every,
+    filter, find_ancestor, for_each, for_each_bool, get_check_flags,
+    get_effective_return_type_node, get_effective_type_annotation_node, get_object_flags,
+    get_source_file_of_node, get_span_of_token_at_position, get_symbol_name_for_private_identifier,
+    has_initializer, is_access_expression, is_assignment_target,
+    is_function_expression_or_arrow_function, is_function_or_module_block, is_identifier,
+    is_in_js_file, is_optional_chain, is_parameter, is_private_identifier,
     is_property_access_expression, is_property_declaration, is_property_signature,
-    is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration, map, some,
-    CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType, FlowType, HasInitializerInterface,
-    IncompleteType, NamedDeclarationInterface, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration, map,
+    skip_parentheses, some, CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType, FlowType,
+    HasInitializerInterface, IncompleteType, NamedDeclarationInterface, Node, NodeFlags,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ReadonlyTextRange, Signature,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate, TypePredicateKind,
     UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
@@ -817,7 +822,201 @@ impl TypeChecker {
         node: &Node, /*Expression*/
         diagnostic: Option<&Diagnostic>,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if !node.flags().intersects(NodeFlags::InWithStatement) {
+            match node.kind() {
+                SyntaxKind::Identifier => {
+                    let symbol = self
+                        .get_export_symbol_of_value_symbol_if_exported(Some(
+                            self.get_resolved_symbol(node),
+                        ))
+                        .unwrap();
+                    return self.get_explicit_type_of_symbol(
+                        &*if symbol.flags().intersects(SymbolFlags::Alias) {
+                            self.resolve_alias(&symbol)
+                        } else {
+                            symbol
+                        },
+                        diagnostic,
+                    );
+                }
+                SyntaxKind::ThisKeyword => {
+                    return self.get_explicit_this_type(node);
+                }
+                SyntaxKind::SuperKeyword => {
+                    return Some(self.check_super_expression(node));
+                }
+                SyntaxKind::PropertyAccessExpression => {
+                    let node_as_property_access_expression = node.as_property_access_expression();
+                    let type_ = self.get_type_of_dotted_name(
+                        &node_as_property_access_expression.expression,
+                        diagnostic,
+                    );
+                    if let Some(type_) = type_.as_ref() {
+                        let name = &node_as_property_access_expression.name;
+                        let prop: Option<Rc<Symbol>>;
+                        if is_private_identifier(name) {
+                            if type_.maybe_symbol().is_none() {
+                                return None;
+                            }
+                            prop = self.get_property_of_type_(
+                                type_,
+                                &get_symbol_name_for_private_identifier(
+                                    &type_.symbol(),
+                                    &name.as_private_identifier().escaped_text,
+                                ),
+                                None,
+                            );
+                        } else {
+                            prop = self.get_property_of_type_(
+                                type_,
+                                &name.as_identifier().escaped_text,
+                                None,
+                            );
+                        }
+                        return prop
+                            .as_ref()
+                            .and_then(|prop| self.get_explicit_type_of_symbol(prop, diagnostic));
+                    }
+                    return None;
+                }
+                SyntaxKind::ParenthesizedExpression => {
+                    return self.get_type_of_dotted_name(
+                        &node.as_parenthesized_expression().expression,
+                        diagnostic,
+                    );
+                }
+                _ => (),
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_effects_signature(
+        &self,
+        node: &Node, /*CallExpression*/
+    ) -> Option<Rc<Signature>> {
+        let links = self.get_node_links(node);
+        let mut signature = (*links).borrow().effects_signature.clone();
+        if signature.is_none() {
+            let mut func_type: Option<Rc<Type>> = None;
+            let node_as_call_expression = node.as_call_expression();
+            if node.parent().kind() == SyntaxKind::ExpressionStatement {
+                func_type = self.get_type_of_dotted_name(&node_as_call_expression.expression, None);
+            } else if node_as_call_expression.expression.kind() != SyntaxKind::SuperKeyword {
+                if is_optional_chain(node) {
+                    func_type = Some(self.check_non_null_type(
+                        &self.get_optional_expression_type(
+                            &self.check_expression(&node_as_call_expression.expression, None, None),
+                            &node_as_call_expression.expression,
+                        ),
+                        &node_as_call_expression.expression,
+                    ));
+                } else {
+                    func_type =
+                        Some(self.check_non_null_expression(&node_as_call_expression.expression));
+                }
+            }
+            let signatures = self.get_signatures_of_type(
+                &func_type
+                    .as_ref()
+                    .map(|func_type| self.get_apparent_type(func_type))
+                    .unwrap_or_else(|| self.unknown_type()),
+                SignatureKind::Call,
+            );
+            let candidate = if signatures.len() == 1 && signatures[0].type_parameters.is_none() {
+                Some(signatures[0].clone())
+            } else if some(
+                Some(&signatures),
+                Some(|signature: &Rc<Signature>| {
+                    self.has_type_predicate_or_never_return_type(signature)
+                }),
+            ) {
+                Some(self.get_resolved_signature_(node, None, None))
+            } else {
+                None
+            };
+            signature = Some(
+                if let Some(candidate) = candidate
+                    .filter(|candidate| self.has_type_predicate_or_never_return_type(candidate))
+                {
+                    candidate
+                } else {
+                    self.unknown_signature()
+                },
+            );
+            links.borrow_mut().effects_signature = signature.clone();
+        }
+        let signature = signature.unwrap();
+        if Rc::ptr_eq(&signature, &self.unknown_signature()) {
+            None
+        } else {
+            Some(signature)
+        }
+    }
+
+    pub(super) fn has_type_predicate_or_never_return_type(&self, signature: &Signature) -> bool {
+        self.get_type_predicate_of_signature(signature).is_some()
+            || matches!(
+                signature.declaration.as_ref(),
+                Some(signature_declaration) if self.get_return_type_from_annotation(
+                    signature_declaration
+                ).unwrap_or_else(|| self.unknown_type()).flags().intersects(TypeFlags::Never)
+            )
+    }
+
+    pub(super) fn get_type_predicate_argument(
+        &self,
+        predicate: &TypePredicate,
+        call_expression: &Node, /*CallExpression*/
+    ) -> Option<Rc<Node>> {
+        let call_expression_as_call_expression = call_expression.as_call_expression();
+        if matches!(
+            predicate.kind,
+            TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
+        ) {
+            return Some(
+                call_expression_as_call_expression.arguments[predicate.parameter_index.unwrap()]
+                    .clone(),
+            );
+        }
+        let invoked_expression =
+            skip_parentheses(&call_expression_as_call_expression.expression, None);
+        if is_access_expression(&invoked_expression) {
+            Some(skip_parentheses(
+                &invoked_expression.as_has_expression().expression(),
+                None,
+            ))
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn report_flow_control_error(&self, node: &Node) {
+        let block = find_ancestor(Some(node), |ancestor: &Node| {
+            is_function_or_module_block(ancestor)
+        })
+        .unwrap();
+        let source_file = get_source_file_of_node(Some(node)).unwrap();
+        let span = get_span_of_token_at_position(
+            &source_file,
+            block
+                .as_has_statements()
+                .statements()
+                .pos()
+                .try_into()
+                .unwrap(),
+        );
+        self.diagnostics().add(
+            Rc::new(
+                create_file_diagnostic(
+                    &source_file,
+                    span.start,
+                    span.length,
+                    &Diagnostics::The_containing_function_or_module_body_is_too_large_for_control_flow_analysis,
+                    None,
+                ).into()
+            )
+        );
     }
 
     pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Rc<Type> {
