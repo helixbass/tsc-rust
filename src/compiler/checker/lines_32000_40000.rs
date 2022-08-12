@@ -279,6 +279,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_type_of_expression(&self, node: &Node /*Expression*/) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_quick_type_of_expression(
         &self,
         node: &Node, /*Expression*/

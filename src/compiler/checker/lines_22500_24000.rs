@@ -2,19 +2,21 @@
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::convert::TryInto;
+use std::ptr;
 use std::rc::Rc;
 
-use super::TypeFacts;
+use super::{get_next_flow_id, increment_next_flow_id, IterationUse, TypeFacts};
 use crate::{
-    count_where, find, for_each, CheckFlags, TransientSymbolInterface,
+    count_where, find, for_each, reduce_left, CheckFlags, FlowNodeBase, TransientSymbolInterface,
     UnionOrIntersectionTypeInterface, __String, are_option_rcs_equal, escape_leading_underscores,
     find_ancestor, get_check_flags, get_node_id, get_object_flags, get_symbol_id,
     is_access_expression, is_assignment_expression, is_binary_expression, is_binding_element,
     is_identifier, is_optional_chain, is_string_or_numeric_literal_like, is_this_in_type_query,
     is_variable_declaration, is_write_only_access, node_is_missing, FindAncestorCallbackReturn,
-    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, ObjectFlags, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    UnionReduction,
+    FlowNode, HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
+    TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -559,25 +561,472 @@ impl TypeChecker {
             .and_then(|prop_type| self.get_constituent_type_for_key_type(union_type, prop_type))
     }
 
+    pub(super) fn is_or_contains_matching_reference(&self, source: &Node, target: &Node) -> bool {
+        self.is_matching_reference(source, target)
+            || self.contains_matching_reference(source, target)
+    }
+
     pub(super) fn has_matching_argument(
         &self,
         expression: &Node, /*CallExpression | NewExpression*/
         reference: &Node,
     ) -> bool {
-        unimplemented!()
+        if let Some(expression_arguments) = expression.as_has_arguments().maybe_arguments() {
+            for argument in expression_arguments {
+                if self.is_or_contains_matching_reference(reference, argument) {
+                    return true;
+                }
+            }
+        }
+        if {
+            let expression_expression = expression.as_has_expression().expression();
+            expression_expression.kind() == SyntaxKind::PropertyAccessExpression
+                && self.is_or_contains_matching_reference(
+                    reference,
+                    &expression_expression.as_has_expression().expression(),
+                )
+        } {
+            return true;
+        }
+        false
+    }
+
+    pub(super) fn get_flow_node_id(&self, flow: &FlowNode) -> usize {
+        if match flow.maybe_id() {
+            None => true,
+            Some(flow_id) => flow_id < 0,
+        } {
+            flow.set_id(Some(get_next_flow_id().try_into().unwrap()));
+            increment_next_flow_id();
+        }
+        return flow.maybe_id().unwrap().try_into().unwrap();
+    }
+
+    pub(super) fn type_maybe_assignable_to(&self, source: &Type, target: &Type) -> bool {
+        if !source.flags().intersects(TypeFlags::Union) {
+            return self.is_type_assignable_to(source, target);
+        }
+        for t in source.as_union_or_intersection_type_interface().types() {
+            if self.is_type_assignable_to(t, target) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn get_assignment_reduced_type(
+        &self,
+        declared_type: &Type, /*UnionType*/
+        assigned_type: &Type,
+    ) -> Rc<Type> {
+        if !ptr::eq(declared_type, assigned_type) {
+            if assigned_type.flags().intersects(TypeFlags::Never) {
+                return assigned_type.type_wrapper();
+            }
+            let mut reduced_type = self.filter_type(declared_type, |t: &Type| {
+                self.type_maybe_assignable_to(assigned_type, t)
+            });
+            if assigned_type.flags().intersects(TypeFlags::BooleanLiteral)
+                && self.is_fresh_literal_type(assigned_type)
+            {
+                reduced_type = self
+                    .map_type(
+                        &reduced_type,
+                        &mut |type_: &Type| Some(self.get_fresh_type_of_literal_type(type_)),
+                        None,
+                    )
+                    .unwrap();
+            }
+            if self.is_type_assignable_to(assigned_type, &reduced_type) {
+                return reduced_type;
+            }
+        }
+        declared_type.type_wrapper()
     }
 
     pub(super) fn is_function_object_type(&self, type_: &Type /*ObjectType*/) -> bool {
-        unimplemented!()
+        let resolved = self.resolve_structured_type_members(type_);
+        let resolved_as_resolved_type = resolved.as_resolved_type();
+        let ret = !resolved_as_resolved_type.call_signatures().is_empty()
+            || !resolved_as_resolved_type.construct_signatures().is_empty()
+            || (*resolved_as_resolved_type.members())
+                .borrow()
+                .contains_key(&__String::new("bind".to_owned()))
+                && self.is_type_subtype_of(type_, &self.global_function_type());
+        ret
     }
 
     pub(super) fn get_type_facts(&self, type_: &Type, ignore_objects: Option<bool>) -> TypeFacts {
-        let ignore_objects = ignore_objects.unwrap_or(false);
-        unimplemented!()
+        let mut ignore_objects = ignore_objects.unwrap_or(false);
+        let flags = type_.flags();
+        if flags.intersects(TypeFlags::String) {
+            return if self.strict_null_checks {
+                TypeFacts::StringStrictFacts
+            } else {
+                TypeFacts::StringFacts
+            };
+        }
+        if flags.intersects(TypeFlags::StringLiteral) {
+            let is_empty = type_.as_string_literal_type().value == "";
+            return if self.strict_null_checks {
+                if is_empty {
+                    TypeFacts::EmptyStringStrictFacts
+                } else {
+                    TypeFacts::NonEmptyStringStrictFacts
+                }
+            } else {
+                if is_empty {
+                    TypeFacts::EmptyStringFacts
+                } else {
+                    TypeFacts::NonEmptyStringFacts
+                }
+            };
+        }
+        if flags.intersects(TypeFlags::Number | TypeFlags::Enum) {
+            return if self.strict_null_checks {
+                TypeFacts::NumberStrictFacts
+            } else {
+                TypeFacts::NumberFacts
+            };
+        }
+        if flags.intersects(TypeFlags::NumberLiteral) {
+            let is_zero = type_.as_number_literal_type().value == Number::new(0.0);
+            return if self.strict_null_checks {
+                if is_zero {
+                    TypeFacts::ZeroNumberStrictFacts
+                } else {
+                    TypeFacts::NonZeroNumberStrictFacts
+                }
+            } else {
+                if is_zero {
+                    TypeFacts::ZeroNumberFacts
+                } else {
+                    TypeFacts::NonZeroNumberFacts
+                }
+            };
+        }
+        if flags.intersects(TypeFlags::BigInt) {
+            return if self.strict_null_checks {
+                TypeFacts::BigIntStrictFacts
+            } else {
+                TypeFacts::BigIntFacts
+            };
+        }
+        if flags.intersects(TypeFlags::BigIntLiteral) {
+            let is_zero = self.is_zero_big_int(type_);
+            return if self.strict_null_checks {
+                if is_zero {
+                    TypeFacts::ZeroBigIntStrictFacts
+                } else {
+                    TypeFacts::NonZeroBigIntStrictFacts
+                }
+            } else {
+                if is_zero {
+                    TypeFacts::ZeroBigIntFacts
+                } else {
+                    TypeFacts::NonZeroBigIntFacts
+                }
+            };
+        }
+        if flags.intersects(TypeFlags::Boolean) {
+            return if self.strict_null_checks {
+                TypeFacts::BooleanStrictFacts
+            } else {
+                TypeFacts::BooleanFacts
+            };
+        }
+        if flags.intersects(TypeFlags::BooleanLike) {
+            return if self.strict_null_checks {
+                if ptr::eq(type_, &*self.false_type())
+                    || ptr::eq(type_, &*self.regular_false_type())
+                {
+                    TypeFacts::FalseStrictFacts
+                } else {
+                    TypeFacts::TrueStrictFacts
+                }
+            } else {
+                if ptr::eq(type_, &*self.false_type())
+                    || ptr::eq(type_, &*self.regular_false_type())
+                {
+                    TypeFacts::FalseFacts
+                } else {
+                    TypeFacts::TrueFacts
+                }
+            };
+        }
+        if flags.intersects(TypeFlags::Object) && !ignore_objects {
+            return if get_object_flags(type_).intersects(ObjectFlags::Anonymous)
+                && self.is_empty_object_type(type_)
+            {
+                if self.strict_null_checks {
+                    TypeFacts::EmptyObjectStrictFacts
+                } else {
+                    TypeFacts::EmptyObjectFacts
+                }
+            } else if self.is_function_object_type(type_) {
+                if self.strict_null_checks {
+                    TypeFacts::FunctionStrictFacts
+                } else {
+                    TypeFacts::FunctionFacts
+                }
+            } else {
+                if self.strict_null_checks {
+                    TypeFacts::ObjectStrictFacts
+                } else {
+                    TypeFacts::ObjectFacts
+                }
+            };
+        }
+        if flags.intersects(TypeFlags::Void | TypeFlags::Undefined) {
+            return TypeFacts::UndefinedFacts;
+        }
+        if flags.intersects(TypeFlags::Null) {
+            return TypeFacts::NullFacts;
+        }
+        if flags.intersects(TypeFlags::ESSymbolLike) {
+            return if self.strict_null_checks {
+                TypeFacts::SymbolStrictFacts
+            } else {
+                TypeFacts::SymbolFacts
+            };
+        }
+        if flags.intersects(TypeFlags::NonPrimitive) {
+            return if self.strict_null_checks {
+                TypeFacts::ObjectStrictFacts
+            } else {
+                TypeFacts::ObjectFacts
+            };
+        }
+        if flags.intersects(TypeFlags::Never) {
+            return TypeFacts::None;
+        }
+        if flags.intersects(TypeFlags::Instantiable) {
+            return if !self.is_pattern_literal_type(type_) {
+                self.get_type_facts(
+                    &self
+                        .get_base_constraint_of_type(type_)
+                        .unwrap_or_else(|| self.unknown_type()),
+                    Some(ignore_objects),
+                )
+            } else if self.strict_null_checks {
+                TypeFacts::NonEmptyStringStrictFacts
+            } else {
+                TypeFacts::NonEmptyStringFacts
+            };
+        }
+        if flags.intersects(TypeFlags::Union) {
+            return reduce_left(
+                type_.as_union_or_intersection_type_interface().types(),
+                |facts, t: &Rc<Type>, _| facts | self.get_type_facts(t, Some(ignore_objects)),
+                TypeFacts::None,
+                None,
+                None,
+            );
+        }
+        if flags.intersects(TypeFlags::Intersection) {
+            ignore_objects = ignore_objects || self.maybe_type_of_kind(type_, TypeFlags::Primitive);
+            return reduce_left(
+                type_.as_union_or_intersection_type_interface().types(),
+                |facts, t: &Rc<Type>, _| facts & self.get_type_facts(t, Some(ignore_objects)),
+                TypeFacts::All,
+                None,
+                None,
+            );
+        }
+        TypeFacts::All
     }
 
     pub(super) fn get_type_with_facts(&self, type_: &Type, include: TypeFacts) -> Rc<Type> {
-        unimplemented!()
+        self.filter_type(type_, |t: &Type| {
+            self.get_type_facts(t, None) & include != TypeFacts::None
+        })
+    }
+
+    pub(super) fn get_type_with_default(
+        &self,
+        type_: &Type,
+        default_expression: &Node, /*Expression*/
+    ) -> Rc<Type> {
+        /*defaultExpression ? */
+        self.get_union_type(
+            vec![
+                self.get_non_undefined_type(type_),
+                self.get_type_of_expression(default_expression),
+            ],
+            None,
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        )
+        /*: type*/
+    }
+
+    pub(super) fn get_type_of_destructured_property(
+        &self,
+        type_: &Type,
+        name: &Node, /*PropertyName*/
+    ) -> Rc<Type> {
+        let name_type = self.get_literal_type_from_property_name(name);
+        if !self.is_type_usable_as_property_name(&name_type) {
+            return self.error_type();
+        }
+        let text = self.get_property_name_from_type(&name_type);
+        self.get_type_of_property_of_type_(type_, &text)
+            .or_else(|| {
+                self.include_undefined_in_index_signature(
+                    self.get_applicable_index_info_for_name(type_, &text)
+                        .map(|applicable_index_info| applicable_index_info.type_.clone()),
+                )
+            })
+            .unwrap_or_else(|| self.error_type())
+    }
+
+    pub(super) fn get_type_of_destructured_array_element(
+        &self,
+        type_: &Type,
+        index: usize,
+    ) -> Rc<Type> {
+        if self.every_type(type_, |type_: &Type| self.is_tuple_like_type(type_)) {
+            self.get_tuple_element_type(type_, index)
+        } else {
+            None
+        }
+        .or_else(|| {
+            self.include_undefined_in_index_signature(Some(
+                self.check_iterated_type_or_element_type(
+                    IterationUse::Destructuring,
+                    type_,
+                    &self.undefined_type(),
+                    Option::<&Node>::None,
+                ),
+            ))
+        })
+        .unwrap_or_else(|| self.error_type())
+    }
+
+    pub(super) fn include_undefined_in_index_signature<TType: Borrow<Type>>(
+        &self,
+        type_: Option<TType>,
+    ) -> Option<Rc<Type>> {
+        let type_ = type_?;
+        let type_ = type_.borrow();
+        Some(
+            if self.compiler_options.no_unchecked_indexed_access == Some(true) {
+                self.get_union_type(
+                    vec![type_.type_wrapper(), self.undefined_type()],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                )
+            } else {
+                type_.type_wrapper()
+            },
+        )
+    }
+
+    pub(super) fn get_type_of_destructured_spread_expression(&self, type_: &Type) -> Rc<Type> {
+        self.create_array_type(
+            &self.check_iterated_type_or_element_type(
+                IterationUse::Destructuring,
+                type_,
+                &self.undefined_type(),
+                Option::<&Node>::None,
+            ), /* || errorType */
+            None,
+        )
+    }
+
+    pub(super) fn get_assigned_type_of_binary_expression(
+        &self,
+        node: &Node, /*BinaryExpression*/
+    ) -> Rc<Type> {
+        let is_destructuring_default_assignment = node.parent().kind()
+            == SyntaxKind::ArrayLiteralExpression
+            && self.is_destructuring_assignment_target(&node.parent())
+            || node.parent().kind() == SyntaxKind::PropertyAssignment
+                && self.is_destructuring_assignment_target(&node.parent().parent());
+        if is_destructuring_default_assignment {
+            self.get_type_with_default(
+                &self.get_assigned_type(node),
+                &node.as_binary_expression().right,
+            )
+        } else {
+            self.get_type_of_expression(&node.as_binary_expression().right)
+        }
+    }
+
+    pub(super) fn is_destructuring_assignment_target(&self, parent: &Node) -> bool {
+        parent.parent().kind() == SyntaxKind::BinaryExpression
+            && ptr::eq(&*parent.parent().as_binary_expression().left, parent)
+            || parent.parent().kind() == SyntaxKind::ForOfStatement
+                && ptr::eq(&*parent.parent().as_for_of_statement().initializer, parent)
+    }
+
+    pub(super) fn get_assigned_type_of_array_literal_element(
+        &self,
+        node: &Node,    /*ArrayLiteralExpression*/
+        element: &Node, /*Expression*/
+    ) -> Rc<Type> {
+        self.get_type_of_destructured_array_element(
+            &self.get_assigned_type(node),
+            node.as_array_literal_expression()
+                .elements
+                .iter()
+                .position(|el| ptr::eq(&**el, element))
+                .unwrap(),
+        )
+    }
+
+    pub(super) fn get_assigned_type_of_spread_expression(
+        &self,
+        node: &Node, /*SpreadElement*/
+    ) -> Rc<Type> {
+        self.get_type_of_destructured_spread_expression(&self.get_assigned_type(&node.parent()))
+    }
+
+    pub(super) fn get_assigned_type_of_property_assignment(
+        &self,
+        node: &Node, /*PropertyAssignment | ShorthandPropertyAssignment*/
+    ) -> Rc<Type> {
+        self.get_type_of_destructured_property(
+            &self.get_assigned_type(&node.parent()),
+            &node.as_named_declaration().name(),
+        )
+    }
+
+    pub(super) fn get_assigned_type_of_shorthand_property_assignment(
+        &self,
+        node: &Node, /*ShorthandPropertyAssignment*/
+    ) -> Rc<Type> {
+        self.get_type_with_default(
+            &self.get_assigned_type_of_property_assignment(node),
+            node.as_shorthand_property_assignment()
+                .object_assignment_initializer
+                .as_ref()
+                .unwrap(),
+        )
+    }
+
+    pub(super) fn get_assigned_type(&self, node: &Node /*Expression*/) -> Rc<Type> {
+        let parent = node.parent();
+        match parent.kind() {
+            SyntaxKind::ForInStatement => self.string_type(),
+            SyntaxKind::ForOfStatement => self.check_right_hand_side_of_for_of(&parent), /*|| errorType*/
+            SyntaxKind::BinaryExpression => self.get_assigned_type_of_binary_expression(&parent),
+            SyntaxKind::DeleteExpression => self.undefined_type(),
+            SyntaxKind::ArrayLiteralExpression => {
+                self.get_assigned_type_of_array_literal_element(&parent, node)
+            }
+            SyntaxKind::SpreadElement => self.get_assigned_type_of_spread_expression(&parent),
+            SyntaxKind::PropertyAssignment => {
+                self.get_assigned_type_of_property_assignment(&parent)
+            }
+            SyntaxKind::ShorthandPropertyAssignment => {
+                self.get_assigned_type_of_shorthand_property_assignment(&parent)
+            }
+            _ => self.error_type(),
+        }
     }
 
     pub(super) fn get_type_of_initializer(&self, node: &Node /*Expression*/) -> Rc<Type> {

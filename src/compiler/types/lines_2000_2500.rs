@@ -506,6 +506,10 @@ impl HasQuestionDotTokenInterface for ElementAccessExpression {
     }
 }
 
+pub trait HasArgumentsInterface {
+    fn maybe_arguments(&self) -> Option<&NodeArray>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct CallExpression {
@@ -543,6 +547,12 @@ impl HasExpressionInterface for CallExpression {
 impl HasQuestionDotTokenInterface for CallExpression {
     fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
         self.question_dot_token.clone()
+    }
+}
+
+impl HasArgumentsInterface for CallExpression {
+    fn maybe_arguments(&self) -> Option<&NodeArray> {
+        Some(&self.arguments)
     }
 }
 
@@ -602,6 +612,12 @@ impl NewExpression {
 impl HasExpressionInterface for NewExpression {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl HasArgumentsInterface for NewExpression {
+    fn maybe_arguments(&self) -> Option<&NodeArray> {
+        self.arguments.as_ref()
     }
 }
 

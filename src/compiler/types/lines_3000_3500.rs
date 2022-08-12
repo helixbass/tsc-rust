@@ -1176,7 +1176,8 @@ impl FlowNode {
 pub trait FlowNodeBase {
     fn flags(&self) -> FlowFlags;
     fn set_flags(&self, flags: FlowFlags);
-    fn id(&self) -> Option<usize>;
+    fn maybe_id(&self) -> Option<isize>;
+    fn set_id(&self, id: Option<isize>);
 }
 
 impl FlowNodeBase for FlowNode {
@@ -1206,16 +1207,29 @@ impl FlowNodeBase for FlowNode {
         }
     }
 
-    fn id(&self) -> Option<usize> {
+    fn maybe_id(&self) -> Option<isize> {
         match self {
-            Self::FlowStart(flow_node) => flow_node.id(),
-            Self::FlowLabel(flow_node) => flow_node.id(),
-            Self::FlowAssignment(flow_node) => flow_node.id(),
-            Self::FlowCall(flow_node) => flow_node.id(),
-            Self::FlowCondition(flow_node) => flow_node.id(),
-            Self::FlowSwitchClause(flow_node) => flow_node.id(),
-            Self::FlowArrayMutation(flow_node) => flow_node.id(),
-            Self::FlowReduceLabel(flow_node) => flow_node.id(),
+            Self::FlowStart(flow_node) => flow_node.maybe_id(),
+            Self::FlowLabel(flow_node) => flow_node.maybe_id(),
+            Self::FlowAssignment(flow_node) => flow_node.maybe_id(),
+            Self::FlowCall(flow_node) => flow_node.maybe_id(),
+            Self::FlowCondition(flow_node) => flow_node.maybe_id(),
+            Self::FlowSwitchClause(flow_node) => flow_node.maybe_id(),
+            Self::FlowArrayMutation(flow_node) => flow_node.maybe_id(),
+            Self::FlowReduceLabel(flow_node) => flow_node.maybe_id(),
+        }
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        match self {
+            Self::FlowStart(flow_node) => flow_node.set_id(id),
+            Self::FlowLabel(flow_node) => flow_node.set_id(id),
+            Self::FlowAssignment(flow_node) => flow_node.set_id(id),
+            Self::FlowCall(flow_node) => flow_node.set_id(id),
+            Self::FlowCondition(flow_node) => flow_node.set_id(id),
+            Self::FlowSwitchClause(flow_node) => flow_node.set_id(id),
+            Self::FlowArrayMutation(flow_node) => flow_node.set_id(id),
+            Self::FlowReduceLabel(flow_node) => flow_node.set_id(id),
         }
     }
 }
@@ -1223,7 +1237,7 @@ impl FlowNodeBase for FlowNode {
 #[derive(Debug)]
 pub struct FlowStart {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     node: RefCell<
         Option<
             Rc<
@@ -1237,7 +1251,7 @@ impl FlowStart {
     pub fn new(flags: FlowFlags, node: Option<Rc<Node>>) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             node: RefCell::new(node),
         }
     }
@@ -1262,8 +1276,12 @@ impl FlowNodeBase for FlowStart {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 
@@ -1276,7 +1294,7 @@ impl From<FlowStart> for FlowNode {
 #[derive(Debug)]
 pub struct FlowLabel {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     antecedents: RefCell<Option<Vec<Rc<FlowNode>>>>,
 }
 
@@ -1284,7 +1302,7 @@ impl FlowLabel {
     pub fn new(flags: FlowFlags, antecedents: Option<Vec<Rc<FlowNode>>>) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             antecedents: RefCell::new(antecedents),
         }
     }
@@ -1307,8 +1325,12 @@ impl FlowNodeBase for FlowLabel {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 
@@ -1321,7 +1343,7 @@ impl From<FlowLabel> for FlowNode {
 #[derive(Debug)]
 pub struct FlowAssignment {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub node: Rc<Node /*Expression | VariableDeclaration | BindingElement*/>,
     pub antecedent: Rc<FlowNode>,
 }
@@ -1330,7 +1352,7 @@ impl FlowAssignment {
     pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Rc<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             node,
             antecedent,
         }
@@ -1346,8 +1368,12 @@ impl FlowNodeBase for FlowAssignment {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 
@@ -1360,7 +1386,7 @@ impl From<FlowAssignment> for FlowNode {
 #[derive(Debug)]
 pub struct FlowCall {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub node: Rc<Node /*CallExpression*/>,
     pub antecedent: Rc<FlowNode>,
 }
@@ -1369,7 +1395,7 @@ impl FlowCall {
     pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Rc<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             node,
             antecedent,
         }
@@ -1385,8 +1411,12 @@ impl FlowNodeBase for FlowCall {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 
@@ -1399,7 +1429,7 @@ impl From<FlowCall> for FlowNode {
 #[derive(Debug)]
 pub struct FlowCondition {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub node: Rc<Node /*Expression*/>,
     pub antecedent: Rc<FlowNode>,
 }
@@ -1410,7 +1440,7 @@ impl FlowCondition {
             flags: Cell::new(flags),
             antecedent,
             node,
-            id: None,
+            id: Cell::new(None),
         }
     }
 }
@@ -1424,8 +1454,12 @@ impl FlowNodeBase for FlowCondition {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 
@@ -1438,7 +1472,7 @@ impl From<FlowCondition> for FlowNode {
 #[derive(Debug)]
 pub struct FlowSwitchClause {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub switch_statement: Rc<Node /*SwitchStatement*/>,
     pub clause_start: usize,
     pub clause_end: usize,
@@ -1455,7 +1489,7 @@ impl FlowSwitchClause {
     ) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             switch_statement,
             clause_start,
             clause_end,
@@ -1473,8 +1507,12 @@ impl FlowNodeBase for FlowSwitchClause {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 
@@ -1487,7 +1525,7 @@ impl From<FlowSwitchClause> for FlowNode {
 #[derive(Debug)]
 pub struct FlowArrayMutation {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub node: Rc<Node /*CallExpression | BinaryExpression*/>,
     pub antecedent: Rc<FlowNode>,
 }
@@ -1501,8 +1539,12 @@ impl FlowNodeBase for FlowArrayMutation {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 
@@ -1515,7 +1557,7 @@ impl From<FlowArrayMutation> for FlowNode {
 #[derive(Debug)]
 pub struct FlowReduceLabel {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub target: Rc<FlowNode /*FlowLabel*/>,
     pub antecedents: Vec<Rc<FlowNode>>,
     pub antecedent: Rc<FlowNode>,
@@ -1530,7 +1572,7 @@ impl FlowReduceLabel {
     ) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             target,
             antecedents,
             antecedent,
@@ -1547,8 +1589,12 @@ impl FlowNodeBase for FlowReduceLabel {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 

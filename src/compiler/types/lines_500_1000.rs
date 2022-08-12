@@ -4,7 +4,7 @@ use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
-use crate::JsxOpeningLikeElementInterface;
+use crate::{HasArgumentsInterface, JsxOpeningLikeElementInterface};
 
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
@@ -699,6 +699,14 @@ impl Node {
             Node::JsxOpeningElement(node) => node,
             Node::JsxSelfClosingElement(node) => node,
             _ => panic!("Expected JSX opening like element"),
+        }
+    }
+
+    pub fn as_has_arguments(&self) -> &dyn HasArgumentsInterface {
+        match self {
+            Node::CallExpression(node) => node,
+            Node::NewExpression(node) => node,
+            _ => panic!("Expected has arguments"),
         }
     }
 

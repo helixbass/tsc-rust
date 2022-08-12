@@ -86,10 +86,10 @@ pub(super) fn increment_next_merge_id() {
 }
 
 thread_local! {
-    pub(super) static next_flow_id: Cell<u32> = Cell::new(1);
+    pub(super) static next_flow_id: Cell<usize> = Cell::new(1);
 }
 
-pub(super) fn get_next_flow_id() -> u32 {
+pub(super) fn get_next_flow_id() -> usize {
     next_flow_id.with(|_next_flow_id| _next_flow_id.get())
 }
 
