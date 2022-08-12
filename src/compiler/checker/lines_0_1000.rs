@@ -2724,6 +2724,10 @@ impl TypeChecker {
         self.implicit_never_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn unreachable_never_type(&self) -> Rc<Type> {
+        self.unreachable_never_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn non_primitive_type(&self) -> Rc<Type> {
         self.non_primitive_type.as_ref().unwrap().clone()
     }
@@ -3028,6 +3032,30 @@ impl TypeChecker {
 
     pub(super) fn maybe_deferred_global_big_int_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.deferred_global_big_int_type.borrow_mut()
+    }
+
+    pub(crate) fn shared_flow_count(&self) -> usize {
+        self.shared_flow_count.get()
+    }
+
+    pub(crate) fn set_shared_flow_count(&self, shared_flow_count: usize) {
+        self.shared_flow_count.set(shared_flow_count);
+    }
+
+    pub(crate) fn flow_analysis_disabled(&self) -> bool {
+        self.flow_analysis_disabled.get()
+    }
+
+    pub(crate) fn set_flow_analysis_disabled(&self, flow_analysis_disabled: bool) {
+        self.flow_analysis_disabled.set(flow_analysis_disabled);
+    }
+
+    pub(crate) fn flow_invocation_count(&self) -> usize {
+        self.flow_invocation_count.get()
+    }
+
+    pub(crate) fn set_flow_invocation_count(&self, flow_invocation_count: usize) {
+        self.flow_invocation_count.set(flow_invocation_count);
     }
 
     pub(super) fn maybe_last_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
