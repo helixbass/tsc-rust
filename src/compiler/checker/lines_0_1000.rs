@@ -25,7 +25,7 @@ use crate::{
     ObjectFlagsTypeInterface, PatternAmbientModule, PseudoBigInt, RelationComparisonResult,
     Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
     SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
-    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
+    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId,
     TypeInterface, TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags, __String,
     create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
     get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
@@ -593,7 +593,7 @@ pub fn create_type_checker(
         string_mapping_types: RefCell::new(HashMap::new()),
         substitution_types: RefCell::new(HashMap::new()),
         subtype_reduction_cache: RefCell::new(HashMap::new()),
-        evolving_array_types: RefCell::new(vec![]),
+        evolving_array_types: RefCell::new(HashMap::new()),
         undefined_properties: RefCell::new(HashMap::new()),
 
         unknown_symbol: None,
@@ -2586,6 +2586,10 @@ impl TypeChecker {
 
     pub(super) fn subtype_reduction_cache(&self) -> RefMut<HashMap<String, Vec<Rc<Type>>>> {
         self.subtype_reduction_cache.borrow_mut()
+    }
+
+    pub(super) fn evolving_array_types(&self) -> RefMut<HashMap<TypeId, Rc<Type>>> {
+        self.evolving_array_types.borrow_mut()
     }
 
     pub(super) fn undefined_properties(&self) -> RefMut<SymbolTable> {

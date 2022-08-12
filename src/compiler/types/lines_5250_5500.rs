@@ -9,7 +9,10 @@ use super::{
     BaseType, IndexInfo, IntersectionType, MappedType, Node, PseudoBigInt, ResolvedTypeInterface,
     ReverseMappedType, Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
-use crate::{FreshObjectLiteralTypeInterface, Number, TypeId, TypeMapper, WeakSelf, __String};
+use crate::{
+    EvolvingArrayType, FreshObjectLiteralTypeInterface, Number, TypeId, TypeMapper, WeakSelf,
+    __String,
+};
 use local_macros::type_type;
 
 pub trait LiteralTypeInterface: TypeInterface {
@@ -341,6 +344,7 @@ pub enum ObjectType {
     InterfaceType(InterfaceType),
     TypeReference(TypeReference),
     MappedType(MappedType),
+    EvolvingArrayType(EvolvingArrayType),
     ReverseMappedType(ReverseMappedType),
 }
 

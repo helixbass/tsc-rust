@@ -112,6 +112,31 @@ impl MappedType {
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
+pub struct EvolvingArrayType {
+    _object_type: BaseObjectType,
+    pub element_type: Rc<Type>,
+    final_array_type: RefCell<Option<Rc<Type>>>,
+}
+
+impl EvolvingArrayType {
+    pub fn new(base_object_type: BaseObjectType, element_type: Rc<Type>) -> Self {
+        Self {
+            _object_type: base_object_type,
+            element_type,
+            final_array_type: RefCell::new(None),
+        }
+    }
+
+    pub fn maybe_final_array_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.final_array_type.borrow_mut()
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type(
+    ancestors = "ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
+)]
 pub struct ReverseMappedType {
     _object_type: BaseObjectType,
     pub source: Rc<Type>,

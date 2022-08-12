@@ -5,10 +5,11 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    contains_rc, every, filter, for_each, for_each_bool, is_string_literal_like, map, some,
-    FlowType, HasInitializerInterface, IncompleteType, NamedDeclarationInterface, Node,
-    NodeInterface, ObjectFlagsTypeInterface, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
+    contains_rc, every, filter, for_each, for_each_bool, get_object_flags, is_string_literal_like,
+    map, some, EvolvingArrayType, FlowType, HasInitializerInterface, IncompleteType,
+    NamedDeclarationInterface, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -555,6 +556,120 @@ impl TypeChecker {
         } else {
             FlowType::Type(type_.type_wrapper())
         }
+    }
+
+    pub(super) fn create_evolving_array_type(
+        &self,
+        element_type: &Type,
+    ) -> Rc<Type /*EvolvingArrayType*/> {
+        let result = self.create_object_type(ObjectFlags::EvolvingArray, Option::<&Symbol>::None);
+        EvolvingArrayType::new(result, element_type.type_wrapper()).into()
+    }
+
+    pub(super) fn get_evolving_array_type(
+        &self,
+        element_type: &Type,
+    ) -> Rc<Type /*EvolvingArrayType*/> {
+        self.evolving_array_types()
+            .entry(element_type.id())
+            .or_insert_with(|| self.create_evolving_array_type(element_type))
+            .clone()
+    }
+
+    pub(super) fn add_evolving_array_element_type(
+        &self,
+        evolving_array_type: &Type, /*EvolvingArrayType*/
+        node: &Node,                /*Expression*/
+    ) -> Rc<Type /*EvolvingArrayType*/> {
+        let element_type = self.get_regular_type_of_object_literal(
+            &self.get_base_type_of_literal_type(&self.get_context_free_type_of_expression(node)),
+        );
+        let evolving_array_type_as_evolving_array_type =
+            evolving_array_type.as_evolving_array_type();
+        if self.is_type_subset_of(
+            &element_type,
+            &evolving_array_type_as_evolving_array_type.element_type,
+        ) {
+            evolving_array_type.type_wrapper()
+        } else {
+            self.get_evolving_array_type(&self.get_union_type(
+                vec![
+                        evolving_array_type_as_evolving_array_type.element_type.clone(),
+                        element_type,
+                    ],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            ))
+        }
+    }
+
+    pub(super) fn create_final_array_type(&self, element_type: &Type) -> Rc<Type> {
+        if element_type.flags().intersects(TypeFlags::Never) {
+            self.auto_array_type()
+        } else {
+            self.create_array_type(
+                &*if element_type.flags().intersects(TypeFlags::Union) {
+                    self.get_union_type(
+                        element_type.as_union_type().types().to_owned(),
+                        Some(UnionReduction::Subtype),
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                } else {
+                    element_type.type_wrapper()
+                },
+                None,
+            )
+        }
+    }
+
+    pub(super) fn get_final_array_type(
+        &self,
+        evolving_array_type: &Type, /*EvolvingArrayType*/
+    ) -> Rc<Type> {
+        let evolving_array_type_as_evolving_array_type =
+            evolving_array_type.as_evolving_array_type();
+        let mut final_array_type =
+            evolving_array_type_as_evolving_array_type.maybe_final_array_type();
+        if final_array_type.is_none() {
+            *final_array_type =
+                Some(self.create_final_array_type(
+                    &evolving_array_type_as_evolving_array_type.element_type,
+                ));
+        }
+        final_array_type.clone().unwrap()
+    }
+
+    pub(super) fn finalize_evolving_array_type(&self, type_: &Type) -> Rc<Type> {
+        if get_object_flags(type_).intersects(ObjectFlags::EvolvingArray) {
+            self.get_final_array_type(type_)
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn get_element_type_of_evolving_array_type(&self, type_: &Type) -> Rc<Type> {
+        if get_object_flags(type_).intersects(ObjectFlags::EvolvingArray) {
+            type_.as_evolving_array_type().element_type.clone()
+        } else {
+            self.never_type()
+        }
+    }
+
+    pub(super) fn is_evolving_array_type_list(&self, types: &[Rc<Type>]) -> bool {
+        let mut has_evolving_array_type = false;
+        for t in types {
+            if !t.flags().intersects(TypeFlags::Never) {
+                if !get_object_flags(t).intersects(ObjectFlags::EvolvingArray) {
+                    return false;
+                }
+                has_evolving_array_type = true;
+            }
+        }
+        has_evolving_array_type
     }
 
     pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Rc<Type> {

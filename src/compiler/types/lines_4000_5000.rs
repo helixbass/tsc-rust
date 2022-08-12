@@ -185,7 +185,7 @@ pub struct TypeChecker {
     pub(crate) string_mapping_types: RefCell<HashMap<String, Rc</*StringMappingType*/ Type>>>,
     pub(crate) substitution_types: RefCell<HashMap<String, Rc</*SubstitutionType*/ Type>>>,
     pub(crate) subtype_reduction_cache: RefCell<HashMap<String, Vec<Rc<Type>>>>,
-    pub(crate) evolving_array_types: RefCell<Vec<Rc<Type /*EvolvingArrayType*/>>>,
+    pub(crate) evolving_array_types: RefCell<HashMap<TypeId, Rc<Type /*EvolvingArrayType*/>>>,
     pub(crate) undefined_properties: RefCell<SymbolTable>,
 
     pub(crate) unknown_symbol: Option<Rc<Symbol>>,

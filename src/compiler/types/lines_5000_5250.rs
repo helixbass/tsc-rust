@@ -15,8 +15,8 @@ use super::{
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, UniqueESSymbolType,
 };
 use crate::{
-    BaseTransientSymbol, FreshObjectLiteralTypeInterface, GenericTypeInterface, Node, ObjectFlags,
-    Pattern, WeakSelf,
+    BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
+    Node, ObjectFlags, Pattern, WeakSelf,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -542,6 +542,10 @@ impl Type {
 
     pub fn as_reverse_mapped_type(&self) -> &ReverseMappedType {
         enum_unwrapped!(self, [Type, ObjectType, ReverseMappedType])
+    }
+
+    pub fn as_evolving_array_type(&self) -> &EvolvingArrayType {
+        enum_unwrapped!(self, [Type, ObjectType, EvolvingArrayType])
     }
 }
 
