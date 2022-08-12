@@ -5,10 +5,10 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    contains_rc, every, filter, for_each, for_each_bool, is_string_literal_like, some,
-    HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface,
-    ObjectFlagsTypeInterface, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    contains_rc, every, filter, for_each, for_each_bool, is_string_literal_like, map, some,
+    FlowType, HasInitializerInterface, IncompleteType, NamedDeclarationInterface, Node,
+    NodeInterface, ObjectFlagsTypeInterface, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -385,10 +385,21 @@ impl TypeChecker {
         if !type_.flags().intersects(TypeFlags::Union) {
             return mapper(type_);
         }
-        let types = type_.as_union_or_intersection_type_interface().types();
+        let type_as_union_type = type_.as_union_type();
+        let origin = type_as_union_type.origin.as_ref();
+        let types = if let Some(origin) =
+            origin.filter(|origin| origin.flags().intersects(TypeFlags::Union))
+        {
+            origin
+                .as_union_or_intersection_type_interface()
+                .types()
+                .to_owned()
+        } else {
+            type_as_union_type.types().to_owned()
+        };
         let mut mapped_types: Vec<Rc<Type>> = vec![];
         let mut changed = false;
-        for t in types {
+        for t in &types {
             let mapped = if t.flags().intersects(TypeFlags::Union) {
                 self.map_type(&t, mapper, Some(no_reductions))
             } else {
@@ -434,7 +445,20 @@ impl TypeChecker {
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Union) && alias_symbol.is_some() {
+            self.get_union_type(
+                map(type_.as_union_type().types(), |type_: &Rc<Type>, _| {
+                    mapper(type_)
+                }),
+                Some(UnionReduction::Literal),
+                alias_symbol,
+                alias_type_arguments,
+                Option::<&Type>::None,
+            )
+        } else {
+            self.map_type(type_, &mut |type_: &Type| Some(mapper(type_)), None)
+                .unwrap()
+        }
     }
 
     pub(super) fn get_constituent_count(&self, type_: &Type) -> usize {
@@ -448,8 +472,93 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn replace_primitives_with_literals(
+        &self,
+        type_with_primitives: &Type,
+        type_with_literals: &Type,
+    ) -> Rc<Type> {
+        if self.maybe_type_of_kind(
+            type_with_primitives,
+            TypeFlags::String | TypeFlags::TemplateLiteral | TypeFlags::Number | TypeFlags::BigInt,
+        ) && self.maybe_type_of_kind(
+            type_with_literals,
+            TypeFlags::StringLiteral
+                | TypeFlags::TemplateLiteral
+                | TypeFlags::StringMapping
+                | TypeFlags::NumberLiteral
+                | TypeFlags::BigIntLiteral,
+        ) {
+            return self
+                .map_type(
+                    type_with_primitives,
+                    &mut |t: &Type| {
+                        Some(if t.flags().intersects(TypeFlags::String) {
+                            self.extract_types_of_kind(
+                                type_with_literals,
+                                TypeFlags::String
+                                    | TypeFlags::StringLiteral
+                                    | TypeFlags::TemplateLiteral
+                                    | TypeFlags::StringMapping,
+                            )
+                        } else if self.is_pattern_literal_type(t)
+                            && !self.maybe_type_of_kind(
+                                type_with_literals,
+                                TypeFlags::String
+                                    | TypeFlags::TemplateLiteral
+                                    | TypeFlags::StringMapping,
+                            )
+                        {
+                            self.extract_types_of_kind(type_with_literals, TypeFlags::StringLiteral)
+                        } else if t.flags().intersects(TypeFlags::Number) {
+                            self.extract_types_of_kind(
+                                type_with_literals,
+                                TypeFlags::Number | TypeFlags::NumberLiteral,
+                            )
+                        } else if t.flags().intersects(TypeFlags::BigInt) {
+                            self.extract_types_of_kind(
+                                type_with_literals,
+                                TypeFlags::BigInt | TypeFlags::BigIntLiteral,
+                            )
+                        } else {
+                            t.type_wrapper()
+                        })
+                    },
+                    None,
+                )
+                .unwrap();
+        }
+        type_with_primitives.type_wrapper()
+    }
+
+    pub(super) fn is_incomplete(&self, flow_type: &FlowType) -> bool {
+        flow_type.flags() == TypeFlags::None
+    }
+
+    pub(super) fn get_type_from_flow_type(&self, flow_type: &FlowType) -> Rc<Type> {
+        if flow_type.flags() == TypeFlags::None {
+            flow_type.as_incomplete_type().type_.clone()
+        } else {
+            flow_type.as_type().clone()
+        }
+    }
+
+    pub(super) fn create_flow_type(&self, type_: &Type, incomplete: bool) -> FlowType {
+        if incomplete {
+            FlowType::IncompleteType(IncompleteType::new(
+                TypeFlags::None,
+                if type_.flags().intersects(TypeFlags::Never) {
+                    self.silent_never_type()
+                } else {
+                    type_.type_wrapper()
+                },
+            ))
+        } else {
+            FlowType::Type(type_.type_wrapper())
+        }
+    }
+
     pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Rc<Type> {
-        unimplemented!()
+        self.filter_type(type_, |t: &Type| t.flags().intersects(kind))
     }
 
     pub(super) fn get_flow_type_of_reference<

@@ -14,9 +14,9 @@ use super::{
 };
 use crate::{
     ConfigFileSpecs, ModeAwareCache, ModuleKind, PackageId, PragmaContext, Type, TypeFlags,
-    __String,
+    TypeInterface, __String,
 };
-use local_macros::ast_type;
+use local_macros::{ast_type, enum_unwrapped};
 
 #[derive(Debug)]
 pub enum FlowType {
@@ -24,10 +24,33 @@ pub enum FlowType {
     IncompleteType(IncompleteType),
 }
 
+impl FlowType {
+    pub fn flags(&self) -> TypeFlags {
+        match self {
+            Self::Type(value) => value.flags(),
+            Self::IncompleteType(value) => value.flags,
+        }
+    }
+
+    pub fn as_incomplete_type(&self) -> &IncompleteType {
+        enum_unwrapped!(self, [FlowType, IncompleteType])
+    }
+
+    pub fn as_type(&self) -> &Rc<Type> {
+        enum_unwrapped!(self, [FlowType, Type])
+    }
+}
+
 #[derive(Debug)]
 pub struct IncompleteType {
-    flags: TypeFlags,
-    type_: Rc<Type>,
+    pub flags: TypeFlags,
+    pub type_: Rc<Type>,
+}
+
+impl IncompleteType {
+    pub fn new(flags: TypeFlags, type_: Rc<Type>) -> Self {
+        Self { flags, type_ }
+    }
 }
 
 pub type SourceTextAsChars = Vec<char>;
