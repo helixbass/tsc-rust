@@ -19,7 +19,7 @@ use crate::{
     BaseInterfaceType, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
     DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, EmitTextWriter,
-    Extension, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind,
+    Extension, FlowNode, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind,
     InternalSymbolName, IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray,
     NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
     ObjectFlagsTypeInterface, PatternAmbientModule, PseudoBigInt, RelationComparisonResult,
@@ -3030,6 +3030,18 @@ impl TypeChecker {
         self.deferred_global_big_int_type.borrow_mut()
     }
 
+    pub(super) fn maybe_last_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
+        self.last_flow_node.borrow_mut()
+    }
+
+    pub(super) fn last_flow_node_reachable(&self) -> bool {
+        self.last_flow_node_reachable.get()
+    }
+
+    pub(super) fn set_last_flow_node_reachable(&self, last_flow_node_reachable: bool) {
+        self.last_flow_node_reachable.set(last_flow_node_reachable);
+    }
+
     pub(super) fn empty_string_type(&self) -> Rc<Type> {
         self.empty_string_type.clone().unwrap()
     }
@@ -3064,6 +3076,10 @@ impl TypeChecker {
 
     pub(super) fn merged_symbols(&self) -> RefMut<HashMap<u32, Rc<Symbol>>> {
         self.merged_symbols.borrow_mut()
+    }
+
+    pub(super) fn flow_node_reachable(&self) -> RefMut<HashMap<usize, bool>> {
+        self.flow_node_reachable.borrow_mut()
     }
 
     pub(super) fn diagnostics(&self) -> RefMut<DiagnosticCollection> {

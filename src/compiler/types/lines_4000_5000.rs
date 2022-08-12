@@ -359,7 +359,7 @@ pub struct TypeChecker {
     pub(crate) flow_loop_types: RefCell<Vec<Vec<Rc<Type>>>>,
     pub(crate) shared_flow_nodes: RefCell<Vec<Rc<FlowNode>>>,
     pub(crate) shared_flow_types: RefCell<Vec<Rc<FlowType>>>,
-    pub(crate) flow_node_reachable: RefCell<HashMap<u32, Option<bool>>>,
+    pub(crate) flow_node_reachable: RefCell<HashMap<usize, bool>>,
     pub(crate) flow_node_post_super: RefCell<HashMap<u32, Option<bool>>>,
     pub(crate) potential_this_collisions: RefCell<Vec<Rc<Node>>>,
     pub(crate) potential_new_target_collisions: RefCell<Vec<Rc<Node>>>,

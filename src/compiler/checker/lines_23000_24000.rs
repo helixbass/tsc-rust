@@ -16,12 +16,13 @@ use crate::{
     is_in_js_file, is_optional_chain, is_parameter, is_private_identifier,
     is_property_access_expression, is_property_declaration, is_property_signature,
     is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration, map,
-    skip_parentheses, some, CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType, FlowType,
-    HasInitializerInterface, IncompleteType, NamedDeclarationInterface, Node, NodeFlags,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ReadonlyTextRange, Signature,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate, TypePredicateKind,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    skip_parentheses, some, CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType, FlowFlags,
+    FlowNode, FlowNodeBase, FlowType, HasInitializerInterface, IncompleteType,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -1017,6 +1018,134 @@ impl TypeChecker {
                 ).into()
             )
         );
+    }
+
+    pub(super) fn is_reachable_flow_node(&self, flow: Rc<FlowNode>) -> bool {
+        let result = self.is_reachable_flow_node_worker(flow.clone(), false);
+        *self.maybe_last_flow_node() = Some(flow);
+        self.set_last_flow_node_reachable(result);
+        result
+    }
+
+    pub(super) fn is_false_expression(&self, expr: &Node /*Expression*/) -> bool {
+        let node = skip_parentheses(expr, Some(true));
+        node.kind() == SyntaxKind::FalseKeyword
+            || node.kind() == SyntaxKind::BinaryExpression && {
+                let node_as_binary_expression = node.as_binary_expression();
+                node_as_binary_expression.operator_token.kind()
+                    == SyntaxKind::AmpersandAmpersandToken
+                    && (self.is_false_expression(&node_as_binary_expression.left)
+                        || self.is_false_expression(&node_as_binary_expression.right))
+                    || node_as_binary_expression.operator_token.kind() == SyntaxKind::BarBarToken
+                        && (self.is_false_expression(&node_as_binary_expression.left)
+                            && self.is_false_expression(&node_as_binary_expression.right))
+            }
+    }
+
+    pub(super) fn is_reachable_flow_node_worker(
+        &self,
+        mut flow: Rc<FlowNode>,
+        mut no_cache_check: bool,
+    ) -> bool {
+        loop {
+            if matches!(
+                self.maybe_last_flow_node().as_ref(),
+                Some(last_flow_node) if Rc::ptr_eq(
+                    &flow,
+                    last_flow_node
+                )
+            ) {
+                return self.last_flow_node_reachable();
+            }
+            let flags = flow.flags();
+            if flags.intersects(FlowFlags::Shared) {
+                if !no_cache_check {
+                    let id = self.get_flow_node_id(&flow);
+                    let reachable = self.flow_node_reachable().get(&id).copied();
+                    return if let Some(reachable) = reachable {
+                        reachable
+                    } else {
+                        let ret = self.is_reachable_flow_node_worker(flow.clone(), true);
+                        self.flow_node_reachable().insert(id, ret);
+                        ret
+                    };
+                }
+                no_cache_check = false;
+            }
+            if flags
+                .intersects(FlowFlags::Assignment | FlowFlags::Condition | FlowFlags::ArrayMutation)
+            {
+                flow = flow.as_has_antecedent().antecedent();
+            } else if flags.intersects(FlowFlags::Call) {
+                let flow_as_flow_call = flow.as_flow_call();
+                let signature = self.get_effects_signature(&flow_as_flow_call.node);
+                if let Some(signature) = signature.as_ref() {
+                    let predicate = self.get_type_predicate_of_signature(signature);
+                    if let Some(predicate) = predicate.as_ref().filter(|predicate| {
+                        predicate.kind == TypePredicateKind::AssertsIdentifier
+                            && predicate.type_.is_none()
+                    }) {
+                        let predicate_argument =
+                            &flow_as_flow_call.node.as_call_expression().arguments
+                                [predicate.parameter_index.unwrap()];
+                        if
+                        /*predicateArgument &&*/
+                        self.is_false_expression(predicate_argument) {
+                            return false;
+                        }
+                    }
+                    if self
+                        .get_return_type_of_signature(signature.clone())
+                        .flags()
+                        .intersects(TypeFlags::Never)
+                    {
+                        return false;
+                    }
+                }
+                flow = flow_as_flow_call.antecedent.clone();
+            } else if flags.intersects(FlowFlags::BranchLabel) {
+                return some(
+                    flow.as_flow_label().maybe_antecedents().as_deref(),
+                    Some(|f: &Rc<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
+                );
+            } else if flags.intersects(FlowFlags::LoopLabel) {
+                let antecedents = flow.as_flow_label().maybe_antecedents().clone();
+                if antecedents.is_none() {
+                    return false;
+                }
+                let antecedents = antecedents.unwrap();
+                if antecedents.is_empty() {
+                    return false;
+                }
+                flow = antecedents[0].clone();
+            } else if flags.intersects(FlowFlags::SwitchClause) {
+                let flow_as_flow_switch_clause = flow.as_flow_switch_clause();
+                if flow_as_flow_switch_clause.clause_start == flow_as_flow_switch_clause.clause_end
+                    && self.is_exhaustive_switch_statement(
+                        &flow_as_flow_switch_clause.switch_statement,
+                    )
+                {
+                    return false;
+                }
+                flow = flow_as_flow_switch_clause.antecedent.clone();
+            } else if flags.intersects(FlowFlags::ReduceLabel) {
+                *self.maybe_last_flow_node() = None;
+                let flow_as_flow_reduce_label = flow.as_flow_reduce_label();
+                let target = &flow_as_flow_reduce_label.target;
+                let target_as_flow_label = target.as_flow_label();
+                let save_antecedents = target_as_flow_label.maybe_antecedents().clone();
+                *target_as_flow_label.maybe_antecedents() =
+                    Some(flow_as_flow_reduce_label.antecedents.clone());
+                let result = self.is_reachable_flow_node_worker(
+                    flow_as_flow_reduce_label.antecedent.clone(),
+                    false,
+                );
+                *target_as_flow_label.maybe_antecedents() = save_antecedents;
+                return result;
+            } else {
+                return !flags.intersects(FlowFlags::Unreachable);
+            }
+        }
     }
 
     pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Rc<Type> {

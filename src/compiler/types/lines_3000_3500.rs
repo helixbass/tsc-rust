@@ -1171,6 +1171,30 @@ impl FlowNode {
     pub fn as_flow_label(&self) -> &FlowLabel {
         enum_unwrapped!(self, [FlowNode, FlowLabel])
     }
+
+    pub fn as_flow_call(&self) -> &FlowCall {
+        enum_unwrapped!(self, [FlowNode, FlowCall])
+    }
+
+    pub fn as_flow_switch_clause(&self) -> &FlowSwitchClause {
+        enum_unwrapped!(self, [FlowNode, FlowSwitchClause])
+    }
+
+    pub fn as_flow_reduce_label(&self) -> &FlowReduceLabel {
+        enum_unwrapped!(self, [FlowNode, FlowReduceLabel])
+    }
+
+    pub fn as_has_antecedent(&self) -> &dyn HasAntecedentInterface {
+        match self {
+            Self::FlowAssignment(value) => value,
+            Self::FlowCall(value) => value,
+            Self::FlowCondition(value) => value,
+            Self::FlowSwitchClause(value) => value,
+            Self::FlowArrayMutation(value) => value,
+            Self::FlowReduceLabel(value) => value,
+            _ => panic!("Expected has antecedent"),
+        }
+    }
 }
 
 pub trait FlowNodeBase {
@@ -1340,6 +1364,10 @@ impl From<FlowLabel> for FlowNode {
     }
 }
 
+pub trait HasAntecedentInterface {
+    fn antecedent(&self) -> Rc<FlowNode>;
+}
+
 #[derive(Debug)]
 pub struct FlowAssignment {
     flags: Cell<FlowFlags>,
@@ -1374,6 +1402,12 @@ impl FlowNodeBase for FlowAssignment {
 
     fn set_id(&self, id: Option<isize>) {
         self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowAssignment {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 
@@ -1420,6 +1454,12 @@ impl FlowNodeBase for FlowCall {
     }
 }
 
+impl HasAntecedentInterface for FlowCall {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
+    }
+}
+
 impl From<FlowCall> for FlowNode {
     fn from(value: FlowCall) -> Self {
         Self::FlowCall(value)
@@ -1460,6 +1500,12 @@ impl FlowNodeBase for FlowCondition {
 
     fn set_id(&self, id: Option<isize>) {
         self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowCondition {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 
@@ -1516,6 +1562,12 @@ impl FlowNodeBase for FlowSwitchClause {
     }
 }
 
+impl HasAntecedentInterface for FlowSwitchClause {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
+    }
+}
+
 impl From<FlowSwitchClause> for FlowNode {
     fn from(value: FlowSwitchClause) -> Self {
         Self::FlowSwitchClause(value)
@@ -1545,6 +1597,12 @@ impl FlowNodeBase for FlowArrayMutation {
 
     fn set_id(&self, id: Option<isize>) {
         self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowArrayMutation {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 
@@ -1595,6 +1653,12 @@ impl FlowNodeBase for FlowReduceLabel {
 
     fn set_id(&self, id: Option<isize>) {
         self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowReduceLabel {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 

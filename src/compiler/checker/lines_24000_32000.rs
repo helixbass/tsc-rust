@@ -1092,6 +1092,13 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn is_exhaustive_switch_statement(
+        &self,
+        node: &Node, /*SwitchStatement*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_and_aggregate_return_expression_types(
         &self,
         func: &Node, /*FunctionLikeDeclaration*/
