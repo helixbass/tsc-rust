@@ -4,12 +4,19 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
+use super::IterationUse;
 use crate::{
-    contains_rc, every, filter, for_each, for_each_bool, get_object_flags, is_string_literal_like,
-    map, some, EvolvingArrayType, FlowType, HasInitializerInterface, IncompleteType,
-    NamedDeclarationInterface, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    add_related_info, contains_rc, create_diagnostic_for_node, every, filter, for_each,
+    for_each_bool, get_check_flags, get_effective_return_type_node,
+    get_effective_type_annotation_node, get_object_flags, has_initializer, is_assignment_target,
+    is_function_expression_or_arrow_function, is_identifier, is_in_js_file, is_parameter,
+    is_property_access_expression, is_property_declaration, is_property_signature,
+    is_push_or_unshift_identifier, is_string_literal_like, is_variable_declaration, map, some,
+    CheckFlags, Diagnostic, Diagnostics, EvolvingArrayType, FlowType, HasInitializerInterface,
+    IncompleteType, NamedDeclarationInterface, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -670,6 +677,147 @@ impl TypeChecker {
             }
         }
         has_evolving_array_type
+    }
+
+    pub(super) fn is_evolving_array_operation_target(&self, node: &Node) -> bool {
+        let root = self.get_reference_root(node);
+        let parent = root.parent();
+        let is_length_push_or_unshift = is_property_access_expression(&parent) && {
+            let parent_as_property_access_expression = parent.as_property_access_expression();
+            parent_as_property_access_expression
+                .name
+                .as_member_name()
+                .escaped_text()
+                .eq_str("length")
+                || parent.parent().kind() == SyntaxKind::CallExpression
+                    && is_identifier(&parent_as_property_access_expression.name)
+                    && is_push_or_unshift_identifier(&parent_as_property_access_expression.name)
+        };
+        let is_element_assignment = parent.kind() == SyntaxKind::ElementAccessExpression && {
+            let parent_as_element_access_expression = parent.as_element_access_expression();
+            let parent_parent = parent.parent();
+            Rc::ptr_eq(&parent_as_element_access_expression.expression, &root)
+                && parent_parent.kind() == SyntaxKind::BinaryExpression
+                && {
+                    let parent_parent_as_binary_expression = parent_parent.as_binary_expression();
+                    parent_parent_as_binary_expression.operator_token.kind()
+                        == SyntaxKind::EqualsToken
+                        && Rc::ptr_eq(&parent_parent_as_binary_expression.left, &parent)
+                        && !is_assignment_target(&parent_parent)
+                        && self.is_type_assignable_to_kind(
+                            &self.get_type_of_expression(
+                                &parent_as_element_access_expression.argument_expression,
+                            ),
+                            TypeFlags::NumberLike,
+                            None,
+                        )
+                }
+        };
+        is_length_push_or_unshift || is_element_assignment
+    }
+
+    pub(super) fn is_declaration_with_explicit_type_annotation(
+        &self,
+        node: &Node, /*Declaration*/
+    ) -> bool {
+        (is_variable_declaration(node)
+            || is_property_declaration(node)
+            || is_property_signature(node)
+            || is_parameter(node))
+            && (get_effective_type_annotation_node(node).is_some()
+                || is_in_js_file(Some(node))
+                    && has_initializer(node)
+                    && matches!(
+                        node.as_has_initializer().maybe_initializer().as_ref(),
+                        Some(node_initializer) if is_function_expression_or_arrow_function(node_initializer) && get_effective_return_type_node(node_initializer).is_some()
+                    ))
+    }
+
+    pub(super) fn get_explicit_type_of_symbol(
+        &self,
+        symbol: &Symbol,
+        diagnostic: Option<&Diagnostic>,
+    ) -> Option<Rc<Type>> {
+        if symbol.flags().intersects(
+            SymbolFlags::Function
+                | SymbolFlags::Method
+                | SymbolFlags::Class
+                | SymbolFlags::ValueModule,
+        ) {
+            return Some(self.get_type_of_symbol(symbol));
+        }
+        if symbol
+            .flags()
+            .intersects(SymbolFlags::Variable | SymbolFlags::Property)
+        {
+            if get_check_flags(symbol).intersects(CheckFlags::Mapped) {
+                let origin = (*symbol.as_mapped_symbol().symbol_links())
+                    .borrow()
+                    .synthetic_origin
+                    .clone();
+                if matches!(
+                    origin.as_ref(),
+                    Some(origin) if self.get_explicit_type_of_symbol(origin, None).is_some()
+                ) {
+                    return Some(self.get_type_of_symbol(symbol));
+                }
+            }
+            let declaration = symbol.maybe_value_declaration();
+            if let Some(declaration) = declaration.as_ref() {
+                if self.is_declaration_with_explicit_type_annotation(declaration) {
+                    return Some(self.get_type_of_symbol(symbol));
+                }
+                if is_variable_declaration(declaration)
+                    && declaration.parent().parent().kind() == SyntaxKind::ForOfStatement
+                {
+                    let statement = declaration.parent().parent();
+                    let statement_as_for_of_statement = statement.as_for_of_statement();
+                    let expression_type = self
+                        .get_type_of_dotted_name(&statement_as_for_of_statement.expression, None);
+                    if let Some(expression_type) = expression_type.as_ref() {
+                        let use_ = if statement_as_for_of_statement.await_modifier.is_some() {
+                            IterationUse::ForAwaitOf
+                        } else {
+                            IterationUse::ForOf
+                        };
+                        return Some(self.check_iterated_type_or_element_type(
+                            use_,
+                            expression_type,
+                            &self.undefined_type(),
+                            Option::<&Node>::None,
+                        ));
+                    }
+                }
+                if let Some(diagnostic) = diagnostic {
+                    add_related_info(
+                        diagnostic,
+                        vec![Rc::new(
+                            create_diagnostic_for_node(
+                                declaration,
+                                &Diagnostics::_0_needs_an_explicit_type_annotation,
+                                Some(vec![self.symbol_to_string_(
+                                    symbol,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                    None,
+                                )]),
+                            )
+                            .into(),
+                        )],
+                    );
+                }
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_type_of_dotted_name(
+        &self,
+        node: &Node, /*Expression*/
+        diagnostic: Option<&Diagnostic>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn extract_types_of_kind(&self, type_: &Type, kind: TypeFlags) -> Rc<Type> {
