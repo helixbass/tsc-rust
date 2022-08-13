@@ -6,9 +6,10 @@ use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    get_object_flags, is_parameter_or_catch_clause_variable, maybe_every, FlowFlags, FlowNode,
-    FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    get_assignment_target_kind, get_declared_expando_initializer, get_object_flags, is_in_js_file,
+    is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration, maybe_every,
+    AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -371,11 +372,123 @@ impl GetFlowTypeOfReference {
         }
     }
 
+    pub(super) fn get_initial_or_assigned_type(
+        &self,
+        flow: &FlowNode, /*FlowAssignment*/
+    ) -> Rc<Type> {
+        let node = &flow.as_flow_assignment().node;
+        self.type_checker.get_narrowable_type_for_reference(
+            &*if matches!(
+                node.kind(),
+                SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
+            ) {
+                self.type_checker.get_initial_type(node)
+            } else {
+                self.type_checker.get_assigned_type(node)
+            },
+            &self.reference,
+            None,
+        )
+    }
+
     pub(super) fn get_type_at_flow_assignment(
         &self,
         flow: Rc<FlowNode /*FlowAssignment*/>,
     ) -> Option<FlowType> {
-        unimplemented!()
+        let flow_as_flow_assignment = flow.as_flow_assignment();
+        let node = &flow_as_flow_assignment.node;
+        if self
+            .type_checker
+            .is_matching_reference(&self.reference, node)
+        {
+            if !self.type_checker.is_reachable_flow_node(flow.clone()) {
+                return Some(self.type_checker.unreachable_never_type().into());
+            }
+            if get_assignment_target_kind(node) == AssignmentKind::Compound {
+                let flow_type =
+                    self.get_type_at_flow_node(flow_as_flow_assignment.antecedent.clone());
+                return Some(self.type_checker.create_flow_type(
+                    &self.type_checker.get_base_type_of_literal_type(
+                        &self.type_checker.get_type_from_flow_type(&flow_type),
+                    ),
+                    self.type_checker.is_incomplete(&flow_type),
+                ));
+            }
+            if Rc::ptr_eq(&self.declared_type, &self.type_checker.auto_type())
+                || Rc::ptr_eq(&self.declared_type, &self.type_checker.auto_array_type())
+            {
+                if self.type_checker.is_empty_array_assignment(node) {
+                    return Some(
+                        self.type_checker
+                            .get_evolving_array_type(&self.type_checker.never_type())
+                            .into(),
+                    );
+                }
+                let assigned_type = self
+                    .type_checker
+                    .get_widened_literal_type(&self.get_initial_or_assigned_type(&flow));
+                return if self
+                    .type_checker
+                    .is_type_assignable_to(&assigned_type, &self.declared_type)
+                {
+                    Some(assigned_type.into())
+                } else {
+                    Some(self.type_checker.any_array_type().into())
+                };
+            }
+            if self.declared_type.flags().intersects(TypeFlags::Union) {
+                return Some(
+                    self.type_checker
+                        .get_assignment_reduced_type(
+                            &self.declared_type,
+                            &self.get_initial_or_assigned_type(&flow),
+                        )
+                        .into(),
+                );
+            }
+            return Some(self.declared_type.clone().into());
+        }
+        if self
+            .type_checker
+            .contains_matching_reference(&self.reference, node)
+        {
+            if !self.type_checker.is_reachable_flow_node(flow.clone()) {
+                return Some(self.type_checker.unreachable_never_type().into());
+            }
+            if is_variable_declaration(node) && (is_in_js_file(Some(&**node)) || is_var_const(node))
+            {
+                let init = get_declared_expando_initializer(node);
+                if matches!(
+                    init.as_ref(),
+                    Some(init) if matches!(
+                        init.kind(),
+                        SyntaxKind::FunctionExpression |
+                        SyntaxKind::ArrowFunction
+                    )
+                ) {
+                    return Some(
+                        self.get_type_at_flow_node(flow_as_flow_assignment.antecedent.clone()),
+                    );
+                }
+            }
+            return Some(self.declared_type.clone().into());
+        }
+        if is_variable_declaration(node)
+            && node.parent().parent().kind() == SyntaxKind::ForInStatement
+            && self.type_checker.is_matching_reference(
+                &self.reference,
+                &node.parent().parent().as_for_in_statement().expression,
+            )
+        {
+            return Some(
+                self.type_checker
+                    .get_non_nullable_type_if_needed(&self.type_checker.get_type_from_flow_type(
+                        &self.get_type_at_flow_node(flow_as_flow_assignment.antecedent.clone()),
+                    ))
+                    .into(),
+            );
+        }
+        return None;
     }
 
     pub(super) fn get_type_at_flow_call(

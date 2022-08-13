@@ -37,6 +37,15 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_narrowable_type_for_reference(
+        &self,
+        type_: &Type,
+        reference: &Node,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn check_identifier(
         &self,
         node: &Node, /*Identifier*/
