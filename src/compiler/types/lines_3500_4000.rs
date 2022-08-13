@@ -18,7 +18,7 @@ use crate::{
 };
 use local_macros::{ast_type, enum_unwrapped};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum FlowType {
     Type(Rc<Type>),
     IncompleteType(IncompleteType),
@@ -41,7 +41,19 @@ impl FlowType {
     }
 }
 
-#[derive(Debug)]
+impl From<Rc<Type>> for FlowType {
+    fn from(value: Rc<Type>) -> Self {
+        Self::Type(value)
+    }
+}
+
+impl From<IncompleteType> for FlowType {
+    fn from(value: IncompleteType) -> Self {
+        Self::IncompleteType(value)
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct IncompleteType {
     pub flags: TypeFlags,
     pub type_: Rc<Type>,

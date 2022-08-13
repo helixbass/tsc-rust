@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::TypeFacts;
@@ -135,6 +135,7 @@ pub(super) struct GetFlowTypeOfReference {
     key: RefCell<Option<String>>,
     is_key_set: Cell<bool>,
     flow_depth: Cell<usize>,
+    shared_flow_start: Cell<Option<usize>>,
 }
 
 impl GetFlowTypeOfReference {
@@ -154,7 +155,36 @@ impl GetFlowTypeOfReference {
             key: RefCell::new(None),
             is_key_set: Cell::new(false),
             flow_depth: Cell::new(0),
+            shared_flow_start: Cell::new(None),
         }
+    }
+
+    pub(super) fn maybe_key(&self) -> RefMut<Option<String>> {
+        self.key.borrow_mut()
+    }
+
+    pub(super) fn is_key_set(&self) -> bool {
+        self.is_key_set.get()
+    }
+
+    pub(super) fn set_is_key_set(&self, is_key_set: bool) {
+        self.is_key_set.set(is_key_set);
+    }
+
+    pub(super) fn flow_depth(&self) -> usize {
+        self.flow_depth.get()
+    }
+
+    pub(super) fn set_flow_depth(&self, flow_depth: usize) {
+        self.flow_depth.set(flow_depth);
+    }
+
+    pub(super) fn shared_flow_start(&self) -> usize {
+        self.shared_flow_start.get().unwrap()
+    }
+
+    pub(super) fn set_shared_flow_start(&self, shared_flow_start: usize) {
+        self.shared_flow_start.set(Some(shared_flow_start));
     }
 
     pub(super) fn call(&self) -> Rc<Type> {
@@ -166,11 +196,12 @@ impl GetFlowTypeOfReference {
         }
         self.type_checker
             .set_flow_invocation_count(self.type_checker.flow_invocation_count() + 1);
-        let shared_flow_start = self.type_checker.shared_flow_count();
+        self.set_shared_flow_start(self.type_checker.shared_flow_count());
         let evolved_type = self.type_checker.get_type_from_flow_type(
-            &self.get_type_at_flow_node(self.reference.maybe_flow_node().as_ref().unwrap()),
+            &self.get_type_at_flow_node(self.reference.maybe_flow_node().clone().unwrap()),
         );
-        self.type_checker.set_shared_flow_count(shared_flow_start);
+        self.type_checker
+            .set_shared_flow_count(self.shared_flow_start());
         let result_type = if get_object_flags(&evolved_type).intersects(ObjectFlags::EvolvingArray)
             && self
                 .type_checker
@@ -201,7 +232,188 @@ impl GetFlowTypeOfReference {
         }
     }
 
-    pub(super) fn get_type_at_flow_node(&self, flow: &FlowNode) -> FlowType {
+    pub(super) fn get_or_set_cache_key(&self) -> Option<String> {
+        if self.is_key_set() {
+            return self.maybe_key().clone();
+        }
+        self.set_is_key_set(true);
+        let ret = self.type_checker.get_flow_cache_key(
+            &self.reference,
+            &self.declared_type,
+            &self.initial_type,
+            self.flow_container.as_deref(),
+        );
+        *self.maybe_key() = ret.clone();
+        ret
+    }
+
+    pub(super) fn get_type_at_flow_node(&self, mut flow: Rc<FlowNode>) -> FlowType {
+        if self.flow_depth() == 2000 {
+            // tracing?.instant(tracing.Phase.CheckTypes, "getTypeAtFlowNode_DepthLimit", { flowId: flow.id });
+            self.type_checker.set_flow_analysis_disabled(true);
+            self.type_checker.report_flow_control_error(&self.reference);
+            return self.type_checker.error_type().into();
+        }
+        self.set_flow_depth(self.flow_depth() + 1);
+        let mut shared_flow: Option<Rc<FlowNode>> = None;
+        loop {
+            let flags = flow.flags();
+            if flags.intersects(FlowFlags::Shared) {
+                for i in self.shared_flow_start()..self.type_checker.shared_flow_count() {
+                    if matches!(
+                        self.type_checker.shared_flow_nodes().get(&i),
+                        Some(shared_flow_node) if Rc::ptr_eq(
+                            shared_flow_node,
+                            &flow
+                        )
+                    ) {
+                        self.set_flow_depth(self.flow_depth() - 1);
+                        return self
+                            .type_checker
+                            .shared_flow_types()
+                            .get(&i)
+                            .map(Clone::clone)
+                            .unwrap();
+                    }
+                }
+                shared_flow = Some(flow.clone());
+            }
+            let mut type_: Option<FlowType> = None;
+            if flags.intersects(FlowFlags::Assignment) {
+                type_ = self.get_type_at_flow_assignment(flow.clone());
+                if type_.is_none() {
+                    flow = flow.as_flow_assignment().antecedent.clone();
+                    continue;
+                }
+            } else if flags.intersects(FlowFlags::Call) {
+                type_ = self.get_type_at_flow_call(flow.clone());
+                if type_.is_none() {
+                    flow = flow.as_flow_call().antecedent.clone();
+                    continue;
+                }
+            } else if flags.intersects(FlowFlags::Condition) {
+                type_ = Some(self.get_type_at_flow_condition(flow.clone()));
+            } else if flags.intersects(FlowFlags::SwitchClause) {
+                type_ = Some(self.get_type_at_switch_clause(flow.clone()));
+            } else if flags.intersects(FlowFlags::Label) {
+                let flow_as_flow_label = flow.as_flow_label();
+                if flow_as_flow_label
+                    .maybe_antecedents()
+                    .as_ref()
+                    .unwrap()
+                    .len()
+                    == 1
+                {
+                    let new_flow =
+                        flow_as_flow_label.maybe_antecedents().as_ref().unwrap()[0].clone();
+                    flow = new_flow;
+                    continue;
+                }
+                type_ = Some(if flags.intersects(FlowFlags::BranchLabel) {
+                    self.get_type_at_flow_branch_label(flow.clone())
+                } else {
+                    self.get_type_at_flow_loop_label(flow.clone())
+                });
+            } else if flags.intersects(FlowFlags::ArrayMutation) {
+                type_ = self.get_type_at_flow_array_mutation(flow.clone());
+                if type_.is_none() {
+                    flow = flow.as_flow_array_mutation().antecedent.clone();
+                    continue;
+                }
+            } else if flags.intersects(FlowFlags::ReduceLabel) {
+                let flow_as_flow_reduce_label = flow.as_flow_reduce_label();
+                let target = &flow_as_flow_reduce_label.target.as_flow_label();
+                let save_antecedents = target.maybe_antecedents().clone();
+                *target.maybe_antecedents() = Some(flow_as_flow_reduce_label.antecedents.clone());
+                type_ =
+                    Some(self.get_type_at_flow_node(flow_as_flow_reduce_label.antecedent.clone()));
+                *target.maybe_antecedents() = save_antecedents;
+            } else if flags.intersects(FlowFlags::Start) {
+                let container = flow.as_flow_start().maybe_node();
+                if let Some(container) = container.as_ref().filter(|container| {
+                    !matches!(
+                        self.flow_container.as_ref(),
+                        Some(flow_container) if Rc::ptr_eq(
+                            container,
+                            flow_container
+                        )
+                    ) && !matches!(
+                        self.reference.kind(),
+                        SyntaxKind::PropertyAccessExpression
+                            | SyntaxKind::ElementAccessExpression
+                            | SyntaxKind::ThisKeyword
+                    )
+                }) {
+                    flow = container.maybe_flow_node().clone().unwrap();
+                    continue;
+                }
+                type_ = Some(self.initial_type.clone().into());
+            } else {
+                type_ = Some(
+                    self.type_checker
+                        .convert_auto_to_any(&self.declared_type)
+                        .into(),
+                );
+            }
+            if let Some(shared_flow) = shared_flow.as_ref() {
+                self.type_checker
+                    .shared_flow_nodes()
+                    .insert(self.type_checker.shared_flow_count(), shared_flow.clone());
+                self.type_checker.shared_flow_types().insert(
+                    self.type_checker.shared_flow_count(),
+                    type_.clone().unwrap(),
+                );
+                self.type_checker
+                    .set_shared_flow_count(self.type_checker.shared_flow_count() + 1);
+            }
+            self.set_flow_depth(self.flow_depth() - 1);
+            return type_.unwrap();
+        }
+    }
+
+    pub(super) fn get_type_at_flow_assignment(
+        &self,
+        flow: Rc<FlowNode /*FlowAssignment*/>,
+    ) -> Option<FlowType> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_at_flow_call(
+        &self,
+        flow: Rc<FlowNode /*FlowCall*/>,
+    ) -> Option<FlowType> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_at_flow_array_mutation(
+        &self,
+        flow: Rc<FlowNode /*FlowArrayMutation*/>,
+    ) -> Option<FlowType> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_at_flow_condition(
+        &self,
+        flow: Rc<FlowNode /*FlowCondition*/>,
+    ) -> FlowType {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_at_switch_clause(
+        &self,
+        flow: Rc<FlowNode /*FlowSwitchClause*/>,
+    ) -> FlowType {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_at_flow_branch_label(
+        &self,
+        flow: Rc<FlowNode /*FlowLabel*/>,
+    ) -> FlowType {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_at_flow_loop_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> FlowType {
         unimplemented!()
     }
 }

@@ -19,8 +19,8 @@ use crate::{
     BaseInterfaceType, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
     DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, EmitTextWriter,
-    Extension, FlowNode, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind,
-    InternalSymbolName, IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray,
+    Extension, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo,
+    IndexKind, InternalSymbolName, IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray,
     NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
     ObjectFlagsTypeInterface, PatternAmbientModule, PseudoBigInt, RelationComparisonResult,
     Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
@@ -783,8 +783,8 @@ pub fn create_type_checker(
         flow_loop_nodes: RefCell::new(vec![]),
         flow_loop_keys: RefCell::new(vec![]),
         flow_loop_types: RefCell::new(vec![]),
-        shared_flow_nodes: RefCell::new(vec![]),
-        shared_flow_types: RefCell::new(vec![]),
+        shared_flow_nodes: RefCell::new(HashMap::new()),
+        shared_flow_types: RefCell::new(HashMap::new()),
         flow_node_reachable: RefCell::new(HashMap::new()),
         flow_node_post_super: RefCell::new(HashMap::new()),
         potential_this_collisions: RefCell::new(vec![]),
@@ -3104,6 +3104,14 @@ impl TypeChecker {
 
     pub(super) fn merged_symbols(&self) -> RefMut<HashMap<u32, Rc<Symbol>>> {
         self.merged_symbols.borrow_mut()
+    }
+
+    pub(super) fn shared_flow_nodes(&self) -> RefMut<HashMap<usize, Rc<FlowNode>>> {
+        self.shared_flow_nodes.borrow_mut()
+    }
+
+    pub(super) fn shared_flow_types(&self) -> RefMut<HashMap<usize, FlowType>> {
+        self.shared_flow_types.borrow_mut()
     }
 
     pub(super) fn flow_node_reachable(&self) -> RefMut<HashMap<usize, bool>> {
