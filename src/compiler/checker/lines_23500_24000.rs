@@ -8,8 +8,9 @@ use super::TypeFacts;
 use crate::{
     get_assignment_target_kind, get_declared_expando_initializer, get_object_flags, is_in_js_file,
     is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration, maybe_every,
-    AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    skip_parentheses, AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, Node,
+    NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypePredicate, TypePredicateKind,
 };
 
 impl TypeChecker {
@@ -491,11 +492,101 @@ impl GetFlowTypeOfReference {
         return None;
     }
 
+    pub(super) fn narrow_type_by_assertion(
+        &self,
+        type_: &Type,
+        expr: &Node, /*Expression*/
+    ) -> Rc<Type> {
+        let node = skip_parentheses(expr, Some(true));
+        if node.kind() == SyntaxKind::FalseKeyword {
+            return self.type_checker.unreachable_never_type();
+        }
+        if node.kind() == SyntaxKind::BinaryExpression {
+            let node_as_binary_expression = node.as_binary_expression();
+            if node_as_binary_expression.operator_token.kind()
+                == SyntaxKind::AmpersandAmpersandToken
+            {
+                return self.narrow_type_by_assertion(
+                    &self.narrow_type_by_assertion(type_, &node_as_binary_expression.left),
+                    &node_as_binary_expression.right,
+                );
+            }
+            if node_as_binary_expression.operator_token.kind() == SyntaxKind::BarBarToken {
+                return self.type_checker.get_union_type(
+                    vec![
+                        self.narrow_type_by_assertion(type_, &node_as_binary_expression.left),
+                        self.narrow_type_by_assertion(type_, &node_as_binary_expression.right),
+                    ],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                );
+            }
+        }
+        self.narrow_type(type_, &node, true)
+    }
+
     pub(super) fn get_type_at_flow_call(
         &self,
         flow: Rc<FlowNode /*FlowCall*/>,
     ) -> Option<FlowType> {
-        unimplemented!()
+        let flow_as_flow_call = flow.as_flow_call();
+        let signature = self
+            .type_checker
+            .get_effects_signature(&flow_as_flow_call.node);
+        if let Some(signature) = signature.as_ref() {
+            let predicate = self.type_checker.get_type_predicate_of_signature(signature);
+            if let Some(predicate) = predicate.as_ref().filter(|predicate| {
+                matches!(
+                    predicate.kind,
+                    TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
+                )
+            }) {
+                let flow_type = self.get_type_at_flow_node(flow_as_flow_call.antecedent.clone());
+                let type_ = self.type_checker.finalize_evolving_array_type(
+                    &self.type_checker.get_type_from_flow_type(&flow_type),
+                );
+                let narrowed_type = if predicate.type_.is_some() {
+                    self.narrow_type_by_type_predicate(
+                        &type_,
+                        predicate,
+                        &flow_as_flow_call.node,
+                        true,
+                    )
+                } else if predicate.kind == TypePredicateKind::AssertsIdentifier
+                    && matches!(
+                        predicate.parameter_index,
+                        Some(predicate_parameter_index) if predicate_parameter_index < flow_as_flow_call.node.as_call_expression().arguments.len()
+                    )
+                {
+                    self.narrow_type_by_assertion(
+                        &type_,
+                        &flow_as_flow_call.node.as_call_expression().arguments
+                            [predicate.parameter_index.unwrap()],
+                    )
+                } else {
+                    type_.clone()
+                };
+                return if Rc::ptr_eq(&narrowed_type, &type_) {
+                    Some(flow_type)
+                } else {
+                    Some(self.type_checker.create_flow_type(
+                        &narrowed_type,
+                        self.type_checker.is_incomplete(&flow_type),
+                    ))
+                };
+            }
+            if self
+                .type_checker
+                .get_return_type_of_signature(signature.clone())
+                .flags()
+                .intersects(TypeFlags::Never)
+            {
+                return Some(self.type_checker.unreachable_never_type().into());
+            }
+        }
+        None
     }
 
     pub(super) fn get_type_at_flow_array_mutation(
@@ -527,6 +618,25 @@ impl GetFlowTypeOfReference {
     }
 
     pub(super) fn get_type_at_flow_loop_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> FlowType {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type_by_type_predicate(
+        &self,
+        type_: &Type,
+        predicate: &TypePredicate,
+        call_expression: &Node, /*CallExpression*/
+        assume_true: bool,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type(
+        &self,
+        type_: &Type,
+        expr: &Node, /*Expression*/
+        assume_true: bool,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 }
