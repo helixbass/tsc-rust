@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use super::{typeof_eq_facts, typeof_ne_facts, GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    escape_leading_underscores, every, has_static_modifier, is_private_identifier,
+    contains_rc, escape_leading_underscores, every, has_static_modifier, is_private_identifier,
     is_string_literal_like, Debug_, SymbolFlags, SymbolInterface, SyntaxKind, __String,
     are_rc_slices_equal, is_access_expression, is_optional_chain, map, same_map, Node,
     NodeInterface, Symbol, Type, TypeFlags, TypeInterface, TypePredicate,
@@ -847,9 +847,20 @@ impl GetFlowTypeOfReference {
         switch_statement: &Node, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
-        clause_check: TClauseCheck,
+        mut clause_check: TClauseCheck,
     ) -> Rc<Type> {
-        unimplemented!()
+        let every_clause_checks = clause_start != clause_end
+            && every(
+                &self.type_checker.get_switch_clause_types(switch_statement)
+                    [clause_start..clause_end],
+                |clause_type: &Rc<Type>, _| clause_check(clause_type),
+            );
+        if every_clause_checks {
+            self.type_checker
+                .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)
+        } else {
+            type_.type_wrapper()
+        }
     }
 
     pub(super) fn narrow_type_by_switch_on_discriminant(
@@ -859,7 +870,87 @@ impl GetFlowTypeOfReference {
         clause_start: usize,
         clause_end: usize,
     ) -> Rc<Type> {
-        unimplemented!()
+        let switch_types = self.type_checker.get_switch_clause_types(switch_statement);
+        if switch_types.is_empty() {
+            return type_.type_wrapper();
+        }
+        let clause_types = &switch_types[clause_start..clause_end];
+        let has_default_clause = clause_start == clause_end
+            || contains_rc(Some(clause_types), &self.type_checker.never_type());
+        if type_.flags().intersects(TypeFlags::Unknown) && !has_default_clause {
+            let mut ground_clause_types: Option<Vec<Rc<Type>>> = None;
+            for i in 0..clause_types.len() {
+                let t = &clause_types[i];
+                if t.flags()
+                    .intersects(TypeFlags::Primitive | TypeFlags::NonPrimitive)
+                {
+                    if let Some(ground_clause_types) = ground_clause_types.as_mut() {
+                        ground_clause_types.push(t.clone());
+                    }
+                } else if t.flags().intersects(TypeFlags::Object) {
+                    if ground_clause_types.is_none() {
+                        ground_clause_types = Some(clause_types[0..i].to_owned());
+                    }
+                    ground_clause_types
+                        .as_mut()
+                        .unwrap()
+                        .push(self.type_checker.non_primitive_type());
+                } else {
+                    return type_.type_wrapper();
+                }
+            }
+            return self.type_checker.get_union_type(
+                match ground_clause_types {
+                    None => clause_types.to_owned(),
+                    Some(ground_clause_types) => ground_clause_types,
+                },
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            );
+        }
+        let discriminant_type = self.type_checker.get_union_type(
+            clause_types.to_owned(),
+            None,
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        );
+        let case_type = if discriminant_type.flags().intersects(TypeFlags::Never) {
+            self.type_checker.never_type()
+        } else {
+            self.type_checker.replace_primitives_with_literals(
+                &self.type_checker.filter_type(type_, |t: &Type| {
+                    self.type_checker
+                        .are_types_comparable(&discriminant_type, t)
+                }),
+                &discriminant_type,
+            )
+        };
+        if !has_default_clause {
+            return case_type;
+        }
+        let default_type = self.type_checker.filter_type(type_, |t: &Type| {
+            !(self.type_checker.is_unit_like_type(t)
+                && contains_rc(
+                    Some(&switch_types),
+                    &self
+                        .type_checker
+                        .get_regular_type_of_literal_type(&self.type_checker.extract_unit_type(t)),
+                ))
+        });
+        if case_type.flags().intersects(TypeFlags::Never) {
+            default_type
+        } else {
+            self.type_checker.get_union_type(
+                vec![case_type, default_type],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        }
     }
 
     pub(super) fn get_implied_type_from_typeof_guard(
@@ -867,7 +958,32 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         text: &str,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        match text {
+            "function" => {
+                if type_.flags().intersects(TypeFlags::Any) {
+                    Some(type_.type_wrapper())
+                } else {
+                    Some(self.type_checker.global_function_type())
+                }
+            }
+            "object" => {
+                if type_.flags().intersects(TypeFlags::Unknown) {
+                    Some(self.type_checker.get_union_type(
+                        vec![
+                            self.type_checker.non_primitive_type(),
+                            self.type_checker.null_type(),
+                        ],
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    ))
+                } else {
+                    Some(type_.type_wrapper())
+                }
+            }
+            _ => self.type_checker.typeof_types_by_name().get(&text).cloned(),
+        }
     }
 
     pub(super) fn narrow_union_member_by_typeof(

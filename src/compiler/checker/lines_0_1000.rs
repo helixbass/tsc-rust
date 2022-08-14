@@ -3168,6 +3168,10 @@ impl TypeChecker {
         self.suggestion_diagnostics.borrow_mut()
     }
 
+    pub(super) fn typeof_types_by_name(&self) -> &HashMap<&'static str, Rc<Type>> {
+        self.typeof_types_by_name.as_ref().unwrap()
+    }
+
     pub(super) fn subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
         (*self.subtype_relation).borrow()
     }
