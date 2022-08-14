@@ -21,50 +21,6 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_type_of_symbol_at_location_(
-        &self,
-        symbol: &Symbol,
-        location: &Node,
-    ) -> Rc<Type> {
-        unimplemented!()
-    }
-
-    pub(super) fn is_symbol_assigned(&self, symbol: &Symbol) -> bool {
-        unimplemented!()
-    }
-
-    pub(super) fn is_const_variable(&self, symbol: &Symbol) -> bool {
-        unimplemented!()
-    }
-
-    pub(super) fn get_narrowable_type_for_reference(
-        &self,
-        type_: &Type,
-        reference: &Node,
-        check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
-        unimplemented!()
-    }
-
-    pub(super) fn check_identifier(
-        &self,
-        node: &Node, /*Identifier*/
-        check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
-        let symbol = self.get_resolved_symbol(node);
-        if Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
-            return self.error_type();
-        }
-
-        let local_or_export_symbol = self
-            .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
-            .unwrap();
-
-        let type_ = self.get_type_of_symbol(&*local_or_export_symbol);
-
-        type_
-    }
-
     pub(super) fn check_this_expression(&self, node: &Node) -> Rc<Type> {
         unimplemented!()
     }

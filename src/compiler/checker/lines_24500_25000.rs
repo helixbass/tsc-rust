@@ -3,14 +3,14 @@
 use std::ptr;
 use std::rc::Rc;
 
-use super::{GetFlowTypeOfReference, TypeFacts};
+use super::{CheckMode, GetFlowTypeOfReference, TypeFacts};
 use crate::{
     are_option_rcs_equal, escape_leading_underscores, find, is_access_expression,
     is_binary_expression, is_call_chain, is_expression_of_optional_chain_root, is_identifier,
     is_property_access_expression, is_string_literal_like, is_variable_declaration, map,
-    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Signature, SignatureKind,
-    Symbol, SymbolInterface, SyntaxKind, Type, TypePredicate, TypePredicateKind,
-    UnionOrIntersectionTypeInterface, __String, get_object_flags, ObjectFlags, TypeFlags,
+    HasInitializerInterface, HasTypeInterface, Signature, SignatureKind, TypePredicate,
+    TypePredicateKind, UnionOrIntersectionTypeInterface, __String, get_object_flags, Node,
+    NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,
 };
 
@@ -496,5 +496,51 @@ impl GetFlowTypeOfReference {
             });
         }
         type_.type_wrapper()
+    }
+}
+
+impl TypeChecker {
+    pub(super) fn get_type_of_symbol_at_location_(
+        &self,
+        symbol: &Symbol,
+        location: &Node,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_symbol_assigned(&self, symbol: &Symbol) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_const_variable(&self, symbol: &Symbol) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_narrowable_type_for_reference(
+        &self,
+        type_: &Type,
+        reference: &Node,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_identifier(
+        &self,
+        node: &Node, /*Identifier*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        let symbol = self.get_resolved_symbol(node);
+        if Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
+            return self.error_type();
+        }
+
+        let local_or_export_symbol = self
+            .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
+            .unwrap();
+
+        let type_ = self.get_type_of_symbol(&*local_or_export_symbol);
+
+        type_
     }
 }
