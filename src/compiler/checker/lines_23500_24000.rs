@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell, RefMut};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::TypeFacts;
@@ -837,7 +838,123 @@ impl GetFlowTypeOfReference {
     }
 
     pub(super) fn get_type_at_flow_loop_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> FlowType {
-        unimplemented!()
+        let id = self.type_checker.get_flow_node_id(&flow);
+        let cache = self
+            .type_checker
+            .flow_loop_caches()
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| {
+                let flow_loop_cache = Rc::new(RefCell::new(HashMap::new()));
+                self.type_checker
+                    .flow_loop_caches()
+                    .insert(id, flow_loop_cache.clone());
+                flow_loop_cache
+            });
+        let key = self.get_or_set_cache_key();
+        if key.is_none() {
+            return self.declared_type.clone().into();
+        }
+        let key = key.unwrap();
+        let cached = (*cache).borrow().get(&key).cloned();
+        if let Some(cached) = cached {
+            return cached.into();
+        }
+        for i in self.type_checker.flow_loop_start()..self.type_checker.flow_loop_count() {
+            if matches!(
+                self.type_checker.flow_loop_nodes().get(&i),
+                Some(flow_loop_node) if Rc::ptr_eq(
+                    flow_loop_node,
+                    &flow
+                )
+            ) && matches!(
+                self.type_checker.flow_loop_keys().get(&i),
+                Some(flow_loop_key) if flow_loop_key == &key
+            ) && !self
+                .type_checker
+                .flow_loop_types()
+                .get(&i)
+                .unwrap()
+                .is_empty()
+            {
+                return self.type_checker.create_flow_type(
+                    &self.get_union_or_evolving_array_type(
+                        &self
+                            .type_checker
+                            .flow_loop_types()
+                            .get(&i)
+                            .cloned()
+                            .unwrap(),
+                        UnionReduction::Literal,
+                    ),
+                    true,
+                );
+            }
+        }
+        let mut antecedent_types: Vec<Rc<Type>> = vec![];
+        let mut subtype_reduction = false;
+        let mut first_antecedent_type: Option<FlowType> = None;
+        let flow_as_flow_label = flow.as_flow_label();
+        for antecedent in flow_as_flow_label.maybe_antecedents().clone().unwrap() {
+            let flow_type: FlowType;
+            match first_antecedent_type.as_ref() {
+                None => {
+                    first_antecedent_type = Some(self.get_type_at_flow_node(antecedent.clone()));
+                    flow_type = first_antecedent_type.clone().unwrap();
+                }
+                Some(first_antecedent_type) => {
+                    self.type_checker
+                        .flow_loop_nodes()
+                        .insert(self.type_checker.flow_loop_count(), flow.clone());
+                    self.type_checker
+                        .flow_loop_keys()
+                        .insert(self.type_checker.flow_loop_count(), key.clone());
+                    self.type_checker.flow_loop_types().insert(
+                        self.type_checker.flow_loop_count(),
+                        // TODO: does this need to be a "live" reference to antecedent_types (vs a copy) in order to correctly mimic the Typescript version?
+                        antecedent_types.clone(),
+                    );
+                    self.type_checker
+                        .set_flow_loop_count(self.type_checker.flow_loop_count() + 1);
+                    let save_flow_type_cache = self.type_checker.maybe_flow_type_cache().take();
+                    flow_type = self.get_type_at_flow_node(antecedent.clone());
+                    *self.type_checker.maybe_flow_type_cache() = save_flow_type_cache;
+                    self.type_checker
+                        .set_flow_loop_count(self.type_checker.flow_loop_count() - 1);
+                    let cached = (*cache).borrow().get(&key).cloned();
+                    if let Some(cached) = cached {
+                        return cached.into();
+                    }
+                }
+            }
+            let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
+            push_if_unique_rc(&mut antecedent_types, &type_);
+            if !self
+                .type_checker
+                .is_type_subset_of(&type_, &self.declared_type)
+            {
+                subtype_reduction = true;
+            }
+            if Rc::ptr_eq(&type_, &self.declared_type) {
+                break;
+            }
+        }
+        let result = self.get_union_or_evolving_array_type(
+            &antecedent_types,
+            if subtype_reduction {
+                UnionReduction::Subtype
+            } else {
+                UnionReduction::Literal
+            },
+        );
+        if self
+            .type_checker
+            .is_incomplete(first_antecedent_type.as_ref().unwrap())
+        {
+            return self.type_checker.create_flow_type(&result, true);
+        }
+        cache.borrow_mut().insert(key, result.clone());
+        result.into()
     }
 
     pub(super) fn get_union_or_evolving_array_type(

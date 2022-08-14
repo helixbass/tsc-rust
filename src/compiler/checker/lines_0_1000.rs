@@ -779,10 +779,10 @@ pub fn create_type_checker(
         merged_symbols: RefCell::new(HashMap::new()),
         symbol_links: RefCell::new(HashMap::new()),
         node_links: RefCell::new(HashMap::new()),
-        flow_loop_caches: RefCell::new(vec![]),
-        flow_loop_nodes: RefCell::new(vec![]),
-        flow_loop_keys: RefCell::new(vec![]),
-        flow_loop_types: RefCell::new(vec![]),
+        flow_loop_caches: RefCell::new(HashMap::new()),
+        flow_loop_nodes: RefCell::new(HashMap::new()),
+        flow_loop_keys: RefCell::new(HashMap::new()),
+        flow_loop_types: RefCell::new(HashMap::new()),
         shared_flow_nodes: RefCell::new(HashMap::new()),
         shared_flow_types: RefCell::new(HashMap::new()),
         flow_node_reachable: RefCell::new(HashMap::new()),
@@ -3034,6 +3034,22 @@ impl TypeChecker {
         self.deferred_global_big_int_type.borrow_mut()
     }
 
+    pub(crate) fn flow_loop_start(&self) -> usize {
+        self.flow_loop_start.get()
+    }
+
+    pub(crate) fn set_flow_loop_start(&self, flow_loop_start: usize) {
+        self.flow_loop_start.set(flow_loop_start);
+    }
+
+    pub(crate) fn flow_loop_count(&self) -> usize {
+        self.flow_loop_count.get()
+    }
+
+    pub(crate) fn set_flow_loop_count(&self, flow_loop_count: usize) {
+        self.flow_loop_count.set(flow_loop_count);
+    }
+
     pub(crate) fn shared_flow_count(&self) -> usize {
         self.shared_flow_count.get()
     }
@@ -3070,6 +3086,10 @@ impl TypeChecker {
         self.last_flow_node_reachable.set(last_flow_node_reachable);
     }
 
+    pub(super) fn maybe_flow_type_cache(&self) -> RefMut<Option<HashMap<NodeId, Rc<Type>>>> {
+        self.flow_type_cache.borrow_mut()
+    }
+
     pub(super) fn empty_string_type(&self) -> Rc<Type> {
         self.empty_string_type.clone().unwrap()
     }
@@ -3104,6 +3124,24 @@ impl TypeChecker {
 
     pub(super) fn merged_symbols(&self) -> RefMut<HashMap<u32, Rc<Symbol>>> {
         self.merged_symbols.borrow_mut()
+    }
+
+    pub(super) fn flow_loop_caches(
+        &self,
+    ) -> RefMut<HashMap<usize, Rc<RefCell<HashMap<String, Rc<Type>>>>>> {
+        self.flow_loop_caches.borrow_mut()
+    }
+
+    pub(super) fn flow_loop_nodes(&self) -> RefMut<HashMap<usize, Rc<FlowNode>>> {
+        self.flow_loop_nodes.borrow_mut()
+    }
+
+    pub(super) fn flow_loop_keys(&self) -> RefMut<HashMap<usize, String>> {
+        self.flow_loop_keys.borrow_mut()
+    }
+
+    pub(super) fn flow_loop_types(&self) -> RefMut<HashMap<usize, Vec<Rc<Type>>>> {
+        self.flow_loop_types.borrow_mut()
     }
 
     pub(super) fn shared_flow_nodes(&self) -> RefMut<HashMap<usize, Rc<FlowNode>>> {
