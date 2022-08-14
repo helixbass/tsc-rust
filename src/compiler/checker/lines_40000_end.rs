@@ -197,6 +197,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_function_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_referenced_value_symbol(
         &self,
         reference: &Node, /*Identifier*/
