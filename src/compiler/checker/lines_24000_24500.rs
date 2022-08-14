@@ -3,7 +3,7 @@
 use std::ptr;
 use std::rc::Rc;
 
-use super::{GetFlowTypeOfReference, TypeFacts};
+use super::{typeof_eq_facts, typeof_ne_facts, GetFlowTypeOfReference, TypeFacts};
 use crate::{
     escape_leading_underscores, every, has_static_modifier, is_private_identifier,
     is_string_literal_like, Debug_, SymbolFlags, SymbolInterface, SyntaxKind, __String,
@@ -602,7 +602,34 @@ impl GetFlowTypeOfReference {
         value: &Node, /*Expression*/
         assume_true: bool,
     ) -> Rc<Type> {
-        unimplemented!()
+        let equals_operator = matches!(
+            operator,
+            SyntaxKind::EqualsEqualsToken | SyntaxKind::EqualsEqualsEqualsToken
+        );
+        let nullable_flags = if matches!(
+            operator,
+            SyntaxKind::EqualsEqualsToken | SyntaxKind::ExclamationEqualsToken
+        ) {
+            TypeFlags::Nullable
+        } else {
+            TypeFlags::Undefined
+        };
+        let value_type = self.type_checker.get_type_of_expression(value);
+        let remove_nullable = equals_operator != assume_true
+            && self
+                .type_checker
+                .every_type(&value_type, |t: &Type| t.flags().intersects(nullable_flags))
+            || equals_operator == assume_true
+                && self.type_checker.every_type(&value_type, |t: &Type| {
+                    !t.flags()
+                        .intersects(TypeFlags::AnyOrUnknown | nullable_flags)
+                });
+        if remove_nullable {
+            self.type_checker
+                .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull)
+        } else {
+            type_.type_wrapper()
+        }
     }
 
     pub(super) fn narrow_type_by_equality(
@@ -610,9 +637,113 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         operator: SyntaxKind,
         value: &Node, /*Expression*/
-        assume_true: bool,
+        mut assume_true: bool,
     ) -> Rc<Type> {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Any) {
+            return type_.type_wrapper();
+        }
+        if matches!(
+            operator,
+            SyntaxKind::ExclamationEqualsToken | SyntaxKind::ExclamationEqualsEqualsToken
+        ) {
+            assume_true = !assume_true;
+        }
+        let value_type = self.type_checker.get_type_of_expression(value);
+        if assume_true
+            && type_.flags().intersects(TypeFlags::Unknown)
+            && matches!(
+                operator,
+                SyntaxKind::EqualsEqualsToken | SyntaxKind::ExclamationEqualsToken
+            )
+            && value_type.flags().intersects(TypeFlags::Null)
+        {
+            return self.type_checker.get_union_type(
+                vec![
+                    self.type_checker.null_type(),
+                    self.type_checker.undefined_type(),
+                ],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            );
+        }
+        if type_.flags().intersects(TypeFlags::Unknown)
+            && assume_true
+            && matches!(
+                operator,
+                SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::ExclamationEqualsEqualsToken
+            )
+        {
+            if value_type
+                .flags()
+                .intersects(TypeFlags::Primitive | TypeFlags::NonPrimitive)
+            {
+                return value_type;
+            }
+            if value_type.flags().intersects(TypeFlags::Object) {
+                return self.type_checker.non_primitive_type();
+            }
+            return type_.type_wrapper();
+        }
+        if value_type.flags().intersects(TypeFlags::Nullable) {
+            if !self.type_checker.strict_null_checks {
+                return type_.type_wrapper();
+            }
+            let double_equals = matches!(
+                operator,
+                SyntaxKind::EqualsEqualsToken | SyntaxKind::ExclamationEqualsToken
+            );
+            let facts = if double_equals {
+                if assume_true {
+                    TypeFacts::EQUndefinedOrNull
+                } else {
+                    TypeFacts::NEUndefinedOrNull
+                }
+            } else if value_type.flags().intersects(TypeFlags::Null) {
+                if assume_true {
+                    TypeFacts::EQNull
+                } else {
+                    TypeFacts::NENull
+                }
+            } else {
+                if assume_true {
+                    TypeFacts::EQUndefined
+                } else {
+                    TypeFacts::NEUndefined
+                }
+            };
+            return if type_.flags().intersects(TypeFlags::Unknown)
+                && facts.intersects(TypeFacts::NENull | TypeFacts::NEUndefinedOrNull)
+            {
+                self.type_checker.non_null_unknown_type()
+            } else {
+                self.type_checker.get_type_with_facts(type_, facts)
+            };
+        }
+        if assume_true {
+            let filter_fn = |t: &Type| {
+                if operator == SyntaxKind::EqualsEqualsToken {
+                    self.type_checker.are_types_comparable(t, &value_type)
+                        || self
+                            .type_checker
+                            .is_coercible_under_double_equals(t, &value_type)
+                } else {
+                    self.type_checker.are_types_comparable(t, &value_type)
+                }
+            };
+            return self.type_checker.replace_primitives_with_literals(
+                &self.type_checker.filter_type(type_, filter_fn),
+                &value_type,
+            );
+        }
+        if self.type_checker.is_unit_type(&value_type) {
+            return self.type_checker.filter_type(type_, |t: &Type| {
+                !(self.type_checker.is_unit_like_type(t)
+                    && self.type_checker.are_types_comparable(t, &value_type))
+            });
+        }
+        type_.type_wrapper()
     }
 
     pub(super) fn narrow_type_by_typeof(
@@ -621,9 +752,91 @@ impl GetFlowTypeOfReference {
         type_of_expr: &Node, /*TypeOfExpression*/
         operator: SyntaxKind,
         literal: &Node, /*LiteralExpression*/
-        assume_true: bool,
+        mut assume_true: bool,
     ) -> Rc<Type> {
-        unimplemented!()
+        if matches!(
+            operator,
+            SyntaxKind::ExclamationEqualsToken | SyntaxKind::ExclamationEqualsEqualsToken
+        ) {
+            assume_true = !assume_true;
+        }
+        let type_of_expr_as_type_of_expression = type_of_expr.as_type_of_expression();
+        let target = self
+            .type_checker
+            .get_reference_candidate(&type_of_expr_as_type_of_expression.expression);
+        let literal_as_literal_like_node = literal.as_literal_like_node();
+        if !self
+            .type_checker
+            .is_matching_reference(&self.reference, &target)
+        {
+            if self.type_checker.strict_null_checks
+                && self
+                    .type_checker
+                    .optional_chain_contains_reference(&target, &self.reference)
+                && assume_true == (&**literal_as_literal_like_node.text() != "undefined")
+            {
+                return self
+                    .type_checker
+                    .get_type_with_facts(type_, TypeFacts::NEUndefinedOrNull);
+            }
+            return type_.type_wrapper();
+        }
+        if type_.flags().intersects(TypeFlags::Any)
+            && &**literal_as_literal_like_node.text() == "function"
+        {
+            return type_.type_wrapper();
+        }
+        if assume_true
+            && type_.flags().intersects(TypeFlags::Unknown)
+            && &**literal_as_literal_like_node.text() == "object"
+        {
+            return if ptr::eq(type_, &*self.type_checker.non_null_unknown_type()) {
+                self.type_checker.non_primitive_type()
+            } else {
+                self.type_checker.get_union_type(
+                    vec![
+                        self.type_checker.non_primitive_type(),
+                        self.type_checker.null_type(),
+                    ],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                )
+            };
+        }
+        let facts = if assume_true {
+            typeof_eq_facts
+                .get(&&**literal_as_literal_like_node.text())
+                .copied()
+                .unwrap_or(TypeFacts::TypeofEQHostObject)
+        } else {
+            typeof_ne_facts
+                .get(&&**literal_as_literal_like_node.text())
+                .copied()
+                .unwrap_or(TypeFacts::TypeofNEHostObject)
+        };
+        let implied_type =
+            self.get_implied_type_from_typeof_guard(type_, &literal_as_literal_like_node.text());
+        self.type_checker.get_type_with_facts(
+            &*if let Some(implied_type) = implied_type.as_ref().filter(|_implied_type| assume_true)
+            {
+                let mut callback_returning_non_optional =
+                    self.narrow_union_member_by_typeof(implied_type);
+                self.type_checker
+                    .map_type(
+                        type_,
+                        &mut move |candidate: &Type| {
+                            Some(callback_returning_non_optional(candidate))
+                        },
+                        None,
+                    )
+                    .unwrap()
+            } else {
+                type_.type_wrapper()
+            },
+            facts,
+        )
     }
 
     pub(super) fn narrow_type_by_switch_optional_chain_containment<
@@ -647,6 +860,43 @@ impl GetFlowTypeOfReference {
         clause_end: usize,
     ) -> Rc<Type> {
         unimplemented!()
+    }
+
+    pub(super) fn get_implied_type_from_typeof_guard(
+        &self,
+        type_: &Type,
+        text: &str,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_union_member_by_typeof(
+        &self,
+        candidate: &Type,
+    ) -> impl FnMut(&Type) -> Rc<Type> + 'static {
+        let type_checker = self.type_checker.clone();
+        let candidate = candidate.type_wrapper();
+        move |type_: &Type| {
+            if type_checker.is_type_subtype_of(type_, &candidate) {
+                return type_.type_wrapper();
+            }
+            if type_checker.is_type_subtype_of(&candidate, type_) {
+                return candidate.clone();
+            }
+            if type_.flags().intersects(TypeFlags::Instantiable) {
+                let constraint = type_checker
+                    .get_base_constraint_of_type(type_)
+                    .unwrap_or_else(|| type_checker.any_type());
+                if type_checker.is_type_subtype_of(&candidate, &constraint) {
+                    return type_checker.get_intersection_type(
+                        &vec![type_.type_wrapper(), candidate.clone()],
+                        Option::<&Symbol>::None,
+                        None,
+                    );
+                }
+            }
+            type_.type_wrapper()
+        }
     }
 
     pub(super) fn narrow_by_switch_on_type_of(
