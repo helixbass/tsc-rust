@@ -593,7 +593,67 @@ impl GetFlowTypeOfReference {
         &self,
         flow: Rc<FlowNode /*FlowArrayMutation*/>,
     ) -> Option<FlowType> {
-        unimplemented!()
+        if Rc::ptr_eq(&self.declared_type, &self.type_checker.auto_type())
+            || Rc::ptr_eq(&self.declared_type, &self.type_checker.auto_array_type())
+        {
+            let flow_as_flow_array_mutation = flow.as_flow_array_mutation();
+            let node = &flow_as_flow_array_mutation.node;
+            let expr = if node.kind() == SyntaxKind::CallExpression {
+                node.as_call_expression().expression.clone()
+            } else {
+                node.as_binary_expression()
+                    .left
+                    .as_element_access_expression()
+                    .expression
+                    .clone()
+            };
+            if self.type_checker.is_matching_reference(
+                &self.reference,
+                &self.type_checker.get_reference_candidate(&expr),
+            ) {
+                let flow_type =
+                    self.get_type_at_flow_node(flow_as_flow_array_mutation.antecedent.clone());
+                let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
+                if get_object_flags(&type_).intersects(ObjectFlags::EvolvingArray) {
+                    let mut evolved_type = type_.clone();
+                    if node.kind() == SyntaxKind::CallExpression {
+                        for arg in &node.as_call_expression().arguments {
+                            evolved_type = self
+                                .type_checker
+                                .add_evolving_array_element_type(&evolved_type, arg);
+                        }
+                    } else {
+                        let node_as_binary_expression = node.as_binary_expression();
+                        let index_type = self.type_checker.get_context_free_type_of_expression(
+                            &node_as_binary_expression
+                                .left
+                                .as_element_access_expression()
+                                .argument_expression,
+                        );
+                        if self.type_checker.is_type_assignable_to_kind(
+                            &index_type,
+                            TypeFlags::NumberLike,
+                            None,
+                        ) {
+                            evolved_type = self.type_checker.add_evolving_array_element_type(
+                                &evolved_type,
+                                &node_as_binary_expression.right,
+                            );
+                        }
+                    }
+                    return if Rc::ptr_eq(&evolved_type, &type_) {
+                        Some(flow_type)
+                    } else {
+                        Some(self.type_checker.create_flow_type(
+                            &evolved_type,
+                            self.type_checker.is_incomplete(&flow_type),
+                        ))
+                    };
+                }
+                return Some(flow_type);
+            }
+        }
+        None
     }
 
     pub(super) fn get_type_at_flow_condition(
