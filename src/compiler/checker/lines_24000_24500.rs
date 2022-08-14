@@ -1,12 +1,14 @@
 #![allow(non_upper_case_globals)]
 
+use std::ptr;
 use std::rc::Rc;
 
 use super::{GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    SyntaxKind, __String, are_rc_slices_equal, is_access_expression, is_optional_chain, map,
-    same_map, Node, NodeInterface, Symbol, Type, TypeFlags, TypeInterface, TypePredicate,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    escape_leading_underscores, every, is_private_identifier, is_string_literal_like, SymbolFlags,
+    SymbolInterface, SyntaxKind, __String, are_rc_slices_equal, is_access_expression,
+    is_optional_chain, map, same_map, Node, NodeInterface, Symbol, Type, TypeFlags, TypeInterface,
+    TypePredicate, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl GetFlowTypeOfReference {
@@ -202,6 +204,366 @@ impl GetFlowTypeOfReference {
         clause_start: usize,
         clause_end: usize,
     ) -> Rc<Type> {
+        if clause_start < clause_end
+            && type_.flags().intersects(TypeFlags::Union)
+            && self.type_checker.get_key_property_name(type_)
+                == self.type_checker.get_accessed_property_name(access)
+        {
+            let clause_types = self.type_checker.get_switch_clause_types(switch_statement);
+            let clause_types = &clause_types[clause_start..clause_end];
+            let candidate = self.type_checker.get_union_type(
+                map(clause_types, |t: &Rc<Type>, _| {
+                    self.type_checker
+                        .get_constituent_type_for_key_type(type_, t)
+                        .unwrap_or_else(|| self.type_checker.unknown_type())
+                }),
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            );
+            if !Rc::ptr_eq(&candidate, &self.type_checker.unknown_type()) {
+                return candidate;
+            }
+        }
+        self.narrow_type_by_discriminant(type_, access, |t: &Type| {
+            self.narrow_type_by_switch_on_discriminant(
+                t,
+                switch_statement,
+                clause_start,
+                clause_end,
+            )
+        })
+    }
+
+    pub(super) fn narrow_type_by_truthiness(
+        &self,
+        type_: &Type,
+        expr: &Node, /*Expression*/
+        assume_true: bool,
+    ) -> Rc<Type> {
+        if self
+            .type_checker
+            .is_matching_reference(&self.reference, expr)
+        {
+            return if type_.flags().intersects(TypeFlags::Unknown) && assume_true {
+                self.type_checker.non_null_unknown_type()
+            } else {
+                self.type_checker.get_type_with_facts(
+                    type_,
+                    if assume_true {
+                        TypeFacts::Truthy
+                    } else {
+                        TypeFacts::Falsy
+                    },
+                )
+            };
+        }
+        let mut type_ = type_.type_wrapper();
+        if self.type_checker.strict_null_checks
+            && assume_true
+            && self
+                .type_checker
+                .optional_chain_contains_reference(expr, &self.reference)
+        {
+            type_ = self
+                .type_checker
+                .get_type_with_facts(&type_, TypeFacts::NEUndefinedOrNull);
+        }
+        let access = self.get_discriminant_property_access(expr, &type_);
+        if let Some(access) = access.as_ref() {
+            return self.narrow_type_by_discriminant(&type_, access, |t: &Type| {
+                self.type_checker.get_type_with_facts(
+                    t,
+                    if assume_true {
+                        TypeFacts::Truthy
+                    } else {
+                        TypeFacts::Falsy
+                    },
+                )
+            });
+        }
+        type_
+    }
+
+    pub(super) fn is_type_presence_possible(
+        &self,
+        type_: &Type,
+        prop_name: &__String,
+        assume_true: bool,
+    ) -> bool {
+        let prop = self
+            .type_checker
+            .get_property_of_type_(type_, prop_name, None);
+        if let Some(prop) = prop.as_ref() {
+            return if prop.flags().intersects(SymbolFlags::Optional) {
+                true
+            } else {
+                assume_true
+            };
+        }
+        if self
+            .type_checker
+            .get_applicable_index_info_for_name(type_, prop_name)
+            .is_some()
+        {
+            true
+        } else {
+            !assume_true
+        }
+    }
+
+    pub(super) fn narrow_by_in_keyword(
+        &self,
+        type_: &Type,
+        name: &__String,
+        assume_true: bool,
+    ) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Union)
+            || type_.flags().intersects(TypeFlags::Object) && !ptr::eq(&*self.declared_type, type_)
+            || self.type_checker.is_this_type_parameter(type_)
+            || type_.flags().intersects(TypeFlags::Intersection)
+                && every(type_.as_intersection_type().types(), |t: &Rc<Type>, _| {
+                    !matches!(
+                        t.maybe_symbol().as_ref(),
+                        Some(t_symbol) if Rc::ptr_eq(
+                            t_symbol,
+                            &self.type_checker.global_this_symbol()
+                        )
+                    )
+                })
+        {
+            return self.type_checker.filter_type(type_, |t: &Type| {
+                self.is_type_presence_possible(t, name, assume_true)
+            });
+        }
+        type_.type_wrapper()
+    }
+
+    pub(super) fn narrow_type_by_binary_expression(
+        &self,
+        type_: &Type,
+        expr: &Node, /*BinaryExpression*/
+        assume_true: bool,
+    ) -> Rc<Type> {
+        let expr_as_binary_expression = expr.as_binary_expression();
+        let mut type_ = type_.type_wrapper();
+        match expr_as_binary_expression.operator_token.kind() {
+            SyntaxKind::EqualsToken
+            | SyntaxKind::BarBarEqualsToken
+            | SyntaxKind::AmpersandAmpersandEqualsToken
+            | SyntaxKind::QuestionQuestionEqualsToken => {
+                return self.narrow_type_by_truthiness(
+                    &self.narrow_type(&type_, &expr_as_binary_expression.right, assume_true),
+                    &expr_as_binary_expression.left,
+                    assume_true,
+                );
+            }
+            SyntaxKind::EqualsEqualsToken
+            | SyntaxKind::ExclamationEqualsToken
+            | SyntaxKind::EqualsEqualsEqualsToken
+            | SyntaxKind::ExclamationEqualsEqualsToken => {
+                let operator = expr_as_binary_expression.operator_token.kind();
+                let left = self
+                    .type_checker
+                    .get_reference_candidate(&expr_as_binary_expression.left);
+                let right = self
+                    .type_checker
+                    .get_reference_candidate(&expr_as_binary_expression.right);
+                if left.kind() == SyntaxKind::TypeOfExpression && is_string_literal_like(&right) {
+                    return self.narrow_type_by_typeof(
+                        &type_,
+                        &left,
+                        operator,
+                        &right,
+                        assume_true,
+                    );
+                }
+                if right.kind() == SyntaxKind::TypeOfExpression && is_string_literal_like(&left) {
+                    return self.narrow_type_by_typeof(
+                        &type_,
+                        &right,
+                        operator,
+                        &left,
+                        assume_true,
+                    );
+                }
+                if self
+                    .type_checker
+                    .is_matching_reference(&self.reference, &left)
+                {
+                    return self.narrow_type_by_equality(&type_, operator, &right, assume_true);
+                }
+                if self
+                    .type_checker
+                    .is_matching_reference(&self.reference, &right)
+                {
+                    return self.narrow_type_by_equality(&type_, operator, &left, assume_true);
+                }
+                if self.type_checker.strict_null_checks {
+                    if self
+                        .type_checker
+                        .optional_chain_contains_reference(&left, &self.reference)
+                    {
+                        type_ = self.narrow_type_by_optional_chain_containment(
+                            &type_,
+                            operator,
+                            &right,
+                            assume_true,
+                        );
+                    } else if self
+                        .type_checker
+                        .optional_chain_contains_reference(&right, &self.reference)
+                    {
+                        type_ = self.narrow_type_by_optional_chain_containment(
+                            &type_,
+                            operator,
+                            &left,
+                            assume_true,
+                        );
+                    }
+                }
+                let left_access = self.get_discriminant_property_access(&left, &type_);
+                if let Some(left_access) = left_access.as_ref() {
+                    return self.narrow_type_by_discriminant_property(
+                        &type_,
+                        left_access,
+                        operator,
+                        &right,
+                        assume_true,
+                    );
+                }
+                let right_access = self.get_discriminant_property_access(&right, &type_);
+                if let Some(right_access) = right_access.as_ref() {
+                    return self.narrow_type_by_discriminant_property(
+                        &type_,
+                        right_access,
+                        operator,
+                        &left,
+                        assume_true,
+                    );
+                }
+                if self.is_matching_constructor_reference(&left) {
+                    return self.narrow_type_by_constructor(&type_, operator, &right, assume_true);
+                }
+                if self.is_matching_constructor_reference(&right) {
+                    return self.narrow_type_by_constructor(&type_, operator, &left, assume_true);
+                }
+            }
+            SyntaxKind::InstanceOfKeyword => {
+                return self.narrow_type_by_instanceof(&type_, expr, assume_true);
+            }
+            SyntaxKind::InKeyword => {
+                if is_private_identifier(&expr_as_binary_expression.left) {
+                    return self.narrow_type_by_private_identifier_in_in_expression(
+                        &type_,
+                        expr,
+                        assume_true,
+                    );
+                }
+                let target = self
+                    .type_checker
+                    .get_reference_candidate(&expr_as_binary_expression.right);
+                let left_type = self
+                    .type_checker
+                    .get_type_of_node(&expr_as_binary_expression.left);
+                if left_type.flags().intersects(TypeFlags::StringLiteral) {
+                    let name =
+                        escape_leading_underscores(&left_type.as_string_literal_type().value);
+                    if self.type_checker.contains_missing_type(&type_)
+                        && is_access_expression(&self.reference)
+                        && self.type_checker.is_matching_reference(
+                            &self.reference.as_has_expression().expression(),
+                            &target,
+                        )
+                        && matches!(
+                            self.type_checker.get_accessed_property_name(
+                                &self.reference
+                            ).as_ref(),
+                            Some(accessed_property_name) if accessed_property_name == &name
+                        )
+                    {
+                        return self.type_checker.get_type_with_facts(
+                            &type_,
+                            if assume_true {
+                                TypeFacts::NEUndefined
+                            } else {
+                                TypeFacts::EQUndefined
+                            },
+                        );
+                    }
+                    if self
+                        .type_checker
+                        .is_matching_reference(&self.reference, &target)
+                    {
+                        return self.narrow_by_in_keyword(&type_, &name, assume_true);
+                    }
+                }
+            }
+            SyntaxKind::CommaToken => {
+                return self.narrow_type(&type_, &expr_as_binary_expression.right, assume_true);
+            }
+            SyntaxKind::AmpersandAmpersandToken => {
+                return if assume_true {
+                    self.narrow_type(
+                        &self.narrow_type(&type_, &expr_as_binary_expression.left, true),
+                        &expr_as_binary_expression.right,
+                        true,
+                    )
+                } else {
+                    self.type_checker.get_union_type(
+                        vec![
+                            self.narrow_type(&type_, &expr_as_binary_expression.left, false),
+                            self.narrow_type(&type_, &expr_as_binary_expression.right, false),
+                        ],
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                };
+            }
+            SyntaxKind::BarBarToken => {
+                return if assume_true {
+                    self.type_checker.get_union_type(
+                        vec![
+                            self.narrow_type(&type_, &expr_as_binary_expression.left, true),
+                            self.narrow_type(&type_, &expr_as_binary_expression.right, true),
+                        ],
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                } else {
+                    self.narrow_type(
+                        &self.narrow_type(&type_, &expr_as_binary_expression.left, false),
+                        &expr_as_binary_expression.right,
+                        false,
+                    )
+                };
+            }
+            _ => (),
+        }
+        type_
+    }
+
+    pub(super) fn narrow_type_by_private_identifier_in_in_expression(
+        &self,
+        type_: &Type,
+        expr: &Node, /*BinaryExpression*/
+        assume_true: bool,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type_by_optional_chain_containment(
+        &self,
+        type_: &Type,
+        operator: SyntaxKind,
+        value: &Node, /*Expression*/
+        assume_true: bool,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
@@ -210,6 +572,17 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         operator: SyntaxKind,
         value: &Node, /*Expression*/
+        assume_true: bool,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type_by_typeof(
+        &self,
+        type_: &Type,
+        type_of_expr: &Node, /*TypeOfExpression*/
+        operator: SyntaxKind,
+        literal: &Node, /*LiteralExpression*/
         assume_true: bool,
     ) -> Rc<Type> {
         unimplemented!()
@@ -238,12 +611,38 @@ impl GetFlowTypeOfReference {
         unimplemented!()
     }
 
-    pub(super) fn narrow_type_by_switch_on_type_of(
+    pub(super) fn narrow_by_switch_on_type_of(
         &self,
         type_: &Type,
         switch_statement: &Node, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_matching_constructor_reference(
+        &self,
+        expr: &Node, /*Expression*/
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type_by_constructor(
+        &self,
+        type_: &Type,
+        operator: SyntaxKind,
+        identifier: &Node, /*Expression*/
+        assume_true: bool,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type_by_instanceof(
+        &self,
+        type_: &Type,
+        expr: &Node, /*BinaryExpression*/
+        assume_true: bool,
     ) -> Rc<Type> {
         unimplemented!()
     }

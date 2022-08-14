@@ -707,7 +707,7 @@ impl GetFlowTypeOfReference {
                 .type_checker
                 .is_matching_reference(&self.reference, &expr.as_type_of_expression().expression)
         {
-            type_ = self.narrow_type_by_switch_on_type_of(
+            type_ = self.narrow_by_switch_on_type_of(
                 &type_,
                 &flow_as_flow_switch_clause.switch_statement,
                 flow_as_flow_switch_clause.clause_start,
