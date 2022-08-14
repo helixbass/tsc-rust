@@ -1192,6 +1192,10 @@ impl FlowNode {
         enum_unwrapped!(self, [FlowNode, FlowArrayMutation])
     }
 
+    pub fn as_flow_condition(&self) -> &FlowCondition {
+        enum_unwrapped!(self, [FlowNode, FlowCondition])
+    }
+
     pub fn as_has_antecedent(&self) -> &dyn HasAntecedentInterface {
         match self {
             Self::FlowAssignment(value) => value,

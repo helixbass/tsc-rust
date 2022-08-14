@@ -6,11 +6,11 @@ use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    get_assignment_target_kind, get_declared_expando_initializer, get_object_flags, is_in_js_file,
-    is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration, maybe_every,
-    skip_parentheses, AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, Node,
-    NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypePredicate, TypePredicateKind,
+    contains_rc, get_assignment_target_kind, get_declared_expando_initializer, get_object_flags,
+    is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration,
+    maybe_every, push_if_unique_rc, skip_parentheses, AssignmentKind, FlowFlags, FlowNode,
+    FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypePredicate, TypePredicateKind, UnionReduction,
 };
 
 impl TypeChecker {
@@ -660,24 +660,243 @@ impl GetFlowTypeOfReference {
         &self,
         flow: Rc<FlowNode /*FlowCondition*/>,
     ) -> FlowType {
-        unimplemented!()
+        let flow_as_flow_condition = flow.as_flow_condition();
+        let flow_type = self.get_type_at_flow_node(flow_as_flow_condition.antecedent.clone());
+        let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
+        if type_.flags().intersects(TypeFlags::Never) {
+            return flow_type;
+        }
+        let assume_true = flow.flags().intersects(FlowFlags::TrueCondition);
+        let non_evolving_type = self.type_checker.finalize_evolving_array_type(&type_);
+        let narrowed_type = self.narrow_type(
+            &non_evolving_type,
+            &flow_as_flow_condition.node,
+            assume_true,
+        );
+        if Rc::ptr_eq(&narrowed_type, &non_evolving_type) {
+            return flow_type;
+        }
+        self.type_checker
+            .create_flow_type(&narrowed_type, self.type_checker.is_incomplete(&flow_type))
     }
 
     pub(super) fn get_type_at_switch_clause(
         &self,
         flow: Rc<FlowNode /*FlowSwitchClause*/>,
     ) -> FlowType {
-        unimplemented!()
+        let flow_as_flow_switch_clause = flow.as_flow_switch_clause();
+        let expr = &flow_as_flow_switch_clause
+            .switch_statement
+            .as_switch_statement()
+            .expression;
+        let flow_type = self.get_type_at_flow_node(flow_as_flow_switch_clause.antecedent.clone());
+        let mut type_ = self.type_checker.get_type_from_flow_type(&flow_type);
+        if self
+            .type_checker
+            .is_matching_reference(&self.reference, expr)
+        {
+            type_ = self.narrow_type_by_switch_on_discriminant(
+                &type_,
+                &flow_as_flow_switch_clause.switch_statement,
+                flow_as_flow_switch_clause.clause_start,
+                flow_as_flow_switch_clause.clause_end,
+            );
+        } else if expr.kind() == SyntaxKind::TypeOfExpression
+            && self
+                .type_checker
+                .is_matching_reference(&self.reference, &expr.as_type_of_expression().expression)
+        {
+            type_ = self.narrow_type_by_switch_on_type_of(
+                &type_,
+                &flow_as_flow_switch_clause.switch_statement,
+                flow_as_flow_switch_clause.clause_start,
+                flow_as_flow_switch_clause.clause_end,
+            );
+        } else {
+            if self.type_checker.strict_null_checks {
+                if self
+                    .type_checker
+                    .optional_chain_contains_reference(expr, &self.reference)
+                {
+                    type_ = self.narrow_type_by_switch_optional_chain_containment(
+                        &type_,
+                        &flow_as_flow_switch_clause.switch_statement,
+                        flow_as_flow_switch_clause.clause_start,
+                        flow_as_flow_switch_clause.clause_end,
+                        |t: &Type| {
+                            !t.flags()
+                                .intersects(TypeFlags::Undefined | TypeFlags::Never)
+                        },
+                    );
+                } else if expr.kind() == SyntaxKind::TypeOfExpression
+                    && self.type_checker.optional_chain_contains_reference(
+                        &expr.as_type_of_expression().expression,
+                        &self.reference,
+                    )
+                {
+                    type_ = self.narrow_type_by_switch_optional_chain_containment(
+                        &type_,
+                        &flow_as_flow_switch_clause.switch_statement,
+                        flow_as_flow_switch_clause.clause_start,
+                        flow_as_flow_switch_clause.clause_end,
+                        |t: &Type| {
+                            !t.flags().intersects(TypeFlags::Never)
+                                || t.flags().intersects(TypeFlags::StringLiteral)
+                                    && t.as_string_literal_type().value == "undefined"
+                        },
+                    );
+                }
+            }
+            let access = self.get_discriminant_property_access(expr, &type_);
+            if let Some(access) = access.as_ref() {
+                type_ = self.narrow_type_by_switch_on_discriminant_property(
+                    &type_,
+                    access,
+                    &flow_as_flow_switch_clause.switch_statement,
+                    flow_as_flow_switch_clause.clause_start,
+                    flow_as_flow_switch_clause.clause_end,
+                );
+            }
+        }
+        self.type_checker
+            .create_flow_type(&type_, self.type_checker.is_incomplete(&flow_type))
     }
 
     pub(super) fn get_type_at_flow_branch_label(
         &self,
         flow: Rc<FlowNode /*FlowLabel*/>,
     ) -> FlowType {
-        unimplemented!()
+        let mut antecedent_types: Vec<Rc<Type>> = vec![];
+        let mut subtype_reduction = false;
+        let mut seen_incomplete = false;
+        let mut bypass_flow: Option<Rc<FlowNode /*FlowSwitchClause*/>> = None;
+        let flow_as_flow_label = flow.as_flow_label();
+        for antecedent in flow_as_flow_label.maybe_antecedents().as_ref().unwrap() {
+            if bypass_flow.is_none() && antecedent.flags().intersects(FlowFlags::SwitchClause) && {
+                let antecendent_as_flow_switch_clause = antecedent.as_flow_switch_clause();
+                antecendent_as_flow_switch_clause.clause_start
+                    == antecendent_as_flow_switch_clause.clause_end
+            } {
+                bypass_flow = Some(antecedent.clone());
+                continue;
+            }
+            let flow_type = self.get_type_at_flow_node(antecedent.clone());
+            let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
+            if Rc::ptr_eq(&type_, &self.declared_type)
+                && Rc::ptr_eq(&self.declared_type, &self.initial_type)
+            {
+                return type_.into();
+            }
+            push_if_unique_rc(&mut antecedent_types, &type_);
+            if !self
+                .type_checker
+                .is_type_subset_of(&type_, &self.declared_type)
+            {
+                subtype_reduction = true;
+            }
+            if self.type_checker.is_incomplete(&flow_type) {
+                seen_incomplete = true;
+            }
+        }
+        if let Some(bypass_flow) = bypass_flow.as_ref() {
+            let flow_type = self.get_type_at_flow_node(bypass_flow.clone());
+            let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
+            if !contains_rc(Some(&antecedent_types), &type_)
+                && !self.type_checker.is_exhaustive_switch_statement(
+                    &bypass_flow.as_flow_switch_clause().switch_statement,
+                )
+            {
+                if Rc::ptr_eq(&type_, &self.declared_type)
+                    && Rc::ptr_eq(&self.declared_type, &self.initial_type)
+                {
+                    return type_.into();
+                }
+                antecedent_types.push(type_.clone());
+                if !self
+                    .type_checker
+                    .is_type_subset_of(&type_, &self.declared_type)
+                {
+                    subtype_reduction = true;
+                }
+                if self.type_checker.is_incomplete(&flow_type) {
+                    seen_incomplete = true;
+                }
+            }
+        }
+        self.type_checker.create_flow_type(
+            &self.get_union_or_evolving_array_type(
+                &antecedent_types,
+                if subtype_reduction {
+                    UnionReduction::Subtype
+                } else {
+                    UnionReduction::Literal
+                },
+            ),
+            seen_incomplete,
+        )
     }
 
     pub(super) fn get_type_at_flow_loop_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> FlowType {
+        unimplemented!()
+    }
+
+    pub(super) fn get_union_or_evolving_array_type(
+        &self,
+        types: &[Rc<Type>],
+        subtype_reduction: UnionReduction,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_discriminant_property_access(
+        &self,
+        expr: &Node, /*Expression*/
+        computed_type: &Type,
+    ) -> Option<Rc<Node>> {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type_by_switch_on_discriminant_property(
+        &self,
+        type_: &Type,
+        access: &Node,           /*AccessExpression | BindingElement*/
+        switch_statement: &Node, /*SwitchStatement*/
+        clause_start: usize,
+        clause_end: usize,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type_by_switch_optional_chain_containment<
+        TClauseCheck: FnMut(&Type) -> bool,
+    >(
+        &self,
+        type_: &Type,
+        switch_statement: &Node, /*SwitchStatement*/
+        clause_start: usize,
+        clause_end: usize,
+        clause_check: TClauseCheck,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type_by_switch_on_discriminant(
+        &self,
+        type_: &Type,
+        switch_statement: &Node, /*SwitchStatement*/
+        clause_start: usize,
+        clause_end: usize,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn narrow_type_by_switch_on_type_of(
+        &self,
+        type_: &Type,
+        switch_statement: &Node, /*SwitchStatement*/
+        clause_start: usize,
+        clause_end: usize,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
