@@ -1,17 +1,9 @@
 #![allow(non_upper_case_globals)]
 
-use std::ptr;
 use std::rc::Rc;
 
-use super::{typeof_eq_facts, typeof_ne_facts, GetFlowTypeOfReference, TypeFacts};
-use crate::{
-    contains_rc, escape_leading_underscores, every, find_index, has_static_modifier, id_text,
-    is_element_access_expression, is_private_identifier, is_property_access_expression,
-    is_string_literal_like, Debug_, SymbolFlags, SymbolInterface, SyntaxKind, __String,
-    are_rc_slices_equal, is_access_expression, is_optional_chain, map, same_map, Node,
-    NodeInterface, Symbol, Type, TypeFlags, TypeInterface, TypePredicate,
-    UnionOrIntersectionTypeInterface, UnionReduction,
-};
+use super::GetFlowTypeOfReference;
+use crate::{Node, SyntaxKind, Type, TypePredicate};
 
 impl GetFlowTypeOfReference {
     pub(super) fn narrow_type_by_constructor(

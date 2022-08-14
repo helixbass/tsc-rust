@@ -9,8 +9,8 @@ use crate::{
     is_element_access_expression, is_private_identifier, is_property_access_expression,
     is_string_literal_like, Debug_, SymbolFlags, SymbolInterface, SyntaxKind, __String,
     are_rc_slices_equal, is_access_expression, is_optional_chain, map, same_map, Node,
-    NodeInterface, Symbol, Type, TypeFlags, TypeInterface, TypePredicate,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    NodeInterface, Symbol, Type, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl GetFlowTypeOfReference {
