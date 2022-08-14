@@ -1,18 +1,9 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
-use std::cell::{Cell, RefCell, RefMut};
-use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{GetFlowTypeOfReference, TypeFacts};
-use crate::{
-    contains_rc, get_assignment_target_kind, get_declared_expando_initializer, get_object_flags,
-    is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration,
-    maybe_every, push_if_unique_rc, skip_parentheses, AssignmentKind, FlowFlags, FlowNode,
-    FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypePredicate, TypePredicateKind, UnionReduction,
-};
+use super::GetFlowTypeOfReference;
+use crate::{Node, Type, TypePredicate, UnionReduction};
 
 impl GetFlowTypeOfReference {
     pub(super) fn get_union_or_evolving_array_type(

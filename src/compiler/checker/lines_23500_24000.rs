@@ -11,7 +11,7 @@ use crate::{
     is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration,
     maybe_every, push_if_unique_rc, skip_parentheses, AssignmentKind, FlowFlags, FlowNode,
     FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypePredicate, TypePredicateKind, UnionReduction,
+    TypeChecker, TypeFlags, TypeInterface, TypePredicateKind, UnionReduction,
 };
 
 impl TypeChecker {
