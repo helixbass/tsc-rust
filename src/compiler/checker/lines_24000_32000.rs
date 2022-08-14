@@ -6,7 +6,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg,
+    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
     WideningKind,
 };
 use crate::{
@@ -1110,6 +1110,16 @@ impl TypeChecker {
                 return_type.unwrap_or(fallback_return_type)
             }
         }
+    }
+
+    pub(super) fn get_facts_from_typeof_switch(
+        &self,
+        start: usize,
+        end: usize,
+        witnesses: &[String],
+        has_default: bool,
+    ) -> TypeFacts {
+        unimplemented!()
     }
 
     pub(super) fn is_exhaustive_switch_statement(

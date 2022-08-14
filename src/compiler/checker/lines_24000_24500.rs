@@ -5,7 +5,8 @@ use std::rc::Rc;
 
 use super::{typeof_eq_facts, typeof_ne_facts, GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    contains_rc, escape_leading_underscores, every, has_static_modifier, is_private_identifier,
+    contains_rc, escape_leading_underscores, every, find_index, has_static_modifier, id_text,
+    is_element_access_expression, is_private_identifier, is_property_access_expression,
     is_string_literal_like, Debug_, SymbolFlags, SymbolInterface, SyntaxKind, __String,
     are_rc_slices_equal, is_access_expression, is_optional_chain, map, same_map, Node,
     NodeInterface, Symbol, Type, TypeFlags, TypeInterface, TypePredicate,
@@ -1022,14 +1023,114 @@ impl GetFlowTypeOfReference {
         clause_start: usize,
         clause_end: usize,
     ) -> Rc<Type> {
-        unimplemented!()
+        let switch_witnesses = self
+            .type_checker
+            .get_switch_clause_type_of_witnesses(switch_statement, true);
+        if switch_witnesses.is_empty() {
+            return type_.type_wrapper();
+        }
+        let default_case_location = find_index(
+            &switch_witnesses,
+            |elem: &Option<String>, _| elem.is_none(),
+            None,
+        );
+        let has_default_clause = clause_start == clause_end
+            || matches!(
+                default_case_location,
+                Some(default_case_location) if default_case_location >= clause_start && default_case_location < clause_end
+            );
+        let clause_witnesses: Vec<String>;
+        let switch_facts: TypeFacts;
+        if let Some(default_case_location) = default_case_location {
+            let witnesses = switch_witnesses
+                .iter()
+                .filter_map(|witness| witness.clone())
+                .collect::<Vec<_>>();
+            let fixed_clause_start = if default_case_location < clause_start {
+                clause_start - 1
+            } else {
+                clause_start
+            };
+            let fixed_clause_end = if default_case_location < clause_end {
+                clause_end - 1
+            } else {
+                clause_end
+            };
+            clause_witnesses = witnesses[fixed_clause_start..fixed_clause_end].to_owned();
+            switch_facts = self.type_checker.get_facts_from_typeof_switch(
+                fixed_clause_start,
+                fixed_clause_end,
+                &witnesses,
+                has_default_clause,
+            );
+        } else {
+            clause_witnesses = switch_witnesses[clause_start..clause_end]
+                .into_iter()
+                .map(|witness| witness.clone().unwrap())
+                .collect::<Vec<_>>();
+            switch_facts = self.type_checker.get_facts_from_typeof_switch(
+                clause_start,
+                clause_end,
+                &switch_witnesses
+                    .iter()
+                    .map(|witness| witness.clone().unwrap())
+                    .collect::<Vec<_>>(),
+                has_default_clause,
+            );
+        }
+        if has_default_clause {
+            return self.type_checker.filter_type(type_, |t: &Type| {
+                self.type_checker.get_type_facts(t, None) & switch_facts == switch_facts
+            });
+        }
+        let implied_type = self.type_checker.get_type_with_facts(
+            &self.type_checker.get_union_type(
+                clause_witnesses
+                    .iter()
+                    .map(|text| {
+                        self.get_implied_type_from_typeof_guard(type_, text)
+                            .unwrap_or_else(|| type_.type_wrapper())
+                    })
+                    .collect(),
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            ),
+            switch_facts,
+        );
+        let mut callback_returning_non_optional = self.narrow_union_member_by_typeof(&implied_type);
+        self.type_checker.get_type_with_facts(
+            &self
+                .type_checker
+                .map_type(
+                    type_,
+                    &mut move |candidate: &Type| Some(callback_returning_non_optional(candidate)),
+                    None,
+                )
+                .unwrap(),
+            switch_facts,
+        )
     }
 
     pub(super) fn is_matching_constructor_reference(
         &self,
         expr: &Node, /*Expression*/
     ) -> bool {
-        unimplemented!()
+        (is_property_access_expression(expr)
+            && id_text(&expr.as_property_access_expression().name) == "constructor"
+            || is_element_access_expression(expr) && {
+                let expr_as_element_access_expression = expr.as_element_access_expression();
+                is_string_literal_like(&expr_as_element_access_expression.argument_expression)
+                    && &**expr_as_element_access_expression
+                        .argument_expression
+                        .as_literal_like_node()
+                        .text()
+                        == "constructor"
+            })
+            && self
+                .type_checker
+                .is_matching_reference(&self.reference, &expr.as_has_expression().expression())
     }
 
     pub(super) fn narrow_type_by_constructor(
