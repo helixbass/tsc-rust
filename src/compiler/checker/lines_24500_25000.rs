@@ -1,12 +1,15 @@
 #![allow(non_upper_case_globals)]
 
+use std::ptr;
 use std::rc::Rc;
 
 use super::{GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    are_option_rcs_equal, escape_leading_underscores, find, is_access_expression, is_call_chain,
-    is_identifier, is_property_access_expression, is_string_literal_like, map, Node, Signature,
-    SignatureKind, Symbol, SyntaxKind, Type, TypePredicate, TypePredicateKind,
+    are_option_rcs_equal, escape_leading_underscores, find, is_access_expression,
+    is_binary_expression, is_call_chain, is_expression_of_optional_chain_root, is_identifier,
+    is_property_access_expression, is_string_literal_like, is_variable_declaration, map,
+    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Signature, SignatureKind,
+    Symbol, SymbolInterface, SyntaxKind, Type, TypePredicate, TypePredicateKind,
     UnionOrIntersectionTypeInterface, __String, get_object_flags, ObjectFlags, TypeFlags,
     TypeInterface,
 };
@@ -376,6 +379,122 @@ impl GetFlowTypeOfReference {
         expr: &Node, /*Expression*/
         assume_true: bool,
     ) -> Rc<Type> {
-        unimplemented!()
+        if is_expression_of_optional_chain_root(expr) || {
+            let expr_parent = expr.parent();
+            is_binary_expression(&expr_parent) && {
+                let expr_parent_as_binary_expression = expr_parent.as_binary_expression();
+                expr_parent_as_binary_expression.operator_token.kind()
+                    == SyntaxKind::QuestionQuestionToken
+                    && ptr::eq(&*expr_parent_as_binary_expression.left, expr)
+            }
+        } {
+            return self.narrow_type_by_optionality(type_, expr, assume_true);
+        }
+        match expr.kind() {
+            SyntaxKind::Identifier => {
+                if !self
+                    .type_checker
+                    .is_matching_reference(&self.reference, expr)
+                    && self.type_checker.inline_level() < 5
+                {
+                    let symbol = self.type_checker.get_resolved_symbol(expr);
+                    if self.type_checker.is_const_variable(&symbol) {
+                        let declaration = symbol.maybe_value_declaration();
+                        if let Some(declaration) = declaration.as_ref().filter(|declaration| {
+                            is_variable_declaration(declaration) && {
+                                let declaration_as_variable_declaration =
+                                    declaration.as_variable_declaration();
+                                declaration_as_variable_declaration.maybe_type().is_none()
+                                    && declaration_as_variable_declaration
+                                        .maybe_initializer()
+                                        .is_some()
+                                    && self.type_checker.is_constant_reference(&self.reference)
+                            }
+                        }) {
+                            self.type_checker
+                                .set_inline_level(self.type_checker.inline_level() + 1);
+                            let result = self.narrow_type(
+                                type_,
+                                &declaration
+                                    .as_has_initializer()
+                                    .maybe_initializer()
+                                    .unwrap(),
+                                assume_true,
+                            );
+                            self.type_checker
+                                .set_inline_level(self.type_checker.inline_level() - 1);
+                            return result;
+                        }
+                    }
+                }
+                return self.narrow_type_by_truthiness(type_, expr, assume_true);
+            }
+            SyntaxKind::ThisKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression => {
+                return self.narrow_type_by_truthiness(type_, expr, assume_true);
+            }
+            SyntaxKind::CallExpression => {
+                return self.narrow_type_by_call_expression(type_, expr, assume_true);
+            }
+            SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
+                return self.narrow_type(
+                    type_,
+                    &expr.as_has_expression().expression(),
+                    assume_true,
+                );
+            }
+            SyntaxKind::BinaryExpression => {
+                return self.narrow_type_by_binary_expression(type_, expr, assume_true);
+            }
+            SyntaxKind::PrefixUnaryExpression => {
+                let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
+                if expr_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken {
+                    return self.narrow_type(
+                        type_,
+                        &expr_as_prefix_unary_expression.operand,
+                        !assume_true,
+                    );
+                }
+            }
+            _ => (),
+        }
+        type_.type_wrapper()
+    }
+
+    pub(super) fn narrow_type_by_optionality(
+        &self,
+        type_: &Type,
+        expr: &Node, /*Expression*/
+        assume_present: bool,
+    ) -> Rc<Type> {
+        if self
+            .type_checker
+            .is_matching_reference(&self.reference, expr)
+        {
+            return self.type_checker.get_type_with_facts(
+                type_,
+                if assume_present {
+                    TypeFacts::NEUndefinedOrNull
+                } else {
+                    TypeFacts::EQUndefinedOrNull
+                },
+            );
+        }
+        let access = self.get_discriminant_property_access(expr, type_);
+        if let Some(access) = access.as_ref() {
+            return self.narrow_type_by_discriminant(type_, access, |t: &Type| {
+                self.type_checker.get_type_with_facts(
+                    t,
+                    if assume_present {
+                        TypeFacts::NEUndefinedOrNull
+                    } else {
+                        TypeFacts::EQUndefinedOrNull
+                    },
+                )
+            });
+        }
+        type_.type_wrapper()
     }
 }

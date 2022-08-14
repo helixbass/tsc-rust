@@ -1539,6 +1539,14 @@ impl TypeChecker {
         self.instantiation_depth.set(instantiation_depth);
     }
 
+    pub(super) fn inline_level(&self) -> usize {
+        self.inline_level.get()
+    }
+
+    pub(super) fn set_inline_level(&self, inline_level: usize) {
+        self.inline_level.set(inline_level);
+    }
+
     pub(super) fn maybe_current_node(&self) -> Option<Rc<Node>> {
         self.current_node.borrow().clone()
     }
