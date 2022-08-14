@@ -577,6 +577,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_symbol_for_private_identifier_expression(
+        &self,
+        priv_id: &Node, /*PrivateIdentifier*/
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_private_identifier_property_of_type_(
         &self,
         left_type: &Type,

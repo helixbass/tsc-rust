@@ -5,10 +5,11 @@ use std::rc::Rc;
 
 use super::{GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    escape_leading_underscores, every, is_private_identifier, is_string_literal_like, SymbolFlags,
-    SymbolInterface, SyntaxKind, __String, are_rc_slices_equal, is_access_expression,
-    is_optional_chain, map, same_map, Node, NodeInterface, Symbol, Type, TypeFlags, TypeInterface,
-    TypePredicate, UnionOrIntersectionTypeInterface, UnionReduction,
+    escape_leading_underscores, every, has_static_modifier, is_private_identifier,
+    is_string_literal_like, Debug_, SymbolFlags, SymbolInterface, SyntaxKind, __String,
+    are_rc_slices_equal, is_access_expression, is_optional_chain, map, same_map, Node,
+    NodeInterface, Symbol, Type, TypeFlags, TypeInterface, TypePredicate,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl GetFlowTypeOfReference {
@@ -554,7 +555,44 @@ impl GetFlowTypeOfReference {
         expr: &Node, /*BinaryExpression*/
         assume_true: bool,
     ) -> Rc<Type> {
-        unimplemented!()
+        let expr_as_binary_expression = expr.as_binary_expression();
+        let target = self
+            .type_checker
+            .get_reference_candidate(&expr_as_binary_expression.right);
+        if !self
+            .type_checker
+            .is_matching_reference(&self.reference, &target)
+        {
+            return type_.type_wrapper();
+        }
+
+        Debug_.assert_node(
+            Some(&*expr_as_binary_expression.left),
+            Some(is_private_identifier),
+            None,
+        );
+        let symbol = self
+            .type_checker
+            .get_symbol_for_private_identifier_expression(&expr_as_binary_expression.left);
+        if symbol.is_none() {
+            return type_.type_wrapper();
+        }
+        let symbol = symbol.unwrap();
+        let class_symbol = symbol.maybe_parent().unwrap();
+        let target_type = if has_static_modifier(Debug_.check_defined::<&Rc<Node>>(
+            symbol.maybe_value_declaration().as_ref(),
+            Some("should always have a declaration"),
+        )) {
+            self.type_checker.get_type_of_symbol(&class_symbol)
+        } else {
+            self.type_checker.get_declared_type_of_symbol(&class_symbol)
+        };
+        self.get_narrowed_type(
+            type_,
+            &target_type,
+            assume_true,
+            |source: &Type, target: &Type| self.type_checker.is_type_derived_from(source, target),
+        )
     }
 
     pub(super) fn narrow_type_by_optional_chain_containment(
@@ -643,6 +681,16 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*BinaryExpression*/
         assume_true: bool,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_narrowed_type<TIsRelated: FnMut(&Type, &Type) -> bool>(
+        &self,
+        type_: &Type,
+        candidate: &Type,
+        assume_true: bool,
+        is_related: TIsRelated,
     ) -> Rc<Type> {
         unimplemented!()
     }
