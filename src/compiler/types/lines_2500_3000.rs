@@ -1223,7 +1223,12 @@ impl InterfaceOrClassLikeDeclarationInterface for BaseInterfaceOrClassLikeDeclar
     }
 }
 
-pub trait ClassLikeDeclarationInterface {
+pub trait ClassLikeDeclarationInterface:
+    NamedDeclarationInterface
+    + HasTypeParametersInterface
+    + GenericNamedDeclarationInterface
+    + InterfaceOrClassLikeDeclarationInterface
+{
     fn members(&self) -> &NodeArray;
 }
 

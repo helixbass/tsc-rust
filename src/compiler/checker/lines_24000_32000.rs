@@ -21,6 +21,14 @@ use crate::{
 };
 
 impl TypeChecker {
+    pub(super) fn check_nested_block_scoped_binding(
+        &self,
+        node: &Node, /*Identifier*/
+        symbol: &Symbol,
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn check_this_expression(&self, node: &Node) -> Rc<Type> {
         unimplemented!()
     }
@@ -562,6 +570,10 @@ impl TypeChecker {
         suggestion: Option<TSuggestion>,
         exclude_classes: bool,
     ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_in_property_initializer_or_class_static_block(&self, node: &Node) -> bool {
         unimplemented!()
     }
 

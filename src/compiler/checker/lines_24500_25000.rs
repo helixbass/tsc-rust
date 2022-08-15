@@ -6,19 +6,24 @@ use std::rc::Rc;
 use super::{CheckMode, GetFlowTypeOfReference, TypeFacts};
 use crate::{
     are_option_rcs_equal, escape_leading_underscores, find, find_ancestor, for_each_child,
-    get_immediately_invoked_function_expression, get_root_declaration, is_access_expression,
-    is_assignment_target, is_binary_expression, is_call_chain, is_catch_clause,
-    is_declaration_name, is_element_access_expression, is_entity_name_expression,
-    is_export_assignment, is_export_specifier, is_expression_node,
-    is_expression_of_optional_chain_root, is_function_like, is_identifier, is_jsx_opening_element,
-    is_jsx_self_closing_element, is_parameter_or_catch_clause_variable,
-    is_property_access_expression, is_right_side_of_qualified_name_or_property_access,
-    is_set_accessor, is_string_literal_like, is_variable_declaration, is_write_access, map,
-    ContextFlags, FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, NodeArray,
-    NodeCheckFlags, NodeFlags, Signature, SignatureKind, SymbolFlags, TypePredicate,
-    TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, __String,
-    get_object_flags, Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    get_assignment_target_kind, get_containing_class, get_containing_function,
+    get_immediately_invoked_function_expression, get_name_of_declaration, get_root_declaration,
+    get_this_container, has_syntactic_modifier, is_access_expression, is_assignment_target,
+    is_binary_expression, is_binding_element, is_call_chain, is_catch_clause,
+    is_class_static_block_declaration, is_declaration_name, is_element_access_expression,
+    is_entity_name_expression, is_export_assignment, is_export_specifier, is_expression_node,
+    is_expression_of_optional_chain_root, is_function_like, is_identifier, is_in_js_file,
+    is_jsx_opening_element, is_jsx_self_closing_element,
+    is_object_literal_or_class_expression_method_or_accessor,
+    is_parameter_or_catch_clause_variable, is_property_access_expression, is_property_declaration,
+    is_right_side_of_qualified_name_or_property_access, is_set_accessor, is_spread_assignment,
+    is_static, is_string_literal_like, is_variable_declaration, is_write_access, map,
+    node_is_decorated, should_preserve_const_enums, AssignmentKind, ContextFlags, Diagnostics,
+    FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, ModifierFlags,
+    NodeArray, NodeCheckFlags, NodeFlags, ScriptTarget, Signature, SignatureKind, SymbolFlags,
+    TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    __String, get_object_flags, Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl GetFlowTypeOfReference {
@@ -770,6 +775,26 @@ impl TypeChecker {
         .is_some()
     }
 
+    pub(super) fn mark_alias_referenced(&self, symbol: &Symbol, location: &Node) {
+        if self.is_non_local_alias(Some(symbol), Some(SymbolFlags::Value))
+            && !self.is_in_type_query(location)
+            && self.get_type_only_alias_declaration(symbol).is_none()
+        {
+            let target = self.resolve_alias(symbol);
+            if target.flags().intersects(SymbolFlags::Value) {
+                if self.compiler_options.isolated_modules == Some(true)
+                    || should_preserve_const_enums(&self.compiler_options)
+                        && self.is_export_or_export_expression(location)
+                    || !self.is_const_enum_or_const_enum_only_module(&target)
+                {
+                    self.mark_alias_symbol_as_referenced(&symbol);
+                } else {
+                    self.mark_const_enum_alias_as_referenced(&symbol);
+                }
+            }
+        }
+    }
+
     pub(super) fn check_identifier(
         &self,
         node: &Node, /*Identifier*/
@@ -780,12 +805,362 @@ impl TypeChecker {
             return self.error_type();
         }
 
+        if Rc::ptr_eq(&symbol, &self.arguments_symbol()) {
+            if self.is_in_property_initializer_or_class_static_block(node) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::arguments_cannot_be_referenced_in_property_initializers,
+                    None,
+                );
+                return self.error_type();
+            }
+
+            let container = get_containing_function(node).unwrap();
+            if self.language_version < ScriptTarget::ES2015 {
+                if container.kind() == SyntaxKind::ArrowFunction {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::The_arguments_object_cannot_be_referenced_in_an_arrow_function_in_ES3_and_ES5_Consider_using_a_standard_function_expression,
+                        None,
+                    );
+                } else if has_syntactic_modifier(&container, ModifierFlags::Async) {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::The_arguments_object_cannot_be_referenced_in_an_async_function_or_method_in_ES3_and_ES5_Consider_using_a_standard_function_or_method,
+                        None,
+                    );
+                }
+            }
+
+            self.get_node_links(&container).borrow_mut().flags |= NodeCheckFlags::CaptureArguments;
+            return self.get_type_of_symbol(&symbol);
+        }
+
+        if !matches!(
+            node.maybe_parent().as_ref(),
+            Some(node_parent) if is_property_access_expression(node_parent) && ptr::eq(
+                &*node_parent.as_property_access_expression().expression,
+                node
+            )
+        ) {
+            self.mark_alias_referenced(&symbol, node);
+        }
+
         let local_or_export_symbol = self
-            .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
+            .get_export_symbol_of_value_symbol_if_exported(Some(&*symbol))
             .unwrap();
+        let source_symbol = if local_or_export_symbol
+            .flags()
+            .intersects(SymbolFlags::Alias)
+        {
+            self.resolve_alias(&local_or_export_symbol)
+        } else {
+            local_or_export_symbol.clone()
+        };
+        if let Some(source_symbol_declarations) = source_symbol.maybe_declarations().as_ref() {
+            if self
+                .get_declaration_node_flags_from_symbol(&source_symbol)
+                .intersects(NodeFlags::Deprecated)
+                && self.is_uncalled_function_reference(node, &source_symbol)
+            {
+                self.add_deprecated_suggestion(
+                    node,
+                    source_symbol_declarations,
+                    &*node.as_identifier().escaped_text,
+                );
+            }
+        }
 
-        let type_ = self.get_type_of_symbol(&*local_or_export_symbol);
+        let mut declaration = local_or_export_symbol.maybe_value_declaration();
+        if let Some(declaration) = declaration.as_ref() {
+            if local_or_export_symbol
+                .flags()
+                .intersects(SymbolFlags::Class)
+            {
+                if declaration.kind() == SyntaxKind::ClassDeclaration
+                    && node_is_decorated(declaration, Option::<&Node>::None, Option::<&Node>::None)
+                {
+                    let mut container = get_containing_class(node);
+                    while let Some(container_present) = container.as_ref() {
+                        if Rc::ptr_eq(container_present, declaration)
+                            && !matches!(
+                                container_present.as_class_like_declaration().maybe_name().as_deref(),
+                                Some(container_name) if ptr::eq(
+                                    container_name,
+                                    node
+                                )
+                            )
+                        {
+                            self.get_node_links(declaration).borrow_mut().flags |=
+                                NodeCheckFlags::ClassWithConstructorReference;
+                            self.get_node_links(node).borrow_mut().flags |=
+                                NodeCheckFlags::ConstructorReferenceInClass;
+                            break;
+                        }
 
-        type_
+                        container = get_containing_class(container_present);
+                    }
+                } else if declaration.kind() == SyntaxKind::ClassExpression {
+                    let mut container = get_this_container(node, false);
+                    while container.kind() != SyntaxKind::SourceFile {
+                        if Rc::ptr_eq(&container.parent(), declaration) {
+                            if is_property_declaration(&container) && is_static(&container)
+                                || is_class_static_block_declaration(&container)
+                            {
+                                self.get_node_links(declaration).borrow_mut().flags |=
+                                    NodeCheckFlags::ClassWithConstructorReference;
+                                self.get_node_links(node).borrow_mut().flags |=
+                                    NodeCheckFlags::ConstructorReferenceInClass;
+                            }
+                            break;
+                        }
+
+                        container = get_this_container(&container, false);
+                    }
+                }
+            }
+        }
+
+        self.check_nested_block_scoped_binding(node, &symbol);
+
+        let mut type_ = self.get_type_of_symbol(&local_or_export_symbol);
+        let assignment_kind = get_assignment_target_kind(node);
+
+        if assignment_kind != AssignmentKind::None {
+            if !local_or_export_symbol
+                .flags()
+                .intersects(SymbolFlags::Variable)
+                && !(is_in_js_file(Some(node))
+                    && local_or_export_symbol
+                        .flags()
+                        .intersects(SymbolFlags::ValueModule))
+            {
+                let assignment_error =
+                    if local_or_export_symbol.flags().intersects(SymbolFlags::Enum) {
+                        &*Diagnostics::Cannot_assign_to_0_because_it_is_an_enum
+                    } else if local_or_export_symbol
+                        .flags()
+                        .intersects(SymbolFlags::Class)
+                    {
+                        &*Diagnostics::Cannot_assign_to_0_because_it_is_a_class
+                    } else if local_or_export_symbol
+                        .flags()
+                        .intersects(SymbolFlags::Module)
+                    {
+                        &*Diagnostics::Cannot_assign_to_0_because_it_is_a_namespace
+                    } else if local_or_export_symbol
+                        .flags()
+                        .intersects(SymbolFlags::Function)
+                    {
+                        &*Diagnostics::Cannot_assign_to_0_because_it_is_a_function
+                    } else if local_or_export_symbol
+                        .flags()
+                        .intersects(SymbolFlags::Alias)
+                    {
+                        &*Diagnostics::Cannot_assign_to_0_because_it_is_an_import
+                    } else {
+                        &*Diagnostics::Cannot_assign_to_0_because_it_is_not_a_variable
+                    };
+
+                self.error(
+                    Some(node),
+                    assignment_error,
+                    Some(vec![self.symbol_to_string_(
+                        &symbol,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                        None,
+                    )]),
+                );
+                return self.error_type();
+            }
+            if self.is_readonly_symbol(&local_or_export_symbol) {
+                if local_or_export_symbol
+                    .flags()
+                    .intersects(SymbolFlags::Variable)
+                {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Cannot_assign_to_0_because_it_is_a_constant,
+                        Some(vec![self.symbol_to_string_(
+                            &symbol,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        )]),
+                    );
+                } else {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
+                        Some(vec![self.symbol_to_string_(
+                            &symbol,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        )]),
+                    );
+                }
+                return self.error_type();
+            }
+        }
+
+        let is_alias = local_or_export_symbol
+            .flags()
+            .intersects(SymbolFlags::Alias);
+
+        if local_or_export_symbol
+            .flags()
+            .intersects(SymbolFlags::Variable)
+        {
+            if assignment_kind == AssignmentKind::Definite {
+                return type_;
+            }
+        } else if is_alias {
+            declaration = self.get_declaration_of_alias_symbol(&symbol);
+        } else {
+            return type_;
+        }
+
+        if declaration.is_none() {
+            return type_;
+        }
+        let declaration = declaration.unwrap();
+
+        type_ = self.get_narrowable_type_for_reference(&type_, node, check_mode);
+
+        let is_parameter = get_root_declaration(&declaration).kind() == SyntaxKind::Parameter;
+        let declaration_container = self.get_control_flow_container(&declaration);
+        let mut flow_container = self.get_control_flow_container(node);
+        let is_outer_variable = !Rc::ptr_eq(&flow_container, &declaration_container);
+        let is_spread_destructuring_assignment_target = matches!(
+            node.maybe_parent().as_ref(),
+            Some(node_parent) if matches!(
+                node_parent.maybe_parent().as_ref(),
+                Some(node_parent_parent) if is_spread_assignment(node_parent) && self.is_destructuring_assignment_target(node_parent_parent)
+            )
+        );
+        let is_module_exports = symbol.flags().intersects(SymbolFlags::ModuleExports);
+        while !Rc::ptr_eq(&flow_container, &declaration_container)
+            && (matches!(
+                flow_container.kind(),
+                SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+            ) || is_object_literal_or_class_expression_method_or_accessor(&flow_container))
+            && (self.is_const_variable(&local_or_export_symbol)
+                && !Rc::ptr_eq(&type_, &self.auto_array_type())
+                || is_parameter && !self.is_symbol_assigned(&local_or_export_symbol))
+        {
+            flow_container = self.get_control_flow_container(&flow_container);
+        }
+        let assume_initialized = is_parameter
+            || is_alias
+            || is_outer_variable
+            || is_spread_destructuring_assignment_target
+            || is_module_exports
+            || is_binding_element(&declaration)
+            || !Rc::ptr_eq(&type_, &self.auto_type())
+                && !Rc::ptr_eq(&type_, &self.auto_array_type())
+                && (!self.strict_null_checks
+                    || type_
+                        .flags()
+                        .intersects(TypeFlags::AnyOrUnknown | TypeFlags::Void)
+                    || self.is_in_type_query(node)
+                    || node.parent().kind() == SyntaxKind::ExportSpecifier)
+            || node.parent().kind() == SyntaxKind::NonNullExpression
+            || declaration.kind() == SyntaxKind::VariableDeclaration
+                && declaration
+                    .as_variable_declaration()
+                    .exclamation_token
+                    .is_some()
+            || declaration.flags().intersects(NodeFlags::Ambient);
+        let initial_type = if assume_initialized {
+            if is_parameter {
+                self.remove_optionality_from_declared_type(&type_, &declaration)
+            } else {
+                type_.clone()
+            }
+        } else if Rc::ptr_eq(&type_, &self.auto_type())
+            || Rc::ptr_eq(&type_, &self.auto_array_type())
+        {
+            self.undefined_type()
+        } else {
+            self.get_optional_type_(&type_, None)
+        };
+        let flow_type = self.get_flow_type_of_reference(
+            node,
+            &type_,
+            Some(&*initial_type),
+            Some(&*flow_container),
+        );
+        if !self.is_evolving_array_operation_target(node)
+            && (Rc::ptr_eq(&type_, &self.auto_type())
+                || Rc::ptr_eq(&type_, &self.auto_array_type()))
+        {
+            if Rc::ptr_eq(&flow_type, &self.auto_type())
+                || Rc::ptr_eq(&flow_type, &self.auto_array_type())
+            {
+                if self.no_implicit_any {
+                    self.error(
+                        get_name_of_declaration(Some(&*declaration)),
+                        &Diagnostics::Variable_0_implicitly_has_type_1_in_some_locations_but_a_better_type_may_be_inferred_from_usage,
+                        Some(vec![
+                            self.symbol_to_string_(
+                                &symbol,
+                                Option::<&Node>::None,
+                                None, None, None,
+                            ),
+                            self.type_to_string_(
+                                &flow_type,
+                                Option::<&Node>::None,
+                                None, None,
+                            )
+                        ])
+                    );
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Variable_0_implicitly_has_an_1_type,
+                        Some(vec![
+                            self.symbol_to_string_(
+                                &symbol,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            ),
+                            self.type_to_string_(&flow_type, Option::<&Node>::None, None, None),
+                        ]),
+                    );
+                }
+                return self.convert_auto_to_any(&flow_type);
+            }
+        } else if !assume_initialized
+            && !self
+                .get_falsy_flags(&type_)
+                .intersects(TypeFlags::Undefined)
+            && self
+                .get_falsy_flags(&flow_type)
+                .intersects(TypeFlags::Undefined)
+        {
+            self.error(
+                Some(node),
+                &Diagnostics::Variable_0_is_used_before_being_assigned,
+                Some(vec![self.symbol_to_string_(
+                    &symbol,
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                    None,
+                )]),
+            );
+            return type_;
+        }
+        if assignment_kind != AssignmentKind::None {
+            self.get_base_type_of_literal_type(&flow_type)
+        } else {
+            flow_type
+        }
     }
 }
