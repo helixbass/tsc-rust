@@ -1,36 +1,26 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
-    WideningKind,
-};
 use crate::{
-    add_related_info, contains_rc, create_diagnostic_for_node, filter, find_ancestor,
+    add_related_info, contains_rc, create_diagnostic_for_node, find_ancestor,
     for_each_child_returns, for_each_enclosing_block_scope_container, get_ancestor,
     get_assignment_declaration_kind, get_class_extends_heritage_element,
     get_enclosing_block_scope_container, get_jsdoc_this_tag, get_jsdoc_type, get_super_container,
     get_this_container, get_this_parameter, has_static_modifier, has_syntactic_modifier,
     is_assignment_target, is_binary_expression, is_call_expression, is_class_like,
     is_class_static_block_declaration, is_external_or_common_js_module, is_for_statement,
-    is_function_expression_or_arrow_function, is_function_like, is_function_like_declaration,
-    is_identifier, is_import_call, is_in_js_file, is_iteration_statement, is_method_declaration,
-    is_object_literal_method, is_property_assignment, is_property_declaration, is_source_file,
-    is_static, is_super_call, is_super_property, length, node_starts_new_lexical_environment,
-    push_if_unique_rc, text_range_contains_position_inclusive, AssignmentDeclarationKind,
-    ContextFlags, Debug_, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
-    FunctionFlags, HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
-    NamedDeclarationInterface, NodeArray, NodeCheckFlags, NodeFlags, ReadonlyTextRange,
-    ScriptTarget, Signature, SignatureDeclarationInterface, SignatureFlags, SignatureKind,
-    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, create_symbol_table,
-    get_effective_type_annotation_node, get_function_flags, get_object_flags, has_initializer,
-    is_object_literal_expression, HasInitializerInterface, InferenceContext, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
+    is_iteration_statement, is_method_declaration, is_object_literal_expression,
+    is_property_assignment, is_property_declaration, is_source_file, is_static, is_super_call,
+    is_super_property, length, node_starts_new_lexical_environment, push_if_unique_rc,
+    text_range_contains_position_inclusive, AssignmentDeclarationKind, DiagnosticMessage,
+    Diagnostics, FindAncestorCallbackReturn, HasTypeInterface, InterfaceTypeInterface,
+    InternalSymbolName, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags,
+    NodeInterface, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
