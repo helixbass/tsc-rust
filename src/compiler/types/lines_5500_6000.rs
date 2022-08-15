@@ -773,7 +773,8 @@ bitflags! {
     }
 }
 
-pub(crate) struct InferenceInfo {
+#[derive(Debug)]
+pub struct InferenceInfo {
     pub type_parameter: Rc<Type /*TypeParameter*/>,
     candidates: RefCell<Option<Vec<Rc<Type>>>>,
     contra_candidates: RefCell<Option<Vec<Rc<Type>>>>,
@@ -845,7 +846,7 @@ impl InferenceInfo {
 }
 
 bitflags! {
-    pub(crate) struct InferenceFlags: u32 {
+    pub struct InferenceFlags: u32 {
         const None = 0;
         const NoDefault = 1 << 0;
         const AnyDefault = 1 << 1;
@@ -893,7 +894,7 @@ pub trait TypeComparer {
     fn call(&self, s: &Type, t: &Type, report_errors: Option<bool>) -> Ternary;
 }
 
-pub(crate) struct InferenceContext {
+pub struct InferenceContext {
     pub inferences: Vec<Rc<InferenceInfo>>,
     pub signature: Option<Rc<Signature>>,
     pub flags: InferenceFlags,
@@ -943,6 +944,20 @@ impl InferenceContext {
 
     pub fn set_non_fixing_mapper(&self, non_fixing_mapper: TypeMapper) {
         *self.non_fixing_mapper.borrow_mut() = Some(non_fixing_mapper);
+    }
+}
+
+impl fmt::Debug for InferenceContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("InferenceContext")
+            .field("inference", &self.inferences)
+            .field("signature", &self.signature)
+            .field("flags", &self.flags)
+            .field("mapper", &self.mapper)
+            .field("non_fixing_mapper", &self.non_fixing_mapper)
+            .field("return_mapper", &self.return_mapper)
+            .field("inferred_type_parameters", &self.inferred_type_parameters)
+            .finish()
     }
 }
 

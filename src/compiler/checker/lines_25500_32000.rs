@@ -10,14 +10,16 @@ use super::{
     WideningKind,
 };
 use crate::{
-    create_diagnostic_for_node, filter, get_assignment_declaration_kind, is_class_like,
-    is_function_expression_or_arrow_function, is_import_call, is_object_literal_method, is_static,
-    AssignmentDeclarationKind, ContextFlags, Debug_, Diagnostics, FunctionFlags, NodeFlags,
-    Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction,
-    __String, create_symbol_table, get_effective_type_annotation_node, get_function_flags,
-    get_object_flags, has_initializer, is_object_literal_expression, HasInitializerInterface,
-    InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    filter, find_ancestor, for_each, get_assignment_declaration_kind, get_source_file_of_node,
+    is_access_expression, is_class_like, is_function_expression_or_arrow_function, is_identifier,
+    is_import_call, is_in_js_file, is_object_literal_method, is_static,
+    walk_up_parenthesized_expressions, AssignmentDeclarationKind, ContextFlags, Debug_,
+    Diagnostics, FunctionFlags, NodeFlags, Signature, SignatureFlags, SignatureKind,
+    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, create_symbol_table,
+    get_effective_type_annotation_node, get_function_flags, get_object_flags, has_initializer,
+    is_object_literal_expression, HasInitializerInterface, InferenceContext, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -66,11 +68,136 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn get_containing_object_literal(
+        &self,
+        func: &Node, /*SignatureDeclaration*/
+    ) -> Option<Rc<Node /*ObjectLiteralExpression*/>> {
+        if matches!(
+            func.kind(),
+            SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+        ) && func.parent().kind() == SyntaxKind::ObjectLiteralExpression
+        {
+            Some(func.parent())
+        } else if func.kind() == SyntaxKind::FunctionExpression
+            && func.parent().kind() == SyntaxKind::PropertyAssignment
+        {
+            Some(func.parent().parent())
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_this_type_argument(&self, type_: &Type) -> Option<Rc<Type>> {
+        if get_object_flags(type_).intersects(ObjectFlags::Reference)
+            && Rc::ptr_eq(&type_.as_type_reference().target, &self.global_this_type())
+        {
+            self.get_type_arguments(type_).get(0).cloned()
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_this_type_from_contextual_type(&self, type_: &Type) -> Option<Rc<Type>> {
+        self.map_type(
+            type_,
+            &mut |t: &Type| {
+                if t.flags().intersects(TypeFlags::Intersection) {
+                    for_each(
+                        t.as_union_or_intersection_type_interface().types(),
+                        |type_: &Rc<Type>, _| self.get_this_type_argument(type_),
+                    )
+                } else {
+                    self.get_this_type_argument(t)
+                }
+            },
+            None,
+        )
+    }
+
     pub(super) fn get_contextual_this_parameter_type(
         &self,
         func: &Node, /*SignatureDeclaration*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if func.kind() == SyntaxKind::ArrowFunction {
+            return None;
+        }
+        if self.is_context_sensitive_function_or_object_literal_method(func) {
+            let contextual_signature = self.get_contextual_signature(func);
+            if let Some(contextual_signature) = contextual_signature.as_ref() {
+                let this_parameter = contextual_signature.this_parameter.as_ref();
+                if let Some(this_parameter) = this_parameter {
+                    return Some(self.get_type_of_symbol(this_parameter));
+                }
+            }
+        }
+        let in_js = is_in_js_file(Some(func));
+        if self.no_implicit_this || in_js {
+            let containing_literal = self.get_containing_object_literal(func);
+            if let Some(containing_literal) = containing_literal.as_ref() {
+                let contextual_type =
+                    self.get_apparent_type_of_contextual_type(containing_literal, None);
+                let mut literal = containing_literal.clone();
+                let mut type_ = contextual_type.clone();
+                while let Some(type_present) = type_.as_ref() {
+                    let this_type = self.get_this_type_from_contextual_type(type_present);
+                    if let Some(this_type) = this_type.as_ref() {
+                        return Some(
+                            self.instantiate_type(
+                                this_type,
+                                self.get_mapper_from_context(
+                                    self.get_inference_context(containing_literal).as_deref(),
+                                )
+                                .as_ref(),
+                            ),
+                        );
+                    }
+                    if literal.parent().kind() != SyntaxKind::PropertyAssignment {
+                        break;
+                    }
+                    literal = literal.parent().parent();
+                    type_ = self.get_apparent_type_of_contextual_type(&literal, None);
+                }
+                return Some(self.get_widened_type(&*if let Some(contextual_type) =
+                    contextual_type.as_ref()
+                {
+                    self.get_non_nullable_type(contextual_type)
+                } else {
+                    self.check_expression_cached(containing_literal, None)
+                }));
+            }
+            let parent = walk_up_parenthesized_expressions(&func.parent()).unwrap();
+            if parent.kind() == SyntaxKind::BinaryExpression {
+                let parent_as_binary_expression = parent.as_binary_expression();
+                if parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken {
+                    let target = &parent_as_binary_expression.left;
+                    if is_access_expression(target) {
+                        let expression = target.as_has_expression().expression();
+                        if in_js && is_identifier(&expression) {
+                            let source_file = get_source_file_of_node(Some(&*parent)).unwrap();
+                            if source_file
+                                .as_source_file()
+                                .maybe_common_js_module_indicator()
+                                .is_some()
+                                && matches!(
+                                    source_file.maybe_symbol().as_ref(),
+                                    Some(source_file_symbol) if Rc::ptr_eq(
+                                        &self.get_resolved_symbol(&expression),
+                                        source_file_symbol,
+                                    )
+                                )
+                            {
+                                return None;
+                            }
+                        }
+
+                        return Some(
+                            self.get_widened_type(&self.check_expression_cached(&expression, None)),
+                        );
+                    }
+                }
+            }
+        }
+        None
     }
 
     pub(super) fn get_contextually_typed_parameter_type(
@@ -271,6 +398,11 @@ impl TypeChecker {
             }
             _ => unimplemented!(),
         }
+    }
+
+    pub(super) fn get_inference_context(&self, node: &Node) -> Option<Rc<InferenceContext>> {
+        let ancestor = find_ancestor(Some(node), |n: &Node| n.maybe_inference_context().is_some());
+        ancestor.map(|ancestor| ancestor.maybe_inference_context().clone().unwrap())
     }
 
     pub(super) fn get_intersected_signatures(

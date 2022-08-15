@@ -205,6 +205,10 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_contextual_type()
                     }
 
+                    fn maybe_inference_context(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::InferenceContext>>> {
+                        self.#first_field_name.maybe_inference_context()
+                    }
+
                     fn maybe_flow_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::FlowNode>>> {
                         self.#first_field_name.maybe_flow_node()
                     }
@@ -675,6 +679,12 @@ fn get_ast_enum_interface_impl(
                     fn maybe_contextual_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_contextual_type()),*
+                        }
+                    }
+
+                    fn maybe_inference_context(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::InferenceContext>>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_inference_context()),*
                         }
                     }
 

@@ -219,9 +219,8 @@ pub use compiler::tsbuild_public::{
 };
 use compiler::types::{
     diagnostic_category_name, AccessFlags, CommandLineOptionType, CommentDirectivesMap, EmitNode,
-    ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, InferenceContext, InferenceFlags,
-    InferenceInfo, IterationTypes, PragmaArgumentType, ReadonlyPragmaMap, ReferencedFile,
-    StringOrDiagnosticMessage, WideningContext,
+    ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, IterationTypes, PragmaArgumentType,
+    ReadonlyPragmaMap, ReferencedFile, StringOrDiagnosticMessage, WideningContext,
 };
 pub use compiler::types::{
     extend_compiler_options, extend_watch_options, maybe_extend_compiler_options,
@@ -271,12 +270,13 @@ pub use compiler::types::{
     HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,
     ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
     ImportsNotUsedAsValues, IncompleteType, IndexInfo, IndexKind, IndexSignatureDeclaration,
-    IndexType, IndexedAccessType, IndexedAccessTypeNode, InferTypeNode, InferencePriority,
-    InputFiles, InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, InterfaceType,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    IntersectionType, IntersectionTypeNode, IntrinsicType, IntrinsicTypeInterface, JSDoc,
-    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
-    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
+    IndexType, IndexedAccessType, IndexedAccessTypeNode, InferTypeNode, InferenceContext,
+    InferenceFlags, InferenceInfo, InferencePriority, InputFiles, InterfaceDeclaration,
+    InterfaceOrClassLikeDeclarationInterface, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, IntersectionType,
+    IntersectionTypeNode, IntrinsicType, IntrinsicTypeInterface, JSDoc, JSDocAugmentsTag,
+    JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode,
+    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
     JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
     JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
     JSDocTypeLiteral, JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute,

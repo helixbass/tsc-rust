@@ -4,7 +4,7 @@ use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
-use crate::{HasArgumentsInterface, JsxOpeningLikeElementInterface};
+use crate::{HasArgumentsInterface, InferenceContext, JsxOpeningLikeElementInterface};
 
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
@@ -189,6 +189,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>>;
     fn set_emit_node(&self, emit_node: Option<EmitNode>);
     fn maybe_contextual_type(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_inference_context(&self) -> RefMut<Option<Rc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
@@ -1288,6 +1289,7 @@ pub struct BaseNode {
     local_symbol: RefCell<Option<Rc<Symbol>>>,
     emit_node: RefCell<Option<EmitNode>>,
     contextual_type: RefCell<Option<Rc<Type>>>,
+    inference_context: RefCell<Option<Rc<InferenceContext>>>,
     flow_node: RefCell<Option<Rc<FlowNode>>>,
     js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
@@ -1321,6 +1323,7 @@ impl BaseNode {
             local_symbol: RefCell::new(None),
             emit_node: RefCell::new(None),
             contextual_type: RefCell::new(None),
+            inference_context: RefCell::new(None),
             flow_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
@@ -1482,6 +1485,10 @@ impl NodeInterface for BaseNode {
 
     fn maybe_contextual_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.contextual_type.borrow_mut()
+    }
+
+    fn maybe_inference_context(&self) -> RefMut<Option<Rc<InferenceContext>>> {
+        self.inference_context.borrow_mut()
     }
 
     fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
