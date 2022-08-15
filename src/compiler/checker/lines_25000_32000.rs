@@ -10,22 +10,197 @@ use super::{
     WideningKind,
 };
 use crate::{
-    filter, get_assignment_declaration_kind, get_this_container,
-    is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
-    AssignmentDeclarationKind, ContextFlags, Debug_, Diagnostics, FunctionFlags, NodeFlags,
-    Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction,
-    __String, create_symbol_table, get_effective_type_annotation_node, get_function_flags,
-    get_object_flags, has_initializer, is_object_literal_expression, HasInitializerInterface,
-    InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    filter, find_ancestor, get_ancestor, get_assignment_declaration_kind,
+    get_enclosing_block_scope_container, get_this_container, has_static_modifier, is_for_statement,
+    is_function_expression_or_arrow_function, is_function_like, is_import_call,
+    is_iteration_statement, is_object_literal_method, is_property_declaration, is_source_file,
+    node_starts_new_lexical_environment, push_if_unique_rc, AssignmentDeclarationKind,
+    ContextFlags, Debug_, Diagnostics, FindAncestorCallbackReturn, FunctionFlags, NodeCheckFlags,
+    NodeFlags, ScriptTarget, Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags,
+    Ternary, UnionReduction, __String, create_symbol_table, get_effective_type_annotation_node,
+    get_function_flags, get_object_flags, has_initializer, is_object_literal_expression,
+    HasInitializerInterface, InferenceContext, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn is_inside_function_or_instance_property_initializer(
+        &self,
+        node: &Node,
+        threshold: &Node,
+    ) -> bool {
+        find_ancestor(Some(node), |n: &Node| {
+            if ptr::eq(n, threshold) {
+                FindAncestorCallbackReturn::Quit
+            } else {
+                (is_function_like(Some(n))
+                    || (matches!(
+                        n.maybe_parent().as_ref(),
+                        Some(n_parent) if is_property_declaration(n_parent) &&
+                            !has_static_modifier(n_parent) && matches!(
+                                n_parent.as_has_initializer().maybe_initializer().as_deref(),
+                                Some(n_parent_initializer) if ptr::eq(
+                                    n_parent_initializer,
+                                    n
+                                )
+                            )
+                    )))
+                .into()
+            }
+        })
+        .is_some()
+    }
+
+    pub(super) fn get_part_of_for_statement_containing_node(
+        &self,
+        node: &Node,
+        container: &Node, /*ForStatement*/
+    ) -> Option<Rc<Node>> {
+        let container_as_for_statement = container.as_for_statement();
+        find_ancestor(Some(node), |n: &Node| {
+            if ptr::eq(n, container) {
+                FindAncestorCallbackReturn::Quit
+            } else {
+                (matches!(
+                    container_as_for_statement.initializer.as_deref(),
+                    Some(container_initializer) if ptr::eq(n, container_initializer)
+                ) || matches!(
+                    container_as_for_statement.condition.as_deref(),
+                    Some(container_condition) if ptr::eq(n, container_condition)
+                ) || matches!(
+                    container_as_for_statement.incrementor.as_deref(),
+                    Some(container_incrementor) if ptr::eq(n, container_incrementor)
+                ) || ptr::eq(n, &*container_as_for_statement.statement))
+                .into()
+            }
+        })
+    }
+
+    pub(super) fn get_enclosing_iteration_statement(&self, node: &Node) -> Option<Rc<Node>> {
+        find_ancestor(Some(node), |n: &Node| {
+            if
+            /* !n ||*/
+            node_starts_new_lexical_environment(n) {
+                FindAncestorCallbackReturn::Quit
+            } else {
+                is_iteration_statement(n, false).into()
+            }
+        })
+    }
+
     pub(super) fn check_nested_block_scoped_binding(
         &self,
         node: &Node, /*Identifier*/
         symbol: &Symbol,
     ) {
+        if self.language_version >= ScriptTarget::ES2015
+            || !symbol
+                .flags()
+                .intersects(SymbolFlags::BlockScopedVariable | SymbolFlags::Class)
+            || match symbol.maybe_value_declaration().as_deref() {
+                None => true,
+                Some(symbol_value_declaration) => {
+                    is_source_file(symbol_value_declaration)
+                        || symbol_value_declaration.parent().kind() == SyntaxKind::CatchClause
+                }
+            }
+        {
+            return;
+        }
+        let symbol_value_declaration = symbol.maybe_value_declaration().unwrap();
+
+        let container = get_enclosing_block_scope_container(&symbol_value_declaration).unwrap();
+        let is_captured =
+            self.is_inside_function_or_instance_property_initializer(node, &container);
+
+        let enclosing_iteration_statement = self.get_enclosing_iteration_statement(&container);
+        if let Some(enclosing_iteration_statement) = enclosing_iteration_statement.as_ref() {
+            if is_captured {
+                let mut captures_block_scope_binding_in_loop_body = true;
+                if is_for_statement(&container) {
+                    let var_decl_list = get_ancestor(
+                        Some(&*symbol_value_declaration),
+                        SyntaxKind::VariableDeclarationList,
+                    );
+                    if matches!(
+                        var_decl_list.as_ref(),
+                        Some(var_decl_list) if Rc::ptr_eq(
+                            &var_decl_list.parent(),
+                            &container
+                        )
+                    ) {
+                        let part = self
+                            .get_part_of_for_statement_containing_node(&node.parent(), &container);
+                        if let Some(part) = part.as_ref() {
+                            let links = self.get_node_links(part);
+                            links.borrow_mut().flags |=
+                                NodeCheckFlags::ContainsCapturedBlockScopedBinding;
+
+                            if (*links).borrow().captured_block_scope_bindings.is_none() {
+                                links.borrow_mut().captured_block_scope_bindings = Some(vec![]);
+                            }
+                            {
+                                let mut links = links.borrow_mut();
+                                let captured_bindings =
+                                    links.captured_block_scope_bindings.as_mut().unwrap();
+                                push_if_unique_rc(captured_bindings, &symbol.symbol_wrapper());
+                            }
+
+                            if matches!(
+                                container.as_for_statement().initializer.as_ref(),
+                                Some(container_initializer) if Rc::ptr_eq(
+                                    part,
+                                    container_initializer
+                                )
+                            ) {
+                                captures_block_scope_binding_in_loop_body = false;
+                            }
+                        }
+                    }
+                }
+                if captures_block_scope_binding_in_loop_body {
+                    self.get_node_links(enclosing_iteration_statement)
+                        .borrow_mut()
+                        .flags |= NodeCheckFlags::LoopWithCapturedBlockScopedBinding;
+                }
+            }
+
+            if is_for_statement(&container) {
+                let var_decl_list = get_ancestor(
+                    Some(&*symbol_value_declaration),
+                    SyntaxKind::VariableDeclarationList,
+                );
+                if matches!(
+                    var_decl_list.as_ref(),
+                    Some(var_decl_list) if Rc::ptr_eq(
+                        &var_decl_list.parent(),
+                        &container
+                    ) && self.is_assigned_in_body_of_for_statement(node, &container)
+                ) {
+                    self.get_node_links(&symbol_value_declaration)
+                        .borrow_mut()
+                        .flags |= NodeCheckFlags::NeedsLoopOutParameter;
+                }
+            }
+
+            self.get_node_links(&symbol_value_declaration)
+                .borrow_mut()
+                .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
+        }
+
+        if is_captured {
+            self.get_node_links(&symbol_value_declaration)
+                .borrow_mut()
+                .flags |= NodeCheckFlags::CapturedBlockScopedBinding;
+        }
+    }
+
+    pub(super) fn is_assigned_in_body_of_for_statement(
+        &self,
+        node: &Node,      /*Identifier*/
+        container: &Node, /*ForStatement*/
+    ) -> bool {
         unimplemented!()
     }
 
