@@ -11,24 +11,26 @@ use super::{
 };
 use crate::{
     add_related_info, contains_rc, create_diagnostic_for_node, filter, find_ancestor,
-    for_each_child_returns, get_ancestor, get_assignment_declaration_kind,
-    get_class_extends_heritage_element, get_enclosing_block_scope_container, get_jsdoc_this_tag,
-    get_jsdoc_type, get_this_container, get_this_parameter, has_static_modifier,
+    for_each_child_returns, for_each_enclosing_block_scope_container, get_ancestor,
+    get_assignment_declaration_kind, get_class_extends_heritage_element,
+    get_enclosing_block_scope_container, get_jsdoc_this_tag, get_jsdoc_type, get_super_container,
+    get_this_container, get_this_parameter, has_static_modifier, has_syntactic_modifier,
     is_assignment_target, is_binary_expression, is_call_expression, is_class_like,
-    is_for_statement, is_function_expression_or_arrow_function, is_function_like, is_identifier,
-    is_import_call, is_in_js_file, is_iteration_statement, is_method_declaration,
+    is_class_static_block_declaration, is_external_or_common_js_module, is_for_statement,
+    is_function_expression_or_arrow_function, is_function_like, is_function_like_declaration,
+    is_identifier, is_import_call, is_in_js_file, is_iteration_statement, is_method_declaration,
     is_object_literal_method, is_property_assignment, is_property_declaration, is_source_file,
-    is_static, is_super_call, length, node_starts_new_lexical_environment, push_if_unique_rc,
-    text_range_contains_position_inclusive, AssignmentDeclarationKind, ContextFlags, Debug_,
-    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, FunctionFlags, HasTypeInterface,
-    InterfaceTypeInterface, InternalSymbolName, NamedDeclarationInterface, NodeArray,
-    NodeCheckFlags, NodeFlags, ReadonlyTextRange, ScriptTarget, Signature,
-    SignatureDeclarationInterface, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags,
-    Ternary, UnionReduction, __String, create_symbol_table, get_effective_type_annotation_node,
-    get_function_flags, get_object_flags, has_initializer, is_object_literal_expression,
-    HasInitializerInterface, InferenceContext, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    is_static, is_super_call, is_super_property, length, node_starts_new_lexical_environment,
+    push_if_unique_rc, text_range_contains_position_inclusive, AssignmentDeclarationKind,
+    ContextFlags, Debug_, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
+    FunctionFlags, HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
+    NamedDeclarationInterface, NodeArray, NodeCheckFlags, NodeFlags, ReadonlyTextRange,
+    ScriptTarget, Signature, SignatureDeclarationInterface, SignatureFlags, SignatureKind,
+    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, create_symbol_table,
+    get_effective_type_annotation_node, get_function_flags, get_object_flags, has_initializer,
+    is_object_literal_expression, HasInitializerInterface, InferenceContext, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -744,11 +746,233 @@ impl TypeChecker {
         node: &Node,
         constructor_decl: &Node,
     ) -> bool {
-        unimplemented!()
+        find_ancestor(Some(node), |n: &Node| {
+            if is_function_like_declaration(n) {
+                FindAncestorCallbackReturn::Quit
+            } else {
+                (n.kind() == SyntaxKind::Parameter && ptr::eq(&*n.parent(), constructor_decl))
+                    .into()
+            }
+        })
+        .is_some()
     }
 
     pub(super) fn check_super_expression(&self, node: &Node) -> Rc<Type> {
-        unimplemented!()
+        let is_call_expression = node.parent().kind() == SyntaxKind::CallExpression
+            && ptr::eq(&*node.parent().as_call_expression().expression, node);
+
+        let immediate_container = get_super_container(node, true).unwrap();
+        let mut container = Some(immediate_container.clone());
+        let mut need_to_capture_lexical_this = false;
+
+        if !is_call_expression {
+            while let Some(container_present) = container
+                .as_ref()
+                .filter(|container| container.kind() == SyntaxKind::ArrowFunction)
+            {
+                container = get_super_container(container_present, true);
+                need_to_capture_lexical_this = self.language_version < ScriptTarget::ES2015;
+            }
+        }
+
+        let can_use_super_expression =
+            self.is_legal_usage_of_super_expression(is_call_expression, container.as_deref());
+        let mut node_check_flag = NodeCheckFlags::None;
+
+        if !can_use_super_expression {
+            let current = find_ancestor(Some(node), |n: &Node| {
+                if matches!(
+                    container.as_deref(),
+                    Some(container) if ptr::eq(n, container)
+                ) {
+                    FindAncestorCallbackReturn::Quit
+                } else {
+                    (n.kind() == SyntaxKind::ComputedPropertyName).into()
+                }
+            });
+            if matches!(
+                current.as_ref(),
+                Some(current) if current.kind() == SyntaxKind::ComputedPropertyName
+            ) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::super_cannot_be_referenced_in_a_computed_property_name,
+                    None,
+                );
+            } else if is_call_expression {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Super_calls_are_not_permitted_outside_constructors_or_in_nested_functions_inside_constructors,
+                    None,
+                );
+            } else if match container.as_ref() {
+                None => true,
+                Some(container) => match container.maybe_parent().as_ref() {
+                    None => true,
+                    Some(container_parent) => {
+                        !(is_class_like(container_parent)
+                            || container_parent.kind() == SyntaxKind::ObjectLiteralExpression)
+                    }
+                },
+            } {
+                self.error(
+                    Some(node),
+                    &Diagnostics::super_can_only_be_referenced_in_members_of_derived_classes_or_object_literal_expressions,
+                    None,
+                );
+            } else {
+                self.error(
+                    Some(node),
+                    &Diagnostics::super_property_access_is_permitted_only_in_a_constructor_member_function_or_member_accessor_of_a_derived_class,
+                    None,
+                );
+            }
+            return self.error_type();
+        }
+
+        if !is_call_expression && immediate_container.kind() == SyntaxKind::Constructor {
+            self.check_this_before_super(
+                node, container.as_ref().unwrap(),
+                &Diagnostics::super_must_be_called_before_accessing_a_property_of_super_in_the_constructor_of_a_derived_class
+            );
+        }
+
+        if is_static(container.as_ref().unwrap()) || is_call_expression {
+            node_check_flag = NodeCheckFlags::SuperStatic;
+            if !is_call_expression
+                && self.language_version >= ScriptTarget::ES2015
+                && self.language_version <= ScriptTarget::ES2021
+                && (is_property_declaration(container.as_ref().unwrap())
+                    || is_class_static_block_declaration(container.as_ref().unwrap()))
+            {
+                for_each_enclosing_block_scope_container(&node.parent(), |current: &Node| {
+                    if !is_source_file(current) || is_external_or_common_js_module(current) {
+                        self.get_node_links(current).borrow_mut().flags |=
+                            NodeCheckFlags::ContainsSuperPropertyInStaticInitializer;
+                    }
+                });
+            }
+        } else {
+            node_check_flag = NodeCheckFlags::SuperInstance;
+        }
+
+        self.get_node_links(node).borrow_mut().flags |= node_check_flag;
+
+        let container = container.unwrap();
+        if container.kind() == SyntaxKind::MethodDeclaration
+            && has_syntactic_modifier(&container, ModifierFlags::Async)
+        {
+            if is_super_property(&node.parent()) && is_assignment_target(&node.parent()) {
+                self.get_node_links(&container).borrow_mut().flags |=
+                    NodeCheckFlags::AsyncMethodWithSuperBinding;
+            } else {
+                self.get_node_links(&container).borrow_mut().flags |=
+                    NodeCheckFlags::AsyncMethodWithSuper;
+            }
+        }
+
+        if need_to_capture_lexical_this {
+            self.capture_lexical_this(&node.parent(), &container);
+        }
+
+        if container.parent().kind() == SyntaxKind::ObjectLiteralExpression {
+            if self.language_version < ScriptTarget::ES2015 {
+                self.error(
+                    Some(node),
+                    &Diagnostics::super_is_only_allowed_in_members_of_object_literal_expressions_when_option_target_is_ES2015_or_higher,
+                    None,
+                );
+                return self.error_type();
+            } else {
+                return self.any_type();
+            }
+        }
+
+        let class_like_declaration = container.parent();
+        if get_class_extends_heritage_element(&class_like_declaration).is_none() {
+            self.error(
+                Some(node),
+                &Diagnostics::super_can_only_be_referenced_in_a_derived_class,
+                None,
+            );
+            return self.error_type();
+        }
+
+        let class_type = self.get_declared_type_of_symbol(
+            &self.get_symbol_of_node(&class_like_declaration).unwrap(),
+        );
+        let base_class_type = /*classType &&*/
+            self.get_base_types(&class_type).get(0).cloned();
+        if base_class_type.is_none() {
+            return self.error_type();
+        }
+        let base_class_type = base_class_type.unwrap();
+
+        if container.kind() == SyntaxKind::Constructor
+            && self.is_in_constructor_argument_initializer(node, &container)
+        {
+            self.error(
+                Some(node),
+                &Diagnostics::super_cannot_be_referenced_in_constructor_arguments,
+                None,
+            );
+            return self.error_type();
+        }
+
+        if node_check_flag == NodeCheckFlags::SuperStatic {
+            self.get_base_constructor_type_of_class(&class_type)
+        } else {
+            self.get_type_with_this_argument(
+                &base_class_type,
+                class_type.as_interface_type().maybe_this_type(),
+                None,
+            )
+        }
+    }
+
+    pub(super) fn is_legal_usage_of_super_expression<TContainer: Borrow<Node>>(
+        &self,
+        is_call_expression: bool,
+        container: Option<TContainer>,
+    ) -> bool {
+        if container.is_none() {
+            return false;
+        }
+        let container = container.unwrap();
+        let container = container.borrow();
+
+        if is_call_expression {
+            return container.kind() == SyntaxKind::Constructor;
+        } else {
+            if is_class_like(&container.parent())
+                || container.parent().kind() == SyntaxKind::ObjectLiteralExpression
+            {
+                if is_static(container) {
+                    return matches!(
+                        container.kind(),
+                        SyntaxKind::MethodDeclaration
+                            | SyntaxKind::MethodSignature
+                            | SyntaxKind::GetAccessor
+                            | SyntaxKind::SetAccessor
+                            | SyntaxKind::PropertyDeclaration
+                            | SyntaxKind::ClassStaticBlockDeclaration
+                    );
+                } else {
+                    return matches!(
+                        container.kind(),
+                        SyntaxKind::MethodDeclaration
+                            | SyntaxKind::MethodSignature
+                            | SyntaxKind::GetAccessor
+                            | SyntaxKind::SetAccessor
+                            | SyntaxKind::PropertyDeclaration
+                            | SyntaxKind::PropertySignature
+                            | SyntaxKind::Constructor
+                    );
+                }
+            }
+        }
+
+        false
     }
 
     pub(super) fn get_contextual_this_parameter_type(
