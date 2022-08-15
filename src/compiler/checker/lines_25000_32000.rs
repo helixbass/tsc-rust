@@ -13,18 +13,18 @@ use crate::{
     add_related_info, contains_rc, create_diagnostic_for_node, filter, find_ancestor,
     for_each_child_returns, get_ancestor, get_assignment_declaration_kind,
     get_class_extends_heritage_element, get_enclosing_block_scope_container, get_this_container,
-    has_static_modifier, is_assignment_target, is_for_statement,
-    is_function_expression_or_arrow_function, is_function_like, is_import_call,
+    get_this_parameter, has_static_modifier, is_assignment_target, is_class_like, is_for_statement,
+    is_function_expression_or_arrow_function, is_function_like, is_import_call, is_in_js_file,
     is_iteration_statement, is_object_literal_method, is_property_declaration, is_source_file,
-    is_super_call, length, node_starts_new_lexical_environment, push_if_unique_rc,
+    is_static, is_super_call, length, node_starts_new_lexical_environment, push_if_unique_rc,
     text_range_contains_position_inclusive, AssignmentDeclarationKind, ContextFlags, Debug_,
-    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, FunctionFlags, NodeArray,
-    NodeCheckFlags, NodeFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
-    create_symbol_table, get_effective_type_annotation_node, get_function_flags, get_object_flags,
-    has_initializer, is_object_literal_expression, HasInitializerInterface, InferenceContext, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, FunctionFlags,
+    InterfaceTypeInterface, NodeArray, NodeCheckFlags, NodeFlags, ReadonlyTextRange, ScriptTarget,
+    Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction,
+    __String, create_symbol_table, get_effective_type_annotation_node, get_function_flags,
+    get_object_flags, has_initializer, is_object_literal_expression, HasInitializerInterface,
+    InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -445,18 +445,131 @@ impl TypeChecker {
         include_global_this: Option<bool>,
         container: Option<TContainer>,
     ) -> Option<Rc<Type>> {
-        let include_global_this = include_global_this.unwrap_or(false);
+        let include_global_this = include_global_this.unwrap_or(true);
         let container = container.map_or_else(
             || get_this_container(node, false),
             |container| container.borrow().node_wrapper(),
         );
-        unimplemented!()
+        let is_in_js = is_in_js_file(Some(node));
+        if is_function_like(Some(&*container))
+            && (!self.is_in_parameter_initializer_before_containing_function(node)
+                || get_this_parameter(&container).is_some())
+        {
+            let mut this_type = self.get_this_type_of_declaration(&container).or_else(|| {
+                if is_in_js {
+                    self.get_type_for_this_expression_from_jsdoc(&container)
+                } else {
+                    None
+                }
+            });
+            if this_type.is_none() {
+                let class_name = self.get_class_name_from_prototype_method(&container);
+                if let Some(class_name) = class_name.as_ref().filter(|_| is_in_js) {
+                    let class_symbol = self.check_expression(class_name, None, None).maybe_symbol();
+                    if let Some(class_symbol) = class_symbol.as_ref().filter(|class_symbol| {
+                        class_symbol.maybe_members().is_some()
+                            && class_symbol.flags().intersects(SymbolFlags::Function)
+                    }) {
+                        this_type = self
+                            .get_declared_type_of_symbol(class_symbol)
+                            .as_interface_type()
+                            .maybe_this_type();
+                    }
+                } else if self.is_js_constructor(Some(&*container)) {
+                    this_type = self
+                        .get_declared_type_of_symbol(
+                            &self.get_merged_symbol(Some(container.symbol())).unwrap(),
+                        )
+                        .as_interface_type()
+                        .maybe_this_type();
+                }
+                if this_type.is_none() {
+                    this_type = self.get_contextual_this_parameter_type(&container);
+                }
+            }
+
+            if let Some(this_type) = this_type.as_ref() {
+                return Some(self.get_flow_type_of_reference(
+                    node,
+                    this_type,
+                    Option::<&Type>::None,
+                    Option::<&Node>::None,
+                ));
+            }
+        }
+
+        if is_class_like(&container.parent()) {
+            let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
+            let type_ = if is_static(&container) {
+                self.get_type_of_symbol(&symbol)
+            } else {
+                self.get_declared_type_of_symbol(&symbol)
+                    .as_interface_type()
+                    .maybe_this_type()
+                    .unwrap()
+            };
+            return Some(self.get_flow_type_of_reference(
+                node,
+                &type_,
+                Option::<&Type>::None,
+                Option::<&Node>::None,
+            ));
+        }
+
+        if is_source_file(&container) {
+            let container_as_source_file = container.as_source_file();
+            if container_as_source_file
+                .maybe_common_js_module_indicator()
+                .is_some()
+            {
+                let file_symbol = self.get_symbol_of_node(&container);
+                return file_symbol
+                    .as_ref()
+                    .map(|file_symbol| self.get_type_of_symbol(file_symbol));
+            } else if container_as_source_file
+                .maybe_external_module_indicator()
+                .is_some()
+            {
+                return Some(self.undefined_type());
+            } else if include_global_this {
+                return Some(self.get_type_of_symbol(&self.global_this_symbol()));
+            }
+        }
+        None
     }
 
     pub(super) fn get_explicit_this_type(
         &self,
         node: &Node, /*Expression*/
     ) -> Option<Rc<Type>> {
+        let container = get_this_container(node, false);
+        if is_function_like(Some(&*container)) {
+            let signature = self.get_signature_from_declaration_(&container);
+            if let Some(signature_this_parameter) = signature.this_parameter.as_ref() {
+                return self.get_explicit_type_of_symbol(signature_this_parameter, None);
+            }
+        }
+        if is_class_like(&container.parent()) {
+            let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
+            return if is_static(&container) {
+                Some(self.get_type_of_symbol(&symbol))
+            } else {
+                self.get_declared_type_of_symbol(&symbol)
+                    .as_interface_type()
+                    .maybe_this_type()
+            };
+        }
+        None
+    }
+
+    pub(super) fn get_class_name_from_prototype_method(
+        &self,
+        container: &Node,
+    ) -> Option<Rc<Node>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_for_this_expression_from_jsdoc(&self, node: &Node) -> Option<Rc<Type>> {
         unimplemented!()
     }
 
@@ -517,6 +630,13 @@ impl TypeChecker {
             }
         }
         None
+    }
+
+    pub(super) fn is_in_parameter_initializer_before_containing_function(
+        &self,
+        node: &Node,
+    ) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn get_contextual_type_for_argument_at_index_(

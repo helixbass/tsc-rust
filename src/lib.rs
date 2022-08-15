@@ -382,7 +382,7 @@ pub use compiler::utilities::{
     get_supported_extensions_with_json_if_resolve_json_module,
     get_symbol_name_for_private_identifier, get_syntactic_modifier_flags,
     get_text_of_identifier_or_literal, get_text_of_node, get_text_of_node_from_source_text,
-    get_text_of_property_name, get_this_container, get_token_pos_of_node,
+    get_text_of_property_name, get_this_container, get_this_parameter, get_token_pos_of_node,
     get_trailing_semicolon_deferring_writer, get_ts_config_prop_array,
     get_ts_config_prop_array_element_value, get_use_define_for_class_fields,
     has_context_sensitive_parameters, has_dynamic_name, has_effective_modifier,
