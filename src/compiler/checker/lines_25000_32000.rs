@@ -10,7 +10,7 @@ use super::{
     WideningKind,
 };
 use crate::{
-    filter, find_ancestor, get_ancestor, get_assignment_declaration_kind,
+    contains_rc, filter, find_ancestor, get_ancestor, get_assignment_declaration_kind,
     get_enclosing_block_scope_container, get_this_container, has_static_modifier, is_for_statement,
     is_function_expression_or_arrow_function, is_function_like, is_import_call,
     is_iteration_statement, is_object_literal_method, is_property_declaration, is_source_file,
@@ -194,6 +194,20 @@ impl TypeChecker {
                 .borrow_mut()
                 .flags |= NodeCheckFlags::CapturedBlockScopedBinding;
         }
+    }
+
+    pub(super) fn is_binding_captured_by_node(
+        &self,
+        node: &Node,
+        decl: &Node, /*VariableDeclaration | BindingElement*/
+    ) -> bool {
+        let links = self.get_node_links(node);
+        /* !!links &&*/
+        let ret = contains_rc(
+            (*links).borrow().captured_block_scope_bindings.as_deref(),
+            &self.get_symbol_of_node(decl).unwrap(),
+        );
+        ret
     }
 
     pub(super) fn is_assigned_in_body_of_for_statement(
