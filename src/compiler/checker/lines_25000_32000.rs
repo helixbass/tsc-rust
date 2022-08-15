@@ -12,19 +12,23 @@ use super::{
 use crate::{
     add_related_info, contains_rc, create_diagnostic_for_node, filter, find_ancestor,
     for_each_child_returns, get_ancestor, get_assignment_declaration_kind,
-    get_class_extends_heritage_element, get_enclosing_block_scope_container, get_this_container,
-    get_this_parameter, has_static_modifier, is_assignment_target, is_class_like, is_for_statement,
-    is_function_expression_or_arrow_function, is_function_like, is_import_call, is_in_js_file,
-    is_iteration_statement, is_object_literal_method, is_property_declaration, is_source_file,
+    get_class_extends_heritage_element, get_enclosing_block_scope_container, get_jsdoc_this_tag,
+    get_jsdoc_type, get_this_container, get_this_parameter, has_static_modifier,
+    is_assignment_target, is_binary_expression, is_call_expression, is_class_like,
+    is_for_statement, is_function_expression_or_arrow_function, is_function_like, is_identifier,
+    is_import_call, is_in_js_file, is_iteration_statement, is_method_declaration,
+    is_object_literal_method, is_property_assignment, is_property_declaration, is_source_file,
     is_static, is_super_call, length, node_starts_new_lexical_environment, push_if_unique_rc,
     text_range_contains_position_inclusive, AssignmentDeclarationKind, ContextFlags, Debug_,
-    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, FunctionFlags,
-    InterfaceTypeInterface, NodeArray, NodeCheckFlags, NodeFlags, ReadonlyTextRange, ScriptTarget,
-    Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction,
-    __String, create_symbol_table, get_effective_type_annotation_node, get_function_flags,
-    get_object_flags, has_initializer, is_object_literal_expression, HasInitializerInterface,
-    InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, FunctionFlags, HasTypeInterface,
+    InterfaceTypeInterface, InternalSymbolName, NamedDeclarationInterface, NodeArray,
+    NodeCheckFlags, NodeFlags, ReadonlyTextRange, ScriptTarget, Signature,
+    SignatureDeclarationInterface, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags,
+    Ternary, UnionReduction, __String, create_symbol_table, get_effective_type_annotation_node,
+    get_function_flags, get_object_flags, has_initializer, is_object_literal_expression,
+    HasInitializerInterface, InferenceContext, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -566,11 +570,173 @@ impl TypeChecker {
         &self,
         container: &Node,
     ) -> Option<Rc<Node>> {
-        unimplemented!()
+        if container.kind() == SyntaxKind::FunctionExpression
+            && is_binary_expression(&container.parent())
+            && get_assignment_declaration_kind(&container.parent())
+                == AssignmentDeclarationKind::PrototypeProperty
+        {
+            return Some(
+                container
+                    .parent()
+                    .as_binary_expression()
+                    .left
+                    .as_property_access_expression()
+                    .expression
+                    .as_property_access_expression()
+                    .expression
+                    .clone(),
+            );
+        } else if container.kind() == SyntaxKind::MethodDeclaration
+            && container.parent().kind() == SyntaxKind::ObjectLiteralExpression
+            && is_binary_expression(&container.parent().parent())
+            && get_assignment_declaration_kind(&container.parent().parent())
+                == AssignmentDeclarationKind::Prototype
+        {
+            return Some(
+                container
+                    .parent()
+                    .parent()
+                    .as_binary_expression()
+                    .left
+                    .as_property_access_expression()
+                    .expression
+                    .clone(),
+            );
+        } else if container.kind() == SyntaxKind::FunctionExpression
+            && container.parent().kind() == SyntaxKind::PropertyAssignment
+            && container.parent().parent().kind() == SyntaxKind::ObjectLiteralExpression
+            && is_binary_expression(&container.parent().parent().parent())
+            && get_assignment_declaration_kind(&container.parent().parent().parent())
+                == AssignmentDeclarationKind::Prototype
+        {
+            return Some(
+                container
+                    .parent()
+                    .parent()
+                    .parent()
+                    .as_binary_expression()
+                    .left
+                    .as_property_access_expression()
+                    .expression
+                    .clone(),
+            );
+        } else if container.kind() == SyntaxKind::FunctionExpression
+            && {
+                let container_parent = container.parent();
+                is_property_assignment(&container_parent)
+                    && {
+                        let container_parent_as_property_assignment =
+                            container_parent.as_property_assignment();
+                        is_identifier(&container_parent_as_property_assignment.name())
+                            && matches!(
+                                &*container_parent_as_property_assignment
+                                    .name()
+                                    .as_identifier()
+                                    .escaped_text,
+                                "value" | "get" | "set"
+                            )
+                            && {
+                                let container_parent_parent = container_parent.parent();
+                                is_object_literal_expression(&container_parent_parent)
+                                    && {
+                                        let container_parent_parent_parent =
+                                            container_parent_parent.parent();
+                                        is_call_expression(&container_parent_parent_parent) &&
+                            matches!(
+                                container_parent_parent_parent.as_call_expression().arguments.get(2),
+                                Some(argument) if Rc::ptr_eq(
+                                    argument,
+                                    &container_parent_parent
+                                )
+                            ) &&
+                            get_assignment_declaration_kind(&container_parent_parent_parent) == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
+                                    }
+                            }
+                    }
+            }
+        {
+            return Some(
+                container
+                    .parent()
+                    .parent()
+                    .parent()
+                    .as_call_expression()
+                    .arguments[0]
+                    .as_property_access_expression()
+                    .expression
+                    .clone(),
+            );
+        } else if is_method_declaration(&container) && {
+            let container_as_method_declaration = container.as_method_declaration();
+            is_identifier(&container_as_method_declaration.name())
+                && matches!(
+                    &*container_as_method_declaration
+                        .name()
+                        .as_identifier()
+                        .escaped_text,
+                    "value" | "get" | "set"
+                )
+                && {
+                    let container_parent = container.parent();
+                    is_object_literal_expression(&container_parent) && {
+                        let container_parent_parent = container_parent.parent();
+                        is_call_expression(&container_parent_parent)
+                            && matches!(
+                                container_parent_parent.as_call_expression().arguments.get(2),
+                                Some(argument) if Rc::ptr_eq(
+                                    argument,
+                                    &container_parent
+                                )
+                            )
+                            && get_assignment_declaration_kind(&container_parent_parent)
+                                == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
+                    }
+                }
+        } {
+            return Some(
+                container.parent().parent().as_call_expression().arguments[0]
+                    .as_property_access_expression()
+                    .expression
+                    .clone(),
+            );
+        }
+        None
     }
 
     pub(super) fn get_type_for_this_expression_from_jsdoc(&self, node: &Node) -> Option<Rc<Type>> {
-        unimplemented!()
+        let jsdoc_type = get_jsdoc_type(node);
+        if let Some(jsdoc_type) = jsdoc_type
+            .as_ref()
+            .filter(|jsdoc_type| jsdoc_type.kind() == SyntaxKind::JSDocFunctionType)
+        {
+            let js_doc_function_type = jsdoc_type.as_jsdoc_function_type();
+            let js_doc_function_type_parameters = js_doc_function_type.parameters();
+            if !js_doc_function_type_parameters.is_empty()
+                && matches!(
+                    js_doc_function_type_parameters[0].as_parameter_declaration().maybe_name(),
+                    Some(name) if name.as_identifier().escaped_text == InternalSymbolName::This()
+                )
+            {
+                return Some(
+                    self.get_type_from_type_node_(
+                        &js_doc_function_type_parameters[0]
+                            .as_parameter_declaration()
+                            .maybe_type()
+                            .unwrap(),
+                    ),
+                );
+            }
+        }
+        let this_tag = get_jsdoc_this_tag(node);
+        this_tag
+            .and_then(|this_tag| {
+                this_tag
+                    .as_base_jsdoc_type_like_tag()
+                    .type_expression
+                    .clone()
+            })
+            .as_ref()
+            .map(|this_tag_type_expression| self.get_type_from_type_node_(this_tag_type_expression))
     }
 
     pub(super) fn is_in_constructor_argument_initializer(
