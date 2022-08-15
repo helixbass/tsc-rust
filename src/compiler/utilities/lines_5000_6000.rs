@@ -225,7 +225,7 @@ pub fn is_write_only_access(node: &Node) -> bool {
     access_kind(node) == AccessKind::Write
 }
 
-fn is_write_access(node: &Node) -> bool {
+pub fn is_write_access(node: &Node) -> bool {
     access_kind(node) != AccessKind::Read
 }
 

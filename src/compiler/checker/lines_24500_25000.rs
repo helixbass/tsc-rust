@@ -6,8 +6,10 @@ use std::rc::Rc;
 use super::{CheckMode, GetFlowTypeOfReference, TypeFacts};
 use crate::{
     are_option_rcs_equal, escape_leading_underscores, find, is_access_expression,
-    is_binary_expression, is_call_chain, is_expression_of_optional_chain_root, is_identifier,
-    is_property_access_expression, is_string_literal_like, is_variable_declaration, map,
+    is_assignment_target, is_binary_expression, is_call_chain, is_declaration_name,
+    is_expression_node, is_expression_of_optional_chain_root, is_identifier,
+    is_property_access_expression, is_right_side_of_qualified_name_or_property_access,
+    is_set_accessor, is_string_literal_like, is_variable_declaration, is_write_access, map,
     HasInitializerInterface, HasTypeInterface, Signature, SignatureKind, TypePredicate,
     TypePredicateKind, UnionOrIntersectionTypeInterface, __String, get_object_flags, Node,
     NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
@@ -505,7 +507,46 @@ impl TypeChecker {
         symbol: &Symbol,
         location: &Node,
     ) -> Rc<Type> {
-        unimplemented!()
+        let symbol = symbol
+            .maybe_export_symbol()
+            .unwrap_or_else(|| symbol.symbol_wrapper());
+
+        let mut location = location.node_wrapper();
+        if matches!(
+            location.kind(),
+            SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier
+        ) {
+            if is_right_side_of_qualified_name_or_property_access(&location) {
+                location = location.parent();
+            }
+            if is_expression_node(&location)
+                && (!is_assignment_target(&location) || is_write_access(&location))
+            {
+                let type_ = self.get_type_of_expression(&location);
+                if matches!(
+                    self.get_export_symbol_of_value_symbol_if_exported(
+                        (*self.get_node_links(&location)).borrow().resolved_symbol.clone()
+                    ).as_ref(),
+                    Some(export_symbol) if Rc::ptr_eq(
+                        export_symbol,
+                        &symbol
+                    )
+                ) {
+                    return type_;
+                }
+            }
+        }
+        if is_declaration_name(&location)
+            && is_set_accessor(&location.parent())
+            && self
+                .get_annotated_accessor_type_node(location.maybe_parent())
+                .is_some()
+        {
+            return self
+                .resolve_type_of_accessors(&location.parent().symbol(), Some(true))
+                .unwrap();
+        }
+        self.get_non_missing_type_of_symbol(&symbol)
     }
 
     pub(super) fn is_symbol_assigned(&self, symbol: &Symbol) -> bool {
