@@ -401,7 +401,7 @@ bitflags! {
         const Signature = 1 << 0;
         const NoConstraints = 1 << 1;
         const Completions = 1 << 2;
-        const SkipBindingPatters = 1 << 3;
+        const SkipBindingPatterns = 1 << 3;
     }
 }
 
@@ -860,6 +860,8 @@ pub trait SymbolInterface {
     fn set_is_referenced(&self, is_referenced: Option<SymbolFlags>);
     fn maybe_is_replaceable_by_method(&self) -> Option<bool>;
     fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>);
+    fn maybe_is_assigned(&self) -> Option<bool>;
+    fn set_is_assigned(&self, is_assigned: Option<bool>);
     fn maybe_assignment_declaration_members(
         &self,
     ) -> RefMut<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>;
@@ -909,6 +911,7 @@ pub struct BaseSymbol {
     const_enum_only_module: Cell<Option<bool>>,
     is_referenced: Cell<Option<SymbolFlags>>,
     is_replaceable_by_method: Cell<Option<bool>>,
+    is_assigned: Cell<Option<bool>>,
     assignment_declaration_members: RefCell<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>,
 }
 
@@ -930,6 +933,7 @@ impl BaseSymbol {
             const_enum_only_module: Cell::new(None),
             is_referenced: Cell::new(None),
             is_replaceable_by_method: Cell::new(None),
+            is_assigned: Cell::new(None),
             assignment_declaration_members: RefCell::new(None),
         }
     }
@@ -1062,6 +1066,14 @@ impl SymbolInterface for BaseSymbol {
 
     fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>) {
         self.is_replaceable_by_method.set(is_replaceable_by_method);
+    }
+
+    fn maybe_is_assigned(&self) -> Option<bool> {
+        self.is_assigned.get()
+    }
+
+    fn set_is_assigned(&self, is_assigned: Option<bool>) {
+        self.is_assigned.set(is_assigned);
     }
 
     fn maybe_assignment_declaration_members(&self) -> RefMut<Option<HashMap<NodeId, Rc<Node>>>> {

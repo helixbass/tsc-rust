@@ -5,15 +5,20 @@ use std::rc::Rc;
 
 use super::{CheckMode, GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    are_option_rcs_equal, escape_leading_underscores, find, is_access_expression,
-    is_assignment_target, is_binary_expression, is_call_chain, is_declaration_name,
-    is_expression_node, is_expression_of_optional_chain_root, is_identifier,
+    are_option_rcs_equal, escape_leading_underscores, find, find_ancestor, for_each_child,
+    get_immediately_invoked_function_expression, get_root_declaration, is_access_expression,
+    is_assignment_target, is_binary_expression, is_call_chain, is_catch_clause,
+    is_declaration_name, is_element_access_expression, is_entity_name_expression,
+    is_export_assignment, is_export_specifier, is_expression_node,
+    is_expression_of_optional_chain_root, is_function_like, is_identifier, is_jsx_opening_element,
+    is_jsx_self_closing_element, is_parameter_or_catch_clause_variable,
     is_property_access_expression, is_right_side_of_qualified_name_or_property_access,
     is_set_accessor, is_string_literal_like, is_variable_declaration, is_write_access, map,
-    HasInitializerInterface, HasTypeInterface, Signature, SignatureKind, TypePredicate,
-    TypePredicateKind, UnionOrIntersectionTypeInterface, __String, get_object_flags, Node,
-    NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    ContextFlags, FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, NodeArray,
+    NodeCheckFlags, NodeFlags, Signature, SignatureKind, SymbolFlags, TypePredicate,
+    TypePredicateKind, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, __String,
+    get_object_flags, Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl GetFlowTypeOfReference {
@@ -549,12 +554,160 @@ impl TypeChecker {
         self.get_non_missing_type_of_symbol(&symbol)
     }
 
+    pub(super) fn get_control_flow_container(&self, node: &Node) -> Rc<Node> {
+        find_ancestor(node.maybe_parent(), |node: &Node| {
+            is_function_like(Some(node))
+                && get_immediately_invoked_function_expression(node).is_none()
+                || matches!(
+                    node.kind(),
+                    SyntaxKind::ModuleBlock
+                        | SyntaxKind::SourceFile
+                        | SyntaxKind::PropertyDeclaration
+                )
+        })
+        .unwrap()
+    }
+
     pub(super) fn is_symbol_assigned(&self, symbol: &Symbol) -> bool {
-        unimplemented!()
+        let symbol_value_declaration = symbol.maybe_value_declaration();
+        if symbol_value_declaration.is_none() {
+            return false;
+        }
+        let symbol_value_declaration = symbol_value_declaration.unwrap();
+        let parent = get_root_declaration(&symbol_value_declaration).parent();
+        let links = self.get_node_links(&parent);
+        if !(*links)
+            .borrow()
+            .flags
+            .intersects(NodeCheckFlags::AssignmentsMarked)
+        {
+            {
+                let mut links = links.borrow_mut();
+                links.flags = links.flags | NodeCheckFlags::AssignmentsMarked;
+            }
+            if !self.has_parent_with_assignments_marked(&parent) {
+                self.mark_node_assignments(&parent);
+            }
+        }
+        symbol.maybe_is_assigned().unwrap_or(false)
+    }
+
+    pub(super) fn has_parent_with_assignments_marked(&self, node: &Node) -> bool {
+        find_ancestor(node.maybe_parent(), |node: &Node| {
+            (is_function_like(Some(node)) || is_catch_clause(node))
+                && (*self.get_node_links(node))
+                    .borrow()
+                    .flags
+                    .intersects(NodeCheckFlags::AssignmentsMarked)
+        })
+        .is_some()
+    }
+
+    pub(super) fn mark_node_assignments(&self, node: &Node) {
+        if node.kind() == SyntaxKind::Identifier {
+            if is_assignment_target(node) {
+                let symbol = self.get_resolved_symbol(node);
+                if is_parameter_or_catch_clause_variable(&symbol) {
+                    symbol.set_is_assigned(Some(true));
+                }
+            }
+        } else {
+            for_each_child(
+                node,
+                |node: &Node| self.mark_node_assignments(node),
+                Option::<fn(&NodeArray)>::None,
+            );
+        }
     }
 
     pub(super) fn is_const_variable(&self, symbol: &Symbol) -> bool {
-        unimplemented!()
+        symbol.flags().intersects(SymbolFlags::Variable)
+            && self
+                .get_declaration_node_flags_from_symbol(symbol)
+                .intersects(NodeFlags::Const)
+    }
+
+    pub(super) fn remove_optionality_from_declared_type(
+        &self,
+        declared_type: &Type,
+        declaration: &Node, /*VariableLikeDeclaration*/
+    ) -> Rc<Type> {
+        let declaration_as_variable_like_declaration = declaration.as_variable_like_declaration();
+        if self.push_type_resolution(
+            &declaration.symbol().into(),
+            TypeSystemPropertyName::DeclaredType,
+        ) {
+            let annotation_includes_undefined = self.strict_null_checks
+                && declaration.kind() == SyntaxKind::Parameter
+                && matches!(
+                    declaration_as_variable_like_declaration.maybe_initializer().as_ref(),
+                    Some(declaration_initializer) if self.get_falsy_flags(declared_type).intersects(TypeFlags::Undefined) &&
+                        !self.get_falsy_flags(&self.check_expression(declaration_initializer, None, None)).intersects(TypeFlags::Undefined)
+                );
+            self.pop_type_resolution();
+
+            if annotation_includes_undefined {
+                self.get_type_with_facts(declared_type, TypeFacts::NEUndefined)
+            } else {
+                declared_type.type_wrapper()
+            }
+        } else {
+            self.report_circularity_error(&declaration.symbol());
+            declared_type.type_wrapper()
+        }
+    }
+
+    pub(super) fn is_constraint_position(&self, type_: &Type, node: &Node) -> bool {
+        let parent = node.parent();
+        parent.kind() == SyntaxKind::PropertyAccessExpression
+            || parent.kind() == SyntaxKind::CallExpression
+                && ptr::eq(&*parent.as_call_expression().expression, node)
+            || parent.kind() == SyntaxKind::ElementAccessExpression
+                && ptr::eq(&*parent.as_element_access_expression().expression, node)
+                && !(self.some_type(type_, |type_: &Type| {
+                    self.is_generic_type_without_nullable_constraint(type_)
+                }) && self.is_generic_index_type(&self.get_type_of_expression(
+                    &parent.as_element_access_expression().argument_expression,
+                )))
+    }
+
+    pub(super) fn is_generic_type_with_union_constraint(&self, type_: &Type) -> bool {
+        type_.flags().intersects(TypeFlags::Instantiable)
+            && self
+                .get_base_constraint_or_type(type_)
+                .flags()
+                .intersects(TypeFlags::Nullable | TypeFlags::Union)
+    }
+
+    pub(super) fn is_generic_type_without_nullable_constraint(&self, type_: &Type) -> bool {
+        type_.flags().intersects(TypeFlags::Instantiable)
+            && !self.maybe_type_of_kind(
+                &self.get_base_constraint_or_type(type_),
+                TypeFlags::Nullable,
+            )
+    }
+
+    pub(super) fn has_non_binding_pattern_contextual_type_with_no_generic_types(
+        &self,
+        node: &Node,
+    ) -> bool {
+        let contextual_type = if (is_identifier(node)
+            || is_property_access_expression(node)
+            || is_element_access_expression(node))
+            && !((is_jsx_opening_element(&node.parent())
+                || is_jsx_self_closing_element(&node.parent()))
+                && ptr::eq(
+                    &*node.parent().as_jsx_opening_like_element().tag_name(),
+                    node,
+                )) {
+            self.get_contextual_type_(node, Some(ContextFlags::SkipBindingPatterns))
+        } else {
+            None
+        };
+        matches!(
+            contextual_type.as_ref(),
+            Some(contextual_type) if !self.is_generic_type(contextual_type)
+        )
     }
 
     pub(super) fn get_narrowable_type_for_reference(
@@ -563,7 +716,58 @@ impl TypeChecker {
         reference: &Node,
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let substitute_constraints = !matches!(
+            check_mode,
+            Some(check_mode) if check_mode.intersects(CheckMode::Inferential)
+        ) && self.some_type(type_, |type_: &Type| {
+            self.is_generic_type_with_union_constraint(type_)
+        }) && (self.is_constraint_position(type_, reference)
+            || self.has_non_binding_pattern_contextual_type_with_no_generic_types(reference));
+        if substitute_constraints {
+            self.map_type(
+                type_,
+                &mut |t: &Type| {
+                    Some(if t.flags().intersects(TypeFlags::Instantiable) {
+                        self.get_base_constraint_or_type(t)
+                    } else {
+                        t.type_wrapper()
+                    })
+                },
+                None,
+            )
+            .unwrap()
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn is_export_or_export_expression(&self, location: &Node) -> bool {
+        find_ancestor(Some(location), |n: &Node| {
+            let parent = n.maybe_parent();
+            if parent.is_none() {
+                return FindAncestorCallbackReturn::Quit;
+            }
+            let parent = parent.unwrap();
+            if is_export_assignment(&parent) {
+                return (ptr::eq(&*parent.as_export_assignment().expression, n)
+                    && is_entity_name_expression(n))
+                .into();
+            }
+            if is_export_specifier(&parent) {
+                let parent_as_export_specifier = parent.as_export_specifier();
+                return (ptr::eq(&*parent_as_export_specifier.name, n)
+                    || matches!(
+                        parent_as_export_specifier.property_name.as_deref(),
+                        Some(parent_property_name) if ptr::eq(
+                            parent_property_name,
+                            n
+                        )
+                    ))
+                .into();
+            }
+            false.into()
+        })
+        .is_some()
     }
 
     pub(super) fn check_identifier(
