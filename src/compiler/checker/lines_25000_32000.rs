@@ -10,18 +10,21 @@ use super::{
     WideningKind,
 };
 use crate::{
-    contains_rc, filter, find_ancestor, get_ancestor, get_assignment_declaration_kind,
-    get_enclosing_block_scope_container, get_this_container, has_static_modifier, is_for_statement,
+    add_related_info, contains_rc, create_diagnostic_for_node, filter, find_ancestor,
+    for_each_child_returns, get_ancestor, get_assignment_declaration_kind,
+    get_class_extends_heritage_element, get_enclosing_block_scope_container, get_this_container,
+    has_static_modifier, is_assignment_target, is_for_statement,
     is_function_expression_or_arrow_function, is_function_like, is_import_call,
     is_iteration_statement, is_object_literal_method, is_property_declaration, is_source_file,
-    node_starts_new_lexical_environment, push_if_unique_rc, AssignmentDeclarationKind,
-    ContextFlags, Debug_, Diagnostics, FindAncestorCallbackReturn, FunctionFlags, NodeCheckFlags,
-    NodeFlags, ScriptTarget, Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags,
-    Ternary, UnionReduction, __String, create_symbol_table, get_effective_type_annotation_node,
-    get_function_flags, get_object_flags, has_initializer, is_object_literal_expression,
-    HasInitializerInterface, InferenceContext, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    is_super_call, length, node_starts_new_lexical_environment, push_if_unique_rc,
+    text_range_contains_position_inclusive, AssignmentDeclarationKind, ContextFlags, Debug_,
+    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, FunctionFlags, NodeArray,
+    NodeCheckFlags, NodeFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
+    create_symbol_table, get_effective_type_annotation_node, get_function_flags, get_object_flags,
+    has_initializer, is_object_literal_expression, HasInitializerInterface, InferenceContext, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -215,11 +218,225 @@ impl TypeChecker {
         node: &Node,      /*Identifier*/
         container: &Node, /*ForStatement*/
     ) -> bool {
-        unimplemented!()
+        let mut current = node.node_wrapper();
+        while current.parent().kind() == SyntaxKind::ParenthesizedExpression {
+            current = current.parent();
+        }
+
+        let mut is_assigned = false;
+        if is_assignment_target(&current) {
+            is_assigned = true;
+        } else if matches!(
+            current.parent().kind(),
+            SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression
+        ) {
+            let expr = current.parent();
+            is_assigned = matches!(
+                expr.as_unary_expression().operator(),
+                SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+            );
+        }
+
+        if !is_assigned {
+            return false;
+        }
+
+        let container_as_for_statement = container.as_for_statement();
+        find_ancestor(Some(current), |n: &Node| {
+            if ptr::eq(n, container) {
+                FindAncestorCallbackReturn::Quit
+            } else {
+                ptr::eq(n, &*container_as_for_statement.statement).into()
+            }
+        })
+        .is_some()
+    }
+
+    pub(super) fn capture_lexical_this(&self, node: &Node, container: &Node) {
+        self.get_node_links(node).borrow_mut().flags |= NodeCheckFlags::LexicalThis;
+        if matches!(
+            container.kind(),
+            SyntaxKind::PropertyDeclaration | SyntaxKind::Constructor
+        ) {
+            let class_node = container.parent();
+            self.get_node_links(&class_node).borrow_mut().flags |= NodeCheckFlags::CaptureThis;
+        } else {
+            self.get_node_links(container).borrow_mut().flags |= NodeCheckFlags::CaptureThis;
+        }
+    }
+
+    pub(super) fn find_first_super_call(&self, node: &Node) -> Option<Rc<Node /*SuperCall*/>> {
+        if is_super_call(node) {
+            Some(node.node_wrapper())
+        } else if is_function_like(Some(node)) {
+            None
+        } else {
+            for_each_child_returns(
+                node,
+                |node: &Node| self.find_first_super_call(node),
+                Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+            )
+        }
+    }
+
+    pub(super) fn class_declaration_extends_null(
+        &self,
+        class_decl: &Node, /*ClassDeclaration*/
+    ) -> bool {
+        let class_symbol = self.get_symbol_of_node(class_decl).unwrap();
+        let class_instance_type = self.get_declared_type_of_symbol(&class_symbol);
+        let base_constructor_type = self.get_base_constructor_type_of_class(&class_instance_type);
+
+        Rc::ptr_eq(&base_constructor_type, &self.null_widening_type())
+    }
+
+    pub(super) fn check_this_before_super(
+        &self,
+        node: &Node,
+        container: &Node,
+        diagnostic_message: &DiagnosticMessage,
+    ) {
+        let containing_class_decl = container.parent();
+        let base_type_node = get_class_extends_heritage_element(&containing_class_decl);
+
+        if let Some(base_type_node) = base_type_node.as_ref() {
+            if !self.class_declaration_extends_null(&containing_class_decl) {
+                if matches!(
+                    node.maybe_flow_node().as_ref(),
+                    Some(node_flow_node) if !self.is_post_super_flow_node(node_flow_node.clone(), false)
+                ) {
+                    self.error(Some(node), diagnostic_message, None);
+                }
+            }
+        }
+    }
+
+    pub(super) fn check_this_in_static_class_field_initializer_in_decorated_class(
+        &self,
+        this_expression: &Node,
+        container: &Node,
+    ) {
+        if is_property_declaration(container)
+            && has_static_modifier(container)
+            && matches!(
+                container.as_has_initializer().maybe_initializer().as_deref(),
+                Some(container_initializer) if text_range_contains_position_inclusive(container_initializer, this_expression.pos())
+            )
+            && length(container.parent().maybe_decorators().as_deref()) > 0
+        {
+            self.error(
+                Some(this_expression),
+                &Diagnostics::Cannot_use_this_in_a_static_property_initializer_of_a_decorated_class,
+                None,
+            );
+        }
     }
 
     pub(super) fn check_this_expression(&self, node: &Node) -> Rc<Type> {
-        unimplemented!()
+        let is_node_in_type_query = self.is_in_type_query(node);
+        let mut container = get_this_container(node, true);
+        let mut captured_by_arrow_function = false;
+
+        if container.kind() == SyntaxKind::Constructor {
+            self.check_this_before_super(node, &container, &Diagnostics::super_must_be_called_before_accessing_this_in_the_constructor_of_a_derived_class);
+        }
+
+        if container.kind() == SyntaxKind::ArrowFunction {
+            container = get_this_container(&container, false);
+            captured_by_arrow_function = true;
+        }
+
+        self.check_this_in_static_class_field_initializer_in_decorated_class(node, &container);
+        match container.kind() {
+            SyntaxKind::ModuleDeclaration => {
+                self.error(
+                    Some(node),
+                    &Diagnostics::this_cannot_be_referenced_in_a_module_or_namespace_body,
+                    None,
+                );
+            }
+            SyntaxKind::EnumDeclaration => {
+                self.error(
+                    Some(node),
+                    &Diagnostics::this_cannot_be_referenced_in_current_location,
+                    None,
+                );
+            }
+            SyntaxKind::Constructor => {
+                if self.is_in_constructor_argument_initializer(node, &container) {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::this_cannot_be_referenced_in_constructor_arguments,
+                        None,
+                    );
+                }
+            }
+            SyntaxKind::ComputedPropertyName => {
+                self.error(
+                    Some(node),
+                    &Diagnostics::this_cannot_be_referenced_in_a_computed_property_name,
+                    None,
+                );
+            }
+            _ => (),
+        }
+
+        if !is_node_in_type_query
+            && captured_by_arrow_function
+            && self.language_version < ScriptTarget::ES2015
+        {
+            self.capture_lexical_this(node, &container);
+        }
+
+        let type_ = self.try_get_this_type_at_(node, Some(true), Some(&*container));
+        if self.no_implicit_this {
+            let global_this_type = self.get_type_of_symbol(&self.global_this_symbol());
+            if matches!(
+                type_.as_ref(),
+                Some(type_) if Rc::ptr_eq(
+                    type_,
+                    &global_this_type
+                )
+            ) && captured_by_arrow_function
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::The_containing_arrow_function_captures_the_global_value_of_this,
+                    None,
+                );
+            } else if type_.is_none() {
+                let diag = self.error(
+                    Some(node),
+                    &Diagnostics::this_implicitly_has_type_any_because_it_does_not_have_a_type_annotation,
+                    None,
+                );
+                if !is_source_file(&container) {
+                    let outside_this =
+                        self.try_get_this_type_at_(&container, None, Option::<&Node>::None);
+                    if matches!(
+                        outside_this.as_ref(),
+                        Some(outside_this) if !Rc::ptr_eq(
+                            outside_this,
+                            &self.global_this_type()
+                        )
+                    ) {
+                        add_related_info(
+                            &diag,
+                            vec![
+                                Rc::new(
+                                    create_diagnostic_for_node(
+                                        &container,
+                                        &Diagnostics::An_outer_value_of_this_is_shadowed_by_this_container,
+                                        None,
+                                    ).into()
+                                )
+                            ]
+                        );
+                    }
+                }
+            }
+        }
+        type_.unwrap_or_else(|| self.any_type())
     }
 
     pub(super) fn try_get_this_type_at_<TContainer: Borrow<Node>>(
@@ -240,6 +457,14 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
     ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_in_constructor_argument_initializer(
+        &self,
+        node: &Node,
+        constructor_decl: &Node,
+    ) -> bool {
         unimplemented!()
     }
 

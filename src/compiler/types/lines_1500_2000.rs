@@ -807,6 +807,11 @@ impl HasExpressionInterface for PartiallyEmittedExpression {
     }
 }
 
+pub trait UnaryExpressionInterface {
+    fn operator(&self) -> SyntaxKind;
+    fn operand(&self) -> Rc<Node>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct PrefixUnaryExpression {
@@ -825,6 +830,15 @@ impl PrefixUnaryExpression {
     }
 }
 
+impl UnaryExpressionInterface for PrefixUnaryExpression {
+    fn operator(&self) -> SyntaxKind {
+        self.operator
+    }
+    fn operand(&self) -> Rc<Node> {
+        self.operand.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct PostfixUnaryExpression {
@@ -840,6 +854,15 @@ impl PostfixUnaryExpression {
             operand,
             operator,
         }
+    }
+}
+
+impl UnaryExpressionInterface for PostfixUnaryExpression {
+    fn operator(&self) -> SyntaxKind {
+        self.operator
+    }
+    fn operand(&self) -> Rc<Node> {
+        self.operand.clone()
     }
 }
 

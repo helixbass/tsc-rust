@@ -2890,6 +2890,10 @@ impl TypeChecker {
         self.global_boolean_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn global_this_type(&self) -> Rc<Type> {
+        self.global_this_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn any_array_type(&self) -> Rc<Type> {
         self.any_array_type.as_ref().unwrap().clone()
     }

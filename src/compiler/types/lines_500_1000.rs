@@ -51,10 +51,11 @@ use super::{
     TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, ThrowStatement,
     TransformFlags, TryStatement, TupleTypeNode, Type, TypeAliasDeclaration, TypeAssertion,
     TypeLiteralNode, TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration,
-    TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
-    UnionTypeNode, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
-    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression, WhileStatement, WithStatement, YieldExpression,
+    TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnaryExpressionInterface,
+    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike, VariableDeclaration, VariableDeclarationList,
+    VariableLikeDeclarationInterface, VariableStatement, VoidExpression, WhileStatement,
+    WithStatement, YieldExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -707,6 +708,14 @@ impl Node {
             Node::CallExpression(node) => node,
             Node::NewExpression(node) => node,
             _ => panic!("Expected has arguments"),
+        }
+    }
+
+    pub fn as_unary_expression(&self) -> &dyn UnaryExpressionInterface {
+        match self {
+            Node::PrefixUnaryExpression(node) => node,
+            Node::PostfixUnaryExpression(node) => node,
+            _ => panic!("Expected unary expression"),
         }
     }
 
