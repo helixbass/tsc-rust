@@ -2808,6 +2808,10 @@ impl TypeChecker {
         self.no_type_predicate.as_ref().unwrap().clone()
     }
 
+    pub(super) fn any_signature(&self) -> Rc<Signature> {
+        self.any_signature.as_ref().unwrap().clone()
+    }
+
     pub(super) fn unknown_signature(&self) -> Rc<Signature> {
         self.unknown_signature.as_ref().unwrap().clone()
     }

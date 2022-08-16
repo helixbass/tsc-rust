@@ -685,6 +685,15 @@ impl TypeChecker {
         IterationTypes::new(yield_type, return_type, next_type)
     }
 
+    pub(super) fn get_iteration_types_of_iterable<TErrorNode: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        use_: IterationUse,
+        error_node: Option<TErrorNode>,
+    ) -> Option<IterationTypes> {
+        unimplemented!()
+    }
+
     pub(super) fn get_iteration_type_of_generator_function_return_type(
         &self,
         kind: IterationTypeKind,
