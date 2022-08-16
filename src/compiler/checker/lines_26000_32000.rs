@@ -9,14 +9,17 @@ use super::{
     WideningKind,
 };
 use crate::{
-    filter, find_ancestor, get_assignment_declaration_kind,
-    is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
-    AssignmentDeclarationKind, ContextFlags, Debug_, Diagnostics, FunctionFlags, NodeFlags,
-    Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction,
-    __String, create_symbol_table, get_function_flags, get_object_flags, has_initializer,
-    is_object_literal_expression, InferenceContext, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    cast, filter, find_ancestor, get_assignment_declaration_kind, get_check_flags,
+    get_effective_type_annotation_node, get_element_or_property_access_name, get_this_container,
+    is_access_expression, is_function_expression_or_arrow_function, is_identifier, is_import_call,
+    is_in_js_file, is_object_literal_method, is_property_declaration, is_property_signature,
+    is_this_initialized_declaration, unescape_leading_underscores, AssignmentDeclarationKind,
+    CheckFlags, ContextFlags, Debug_, Diagnostics, FunctionFlags, NodeFlags, Signature,
+    SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface,
+    TypeSystemPropertyName, UnionReduction, __String, create_symbol_table, get_function_flags,
+    get_object_flags, has_initializer, is_object_literal_expression, InferenceContext, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -24,7 +27,163 @@ impl TypeChecker {
         &self,
         binary_expression: &Node, /*BinaryExpression*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let kind = get_assignment_declaration_kind(binary_expression);
+        let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
+        match kind {
+            AssignmentDeclarationKind::None | AssignmentDeclarationKind::ThisProperty => {
+                let lhs_symbol =
+                    self.get_symbol_for_expression(&binary_expression_as_binary_expression.left);
+                let decl = lhs_symbol
+                    .as_ref()
+                    .and_then(|lhs_symbol| lhs_symbol.maybe_value_declaration());
+                if let Some(decl) = decl
+                    .as_ref()
+                    .filter(|decl| is_property_declaration(decl) || is_property_signature(decl))
+                {
+                    let overall_annotation = get_effective_type_annotation_node(decl);
+                    return if let Some(overall_annotation) = overall_annotation.as_ref() {
+                        Some(
+                            self.instantiate_type(
+                                &self.get_type_from_type_node_(overall_annotation),
+                                (*self.get_symbol_links(lhs_symbol.as_ref().unwrap()))
+                                    .borrow()
+                                    .mapper
+                                    .clone()
+                                    .as_ref(),
+                            ),
+                        )
+                    } else {
+                        None
+                    }
+                    .or_else(|| {
+                        if decl.as_has_initializer().maybe_initializer().is_some() {
+                            Some(self.get_type_of_expression(
+                                &binary_expression_as_binary_expression.left,
+                            ))
+                        } else {
+                            None
+                        }
+                    });
+                }
+                if kind == AssignmentDeclarationKind::None {
+                    return Some(
+                        self.get_type_of_expression(&binary_expression_as_binary_expression.left),
+                    );
+                }
+                self.get_contextual_type_for_this_property_assignment(binary_expression)
+            }
+            AssignmentDeclarationKind::Property => {
+                if self.is_possibly_aliased_this_property(binary_expression, Some(kind)) {
+                    self.get_contextual_type_for_this_property_assignment(binary_expression)
+                } else if binary_expression_as_binary_expression
+                    .left
+                    .maybe_symbol()
+                    .is_none()
+                {
+                    Some(self.get_type_of_expression(&binary_expression_as_binary_expression.left))
+                } else {
+                    let decl = binary_expression_as_binary_expression
+                        .left
+                        .symbol()
+                        .maybe_value_declaration()?;
+                    let lhs = cast(
+                        Some(&*binary_expression_as_binary_expression.left),
+                        |node: &&Node| is_access_expression(node),
+                    );
+                    let overall_annotation = get_effective_type_annotation_node(&decl);
+                    if let Some(overall_annotation) = overall_annotation.as_ref() {
+                        return Some(self.get_type_from_type_node_(overall_annotation));
+                    } else if is_identifier(&lhs.as_has_expression().expression()) {
+                        let id = &lhs.as_has_expression().expression();
+                        let parent_symbol = self.resolve_name_(
+                            Some(&**id),
+                            &id.as_identifier().escaped_text,
+                            SymbolFlags::Value,
+                            None,
+                            Some(id.as_identifier().escaped_text.clone()),
+                            true,
+                            None,
+                        );
+                        if let Some(parent_symbol) = parent_symbol.as_ref() {
+                            let annotated = parent_symbol
+                                .maybe_value_declaration()
+                                .as_ref()
+                                .and_then(|parent_symbol_value_declaration| {
+                                    get_effective_type_annotation_node(
+                                        parent_symbol_value_declaration,
+                                    )
+                                });
+                            if let Some(annotated) = annotated.as_ref() {
+                                let name_str = get_element_or_property_access_name(lhs);
+                                if let Some(name_str) = name_str.as_ref() {
+                                    return self.get_type_of_property_of_contextual_type(
+                                        &self.get_type_from_type_node_(annotated),
+                                        name_str,
+                                    );
+                                }
+                            }
+                            return None;
+                        }
+                    }
+                    if is_in_js_file(Some(&*decl)) {
+                        None
+                    } else {
+                        Some(
+                            self.get_type_of_expression(
+                                &binary_expression_as_binary_expression.left,
+                            ),
+                        )
+                    }
+                }
+            }
+            AssignmentDeclarationKind::ExportsProperty
+            | AssignmentDeclarationKind::Prototype
+            | AssignmentDeclarationKind::PrototypeProperty => {
+                let mut value_declaration = binary_expression_as_binary_expression
+                    .left
+                    .maybe_symbol()
+                    .as_ref()
+                    .and_then(|binary_expression_left_symbol| {
+                        binary_expression_left_symbol.maybe_value_declaration()
+                    });
+                value_declaration = value_declaration.or_else(|| {
+                    binary_expression_as_binary_expression
+                        .maybe_symbol()
+                        .as_ref()
+                        .and_then(|binary_expression_symbol| {
+                            binary_expression_symbol.maybe_value_declaration()
+                        })
+                });
+                let annotated = value_declaration.as_ref().and_then(|value_declaration| {
+                    get_effective_type_annotation_node(value_declaration)
+                });
+                annotated
+                    .as_ref()
+                    .map(|annotated| self.get_type_from_type_node_(annotated))
+            }
+            AssignmentDeclarationKind::ModuleExports => {
+                let mut value_declaration: Option<Rc<Node>> = None;
+                value_declaration = value_declaration.or_else(|| {
+                    binary_expression_as_binary_expression
+                        .maybe_symbol()
+                        .as_ref()
+                        .and_then(|binary_expression_symbol| {
+                            binary_expression_symbol.maybe_value_declaration()
+                        })
+                });
+                let annotated = value_declaration.as_ref().and_then(|value_declaration| {
+                    get_effective_type_annotation_node(value_declaration)
+                });
+                annotated
+                    .as_ref()
+                    .map(|annotated| self.get_type_from_type_node_(annotated))
+            }
+            AssignmentDeclarationKind::ObjectDefinePropertyValue
+            | AssignmentDeclarationKind::ObjectDefinePropertyExports
+            | AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
+                Debug_.fail(Some("Does not apply"));
+            } // _ => Debug_.assert_never(kind, None)
+        }
     }
 
     pub(super) fn is_possibly_aliased_this_property(
@@ -33,7 +192,93 @@ impl TypeChecker {
         kind: Option<AssignmentDeclarationKind>,
     ) -> bool {
         let kind = kind.unwrap_or_else(|| get_assignment_declaration_kind(declaration));
-        unimplemented!()
+        if kind == AssignmentDeclarationKind::ThisProperty {
+            return true;
+        }
+        let declaration_as_binary_expression = declaration.as_binary_expression();
+        if !is_in_js_file(Some(declaration))
+            || kind != AssignmentDeclarationKind::Property
+            || !is_identifier(
+                &declaration_as_binary_expression
+                    .left
+                    .as_has_expression()
+                    .expression(),
+            )
+        {
+            return false;
+        }
+        let name = &declaration_as_binary_expression
+            .left
+            .as_has_expression()
+            .expression()
+            .as_identifier()
+            .escaped_text
+            .clone();
+        let symbol = self.resolve_name_(
+            Some(&*declaration_as_binary_expression.left),
+            &name,
+            SymbolFlags::Value,
+            None,
+            Option::<Rc<Node>>::None,
+            true,
+            Some(true),
+        );
+        is_this_initialized_declaration(
+            symbol
+                .as_ref()
+                .and_then(|symbol| symbol.maybe_value_declaration()),
+        )
+    }
+
+    pub(super) fn get_contextual_type_for_this_property_assignment(
+        &self,
+        binary_expression: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Type>> {
+        let binary_expression_symbol = binary_expression.maybe_symbol();
+        let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
+        if binary_expression_symbol.is_none() {
+            return Some(self.get_type_of_expression(&binary_expression_as_binary_expression.left));
+        }
+        let binary_expression_symbol = binary_expression_symbol.unwrap();
+        if let Some(binary_expression_symbol_value_declaration) =
+            binary_expression_symbol.maybe_value_declaration()
+        {
+            let annotated =
+                get_effective_type_annotation_node(&binary_expression_symbol_value_declaration);
+            if let Some(annotated) = annotated.as_ref() {
+                let type_ = self.get_type_from_type_node_(annotated);
+                // if (type) {
+                return Some(type_);
+                // }
+            }
+        }
+        let this_access = cast(
+            Some(&*binary_expression_as_binary_expression.left),
+            |node: &&Node| is_access_expression(node),
+        );
+        if !is_object_literal_method(&get_this_container(
+            &this_access.as_has_expression().expression(),
+            false,
+        )) {
+            return None;
+        }
+        let this_type = self.check_this_expression(&this_access.as_has_expression().expression());
+        let name_str = get_element_or_property_access_name(&this_access);
+        name_str
+            .as_ref()
+            .and_then(|name_str| self.get_type_of_property_of_contextual_type(&this_type, name_str))
+    }
+
+    pub(super) fn is_circular_mapped_property(&self, symbol: &Symbol) -> bool {
+        get_check_flags(symbol).intersects(CheckFlags::Mapped)
+            && (*symbol.as_mapped_symbol().symbol_links())
+                .borrow()
+                .type_
+                .is_none()
+            && self.find_resolution_cycle_start_index(
+                &symbol.symbol_wrapper().into(),
+                TypeSystemPropertyName::Type,
+            ) >= 0
     }
 
     pub(super) fn get_type_of_property_of_contextual_type(
@@ -44,22 +289,40 @@ impl TypeChecker {
         self.map_type(
             type_,
             &mut |t| {
-                if false {
-                    unimplemented!()
+                if self.is_generic_mapped_type(t) {
+                    let constraint = self.get_constraint_type_from_mapped_type(t);
+                    let constraint_of_constraint = self
+                        .get_base_constraint_of_type(&constraint)
+                        .unwrap_or(constraint);
+                    let property_name_type =
+                        self.get_string_literal_type(&unescape_leading_underscores(name));
+                    if self.is_type_assignable_to(&property_name_type, &constraint_of_constraint) {
+                        return Some(self.substitute_indexed_mapped_type(t, &property_name_type));
+                    }
                 } else if t.flags().intersects(TypeFlags::StructuredType) {
                     let prop = self.get_property_of_type_(t, name, None);
-                    if let Some(prop) = prop {
-                        return if false {
+                    if let Some(prop) = prop.as_ref() {
+                        return if self.is_circular_mapped_property(prop) {
                             None
                         } else {
-                            Some(self.get_type_of_symbol(&*prop))
+                            Some(self.get_type_of_symbol(prop))
                         };
                     }
-                    return if let Some(found) = Option::<()>::None /*self.find_applicable_index_info(self.get_index_infos_of_structured_type(t), self.get_string_literal_type(unescape_leading_underscores(name)))*/ {
-                        unimplemented!()
-                    } else {
-                        None
-                    };
+                    if self.is_tuple_type(t) {
+                        let rest_type = self.get_rest_type_of_tuple_type(t);
+                        if rest_type.is_some()
+                            && self.is_numeric_literal_name(name)
+                            && (&**name).parse::<f64>().unwrap() >= 0.0
+                        {
+                            return rest_type;
+                        }
+                    }
+                    return self
+                        .find_applicable_index_info(
+                            &self.get_index_infos_of_structured_type(t),
+                            &self.get_string_literal_type(&unescape_leading_underscores(name)),
+                        )
+                        .map(|index_info| index_info.type_.clone());
                 }
                 None
             },
