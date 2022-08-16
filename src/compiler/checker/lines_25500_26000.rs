@@ -1,30 +1,23 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    signature_has_rest_parameter, CheckMode, IterationTypeKind, IterationUse,
-    MinArgumentCountFlags, ResolveNameNameArg, TypeFacts, WideningKind,
-};
+use super::{signature_has_rest_parameter, CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    filter, find_ancestor, for_each, get_assignment_declaration_kind, get_containing_function,
-    get_immediately_invoked_function_expression, get_source_file_of_node, get_this_parameter,
-    index_of_node, is_access_expression, is_binding_element, is_binding_pattern, is_class_like,
-    is_computed_non_literal_name, is_defaulted_expando_initializer, is_expression,
-    is_function_expression_or_arrow_function, is_function_like, is_identifier, is_import_call,
-    is_in_js_file, is_jsx_opening_like_element, is_object_literal_method, is_parameter,
+    for_each, get_containing_function, get_effective_type_annotation_node, get_function_flags,
+    get_immediately_invoked_function_expression, get_object_flags, get_source_file_of_node,
+    get_this_parameter, has_initializer, index_of_node, is_access_expression, is_binding_element,
+    is_binding_pattern, is_class_like, is_computed_non_literal_name,
+    is_defaulted_expando_initializer, is_expression, is_function_like, is_identifier,
+    is_import_call, is_in_js_file, is_jsx_opening_like_element, is_parameter,
     is_private_identifier, is_property_access_expression, is_static, last_or_undefined,
-    walk_up_parenthesized_expressions, AccessFlags, AssignmentDeclarationKind, ContextFlags,
-    Debug_, Diagnostics, FunctionFlags, NamedDeclarationInterface, NodeFlags, Number, Signature,
-    SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
-    create_symbol_table, get_effective_type_annotation_node, get_function_flags, get_object_flags,
-    has_initializer, is_object_literal_expression, HasInitializerInterface, InferenceContext, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    walk_up_parenthesized_expressions, AccessFlags, ContextFlags, FunctionFlags,
+    HasInitializerInterface, InferenceContext, NamedDeclarationInterface, Node, NodeInterface,
+    Number, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
