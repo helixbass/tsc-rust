@@ -2816,6 +2816,10 @@ impl TypeChecker {
         self.unknown_signature.as_ref().unwrap().clone()
     }
 
+    pub(super) fn resolving_signature(&self) -> Rc<Signature> {
+        self.resolving_signature.as_ref().unwrap().clone()
+    }
+
     pub(super) fn enum_number_index_info(&self) -> Rc<IndexInfo> {
         self.enum_number_index_info.as_ref().unwrap().clone()
     }

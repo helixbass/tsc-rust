@@ -7,17 +7,19 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, IterationUse, MinArgumentCountFlags,
-    ResolveNameNameArg, TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, IterationTypeKind, IterationUse,
+    MinArgumentCountFlags, ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
     filter, find_ancestor, for_each, get_assignment_declaration_kind, get_containing_function,
     get_immediately_invoked_function_expression, get_source_file_of_node, get_this_parameter,
-    index_of_node, is_access_expression, is_binding_pattern, is_class_like,
-    is_computed_non_literal_name, is_expression, is_function_expression_or_arrow_function,
-    is_identifier, is_import_call, is_in_js_file, is_object_literal_method, is_static,
-    last_or_undefined, walk_up_parenthesized_expressions, AssignmentDeclarationKind, ContextFlags,
-    Debug_, Diagnostics, FunctionFlags, NamedDeclarationInterface, NodeFlags, Signature,
+    index_of_node, is_access_expression, is_binding_element, is_binding_pattern, is_class_like,
+    is_computed_non_literal_name, is_defaulted_expando_initializer, is_expression,
+    is_function_expression_or_arrow_function, is_function_like, is_identifier, is_import_call,
+    is_in_js_file, is_jsx_opening_like_element, is_object_literal_method, is_parameter,
+    is_private_identifier, is_property_access_expression, is_static, last_or_undefined,
+    walk_up_parenthesized_expressions, AccessFlags, AssignmentDeclarationKind, ContextFlags,
+    Debug_, Diagnostics, FunctionFlags, NamedDeclarationInterface, NodeFlags, Number, Signature,
     SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
     create_symbol_table, get_effective_type_annotation_node, get_function_flags, get_object_flags,
     has_initializer, is_object_literal_expression, HasInitializerInterface, InferenceContext, Node,
@@ -485,18 +487,121 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn get_contextual_type_for_yield_operand(
+        &self,
+        node: &Node, /*YieldExpression*/
+    ) -> Option<Rc<Type>> {
+        let func = get_containing_function(node);
+        if let Some(func) = func.as_ref() {
+            let function_flags = get_function_flags(Some(&**func));
+            let contextual_return_type = self.get_contextual_return_type(func);
+            if let Some(contextual_return_type) = contextual_return_type.as_ref() {
+                return if node.as_yield_expression().asterisk_token.is_some() {
+                    Some(contextual_return_type.clone())
+                } else {
+                    self.get_iteration_type_of_generator_function_return_type(
+                        IterationTypeKind::Yield,
+                        contextual_return_type,
+                        function_flags.intersects(FunctionFlags::Async),
+                    )
+                };
+            }
+        }
+
+        None
+    }
+
     pub(super) fn is_in_parameter_initializer_before_containing_function(
         &self,
         node: &Node,
     ) -> bool {
-        unimplemented!()
+        let mut in_binding_initializer = false;
+        let mut node = node.node_wrapper();
+        while let Some(node_parent) = node
+            .maybe_parent()
+            .as_ref()
+            .filter(|node_parent| !is_function_like(Some(&***node_parent)))
+        {
+            if is_parameter(node_parent)
+                && (in_binding_initializer
+                    || matches!(
+                        node_parent.as_has_initializer().maybe_initializer().as_ref(),
+                        Some(node_parent_initializer) if Rc::ptr_eq(
+                            node_parent_initializer,
+                            &node
+                        )
+                    ))
+            {
+                return true;
+            }
+            if is_binding_element(node_parent)
+                && matches!(
+                    node_parent.as_has_initializer().maybe_initializer().as_ref(),
+                    Some(node_parent_initializer) if Rc::ptr_eq(
+                        node_parent_initializer,
+                        &node
+                    )
+                )
+            {
+                in_binding_initializer = true;
+            }
+
+            node = node_parent.clone();
+        }
+
+        false
+    }
+
+    pub(super) fn get_contextual_iteration_type(
+        &self,
+        kind: IterationTypeKind,
+        function_decl: &Node, /*SignatureDeclaration*/
+    ) -> Option<Rc<Type>> {
+        let is_async = get_function_flags(Some(function_decl)).intersects(FunctionFlags::Async);
+        let contextual_return_type = self.get_contextual_return_type(function_decl);
+        if let Some(contextual_return_type) = contextual_return_type.as_ref() {
+            return self.get_iteration_type_of_generator_function_return_type(
+                kind,
+                contextual_return_type,
+                is_async,
+            );
+        }
+
+        None
     }
 
     pub(super) fn get_contextual_return_type(
         &self,
         function_decl: &Node, /*SignatureDeclaration*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let return_type = self.get_return_type_from_annotation(function_decl);
+        if return_type.is_some() {
+            return return_type;
+        }
+        let signature = self.get_contextual_signature_for_function_like_declaration(function_decl);
+        if let Some(signature) = signature
+            .as_ref()
+            .filter(|signature| !self.is_resolving_return_type_of_signature((*signature).clone()))
+        {
+            return Some(self.get_return_type_of_signature(signature.clone()));
+        }
+        let iife = get_immediately_invoked_function_expression(function_decl);
+        if let Some(iife) = iife.as_ref() {
+            return self.get_contextual_type_(iife, None);
+        }
+        None
+    }
+
+    pub(super) fn get_contextual_type_for_argument(
+        &self,
+        call_target: &Node, /*CallLikeExpression*/
+        arg: &Node,         /*Expression*/
+    ) -> Option<Rc<Type>> {
+        let args = self.get_effective_call_arguments(call_target);
+        let arg_index = args.iter().position(|argument| ptr::eq(&**argument, arg));
+        arg_index.map(|arg_index| {
+            self.get_contextual_type_for_argument_at_index_(call_target, arg_index)
+        })
     }
 
     pub(super) fn get_contextual_type_for_argument_at_index_(
@@ -504,6 +609,156 @@ impl TypeChecker {
         call_target: &Node, /*CallLikeExpression*/
         arg_index: usize,
     ) -> Rc<Type> {
+        if is_import_call(call_target) {
+            return if arg_index == 0 {
+                self.string_type()
+            } else if arg_index == 1 {
+                self.get_global_import_call_options_type(false)
+            } else {
+                self.any_type()
+            };
+        }
+
+        let signature = if matches!(
+            (*self.get_node_links(call_target)).borrow().resolved_signature.as_ref(),
+            Some(resolved_signature) if Rc::ptr_eq(
+                resolved_signature,
+                &self.resolving_signature()
+            )
+        ) {
+            self.resolving_signature()
+        } else {
+            self.get_resolved_signature_(call_target, None, None)
+        };
+
+        if is_jsx_opening_like_element(call_target) && arg_index == 0 {
+            return self.get_effective_first_argument_for_jsx_signature(&signature, call_target);
+        }
+        let rest_index = signature.parameters().len() - 1;
+        if signature_has_rest_parameter(&signature) && arg_index >= rest_index {
+            self.get_indexed_access_type(
+                &self.get_type_of_symbol(&signature.parameters()[rest_index]),
+                &self.get_number_literal_type(Number::new((arg_index - rest_index) as f64)),
+                Some(AccessFlags::Contextual),
+                Option::<&Node>::None,
+                Option::<&Symbol>::None,
+                None,
+            )
+        } else {
+            self.get_type_at_position(&signature, arg_index)
+        }
+    }
+
+    pub(super) fn get_contextual_type_for_substitution_expression(
+        &self,
+        template: &Node,                /*TemplateExpression*/
+        substitution_expression: &Node, /*Expression*/
+    ) -> Option<Rc<Type>> {
+        if template.parent().kind() == SyntaxKind::TaggedTemplateExpression {
+            return self
+                .get_contextual_type_for_argument(&template.parent(), substitution_expression);
+        }
+
+        None
+    }
+
+    pub(super) fn get_contextual_type_for_binary_operand(
+        &self,
+        node: &Node, /*Expression*/
+        context_flags: Option<ContextFlags>,
+    ) -> Option<Rc<Type>> {
+        let binary_expression = node.parent();
+        let binary_expression_as_binary_expression = binary_expression.as_binary_expression();
+        let left = &binary_expression_as_binary_expression.left;
+        let operator_token = &binary_expression_as_binary_expression.operator_token;
+        let right = &binary_expression_as_binary_expression.right;
+        match operator_token.kind() {
+            SyntaxKind::EqualsToken
+            | SyntaxKind::AmpersandAmpersandEqualsToken
+            | SyntaxKind::BarBarEqualsToken
+            | SyntaxKind::QuestionQuestionEqualsToken => {
+                if ptr::eq(node, &**right) {
+                    self.get_contextual_type_for_assignment_declaration(&binary_expression)
+                } else {
+                    None
+                }
+            }
+            SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken => {
+                let type_ = self.get_contextual_type_(&binary_expression, context_flags);
+                if ptr::eq(node, &**right)
+                    && match type_.as_ref() {
+                        Some(type_) => type_.maybe_pattern().is_some(),
+                        None => !is_defaulted_expando_initializer(&binary_expression),
+                    }
+                {
+                    Some(self.get_type_of_expression(left))
+                } else {
+                    type_
+                }
+            }
+            SyntaxKind::AmpersandAmpersandToken | SyntaxKind::CommaToken => {
+                if ptr::eq(node, &**right) {
+                    self.get_contextual_type_(&binary_expression, context_flags)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub(super) fn get_symbol_for_expression(
+        &self,
+        e: &Node, /*Expression*/
+    ) -> Option<Rc<Symbol>> {
+        if e.maybe_symbol().is_some() {
+            return e.maybe_symbol();
+        }
+        if is_identifier(e) {
+            return Some(self.get_resolved_symbol(e));
+        }
+        if is_property_access_expression(e) {
+            let e_as_property_access_expression = e.as_property_access_expression();
+            let lhs_type = self.get_type_of_expression(&e_as_property_access_expression.expression);
+            return if is_private_identifier(&e_as_property_access_expression.name) {
+                self.try_get_private_identifier_property_of_type(
+                    &lhs_type,
+                    &e_as_property_access_expression.name,
+                )
+            } else {
+                self.get_property_of_type_(
+                    &lhs_type,
+                    &e_as_property_access_expression
+                        .name
+                        .as_identifier()
+                        .escaped_text,
+                    None,
+                )
+            };
+        }
+        None
+    }
+
+    pub(super) fn try_get_private_identifier_property_of_type(
+        &self,
+        type_: &Type,
+        id: &Node, /*PrivateIdentifier*/
+    ) -> Option<Rc<Symbol>> {
+        let lexically_scoped_symbol = self.lookup_symbol_for_private_identifier_declaration(
+            &id.as_private_identifier().escaped_text,
+            id,
+        );
+        lexically_scoped_symbol
+            .as_ref()
+            .and_then(|lexically_scoped_symbol| {
+                self.get_private_identifier_property_of_type_(type_, lexically_scoped_symbol)
+            })
+    }
+
+    pub(super) fn get_contextual_type_for_assignment_declaration(
+        &self,
+        binary_expression: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Type>> {
         unimplemented!()
     }
 
@@ -663,6 +918,14 @@ impl TypeChecker {
     pub(super) fn get_inference_context(&self, node: &Node) -> Option<Rc<InferenceContext>> {
         let ancestor = find_ancestor(Some(node), |n: &Node| n.maybe_inference_context().is_some());
         ancestor.map(|ancestor| ancestor.maybe_inference_context().clone().unwrap())
+    }
+
+    pub(super) fn get_effective_first_argument_for_jsx_signature(
+        &self,
+        signature: &Signature,
+        node: &Node, /*JsxOpeningLikeElement*/
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_intersected_signatures(
