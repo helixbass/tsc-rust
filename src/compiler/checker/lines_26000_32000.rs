@@ -5,21 +5,22 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
-    WideningKind,
+    signature_has_rest_parameter, CheckMode, IterationUse, MinArgumentCountFlags,
+    ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
     cast, filter, find_ancestor, get_assignment_declaration_kind, get_check_flags,
     get_effective_type_annotation_node, get_element_or_property_access_name, get_this_container,
     is_access_expression, is_function_expression_or_arrow_function, is_identifier, is_import_call,
-    is_in_js_file, is_object_literal_method, is_property_declaration, is_property_signature,
-    is_this_initialized_declaration, unescape_leading_underscores, AssignmentDeclarationKind,
-    CheckFlags, ContextFlags, Debug_, Diagnostics, FunctionFlags, NodeFlags, Signature,
-    SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface,
-    TypeSystemPropertyName, UnionReduction, __String, create_symbol_table, get_function_flags,
-    get_object_flags, has_initializer, is_object_literal_expression, InferenceContext, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    is_in_js_file, is_object_literal_method, is_property_assignment, is_property_declaration,
+    is_property_signature, is_this_initialized_declaration, unescape_leading_underscores,
+    AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_, Diagnostics, FunctionFlags,
+    NodeFlags, Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary,
+    TransientSymbolInterface, TypeSystemPropertyName, UnionReduction, __String,
+    create_symbol_table, get_function_flags, get_object_flags, has_initializer,
+    is_object_literal_expression, InferenceContext, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -330,28 +331,54 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn get_contextual_type_for_object_literal_method(
+        &self,
+        node: &Node, /*MethodDeclaration*/
+        context_flags: Option<ContextFlags>,
+    ) -> Option<Rc<Type>> {
+        Debug_.assert(is_object_literal_method(node), None);
+        if node.flags().intersects(NodeFlags::InWithStatement) {
+            return None;
+        }
+        self.get_contextual_type_for_object_literal_element_(node, context_flags)
+    }
+
     pub(super) fn get_contextual_type_for_object_literal_element_(
         &self,
-        element: &Node, /*PropertyAssignment*/
+        element: &Node, /*ObjectLiteralElementLike*/
         context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
         let object_literal = element.parent();
-        // let property_assignment_type = if is_property_assignment(element) {
-        // } else {
-        //     None
-        // };
-        // if property_assignment_type.is_some() {
-        //     return property_assignment_type;
-        // }
+        let property_assignment_type = if is_property_assignment(element) {
+            self.get_contextual_type_for_variable_like_declaration(element)
+        } else {
+            None
+        };
+        if property_assignment_type.is_some() {
+            return property_assignment_type;
+        }
         let type_ = self.get_apparent_type_of_contextual_type(&object_literal, context_flags);
-        if let Some(type_) = type_ {
+        if let Some(type_) = type_.as_ref() {
             if self.has_bindable_name(element) {
                 return self.get_type_of_property_of_contextual_type(
-                    &type_,
+                    type_,
                     self.get_symbol_of_node(element).unwrap().escaped_name(),
                 );
             }
-            unimplemented!()
+            if let Some(element_name) = element.as_named_declaration().maybe_name() {
+                let name_type = self.get_literal_type_from_property_name(&element_name);
+                return self.map_type(
+                    type_,
+                    &mut |t: &Type| {
+                        self.find_applicable_index_info(
+                            &self.get_index_infos_of_structured_type(t),
+                            &name_type,
+                        )
+                        .map(|index_info| index_info.type_.clone())
+                    },
+                    Some(true),
+                );
+            }
         }
         None
     }
@@ -361,7 +388,27 @@ impl TypeChecker {
         array_contextual_type: Option<TArrayContextualType>,
         index: usize,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let array_contextual_type = array_contextual_type?;
+        let array_contextual_type = array_contextual_type.borrow();
+        self.get_type_of_property_of_contextual_type(
+            array_contextual_type,
+            &__String::new(index.to_string()),
+        )
+        .or_else(|| {
+            self.map_type(
+                array_contextual_type,
+                &mut |t: &Type| {
+                    Some(self.get_iterated_type_or_element_type(
+                        IterationUse::Element,
+                        t,
+                        &self.undefined_type(),
+                        Option::<&Node>::None,
+                        false,
+                    ))
+                },
+                Some(true),
+            )
+        })
     }
 
     pub(super) fn get_contextual_type_for_jsx_attribute_(

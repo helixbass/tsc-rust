@@ -673,6 +673,17 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_iterated_type_or_element_type<TErrorNode: Borrow<Node>>(
+        &self,
+        use_: IterationUse,
+        input_type: &Type,
+        sent_type: &Type,
+        error_node: Option<TErrorNode>,
+        check_assignability: bool,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn create_iteration_types(
         &self,
         yield_type: Option<Rc<Type>>,
