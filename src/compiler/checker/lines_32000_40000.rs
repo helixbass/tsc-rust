@@ -228,6 +228,10 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn is_const_context(&self, node: &Node /*Expression*/) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_expression_for_mutable_location<TContextualType: Borrow<Type>>(
         &self,
         node: &Node, /*Expression*/

@@ -11,11 +11,15 @@ use super::{
     ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
-    concatenate, filter, get_strict_option_value, is_function_expression_or_arrow_function,
-    is_import_call, is_in_js_file, is_object_literal_method, length, parameter_is_this_keyword,
-    reduce_left_no_initial_value_optional, unescape_leading_underscores, ContextFlags, Debug_,
-    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasInitializerInterface,
-    InterfaceTypeInterface, JsxReferenceKind, NodeFlags, ScriptTarget, Signature, SignatureFlags,
+    concatenate, filter, get_enclosing_block_scope_container, get_strict_option_value,
+    has_static_modifier, is_assignment_target, is_binary_expression, is_class_expression,
+    is_class_like, is_computed_property_name, is_function_expression_or_arrow_function,
+    is_import_call, is_in_js_file, is_interface_declaration, is_known_symbol, is_named_declaration,
+    is_object_literal_method, is_property_declaration, is_type_literal_node, length,
+    parameter_is_this_keyword, reduce_left_no_initial_value_optional, same_map,
+    unescape_leading_underscores, ContextFlags, Debug_, Diagnostics, ElementFlags,
+    ExternalEmitHelpers, FunctionFlags, HasInitializerInterface, InterfaceTypeInterface,
+    JsxReferenceKind, NodeCheckFlags, NodeFlags, ScriptTarget, Signature, SignatureFlags,
     SignatureKind, StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper,
     UnionReduction, __String, create_symbol_table, get_function_flags, get_object_flags,
     has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
@@ -570,18 +574,283 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let elements = &node.as_array_literal_expression().elements;
+        let element_count = elements.len();
+        let mut element_types: Vec<Rc<Type>> = vec![];
+        let mut element_flags: Vec<ElementFlags> = vec![];
+        let contextual_type = self.get_apparent_type_of_contextual_type(node, None);
+        let in_destructuring_pattern = is_assignment_target(node);
+        let in_const_context = self.is_const_context(node);
+        let mut has_omitted_expression = false;
+        for i in 0..element_count {
+            let e = &elements[i];
+            if e.kind() == SyntaxKind::SpreadElement {
+                if self.language_version < ScriptTarget::ES2015 {
+                    self.check_external_emit_helpers(
+                        e,
+                        if self.compiler_options.downlevel_iteration == Some(true) {
+                            ExternalEmitHelpers::SpreadIncludes
+                        } else {
+                            ExternalEmitHelpers::SpreadArray
+                        },
+                    );
+                }
+                let spread_type = self.check_expression(
+                    &e.as_spread_element().expression,
+                    check_mode,
+                    force_tuple,
+                );
+                if self.is_array_like_type(&spread_type) {
+                    element_types.push(spread_type);
+                    element_flags.push(ElementFlags::Variadic);
+                } else if in_destructuring_pattern {
+                    let rest_element_type = self
+                        .get_index_type_of_type_(&spread_type, &self.number_type())
+                        .unwrap_or_else(|| {
+                            self.get_iterated_type_or_element_type(
+                                IterationUse::Destructuring,
+                                &spread_type,
+                                &self.undefined_type(),
+                                Option::<&Node>::None,
+                                false,
+                            )
+                        }); /*|| unknownType*/
+                    element_types.push(rest_element_type);
+                    element_flags.push(ElementFlags::Rest);
+                } else {
+                    element_types.push(self.check_iterated_type_or_element_type(
+                        IterationUse::Spread,
+                        &spread_type,
+                        &self.undefined_type(),
+                        Some(&*e.as_spread_element().expression),
+                    ));
+                    element_flags.push(ElementFlags::Rest);
+                }
+            } else if self.exact_optional_property_types == Some(true)
+                && e.kind() == SyntaxKind::OmittedExpression
+            {
+                has_omitted_expression = true;
+                element_types.push(self.missing_type());
+                element_flags.push(ElementFlags::Optional);
+            } else {
+                let element_contextual_type = self.get_contextual_type_for_element_expression(
+                    contextual_type.as_deref(),
+                    element_types.len(),
+                );
+                let type_ = self.check_expression_for_mutable_location(
+                    e,
+                    check_mode,
+                    element_contextual_type,
+                    force_tuple,
+                );
+                element_types.push(self.add_optionality(
+                    &type_,
+                    Some(true),
+                    Some(has_omitted_expression),
+                ));
+                element_flags.push(if has_omitted_expression {
+                    ElementFlags::Optional
+                } else {
+                    ElementFlags::Required
+                });
+            }
+        }
+        if in_destructuring_pattern {
+            return self.create_tuple_type(&element_types, Some(&element_flags), None, None);
+        }
+        if force_tuple == Some(true)
+            || in_const_context
+            || matches!(
+                contextual_type.as_ref(),
+                Some(contextual_type) if self.some_type(
+                    contextual_type,
+                    |type_: &Type| self.is_tuple_like_type(type_)
+                )
+            )
+        {
+            return self.create_array_literal_type(&self.create_tuple_type(
+                &element_types,
+                Some(&element_flags),
+                Some(in_const_context),
+                None,
+            ));
+        }
+        self.create_array_literal_type(&self.create_array_type(
+            &*if !element_types.is_empty() {
+                self.get_union_type(
+                    same_map(&element_types, |t: &Rc<Type>, i| {
+                        if element_flags[i].intersects(ElementFlags::Variadic) {
+                            self.get_indexed_access_type_or_undefined(
+                                t,
+                                &self.number_type(),
+                                None,
+                                Option::<&Node>::None,
+                                Option::<&Symbol>::None,
+                                None,
+                            )
+                            .unwrap_or_else(|| self.any_type())
+                        } else {
+                            t.clone()
+                        }
+                    }),
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                )
+            } else if self.strict_null_checks {
+                self.implicit_never_type()
+            } else {
+                self.undefined_widening_type()
+            },
+            Some(in_const_context),
+        ))
+    }
+
+    pub(super) fn create_array_literal_type(&self, type_: &Type) -> Rc<Type> {
+        if !get_object_flags(type_).intersects(ObjectFlags::Reference) {
+            return type_.type_wrapper();
+        }
+        if type_.as_type_reference().maybe_literal_type().is_none() {
+            let literal_type = self.clone_type_reference(type_);
+            let literal_type_as_type_reference = literal_type.as_type_reference();
+            literal_type_as_type_reference.set_object_flags(
+                literal_type_as_type_reference.object_flags()
+                    | ObjectFlags::ArrayLiteral
+                    | ObjectFlags::ContainsObjectOrArrayLiteral,
+            );
+            *type_.as_type_reference().maybe_literal_type() = Some(literal_type);
+        }
+        type_
+            .as_type_reference()
+            .maybe_literal_type()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn is_numeric_name(&self, name: &Node /*DeclarationName*/) -> bool {
+        match name.kind() {
+            SyntaxKind::ComputedPropertyName => self.is_numeric_computed_name(name),
+            SyntaxKind::Identifier => {
+                self.is_numeric_literal_name(&name.as_identifier().escaped_text)
+            }
+            SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
+                self.is_numeric_literal_name(&name.as_literal_like_node().text())
+            }
+            _ => false,
+        }
+    }
+
+    pub(super) fn is_numeric_computed_name(
+        &self,
+        name: &Node, /*ComputedPropertyName*/
+    ) -> bool {
+        self.is_type_assignable_to_kind(
+            &self.check_computed_property_name(name),
+            TypeFlags::NumberLike,
+            None,
+        )
     }
 
     pub(super) fn is_numeric_literal_name(&self, name: &str) -> bool {
-        unimplemented!()
+        matches!(
+            name.parse::<f64>(),
+            Ok(parsed) if parsed.to_string() == name
+        )
     }
 
     pub(super) fn check_computed_property_name(
         &self,
         node: &Node, /*ComputedPropertyName*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let node_as_computed_property_name = node.as_computed_property_name();
+        let links = self.get_node_links(&node_as_computed_property_name.expression);
+        if (*links).borrow().resolved_type.is_none() {
+            if is_type_literal_node(&node.parent().parent())
+                || is_class_like(&node.parent().parent())
+                || is_interface_declaration(&node.parent().parent())
+                    && is_binary_expression(&node_as_computed_property_name.expression)
+                    && node_as_computed_property_name
+                        .expression
+                        .as_binary_expression()
+                        .operator_token
+                        .kind()
+                        == SyntaxKind::InKeyword
+            {
+                let ret = self.error_type();
+                links.borrow_mut().resolved_type = Some(ret.clone());
+                return ret;
+            }
+            let links_resolved_type =
+                self.check_expression(&node_as_computed_property_name.expression, None, None);
+            links.borrow_mut().resolved_type = Some(links_resolved_type.clone());
+            if is_property_declaration(&node.parent())
+                && !has_static_modifier(&node.parent())
+                && is_class_expression(&node.parent().parent())
+            {
+                let container =
+                    get_enclosing_block_scope_container(&node.parent().parent()).unwrap();
+                let enclosing_iteration_statement =
+                    self.get_enclosing_iteration_statement(&container);
+                if let Some(enclosing_iteration_statement) = enclosing_iteration_statement.as_ref()
+                {
+                    self.get_node_links(enclosing_iteration_statement)
+                        .borrow_mut()
+                        .flags |= NodeCheckFlags::LoopWithCapturedBlockScopedBinding;
+                    self.get_node_links(node).borrow_mut().flags |=
+                        NodeCheckFlags::BlockScopedBindingInLoop;
+                    self.get_node_links(&node.parent().parent())
+                        .borrow_mut()
+                        .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
+                }
+            }
+            if links_resolved_type.flags().intersects(TypeFlags::Nullable)
+                || !self.is_type_assignable_to_kind(
+                    &links_resolved_type,
+                    TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
+                    None,
+                ) && !self
+                    .is_type_assignable_to(&links_resolved_type, &self.string_number_symbol_type())
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::A_computed_property_name_must_be_of_type_string_number_symbol_or_any,
+                    None,
+                );
+            }
+        }
+
+        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn is_symbol_with_numeric_name(&self, symbol: &Symbol) -> bool {
+        let first_decl = symbol
+            .maybe_declarations()
+            .as_ref()
+            .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
+        self.is_numeric_literal_name(&symbol.escaped_name())
+            || matches!(
+                first_decl.as_ref(),
+                Some(first_decl) if is_named_declaration(first_decl) && self.is_numeric_name(&first_decl.as_named_declaration().name())
+            )
+    }
+
+    pub(super) fn is_symbol_with_symbol_name(&self, symbol: &Symbol) -> bool {
+        let first_decl = symbol
+            .maybe_declarations()
+            .as_ref()
+            .and_then(|symbol_declarations| symbol_declarations.get(0).cloned());
+        is_known_symbol(symbol)
+            || matches!(
+                first_decl.as_ref(),
+                Some(first_decl) if is_named_declaration(first_decl) && is_computed_property_name(&first_decl.as_named_declaration().name()) &&
+                    self.is_type_assignable_to_kind(
+                        &self.check_computed_property_name(&first_decl.as_named_declaration().name()),
+                        TypeFlags::ESSymbol,
+                        None,
+                    )
+            )
     }
 
     pub(super) fn check_object_literal(

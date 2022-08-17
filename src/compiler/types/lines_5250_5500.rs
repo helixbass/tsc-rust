@@ -741,6 +741,7 @@ pub struct TypeReference {
     pub target: Rc<Type /*GenericType*/>,
     pub node: RefCell<Option<Rc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>, // TODO: should be weak?
     pub resolved_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
+    literal_type: RefCell<Option<Rc<Type /*TypeReference*/>>>,
     cached_equivalent_base_type: RefCell<Option<Rc<Type>>>,
 }
 
@@ -755,8 +756,13 @@ impl TypeReference {
             target,
             node: RefCell::new(None),
             resolved_type_arguments: RefCell::new(resolved_type_arguments),
+            literal_type: RefCell::new(None),
             cached_equivalent_base_type: RefCell::new(None),
         }
+    }
+
+    pub fn maybe_literal_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.literal_type.borrow_mut()
     }
 
     pub fn maybe_cached_equivalent_base_type(&self) -> RefMut<Option<Rc<Type>>> {
