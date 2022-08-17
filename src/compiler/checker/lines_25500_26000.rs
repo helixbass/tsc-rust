@@ -625,7 +625,8 @@ impl TypeChecker {
         };
 
         if is_jsx_opening_like_element(call_target) && arg_index == 0 {
-            return self.get_effective_first_argument_for_jsx_signature(&signature, call_target);
+            return self
+                .get_effective_first_argument_for_jsx_signature(signature.clone(), call_target);
         }
         let rest_index = signature.parameters().len() - 1;
         if signature_has_rest_parameter(&signature) && arg_index >= rest_index {

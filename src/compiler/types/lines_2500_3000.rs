@@ -104,11 +104,16 @@ impl JsxOpeningElement {
 
 pub trait JsxOpeningLikeElementInterface {
     fn tag_name(&self) -> Rc<Node>;
+    fn attributes(&self) -> Rc<Node>;
 }
 
 impl JsxOpeningLikeElementInterface for JsxOpeningElement {
     fn tag_name(&self) -> Rc<Node> {
         self.tag_name.clone()
+    }
+
+    fn attributes(&self) -> Rc<Node> {
+        self.attributes.clone()
     }
 }
 
@@ -140,6 +145,10 @@ impl JsxSelfClosingElement {
 impl JsxOpeningLikeElementInterface for JsxSelfClosingElement {
     fn tag_name(&self) -> Rc<Node> {
         self.tag_name.clone()
+    }
+
+    fn attributes(&self) -> Rc<Node> {
+        self.attributes.clone()
     }
 }
 

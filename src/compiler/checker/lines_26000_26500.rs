@@ -946,11 +946,11 @@ impl TypeChecker {
 
     pub(super) fn get_effective_first_argument_for_jsx_signature(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         node: &Node, /*JsxOpeningLikeElement*/
     ) -> Rc<Type> {
         if self.get_jsx_reference_kind(node) != JsxReferenceKind::Component {
-            self.get_jsx_props_type_from_call_signature(signature, node)
+            self.get_jsx_props_type_from_call_signature(&signature, node)
         } else {
             self.get_jsx_props_type_from_class_type(signature, node)
         }

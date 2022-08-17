@@ -5,17 +5,17 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
-    WideningKind,
+    signature_has_rest_parameter, CheckMode, JsxNames, MinArgumentCountFlags, ResolveNameNameArg,
+    TypeFacts, WideningKind,
 };
 use crate::{
     filter, is_function_expression_or_arrow_function, is_import_call, is_in_js_file,
-    is_object_literal_method, length, ContextFlags, Debug_, Diagnostics, FunctionFlags,
-    InterfaceTypeInterface, JsxReferenceKind, NodeFlags, Signature, SignatureFlags, SignatureKind,
-    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, create_symbol_table,
-    get_function_flags, get_object_flags, has_initializer, InferenceContext, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    is_object_literal_method, length, unescape_leading_underscores, ContextFlags, Debug_,
+    Diagnostics, FunctionFlags, InterfaceTypeInterface, JsxReferenceKind, NodeFlags, Signature,
+    SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
+    create_symbol_table, get_function_flags, get_object_flags, has_initializer, InferenceContext,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -71,10 +71,96 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_props_type_from_class_type(
         &self,
-        sig: &Signature,
-        node: &Node, /*JsxOpeningLikeElement*/
+        sig: Rc<Signature>,
+        context: &Node, /*JsxOpeningLikeElement*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let ns = self.get_jsx_namespace_at(Some(context));
+        let forced_lookup_location = self.get_jsx_element_properties_name(&ns);
+        let attributes_type = match forced_lookup_location.as_ref() {
+            None => Some(self.get_type_of_first_parameter_of_signature_with_fallback(
+                &sig,
+                &self.unknown_type(),
+            )),
+            Some(forced_lookup_location) => {
+                if forced_lookup_location.is_empty() {
+                    Some(self.get_return_type_of_signature(sig.clone()))
+                } else {
+                    self.get_jsx_props_type_for_signature_from_member(
+                        sig.clone(),
+                        forced_lookup_location,
+                    )
+                }
+            }
+        };
+
+        if attributes_type.is_none() {
+            if let Some(forced_lookup_location) = forced_lookup_location.as_ref() {
+                if length(Some(
+                    &*context
+                        .as_jsx_opening_like_element()
+                        .attributes()
+                        .as_jsx_attributes()
+                        .properties,
+                )) > 0
+                {
+                    self.error(
+                        Some(context),
+                        &Diagnostics::JSX_element_class_does_not_support_attributes_because_it_does_not_have_a_0_property,
+                        Some(vec![
+                            unescape_leading_underscores(forced_lookup_location)
+                        ])
+                    );
+                }
+            }
+            return self.unknown_type();
+        }
+        let mut attributes_type = attributes_type.unwrap();
+
+        attributes_type =
+            self.get_jsx_managed_attributes_from_located_attributes(context, &ns, &attributes_type);
+
+        if self.is_type_any(Some(&*attributes_type)) {
+            attributes_type
+        } else {
+            let mut apparent_attributes_type = attributes_type.clone();
+            let intrinsic_class_attribs =
+                self.get_jsx_type(&JsxNames::IntrinsicClassAttributes, Some(context));
+            if !self.is_error_type(&intrinsic_class_attribs) {
+                let type_params = self
+                    .get_local_type_parameters_of_class_or_interface_or_type_alias(
+                        &intrinsic_class_attribs.symbol(),
+                    );
+                let host_class_type = self.get_return_type_of_signature(sig.clone());
+                apparent_attributes_type = self
+                    .intersect_types(
+                        Some(if let Some(type_params) = type_params.as_ref() {
+                            self.create_type_reference(
+                                &intrinsic_class_attribs,
+                                self.fill_missing_type_arguments(
+                                    Some(vec![host_class_type]),
+                                    Some(type_params),
+                                    self.get_min_type_argument_count(Some(type_params)),
+                                    is_in_js_file(Some(context)),
+                                ),
+                            )
+                        } else {
+                            intrinsic_class_attribs
+                        }),
+                        Some(apparent_attributes_type),
+                    )
+                    .unwrap();
+            }
+
+            let intrinsic_attribs =
+                self.get_jsx_type(&JsxNames::IntrinsicAttributes, Some(context));
+            if !self.is_error_type(&intrinsic_attribs) {
+                apparent_attributes_type = self
+                    .intersect_types(Some(intrinsic_attribs), Some(apparent_attributes_type))
+                    .unwrap();
+            }
+
+            apparent_attributes_type
+        }
     }
 
     pub(super) fn get_intersected_signatures(
@@ -289,6 +375,13 @@ impl TypeChecker {
         &self,
         location: Option<TLocation>,
     ) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_jsx_element_properties_name(
+        &self,
+        jsx_namespace: &Symbol,
+    ) -> Option<__String> {
         unimplemented!()
     }
 
