@@ -1,32 +1,24 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    signature_has_rest_parameter, CheckMode, IterationUse, JsxNames, MinArgumentCountFlags,
-    ResolveNameNameArg, TypeFacts, WideningKind,
-};
+use super::{IterationUse, JsxNames};
 use crate::{
     cast, concatenate, filter, find_ancestor, get_assignment_declaration_kind, get_check_flags,
     get_effective_type_annotation_node, get_element_or_property_access_name, get_jsdoc_type_tag,
     get_semantic_jsx_children, get_this_container, index_of_node, is_access_expression,
-    is_const_type_reference, is_function_expression_or_arrow_function, is_identifier,
-    is_import_call, is_in_js_file, is_jsdoc_type_tag, is_jsx_attribute, is_jsx_attribute_like,
-    is_jsx_attributes, is_jsx_element, is_jsx_opening_element, is_object_literal_method,
-    is_property_assignment, is_property_declaration, is_property_signature,
-    is_this_initialized_declaration, map, some, unescape_leading_underscores,
-    AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_, Diagnostics, FunctionFlags,
-    InferenceInfo, JsxReferenceKind, NodeFlags, Number, Signature, SignatureFlags, SignatureKind,
-    StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper,
-    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction, __String,
-    create_symbol_table, get_function_flags, get_object_flags, has_initializer,
-    is_object_literal_expression, InferenceContext, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    is_const_type_reference, is_identifier, is_in_js_file, is_jsdoc_type_tag, is_jsx_attribute,
+    is_jsx_attribute_like, is_jsx_attributes, is_jsx_element, is_jsx_opening_element,
+    is_object_literal_method, is_property_assignment, is_property_declaration,
+    is_property_signature, is_this_initialized_declaration, map, some,
+    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_,
+    InferenceInfo, JsxReferenceKind, NodeFlags, Number, Signature, SymbolFlags,
+    TransientSymbolInterface, TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    UnionReduction, __String, is_object_literal_expression, InferenceContext, Node, NodeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
