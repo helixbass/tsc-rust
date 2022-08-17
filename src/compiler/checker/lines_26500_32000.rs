@@ -9,12 +9,13 @@ use super::{
     WideningKind,
 };
 use crate::{
-    filter, is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
-    ContextFlags, Debug_, Diagnostics, FunctionFlags, JsxReferenceKind, NodeFlags, Signature,
-    SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
-    create_symbol_table, get_function_flags, get_object_flags, has_initializer, InferenceContext,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    filter, is_function_expression_or_arrow_function, is_import_call, is_in_js_file,
+    is_object_literal_method, length, ContextFlags, Debug_, Diagnostics, FunctionFlags,
+    InterfaceTypeInterface, JsxReferenceKind, NodeFlags, Signature, SignatureFlags, SignatureKind,
+    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, create_symbol_table,
+    get_function_flags, get_object_flags, has_initializer, InferenceContext, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -24,7 +25,48 @@ impl TypeChecker {
         ns: &Symbol,
         attributes_type: &Type,
     ) -> Rc<Type> {
-        unimplemented!()
+        let managed_sym = self.get_jsx_library_managed_attributes(ns);
+        if let Some(managed_sym) = managed_sym.as_ref() {
+            let declared_managed_type = self.get_declared_type_of_symbol(managed_sym);
+            let ctor_type = self.get_static_type_of_referenced_jsx_constructor(context);
+            if managed_sym.flags().intersects(SymbolFlags::TypeAlias) {
+                let params = (*self.get_symbol_links(managed_sym))
+                    .borrow()
+                    .type_parameters
+                    .clone();
+                if length(params.as_deref()) >= 2 {
+                    let args = self.fill_missing_type_arguments(
+                        Some(vec![ctor_type, attributes_type.type_wrapper()]),
+                        params.as_deref(),
+                        2,
+                        is_in_js_file(Some(context)),
+                    );
+                    return self.get_type_alias_instantiation(
+                        managed_sym,
+                        args.as_deref(),
+                        Option::<&Symbol>::None,
+                        None,
+                    );
+                }
+            }
+            if length(
+                declared_managed_type
+                    .as_interface_type()
+                    .maybe_type_parameters(),
+            ) >= 2
+            {
+                let args = self.fill_missing_type_arguments(
+                    Some(vec![ctor_type, attributes_type.type_wrapper()]),
+                    declared_managed_type
+                        .as_interface_type()
+                        .maybe_type_parameters(),
+                    2,
+                    is_in_js_file(Some(context)),
+                );
+                return self.create_type_reference(&declared_managed_type, args);
+            }
+        }
+        attributes_type.type_wrapper()
     }
 
     pub(super) fn get_jsx_props_type_from_class_type(
@@ -247,6 +289,13 @@ impl TypeChecker {
         &self,
         location: Option<TLocation>,
     ) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_jsx_library_managed_attributes(
+        &self,
+        jsx_namespace: &Symbol,
+    ) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
 
