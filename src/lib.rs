@@ -219,8 +219,9 @@ pub use compiler::tsbuild_public::{
 };
 use compiler::types::{
     diagnostic_category_name, AccessFlags, CommandLineOptionType, CommentDirectivesMap, EmitNode,
-    ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, IterationTypes, PragmaArgumentType,
-    ReadonlyPragmaMap, ReferencedFile, StringOrDiagnosticMessage, WideningContext,
+    ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, IterationTypes, JsxReferenceKind,
+    PragmaArgumentType, ReadonlyPragmaMap, ReferencedFile, StringOrDiagnosticMessage,
+    WideningContext,
 };
 pub use compiler::types::{
     extend_compiler_options, extend_watch_options, maybe_extend_compiler_options,

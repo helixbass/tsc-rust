@@ -7,7 +7,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, IterationUse, MinArgumentCountFlags,
+    signature_has_rest_parameter, CheckMode, IterationUse, JsxNames, MinArgumentCountFlags,
     ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
@@ -16,11 +16,12 @@ use crate::{
     get_semantic_jsx_children, get_this_container, index_of_node, is_access_expression,
     is_const_type_reference, is_function_expression_or_arrow_function, is_identifier,
     is_import_call, is_in_js_file, is_jsdoc_type_tag, is_jsx_attribute, is_jsx_attribute_like,
-    is_jsx_attributes, is_jsx_element, is_object_literal_method, is_property_assignment,
-    is_property_declaration, is_property_signature, is_this_initialized_declaration, map, some,
-    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_,
-    Diagnostics, FunctionFlags, InferenceInfo, NodeFlags, Number, Signature, SignatureFlags,
-    SignatureKind, StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper,
+    is_jsx_attributes, is_jsx_element, is_jsx_opening_element, is_object_literal_method,
+    is_property_assignment, is_property_declaration, is_property_signature,
+    is_this_initialized_declaration, map, some, unescape_leading_underscores,
+    AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_, Diagnostics, FunctionFlags,
+    InferenceInfo, JsxReferenceKind, NodeFlags, Number, Signature, SignatureFlags, SignatureKind,
+    StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper,
     TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction, __String,
     create_symbol_table, get_function_flags, get_object_flags, has_initializer,
     is_object_literal_expression, InferenceContext, Node, NodeInterface, ObjectFlags,
@@ -942,12 +943,111 @@ impl TypeChecker {
         node: &Node, /*JsxOpeningLikeElement*/
         context_flags: Option<ContextFlags>,
     ) -> Rc<Type> {
-        unimplemented!()
+        if is_jsx_opening_element(node)
+            && node.parent().maybe_contextual_type().is_some()
+            && context_flags != Some(ContextFlags::Completions)
+        {
+            return node.parent().maybe_contextual_type().clone().unwrap();
+        }
+        self.get_contextual_type_for_argument_at_index_(node, 0)
     }
 
     pub(super) fn get_effective_first_argument_for_jsx_signature(
         &self,
         signature: &Signature,
+        node: &Node, /*JsxOpeningLikeElement*/
+    ) -> Rc<Type> {
+        if self.get_jsx_reference_kind(node) != JsxReferenceKind::Component {
+            self.get_jsx_props_type_from_call_signature(signature, node)
+        } else {
+            self.get_jsx_props_type_from_class_type(signature, node)
+        }
+    }
+
+    pub(super) fn get_jsx_props_type_from_call_signature(
+        &self,
+        sig: &Signature,
+        context: &Node, /*JsxOpeningLikeElement*/
+    ) -> Rc<Type> {
+        let mut props_type =
+            self.get_type_of_first_parameter_of_signature_with_fallback(sig, &self.unknown_type());
+        props_type = self.get_jsx_managed_attributes_from_located_attributes(
+            context,
+            &self.get_jsx_namespace_at(Some(context)),
+            &props_type,
+        );
+        let intrinsic_attribs = self.get_jsx_type(&JsxNames::IntrinsicAttributes, Some(context));
+        if !self.is_error_type(&intrinsic_attribs) {
+            props_type = self
+                .intersect_types(Some(intrinsic_attribs), Some(&*props_type))
+                .unwrap();
+        }
+        props_type
+    }
+
+    pub(super) fn get_jsx_props_type_for_signature_from_member(
+        &self,
+        sig: Rc<Signature>,
+        forced_lookup_location: &__String,
+    ) -> Option<Rc<Type>> {
+        if let Some(sig_composite_signatures) = sig.composite_signatures.as_ref() {
+            let mut results: Vec<Rc<Type>> = vec![];
+            for signature in sig_composite_signatures {
+                let instance = self.get_return_type_of_signature(signature.clone());
+                if self.is_type_any(Some(&*instance)) {
+                    return Some(instance);
+                }
+                let prop_type =
+                    self.get_type_of_property_of_type_(&instance, forced_lookup_location)?;
+                results.push(prop_type);
+            }
+            return Some(self.get_intersection_type(&results, Option::<&Symbol>::None, None));
+        }
+        let instance_type = self.get_return_type_of_signature(sig.clone());
+        if self.is_type_any(Some(&*instance_type)) {
+            Some(instance_type)
+        } else {
+            self.get_type_of_property_of_type_(&instance_type, forced_lookup_location)
+        }
+    }
+
+    pub(super) fn get_static_type_of_referenced_jsx_constructor(
+        &self,
+        context: &Node, /*JsxOpeningLikeElement*/
+    ) -> Rc<Type> {
+        let context_as_jsx_opening_like_element = context.as_jsx_opening_like_element();
+        if self.is_jsx_intrinsic_identifier(&context_as_jsx_opening_like_element.tag_name()) {
+            let result = self.get_intrinsic_attributes_type_from_jsx_opening_like_element(context);
+            let fake_signature = self.create_signature_for_jsx_intrinsic(context, &result);
+            return self.get_or_create_type_from_signature(fake_signature);
+        }
+        let tag_type =
+            self.check_expression_cached(&context_as_jsx_opening_like_element.tag_name(), None);
+        if tag_type.flags().intersects(TypeFlags::StringLiteral) {
+            let result =
+                self.get_intrinsic_attributes_type_from_string_literal_type(&tag_type, context);
+            if result.is_none() {
+                return self.error_type();
+            }
+            let result = result.unwrap();
+            let fake_signature = self.create_signature_for_jsx_intrinsic(context, &result);
+            return self.get_or_create_type_from_signature(fake_signature);
+        }
+        tag_type
+    }
+
+    pub(super) fn get_jsx_managed_attributes_from_located_attributes(
+        &self,
+        context: &Node, /*JsxOpeningLikeElement*/
+        ns: &Symbol,
+        attributes_type: &Type,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_jsx_props_type_from_class_type(
+        &self,
+        sig: &Signature,
         node: &Node, /*JsxOpeningLikeElement*/
     ) -> Rc<Type> {
         unimplemented!()
@@ -1130,6 +1230,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_jsx_intrinsic_identifier(
+        &self,
+        tag_name: &Node, /*JsxTagNameExpression*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_jsx_attribute(
         &self,
         node: &Node, /*JsxAttribute*/
@@ -1165,6 +1272,21 @@ impl TypeChecker {
         &self,
         jsx_namespace: &Symbol,
     ) -> Option<__String> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_intrinsic_attributes_type_from_string_literal_type(
+        &self,
+        type_: &Type, /*StringLiteralType*/
+        location: &Node,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_intrinsic_attributes_type_from_jsx_opening_like_element(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
@@ -1411,6 +1533,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn create_signature_for_jsx_intrinsic(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+        result: &Type,
+    ) -> Rc<Signature> {
+        unimplemented!()
+    }
+
     pub(super) fn get_resolved_signature_(
         &self,
         node: &Node, /*CallLikeExpression*/
@@ -1429,6 +1559,13 @@ impl TypeChecker {
         context: Option<TContext>,
         check_mode: CheckMode,
     ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_jsx_reference_kind(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+    ) -> JsxReferenceKind {
         unimplemented!()
     }
 
@@ -1633,6 +1770,14 @@ impl TypeChecker {
     pub(super) fn get_type_of_first_parameter_of_signature(
         &self,
         signature: &Signature,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_of_first_parameter_of_signature_with_fallback(
+        &self,
+        signature: &Signature,
+        fallback_type: &Type,
     ) -> Rc<Type> {
         unimplemented!()
     }

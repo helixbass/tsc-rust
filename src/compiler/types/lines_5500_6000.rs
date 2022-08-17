@@ -515,6 +515,13 @@ impl ObjectFlagsTypeInterface for SubstitutionType {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum JsxReferenceKind {
+    Component,
+    Function,
+    Mixed,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum SignatureKind {
     Call,
     Construct,
