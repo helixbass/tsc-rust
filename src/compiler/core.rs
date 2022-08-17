@@ -919,6 +919,46 @@ pub fn reduce_left_no_initial_value<
     panic!("Shouldn't call reduce_left_no_initial_value() with empty slice")
 }
 
+pub fn reduce_left_no_initial_value_optional<
+    TItem: Clone,
+    TCallback: FnMut(Option<TItem>, &TItem, usize) -> Option<TItem>,
+>(
+    array: &[TItem],
+    mut f: TCallback,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Option<TItem> {
+    if
+    /*array &&*/
+    !array.is_empty() {
+        let size = array.len();
+        // if (size > 0) {
+        let mut pos = if start.is_none() /*|| start < 0*/ {
+            0
+        } else {
+            start.unwrap()
+        };
+        let end = if match count {
+            None => true,
+            Some(count) => pos + count > size - 1,
+        } {
+            size - 1
+        } else {
+            pos + count.unwrap()
+        };
+        let mut result = Some(array[0].clone());
+        pos += 1;
+        while pos <= end {
+            result = f(result, &array[pos], pos);
+            pos += 1;
+        }
+        return result;
+        // }
+        // }
+    }
+    None
+}
+
 pub fn array_of<TItem, TCallback: FnMut(usize) -> TItem>(
     count: usize,
     mut f: TCallback,

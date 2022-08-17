@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -9,13 +10,14 @@ use super::{
     TypeFacts, WideningKind,
 };
 use crate::{
-    filter, is_function_expression_or_arrow_function, is_import_call, is_in_js_file,
-    is_object_literal_method, length, unescape_leading_underscores, ContextFlags, Debug_,
-    Diagnostics, FunctionFlags, InterfaceTypeInterface, JsxReferenceKind, NodeFlags, Signature,
-    SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
-    create_symbol_table, get_function_flags, get_object_flags, has_initializer, InferenceContext,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    filter, get_strict_option_value, is_function_expression_or_arrow_function, is_import_call,
+    is_in_js_file, is_object_literal_method, length, reduce_left_no_initial_value_optional,
+    unescape_leading_underscores, ContextFlags, Debug_, Diagnostics, FunctionFlags,
+    InterfaceTypeInterface, JsxReferenceKind, NodeFlags, Signature, SignatureFlags, SignatureKind,
+    StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper, UnionReduction,
+    __String, create_symbol_table, get_function_flags, get_object_flags, has_initializer,
+    InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -167,6 +169,183 @@ impl TypeChecker {
         &self,
         signatures: &[Rc<Signature>],
     ) -> Option<Rc<Signature>> {
+        if get_strict_option_value(&self.compiler_options, "noImplicitAny") {
+            reduce_left_no_initial_value_optional(
+                signatures,
+                |left: Option<Rc<Signature>>, right: &Rc<Signature>, _| {
+                    if match left.as_ref() {
+                        None => true,
+                        Some(left) => Rc::ptr_eq(left, right),
+                    } {
+                        left
+                    } else if self.compare_type_parameters_identical(
+                        left.as_ref().unwrap().type_parameters.as_deref(),
+                        right.type_parameters.as_deref(),
+                    ) {
+                        Some(self.combine_signatures_of_intersection_members(
+                            left.as_ref().unwrap(),
+                            right,
+                        ))
+                    } else {
+                        None
+                    }
+                },
+                None,
+                None,
+            )
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn combine_intersection_this_param<TLeft: Borrow<Symbol>, TRight: Borrow<Symbol>>(
+        &self,
+        left: Option<TLeft>,
+        right: Option<TRight>,
+        mapper: Option<&TypeMapper>,
+    ) -> Option<Rc<Symbol>> {
+        let left = left.map(|left| left.borrow().symbol_wrapper());
+        let right = right.map(|right| right.borrow().symbol_wrapper());
+        if left.is_none() || right.is_none() {
+            return left.or(right);
+        }
+        let left = left.unwrap();
+        let right = right.unwrap();
+        let this_type = self.get_union_type(
+            vec![
+                self.get_type_of_symbol(&left),
+                self.instantiate_type(&self.get_type_of_symbol(&right), mapper),
+            ],
+            None,
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        );
+        Some(self.create_symbol_with_type(&left, Some(this_type)))
+    }
+
+    pub(super) fn combine_intersection_parameters(
+        &self,
+        left: &Signature,
+        right: &Signature,
+        mapper: Option<&TypeMapper>,
+    ) -> Vec<Rc<Symbol>> {
+        let left_count = self.get_parameter_count(left);
+        let right_count = self.get_parameter_count(right);
+        let longest = if left_count >= right_count {
+            left
+        } else {
+            right
+        };
+        let shorter = if ptr::eq(longest, left) { right } else { left };
+        let longest_count = if ptr::eq(longest, left) {
+            left_count
+        } else {
+            right_count
+        };
+        let either_has_effective_rest =
+            self.has_effective_rest_parameter(left) || self.has_effective_rest_parameter(right);
+        let needs_extra_rest_element =
+            either_has_effective_rest && !self.has_effective_rest_parameter(longest);
+        let mut params: Vec<Rc<Symbol>> =
+            Vec::with_capacity(longest_count + if needs_extra_rest_element { 1 } else { 0 });
+        for i in 0..longest_count {
+            let mut longest_param_type = self.try_get_type_at_position(longest, i).unwrap();
+            if ptr::eq(longest, right) {
+                longest_param_type = self.instantiate_type(&longest_param_type, mapper);
+            }
+            let mut shorter_param_type = self
+                .try_get_type_at_position(shorter, i)
+                .unwrap_or_else(|| self.unknown_type());
+            if ptr::eq(shorter, right) {
+                shorter_param_type = self.instantiate_type(&shorter_param_type, mapper);
+            }
+            let union_param_type = self.get_union_type(
+                vec![longest_param_type, shorter_param_type],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            );
+            let is_rest_param =
+                either_has_effective_rest && !needs_extra_rest_element && i == longest_count - 1;
+            let is_optional = i >= self.get_min_argument_count(longest, None)
+                && i >= self.get_min_argument_count(shorter, None);
+            let left_name = if i >= left_count {
+                None
+            } else {
+                Some(self.get_parameter_name_at_position(left, i, Option::<&Type>::None))
+            };
+            let right_name = if i >= right_count {
+                None
+            } else {
+                Some(self.get_parameter_name_at_position(right, i, Option::<&Type>::None))
+            };
+
+            let param_name = if left_name == right_name {
+                left_name
+            } else if left_name.is_none() {
+                right_name
+            } else if right_name.is_none() {
+                left_name
+            } else {
+                None
+            };
+            let param_symbol: Rc<Symbol> = self
+                .create_symbol(
+                    SymbolFlags::FunctionScopedVariable
+                        | if is_optional && !is_rest_param {
+                            SymbolFlags::Optional
+                        } else {
+                            SymbolFlags::None
+                        },
+                    param_name.unwrap_or_else(|| __String::new(format!("arg{}", i))),
+                    None,
+                )
+                .into();
+            param_symbol
+                .as_transient_symbol()
+                .symbol_links()
+                .borrow_mut()
+                .type_ = Some(if is_rest_param {
+                self.create_array_type(&union_param_type, None)
+            } else {
+                union_param_type
+            });
+            params.push(param_symbol);
+        }
+        if needs_extra_rest_element {
+            let rest_param_symbol: Rc<Symbol> = self
+                .create_symbol(
+                    SymbolFlags::FunctionScopedVariable,
+                    __String::new("args".to_owned()),
+                    None,
+                )
+                .into();
+            let rest_param_symbol_type =
+                self.create_array_type(&self.get_type_at_position(shorter, longest_count), None);
+            rest_param_symbol
+                .as_transient_symbol()
+                .symbol_links()
+                .borrow_mut()
+                .type_ = Some(rest_param_symbol_type.clone());
+            if ptr::eq(shorter, right) {
+                rest_param_symbol
+                    .as_transient_symbol()
+                    .symbol_links()
+                    .borrow_mut()
+                    .type_ = Some(self.instantiate_type(&rest_param_symbol_type, mapper));
+            }
+            params.push(rest_param_symbol);
+        }
+        params
+    }
+
+    pub(super) fn combine_signatures_of_intersection_members(
+        &self,
+        left: &Signature,
+        right: &Signature,
+    ) -> Rc<Signature> {
         unimplemented!()
     }
 
