@@ -626,8 +626,10 @@ impl TypeChecker {
                         .into_iter()
                         .map(|p: &Rc<Symbol>| {
                             let p_clone = p.clone();
+                            let type_checker = self.rc_wrapper();
                             (
-                                move || self.get_type_of_symbol(&p_clone),
+                                Box::new(move || type_checker.get_type_of_symbol(&p_clone))
+                                    as Box<dyn Fn() -> Rc<Type>>,
                                 p.escaped_name().clone(),
                             )
                         })

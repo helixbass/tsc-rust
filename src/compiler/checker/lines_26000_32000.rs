@@ -2,6 +2,8 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::convert::TryInto;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -9,14 +11,17 @@ use super::{
     ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
-    cast, filter, find_ancestor, get_assignment_declaration_kind, get_check_flags,
-    get_effective_type_annotation_node, get_element_or_property_access_name, get_this_container,
-    is_access_expression, is_function_expression_or_arrow_function, is_identifier, is_import_call,
-    is_in_js_file, is_object_literal_method, is_property_assignment, is_property_declaration,
-    is_property_signature, is_this_initialized_declaration, unescape_leading_underscores,
-    AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_, Diagnostics, FunctionFlags,
-    NodeFlags, Signature, SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary,
-    TransientSymbolInterface, TypeSystemPropertyName, UnionReduction, __String,
+    cast, concatenate, filter, find_ancestor, get_assignment_declaration_kind, get_check_flags,
+    get_effective_type_annotation_node, get_element_or_property_access_name, get_jsdoc_type_tag,
+    get_semantic_jsx_children, get_this_container, index_of_node, is_access_expression,
+    is_const_type_reference, is_function_expression_or_arrow_function, is_identifier,
+    is_import_call, is_in_js_file, is_jsdoc_type_tag, is_jsx_attribute, is_jsx_attribute_like,
+    is_jsx_attributes, is_jsx_element, is_object_literal_method, is_property_assignment,
+    is_property_declaration, is_property_signature, is_this_initialized_declaration, map, some,
+    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_,
+    Diagnostics, FunctionFlags, InferenceInfo, NodeFlags, Number, Signature, SignatureFlags,
+    SignatureKind, StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction, __String,
     create_symbol_table, get_function_flags, get_object_flags, has_initializer,
     is_object_literal_expression, InferenceContext, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
@@ -411,15 +416,283 @@ impl TypeChecker {
         })
     }
 
+    pub(super) fn get_contextual_type_for_conditional_operand(
+        &self,
+        node: &Node, /*Expression*/
+        context_flags: Option<ContextFlags>,
+    ) -> Option<Rc<Type>> {
+        let conditional = node.parent();
+        let conditional_as_conditional_expression = conditional.as_conditional_expression();
+        if ptr::eq(node, &*conditional_as_conditional_expression.when_true)
+            || ptr::eq(node, &*conditional_as_conditional_expression.when_false)
+        {
+            self.get_contextual_type_(&conditional, context_flags)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_contextual_type_for_child_jsx_expression(
+        &self,
+        node: &Node,  /*JsxElement*/
+        child: &Node, /*JsxChild*/
+    ) -> Option<Rc<Type>> {
+        let node_as_jsx_element = node.as_jsx_element();
+        let attributes_type = self.get_apparent_type_of_contextual_type(
+            &node_as_jsx_element
+                .opening_element
+                .as_jsx_opening_element()
+                .tag_name,
+            None,
+        );
+        let jsx_children_property_name =
+            self.get_jsx_element_children_property_name(&self.get_jsx_namespace_at(Some(node)));
+        if !(matches!(
+            attributes_type.as_ref(),
+            Some(attributes_type) if !self.is_type_any(Some(&**attributes_type))
+        ) && matches!(
+            jsx_children_property_name.as_ref(),
+            Some(jsx_children_property_name) if !jsx_children_property_name.is_empty()
+        )) {
+            return None;
+        }
+        let attributes_type = attributes_type.unwrap();
+        let jsx_children_property_name = jsx_children_property_name.unwrap();
+        let real_children = get_semantic_jsx_children(&node_as_jsx_element.children);
+        let child_index = real_children
+            .iter()
+            .position(|real_child| ptr::eq(&**real_child, child))
+            .unwrap();
+        let child_field_type = self
+            .get_type_of_property_of_contextual_type(&attributes_type, &jsx_children_property_name);
+        child_field_type.as_ref().and_then(|child_field_type| {
+            if real_children.len() == 1 {
+                Some(child_field_type.clone())
+            } else {
+                self.map_type(
+                    child_field_type,
+                    &mut |t: &Type| {
+                        if self.is_array_like_type(t) {
+                            Some(self.get_indexed_access_type(
+                                t,
+                                &self.get_number_literal_type(Number::new(child_index as f64)),
+                                None,
+                                Option::<&Node>::None,
+                                Option::<&Symbol>::None,
+                                None,
+                            ))
+                        } else {
+                            Some(t.type_wrapper())
+                        }
+                    },
+                    Some(true),
+                )
+            }
+        })
+    }
+
+    pub(super) fn get_contextual_type_for_jsx_expression(
+        &self,
+        node: &Node, /*JsxExpression*/
+    ) -> Option<Rc<Type>> {
+        let expr_parent = node.parent();
+        if is_jsx_attribute_like(&expr_parent) {
+            self.get_contextual_type_(node, None)
+        } else if is_jsx_element(&expr_parent) {
+            self.get_contextual_type_for_child_jsx_expression(&expr_parent, node)
+        } else {
+            None
+        }
+    }
+
     pub(super) fn get_contextual_type_for_jsx_attribute_(
         &self,
         attribute: &Node, /*JsxAttribute | JsxSpreadAttribute*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if is_jsx_attribute(attribute) {
+            let attributes_type =
+                self.get_apparent_type_of_contextual_type(&attribute.parent(), None)?;
+            if self.is_type_any(Some(&*attributes_type)) {
+                return None;
+            }
+            self.get_type_of_property_of_contextual_type(
+                &attributes_type,
+                &attribute
+                    .as_jsx_attribute()
+                    .name
+                    .as_identifier()
+                    .escaped_text,
+            )
+        } else {
+            self.get_contextual_type_(&attribute.parent(), None)
+        }
     }
 
     pub(super) fn is_possibly_discriminant_value(&self, node: &Node /*Expression*/) -> bool {
-        unimplemented!()
+        match node.kind() {
+            SyntaxKind::StringLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::Identifier
+            | SyntaxKind::UndefinedKeyword => true,
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ParenthesizedExpression => {
+                self.is_possibly_discriminant_value(&node.as_has_expression().expression())
+            }
+            SyntaxKind::JsxExpression => match node.as_jsx_expression().expression.as_ref() {
+                None => true,
+                Some(node_expression) => self.is_possibly_discriminant_value(node_expression),
+            },
+            _ => false,
+        }
+    }
+
+    pub(super) fn discriminate_contextual_type_by_object_members(
+        &self,
+        node: &Node,            /*ObjectLiteralExpression*/
+        contextual_type: &Type, /*UnionType*/
+    ) -> Rc<Type> {
+        self.get_matching_union_constituent_for_object_literal(
+            contextual_type,
+            node,
+        ).unwrap_or_else(|| {
+            self.discriminate_type_by_discriminable_items(
+                contextual_type,
+                &concatenate(
+                    map(
+                        &filter(
+                            &node.as_object_literal_expression().properties,
+                            |p: &Rc<Node>| {
+                                p.maybe_symbol().is_some() &&
+                                    p.kind() == SyntaxKind::PropertyAssignment &&
+                                    self.is_possibly_discriminant_value(&p.as_has_initializer().maybe_initializer().unwrap()) &&
+                                    self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name())
+                            }
+                        ),
+                        |prop: &Rc<Node>, _| {
+                            let type_checker = self.rc_wrapper();
+                            let prop_clone = prop.clone();
+                            (
+                                Box::new(move || {
+                                    type_checker.get_context_free_type_of_expression(&prop_clone.as_has_initializer().maybe_initializer().unwrap())
+                                }) as Box<dyn Fn() -> Rc<Type>>,
+                                prop.symbol().escaped_name().clone(),
+                            )
+                        }
+                    ),
+                    map(
+                        &filter(
+                            &self.get_properties_of_type(contextual_type),
+                            |s: &Rc<Symbol>| {
+                                s.flags().intersects(SymbolFlags::Optional) &&
+                                    matches!(
+                                        node.maybe_symbol().as_ref(),
+                                        Some(node_symbol) if matches!(
+                                            node_symbol.maybe_members().clone(),
+                                            Some(node_symbol_members) if (*node_symbol_members).borrow().contains_key(s.escaped_name())
+                                        )
+                                    ) &&
+                                    self.is_discriminant_property(
+                                        Some(contextual_type),
+                                        s.escaped_name()
+                                    )
+                            }
+                        ),
+                        |s: &Rc<Symbol>, _| {
+                            let type_checker = self.rc_wrapper();
+                            (
+                                Box::new(move || {
+                                    type_checker.undefined_type()
+                                }) as Box<dyn Fn() -> Rc<Type>>,
+                                s.escaped_name().clone(),
+                            )
+                        }
+                    ),
+                ),
+                |source: &Type, target: &Type| self.is_type_assignable_to(source, target),
+                Some(contextual_type),
+                None,
+            ).unwrap()
+        })
+    }
+
+    pub(super) fn discriminate_contextual_type_by_jsx_attributes(
+        &self,
+        node: &Node,            /*JsxAttributes*/
+        contextual_type: &Type, /*UnionType*/
+    ) -> Rc<Type> {
+        self.discriminate_type_by_discriminable_items(
+            contextual_type,
+            &concatenate(
+                map(
+                    &filter(
+                        &node.as_jsx_attributes().properties,
+                        |p: &Rc<Node>| {
+                            p.maybe_symbol().is_some() &&
+                                p.kind() == SyntaxKind::JsxAttribute &&
+                                self.is_discriminant_property(Some(contextual_type), p.symbol().escaped_name()) &&
+                                match p.as_jsx_attribute().initializer.as_ref() {
+                                    None => true,
+                                    Some(p_initializer) => self.is_possibly_discriminant_value(p_initializer)
+                                }
+                        }
+                    ),
+                    |prop: &Rc<Node>, _| {
+                        let type_checker = self.rc_wrapper();
+                        let prop_clone = prop.clone();
+                        (
+                            Box::new(move || {
+                                if prop_clone.kind() != SyntaxKind::JsxAttribute {
+                                    return type_checker.true_type();
+                                }
+                                let prop_as_jsx_attribute = prop_clone.as_jsx_attribute();
+                                let prop_initializer = prop_as_jsx_attribute.initializer.as_ref();
+                                match prop_initializer {
+                                    None => type_checker.true_type(),
+                                    Some(prop_initializer) =>
+                                        type_checker.get_context_free_type_of_expression(prop_initializer)
+                                }
+                            }) as Box<dyn Fn() -> Rc<Type>>,
+                            prop.symbol().escaped_name().clone(),
+                        )
+                    }
+                ),
+                map(
+                    &filter(
+                        &self.get_properties_of_type(contextual_type),
+                        |s: &Rc<Symbol>| {
+                            s.flags().intersects(SymbolFlags::Optional) &&
+                                matches!(
+                                    node.maybe_symbol().as_ref(),
+                                    Some(node_symbol) if matches!(
+                                        node_symbol.maybe_members().clone(),
+                                        Some(node_symbol_members) if (*node_symbol_members).borrow().contains_key(s.escaped_name())
+                                    )
+                                ) &&
+                                self.is_discriminant_property(
+                                    Some(contextual_type),
+                                    s.escaped_name()
+                                )
+                        }
+                    ),
+                    |s: &Rc<Symbol>, _| {
+                        let type_checker = self.rc_wrapper();
+                        (
+                            Box::new(move || {
+                                type_checker.undefined_type()
+                            }) as Box<dyn Fn() -> Rc<Type>>,
+                            s.escaped_name().clone(),
+                        )
+                    }
+                ),
+            ),
+            |source: &Type, target: &Type| self.is_type_assignable_to(source, target),
+            Some(contextual_type),
+            None,
+        ).unwrap()
     }
 
     pub(super) fn get_apparent_type_of_contextual_type(
@@ -427,8 +700,8 @@ impl TypeChecker {
         node: &Node, /*Expression | MethodDeclaration*/
         context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
-        let contextual_type = if false {
-            unimplemented!()
+        let contextual_type = if is_object_literal_method(node) {
+            self.get_contextual_type_for_object_literal_method(node, context_flags)
         } else {
             self.get_contextual_type_(node, context_flags)
         };
@@ -450,9 +723,11 @@ impl TypeChecker {
                 return if apparent_type.flags().intersects(TypeFlags::Union)
                     && is_object_literal_expression(node)
                 {
-                    unimplemented!()
-                } else if false {
-                    unimplemented!()
+                    Some(self.discriminate_contextual_type_by_object_members(node, &apparent_type))
+                } else if apparent_type.flags().intersects(TypeFlags::Union)
+                    && is_jsx_attributes(node)
+                {
+                    Some(self.discriminate_contextual_type_by_jsx_attributes(node, &apparent_type))
                 } else {
                     Some(apparent_type)
                 };
@@ -461,16 +736,79 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn instantiate_contextual_type<TTypeRef: Borrow<Type>, TNode: NodeInterface>(
+    pub(super) fn instantiate_contextual_type<TContextualType: Borrow<Type>>(
         &self,
-        contextual_type: Option<TTypeRef>,
-        node: &TNode,
+        contextual_type: Option<TContextualType>,
+        node: &Node,
         context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
-        if false {
-            unimplemented!()
+        let contextual_type =
+            contextual_type.map(|contextual_type| contextual_type.borrow().type_wrapper());
+        if let Some(contextual_type) = contextual_type.as_ref().filter(|contextual_type| {
+            self.maybe_type_of_kind(contextual_type, TypeFlags::Instantiable)
+        }) {
+            let inference_context = self.get_inference_context(node);
+            if let Some(inference_context) =
+                inference_context.as_ref().filter(|inference_context| {
+                    some(
+                        Some(&inference_context.inferences),
+                        Some(|inference: &Rc<InferenceInfo>| {
+                            self.has_inference_candidates(inference)
+                        }),
+                    )
+                })
+            {
+                if matches!(
+                    context_flags,
+                    Some(context_flags) if context_flags.intersects(ContextFlags::Signature)
+                ) {
+                    return Some(self.instantiate_instantiable_types(
+                        contextual_type,
+                        &inference_context.non_fixing_mapper(),
+                    ));
+                }
+                if let Some(inference_context_return_mapper) =
+                    inference_context.return_mapper.as_ref()
+                {
+                    return Some(self.instantiate_instantiable_types(
+                        contextual_type,
+                        inference_context_return_mapper,
+                    ));
+                }
+            }
         }
-        contextual_type.map(|contextual_type| contextual_type.borrow().type_wrapper())
+        contextual_type
+    }
+
+    pub(super) fn instantiate_instantiable_types(
+        &self,
+        type_: &Type,
+        mapper: &TypeMapper,
+    ) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Instantiable) {
+            return self.instantiate_type(type_, Some(mapper));
+        }
+        if type_.flags().intersects(TypeFlags::Union) {
+            return self.get_union_type(
+                map(type_.as_union_type().types(), |t: &Rc<Type>, _| {
+                    self.instantiate_instantiable_types(t, mapper)
+                }),
+                Some(UnionReduction::None),
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            );
+        }
+        if type_.flags().intersects(TypeFlags::Intersection) {
+            return self.get_intersection_type(
+                &map(type_.as_intersection_type().types(), |t: &Rc<Type>, _| {
+                    self.instantiate_instantiable_types(t, mapper)
+                }),
+                Option::<&Symbol>::None,
+                None,
+            );
+        }
+        type_.type_wrapper()
     }
 
     pub(super) fn get_contextual_type_(
@@ -478,21 +816,133 @@ impl TypeChecker {
         node: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
+        if node.flags().intersects(NodeFlags::InWithStatement) {
+            return None;
+        }
+        if let Some(node_contextual_type) = node.maybe_contextual_type().clone() {
+            return Some(node_contextual_type);
+        }
         let parent = node.parent();
-        match &*parent {
-            Node::VariableDeclaration(_) => {
+        match parent.kind() {
+            SyntaxKind::VariableDeclaration
+            | SyntaxKind::Parameter
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::BindingElement => {
                 self.get_contextual_type_for_initializer_expression(node, context_flags)
             }
-            Node::PropertyAssignment(_) => {
-                self.get_contextual_type_for_object_literal_element_(node, context_flags)
+            SyntaxKind::ArrowFunction | SyntaxKind::ReturnStatement => {
+                self.get_contextual_type_for_return_expression(node)
             }
-            _ => unimplemented!(),
+            SyntaxKind::YieldExpression => self.get_contextual_type_for_yield_operand(&parent),
+            SyntaxKind::AwaitExpression => {
+                self.get_contextual_type_for_await_operand(&parent, context_flags)
+            }
+            SyntaxKind::CallExpression | SyntaxKind::NewExpression => {
+                self.get_contextual_type_for_argument(&parent, node)
+            }
+            SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
+                let parent_type = parent.as_has_type().maybe_type().unwrap();
+                if is_const_type_reference(&parent_type) {
+                    self.try_find_when_const_type_reference(&parent)
+                } else {
+                    Some(self.get_type_from_type_node_(&parent_type))
+                }
+            }
+            SyntaxKind::BinaryExpression => {
+                self.get_contextual_type_for_binary_operand(node, context_flags)
+            }
+            SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
+                self.get_contextual_type_for_object_literal_element_(&parent, context_flags)
+            }
+            SyntaxKind::SpreadAssignment => {
+                self.get_contextual_type_(&parent.parent(), context_flags)
+            }
+            SyntaxKind::ArrayLiteralExpression => {
+                let array_literal = &parent;
+                let type_ = self.get_apparent_type_of_contextual_type(array_literal, context_flags);
+                self.get_contextual_type_for_element_expression(
+                    type_,
+                    index_of_node(&array_literal.as_array_literal_expression().elements, node)
+                        .try_into()
+                        .unwrap(),
+                )
+            }
+            SyntaxKind::ConditionalExpression => {
+                self.get_contextual_type_for_conditional_operand(node, context_flags)
+            }
+            SyntaxKind::TemplateSpan => {
+                Debug_.assert(
+                    parent.parent().kind() == SyntaxKind::TemplateExpression,
+                    None,
+                );
+                self.get_contextual_type_for_substitution_expression(&parent.parent(), node)
+            }
+            SyntaxKind::ParenthesizedExpression => {
+                let tag = if is_in_js_file(Some(&*parent)) {
+                    get_jsdoc_type_tag(&parent)
+                } else {
+                    None
+                };
+                match tag.as_ref() {
+                    None => self.get_contextual_type_(&parent, context_flags),
+                    Some(tag) => {
+                        if is_jsdoc_type_tag(tag)
+                            && is_const_type_reference(
+                                &tag.as_base_jsdoc_type_like_tag()
+                                    .type_expression
+                                    .as_ref()
+                                    .unwrap()
+                                    .as_jsdoc_type_expression()
+                                    .type_,
+                            )
+                        {
+                            self.try_find_when_const_type_reference(&parent)
+                        } else {
+                            Some(
+                                self.get_type_from_type_node_(
+                                    &tag.as_base_jsdoc_type_like_tag()
+                                        .type_expression
+                                        .as_ref()
+                                        .unwrap()
+                                        .as_jsdoc_type_expression()
+                                        .type_,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+            SyntaxKind::NonNullExpression => self.get_contextual_type_(&parent, context_flags),
+            SyntaxKind::JsxExpression => self.get_contextual_type_for_jsx_expression(&parent),
+            SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute => {
+                self.get_contextual_type_for_jsx_attribute_(&parent)
+            }
+            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
+                Some(self.get_contextual_jsx_element_attributes_type(&parent, context_flags))
+            }
+            _ => None,
         }
+    }
+
+    pub(super) fn try_find_when_const_type_reference(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> Option<Rc<Type>> {
+        self.get_contextual_type_(node, None)
     }
 
     pub(super) fn get_inference_context(&self, node: &Node) -> Option<Rc<InferenceContext>> {
         let ancestor = find_ancestor(Some(node), |n: &Node| n.maybe_inference_context().is_some());
         ancestor.map(|ancestor| ancestor.maybe_inference_context().clone().unwrap())
+    }
+
+    pub(super) fn get_contextual_jsx_element_attributes_type(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+        context_flags: Option<ContextFlags>,
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_effective_first_argument_for_jsx_signature(

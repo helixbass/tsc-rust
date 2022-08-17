@@ -325,13 +325,12 @@ impl TypeChecker {
     }
 
     pub(super) fn discriminate_type_by_discriminable_items<
-        TDiscriminatorsCallback: Fn() -> Rc<Type>,
         TRelated: FnMut(&Type, &Type) -> bool,
         TDefaultValue: Borrow<Type>,
     >(
         &self,
         target: &Type, /*UnionType*/
-        discriminators: &[(TDiscriminatorsCallback, __String)],
+        discriminators: &[(Box<dyn Fn() -> Rc<Type>>, __String)],
         mut related: TRelated,
         default_value: Option<TDefaultValue>,
         skip_partial: Option<bool>,
