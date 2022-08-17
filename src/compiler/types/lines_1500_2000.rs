@@ -6,7 +6,7 @@ use std::rc::Rc;
 use super::{
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
     BaseSignatureDeclaration, BaseVariableLikeDeclaration, FlowNode, HasExpressionInterface,
-    HasTypeInterface, Node, NodeArray, SyntaxKind,
+    HasTypeInterface, Node, NodeArray, SyntaxKind, Type,
 };
 use local_macros::ast_type;
 
@@ -974,4 +974,13 @@ impl YieldExpression {
             asterisk_token,
         }
     }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct SyntheticExpression {
+    _node: BaseNode,
+    pub is_spread: bool,
+    pub type_: Rc<Type>,
+    pub tuple_name_source: Option<Rc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
 }

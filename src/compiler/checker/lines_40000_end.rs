@@ -8,16 +8,16 @@ use std::rc::Rc;
 use super::{ambient_module_symbol_regex, UnusedKind};
 use crate::{
     are_option_rcs_equal, filter, find, get_object_flags, is_spread_element, length, text_span_end,
-    DiagnosticMessage, Diagnostics, LiteralLikeNodeInterface, LiteralTypeInterface, ModuleKind,
-    NodeArray, ObjectFlags, ReadonlyTextRange, SignatureKind, SymbolInterface, Ternary, TokenFlags,
-    TypeFlags, TypeInterface, __String, bind_source_file, create_file_diagnostic, for_each,
-    for_each_bool, get_source_file_of_node, get_span_of_token_at_position, is_accessor,
-    is_external_or_common_js_module, is_literal_type_node, is_prefix_unary_expression,
-    AllAccessorDeclarations, CancellationTokenDebuggable, Diagnostic, EmitResolver,
-    EmitResolverDebuggable, IndexInfo, Node, NodeBuilderFlags, NodeCheckFlags, NodeInterface,
-    ScriptTarget, Signature, SignatureFlags, StringOrNumber, Symbol, SymbolAccessibilityResult,
-    SymbolFlags, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker,
-    TypeReferenceSerializationKind,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, LiteralLikeNodeInterface,
+    LiteralTypeInterface, ModuleKind, NodeArray, ObjectFlags, ReadonlyTextRange, SignatureKind,
+    SymbolInterface, Ternary, TokenFlags, TypeFlags, TypeInterface, __String, bind_source_file,
+    create_file_diagnostic, for_each, for_each_bool, get_source_file_of_node,
+    get_span_of_token_at_position, is_accessor, is_external_or_common_js_module,
+    is_literal_type_node, is_prefix_unary_expression, AllAccessorDeclarations,
+    CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
+    NodeBuilderFlags, NodeCheckFlags, NodeInterface, ScriptTarget, Signature, SignatureFlags,
+    StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker,
+    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -240,6 +240,14 @@ impl TypeChecker {
             self.get_global_type(&__String::new("Object".to_owned()), 0, true);
         self.global_boolean_type =
             self.get_global_type(&__String::new("Boolean".to_owned()), 0, true);
+    }
+
+    pub(super) fn check_external_emit_helpers(
+        &self,
+        location: &Node,
+        helpers: ExternalEmitHelpers,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn check_grammar_for_disallowed_trailing_comma(

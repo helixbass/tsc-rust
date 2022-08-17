@@ -2,22 +2,24 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::cmp;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, JsxNames, MinArgumentCountFlags, ResolveNameNameArg,
-    TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, IterationUse, JsxNames, MinArgumentCountFlags,
+    ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
-    filter, get_strict_option_value, is_function_expression_or_arrow_function, is_import_call,
-    is_in_js_file, is_object_literal_method, length, reduce_left_no_initial_value_optional,
-    unescape_leading_underscores, ContextFlags, Debug_, Diagnostics, FunctionFlags,
-    InterfaceTypeInterface, JsxReferenceKind, NodeFlags, Signature, SignatureFlags, SignatureKind,
-    StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper, UnionReduction,
-    __String, create_symbol_table, get_function_flags, get_object_flags, has_initializer,
-    InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    concatenate, filter, get_strict_option_value, is_function_expression_or_arrow_function,
+    is_import_call, is_in_js_file, is_object_literal_method, length, parameter_is_this_keyword,
+    reduce_left_no_initial_value_optional, unescape_leading_underscores, ContextFlags, Debug_,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasInitializerInterface,
+    InterfaceTypeInterface, JsxReferenceKind, NodeFlags, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper,
+    UnionReduction, __String, create_symbol_table, get_function_flags, get_object_flags,
+    has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -183,8 +185,8 @@ impl TypeChecker {
                         right.type_parameters.as_deref(),
                     ) {
                         Some(self.combine_signatures_of_intersection_members(
-                            left.as_ref().unwrap(),
-                            right,
+                            left.clone().unwrap(),
+                            right.clone(),
                         ))
                     } else {
                         None
@@ -343,10 +345,61 @@ impl TypeChecker {
 
     pub(super) fn combine_signatures_of_intersection_members(
         &self,
-        left: &Signature,
-        right: &Signature,
+        left: Rc<Signature>,
+        right: Rc<Signature>,
     ) -> Rc<Signature> {
-        unimplemented!()
+        let type_params = left
+            .type_parameters
+            .as_ref()
+            .or_else(|| right.type_parameters.as_ref());
+        let mut param_mapper: Option<TypeMapper> = None;
+        if left.type_parameters.is_some() && right.type_parameters.is_some() {
+            param_mapper = Some(self.create_type_mapper(
+                right.type_parameters.clone().unwrap(),
+                left.type_parameters.clone(),
+            ));
+        }
+        let declaration = left.declaration.as_ref();
+        let params = self.combine_intersection_parameters(&left, &right, param_mapper.as_ref());
+        let this_param = self.combine_intersection_this_param(
+            left.this_parameter.as_deref(),
+            right.this_parameter.as_deref(),
+            param_mapper.as_ref(),
+        );
+        let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
+        let mut result = self.create_signature(
+            declaration.cloned(),
+            type_params.cloned(),
+            this_param,
+            params,
+            None,
+            None,
+            min_arg_count,
+            (left.flags | right.flags) & SignatureFlags::PropagatingFlags,
+        );
+        result.composite_kind = Some(TypeFlags::Intersection);
+        result.composite_signatures = Some(concatenate(
+            if left.composite_kind == Some(TypeFlags::Intersection) {
+                left.composite_signatures.clone()
+            } else {
+                None
+            }
+            .unwrap_or_else(|| vec![left.clone()]),
+            vec![right.clone()],
+        ));
+        if let Some(param_mapper) = param_mapper {
+            result.mapper = Some(
+                if left.composite_kind == Some(TypeFlags::Intersection)
+                    && left.mapper.is_some()
+                    && left.composite_signatures.is_some()
+                {
+                    self.combine_type_mappers(left.mapper.clone(), param_mapper)
+                } else {
+                    param_mapper
+                },
+            );
+        }
+        Rc::new(result)
     }
 
     pub(super) fn get_contextual_call_signature(
@@ -368,7 +421,27 @@ impl TypeChecker {
         signature: &Signature,
         target: &Node, /*SignatureDeclaration*/
     ) -> bool {
-        unimplemented!()
+        let mut target_parameter_count = 0;
+        let target_as_signature_declaration = target.as_signature_declaration();
+        while target_parameter_count < target_as_signature_declaration.parameters().len() {
+            let param = &target_as_signature_declaration.parameters()[target_parameter_count];
+            let param_as_parameter_declaration = param.as_parameter_declaration();
+            if param_as_parameter_declaration.maybe_initializer().is_some()
+                || param_as_parameter_declaration.question_token.is_some()
+                || param_as_parameter_declaration.dot_dot_dot_token.is_some()
+                || self.is_jsdoc_optional_parameter(param)
+            {
+                break;
+            }
+            target_parameter_count += 1;
+        }
+        if !target_as_signature_declaration.parameters().is_empty()
+            && parameter_is_this_keyword(&target_as_signature_declaration.parameters()[0])
+        {
+            target_parameter_count -= 1;
+        }
+        !self.has_effective_rest_parameter(signature)
+            && self.get_parameter_count(signature) < target_parameter_count
     }
 
     pub(super) fn get_contextual_signature_for_function_like_declaration(
@@ -394,11 +467,8 @@ impl TypeChecker {
         if type_tag_signature.is_some() {
             return type_tag_signature;
         }
-        let type_ = self.get_apparent_type_of_contextual_type(node, Some(ContextFlags::Signature));
-        if type_.is_none() {
-            return None;
-        }
-        let type_ = type_.unwrap();
+        let type_ =
+            self.get_apparent_type_of_contextual_type(node, Some(ContextFlags::Signature))?;
         if !type_.flags().intersects(TypeFlags::Union) {
             return self.get_contextual_call_signature(&type_, node);
         }
@@ -439,11 +509,59 @@ impl TypeChecker {
         })
     }
 
+    pub(super) fn check_spread_expression(
+        &self,
+        node: &Node, /*SpreadElement*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        if self.language_version < ScriptTarget::ES2015 {
+            self.check_external_emit_helpers(
+                node,
+                if self.compiler_options.downlevel_iteration == Some(true) {
+                    ExternalEmitHelpers::SpreadIncludes
+                } else {
+                    ExternalEmitHelpers::SpreadArray
+                },
+            );
+        }
+
+        let array_or_iterable_type =
+            self.check_expression(&node.as_spread_element().expression, check_mode, None);
+        self.check_iterated_type_or_element_type(
+            IterationUse::Spread,
+            &array_or_iterable_type,
+            &self.undefined_type(),
+            Some(&*node.as_spread_element().expression),
+        )
+    }
+
+    pub(super) fn check_synthetic_expression(
+        &self,
+        node: &Node, /*SyntheticExpression*/
+    ) -> Rc<Type> {
+        let node_as_synthetic_expression = node.as_synthetic_expression();
+        if node_as_synthetic_expression.is_spread {
+            self.get_indexed_access_type(
+                &node_as_synthetic_expression.type_,
+                &self.number_type(),
+                None,
+                Option::<&Node>::None,
+                Option::<&Symbol>::None,
+                None,
+            )
+        } else {
+            node_as_synthetic_expression.type_.clone()
+        }
+    }
+
     pub(super) fn has_default_value(
         &self,
         node: &Node, /*BindingElement | Expression*/
     ) -> bool {
-        unimplemented!()
+        node.kind() == SyntaxKind::BindingElement
+            && node.as_binding_element().maybe_initializer().is_some()
+            || node.kind() == SyntaxKind::BinaryExpression
+                && node.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
     }
 
     pub(super) fn check_array_literal(

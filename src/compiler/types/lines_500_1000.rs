@@ -4,7 +4,9 @@ use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
-use crate::{HasArgumentsInterface, InferenceContext, JsxOpeningLikeElementInterface};
+use crate::{
+    HasArgumentsInterface, InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
+};
 
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
@@ -332,6 +334,7 @@ pub enum Node {
     TypeOfExpression(TypeOfExpression),
     AwaitExpression(AwaitExpression),
     YieldExpression(YieldExpression),
+    SyntheticExpression(SyntheticExpression),
     ClassExpression(ClassExpression),
     OmittedExpression(OmittedExpression),
     ExpressionWithTypeArguments(ExpressionWithTypeArguments),
@@ -1018,6 +1021,10 @@ impl Node {
 
     pub fn as_yield_expression(&self) -> &YieldExpression {
         enum_unwrapped!(self, [Node, YieldExpression])
+    }
+
+    pub fn as_synthetic_expression(&self) -> &SyntheticExpression {
+        enum_unwrapped!(self, [Node, SyntheticExpression])
     }
 
     pub fn as_class_declaration(&self) -> &ClassDeclaration {
