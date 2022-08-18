@@ -9,10 +9,11 @@ use super::{
     WideningKind,
 };
 use crate::{
-    is_import_call, Diagnostics, FunctionFlags, IndexInfo, JsxReferenceKind, NodeFlags, Signature,
-    SignatureFlags, StringOrRcNode, SymbolFlags, SymbolTable, Ternary, UnionReduction, __String,
-    get_function_flags, get_object_flags, has_initializer, InferenceContext, Node, NodeInterface,
-    ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    every, is_import_call, Diagnostics, FunctionFlags, IndexInfo, JsxReferenceKind, NodeFlags,
+    Signature, SignatureFlags, StringOrRcNode, SymbolFlags, SymbolTable, Ternary, UnionReduction,
+    __String, get_function_flags, get_object_flags, has_initializer, InferenceContext, Node,
+    NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -89,7 +90,69 @@ impl TypeChecker {
     }
 
     pub(super) fn is_valid_spread_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Instantiable) {
+            let constraint = self.get_base_constraint_of_type(type_);
+            if let Some(constraint) = constraint.as_ref() {
+                return self.is_valid_spread_type(constraint);
+            }
+        }
+        type_.flags().intersects(
+            TypeFlags::Any
+                | TypeFlags::NonPrimitive
+                | TypeFlags::Object
+                | TypeFlags::InstantiableNonPrimitive,
+        ) || self
+            .get_falsy_flags(type_)
+            .intersects(TypeFlags::DefinitelyFalsy)
+            && self.is_valid_spread_type(&self.remove_definitely_falsy_types(type_))
+            || type_.flags().intersects(TypeFlags::UnionOrIntersection)
+                && every(
+                    &type_.as_union_or_intersection_type_interface().types(),
+                    |type_: &Rc<Type>, _| self.is_valid_spread_type(type_),
+                )
+    }
+
+    pub(super) fn check_jsx_self_closing_element_deferred(
+        &self,
+        node: &Node, /*JsxSelfClosingElement*/
+    ) {
+        self.check_jsx_opening_like_element_or_opening_fragment(node);
+    }
+
+    pub(super) fn check_jsx_self_closing_element(
+        &self,
+        node: &Node, /*JsxSelfClosingElement*/
+        _check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        self.check_node_deferred(node);
+        self.get_jsx_element_type_at(node) /*|| anyType*/
+    }
+
+    pub(super) fn check_jsx_element_deferred(&self, node: &Node /*JsxElement*/) {
+        let node_as_jsx_element = node.as_jsx_element();
+        self.check_jsx_opening_like_element_or_opening_fragment(
+            &node_as_jsx_element.opening_element,
+        );
+
+        if self.is_jsx_intrinsic_identifier(
+            &node_as_jsx_element
+                .closing_element
+                .as_jsx_closing_element()
+                .tag_name,
+        ) {
+            self.get_intrinsic_tag_symbol(&node_as_jsx_element.closing_element);
+        } else {
+            self.check_expression(
+                &node_as_jsx_element
+                    .closing_element
+                    .as_jsx_closing_element()
+                    .tag_name,
+                None,
+                None,
+            );
+        }
+
+        self.check_jsx_children(node, None);
     }
 
     pub(super) fn is_hyphenated_jsx_name(&self, name: &str) -> bool {
@@ -136,6 +199,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_intrinsic_tag_symbol(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement | JsxClosingElement*/
+    ) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
     pub(super) fn get_jsx_namespace_at<TLocation: Borrow<Node>>(
         &self,
         location: Option<TLocation>,
@@ -143,17 +213,17 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_jsx_element_properties_name(
-        &self,
-        jsx_namespace: &Symbol,
-    ) -> Option<__String> {
-        unimplemented!()
-    }
-
     pub(super) fn get_jsx_library_managed_attributes(
         &self,
         jsx_namespace: &Symbol,
     ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_jsx_element_properties_name(
+        &self,
+        jsx_namespace: &Symbol,
+    ) -> Option<__String> {
         unimplemented!()
     }
 
@@ -176,6 +246,17 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
     ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_jsx_opening_like_element_or_opening_fragment(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+    ) {
         unimplemented!()
     }
 
