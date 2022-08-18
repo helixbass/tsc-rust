@@ -333,7 +333,7 @@ impl TypeChecker {
                 SyntaxKind::TrueKeyword => self.true_type(),
                 _ => unimplemented!(),
             },
-            Node::ObjectLiteralExpression(_) => self.check_object_literal(node),
+            Node::ObjectLiteralExpression(_) => self.check_object_literal(node, check_mode),
             Node::PrefixUnaryExpression(_) => self.check_prefix_unary_expression(node),
             // Node::Expression(Expression::BinaryExpression(_)) => {
             //     return self.check_binary_expression(node);

@@ -59,6 +59,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_node_deferred(&self, node: &Node) {
+        unimplemented!()
+    }
+
     pub(super) fn check_source_file(&self, source_file: &Node /*SourceFile*/) {
         self.check_source_file_worker(source_file)
     }
@@ -256,6 +260,14 @@ impl TypeChecker {
         diag: Option<&'static DiagnosticMessage>,
     ) -> bool {
         let diag = diag.unwrap_or(&Diagnostics::Trailing_comma_not_allowed);
+        unimplemented!()
+    }
+
+    pub(super) fn check_grammar_object_literal_expression(
+        &self,
+        node: &Node, /*ObjectLiteralExpression*/
+        in_destructuring: bool,
+    ) -> bool {
         unimplemented!()
     }
 

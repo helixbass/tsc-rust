@@ -1089,6 +1089,7 @@ impl From<BaseSymbol> for Symbol {
 
 #[derive(Debug)]
 pub struct SymbolLinks {
+    pub immediate_target: Option<Rc<Symbol>>,
     pub target: Option<Rc<Symbol>>,
     pub type_: Option<Rc<Type>>,
     pub write_type: Option<Rc<Type>>,
@@ -1126,6 +1127,7 @@ pub struct SymbolLinks {
 impl SymbolLinks {
     pub fn new() -> Self {
         Self {
+            immediate_target: None,
             target: None,
             type_: None,
             write_type: None,

@@ -11,19 +11,21 @@ use super::{
     ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
-    concatenate, filter, get_enclosing_block_scope_container, get_strict_option_value,
-    has_static_modifier, is_assignment_target, is_binary_expression, is_class_expression,
-    is_class_like, is_computed_property_name, is_function_expression_or_arrow_function,
-    is_import_call, is_in_js_file, is_interface_declaration, is_known_symbol, is_named_declaration,
-    is_object_literal_method, is_property_declaration, is_type_literal_node, length,
-    parameter_is_this_keyword, reduce_left_no_initial_value_optional, same_map,
-    unescape_leading_underscores, ContextFlags, Debug_, Diagnostics, ElementFlags,
-    ExternalEmitHelpers, FunctionFlags, HasInitializerInterface, InterfaceTypeInterface,
-    JsxReferenceKind, NodeCheckFlags, NodeFlags, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, StringOrRcNode, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper,
-    UnionReduction, __String, create_symbol_table, get_function_flags, get_object_flags,
-    has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    concatenate, filter, get_enclosing_block_scope_container, get_jsdoc_enum_tag,
+    get_strict_option_value, has_static_modifier, is_assignment_target, is_binary_expression,
+    is_class_expression, is_class_like, is_computed_property_name,
+    is_function_expression_or_arrow_function, is_import_call, is_in_js_file, is_in_json_file,
+    is_interface_declaration, is_known_symbol, is_named_declaration, is_object_literal_method,
+    is_property_declaration, is_type_literal_node, length, parameter_is_this_keyword,
+    reduce_left_no_initial_value_optional, same_map, unescape_leading_underscores, CheckFlags,
+    ContextFlags, Debug_, Diagnostics, ElementFlags, ExternalEmitHelpers, FunctionFlags,
+    HasInitializerInterface, IndexInfo, InterfaceTypeInterface, JsxReferenceKind,
+    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, StringOrRcNode, SymbolFlags, SymbolTable, Ternary, TransientSymbolInterface,
+    TypeMapper, UnionReduction, __String, create_symbol_table, get_function_flags,
+    get_object_flags, has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -853,49 +855,558 @@ impl TypeChecker {
             )
     }
 
+    pub(super) fn get_object_literal_index_info(
+        &self,
+        node: &Node, /*ObjectLiteralExpression*/
+        offset: usize,
+        properties: &[Rc<Symbol>],
+        key_type: &Type,
+    ) -> IndexInfo {
+        let mut prop_types: Vec<Rc<Type>> = vec![];
+        for i in offset..properties.len() {
+            let prop = &properties[i];
+            if ptr::eq(key_type, &*self.string_type()) && !self.is_symbol_with_symbol_name(prop)
+                || ptr::eq(key_type, &*self.number_type()) && self.is_symbol_with_numeric_name(prop)
+                || ptr::eq(key_type, &*self.es_symbol_type())
+                    && self.is_symbol_with_symbol_name(prop)
+            {
+                prop_types.push(self.get_type_of_symbol(&properties[i]));
+            }
+        }
+        let union_type = if !prop_types.is_empty() {
+            self.get_union_type(
+                prop_types,
+                Some(UnionReduction::Subtype),
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        } else {
+            self.undefined_type()
+        };
+        self.create_index_info(
+            key_type.type_wrapper(),
+            union_type,
+            self.is_const_context(node),
+            None,
+        )
+    }
+
+    pub(super) fn get_immediate_aliased_symbol(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
+        Debug_.assert(
+            symbol.flags().intersects(SymbolFlags::Alias),
+            Some("Should only get Alias here."),
+        );
+        let links = self.get_symbol_links(symbol);
+        if (*links).borrow().immediate_target.is_none() {
+            let node = self.get_declaration_of_alias_symbol(symbol);
+            if node.is_none() {
+                Debug_.fail(None);
+            }
+            let node = node.unwrap();
+            links.borrow_mut().immediate_target =
+                self.get_target_of_alias_declaration(&node, Some(true));
+        }
+
+        let ret = (*links).borrow().immediate_target.clone();
+        ret
+    }
+
     pub(super) fn check_object_literal(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
+        check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
+        let in_destructuring_pattern = is_assignment_target(node);
+        self.check_grammar_object_literal_expression(node, in_destructuring_pattern);
+
         let node_as_object_literal_expression = node.as_object_literal_expression();
+        let mut all_properties_table = if self.strict_null_checks {
+            Some(create_symbol_table(None))
+        } else {
+            None
+        };
         let mut properties_table = create_symbol_table(None);
         let mut properties_array: Vec<Rc<Symbol>> = vec![];
+        let mut spread: Rc<Type> = self.empty_object_type();
 
-        let object_flags = self.fresh_object_literal_flag;
+        let contextual_type = self.get_apparent_type_of_contextual_type(node, None);
+        let contextual_type_has_pattern = matches!(
+            contextual_type.as_ref(),
+            Some(contextual_type) if matches!(
+                contextual_type.maybe_pattern().as_ref(),
+                Some(contextual_type_pattern) if matches!(
+                    contextual_type_pattern.kind(),
+                    SyntaxKind::ObjectBindingPattern |
+                    SyntaxKind::ObjectLiteralExpression
+                )
+            )
+        );
+        let in_const_context = self.is_const_context(node);
+        let check_flags = if in_const_context {
+            CheckFlags::Readonly
+        } else {
+            CheckFlags::None
+        };
+        let is_in_javascript = is_in_js_file(Some(node)) && !is_in_json_file(Some(node));
+        let enum_tag = get_jsdoc_enum_tag(node);
+        let is_js_object_literal =
+            contextual_type.is_none() && is_in_javascript && enum_tag.is_none();
+        let mut object_flags = self.fresh_object_literal_flag;
+        let mut pattern_with_computed_properties = false;
+        let mut has_computed_string_property = false;
+        let mut has_computed_number_property = false;
+        let mut has_computed_symbol_property = false;
 
+        for elem in &node_as_object_literal_expression.properties {
+            if let Some(elem_name) = elem
+                .as_named_declaration()
+                .maybe_name()
+                .filter(|elem_name| is_computed_property_name(elem_name))
+            {
+                self.check_computed_property_name(&elem_name);
+            }
+        }
+
+        let mut offset = 0;
         for member_decl in &node_as_object_literal_expression.properties {
-            let member = self.get_symbol_of_node(&**member_decl).unwrap();
-            if member_decl.kind() == SyntaxKind::PropertyAssignment {
+            let mut member = self.get_symbol_of_node(member_decl).unwrap();
+            let computed_name_type = member_decl
+                .as_named_declaration()
+                .maybe_name()
+                .as_ref()
+                .filter(|member_decl_name| {
+                    member_decl_name.kind() == SyntaxKind::ComputedPropertyName
+                })
+                .map(|member_decl_name| self.check_computed_property_name(member_decl_name));
+            if matches!(
+                member_decl.kind(),
+                SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
+            ) || is_object_literal_method(member_decl)
+            {
+                let mut type_: Rc<Type> = if member_decl.kind() == SyntaxKind::PropertyAssignment {
+                    self.check_property_assignment(member_decl, check_mode)
+                } else if member_decl.kind() == SyntaxKind::ShorthandPropertyAssignment {
+                    let member_decl_as_shorthand_property_assignment =
+                        member_decl.as_shorthand_property_assignment();
+                    self.check_expression_for_mutable_location(
+                        &*if !in_destructuring_pattern
+                            && member_decl_as_shorthand_property_assignment
+                                .object_assignment_initializer
+                                .is_some()
+                        {
+                            member_decl_as_shorthand_property_assignment
+                                .object_assignment_initializer
+                                .clone()
+                                .unwrap()
+                        } else {
+                            member_decl_as_shorthand_property_assignment.name()
+                        },
+                        check_mode,
+                        Option::<&Type>::None,
+                        None,
+                    )
+                } else {
+                    self.check_object_literal_method(member_decl, check_mode)
+                };
+                if is_in_javascript {
+                    let js_doc_type = self.get_type_for_declaration_from_jsdoc_comment(member_decl);
+                    if let Some(js_doc_type) = js_doc_type.as_ref() {
+                        self.check_type_assignable_to(
+                            &type_,
+                            js_doc_type,
+                            Some(&**member_decl),
+                            None,
+                            None,
+                            None,
+                        );
+                        type_ = js_doc_type.clone();
+                    } else if let Some(enum_tag) = enum_tag.as_ref()
+                    /*&& enumTag.typeExpression*/
+                    {
+                        self.check_type_assignable_to(
+                            &type_,
+                            &self.get_type_from_type_node_(
+                                enum_tag
+                                    .as_base_jsdoc_type_like_tag()
+                                    .type_expression
+                                    .as_ref()
+                                    .unwrap(),
+                            ),
+                            Some(&**member_decl),
+                            None,
+                            None,
+                            None,
+                        );
+                    }
+                }
+                object_flags |= get_object_flags(&type_) & ObjectFlags::PropagatingFlags;
+                let name_type = computed_name_type.as_ref().filter(|computed_name_type| {
+                    self.is_type_usable_as_property_name(computed_name_type)
+                });
+                let prop: Rc<Symbol> = if let Some(name_type) = name_type {
+                    self.create_symbol(
+                        SymbolFlags::Property | member.flags(),
+                        self.get_property_name_from_type(name_type),
+                        Some(check_flags | CheckFlags::Late),
+                    )
+                    .into()
+                } else {
+                    self.create_symbol(
+                        SymbolFlags::Property | member.flags(),
+                        member.escaped_name().clone(),
+                        Some(check_flags | CheckFlags::Late),
+                    )
+                    .into()
+                };
+                if let Some(name_type) = name_type {
+                    prop.as_transient_symbol()
+                        .symbol_links()
+                        .borrow_mut()
+                        .name_type = Some(name_type.clone());
+                }
+
+                if in_destructuring_pattern {
+                    let is_optional = member_decl.kind() == SyntaxKind::PropertyAssignment
+                        && self.has_default_value(
+                            &member_decl
+                                .as_has_initializer()
+                                .maybe_initializer()
+                                .unwrap(),
+                        )
+                        || member_decl.kind() == SyntaxKind::ShorthandPropertyAssignment
+                            && member_decl
+                                .as_shorthand_property_assignment()
+                                .object_assignment_initializer
+                                .is_some();
+                    if is_optional {
+                        prop.set_flags(prop.flags() | SymbolFlags::Optional);
+                    }
+                } else if contextual_type_has_pattern
+                    && !get_object_flags(contextual_type.as_ref().unwrap())
+                        .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)
+                {
+                    let implied_prop = self.get_property_of_type_(
+                        contextual_type.as_ref().unwrap(),
+                        member.escaped_name(),
+                        None,
+                    );
+                    if let Some(implied_prop) = implied_prop.as_ref() {
+                        prop.set_flags(
+                            prop.flags() | (implied_prop.flags() & SymbolFlags::Optional),
+                        );
+                    } else if self.compiler_options.suppress_excess_property_errors != Some(true)
+                        && self
+                            .get_index_info_of_type_(
+                                contextual_type.as_ref().unwrap(),
+                                &self.string_type(),
+                            )
+                            .is_none()
+                    {
+                        self.error(
+                            member_decl.as_named_declaration().maybe_name(),
+                            &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
+                            Some(vec![
+                                self.symbol_to_string_(
+                                    &member,
+                                    Option::<&Node>::None,
+                                    None, None, None,
+                                ),
+                                self.type_to_string_(
+                                    contextual_type.as_ref().unwrap(),
+                                    Option::<&Node>::None,
+                                    None, None,
+                                ),
+                            ])
+                        );
+                    }
+                }
+
+                if let Some(member_declarations) = member.maybe_declarations().clone() {
+                    prop.set_declarations(member_declarations);
+                }
+                prop.set_parent(member.maybe_parent());
+                if let Some(member_value_declaration) = member.maybe_value_declaration() {
+                    prop.set_value_declaration(member_value_declaration);
+                }
+
+                {
+                    let prop_links = prop.as_transient_symbol().symbol_links();
+                    let mut prop_links = prop_links.borrow_mut();
+                    prop_links.type_ = Some(type_.type_wrapper());
+                    prop_links.target = Some(member.clone());
+                }
+                member = prop.clone();
+                if let Some(all_properties_table) = all_properties_table.as_mut() {
+                    all_properties_table.insert(prop.escaped_name().clone(), prop.clone());
+                };
+            } else if member_decl.kind() == SyntaxKind::SpreadAssignment {
+                if self.language_version < ScriptTarget::ES2015 {
+                    self.check_external_emit_helpers(member_decl, ExternalEmitHelpers::Assign);
+                }
+                if !properties_array.is_empty() {
+                    spread = self.get_spread_type(
+                        &spread,
+                        &self.create_object_literal_type(
+                            has_computed_string_property,
+                            node,
+                            offset,
+                            &properties_array,
+                            has_computed_number_property,
+                            has_computed_symbol_property,
+                            &properties_table,
+                            object_flags,
+                            is_js_object_literal,
+                            pattern_with_computed_properties,
+                            in_destructuring_pattern,
+                        ),
+                        node.maybe_symbol(),
+                        object_flags,
+                        in_const_context,
+                    );
+                    properties_array = vec![];
+                    properties_table = create_symbol_table(None);
+                    has_computed_string_property = false;
+                    has_computed_number_property = false;
+                    has_computed_symbol_property = false;
+                }
+                let type_ = self.get_reduced_type(&self.check_expression(
+                    &member_decl.as_has_expression().expression(),
+                    None,
+                    None,
+                ));
+                if self.is_valid_spread_type(&type_) {
+                    let merged_type = self
+                        .try_merge_union_of_object_type_and_empty_object(&type_, in_const_context);
+                    if let Some(all_properties_table) = all_properties_table.as_ref() {
+                        self.check_spread_prop_overrides(
+                            &merged_type,
+                            all_properties_table,
+                            member_decl,
+                        );
+                    }
+                    offset = properties_array.len();
+                    if self.is_error_type(&spread) {
+                        continue;
+                    }
+                    spread = self.get_spread_type(
+                        &spread,
+                        &merged_type,
+                        node.maybe_symbol(),
+                        object_flags,
+                        in_const_context,
+                    );
+                } else {
+                    self.error(
+                        Some(&**member_decl),
+                        &Diagnostics::Spread_types_may_only_be_created_from_object_types,
+                        None,
+                    );
+                    spread = self.error_type();
+                }
+                continue;
             } else {
-                unimplemented!()
+                Debug_.assert(
+                    matches!(
+                        member_decl.kind(),
+                        SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+                    ),
+                    None,
+                );
+                self.check_node_deferred(member_decl);
             }
 
-            if false {
-                unimplemented!()
+            if let Some(computed_name_type) =
+                computed_name_type.as_ref().filter(|computed_name_type| {
+                    !computed_name_type
+                        .flags()
+                        .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
+                })
+            {
+                if self.is_type_assignable_to(computed_name_type, &self.string_number_symbol_type())
+                {
+                    if self.is_type_assignable_to(computed_name_type, &self.number_type()) {
+                        has_computed_number_property = true;
+                    } else if self.is_type_assignable_to(computed_name_type, &self.es_symbol_type())
+                    {
+                        has_computed_symbol_property = true;
+                    } else {
+                        has_computed_string_property = true;
+                    }
+                    if in_destructuring_pattern {
+                        pattern_with_computed_properties = true;
+                    }
+                }
             } else {
                 properties_table.insert(member.escaped_name().clone(), member.clone());
             }
             properties_array.push(member);
         }
 
-        let create_object_literal_type = || {
-            let result = self.create_anonymous_type(
-                Some(node.symbol()),
-                Rc::new(RefCell::new(properties_table)),
-                vec![],
-                vec![],
-                vec![], // TODO: this is wrong
-            );
-            result.set_object_flags(
-                result.object_flags()
-                    | object_flags
-                    | ObjectFlags::ObjectLiteral
-                    | ObjectFlags::ContainsObjectOrArrayLiteral,
-            );
-            result.into()
-        };
+        if contextual_type_has_pattern && node.parent().kind() != SyntaxKind::SpreadAssignment {
+            for ref prop in self.get_properties_of_type(contextual_type.as_ref().unwrap()) {
+                if !properties_table.contains_key(prop.escaped_name())
+                    && self
+                        .get_property_of_type_(&spread, prop.escaped_name(), None)
+                        .is_none()
+                {
+                    if !prop.flags().intersects(SymbolFlags::Optional) {
+                        self.error(
+                            prop.maybe_value_declaration().or_else(|| {
+                                (*prop.as_transient_symbol().symbol_links()).borrow().binding_element.clone()
+                            }),
+                            &Diagnostics::Initializer_provides_no_value_for_this_binding_element_and_the_binding_element_has_no_default_value,
+                            None,
+                        );
+                    }
+                    properties_table.insert(prop.escaped_name().clone(), prop.clone());
+                    properties_array.push(prop.clone());
+                }
+            }
+        }
 
-        create_object_literal_type()
+        if self.is_error_type(&spread) {
+            return self.error_type();
+        }
+
+        if !Rc::ptr_eq(&spread, &self.empty_object_type()) {
+            if !properties_array.is_empty() {
+                spread = self.get_spread_type(
+                    &spread,
+                    &self.create_object_literal_type(
+                        has_computed_string_property,
+                        node,
+                        offset,
+                        &properties_array,
+                        has_computed_number_property,
+                        has_computed_symbol_property,
+                        &properties_table,
+                        object_flags,
+                        is_js_object_literal,
+                        pattern_with_computed_properties,
+                        in_destructuring_pattern,
+                    ),
+                    node.maybe_symbol(),
+                    object_flags,
+                    in_const_context,
+                );
+                properties_array = vec![];
+                properties_table = create_symbol_table(None);
+                has_computed_string_property = false;
+                has_computed_number_property = false;
+            }
+            return self
+                .map_type(
+                    &spread,
+                    &mut |t: &Type| {
+                        if ptr::eq(t, &*self.empty_object_type()) {
+                            Some(self.create_object_literal_type(
+                                has_computed_string_property,
+                                node,
+                                offset,
+                                &properties_array,
+                                has_computed_number_property,
+                                has_computed_symbol_property,
+                                &properties_table,
+                                object_flags,
+                                is_js_object_literal,
+                                pattern_with_computed_properties,
+                                in_destructuring_pattern,
+                            ))
+                        } else {
+                            Some(t.type_wrapper())
+                        }
+                    },
+                    None,
+                )
+                .unwrap();
+        }
+
+        self.create_object_literal_type(
+            has_computed_string_property,
+            node,
+            offset,
+            &properties_array,
+            has_computed_number_property,
+            has_computed_symbol_property,
+            &properties_table,
+            object_flags,
+            is_js_object_literal,
+            pattern_with_computed_properties,
+            in_destructuring_pattern,
+        )
+    }
+
+    pub(super) fn create_object_literal_type(
+        &self,
+        has_computed_string_property: bool,
+        node: &Node,
+        offset: usize,
+        properties_array: &[Rc<Symbol>],
+        has_computed_number_property: bool,
+        has_computed_symbol_property: bool,
+        properties_table: &SymbolTable,
+        object_flags: ObjectFlags,
+        is_js_object_literal: bool,
+        pattern_with_computed_properties: bool,
+        in_destructuring_pattern: bool,
+    ) -> Rc<Type> {
+        let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+        if has_computed_string_property {
+            index_infos.push(Rc::new(self.get_object_literal_index_info(
+                node,
+                offset,
+                &properties_array,
+                &self.string_type(),
+            )));
+        }
+        if has_computed_number_property {
+            index_infos.push(Rc::new(self.get_object_literal_index_info(
+                node,
+                offset,
+                &properties_array,
+                &self.number_type(),
+            )));
+        }
+        if has_computed_symbol_property {
+            index_infos.push(Rc::new(self.get_object_literal_index_info(
+                node,
+                offset,
+                &properties_array,
+                &self.es_symbol_type(),
+            )));
+        }
+        let result: Rc<Type> = self
+            .create_anonymous_type(
+                node.maybe_symbol(),
+                Rc::new(RefCell::new(properties_table.clone())),
+                vec![],
+                vec![],
+                index_infos,
+            )
+            .into();
+        let result_as_object_flags_type = result.as_object_flags_type();
+        result_as_object_flags_type.set_object_flags(
+            result_as_object_flags_type.object_flags()
+                | object_flags
+                | ObjectFlags::ObjectLiteral
+                | ObjectFlags::ContainsObjectOrArrayLiteral,
+        );
+        if is_js_object_literal {
+            result_as_object_flags_type.set_object_flags(
+                result_as_object_flags_type.object_flags() | ObjectFlags::JSLiteral,
+            );
+        }
+        if pattern_with_computed_properties {
+            result_as_object_flags_type.set_object_flags(
+                result_as_object_flags_type.object_flags()
+                    | ObjectFlags::ObjectLiteralPatternWithComputedProperties,
+            );
+        }
+        if in_destructuring_pattern {
+            *result.maybe_pattern() = Some(node.node_wrapper());
+        }
+        result
     }
 
     pub(super) fn is_valid_spread_type(&self, type_: &Type) -> bool {
@@ -926,6 +1437,15 @@ impl TypeChecker {
         node: &Node, /*JsxElement | JsxFragment*/
         check_mode: Option<CheckMode>,
     ) -> Vec<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_spread_prop_overrides(
+        &self,
+        type_: &Type,
+        props: &SymbolTable,
+        spread: &Node, /*SpreadAssignment | JsxSpreadAttribute*/
+    ) {
         unimplemented!()
     }
 
