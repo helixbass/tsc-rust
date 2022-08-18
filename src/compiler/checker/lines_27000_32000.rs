@@ -2,30 +2,17 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::cmp;
-use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, IterationUse, JsxNames, MinArgumentCountFlags,
-    ResolveNameNameArg, TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
+    WideningKind,
 };
 use crate::{
-    concatenate, filter, get_enclosing_block_scope_container, get_jsdoc_enum_tag,
-    get_strict_option_value, has_static_modifier, is_assignment_target, is_binary_expression,
-    is_class_expression, is_class_like, is_computed_property_name,
-    is_function_expression_or_arrow_function, is_import_call, is_in_js_file, is_in_json_file,
-    is_interface_declaration, is_known_symbol, is_named_declaration, is_object_literal_method,
-    is_property_declaration, is_type_literal_node, length, parameter_is_this_keyword,
-    reduce_left_no_initial_value_optional, same_map, unescape_leading_underscores, CheckFlags,
-    ContextFlags, Debug_, Diagnostics, ElementFlags, ExternalEmitHelpers, FunctionFlags,
-    HasInitializerInterface, IndexInfo, InterfaceTypeInterface, JsxReferenceKind,
-    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, StringOrRcNode, SymbolFlags, SymbolTable, Ternary, TransientSymbolInterface,
-    TypeMapper, UnionReduction, __String, create_symbol_table, get_function_flags,
-    get_object_flags, has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    is_import_call, Diagnostics, FunctionFlags, IndexInfo, JsxReferenceKind, NodeFlags, Signature,
+    SignatureFlags, StringOrRcNode, SymbolFlags, SymbolTable, Ternary, UnionReduction, __String,
+    get_function_flags, get_object_flags, has_initializer, InferenceContext, Node, NodeInterface,
+    ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
