@@ -6,17 +6,18 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
+JsxNames,    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
     WideningKind,
 };
 use crate::{
-    create_symbol_table, every, factory, get_jsx_transform_enabled, get_source_file_of_node,
-    is_import_call, is_intrinsic_jsx_name, is_jsx_attribute, set_parent, string_contains,
-    synthetic_factory, unescape_leading_underscores, Debug_, Diagnostics, FunctionFlags, IndexInfo,
-    JsxReferenceKind, NodeArray, NodeFlags, Signature, SignatureFlags, StringOrRcNode, SymbolFlags,
-    SymbolTable, Ternary, TransientSymbolInterface, UnionReduction, __String, get_function_flags,
-    get_object_flags, has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+id_text,JsxFlags,is_identifier,    add_related_info, create_diagnostic_for_node, create_symbol_table, every, factory,
+    get_jsx_transform_enabled, get_source_file_of_node, is_import_call, is_intrinsic_jsx_name,
+    is_jsx_attribute, set_parent, string_contains, synthetic_factory, unescape_leading_underscores,
+    Debug_, Diagnostics, FunctionFlags, IndexInfo, JsxReferenceKind, NodeArray, NodeFlags,
+    Signature, SignatureFlags, StringOrRcNode, SymbolFlags, SymbolTable, Ternary,
+    TransientSymbolInterface, UnionReduction, __String, get_function_flags, get_object_flags,
+    has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -552,7 +553,26 @@ impl TypeChecker {
         node: &Node, /*JsxElement | JsxFragment*/
         check_mode: Option<CheckMode>,
     ) -> Vec<Rc<Type>> {
-        unimplemented!()
+        let mut children_types: Vec<Rc<Type>> = vec![];
+        for child in node.as_has_children().children() {
+            if child.kind() == SyntaxKind::JsxText {
+                if !child.as_jsx_text().contains_only_trivia_white_spaces {
+                    children_types.push(self.string_type());
+                }
+            } else if child.kind() == SyntaxKind::JsxExpression
+                && child.as_jsx_expression().expression.is_none()
+            {
+                continue;
+            } else {
+                children_types.push(self.check_expression_for_mutable_location(
+                    child,
+                    check_mode,
+                    Option::<&Type>::None,
+                    None,
+                ));
+            }
+        }
+        children_types
     }
 
     pub(super) fn check_spread_prop_overrides(
@@ -561,7 +581,39 @@ impl TypeChecker {
         props: &SymbolTable,
         spread: &Node, /*SpreadAssignment | JsxSpreadAttribute*/
     ) {
-        unimplemented!()
+        for right in &self.get_properties_of_type(type_) {
+            if !right.flags().intersects(SymbolFlags::Optional) {
+                let left = props.get(right.escaped_name());
+                if let Some(left) = left {
+                    let diagnostic = self.error(
+                        left.maybe_value_declaration(),
+                        &Diagnostics::_0_is_specified_more_than_once_so_this_usage_will_be_overwritten,
+                        Some(vec![
+                            unescape_leading_underscores(left.escaped_name())
+                        ])
+                    );
+                    add_related_info(
+                        &diagnostic,
+                        vec![Rc::new(
+                            create_diagnostic_for_node(
+                                spread,
+                                &Diagnostics::This_spread_always_overwrites_this_property,
+                                None,
+                            )
+                            .into(),
+                        )],
+                    );
+                }
+            }
+        }
+    }
+
+    pub(super) fn check_jsx_attributes(
+        &self,
+        node: &Node, /*JsxAttributes*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        self.create_jsx_attributes_type_from_attributes_property(&node.parent(), check_mode)
     }
 
     pub(super) fn get_jsx_type<TLocation: Borrow<Node>>(
@@ -569,14 +621,86 @@ impl TypeChecker {
         name: &__String,
         location: Option<TLocation>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let location = location.map(|location| location.borrow().node_wrapper());
+        let namespace = self.get_jsx_namespace_at(location.as_deref());
+        let exports = /*namespace &&*/ 
+            self.get_exports_of_symbol(&namespace);
+        let type_symbol = /*exports &&*/ self.get_symbol(
+            &(*exports).borrow(),
+            name,
+            SymbolFlags::Type
+        );
+        if let Some(type_symbol) = type_symbol.as_ref() {
+            self.get_declared_type_of_symbol(type_symbol)
+        } else {
+            self.error_type()
+        }
     }
 
     pub(super) fn get_intrinsic_tag_symbol(
         &self,
         node: &Node, /*JsxOpeningLikeElement | JsxClosingElement*/
     ) -> Rc<Symbol> {
-        unimplemented!()
+        let links = self.get_node_links(node);
+        let node_as_has_tag_name = node.as_has_tag_name();
+        if (*links).borrow().resolved_symbol.is_none() {
+            let intrinsic_elements_type = self.get_jsx_type(
+                &JsxNames::IntrinsicElements,
+                Some(node)
+            );
+            if !self.is_error_type(&intrinsic_elements_type) {
+                if !is_identifier(&node_as_has_tag_name.tag_name()) {
+                    Debug_.fail(None);
+                }
+                let intrinsic_prop = self.get_property_of_type_(
+                    &intrinsic_elements_type,
+                    &node_as_has_tag_name.tag_name().as_identifier().escaped_text,
+                    None,
+                );
+                if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
+                    links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicNamedElement;
+                    links.borrow_mut().resolved_symbol = Some(intrinsic_prop.clone());
+                    return intrinsic_prop.clone();
+                }
+
+                let index_signature_type = self.get_index_type_of_type_(
+                    &intrinsic_elements_type,
+                    &self.string_type()
+                );
+                if let Some(index_signature_type) = index_signature_type.as_ref() {
+                    links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
+                    links.borrow_mut().resolved_symbol = Some(intrinsic_elements_type.symbol());
+                    return intrinsic_elements_type.symbol();
+                }
+
+                self.error(
+                    Some(node),
+                    &Diagnostics::Property_0_does_not_exist_on_type_1,
+                    Some(vec![
+                        id_text(&node_as_has_tag_name.tag_name()),
+                        format!("JSX.{}", &**JsxNames::IntrinsicElements)
+                    ])
+                );
+                let ret = self.unknown_symbol();
+                links.borrow_mut().resolved_symbol = Some(ret.clone());
+                return ret;
+            } else {
+                if self.no_implicit_any {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::JSX_element_implicitly_has_type_any_because_no_interface_JSX_0_exists,
+                        Some(vec![
+                            unescape_leading_underscores(&JsxNames::IntrinsicElements)
+                        ])
+                    );
+                }
+                let ret = self.unknown_symbol();
+                links.borrow_mut().resolved_symbol = Some(ret.clone());
+                return ret;
+            }
+        }
+        let ret = (*links).borrow().resolved_symbol.clone().unwrap();
+        ret
     }
 
     pub(super) fn get_jsx_namespace_at<TLocation: Borrow<Node>>(

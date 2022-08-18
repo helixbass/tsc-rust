@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
     BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
-    Node, ObjectFlags, Pattern, WeakSelf,
+    JsxFlags, Node, ObjectFlags, Pattern, WeakSelf,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -241,6 +241,7 @@ pub struct NodeLinks {
     pub effects_signature: Option<Rc<Signature>>,
     pub is_visible: Option<bool>,
     pub contains_arguments_reference: Option<bool>,
+    pub jsx_flags: JsxFlags,
     pub resolved_jsdoc_type: Option<Rc<Type>>,
     pub switch_types: Option<Vec<Rc<Type>>>,
     pub captured_block_scope_bindings: Option<Vec<Rc<Symbol>>>,
@@ -261,6 +262,7 @@ impl NodeLinks {
             is_visible: None,
             effects_signature: None,
             contains_arguments_reference: None,
+            jsx_flags: JsxFlags::None,
             resolved_jsdoc_type: None,
             switch_types: None,
             captured_block_scope_bindings: None,

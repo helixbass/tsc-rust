@@ -30,6 +30,10 @@ impl MetaProperty {
     }
 }
 
+pub trait HasChildrenInterface {
+    fn children(&self) -> &NodeArray;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct JsxElement {
@@ -52,6 +56,12 @@ impl JsxElement {
             children,
             closing_element,
         }
+    }
+}
+
+impl HasChildrenInterface for JsxElement {
+    fn children(&self) -> &NodeArray {
+        &self.children
     }
 }
 
@@ -102,16 +112,21 @@ impl JsxOpeningElement {
     }
 }
 
-pub trait JsxOpeningLikeElementInterface {
+pub trait HasTagNameInterface {
     fn tag_name(&self) -> Rc<Node>;
+}
+
+pub trait JsxOpeningLikeElementInterface: HasTagNameInterface {
     fn attributes(&self) -> Rc<Node>;
 }
 
-impl JsxOpeningLikeElementInterface for JsxOpeningElement {
+impl HasTagNameInterface for JsxOpeningElement {
     fn tag_name(&self) -> Rc<Node> {
         self.tag_name.clone()
     }
+}
 
+impl JsxOpeningLikeElementInterface for JsxOpeningElement {
     fn attributes(&self) -> Rc<Node> {
         self.attributes.clone()
     }
@@ -142,11 +157,13 @@ impl JsxSelfClosingElement {
     }
 }
 
-impl JsxOpeningLikeElementInterface for JsxSelfClosingElement {
+impl HasTagNameInterface for JsxSelfClosingElement {
     fn tag_name(&self) -> Rc<Node> {
         self.tag_name.clone()
     }
+}
 
+impl JsxOpeningLikeElementInterface for JsxSelfClosingElement {
     fn attributes(&self) -> Rc<Node> {
         self.attributes.clone()
     }
@@ -174,6 +191,12 @@ impl JsxFragment {
             children,
             closing_fragment,
         }
+    }
+}
+
+impl HasChildrenInterface for JsxFragment {
+    fn children(&self) -> &NodeArray {
+        &self.children
     }
 }
 
@@ -278,6 +301,12 @@ impl JsxClosingElement {
             _node: base_node,
             tag_name,
         }
+    }
+}
+
+impl HasTagNameInterface for JsxClosingElement {
+    fn tag_name(&self) -> Rc<Node> {
+        self.tag_name.clone()
     }
 }
 

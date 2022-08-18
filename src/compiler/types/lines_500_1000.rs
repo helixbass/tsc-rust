@@ -5,7 +5,8 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
 use crate::{
-    HasArgumentsInterface, InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
+    HasArgumentsInterface, HasChildrenInterface, HasTagNameInterface, InferenceContext,
+    JsxOpeningLikeElementInterface, SyntheticExpression,
 };
 
 use super::{
@@ -135,6 +136,16 @@ bitflags! {
         const TypeScriptModifier = Self::Ambient.bits | Self::Public.bits | Self::Private.bits | Self::Protected.bits | Self::Readonly.bits | Self::Abstract.bits | Self::Const.bits | Self::Override.bits;
         const ExportDefault = Self::Export.bits | Self::Default.bits;
         const All = Self::Export.bits | Self::Ambient.bits | Self::Public.bits | Self::Private.bits | Self::Protected.bits | Self::Static.bits | Self::Readonly.bits | Self::Abstract.bits | Self::Async.bits | Self::Default.bits | Self::Const.bits | Self::Deprecated.bits | Self::Override.bits;
+    }
+}
+
+bitflags! {
+    pub struct JsxFlags: u32 {
+        const None = 0;
+        const IntrinsicNamedElement = 1 << 0;
+        const IntrinsicIndexedElement = 1 << 1;
+
+        const IntrinsicElement = Self::IntrinsicNamedElement.bits | Self::IntrinsicIndexedElement.bits;
     }
 }
 
@@ -720,6 +731,23 @@ impl Node {
             Node::PrefixUnaryExpression(node) => node,
             Node::PostfixUnaryExpression(node) => node,
             _ => panic!("Expected unary expression"),
+        }
+    }
+
+    pub fn as_has_children(&self) -> &dyn HasChildrenInterface {
+        match self {
+            Node::JsxElement(node) => node,
+            Node::JsxFragment(node) => node,
+            _ => panic!("Expected has children"),
+        }
+    }
+
+    pub fn as_has_tag_name(&self) -> &dyn HasTagNameInterface {
+        match self {
+            Node::JsxOpeningElement(node) => node,
+            Node::JsxSelfClosingElement(node) => node,
+            Node::JsxClosingElement(node) => node,
+            _ => panic!("Expected has tag name"),
         }
     }
 
