@@ -1274,6 +1274,14 @@ impl Node {
     pub fn as_jsx_attribute(&self) -> &JsxAttribute {
         enum_unwrapped!(self, [Node, JsxAttribute])
     }
+
+    pub fn as_jsx_fragment(&self) -> &JsxFragment {
+        enum_unwrapped!(self, [Node, JsxFragment])
+    }
+
+    pub fn as_jsx_spread_attribute(&self) -> &JsxSpreadAttribute {
+        enum_unwrapped!(self, [Node, JsxSpreadAttribute])
+    }
 }
 
 #[derive(Debug)]

@@ -2768,6 +2768,10 @@ impl TypeChecker {
         self.empty_object_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn empty_jsx_object_type(&self) -> Rc<Type> {
+        self.empty_jsx_object_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn empty_type_literal_type(&self) -> Rc<Type> {
         self.empty_type_literal_type.as_ref().unwrap().clone()
     }
