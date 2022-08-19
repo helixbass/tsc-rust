@@ -8,34 +8,92 @@ use super::{
     WideningKind,
 };
 use crate::{
-    is_import_call, Diagnostics, FunctionFlags, JsxReferenceKind, Signature, SignatureFlags,
-    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, get_function_flags,
-    has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    get_this_container, get_this_parameter, is_function_like, is_import_call, Diagnostics,
+    FunctionFlags, JsxReferenceKind, Signature, SignatureFlags, StringOrRcNode, SymbolFlags,
+    Ternary, UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn get_this_parameter_from_node_context(&self, node: &Node) -> Option<Rc<Node>> {
-        unimplemented!()
+        let this_container = get_this_container(node, false);
+        /*thisContainer &&*/
+        if is_function_like(Some(&*this_container)) {
+            get_this_parameter(&this_container)
+        } else {
+            None
+        }
     }
 
     pub(super) fn symbol_has_non_method_declaration(&self, symbol: &Symbol) -> bool {
-        unimplemented!()
+        self.for_each_property_bool(symbol, &mut |prop: &Symbol| {
+            !prop.flags().intersects(SymbolFlags::Method)
+        })
     }
 
     pub(super) fn check_non_null_expression(
         &self,
         node: &Node, /*Expression | QualifiedName*/
     ) -> Rc<Type> {
-        unimplemented!()
+        self.check_non_null_type(&self.check_expression(node, None, None), node)
     }
 
     pub(super) fn is_nullable_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        if self.strict_null_checks {
+            self.get_falsy_flags(type_)
+        } else {
+            type_.flags()
+        }
+        .intersects(TypeFlags::Nullable)
     }
 
     pub(super) fn get_non_nullable_type_if_needed(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        if self.is_nullable_type(type_) {
+            self.get_non_nullable_type(&type_)
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn report_object_possibly_null_or_undefined_error(
+        &self,
+        node: &Node,
+        flags: TypeFlags,
+    ) {
+        self.error(
+            Some(node),
+            if flags.intersects(TypeFlags::Undefined) {
+                if flags.intersects(TypeFlags::Null) {
+                    &*Diagnostics::Object_is_possibly_null_or_undefined
+                } else {
+                    &*Diagnostics::Object_is_possibly_undefined
+                }
+            } else {
+                &*Diagnostics::Object_is_possibly_null
+            },
+            None,
+        );
+    }
+
+    pub(super) fn report_cannot_invoke_possibly_null_or_undefined_error(
+        &self,
+        node: &Node,
+        flags: TypeFlags,
+    ) {
+        self.error(
+            Some(node),
+            if flags.intersects(TypeFlags::Undefined) {
+                if flags.intersects(TypeFlags::Null) {
+                    &*Diagnostics::Cannot_invoke_an_object_which_is_possibly_null_or_undefined
+                } else {
+                    &*Diagnostics::Cannot_invoke_an_object_which_is_possibly_undefined
+                }
+            } else {
+                &*Diagnostics::Cannot_invoke_an_object_which_is_possibly_null
+            },
+            None,
+        );
     }
 
     pub(super) fn check_non_null_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
