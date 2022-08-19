@@ -1,25 +1,17 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, JsxNames, MinArgumentCountFlags, ResolveNameNameArg,
-    TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
+    WideningKind,
 };
 use crate::{
-    add_related_info, create_diagnostic_for_node, create_symbol_table, every, factory,
-    get_emit_module_resolution_kind, get_jsx_implicit_import_base, get_jsx_runtime_import,
-    get_jsx_transform_enabled, get_source_file_of_node, id_text, is_identifier, is_import_call,
-    is_intrinsic_jsx_name, is_jsx_attribute, set_parent, string_contains, synthetic_factory,
-    unescape_leading_underscores, Debug_, Diagnostics, FunctionFlags, IndexInfo, JsxFlags,
-    JsxReferenceKind, ModuleResolutionKind, NodeArray, NodeFlags, Signature, SignatureFlags,
-    StringOrRcNode, SymbolFlags, SymbolTable, Ternary, TransientSymbolInterface, UnionReduction,
-    __String, get_function_flags, get_object_flags, has_initializer, InferenceContext, Node,
-    NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    is_import_call, Diagnostics, FunctionFlags, JsxReferenceKind, NodeFlags, Signature,
+    SignatureFlags, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
+    get_function_flags, get_object_flags, has_initializer, InferenceContext, Node, NodeInterface,
+    ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
