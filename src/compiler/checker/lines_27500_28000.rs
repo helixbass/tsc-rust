@@ -4,24 +4,19 @@ use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{
-    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain, JsxNames,
-    MinArgumentCountFlags, ResolveNameNameArg, TypeFacts, WideningKind,
-};
+use super::{CheckMode, CheckTypeContainingMessageChain, JsxNames};
 use crate::{
     chain_diagnostic_messages, escape_leading_underscores, every, get_assignment_declaration_kind,
     get_check_flags, get_class_like_declaration_of_symbol, get_combined_node_flags,
     get_declaration_modifier_flags_from_symbol, get_source_file_of_node,
-    get_text_of_identifier_or_literal, get_text_of_node, is_binary_expression, is_import_call,
-    is_in_js_file, is_jsx_opening_fragment, is_jsx_opening_like_element, is_object_binding_pattern,
+    get_text_of_identifier_or_literal, get_text_of_node, is_binary_expression, is_in_js_file,
+    is_jsx_opening_fragment, is_jsx_opening_like_element, is_object_binding_pattern,
     is_this_initialized_declaration, is_this_initialized_object_binding_expression,
     is_this_property, map, some, unescape_leading_underscores, AssignmentDeclarationKind,
-    CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics, FunctionFlags, HasTypeInterface,
-    JsxEmit, JsxFlags, JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary,
-    UnionOrIntersectionTypeInterface, UnionReduction, __String, get_function_flags,
-    get_object_flags, has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
+    JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
+    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, Node, NodeInterface,
+    ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
