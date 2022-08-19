@@ -9,11 +9,15 @@ use super::{
     TypeFacts, WideningKind,
 };
 use crate::{
-    add_related_info, create_diagnostic_for_node, find_ancestor, for_each, get_containing_class,
-    get_symbol_name_for_private_identifier, get_this_container, get_this_parameter, id_text,
-    is_call_or_new_expression, is_expression_node, is_function_like, is_import_call,
-    is_named_declaration, is_part_of_type_query, is_private_identifier, is_this_identifier, Debug_,
-    Diagnostics, FunctionFlags, JsxReferenceKind, NodeFlags, Signature, SignatureFlags,
+    add_related_info, create_diagnostic_for_node, find_ancestor, for_each,
+    get_assignment_target_kind, get_containing_class, get_symbol_name_for_private_identifier,
+    get_this_container, get_this_parameter, id_text, is_assignment_target,
+    is_call_or_new_expression, is_delete_target, is_expression_node, is_function_like,
+    is_identifier, is_import_call, is_method_declaration, is_named_declaration,
+    is_part_of_type_query, is_private_identifier, is_property_access_expression,
+    is_this_identifier, is_this_property, is_write_access, should_preserve_const_enums,
+    unescape_leading_underscores, AssignmentKind, Debug_, Diagnostics, ExternalEmitHelpers,
+    FunctionFlags, JsxReferenceKind, NodeFlags, ScriptTarget, Signature, SignatureFlags,
     StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, get_function_flags,
     has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
     Type, TypeChecker, TypeFlags, TypeInterface,
@@ -428,7 +432,15 @@ impl TypeChecker {
         node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
         prop: &Symbol,
     ) -> bool {
-        unimplemented!()
+        (self.is_constructor_declared_property(prop)
+            || is_this_property(node) && self.is_auto_typed_property(prop))
+            && matches!(
+                self.get_declaring_constructor(prop).as_ref(),
+                Some(declaring_constructor) if Rc::ptr_eq(
+                    &get_this_container(node, true),
+                    declaring_constructor
+                )
+            )
     }
 
     pub(super) fn check_property_access_expression_or_qualified_name(
@@ -439,7 +451,317 @@ impl TypeChecker {
         right: &Node, /*Identifier | PrivateIdentifier*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let parent_symbol = (*self.get_node_links(left))
+            .borrow()
+            .resolved_symbol
+            .clone();
+        let assignment_kind = get_assignment_target_kind(node);
+        let apparent_type = self.get_apparent_type(&*if assignment_kind != AssignmentKind::None
+            || self.is_method_access_for_call(node)
+        {
+            self.get_widened_type(left_type)
+        } else {
+            left_type.type_wrapper()
+        });
+        let is_any_like = self.is_type_any(Some(&*apparent_type))
+            || Rc::ptr_eq(&apparent_type, &self.silent_never_type());
+        let mut prop: Option<Rc<Symbol>> = None;
+        if is_private_identifier(right) {
+            if self.language_version < ScriptTarget::ESNext {
+                if assignment_kind != AssignmentKind::None {
+                    self.check_external_emit_helpers(
+                        node,
+                        ExternalEmitHelpers::ClassPrivateFieldSet,
+                    );
+                }
+                if assignment_kind != AssignmentKind::Definite {
+                    self.check_external_emit_helpers(
+                        node,
+                        ExternalEmitHelpers::ClassPrivateFieldGet,
+                    );
+                }
+            }
+
+            let lexically_scoped_symbol = self.lookup_symbol_for_private_identifier_declaration(
+                &right.as_private_identifier().escaped_text,
+                right,
+            );
+            if assignment_kind != AssignmentKind::None
+                && matches!(
+                    lexically_scoped_symbol.as_ref().and_then(|lexically_scoped_symbol| lexically_scoped_symbol.maybe_value_declaration()).as_ref(),
+                    Some(lexically_scoped_symbol_value_declaration) if is_method_declaration(lexically_scoped_symbol_value_declaration)
+                )
+            {
+                self.grammar_error_on_node(
+                    right,
+                    &Diagnostics::Cannot_assign_to_private_method_0_Private_methods_are_not_writable,
+                    Some(vec![
+                        id_text(right)
+                    ])
+                );
+            }
+
+            if is_any_like {
+                if lexically_scoped_symbol.is_some() {
+                    return if self.is_error_type(&apparent_type) {
+                        self.error_type()
+                    } else {
+                        apparent_type
+                    };
+                }
+                if get_containing_class(right).is_none() {
+                    self.grammar_error_on_node(
+                        right,
+                        &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+                        None,
+                    );
+                    return self.any_type();
+                }
+            }
+            prop = lexically_scoped_symbol
+                .as_ref()
+                .and_then(|lexically_scoped_symbol| {
+                    self.get_private_identifier_property_of_type_(
+                        left_type,
+                        lexically_scoped_symbol,
+                    )
+                });
+            if prop.is_none()
+                && self.check_private_identifier_property_access(
+                    left_type,
+                    right,
+                    lexically_scoped_symbol.as_deref(),
+                )
+            {
+                return self.error_type();
+            } else {
+                let is_setonly_accessor = matches!(
+                    prop.as_ref(),
+                    Some(prop) if prop.flags().intersects(SymbolFlags::SetAccessor) &&
+                        !prop.flags().intersects(SymbolFlags::GetAccessor)
+                );
+                if is_setonly_accessor && assignment_kind != AssignmentKind::Definite {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Private_accessor_was_defined_without_a_getter,
+                        None,
+                    );
+                }
+            }
+        } else {
+            if is_any_like {
+                if is_identifier(left) {
+                    if let Some(parent_symbol) = parent_symbol.as_ref() {
+                        self.mark_alias_referenced(parent_symbol, node);
+                    }
+                }
+                return if self.is_error_type(&apparent_type) {
+                    self.error_type()
+                } else {
+                    apparent_type
+                };
+            }
+            prop = self.get_property_of_type_(
+                &apparent_type,
+                &right.as_identifier().escaped_text,
+                None,
+            );
+        }
+        if is_identifier(left) {
+            if let Some(parent_symbol) = parent_symbol.as_ref() {
+                if self.compiler_options.isolated_modules == Some(true)
+                    || !matches!(
+                        prop.as_ref(),
+                        Some(prop) if self.is_const_enum_or_const_enum_only_module(prop)
+                    )
+                    || should_preserve_const_enums(&self.compiler_options)
+                        && self.is_export_or_export_expression(node)
+                {
+                    self.mark_alias_referenced(parent_symbol, node);
+                }
+            }
+        }
+
+        let prop_type: Rc<Type>;
+        match prop.as_ref() {
+            None => {
+                let index_info = if !is_private_identifier(right)
+                    && (assignment_kind == AssignmentKind::None
+                        || !self.is_generic_object_type(left_type)
+                        || self.is_this_type_parameter(left_type))
+                {
+                    self.get_applicable_index_info_for_name(
+                        &apparent_type,
+                        &right.as_identifier().escaped_text,
+                    )
+                } else {
+                    None
+                };
+                if !index_info.is_some()
+                /*&& indexInfo.type*/
+                {
+                    let is_unchecked_js =
+                        self.is_unchecked_js_suggestion(Some(node), left_type.maybe_symbol(), true);
+                    if !is_unchecked_js && self.is_js_literal_type(left_type) {
+                        return self.any_type();
+                    }
+                    if matches!(
+                        left_type.maybe_symbol().as_ref(),
+                        Some(left_type_symbol) if Rc::ptr_eq(
+                            left_type_symbol,
+                            &self.global_this_symbol()
+                        )
+                    ) {
+                        let global_this_symbol_exports =
+                            self.global_this_symbol().maybe_exports().clone().unwrap();
+                        if (*global_this_symbol_exports)
+                            .borrow()
+                            .contains_key(&right.as_member_name().escaped_text())
+                            && (*global_this_symbol_exports)
+                                .borrow()
+                                .get(&right.as_member_name().escaped_text())
+                                .unwrap()
+                                .flags()
+                                .intersects(SymbolFlags::BlockScoped)
+                        {
+                            self.error(
+                                Some(right),
+                                &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                Some(vec![
+                                    unescape_leading_underscores(
+                                        &right.as_member_name().escaped_text(),
+                                    ),
+                                    self.type_to_string_(
+                                        left_type,
+                                        Option::<&Node>::None,
+                                        None,
+                                        None,
+                                    ),
+                                ]),
+                            );
+                        } else if self.no_implicit_any {
+                            self.error(
+                                Some(right),
+                                &Diagnostics::Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature,
+                                Some(vec![
+                                    self.type_to_string_(
+                                        left_type,
+                                        Option::<&Node>::None,
+                                        None, None,
+                                    )
+                                ])
+                            );
+                        }
+                        return self.any_type();
+                    }
+                    if !right.as_member_name().escaped_text().is_empty()
+                        && !self.check_and_report_error_for_extending_interface(node)
+                    {
+                        self.report_nonexistent_property(
+                            right,
+                            if self.is_this_type_parameter(left_type) {
+                                &*apparent_type
+                            } else {
+                                left_type
+                            },
+                            is_unchecked_js,
+                        );
+                    }
+                    return self.error_type();
+                }
+                let index_info = index_info.unwrap();
+                if index_info.is_readonly && (is_assignment_target(node) || is_delete_target(node))
+                {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Index_signature_in_type_0_only_permits_reading,
+                        Some(vec![self.type_to_string_(
+                            &apparent_type,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        )]),
+                    );
+                }
+
+                prop_type = if self.compiler_options.no_unchecked_indexed_access == Some(true)
+                    && !is_assignment_target(node)
+                {
+                    self.get_union_type(
+                        vec![index_info.type_.clone(), self.undefined_type()],
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                } else {
+                    index_info.type_.clone()
+                };
+                if self
+                    .compiler_options
+                    .no_property_access_from_index_signature
+                    == Some(true)
+                    && is_property_access_expression(node)
+                {
+                    self.error(
+                        Some(right),
+                        &Diagnostics::Property_0_comes_from_an_index_signature_so_it_must_be_accessed_with_0,
+                        Some(vec![
+                            unescape_leading_underscores(&right.as_member_name().escaped_text())
+                        ])
+                    );
+                }
+            }
+            Some(prop) => {
+                if let Some(prop_declarations) = prop.maybe_declarations().as_ref() {
+                    if self
+                        .get_declaration_node_flags_from_symbol(prop)
+                        .intersects(NodeFlags::Deprecated)
+                        && self.is_uncalled_function_reference(node, prop)
+                    {
+                        self.add_deprecated_suggestion(
+                            right,
+                            prop_declarations,
+                            &*right.as_member_name().escaped_text(),
+                        );
+                    }
+                }
+                self.check_property_not_used_before_declaration(prop, node, right);
+                self.mark_property_as_referenced(
+                    prop,
+                    Some(node),
+                    self.is_self_type_access(left, parent_symbol.as_deref()),
+                );
+                self.get_node_links(node).borrow_mut().resolved_symbol = Some(prop.clone());
+                let writing = is_write_access(node);
+                self.check_property_accessibility(
+                    node,
+                    left.kind() == SyntaxKind::SuperKeyword,
+                    writing,
+                    &apparent_type,
+                    prop,
+                    None,
+                );
+                if self.is_assignment_to_readonly_entity(node, prop, assignment_kind) {
+                    self.error(
+                        Some(right),
+                        &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
+                        Some(vec![id_text(right)]),
+                    );
+                    return self.error_type();
+                }
+
+                prop_type = if self.is_this_property_access_in_constructor(node, prop) {
+                    self.auto_type()
+                } else if writing {
+                    self.get_set_accessor_type_of_symbol(prop)
+                } else {
+                    self.get_type_of_symbol(prop)
+                };
+            }
+        }
+
+        self.get_flow_type_of_access_expression(node, prop, &prop_type, right, check_mode)
     }
 
     pub(super) fn is_unchecked_js_suggestion<TNode: Borrow<Node>, TSuggestion: Borrow<Symbol>>(
@@ -451,7 +773,36 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_flow_type_of_access_expression<TProp: Borrow<Symbol>>(
+        &self,
+        node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
+        prop: Option<TProp>,
+        prop_type: &Type,
+        error_node: &Node,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_property_not_used_before_declaration(
+        &self,
+        prop: &Symbol,
+        node: &Node,  /*PropertyAccessExpression | QualifiedName*/
+        right: &Node, /*Identifier | PrivateIdentifier*/
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn is_in_property_initializer_or_class_static_block(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn report_nonexistent_property(
+        &self,
+        prop_node: &Node, /*Identifier | PrivateIdentifier*/
+        containing_type: &Type,
+        is_unchecked_js: bool,
+    ) {
         unimplemented!()
     }
 
