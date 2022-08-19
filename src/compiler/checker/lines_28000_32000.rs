@@ -1,19 +1,22 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
-    WideningKind,
+    anon, signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg,
+    TypeFacts, WideningKind,
 };
 use crate::{
-    get_this_container, get_this_parameter, is_call_or_new_expression, is_function_like,
-    is_import_call, is_part_of_type_query, is_this_identifier, Diagnostics, FunctionFlags,
-    JsxReferenceKind, NodeFlags, Signature, SignatureFlags, StringOrRcNode, SymbolFlags, Ternary,
-    UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    add_related_info, create_diagnostic_for_node, find_ancestor, for_each, get_containing_class,
+    get_symbol_name_for_private_identifier, get_this_container, get_this_parameter, id_text,
+    is_call_or_new_expression, is_expression_node, is_function_like, is_import_call,
+    is_named_declaration, is_part_of_type_query, is_private_identifier, is_this_identifier, Debug_,
+    Diagnostics, FunctionFlags, JsxReferenceKind, NodeFlags, Signature, SignatureFlags,
+    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, get_function_flags,
+    has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -224,14 +227,89 @@ impl TypeChecker {
         prop_name: &__String,
         location: &Node,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let mut containing_class = get_containing_class(location);
+        while let Some(containing_class_present) = containing_class.as_ref() {
+            let symbol = containing_class_present.symbol();
+            let name = get_symbol_name_for_private_identifier(&symbol, prop_name);
+            let prop = symbol
+                .maybe_members()
+                .as_ref()
+                .and_then(|symbol_members| (**symbol_members).borrow().get(&name).cloned())
+                .or_else(|| {
+                    symbol
+                        .maybe_exports()
+                        .as_ref()
+                        .and_then(|symbol_exports| (**symbol_exports).borrow().get(&name).cloned())
+                });
+            if prop.is_some() {
+                return prop;
+            }
+            containing_class = get_containing_class(containing_class_present);
+        }
+        None
+    }
+
+    pub(super) fn check_grammar_private_identifier_expression(
+        &self,
+        priv_id: &Node, /*PrivateIdentifier*/
+    ) -> bool {
+        if get_containing_class(priv_id).is_none() {
+            return self.grammar_error_on_node(
+                priv_id,
+                &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+                None,
+            );
+        }
+        if !is_expression_node(priv_id) {
+            return self.grammar_error_on_node(
+                priv_id,
+                &Diagnostics::Private_identifiers_are_only_allowed_in_class_bodies_and_may_only_be_used_as_part_of_a_class_member_declaration_property_access_or_on_the_left_hand_side_of_an_in_expression,
+                None,
+            );
+        }
+        if self
+            .get_symbol_for_private_identifier_expression(priv_id)
+            .is_none()
+        {
+            return self.grammar_error_on_node(
+                priv_id,
+                &Diagnostics::Cannot_find_name_0,
+                Some(vec![id_text(priv_id)]),
+            );
+        }
+        false
+    }
+
+    pub(super) fn check_private_identifier_expression(
+        &self,
+        priv_id: &Node, /*PrivateIdentifier*/
+    ) -> Rc<Type> {
+        self.check_grammar_private_identifier_expression(priv_id);
+        let symbol = self.get_symbol_for_private_identifier_expression(priv_id);
+        if let Some(symbol) = symbol.as_ref() {
+            self.mark_property_as_referenced(symbol, Option::<&Node>::None, false);
+        }
+        self.any_type()
     }
 
     pub(super) fn get_symbol_for_private_identifier_expression(
         &self,
         priv_id: &Node, /*PrivateIdentifier*/
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if !is_expression_node(priv_id) {
+            return None;
+        }
+
+        let links = self.get_node_links(priv_id);
+        if (*links).borrow().resolved_symbol.is_none() {
+            links.borrow_mut().resolved_symbol = self
+                .lookup_symbol_for_private_identifier_declaration(
+                    &priv_id.as_private_identifier().escaped_text,
+                    priv_id,
+                );
+        }
+        let ret = (*links).borrow().resolved_symbol.clone();
+        ret
     }
 
     pub(super) fn get_private_identifier_property_of_type_(
@@ -239,7 +317,110 @@ impl TypeChecker {
         left_type: &Type,
         lexically_scoped_identifier: &Symbol,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        self.get_property_of_type_(left_type, lexically_scoped_identifier.escaped_name(), None)
+    }
+
+    pub(super) fn check_private_identifier_property_access<
+        TLexicallyScopedIdentifier: Borrow<Symbol>,
+    >(
+        &self,
+        left_type: &Type,
+        right: &Node, /*PrivateIdentifier*/
+        lexically_scoped_identifier: Option<TLexicallyScopedIdentifier>,
+    ) -> bool {
+        let mut property_on_type: Option<Rc<Symbol>> = None;
+        let properties = self.get_properties_of_type(left_type);
+        // if (properties) {
+        let right_as_private_identifier = right.as_private_identifier();
+        for_each(&properties, |symbol: &Rc<Symbol>, _| {
+            let decl = symbol.maybe_value_declaration();
+            if matches!(
+                decl.as_ref(),
+                Some(decl) if is_named_declaration(decl) &&
+                    is_private_identifier(&decl.as_named_declaration().name()) &&
+                    decl.as_named_declaration().name().as_identifier().escaped_text == right_as_private_identifier.escaped_text
+            ) {
+                property_on_type = Some(symbol.clone());
+                return Some(());
+            }
+            None
+        });
+        // }
+        let diag_name = self
+            .diagnostic_name(right.node_wrapper().into())
+            .into_owned();
+        if let Some(property_on_type) = property_on_type.as_ref() {
+            let type_value_decl =
+                Debug_.check_defined(property_on_type.maybe_value_declaration(), None);
+            let type_class = Debug_.check_defined(get_containing_class(&type_value_decl), None);
+            if let Some(lexically_scoped_identifier_value_declaration) = lexically_scoped_identifier
+                .and_then(|lexically_scoped_identifier| {
+                    lexically_scoped_identifier
+                        .borrow()
+                        .maybe_value_declaration()
+                })
+            {
+                let lexical_value_decl = lexically_scoped_identifier_value_declaration;
+                let lexical_class = get_containing_class(&lexical_value_decl);
+                Debug_.assert(lexical_class.is_some(), None);
+                let lexical_class = lexical_class.unwrap();
+                if find_ancestor(Some(&*lexical_class), |n: &Node| ptr::eq(&*type_class, n))
+                    .is_some()
+                {
+                    let diagnostic = self.error(
+                        Some(right),
+                        &Diagnostics::The_property_0_cannot_be_accessed_on_type_1_within_this_class_because_it_is_shadowed_by_another_private_identifier_with_the_same_spelling,
+                        Some(vec![
+                            diag_name.clone(),
+                            self.type_to_string_(
+                                left_type,
+                                Option::<&Node>::None,
+                                None, None,
+                            )
+                        ])
+                    );
+
+                    add_related_info(
+                        &diagnostic,
+                        vec![
+                            Rc::new(
+                                create_diagnostic_for_node(
+                                    &lexical_value_decl,
+                                    &Diagnostics::The_shadowing_declaration_of_0_is_defined_here,
+                                    Some(vec![
+                                        diag_name.clone(),
+                                    ])
+                                ).into()
+                            ),
+                            Rc::new(
+                                create_diagnostic_for_node(
+                                    &type_value_decl,
+                                    &Diagnostics::The_declaration_of_0_that_you_probably_intended_to_use_is_defined_here,
+                                    Some(vec![
+                                        diag_name.clone(),
+                                    ])
+                                ).into()
+                            ),
+                        ]
+                    );
+                    return true;
+                }
+            }
+            self.error(
+                Some(right),
+                &Diagnostics::Property_0_is_not_accessible_outside_class_1_because_it_has_a_private_identifier,
+                Some(vec![
+                    diag_name,
+                    self.diagnostic_name(
+                        type_class.as_named_declaration().maybe_name().map_or_else(|| {
+                            anon.clone().into()
+                        }, Into::into)
+                    ).into_owned()
+                ])
+            );
+            return true;
+        }
+        false
     }
 
     pub(super) fn is_this_property_access_in_constructor(
