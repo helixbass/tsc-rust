@@ -10,15 +10,18 @@ use super::{
 };
 use crate::{
     chain_diagnostic_messages, escape_leading_underscores, every, get_assignment_declaration_kind,
-    get_check_flags, get_combined_node_flags, get_source_file_of_node, get_text_of_node,
-    is_binary_expression, is_import_call, is_in_js_file, is_jsx_opening_fragment,
-    is_jsx_opening_like_element, map, some, unescape_leading_underscores,
-    AssignmentDeclarationKind, CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics,
-    FunctionFlags, JsxEmit, JsxFlags, JsxReferenceKind, NodeFlags, Signature, SignatureFlags,
-    SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionOrIntersectionTypeInterface,
-    UnionReduction, __String, get_function_flags, get_object_flags, has_initializer,
-    InferenceContext, Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    get_check_flags, get_class_like_declaration_of_symbol, get_combined_node_flags,
+    get_declaration_modifier_flags_from_symbol, get_source_file_of_node,
+    get_text_of_identifier_or_literal, get_text_of_node, is_binary_expression, is_import_call,
+    is_in_js_file, is_jsx_opening_fragment, is_jsx_opening_like_element, is_object_binding_pattern,
+    is_this_initialized_declaration, is_this_initialized_object_binding_expression,
+    is_this_property, map, some, unescape_leading_underscores, AssignmentDeclarationKind,
+    CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics, FunctionFlags, HasTypeInterface,
+    JsxEmit, JsxFlags, JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature,
+    SignatureFlags, SignatureKind, StringOrRcNode, SymbolFlags, Ternary,
+    UnionOrIntersectionTypeInterface, UnionReduction, __String, get_function_flags,
+    get_object_flags, has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -597,6 +600,234 @@ impl TypeChecker {
         prop: &Symbol,
         error_node: Option<TErrorNode>,
     ) -> bool {
+        let flags = get_declaration_modifier_flags_from_symbol(prop, Some(writing));
+
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        if is_super {
+            if self.language_version < ScriptTarget::ES2015 {
+                if self.symbol_has_non_method_declaration(prop) {
+                    if error_node.is_some() {
+                        self.error(
+                            error_node.as_deref(),
+                            &Diagnostics::Only_public_and_protected_methods_of_the_base_class_are_accessible_via_the_super_keyword,
+                            None,
+                        );
+                    }
+                    return false;
+                }
+            }
+            if flags.intersects(ModifierFlags::Abstract) {
+                if error_node.is_some() {
+                    self.error(
+                        error_node.as_deref(),
+                        &Diagnostics::Abstract_method_0_in_class_1_cannot_be_accessed_via_super_expression,
+                        Some(vec![
+                            self.symbol_to_string_(
+                                prop,
+                                Option::<&Node>::None,
+                                None, None, None
+                            ),
+                            self.type_to_string_(
+                                &self.get_declaring_class(prop).unwrap(),
+                                Option::<&Node>::None,
+                                None, None,
+                            ),
+                        ])
+                    );
+                }
+                return false;
+            }
+        }
+
+        if flags.intersects(ModifierFlags::Abstract)
+            && self.symbol_has_non_method_declaration(prop)
+            && (is_this_property(location)
+                || is_this_initialized_object_binding_expression(Some(location))
+                || is_object_binding_pattern(&location.parent())
+                    && is_this_initialized_declaration(location.parent().maybe_parent()))
+        {
+            let declaring_class_declaration =
+                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop).unwrap());
+            if let Some(declaring_class_declaration) = declaring_class_declaration.as_ref() {
+                if self.is_node_used_during_class_initialization(location) {
+                    if error_node.is_some() {
+                        self.error(
+                            error_node.as_deref(),
+                            &Diagnostics::Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor,
+                            Some(vec![
+                                self.symbol_to_string_(
+                                    prop,
+                                    Option::<&Node>::None, None, None, None,
+                                ),
+                                get_text_of_identifier_or_literal(&declaring_class_declaration.as_named_declaration().name())
+                            ])
+                        );
+                    }
+                    return false;
+                }
+            }
+        }
+
+        if !flags.intersects(ModifierFlags::NonPublicAccessibilityModifier) {
+            return true;
+        }
+
+        if flags.intersects(ModifierFlags::Private) {
+            let declaring_class_declaration =
+                get_class_like_declaration_of_symbol(&self.get_parent_of_symbol(prop).unwrap())
+                    .unwrap();
+            if !self.is_node_within_class(location, &declaring_class_declaration) {
+                if error_node.is_some() {
+                    self.error(
+                        error_node.as_deref(),
+                        &Diagnostics::Property_0_is_private_and_only_accessible_within_class_1,
+                        Some(vec![
+                            self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None),
+                            self.type_to_string_(
+                                &self.get_declaring_class(prop).unwrap(),
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            ),
+                        ]),
+                    );
+                }
+                return false;
+            }
+            return true;
+        }
+
+        if is_super {
+            return true;
+        }
+
+        let mut enclosing_class =
+            self.for_each_enclosing_class(location, |enclosing_declaration: &Node| {
+                let enclosing_class = self.get_declared_type_of_symbol(
+                    &self.get_symbol_of_node(enclosing_declaration).unwrap(),
+                );
+                if self
+                    .is_class_derived_from_declaring_classes(&enclosing_class, prop, writing)
+                    .is_some()
+                {
+                    Some(enclosing_class)
+                } else {
+                    None
+                }
+            });
+        if enclosing_class.is_none() {
+            let mut this_parameter: Option<Rc<Node /*ParameterDeclaration*/>> = None;
+            if flags.intersects(ModifierFlags::Static) || {
+                this_parameter = self.get_this_parameter_from_node_context(location);
+                match this_parameter.as_ref() {
+                    None => true,
+                    Some(this_parameter) => this_parameter
+                        .as_parameter_declaration()
+                        .maybe_type()
+                        .is_none(),
+                }
+            } {
+                if error_node.is_some() {
+                    self.error(
+                        error_node.as_deref(),
+                        &Diagnostics::Property_0_is_protected_and_only_accessible_within_class_1_and_its_subclasses,
+                        Some(vec![
+                            self.symbol_to_string_(
+                                prop,
+                                Option::<&Node>::None,
+                                None, None, None,
+                            ),
+                            self.type_to_string_(
+                                &self.get_declaring_class(prop).unwrap_or_else(|| containing_type.type_wrapper()),
+                                Option::<&Node>::None,
+                                None, None,
+                            ),
+                        ])
+                    );
+                }
+                return false;
+            }
+
+            let this_type = self.get_type_from_type_node_(
+                &this_parameter
+                    .as_ref()
+                    .unwrap()
+                    .as_parameter_declaration()
+                    .maybe_type()
+                    .unwrap(),
+            );
+            enclosing_class = Some(
+                if this_type.flags().intersects(TypeFlags::TypeParameter) {
+                    self.get_constraint_of_type_parameter(&this_type).unwrap()
+                } else {
+                    this_type
+                }
+                .as_type_reference()
+                .target
+                .clone(),
+            );
+        }
+        let enclosing_class = enclosing_class.unwrap();
+        if flags.intersects(ModifierFlags::Static) {
+            return true;
+        }
+        let mut containing_type = Some(containing_type.type_wrapper());
+        if containing_type
+            .as_ref()
+            .unwrap()
+            .flags()
+            .intersects(TypeFlags::TypeParameter)
+        {
+            containing_type = if containing_type
+                .as_ref()
+                .unwrap()
+                .as_type_parameter()
+                .is_this_type
+                == Some(true)
+            {
+                self.get_constraint_of_type_parameter(containing_type.as_ref().unwrap())
+            } else {
+                self.get_base_constraint_of_type(containing_type.as_ref().unwrap())
+            };
+        }
+        if match containing_type.as_ref() {
+            None => true,
+            Some(containing_type) => !self.has_base_type(containing_type, Some(&*enclosing_class)),
+        } {
+            if error_node.is_some() {
+                self.error(
+                    error_node.as_deref(),
+                    &Diagnostics::Property_0_is_protected_and_only_accessible_through_an_instance_of_class_1_This_is_an_instance_of_class_2,
+                    Some(vec![
+                        self.symbol_to_string_(
+                            prop,
+                            Option::<&Node>::None,
+                            None, None, None,
+                        ),
+                        self.type_to_string_(
+                            &enclosing_class,
+                            Option::<&Node>::None,
+                            None, None,
+                        ),
+                        self.type_to_string_(
+                            // TODO: this looks like type_to_string_() actually should accept an Option<Type>
+                            containing_type.as_ref().unwrap(),
+                            Option::<&Node>::None,
+                            None, None,
+                        ),
+                    ])
+                );
+                return false;
+            }
+        }
+        true
+    }
+
+    pub(super) fn get_this_parameter_from_node_context(&self, node: &Node) -> Option<Rc<Node>> {
+        unimplemented!()
+    }
+
+    pub(super) fn symbol_has_non_method_declaration(&self, symbol: &Symbol) -> bool {
         unimplemented!()
     }
 

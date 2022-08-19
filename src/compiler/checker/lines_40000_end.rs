@@ -120,6 +120,26 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn for_each_enclosing_class<TReturn, TCallback: FnMut(&Node) -> Option<TReturn>>(
+        &self,
+        node: &Node,
+        callback: TCallback,
+    ) -> Option<TReturn> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_node_used_during_class_initialization(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_node_within_class(
+        &self,
+        node: &Node,
+        class_declaration: &Node, /*ClassLikeDeclaration*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_symbol_at_location_(
         &self,
         node: &Node,
