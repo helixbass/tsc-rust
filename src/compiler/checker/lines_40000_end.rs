@@ -271,6 +271,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_jsx_element(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_accessor_this_parameter(
         &self,
         accessor: &Node, /*AccessorDeclaration*/

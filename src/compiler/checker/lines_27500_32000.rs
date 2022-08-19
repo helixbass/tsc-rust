@@ -9,12 +9,14 @@ use super::{
     MinArgumentCountFlags, ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
-    chain_diagnostic_messages, escape_leading_underscores, get_text_of_node, is_import_call, map,
-    unescape_leading_underscores, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    JsxReferenceKind, NodeFlags, Signature, SignatureFlags, SignatureKind, StringOrRcNode,
-    SymbolFlags, Ternary, UnionOrIntersectionTypeInterface, UnionReduction, __String,
-    get_function_flags, get_object_flags, has_initializer, InferenceContext, Node, NodeInterface,
-    ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    chain_diagnostic_messages, escape_leading_underscores, get_source_file_of_node,
+    get_text_of_node, is_import_call, is_jsx_opening_fragment, is_jsx_opening_like_element, map,
+    unescape_leading_underscores, Debug_, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    JsxEmit, JsxFlags, JsxReferenceKind, NodeFlags, Signature, SignatureFlags, SignatureKind,
+    StringOrRcNode, SymbolFlags, Ternary, UnionOrIntersectionTypeInterface, UnionReduction,
+    __String, get_function_flags, get_object_flags, has_initializer, InferenceContext, Node,
+    NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -272,26 +274,182 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
+        Debug_.assert(
+            self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()),
+            None,
+        );
+        let links = self.get_node_links(node);
+        if (*links)
+            .borrow()
+            .resolved_jsx_element_attributes_type
+            .is_none()
+        {
+            let symbol = self.get_intrinsic_tag_symbol(node);
+            if (*links)
+                .borrow()
+                .jsx_flags
+                .intersects(JsxFlags::IntrinsicNamedElement)
+            {
+                let ret = self.get_type_of_symbol(&symbol); /*|| errorType*/
+                links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
+                return ret;
+            } else if (*links)
+                .borrow()
+                .jsx_flags
+                .intersects(JsxFlags::IntrinsicIndexedElement)
+            {
+                let ret = self
+                    .get_index_type_of_type_(
+                        &self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node)),
+                        &self.string_type(),
+                    )
+                    .unwrap_or_else(|| self.error_type());
+                links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
+                return ret;
+            } else {
+                let ret = self.error_type();
+                links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
+                return ret;
+            }
+        }
+        let ret = (*links)
+            .borrow()
+            .resolved_jsx_element_attributes_type
+            .clone()
+            .unwrap();
+        ret
     }
 
     pub(super) fn get_jsx_element_class_type_at(&self, location: &Node) -> Option<Rc<Type>> {
-        unimplemented!()
+        let type_ = self.get_jsx_type(&JsxNames::ElementClass, Some(location));
+        if self.is_error_type(&type_) {
+            return None;
+        }
+        Some(type_)
     }
 
     pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> Rc<Type> {
-        unimplemented!()
+        self.get_jsx_type(&JsxNames::Element, Some(location))
     }
 
     pub(super) fn get_jsx_stateless_element_type_at(&self, location: &Node) -> Option<Rc<Type>> {
-        unimplemented!()
+        let jsx_element_type = self.get_jsx_element_type_at(location);
+        // if (jsxElementType) {
+        Some(self.get_union_type(
+            vec![jsx_element_type, self.null_type()],
+            None,
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        ))
+        // }
+    }
+
+    pub(super) fn get_jsx_intrinsic_tag_names_at(&self, location: &Node) -> Vec<Rc<Symbol>> {
+        let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location));
+        /*intrinsics ?*/
+        self.get_properties_of_type(&intrinsics) /*: emptyArray*/
+    }
+
+    pub(super) fn check_jsx_preconditions(&self, error_node: &Node) {
+        if self.compiler_options.jsx.unwrap_or(JsxEmit::None) == JsxEmit::None {
+            self.error(
+                Some(error_node),
+                &Diagnostics::Cannot_use_JSX_unless_the_jsx_flag_is_provided,
+                None,
+            );
+        }
+
+        // if (getJsxElementTypeAt(errorNode) === undefined) {
+        //     if (noImplicitAny) {
+        //         error(errorNode, Diagnostics.JSX_element_implicitly_has_type_any_because_the_global_type_JSX_Element_does_not_exist);
+        //     }
+        // }
     }
 
     pub(super) fn check_jsx_opening_like_element_or_opening_fragment(
         &self,
         node: &Node, /*JsxOpeningLikeElement | JsxOpeningFragment*/
     ) {
-        unimplemented!()
+        let is_node_opening_like_element = is_jsx_opening_like_element(node);
+
+        if is_node_opening_like_element {
+            self.check_grammar_jsx_element(node);
+        }
+
+        self.check_jsx_preconditions(node);
+
+        if self
+            .get_jsx_namespace_container_for_implicit_import(Some(node))
+            .is_none()
+        {
+            let jsx_factory_ref_err = if
+            /*diagnostics &&*/
+            self.compiler_options.jsx == Some(JsxEmit::React) {
+                Some(&*Diagnostics::Cannot_find_name_0)
+            } else {
+                None
+            };
+            let jsx_factory_namespace = self.get_jsx_namespace_(Some(node));
+            let jsx_factory_location = if is_node_opening_like_element {
+                node.as_jsx_opening_like_element().tag_name()
+            } else {
+                node.node_wrapper()
+            };
+
+            let mut jsx_factory_sym: Option<Rc<Symbol>> = None;
+            if !(is_jsx_opening_fragment(node) && jsx_factory_namespace.eq_str("null")) {
+                jsx_factory_sym = self.resolve_name_(
+                    Some(&*jsx_factory_location),
+                    &jsx_factory_namespace,
+                    SymbolFlags::Value,
+                    jsx_factory_ref_err,
+                    Some(jsx_factory_namespace.clone()),
+                    true,
+                    None,
+                );
+            }
+
+            if let Some(jsx_factory_sym) = jsx_factory_sym.as_ref() {
+                jsx_factory_sym.set_is_referenced(Some(SymbolFlags::All));
+
+                if jsx_factory_sym.flags().intersects(SymbolFlags::Alias)
+                    && self
+                        .get_type_only_alias_declaration(jsx_factory_sym)
+                        .is_none()
+                {
+                    self.mark_alias_symbol_as_referenced(jsx_factory_sym);
+                }
+            }
+
+            if is_jsx_opening_fragment(node) {
+                let file = get_source_file_of_node(Some(node)).unwrap();
+                let local_jsx_namespace = self.get_local_jsx_namespace(&file);
+                if let Some(local_jsx_namespace) = local_jsx_namespace.as_ref() {
+                    self.resolve_name_(
+                        Some(&*jsx_factory_location),
+                        local_jsx_namespace,
+                        SymbolFlags::Value,
+                        jsx_factory_ref_err,
+                        Some(local_jsx_namespace.clone()),
+                        true,
+                        None,
+                    );
+                }
+            }
+        }
+
+        if is_node_opening_like_element {
+            let jsx_opening_like_node = node;
+            let sig = self.get_resolved_signature_(jsx_opening_like_node, None, None);
+            self.check_deprecated_signature(&sig, node);
+            self.check_jsx_return_assignable_to_appropriate_bound(
+                self.get_jsx_reference_kind(jsx_opening_like_node),
+                &self.get_return_type_of_signature(sig.clone()),
+                jsx_opening_like_node,
+            );
+        }
     }
 
     pub(super) fn is_known_property(
@@ -604,6 +762,14 @@ impl TypeChecker {
         node: &Node,
         allow_declaration: bool,
     ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_deprecated_signature(
+        &self,
+        signature: &Signature,
+        node: &Node, /*CallLikeExpression*/
+    ) {
         unimplemented!()
     }
 
