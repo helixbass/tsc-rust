@@ -8,9 +8,10 @@ use super::{
     WideningKind,
 };
 use crate::{
-    get_this_container, get_this_parameter, is_function_like, is_import_call, Diagnostics,
-    FunctionFlags, JsxReferenceKind, Signature, SignatureFlags, StringOrRcNode, SymbolFlags,
-    Ternary, UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
+    get_this_container, get_this_parameter, is_call_or_new_expression, is_function_like,
+    is_import_call, is_part_of_type_query, is_this_identifier, Diagnostics, FunctionFlags,
+    JsxReferenceKind, NodeFlags, Signature, SignatureFlags, StringOrRcNode, SymbolFlags, Ternary,
+    UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
     NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,
 };
@@ -96,8 +97,126 @@ impl TypeChecker {
         );
     }
 
+    pub(super) fn check_non_null_type_with_reporter<TReportError: FnMut(&Node, TypeFlags)>(
+        &self,
+        type_: &Type,
+        node: &Node,
+        mut report_error: TReportError,
+    ) -> Rc<Type> {
+        if self.strict_null_checks && type_.flags().intersects(TypeFlags::Unknown) {
+            self.error(Some(node), &Diagnostics::Object_is_of_type_unknown, None);
+            return self.error_type();
+        }
+        let kind = if self.strict_null_checks {
+            self.get_falsy_flags(type_)
+        } else {
+            type_.flags()
+        } & TypeFlags::Nullable;
+        if kind != TypeFlags::None {
+            report_error(node, kind);
+            let t = self.get_non_nullable_type(type_);
+            return if t.flags().intersects(TypeFlags::Nullable | TypeFlags::Never) {
+                self.error_type()
+            } else {
+                t
+            };
+        }
+        type_.type_wrapper()
+    }
+
     pub(super) fn check_non_null_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
-        unimplemented!()
+        self.check_non_null_type_with_reporter(type_, node, |node: &Node, flags: TypeFlags| {
+            self.report_object_possibly_null_or_undefined_error(node, flags)
+        })
+    }
+
+    pub(super) fn check_non_null_non_void_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
+        let non_null_type = self.check_non_null_type(type_, node);
+        if non_null_type.flags().intersects(TypeFlags::Void) {
+            self.error(Some(node), &Diagnostics::Object_is_possibly_undefined, None);
+        }
+        non_null_type
+    }
+
+    pub(super) fn check_property_access_expression(
+        &self,
+        node: &Node, /*PropertyAccessExpression*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        let node_as_property_access_expression = node.as_property_access_expression();
+        if node.flags().intersects(NodeFlags::OptionalChain) {
+            self.check_property_access_chain(node, check_mode)
+        } else {
+            self.check_property_access_expression_or_qualified_name(
+                node,
+                &node_as_property_access_expression.expression,
+                &self.check_non_null_expression(&node_as_property_access_expression.expression),
+                &node_as_property_access_expression.name,
+                check_mode,
+            )
+        }
+    }
+
+    pub(super) fn check_property_access_chain(
+        &self,
+        node: &Node, /*PropertyAccessChain*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        let node_as_property_access_expression = node.as_property_access_expression();
+        let left_type =
+            self.check_expression(&node_as_property_access_expression.expression, None, None);
+        let non_optional_type = self.get_optional_expression_type(
+            &left_type,
+            &node_as_property_access_expression.expression,
+        );
+        self.propagate_optional_type_marker(
+            &self.check_property_access_expression_or_qualified_name(
+                node,
+                &node_as_property_access_expression.expression,
+                &self.check_non_null_type(
+                    &non_optional_type,
+                    &node_as_property_access_expression.expression,
+                ),
+                &node_as_property_access_expression.name,
+                check_mode,
+            ),
+            node,
+            !Rc::ptr_eq(&non_optional_type, &left_type),
+        )
+    }
+
+    pub(super) fn check_qualified_name(
+        &self,
+        node: &Node, /*QualifiedName*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        let node_as_qualified_name = node.as_qualified_name();
+        let left_type = if is_part_of_type_query(node)
+            && is_this_identifier(Some(&*node_as_qualified_name.left))
+        {
+            self.check_non_null_type(
+                &self.check_this_expression(&node_as_qualified_name.left),
+                &node_as_qualified_name.left,
+            )
+        } else {
+            self.check_non_null_expression(&node_as_qualified_name.left)
+        };
+        self.check_property_access_expression_or_qualified_name(
+            node,
+            &node_as_qualified_name.left,
+            &left_type,
+            &node_as_qualified_name.right,
+            check_mode,
+        )
+    }
+
+    pub(super) fn is_method_access_for_call(&self, node: &Node) -> bool {
+        let mut node = node.node_wrapper();
+        while node.parent().kind() == SyntaxKind::ParenthesizedExpression {
+            node = node.parent();
+        }
+        is_call_or_new_expression(&node.parent())
+            && Rc::ptr_eq(&node.parent().as_has_expression().expression(), &node)
     }
 
     pub(super) fn lookup_symbol_for_private_identifier_declaration(
@@ -128,6 +247,17 @@ impl TypeChecker {
         node: &Node, /*ElementAccessExpression | PropertyAccessExpression | QualifiedName*/
         prop: &Symbol,
     ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_property_access_expression_or_qualified_name(
+        &self,
+        node: &Node, /*PropertyAccessExpression | QualifiedName*/
+        left: &Node, /*Expression | QualifiedName*/
+        left_type: &Type,
+        right: &Node, /*Identifier | PrivateIdentifier*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
