@@ -13,8 +13,8 @@ use super::{
     SymbolTable, TypeChecker,
 };
 use crate::{
-    ConfigFileSpecs, ModeAwareCache, ModuleKind, PackageId, PragmaContext, Type, TypeFlags,
-    TypeInterface, __String,
+    CheckJsDirective, ConfigFileSpecs, ModeAwareCache, ModuleKind, PackageId, PragmaContext, Type,
+    TypeFlags, TypeInterface, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -177,6 +177,7 @@ pub struct SourceFile {
         RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
     imports: RefCell<Option<Vec<Rc<Node /*StringLiteralLike*/>>>>,
     pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
+    check_js_directive: RefCell<Option<CheckJsDirective>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
     local_jsx_namespace: RefCell<Option<__String>>,
     local_jsx_fragment_namespace: RefCell<Option<__String>>,
@@ -246,6 +247,7 @@ impl SourceFile {
             imports: RefCell::new(None),
             pattern_ambient_modules: RefCell::new(None),
             pragmas: RefCell::new(None),
+            check_js_directive: RefCell::new(None),
             local_jsx_namespace: RefCell::new(None),
             local_jsx_fragment_namespace: RefCell::new(None),
             local_jsx_factory: RefCell::new(None),
@@ -535,6 +537,10 @@ impl SourceFile {
 
     pub fn set_pragmas(&self, pragmas: ReadonlyPragmaMap) {
         *self.pragmas.borrow_mut() = Some(pragmas);
+    }
+
+    pub fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>> {
+        self.check_js_directive.borrow_mut()
     }
 
     pub fn maybe_local_jsx_namespace(&self) -> RefMut<Option<__String>> {

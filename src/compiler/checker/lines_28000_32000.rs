@@ -10,17 +10,20 @@ use super::{
 };
 use crate::{
     add_related_info, create_diagnostic_for_node, find_ancestor, for_each,
-    get_assignment_target_kind, get_containing_class, get_symbol_name_for_private_identifier,
-    get_this_container, get_this_parameter, id_text, is_assignment_target,
-    is_call_or_new_expression, is_delete_target, is_expression_node, is_function_like,
-    is_identifier, is_import_call, is_method_declaration, is_named_declaration,
-    is_part_of_type_query, is_private_identifier, is_property_access_expression,
-    is_this_identifier, is_this_property, is_write_access, should_preserve_const_enums,
-    unescape_leading_underscores, AssignmentKind, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionFlags, JsxReferenceKind, NodeFlags, ScriptTarget, Signature, SignatureFlags,
-    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, get_function_flags,
-    has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    get_assignment_declaration_property_access_kind, get_assignment_target_kind,
+    get_containing_class, get_source_file_of_node, get_symbol_name_for_private_identifier,
+    get_this_container, get_this_parameter, id_text, is_access_expression, is_assignment_target,
+    is_block, is_call_or_new_expression, is_class_static_block_declaration, is_delete_target,
+    is_expression_node, is_function_like, is_identifier, is_import_call, is_method_declaration,
+    is_named_declaration, is_part_of_type_query, is_private_identifier,
+    is_property_access_expression, is_static, is_this_identifier, is_this_property,
+    is_write_access, maybe_for_each, should_preserve_const_enums, unescape_leading_underscores,
+    AssignmentDeclarationKind, AssignmentKind, Debug_, Diagnostic, Diagnostics,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, FunctionFlags, JsxReferenceKind, NodeFlags,
+    ScriptKind, ScriptTarget, Signature, SignatureFlags, StringOrRcNode, SymbolFlags, Ternary,
+    UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -770,7 +773,45 @@ impl TypeChecker {
         suggestion: Option<TSuggestion>,
         exclude_classes: bool,
     ) -> bool {
-        unimplemented!()
+        let node = node.map(|node| node.borrow().node_wrapper());
+        let suggestion = suggestion.map(|suggestion| suggestion.borrow().symbol_wrapper());
+        let file = get_source_file_of_node(node.as_deref());
+        if let Some(file) = file.as_ref() {
+            let file_as_source_file = file.as_source_file();
+            if self.compiler_options.check_js.is_none()
+                && file_as_source_file.maybe_check_js_directive().is_none()
+                && matches!(
+                    file_as_source_file.script_kind(),
+                    ScriptKind::JS | ScriptKind::JSX
+                )
+            {
+                let declaration_file = maybe_for_each(
+                    suggestion
+                        .as_ref()
+                        .and_then(|suggestion| suggestion.maybe_declarations().clone())
+                        .as_ref(),
+                    |declaration: &Rc<Node>, _| get_source_file_of_node(Some(&**declaration)),
+                );
+                return !matches!(
+                    declaration_file.as_ref(),
+                    Some(declaration_file) if !Rc::ptr_eq(
+                        file,
+                        declaration_file
+                    ) && self.is_global_source_file(declaration_file)
+                ) && !(exclude_classes
+                    && matches!(
+                        suggestion.as_ref(),
+                        Some(suggestion) if suggestion.flags().intersects(SymbolFlags::Class)
+                    ))
+                    && !(matches!(
+                        node.as_ref(),
+                        Some(node) if exclude_classes &&
+                            is_property_access_expression(node) &&
+                            node.as_property_access_expression().expression.kind() == SyntaxKind::ThisKeyword
+                    ));
+            }
+        }
+        false
     }
 
     pub(super) fn get_flow_type_of_access_expression<TProp: Borrow<Symbol>>(
@@ -781,7 +822,102 @@ impl TypeChecker {
         error_node: &Node,
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let assignment_kind = get_assignment_target_kind(node);
+        let prop = prop.map(|prop| prop.borrow().symbol_wrapper());
+        if assignment_kind == AssignmentKind::Definite {
+            return self.remove_missing_type(
+                prop_type,
+                matches!(
+                    prop.as_ref(),
+                    Some(prop) if prop.flags().intersects(SymbolFlags::Optional)
+                ),
+            );
+        }
+        if matches!(
+            prop.as_ref(),
+            Some(prop) if !prop.flags().intersects(SymbolFlags::Variable | SymbolFlags::Property | SymbolFlags::Accessor) &&
+                !(prop.flags().intersects(SymbolFlags::Method) && prop_type.flags().intersects(TypeFlags::Union)) &&
+                !self.is_duplicated_common_js_export(prop.maybe_declarations().as_deref())
+        ) {
+            return prop_type.type_wrapper();
+        }
+        if ptr::eq(prop_type, &*self.auto_type()) {
+            return self.get_flow_type_of_property(node, prop);
+        }
+        let mut prop_type = prop_type.type_wrapper();
+        prop_type = self.get_narrowable_type_for_reference(&prop_type, node, check_mode);
+        let mut assume_uninitialized = false;
+        if self.strict_null_checks
+            && self.strict_property_initialization
+            && is_access_expression(node)
+            && node.as_has_expression().expression().kind() == SyntaxKind::ThisKeyword
+        {
+            let declaration = prop
+                .as_ref()
+                .and_then(|prop| prop.maybe_value_declaration());
+            if let Some(declaration) = declaration
+                .as_ref()
+                .filter(|declaration| self.is_property_without_initializer(declaration))
+            {
+                if !is_static(declaration) {
+                    let flow_container = self.get_control_flow_container(node);
+                    if flow_container.kind() == SyntaxKind::Constructor
+                        && Rc::ptr_eq(&flow_container.parent(), &declaration.parent())
+                        && !declaration.flags().intersects(NodeFlags::Ambient)
+                    {
+                        assume_uninitialized = true;
+                    }
+                }
+            }
+        } else if self.strict_null_checks
+            && matches!(
+                prop.as_ref().and_then(|prop| prop.maybe_value_declaration()).as_ref(),
+                Some(prop_value_declaration) if is_property_access_expression(prop_value_declaration) &&
+                    get_assignment_declaration_property_access_kind(prop_value_declaration) != AssignmentDeclarationKind::None &&
+                    Rc::ptr_eq(
+                        &self.get_control_flow_container(node),
+                        &self.get_control_flow_container(prop_value_declaration),
+                    )
+            )
+        {
+            assume_uninitialized = true;
+        }
+        let flow_type = self.get_flow_type_of_reference(
+            node,
+            &prop_type,
+            Some(if assume_uninitialized {
+                self.get_optional_type_(&prop_type, None)
+            } else {
+                prop_type.clone()
+            }),
+            Option::<&Node>::None,
+        );
+        if assume_uninitialized
+            && !self
+                .get_falsy_flags(&prop_type)
+                .intersects(TypeFlags::Undefined)
+            && self
+                .get_falsy_flags(&flow_type)
+                .intersects(TypeFlags::Undefined)
+        {
+            self.error(
+                Some(error_node),
+                &Diagnostics::Property_0_is_used_before_being_assigned,
+                Some(vec![self.symbol_to_string_(
+                    prop.as_ref().unwrap(),
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                    None,
+                )]),
+            );
+            return prop_type;
+        }
+        if assignment_kind != AssignmentKind::None {
+            self.get_base_type_of_literal_type(&flow_type)
+        } else {
+            flow_type
+        }
     }
 
     pub(super) fn check_property_not_used_before_declaration(
@@ -790,11 +926,139 @@ impl TypeChecker {
         node: &Node,  /*PropertyAccessExpression | QualifiedName*/
         right: &Node, /*Identifier | PrivateIdentifier*/
     ) {
-        unimplemented!()
+        let value_declaration = prop.maybe_value_declaration();
+        if value_declaration.is_none()
+            || get_source_file_of_node(Some(node))
+                .unwrap()
+                .as_source_file()
+                .is_declaration_file()
+        {
+            return;
+        }
+        let value_declaration = value_declaration.unwrap();
+
+        let mut diagnostic_message: Option<Rc<Diagnostic>> = None;
+        let declaration_name = id_text(right);
+        if self.is_in_property_initializer_or_class_static_block(node)
+            && !self.is_optional_property_declaration(&value_declaration)
+            && !(is_access_expression(node)
+                && is_access_expression(&node.as_has_expression().expression()))
+            && !self.is_block_scoped_name_declared_before_use(&value_declaration, right)
+            && (self.compiler_options.use_define_for_class_fields == Some(true)
+                || !self.is_property_declared_in_ancestor_class(prop))
+        {
+            diagnostic_message = Some(self.error(
+                Some(right),
+                &Diagnostics::Property_0_is_used_before_its_initialization,
+                Some(vec![declaration_name.clone()]),
+            ));
+        } else if value_declaration.kind() == SyntaxKind::ClassDeclaration
+            && node.parent().kind() != SyntaxKind::TypeReference
+            && !value_declaration.flags().intersects(NodeFlags::Ambient)
+            && !self.is_block_scoped_name_declared_before_use(&value_declaration, right)
+        {
+            diagnostic_message = Some(self.error(
+                Some(right),
+                &Diagnostics::Class_0_used_before_its_declaration,
+                Some(vec![declaration_name.clone()]),
+            ));
+        }
+
+        if let Some(diagnostic_message) = diagnostic_message.as_ref() {
+            add_related_info(
+                diagnostic_message,
+                vec![Rc::new(
+                    create_diagnostic_for_node(
+                        &value_declaration,
+                        &Diagnostics::_0_is_declared_here,
+                        Some(vec![declaration_name]),
+                    )
+                    .into(),
+                )],
+            );
+        }
     }
 
     pub(super) fn is_in_property_initializer_or_class_static_block(&self, node: &Node) -> bool {
-        unimplemented!()
+        find_ancestor(Some(node), |node: &Node| match node.kind() {
+            SyntaxKind::PropertyDeclaration => true.into(),
+            SyntaxKind::PropertyAssignment
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::SpreadAssignment
+            | SyntaxKind::ComputedPropertyName
+            | SyntaxKind::TemplateSpan
+            | SyntaxKind::JsxExpression
+            | SyntaxKind::JsxAttribute
+            | SyntaxKind::JsxAttributes
+            | SyntaxKind::JsxSpreadAttribute
+            | SyntaxKind::JsxOpeningElement
+            | SyntaxKind::ExpressionWithTypeArguments
+            | SyntaxKind::HeritageClause => false.into(),
+            SyntaxKind::ArrowFunction | SyntaxKind::ExpressionStatement => {
+                if is_block(&node.parent())
+                    && is_class_static_block_declaration(&node.parent().parent())
+                {
+                    true.into()
+                } else {
+                    FindAncestorCallbackReturn::Quit
+                }
+            }
+            _ => {
+                if is_expression_node(node) {
+                    false.into()
+                } else {
+                    FindAncestorCallbackReturn::Quit
+                }
+            }
+        })
+        .is_some()
+    }
+
+    pub(super) fn is_property_declared_in_ancestor_class(&self, prop: &Symbol) -> bool {
+        if !prop
+            .maybe_parent()
+            .unwrap()
+            .flags()
+            .intersects(SymbolFlags::Class)
+        {
+            return false;
+        }
+        let mut class_type: Option<Rc<Type>> =
+            Some(self.get_type_of_symbol(&prop.maybe_parent().unwrap()));
+        loop {
+            let class_type_present = class_type.as_ref().unwrap();
+            class_type = if class_type_present.maybe_symbol().is_some() {
+                self.get_super_class(class_type_present)
+            } else {
+                None
+            };
+            if class_type.is_none() {
+                return false;
+            }
+            let class_type_present = class_type.as_ref().unwrap();
+            let super_property =
+                self.get_property_of_type_(class_type_present, prop.escaped_name(), None);
+            if super_property
+                .as_ref()
+                .and_then(|super_property| super_property.maybe_value_declaration())
+                .is_some()
+            {
+                return true;
+            }
+        }
+    }
+
+    pub(super) fn get_super_class(
+        &self,
+        class_type: &Type, /*InterfaceType*/
+    ) -> Option<Rc<Type>> {
+        let x = self.get_base_types(class_type);
+        if x.is_empty() {
+            return None;
+        }
+        Some(self.get_intersection_type(&x, Option::<&Symbol>::None, None))
     }
 
     pub(super) fn report_nonexistent_property(

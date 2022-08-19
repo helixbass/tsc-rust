@@ -414,6 +414,31 @@ impl TextRange for FileReference {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct CheckJsDirective {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    enabled: bool,
+}
+
+impl TextRange for CheckJsDirective {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
+    }
+}
+
 pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
 
 #[derive(Clone, Debug)]
