@@ -9,14 +9,16 @@ use super::{
     MinArgumentCountFlags, ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
-    chain_diagnostic_messages, escape_leading_underscores, get_source_file_of_node,
-    get_text_of_node, is_import_call, is_jsx_opening_fragment, is_jsx_opening_like_element, map,
-    unescape_leading_underscores, Debug_, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    JsxEmit, JsxFlags, JsxReferenceKind, NodeFlags, Signature, SignatureFlags, SignatureKind,
-    StringOrRcNode, SymbolFlags, Ternary, UnionOrIntersectionTypeInterface, UnionReduction,
-    __String, get_function_flags, get_object_flags, has_initializer, InferenceContext, Node,
-    NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    chain_diagnostic_messages, escape_leading_underscores, every, get_assignment_declaration_kind,
+    get_check_flags, get_combined_node_flags, get_source_file_of_node, get_text_of_node,
+    is_binary_expression, is_import_call, is_in_js_file, is_jsx_opening_fragment,
+    is_jsx_opening_like_element, map, some, unescape_leading_underscores,
+    AssignmentDeclarationKind, CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics,
+    FunctionFlags, JsxEmit, JsxFlags, JsxReferenceKind, NodeFlags, Signature, SignatureFlags,
+    SignatureKind, StringOrRcNode, SymbolFlags, Ternary, UnionOrIntersectionTypeInterface,
+    UnionReduction, __String, get_function_flags, get_object_flags, has_initializer,
+    InferenceContext, Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -462,7 +464,14 @@ impl TypeChecker {
             if self
                 .get_property_of_object_type(target_type, name)
                 .is_some()
-                || false
+                || self
+                    .get_applicable_index_info_for_name(target_type, name)
+                    .is_some()
+                || self.is_late_bound_name(name)
+                    && self
+                        .get_index_info_of_type_(target_type, &self.string_type())
+                        .is_some()
+                || is_comparing_jsx_attributes && self.is_hyphenated_jsx_name(name)
             {
                 return true;
             }
@@ -471,7 +480,14 @@ impl TypeChecker {
             .intersects(TypeFlags::UnionOrIntersection)
             && self.is_excess_property_check_target(target_type)
         {
-            unimplemented!()
+            for t in target_type
+                .as_union_or_intersection_type_interface()
+                .types()
+            {
+                if self.is_known_property(t, name, is_comparing_jsx_attributes) {
+                    return true;
+                }
+            }
         }
         false
     }
@@ -481,15 +497,106 @@ impl TypeChecker {
             && !(get_object_flags(type_)
                 .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))
             || type_.flags().intersects(TypeFlags::NonPrimitive)
-            || (type_.flags().intersects(TypeFlags::Union) && unimplemented!())
-            || (type_.flags().intersects(TypeFlags::Intersection) && unimplemented!())
+            || (type_.flags().intersects(TypeFlags::Union)
+                && some(
+                    Some(type_.as_union_type().types()),
+                    Some(|type_: &Rc<Type>| self.is_excess_property_check_target(type_)),
+                ))
+            || (type_.flags().intersects(TypeFlags::Intersection)
+                && every(
+                    type_.as_intersection_type().types(),
+                    |type_: &Rc<Type>, _| self.is_excess_property_check_target(type_),
+                ))
+    }
+
+    pub(super) fn check_jsx_expression(
+        &self,
+        node: &Node, /*JsxExpression*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        self.check_grammar_jsx_expression(node);
+        let node_as_jsx_expression = node.as_jsx_expression();
+        if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
+            let type_ = self.check_expression(node_expression, check_mode, None);
+            if node_as_jsx_expression.dot_dot_dot_token.is_some()
+                && !Rc::ptr_eq(&type_, &self.any_type())
+                && !self.is_array_type(&type_)
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::JSX_spread_child_must_be_an_array_type,
+                    None,
+                );
+            }
+            type_
+        } else {
+            self.error_type()
+        }
     }
 
     pub(super) fn get_declaration_node_flags_from_symbol(&self, s: &Symbol) -> NodeFlags {
-        unimplemented!()
+        if let Some(s_value_declaration) = s.maybe_value_declaration() {
+            get_combined_node_flags(&s_value_declaration)
+        } else {
+            NodeFlags::None
+        }
     }
 
     pub(super) fn is_prototype_property(&self, symbol: &Symbol) -> bool {
+        if symbol.flags().intersects(SymbolFlags::Method)
+            || get_check_flags(symbol).intersects(CheckFlags::SyntheticMethod)
+        {
+            return true;
+        }
+        if is_in_js_file(symbol.maybe_value_declaration()) {
+            let parent = symbol.maybe_value_declaration().unwrap().maybe_parent();
+            return matches!(
+                parent.as_ref(),
+                Some(parent) if is_binary_expression(parent) &&
+                    get_assignment_declaration_kind(parent) == AssignmentDeclarationKind::PrototypeProperty
+            );
+        }
+        false
+    }
+
+    pub(super) fn check_property_accessibility(
+        &self,
+        node: &Node, /*PropertyAccessExpression | QualifiedName | VariableDeclaration | ParameterDeclaration | ImportTypeNode | PropertyAssignment | ShorthandPropertyAssignment | BindingElement*/
+        is_super: bool,
+        writing: bool,
+        type_: &Type,
+        prop: &Symbol,
+        report_error: Option<bool>,
+    ) -> bool {
+        let report_error = report_error.unwrap_or(true);
+        let error_node = if !report_error {
+            None
+        } else if node.kind() == SyntaxKind::QualifiedName {
+            Some(node.as_qualified_name().right.clone())
+        } else if node.kind() == SyntaxKind::ImportType {
+            Some(node.node_wrapper())
+        } else if node.kind() == SyntaxKind::BindingElement
+            && node.as_binding_element().property_name.is_some()
+        {
+            Some(node.as_binding_element().property_name.clone().unwrap())
+        } else {
+            node.as_named_declaration().maybe_name()
+        };
+
+        self.check_property_accessibility_at_location(
+            node, is_super, writing, type_, prop, error_node,
+        )
+    }
+
+    pub(super) fn check_property_accessibility_at_location<TErrorNode: Borrow<Node>>(
+        &self,
+        location: &Node,
+        is_super: bool,
+        writing: bool,
+        containing_type: &Type,
+        prop: &Symbol,
+        error_node: Option<TErrorNode>,
+    ) -> bool {
         unimplemented!()
     }
 

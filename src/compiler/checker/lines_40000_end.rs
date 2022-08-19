@@ -278,6 +278,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_jsx_expression(&self, node: &Node /*JsxExpression*/) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_accessor_this_parameter(
         &self,
         accessor: &Node, /*AccessorDeclaration*/
