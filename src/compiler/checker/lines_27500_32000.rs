@@ -1,39 +1,159 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
-    WideningKind,
+    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain, JsxNames,
+    MinArgumentCountFlags, ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
-    is_import_call, Diagnostics, FunctionFlags, JsxReferenceKind, NodeFlags, Signature,
-    SignatureFlags, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
+    chain_diagnostic_messages, escape_leading_underscores, get_text_of_node, is_import_call, map,
+    unescape_leading_underscores, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    JsxReferenceKind, NodeFlags, Signature, SignatureFlags, SignatureKind, StringOrRcNode,
+    SymbolFlags, Ternary, UnionOrIntersectionTypeInterface, UnionReduction, __String,
     get_function_flags, get_object_flags, has_initializer, InferenceContext, Node, NodeInterface,
     ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn get_name_from_jsx_element_attributes_container<TJsxNamespace: Borrow<Symbol>>(
+        &self,
+        name_of_attrib_prop_container: &__String,
+        jsx_namespace: Option<TJsxNamespace>,
+    ) -> Option<__String> {
+        let jsx_namespace =
+            jsx_namespace.map(|jsx_namespace| jsx_namespace.borrow().symbol_wrapper());
+        let jsx_element_attrib_prop_interface_sym =
+            jsx_namespace.as_ref().and_then(|jsx_namespace| {
+                self.get_symbol(
+                    &(**jsx_namespace.maybe_exports().as_ref().unwrap()).borrow(),
+                    name_of_attrib_prop_container,
+                    SymbolFlags::Type,
+                )
+            });
+        let jsx_element_attrib_prop_interface_type = jsx_element_attrib_prop_interface_sym
+            .as_ref()
+            .map(|jsx_element_attrib_prop_interface_sym| {
+                self.get_declared_type_of_symbol(jsx_element_attrib_prop_interface_sym)
+            });
+        let properties_of_jsx_element_attrib_prop_interface =
+            jsx_element_attrib_prop_interface_type.as_ref().map(
+                |jsx_element_attrib_prop_interface_type| {
+                    self.get_properties_of_type(jsx_element_attrib_prop_interface_type)
+                },
+            );
+        if let Some(properties_of_jsx_element_attrib_prop_interface) =
+            properties_of_jsx_element_attrib_prop_interface.as_ref()
+        {
+            if properties_of_jsx_element_attrib_prop_interface.is_empty() {
+                return Some(__String::new("".to_owned()));
+            } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {
+                return Some(
+                    properties_of_jsx_element_attrib_prop_interface[0]
+                        .escaped_name()
+                        .clone(),
+                );
+            } else if properties_of_jsx_element_attrib_prop_interface.len() > 1 {
+                let jsx_element_attrib_prop_interface_sym =
+                    jsx_element_attrib_prop_interface_sym.as_ref().unwrap();
+                if let Some(jsx_element_attrib_prop_interface_sym_declarations) =
+                    jsx_element_attrib_prop_interface_sym
+                        .maybe_declarations()
+                        .as_ref()
+                {
+                    self.error(
+                        jsx_element_attrib_prop_interface_sym_declarations
+                            .get(0)
+                            .cloned(),
+                        &Diagnostics::The_global_type_JSX_0_may_not_have_more_than_one_property,
+                        Some(vec![unescape_leading_underscores(
+                            name_of_attrib_prop_container,
+                        )]),
+                    );
+                }
+            }
+        }
+        None
+    }
+
     pub(super) fn get_jsx_library_managed_attributes<TJsxNamespace: Borrow<Symbol>>(
         &self,
         jsx_namespace: Option<TJsxNamespace>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let jsx_namespace = jsx_namespace?;
+        let jsx_namespace = jsx_namespace.borrow();
+        let ret = self.get_symbol(
+            &(**jsx_namespace.maybe_exports().as_ref().unwrap()).borrow(),
+            &JsxNames::LibraryManagedAttributes,
+            SymbolFlags::Type,
+        );
+        ret
     }
 
     pub(super) fn get_jsx_element_properties_name<TJsxNamespace: Borrow<Symbol>>(
         &self,
         jsx_namespace: Option<TJsxNamespace>,
     ) -> Option<__String> {
-        unimplemented!()
+        self.get_name_from_jsx_element_attributes_container(
+            &JsxNames::ElementAttributesPropertyNameContainer,
+            jsx_namespace,
+        )
     }
 
     pub(super) fn get_jsx_element_children_property_name<TJsxNamespace: Borrow<Symbol>>(
         &self,
         jsx_namespace: Option<TJsxNamespace>,
     ) -> Option<__String> {
-        unimplemented!()
+        self.get_name_from_jsx_element_attributes_container(
+            &JsxNames::ElementChildrenAttributeNameContainer,
+            jsx_namespace,
+        )
+    }
+
+    pub(super) fn get_uninstantiated_jsx_signatures_of_type(
+        &self,
+        element_type: &Type,
+        caller: &Node, /*JsxOpeningLikeElement*/
+    ) -> Vec<Rc<Signature>> {
+        if element_type.flags().intersects(TypeFlags::String) {
+            return vec![self.any_signature()];
+        } else if element_type.flags().intersects(TypeFlags::StringLiteral) {
+            let intrinsic_type =
+                self.get_intrinsic_attributes_type_from_string_literal_type(element_type, caller);
+            match intrinsic_type.as_ref() {
+                None => {
+                    self.error(
+                        Some(caller),
+                        &Diagnostics::Property_0_does_not_exist_on_type_1,
+                        Some(vec![
+                            element_type.as_string_literal_type().value.clone(),
+                            format!("JSX.{}", &**JsxNames::IntrinsicElements),
+                        ]),
+                    );
+                    return vec![];
+                }
+                Some(intrinsic_type) => {
+                    let fake_signature =
+                        self.create_signature_for_jsx_intrinsic(caller, intrinsic_type);
+                    return vec![fake_signature];
+                }
+            }
+        }
+        let apparent_elem_type = self.get_apparent_type(element_type);
+        let mut signatures =
+            self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Construct);
+        if signatures.is_empty() {
+            signatures = self.get_signatures_of_type(&apparent_elem_type, SignatureKind::Call);
+        }
+        if signatures.is_empty() && apparent_elem_type.flags().intersects(TypeFlags::Union) {
+            signatures = self.get_union_signatures(&map(
+                apparent_elem_type.as_union_type().types(),
+                |t: &Rc<Type>, _| self.get_uninstantiated_jsx_signatures_of_type(t, caller),
+            ));
+        }
+        signatures
     }
 
     pub(super) fn get_intrinsic_attributes_type_from_string_literal_type(
@@ -41,7 +161,111 @@ impl TypeChecker {
         type_: &Type, /*StringLiteralType*/
         location: &Node,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let intrinsic_elements_type =
+            self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location));
+        if !self.is_error_type(&intrinsic_elements_type) {
+            let string_literal_type_name = &type_.as_string_literal_type().value;
+            let intrinsic_prop = self.get_property_of_type_(
+                &intrinsic_elements_type,
+                &escape_leading_underscores(string_literal_type_name),
+                None,
+            );
+            if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
+                return Some(self.get_type_of_symbol(intrinsic_prop));
+            }
+            let index_signature_type =
+                self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type());
+            if index_signature_type.is_some() {
+                return index_signature_type;
+            }
+            return None;
+        }
+        Some(self.any_type())
+    }
+
+    pub(super) fn check_jsx_return_assignable_to_appropriate_bound(
+        &self,
+        ref_kind: JsxReferenceKind,
+        elem_instance_type: &Type,
+        opening_like_element: &Node, /*JsxOpeningLikeElement*/
+    ) {
+        if ref_kind == JsxReferenceKind::Function {
+            let sfc_return_constraint =
+                self.get_jsx_stateless_element_type_at(opening_like_element);
+            if let Some(sfc_return_constraint) = sfc_return_constraint.as_ref() {
+                self.check_type_related_to(
+                    elem_instance_type,
+                    sfc_return_constraint,
+                    self.assignable_relation.clone(),
+                    Some(
+                        opening_like_element
+                            .as_jsx_opening_like_element()
+                            .tag_name(),
+                    ),
+                    Some(Cow::Borrowed(
+                        &Diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
+                    )),
+                    Some(Rc::new(GenerateInitialErrorChain::new(
+                        opening_like_element.node_wrapper(),
+                    ))),
+                    None,
+                );
+            }
+        } else if ref_kind == JsxReferenceKind::Component {
+            let class_constraint = self.get_jsx_element_class_type_at(opening_like_element);
+            if let Some(class_constraint) = class_constraint.as_ref() {
+                self.check_type_related_to(
+                    elem_instance_type,
+                    class_constraint,
+                    self.assignable_relation.clone(),
+                    Some(
+                        opening_like_element
+                            .as_jsx_opening_like_element()
+                            .tag_name(),
+                    ),
+                    Some(Cow::Borrowed(
+                        &Diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
+                    )),
+                    Some(Rc::new(GenerateInitialErrorChain::new(
+                        opening_like_element.node_wrapper(),
+                    ))),
+                    None,
+                );
+            }
+        } else {
+            let sfc_return_constraint =
+                self.get_jsx_stateless_element_type_at(opening_like_element);
+            let class_constraint = self.get_jsx_element_class_type_at(opening_like_element);
+            if sfc_return_constraint.is_none() || class_constraint.is_none() {
+                return;
+            }
+            let sfc_return_constraint = sfc_return_constraint.unwrap();
+            let class_constraint = class_constraint.unwrap();
+            let combined = self.get_union_type(
+                vec![sfc_return_constraint, class_constraint],
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            );
+            self.check_type_related_to(
+                elem_instance_type,
+                &combined,
+                self.assignable_relation.clone(),
+                Some(
+                    opening_like_element
+                        .as_jsx_opening_like_element()
+                        .tag_name(),
+                ),
+                Some(Cow::Borrowed(
+                    &Diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
+                )),
+                Some(Rc::new(GenerateInitialErrorChain::new(
+                    opening_like_element.node_wrapper(),
+                ))),
+                None,
+            );
+        }
     }
 
     pub(super) fn get_intrinsic_attributes_type_from_jsx_opening_like_element(
@@ -51,7 +275,15 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_jsx_element_class_type_at(&self, location: &Node) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_jsx_element_type_at(&self, location: &Node) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_jsx_stateless_element_type_at(&self, location: &Node) -> Option<Rc<Type>> {
         unimplemented!()
     }
 
@@ -738,5 +970,34 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Option<Vec<Rc<Type>>> {
         unimplemented!()
+    }
+}
+
+pub(super) struct GenerateInitialErrorChain {
+    opening_like_element: Rc<Node>,
+}
+
+impl GenerateInitialErrorChain {
+    pub fn new(opening_like_element: Rc<Node>) -> Self {
+        Self {
+            opening_like_element,
+        }
+    }
+}
+
+impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
+    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
+        let component_name = get_text_of_node(
+            &self
+                .opening_like_element
+                .as_jsx_opening_like_element()
+                .tag_name(),
+            None,
+        );
+        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+            None,
+            &Diagnostics::_0_cannot_be_used_as_a_JSX_component,
+            Some(vec![component_name.into_owned()]),
+        ))))
     }
 }
