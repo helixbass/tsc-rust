@@ -6,18 +6,20 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{
-JsxNames,    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
-    WideningKind,
+    signature_has_rest_parameter, CheckMode, JsxNames, MinArgumentCountFlags, ResolveNameNameArg,
+    TypeFacts, WideningKind,
 };
 use crate::{
-id_text,JsxFlags,is_identifier,    add_related_info, create_diagnostic_for_node, create_symbol_table, every, factory,
-    get_jsx_transform_enabled, get_source_file_of_node, is_import_call, is_intrinsic_jsx_name,
-    is_jsx_attribute, set_parent, string_contains, synthetic_factory, unescape_leading_underscores,
-    Debug_, Diagnostics, FunctionFlags, IndexInfo, JsxReferenceKind, NodeArray, NodeFlags,
-    Signature, SignatureFlags, StringOrRcNode, SymbolFlags, SymbolTable, Ternary,
-    TransientSymbolInterface, UnionReduction, __String, get_function_flags, get_object_flags,
-    has_initializer, InferenceContext, Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    add_related_info, create_diagnostic_for_node, create_symbol_table, every, factory,
+    get_emit_module_resolution_kind, get_jsx_implicit_import_base, get_jsx_runtime_import,
+    get_jsx_transform_enabled, get_source_file_of_node, id_text, is_identifier, is_import_call,
+    is_intrinsic_jsx_name, is_jsx_attribute, set_parent, string_contains, synthetic_factory,
+    unescape_leading_underscores, Debug_, Diagnostics, FunctionFlags, IndexInfo, JsxFlags,
+    JsxReferenceKind, ModuleResolutionKind, NodeArray, NodeFlags, Signature, SignatureFlags,
+    StringOrRcNode, SymbolFlags, SymbolTable, Ternary, TransientSymbolInterface, UnionReduction,
+    __String, get_function_flags, get_object_flags, has_initializer, InferenceContext, Node,
+    NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -251,7 +253,7 @@ impl TypeChecker {
         let mut explicitly_specify_children_attribute = false;
         let mut object_flags = ObjectFlags::JsxAttributes;
         let jsx_children_property_name = self.get_jsx_element_children_property_name(
-            &self.get_jsx_namespace_at(Some(opening_like_element)),
+            self.get_jsx_namespace_at(Some(opening_like_element)),
         );
 
         for attribute_decl in &attributes.as_jsx_attributes().properties {
@@ -623,13 +625,12 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let location = location.map(|location| location.borrow().node_wrapper());
         let namespace = self.get_jsx_namespace_at(location.as_deref());
-        let exports = /*namespace &&*/ 
-            self.get_exports_of_symbol(&namespace);
-        let type_symbol = /*exports &&*/ self.get_symbol(
-            &(*exports).borrow(),
-            name,
-            SymbolFlags::Type
-        );
+        let exports = namespace
+            .as_ref()
+            .map(|namespace| self.get_exports_of_symbol(namespace));
+        let type_symbol = exports
+            .as_ref()
+            .and_then(|exports| self.get_symbol(&(**exports).borrow(), name, SymbolFlags::Type));
         if let Some(type_symbol) = type_symbol.as_ref() {
             self.get_declared_type_of_symbol(type_symbol)
         } else {
@@ -644,10 +645,8 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         let node_as_has_tag_name = node.as_has_tag_name();
         if (*links).borrow().resolved_symbol.is_none() {
-            let intrinsic_elements_type = self.get_jsx_type(
-                &JsxNames::IntrinsicElements,
-                Some(node)
-            );
+            let intrinsic_elements_type =
+                self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node));
             if !self.is_error_type(&intrinsic_elements_type) {
                 if !is_identifier(&node_as_has_tag_name.tag_name()) {
                     Debug_.fail(None);
@@ -663,10 +662,8 @@ impl TypeChecker {
                     return intrinsic_prop.clone();
                 }
 
-                let index_signature_type = self.get_index_type_of_type_(
-                    &intrinsic_elements_type,
-                    &self.string_type()
-                );
+                let index_signature_type =
+                    self.get_index_type_of_type_(&intrinsic_elements_type, &self.string_type());
                 if let Some(index_signature_type) = index_signature_type.as_ref() {
                     links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
                     links.borrow_mut().resolved_symbol = Some(intrinsic_elements_type.symbol());
@@ -678,8 +675,8 @@ impl TypeChecker {
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
                         id_text(&node_as_has_tag_name.tag_name()),
-                        format!("JSX.{}", &**JsxNames::IntrinsicElements)
-                    ])
+                        format!("JSX.{}", &**JsxNames::IntrinsicElements),
+                    ]),
                 );
                 let ret = self.unknown_symbol();
                 links.borrow_mut().resolved_symbol = Some(ret.clone());
@@ -703,30 +700,163 @@ impl TypeChecker {
         ret
     }
 
+    pub(super) fn get_jsx_namespace_container_for_implicit_import<TLocation: Borrow<Node>>(
+        &self,
+        location: Option<TLocation>,
+    ) -> Option<Rc<Symbol>> {
+        let location = location.map(|location| location.borrow().node_wrapper());
+        let file = location
+            .as_ref()
+            .and_then(|location| get_source_file_of_node(Some(&**location)));
+        let links = file.as_ref().map(|file| self.get_node_links(file));
+        if matches!(
+            links.as_ref(),
+            Some(links) if matches!(
+                (**links).borrow().jsx_implicit_import_container,
+                Some(None)
+            )
+        ) {
+            return None;
+        }
+        if let Some(Some(links_jsx_implicit_import_container)) = links
+            .as_ref()
+            .and_then(|links| (**links).borrow().jsx_implicit_import_container.clone())
+        {
+            return Some(links_jsx_implicit_import_container);
+        }
+        let runtime_import_specifier = get_jsx_runtime_import(
+            get_jsx_implicit_import_base(&self.compiler_options, file.as_deref()).as_deref(),
+            &self.compiler_options,
+        )?;
+        let is_classic = get_emit_module_resolution_kind(&self.compiler_options)
+            == ModuleResolutionKind::Classic;
+        let error_message = if is_classic {
+            &*Diagnostics::Cannot_find_module_0_Did_you_mean_to_set_the_moduleResolution_option_to_node_or_to_add_aliases_to_the_paths_option
+        } else {
+            &*Diagnostics::Cannot_find_module_0_or_its_corresponding_type_declarations
+        };
+        let mod_ = self.resolve_external_module(
+            location.as_ref().unwrap(),
+            &runtime_import_specifier,
+            Some(error_message),
+            location.as_ref().unwrap(),
+            None,
+        );
+        let result = mod_
+            .as_ref()
+            .filter(|mod_| !Rc::ptr_eq(mod_, &self.unknown_symbol()))
+            .map(|mod_| {
+                self.get_merged_symbol(self.resolve_symbol(Some(&**mod_), None))
+                    .unwrap()
+            });
+        if let Some(links) = links.as_ref() {
+            links.borrow_mut().jsx_implicit_import_container = Some(result.clone());
+        }
+        result
+    }
+
     pub(super) fn get_jsx_namespace_at<TLocation: Borrow<Node>>(
         &self,
         location: Option<TLocation>,
-    ) -> Rc<Symbol> {
-        unimplemented!()
+    ) -> Option<Rc<Symbol>> {
+        let location = location.map(|location| location.borrow().node_wrapper());
+        let links = location
+            .as_ref()
+            .map(|location| self.get_node_links(location));
+        if let Some(Some(links_jsx_namespace)) = links
+            .as_ref()
+            .and_then(|links| (**links).borrow().jsx_namespace.clone())
+        {
+            return Some(links_jsx_namespace);
+        }
+        if match links
+            .as_ref()
+            .and_then(|links| (**links).borrow().jsx_namespace.clone())
+        {
+            None => true,
+            Some(None) => false,
+            _ => true,
+        } {
+            let mut resolved_namespace =
+                self.get_jsx_namespace_container_for_implicit_import(location.as_deref());
+
+            if match resolved_namespace.as_ref() {
+                None => true,
+                Some(resolved_namespace) => Rc::ptr_eq(resolved_namespace, &self.unknown_symbol()),
+            } {
+                let namespace_name = self.get_jsx_namespace_(location.as_deref());
+                resolved_namespace = self.resolve_name_(
+                    location.as_deref(),
+                    &namespace_name,
+                    SymbolFlags::Namespace,
+                    None,
+                    Some(namespace_name.clone()),
+                    false,
+                    None,
+                );
+            }
+
+            if let Some(resolved_namespace) = resolved_namespace.as_ref() {
+                let candidate = self.resolve_symbol(
+                    self.get_symbol(
+                        &(*self.get_exports_of_symbol(
+                            &self
+                                .resolve_symbol(Some(&**resolved_namespace), None)
+                                .unwrap(),
+                        ))
+                        .borrow(),
+                        &JsxNames::JSX,
+                        SymbolFlags::Namespace,
+                    ),
+                    None,
+                );
+                if let Some(candidate) = candidate
+                    .as_ref()
+                    .filter(|candidate| !Rc::ptr_eq(candidate, &self.unknown_symbol()))
+                {
+                    if let Some(links) = links.as_ref() {
+                        links.borrow_mut().jsx_namespace = Some(Some(candidate.clone()));
+                    }
+                    return Some(candidate.clone());
+                }
+            }
+            if let Some(links) = links.as_ref() {
+                links.borrow_mut().jsx_namespace = Some(None);
+            }
+        }
+        let s = self.resolve_symbol(
+            self.get_global_symbol(&JsxNames::JSX, SymbolFlags::Namespace, None),
+            None,
+        );
+        if matches!(
+            s.as_ref(),
+            Some(s) if Rc::ptr_eq(
+                s,
+                &self.unknown_symbol()
+            )
+        ) {
+            return None;
+        }
+        s
     }
 
-    pub(super) fn get_jsx_library_managed_attributes(
+    pub(super) fn get_jsx_library_managed_attributes<TJsxNamespace: Borrow<Symbol>>(
         &self,
-        jsx_namespace: &Symbol,
+        jsx_namespace: Option<TJsxNamespace>,
     ) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
 
-    pub(super) fn get_jsx_element_properties_name(
+    pub(super) fn get_jsx_element_properties_name<TJsxNamespace: Borrow<Symbol>>(
         &self,
-        jsx_namespace: &Symbol,
+        jsx_namespace: Option<TJsxNamespace>,
     ) -> Option<__String> {
         unimplemented!()
     }
 
-    pub(super) fn get_jsx_element_children_property_name(
+    pub(super) fn get_jsx_element_children_property_name<TJsxNamespace: Borrow<Symbol>>(
         &self,
-        jsx_namespace: &Symbol,
+        jsx_namespace: Option<TJsxNamespace>,
     ) -> Option<__String> {
         unimplemented!()
     }

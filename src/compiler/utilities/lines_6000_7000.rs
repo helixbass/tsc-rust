@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use regex::Regex;
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -648,6 +648,17 @@ pub fn get_compiler_option_value(
     } else {
         lookup_compiler_option_value(options, option.name())
     }
+}
+
+pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
+    compiler_options: &CompilerOptions,
+    file: Option<TFile /*SourceFile*/>,
+) -> Option<String> {
+    unimplemented!()
+}
+
+pub fn get_jsx_runtime_import(base: Option<&str>, options: &CompilerOptions) -> Option<String> {
+    unimplemented!()
 }
 
 pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {

@@ -23,10 +23,10 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_jsx_managed_attributes_from_located_attributes(
+    pub(super) fn get_jsx_managed_attributes_from_located_attributes<TNs: Borrow<Symbol>>(
         &self,
         context: &Node, /*JsxOpeningLikeElement*/
-        ns: &Symbol,
+        ns: Option<TNs>,
         attributes_type: &Type,
     ) -> Rc<Type> {
         let managed_sym = self.get_jsx_library_managed_attributes(ns);
@@ -79,7 +79,7 @@ impl TypeChecker {
         context: &Node, /*JsxOpeningLikeElement*/
     ) -> Rc<Type> {
         let ns = self.get_jsx_namespace_at(Some(context));
-        let forced_lookup_location = self.get_jsx_element_properties_name(&ns);
+        let forced_lookup_location = self.get_jsx_element_properties_name(ns.as_deref());
         let attributes_type = match forced_lookup_location.as_ref() {
             None => Some(self.get_type_of_first_parameter_of_signature_with_fallback(
                 &sig,
@@ -120,8 +120,11 @@ impl TypeChecker {
         }
         let mut attributes_type = attributes_type.unwrap();
 
-        attributes_type =
-            self.get_jsx_managed_attributes_from_located_attributes(context, &ns, &attributes_type);
+        attributes_type = self.get_jsx_managed_attributes_from_located_attributes(
+            context,
+            ns.as_deref(),
+            &attributes_type,
+        );
 
         if self.is_type_any(Some(&*attributes_type)) {
             attributes_type

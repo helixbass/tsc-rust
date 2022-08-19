@@ -439,7 +439,7 @@ impl TypeChecker {
             None,
         );
         let jsx_children_property_name =
-            self.get_jsx_element_children_property_name(&self.get_jsx_namespace_at(Some(node)));
+            self.get_jsx_element_children_property_name(self.get_jsx_namespace_at(Some(node)));
         if !(matches!(
             attributes_type.as_ref(),
             Some(attributes_type) if !self.is_type_any(Some(&**attributes_type))
@@ -965,7 +965,7 @@ impl TypeChecker {
             self.get_type_of_first_parameter_of_signature_with_fallback(sig, &self.unknown_type());
         props_type = self.get_jsx_managed_attributes_from_located_attributes(
             context,
-            &self.get_jsx_namespace_at(Some(context)),
+            self.get_jsx_namespace_at(Some(context)),
             &props_type,
         );
         let intrinsic_attribs = self.get_jsx_type(&JsxNames::IntrinsicAttributes, Some(context));
