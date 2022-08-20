@@ -10,17 +10,18 @@ use super::{
     WideningKind,
 };
 use crate::{
-    capitalize, contains, filter, find, find_ancestor, get_check_flags, get_first_identifier,
-    get_script_target_features, get_spelling_suggestion, has_effective_modifier, id_text,
-    is_assignment_target, is_entity_name_expression, is_function_like_declaration, is_import_call,
-    is_named_declaration, is_private_identifier, is_property_access_expression, is_static,
-    is_write_only_access, map_defined, starts_with, symbol_name,
-    try_get_property_access_or_identifier_to_string, unescape_leading_underscores, CheckFlags,
-    Debug_, Diagnostics, FunctionFlags, JsxReferenceKind, ModifierFlags, Signature, SignatureFlags,
-    StringOrRcNode, SymbolFlags, SymbolTable, Ternary, UnionOrIntersectionTypeInterface,
-    UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    capitalize, contains, filter, find, find_ancestor, get_check_flags, get_containing_class,
+    get_first_identifier, get_script_target_features, get_spelling_suggestion,
+    has_effective_modifier, id_text, is_assignment_target, is_binding_pattern,
+    is_entity_name_expression, is_function_like_declaration, is_import_call, is_named_declaration,
+    is_optional_chain, is_private_identifier, is_private_identifier_class_element_declaration,
+    is_property_access_expression, is_static, is_write_only_access, map_defined, skip_parentheses,
+    starts_with, symbol_name, try_get_property_access_or_identifier_to_string,
+    unescape_leading_underscores, CheckFlags, Debug_, Diagnostics, FunctionFlags, JsxReferenceKind,
+    ModifierFlags, NamedDeclarationInterface, NodeFlags, Signature, SignatureFlags, StringOrRcNode,
+    SymbolFlags, SymbolTable, Ternary, UnionOrIntersectionTypeInterface, UnionReduction, __String,
+    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -500,11 +501,19 @@ impl TypeChecker {
 
     pub fn is_valid_property_access_for_completions_(
         &self,
-        node_in: &Node, /*PropertyAccessExpression | ImportTypeNode | QualifiedName*/
+        node: &Node, /*PropertyAccessExpression | ImportTypeNode | QualifiedName*/
         type_: &Type,
         property: &Symbol,
     ) -> bool {
-        unimplemented!()
+        self.is_property_accessible(
+            node,
+            node.kind() == SyntaxKind::PropertyAccessExpression
+                && node.as_property_access_expression().expression.kind()
+                    == SyntaxKind::SuperKeyword,
+            false,
+            type_,
+            property,
+        )
     }
 
     pub(super) fn is_valid_property_access_with_type(
@@ -514,6 +523,178 @@ impl TypeChecker {
         property_name: &__String,
         type_: &Type,
     ) -> bool {
+        if self.is_type_any(Some(type_)) {
+            return true;
+        }
+
+        let prop = self.get_property_of_type_(type_, property_name, None);
+        matches!(
+            prop.as_ref(),
+            Some(prop) if self.is_property_accessible(
+                node,
+                is_super,
+                false,
+                type_,
+                prop,
+            )
+        )
+    }
+
+    pub(super) fn is_property_accessible(
+        &self,
+        node: &Node,
+        is_super: bool,
+        is_write: bool,
+        containing_type: &Type,
+        property: &Symbol,
+    ) -> bool {
+        if self.is_type_any(Some(containing_type)) {
+            return true;
+        }
+
+        if let Some(property_value_declaration) = property
+            .maybe_value_declaration()
+            .as_ref()
+            .filter(|property_value_declaration| {
+                is_private_identifier_class_element_declaration(property_value_declaration)
+            })
+        {
+            let decl_class = get_containing_class(property_value_declaration);
+            return !is_optional_chain(node)
+                && find_ancestor(Some(node), |parent: &Node| {
+                    matches!(
+                        decl_class.as_ref(),
+                        Some(decl_class) if ptr::eq(
+                            parent,
+                            &**decl_class
+                        )
+                    )
+                })
+                .is_some();
+        }
+
+        self.check_property_accessibility_at_location(
+            node,
+            is_super,
+            is_write,
+            containing_type,
+            property,
+            Option::<&Node>::None,
+        )
+    }
+
+    pub(super) fn get_for_in_variable_symbol(
+        &self,
+        node: &Node, /*ForInStatement*/
+    ) -> Option<Rc<Symbol>> {
+        let initializer = &node.as_for_in_statement().initializer;
+        if initializer.kind() == SyntaxKind::VariableDeclarationList {
+            let variable = initializer
+                .as_variable_declaration_list()
+                .declarations
+                .get(0)
+                .cloned();
+            if let Some(variable) = variable.as_ref().filter(|variable| {
+                !is_binding_pattern(variable.as_variable_declaration().maybe_name())
+            }) {
+                return self.get_symbol_of_node(variable);
+            }
+        } else if initializer.kind() == SyntaxKind::Identifier {
+            return Some(self.get_resolved_symbol(initializer));
+        }
+        None
+    }
+
+    pub(super) fn has_numeric_property_names(&self, type_: &Type) -> bool {
+        self.get_index_infos_of_type(type_).len() == 1
+            && self
+                .get_index_info_of_type_(type_, &self.number_type())
+                .is_some()
+    }
+
+    pub(super) fn is_for_in_variable_for_numeric_property_names(
+        &self,
+        expr: &Node, /*Expression*/
+    ) -> bool {
+        let e = skip_parentheses(expr, None);
+        if e.kind() == SyntaxKind::Identifier {
+            let symbol = self.get_resolved_symbol(&e);
+            if symbol.flags().intersects(SymbolFlags::Variable) {
+                let mut child = expr.node_wrapper();
+                let mut node = expr.maybe_parent();
+                while let Some(node_present) = node.as_ref() {
+                    if node_present.kind() == SyntaxKind::ForInStatement && {
+                        let node_as_for_in_statement = node_present.as_for_in_statement();
+                        Rc::ptr_eq(&child, &node_as_for_in_statement.statement)
+                            && matches!(
+                                self.get_for_in_variable_symbol(node_present).as_ref(),
+                                Some(for_in_variable_symbol) if Rc::ptr_eq(
+                                    for_in_variable_symbol,
+                                    &symbol
+                                )
+                            )
+                            && self.has_numeric_property_names(
+                                &self.get_type_of_expression(&node_as_for_in_statement.expression),
+                            )
+                    } {
+                        return true;
+                    }
+                    child = node_present.clone();
+                    node = node_present.maybe_parent();
+                }
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_indexed_access(
+        &self,
+        node: &Node, /*ElementAccessExpression*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        if node.flags().intersects(NodeFlags::OptionalChain) {
+            self.check_element_access_chain(node, check_mode)
+        } else {
+            self.check_element_access_expression(
+                node,
+                &self.check_non_null_expression(&node.as_element_access_expression().expression),
+                check_mode,
+            )
+        }
+    }
+
+    pub(super) fn check_element_access_chain(
+        &self,
+        node: &Node, /*ElementAccessChain*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        let node_as_element_access_expression = node.as_element_access_expression();
+        let expr_type =
+            self.check_expression(&node_as_element_access_expression.expression, None, None);
+        let non_optional_type = self.get_optional_expression_type(
+            &expr_type,
+            &node_as_element_access_expression.expression,
+        );
+        self.propagate_optional_type_marker(
+            &self.check_element_access_expression(
+                node,
+                &self.check_non_null_type(
+                    &non_optional_type,
+                    &node_as_element_access_expression.expression,
+                ),
+                check_mode,
+            ),
+            node,
+            !Rc::ptr_eq(&non_optional_type, &expr_type),
+        )
+    }
+
+    pub(super) fn check_element_access_expression(
+        &self,
+        node: &Node, /*ElementAccessExpression*/
+        expr_type: &Type,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
