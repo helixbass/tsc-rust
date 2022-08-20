@@ -2,6 +2,7 @@
 
 use regex::Regex;
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -9,12 +10,12 @@ use super::{
     WideningKind,
 };
 use crate::{
-    contains, filter, find, get_script_target_features, id_text, is_import_call,
-    is_property_access_expression, is_static, symbol_name, unescape_leading_underscores,
-    Diagnostics, FunctionFlags, JsxReferenceKind, Signature, SignatureFlags, StringOrRcNode,
-    SymbolFlags, Ternary, UnionReduction, __String, get_function_flags, has_initializer,
-    InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    capitalize, contains, filter, find, get_script_target_features, id_text, is_import_call,
+    is_property_access_expression, is_static, map_defined, symbol_name,
+    unescape_leading_underscores, Debug_, Diagnostics, FunctionFlags, JsxReferenceKind, Signature,
+    SignatureFlags, StringOrRcNode, SymbolFlags, SymbolTable, Ternary, UnionReduction, __String,
+    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -178,8 +179,55 @@ impl TypeChecker {
         outer_name: &__String,
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
-        // unimplemented!()
-        None
+        // Debug.assert(outerName !== undefined, "outername should always be defined");
+        let result = self.resolve_name_helper(
+            location,
+            outer_name,
+            meaning,
+            None,
+            Some(outer_name.clone()),
+            false,
+            false,
+            |symbols: &SymbolTable, name: &__String, meaning: SymbolFlags| {
+                Debug_.assert_equal(outer_name, name, Some("name should equal outername"), None);
+                let symbol = self.get_symbol(symbols, name, meaning);
+                if symbol.is_some() {
+                    return symbol;
+                }
+                let candidates: Vec<Rc<Symbol>>;
+                if ptr::eq(symbols, &*self.globals()) {
+                    let primitives = map_defined(
+                        Some(["string", "number", "boolean", "object", "bigint", "symbol"]),
+                        |s: &str, _| {
+                            if symbols.contains_key(&__String::new(capitalize(s))) {
+                                Some(
+                                    self.create_symbol(
+                                        SymbolFlags::TypeAlias,
+                                        __String::new(s.to_owned()),
+                                        None,
+                                    )
+                                    .into(),
+                                )
+                            } else {
+                                None
+                            }
+                        },
+                    );
+                    candidates = primitives
+                        .into_iter()
+                        .chain(symbols.values().cloned())
+                        .collect();
+                } else {
+                    candidates = symbols.values().cloned().collect();
+                }
+                self.get_spelling_suggestion_for_name(
+                    &unescape_leading_underscores(name),
+                    &candidates,
+                    meaning,
+                )
+            },
+        );
+        result
     }
 
     pub(super) fn get_suggestion_for_nonexistent_symbol_<TLocation: Borrow<Node>>(
@@ -222,7 +270,8 @@ impl TypeChecker {
         symbols: &[Rc<Symbol>],
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        // unimplemented!()
+        None
     }
 
     pub(super) fn mark_property_as_referenced<TNodeForCheckWriteOnly: Borrow<Node>>(

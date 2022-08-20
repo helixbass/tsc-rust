@@ -895,7 +895,7 @@ impl TypeChecker {
 
         if is_global_scope_augmentation(&module_augmentation) {
             self.merge_symbol_table(
-                &mut self.globals(),
+                &mut self.globals_mut(),
                 &mut module_augmentation.symbol().exports().borrow_mut(),
                 None,
             );
@@ -1454,13 +1454,16 @@ impl TypeChecker {
             name_arg,
             is_use,
             exclude_globals,
-            TypeChecker::get_symbol,
+            |symbols: &SymbolTable, name: &__String, meaning: SymbolFlags| {
+                self.get_symbol(symbols, name, meaning)
+            },
         )
     }
 
     pub(super) fn resolve_name_helper<
         TLocation: Borrow<Node>,
         TNameArg: Into<ResolveNameNameArg> + Clone,
+        TLookup: FnMut(&SymbolTable, &__String, SymbolFlags) -> Option<Rc<Symbol>>,
     >(
         &self,
         location: Option<TLocation>,
@@ -1470,7 +1473,7 @@ impl TypeChecker {
         name_arg: Option<TNameArg>,
         is_use: bool,
         exclude_globals: bool,
-        lookup: fn(&TypeChecker, &SymbolTable, &__String, SymbolFlags) -> Option<Rc<Symbol>>,
+        mut lookup: TLookup,
     ) -> Option<Rc<Symbol>> {
         let mut location: Option<Rc<Node>> = location.map(|node| node.borrow().node_wrapper());
         let original_location = location.clone();
@@ -1491,7 +1494,7 @@ impl TypeChecker {
                 let location_maybe_locals = location_unwrapped.maybe_locals();
                 if let Some(location_locals) = location_maybe_locals.as_ref() {
                     if !self.is_global_source_file(&*location_unwrapped) {
-                        result = lookup(self, &RefCell::borrow(location_locals), name, meaning);
+                        result = lookup(&RefCell::borrow(location_locals), name, meaning);
                         if let Some(result_unwrapped) = result.as_ref() {
                             let mut use_result = true;
                             if is_function_like(Some(&*location_unwrapped))
@@ -1617,12 +1620,8 @@ impl TypeChecker {
                         }
 
                         if name != &InternalSymbolName::Default() {
-                            result = lookup(
-                                self,
-                                &module_exports,
-                                name,
-                                meaning & SymbolFlags::ModuleMember,
-                            );
+                            result =
+                                lookup(&module_exports, name, meaning & SymbolFlags::ModuleMember);
                             if let Some(result_unwrapped) = result.as_ref() {
                                 if is_source_file(&location_unwrapped)
                                     && location_unwrapped
@@ -1644,7 +1643,6 @@ impl TypeChecker {
                 }
                 SyntaxKind::EnumDeclaration => {
                     result = lookup(
-                        self,
                         &RefCell::borrow(
                             &self
                                 .get_symbol_of_node(&location_unwrapped)
@@ -1664,7 +1662,6 @@ impl TypeChecker {
                         if let Some(ctor) = ctor {
                             if let Some(ctor_locals) = ctor.maybe_locals().as_ref() {
                                 if lookup(
-                                    self,
                                     &RefCell::borrow(ctor_locals),
                                     name,
                                     meaning & SymbolFlags::Value,
@@ -1682,7 +1679,6 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     result = lookup(
-                        self,
                         &*(*self
                             .get_symbol_of_node(&*location_unwrapped)
                             .unwrap()
@@ -1735,7 +1731,6 @@ impl TypeChecker {
                         let container = location_unwrapped.parent().parent();
                         if is_class_like(&container) {
                             result = lookup(
-                                self,
                                 &RefCell::borrow(
                                     &self.get_symbol_of_node(&container).unwrap().members(),
                                 ),
@@ -1757,7 +1752,6 @@ impl TypeChecker {
                         || grandparent.kind() == SyntaxKind::InterfaceDeclaration
                     {
                         result = lookup(
-                            self,
                             &RefCell::borrow(
                                 &self.get_symbol_of_node(&grandparent).unwrap().members(),
                             ),
@@ -1909,7 +1903,7 @@ impl TypeChecker {
             }
 
             if !exclude_globals {
-                result = lookup(self, &self.globals(), name, meaning);
+                result = lookup(&self.globals(), name, meaning);
             }
         }
         if result.is_none() {
@@ -2151,7 +2145,7 @@ impl TypeChecker {
                         Some(value_declaration) if value_declaration.pos() > associated_declaration_for_containing_initializer_or_binding_name.pos() &&
                             matches!(
                                 root.parent().maybe_locals().as_ref(),
-                                Some(locals) if are_option_rcs_equal(lookup(self, &RefCell::borrow(locals), candidate.escaped_name(), meaning).as_ref(), Some(&candidate))
+                                Some(locals) if are_option_rcs_equal(lookup(&RefCell::borrow(locals), candidate.escaped_name(), meaning).as_ref(), Some(&candidate))
                             )
                     ) {
                         self.error(

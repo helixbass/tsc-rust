@@ -253,7 +253,7 @@ impl TypeChecker {
         for file in self.host.get_source_files() {
             if !is_external_or_common_js_module(&file) {
                 self.merge_symbol_table(
-                    &mut *self.globals(),
+                    &mut *self.globals_mut(),
                     &RefCell::borrow(&file.locals()),
                     None,
                 );

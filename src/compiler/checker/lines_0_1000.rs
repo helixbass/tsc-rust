@@ -858,7 +858,7 @@ pub fn create_type_checker(
         *global_this_symbol_exports = Some(type_checker.globals_rc());
     }
     global_this_symbol.set_declarations(vec![]);
-    type_checker.globals().insert(
+    type_checker.globals_mut().insert(
         global_this_symbol.escaped_name().clone(),
         global_this_symbol,
     );
@@ -1563,7 +1563,11 @@ impl TypeChecker {
         self.emit_resolver.clone().unwrap()
     }
 
-    pub(super) fn globals(&self) -> RefMut<SymbolTable> {
+    pub(super) fn globals(&self) -> Ref<SymbolTable> {
+        (*self.globals).borrow()
+    }
+
+    pub(super) fn globals_mut(&self) -> RefMut<SymbolTable> {
         self.globals.borrow_mut()
     }
 
