@@ -9,11 +9,14 @@ use super::{
     WideningKind,
 };
 use crate::{
-    is_import_call, unescape_leading_underscores, Diagnostics, FunctionFlags, JsxReferenceKind,
-    Signature, SignatureFlags, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
-    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    contains, filter, find, get_script_target_features, id_text, is_import_call,
+    is_property_access_expression, is_static, symbol_name, unescape_leading_underscores,
+    Diagnostics, FunctionFlags, JsxReferenceKind, Signature, SignatureFlags, StringOrRcNode,
+    SymbolFlags, Ternary, UnionReduction, __String, get_function_flags, has_initializer,
+    InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
+use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn container_seems_to_be_empty_dom_element(&self, containing_type: &Type) -> bool {
@@ -41,14 +44,38 @@ impl TypeChecker {
         prop_name: &__String,
         containing_type: &Type,
     ) -> bool {
-        unimplemented!()
+        let prop = containing_type
+            .maybe_symbol()
+            .as_ref()
+            .and_then(|containing_type_symbol| {
+                self.get_property_of_type_(
+                    &self.get_type_of_symbol(containing_type_symbol),
+                    prop_name,
+                    None,
+                )
+            });
+        matches!(
+            prop.as_ref().and_then(|prop| prop.maybe_value_declaration()).as_ref(),
+            Some(prop_value_declaration) if is_static(prop_value_declaration)
+        )
     }
 
     pub(super) fn get_suggested_lib_for_non_existent_name(
         &self,
         name: ResolveNameNameArg,
     ) -> Option<String> {
-        // unimplemented!()
+        let missing_name = self.diagnostic_name(name).into_owned();
+        let all_features = get_script_target_features();
+        let lib_targets = all_features.keys();
+        for lib_target in lib_targets {
+            let containing_types = all_features.get(lib_target).unwrap();
+            let containing_types: Vec<_> = containing_types.keys().map(|key| *key).collect();
+            if
+            /*containingTypes !== undefined &&*/
+            contains(Some(&containing_types), &&*missing_name) {
+                return Some((*lib_target).to_owned());
+            }
+        }
         None
     }
 
@@ -57,7 +84,33 @@ impl TypeChecker {
         missing_property: &str,
         containing_type: &Type,
     ) -> Option<String> {
-        unimplemented!()
+        let container = self.get_apparent_type(containing_type).maybe_symbol()?;
+        let all_features = get_script_target_features();
+        let lib_targets = all_features.keys();
+        for lib_target in lib_targets {
+            let features_of_lib = all_features.get(lib_target).unwrap();
+            let container_name = symbol_name(&container);
+            let features_of_containing_type = features_of_lib.get(&&*container_name);
+            if matches!(
+                features_of_containing_type,
+                Some(features_of_containing_type) if contains(Some(features_of_containing_type), &missing_property)
+            ) {
+                return Some((*lib_target).to_owned());
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_suggested_symbol_for_nonexistent_class_member(
+        &self,
+        name: &str,
+        base_type: &Type,
+    ) -> Option<Rc<Symbol>> {
+        self.get_spelling_suggestion_for_name(
+            name,
+            &self.get_properties_of_type(base_type),
+            SymbolFlags::ClassMember,
+        )
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_property<TName: Into<StringOrRcNode>>(
@@ -65,7 +118,19 @@ impl TypeChecker {
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let mut props = self.get_properties_of_type(containing_type);
+        let mut name: StringOrRcNode = name.into();
+        if let StringOrRcNode::RcNode(ref name_ref) = name {
+            let parent = name_ref.parent();
+            if is_property_access_expression(&parent) {
+                props = filter(&props, |prop: &Rc<Symbol>| {
+                    self.is_valid_property_access_for_completions_(&parent, containing_type, prop)
+                });
+            }
+            name = StringOrRcNode::String(id_text(name_ref));
+        }
+        let name = enum_unwrapped!(name, [StringOrRcNode, String]);
+        self.get_spelling_suggestion_for_name(&name, &props, SymbolFlags::Value)
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<
@@ -75,7 +140,25 @@ impl TypeChecker {
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let name: StringOrRcNode = name.into();
+        let str_name = match name {
+            StringOrRcNode::String(name) => name,
+            StringOrRcNode::RcNode(name) => id_text(&name),
+        };
+        let properties = self.get_properties_of_type(containing_type);
+        let jsx_specific = if str_name == "for" {
+            find(&properties, |x: &Rc<Symbol>, _| symbol_name(x) == "htmlFor").cloned()
+        } else if str_name == "class" {
+            find(&properties, |x: &Rc<Symbol>, _| {
+                symbol_name(x) == "className"
+            })
+            .cloned()
+        } else {
+            None
+        };
+        jsx_specific.or_else(|| {
+            self.get_spelling_suggestion_for_name(&str_name, &properties, SymbolFlags::Value)
+        })
     }
 
     pub(super) fn get_suggestion_for_nonexistent_property<TName: Into<StringOrRcNode>>(
@@ -83,7 +166,10 @@ impl TypeChecker {
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
     ) -> Option<String> {
-        unimplemented!()
+        let suggestion = self.get_suggested_symbol_for_nonexistent_property(name, containing_type);
+        suggestion
+            .as_ref()
+            .map(|suggestion| symbol_name(suggestion))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_symbol_<TLocation: Borrow<Node>>(
@@ -127,6 +213,15 @@ impl TypeChecker {
         source: &Type, /*StringLiteralType*/
         target: &Type, /*UnionType*/
     ) -> Option<Rc<Type /*StringLiteralType*/>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_spelling_suggestion_for_name(
+        &self,
+        name: &str,
+        symbols: &[Rc<Symbol>],
+        meaning: SymbolFlags,
+    ) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
 
