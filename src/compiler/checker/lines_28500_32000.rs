@@ -1,29 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    anon, signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg,
-    TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
+    WideningKind,
 };
 use crate::{
-    add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
-    create_diagnostic_for_node_from_message_chain, declaration_name_to_string, find_ancestor,
-    for_each, get_assignment_declaration_property_access_kind, get_assignment_target_kind,
-    get_containing_class, get_source_file_of_node, get_symbol_name_for_private_identifier,
-    get_this_container, get_this_parameter, id_text, is_access_expression, is_assignment_target,
-    is_block, is_call_or_new_expression, is_class_static_block_declaration, is_delete_target,
-    is_expression_node, is_function_like, is_identifier, is_import_call, is_method_declaration,
-    is_named_declaration, is_part_of_type_query, is_private_identifier,
-    is_property_access_expression, is_static, is_this_identifier, is_this_property,
-    is_write_access, maybe_for_each, should_preserve_const_enums, symbol_name,
-    unescape_leading_underscores, AssignmentDeclarationKind, AssignmentKind, Debug_, Diagnostic,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, ExternalEmitHelpers,
-    FindAncestorCallbackReturn, FunctionFlags, JsxReferenceKind, NodeFlags, ScriptKind,
-    ScriptTarget, Signature, SignatureFlags, StringOrRcNode, SymbolFlags, Ternary,
-    UnionOrIntersectionTypeInterface, UnionReduction, __String, get_function_flags,
+    is_import_call, Diagnostics, FunctionFlags, JsxReferenceKind, Signature, SignatureFlags,
+    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, get_function_flags,
     has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
     Type, TypeChecker, TypeFlags, TypeInterface,
 };
