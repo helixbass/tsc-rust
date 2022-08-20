@@ -446,6 +446,14 @@ impl TypeChecker {
         self.get_type_from_type_node_(node);
     }
 
+    pub(super) fn check_indexed_access_index_type(
+        &self,
+        type_: &Type,
+        access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn is_private_within_ambient(&self, node: &Node) -> bool {
         unimplemented!()
     }

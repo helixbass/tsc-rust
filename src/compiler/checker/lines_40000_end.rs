@@ -1028,3 +1028,7 @@ pub(super) mod JsxNames {
 pub(super) fn signature_has_rest_parameter(s: &Signature) -> bool {
     s.flags.intersects(SignatureFlags::HasRestParameter)
 }
+
+pub(super) fn signature_has_literal_types(s: &Signature) -> bool {
+    s.flags.intersects(SignatureFlags::HasLiteralTypes)
+}

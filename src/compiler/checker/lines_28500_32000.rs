@@ -2,22 +2,26 @@
 
 use regex::Regex;
 use std::borrow::Borrow;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg, TypeFacts,
-    WideningKind,
+    signature_has_literal_types, signature_has_rest_parameter, CheckMode, MinArgumentCountFlags,
+    ResolveNameNameArg, TypeFacts, WideningKind,
 };
 use crate::{
-    capitalize, contains, filter, find, find_ancestor, get_check_flags, get_containing_class,
-    get_first_identifier, get_script_target_features, get_spelling_suggestion,
-    has_effective_modifier, id_text, is_assignment_target, is_binding_pattern,
-    is_entity_name_expression, is_function_like_declaration, is_import_call, is_named_declaration,
-    is_optional_chain, is_private_identifier, is_private_identifier_class_element_declaration,
-    is_property_access_expression, is_static, is_write_only_access, map_defined, skip_parentheses,
-    starts_with, symbol_name, try_get_property_access_or_identifier_to_string,
-    unescape_leading_underscores, CheckFlags, Debug_, Diagnostics, FunctionFlags, JsxReferenceKind,
+    capitalize, contains, filter, find, find_ancestor, get_assignment_target_kind, get_check_flags,
+    get_containing_class, get_first_identifier, get_script_target_features,
+    get_spelling_suggestion, has_effective_modifier, id_text, is_assignment_target,
+    is_binding_pattern, is_call_or_new_expression, is_entity_name_expression,
+    is_function_like_declaration, is_import_call, is_jsx_opening_like_element,
+    is_named_declaration, is_optional_chain, is_private_identifier,
+    is_private_identifier_class_element_declaration, is_property_access_expression, is_static,
+    is_string_literal_like, is_tagged_template_expression, is_write_only_access, map_defined,
+    maybe_for_each, skip_parentheses, starts_with, symbol_name,
+    try_get_property_access_or_identifier_to_string, unescape_leading_underscores, AccessFlags,
+    AssignmentKind, CheckFlags, Debug_, Diagnostics, FunctionFlags, JsxReferenceKind,
     ModifierFlags, NamedDeclarationInterface, NodeFlags, Signature, SignatureFlags, StringOrRcNode,
     SymbolFlags, SymbolTable, Ternary, UnionOrIntersectionTypeInterface, UnionReduction, __String,
     get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
@@ -695,7 +699,192 @@ impl TypeChecker {
         expr_type: &Type,
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let object_type = if get_assignment_target_kind(node) != AssignmentKind::None
+            || self.is_method_access_for_call(node)
+        {
+            self.get_widened_type(expr_type)
+        } else {
+            expr_type.type_wrapper()
+        };
+        let node_as_element_access_expression = node.as_element_access_expression();
+        let index_expression = &node_as_element_access_expression.argument_expression;
+        let index_type = self.check_expression(index_expression, None, None);
+
+        if self.is_error_type(&object_type) || Rc::ptr_eq(&object_type, &self.silent_never_type()) {
+            return object_type;
+        }
+
+        if self.is_const_enum_object_type(&object_type) && !is_string_literal_like(index_expression)
+        {
+            self.error(
+                Some(&**index_expression),
+                &Diagnostics::A_const_enum_member_can_only_be_accessed_using_a_string_literal,
+                None,
+            );
+            return self.error_type();
+        }
+
+        let effective_index_type =
+            if self.is_for_in_variable_for_numeric_property_names(index_expression) {
+                self.number_type()
+            } else {
+                index_type.clone()
+            };
+        let access_flags = if is_assignment_target(node) {
+            AccessFlags::Writing
+                | if self.is_generic_object_type(&object_type)
+                    && !self.is_this_type_parameter(&object_type)
+                {
+                    AccessFlags::NoIndexSignatures
+                } else {
+                    AccessFlags::None
+                }
+        } else {
+            AccessFlags::ExpressionPosition
+        };
+        let indexed_access_type = self
+            .get_indexed_access_type_or_undefined(
+                &object_type,
+                &effective_index_type,
+                Some(access_flags),
+                Some(node),
+                Option::<&Symbol>::None,
+                None,
+            )
+            .unwrap_or_else(|| self.error_type());
+        self.check_indexed_access_index_type(
+            &self.get_flow_type_of_access_expression(
+                node,
+                (*self.get_node_links(node))
+                    .borrow()
+                    .resolved_symbol
+                    .clone(),
+                &indexed_access_type,
+                index_expression,
+                check_mode,
+            ),
+            node,
+        )
+    }
+
+    pub(super) fn call_like_expression_may_have_type_arguments(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+    ) -> bool {
+        is_call_or_new_expression(node)
+            || is_tagged_template_expression(node)
+            || is_jsx_opening_like_element(node)
+    }
+
+    pub(super) fn resolve_untyped_call(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+    ) -> Rc<Signature> {
+        if self.call_like_expression_may_have_type_arguments(node) {
+            maybe_for_each(
+                node.as_has_type_arguments().maybe_type_arguments(),
+                |type_argument: &Rc<Node>, _| -> Option<()> {
+                    self.check_source_element(Some(&**type_argument));
+                    None
+                },
+            );
+        }
+
+        if node.kind() == SyntaxKind::TaggedTemplateExpression {
+            self.check_expression(&node.as_tagged_template_expression().template, None, None);
+        } else if is_jsx_opening_like_element(node) {
+            self.check_expression(&node.as_jsx_opening_like_element().attributes(), None, None);
+        } else if node.kind() != SyntaxKind::Decorator {
+            maybe_for_each(
+                node.as_has_arguments().maybe_arguments(),
+                |argument: &Rc<Node>, _| -> Option<()> {
+                    self.check_expression(argument, None, None);
+                    None
+                },
+            );
+        }
+        self.any_signature()
+    }
+
+    pub(super) fn resolve_error_call(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+    ) -> Rc<Signature> {
+        self.resolve_untyped_call(node);
+        self.unknown_signature()
+    }
+
+    pub(super) fn reorder_candidates(
+        &self,
+        signatures: &[Rc<Signature>],
+        result: &mut Vec<Rc<Signature>>,
+        call_chain_flags: SignatureFlags,
+    ) {
+        let mut last_parent: Option<Rc<Node>> = None;
+        let mut last_symbol: Option<Rc<Symbol>> = None;
+        let mut cutoff_index = 0;
+        let mut index: Option<usize> = None;
+        let mut specialized_index: isize = -1;
+        let mut splice_index: usize;
+        Debug_.assert(result.is_empty(), None);
+        for signature in signatures {
+            let symbol = signature
+                .declaration
+                .as_ref()
+                .and_then(|signature_declaration| self.get_symbol_of_node(signature_declaration));
+            let parent = signature
+                .declaration
+                .as_ref()
+                .and_then(|signature_declaration| signature_declaration.maybe_parent());
+            if match last_symbol.as_ref() {
+                None => true,
+                Some(last_symbol) => matches!(
+                    symbol.as_ref(),
+                    Some(symbol) if Rc::ptr_eq(
+                        symbol,
+                        last_symbol,
+                    )
+                ),
+            } {
+                if matches!(
+                    last_parent.as_ref(),
+                    Some(last_parent) if matches!(
+                        parent.as_ref(),
+                        Some(parent) if Rc::ptr_eq(
+                            parent,
+                            last_parent,
+                        )
+                    )
+                ) {
+                    index = Some(index.unwrap() + 1);
+                } else {
+                    last_parent = parent.clone();
+                    index = Some(cutoff_index);
+                }
+            } else {
+                cutoff_index = result.len();
+                index = Some(cutoff_index);
+                last_parent = parent.clone();
+            }
+            last_symbol = symbol.clone();
+
+            if signature_has_literal_types(signature) {
+                specialized_index += 1;
+                splice_index = specialized_index.try_into().unwrap();
+                cutoff_index += 1;
+            } else {
+                splice_index = index.unwrap();
+            }
+
+            result.insert(
+                splice_index,
+                if call_chain_flags != SignatureFlags::None {
+                    self.get_optional_call_signature(signature.clone(), call_chain_flags)
+                } else {
+                    signature.clone()
+                },
+            );
+        }
     }
 
     pub(super) fn accepts_void(&self, t: &Type) -> bool {
