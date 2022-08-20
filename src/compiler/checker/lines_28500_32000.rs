@@ -10,13 +10,17 @@ use super::{
     WideningKind,
 };
 use crate::{
-    capitalize, contains, filter, find, get_script_target_features, id_text, is_assignment_target,
-    is_import_call, is_property_access_expression, is_static, map_defined, symbol_name,
-    try_get_property_access_or_identifier_to_string, unescape_leading_underscores, Debug_,
-    Diagnostics, FunctionFlags, JsxReferenceKind, Signature, SignatureFlags, StringOrRcNode,
-    SymbolFlags, SymbolTable, Ternary, UnionReduction, __String, get_function_flags,
-    has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    capitalize, contains, filter, find, find_ancestor, get_check_flags, get_first_identifier,
+    get_script_target_features, get_spelling_suggestion, has_effective_modifier, id_text,
+    is_assignment_target, is_entity_name_expression, is_function_like_declaration, is_import_call,
+    is_named_declaration, is_private_identifier, is_property_access_expression, is_static,
+    is_write_only_access, map_defined, starts_with, symbol_name,
+    try_get_property_access_or_identifier_to_string, unescape_leading_underscores, CheckFlags,
+    Debug_, Diagnostics, FunctionFlags, JsxReferenceKind, ModifierFlags, Signature, SignatureFlags,
+    StringOrRcNode, SymbolFlags, SymbolTable, Ternary, UnionOrIntersectionTypeInterface,
+    UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -324,7 +328,19 @@ impl TypeChecker {
         source: &Type, /*StringLiteralType*/
         target: &Type, /*UnionType*/
     ) -> Option<Rc<Type /*StringLiteralType*/>> {
-        unimplemented!()
+        let candidates = target
+            .as_union_type()
+            .types()
+            .into_iter()
+            .filter(|type_| type_.flags().intersects(TypeFlags::StringLiteral))
+            .cloned()
+            .collect::<Vec<_>>();
+        get_spelling_suggestion(
+            &source.as_string_literal_type().value,
+            &candidates,
+            |type_: &Rc<Type>| Some(type_.as_string_literal_type().value.clone()),
+        )
+        .cloned()
     }
 
     pub(super) fn get_spelling_suggestion_for_name(
@@ -333,8 +349,29 @@ impl TypeChecker {
         symbols: &[Rc<Symbol>],
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
-        // unimplemented!()
-        None
+        let get_candidate_name = |candidate: &Rc<Symbol>| {
+            let candidate_name = symbol_name(candidate);
+            if starts_with(&candidate_name, "\"") {
+                return None;
+            }
+
+            if candidate.flags().intersects(meaning) {
+                return Some(candidate_name);
+            }
+
+            if candidate.flags().intersects(SymbolFlags::Alias) {
+                let alias = self.try_resolve_alias(candidate);
+                if matches!(
+                    alias.as_ref(),
+                    Some(alias) if alias.flags().intersects(meaning)
+                ) {
+                    return Some(candidate_name);
+                }
+            }
+            None
+        };
+
+        get_spelling_suggestion(name, symbols, get_candidate_name).cloned()
     }
 
     pub(super) fn mark_property_as_referenced<TNodeForCheckWriteOnly: Borrow<Node>>(
@@ -343,7 +380,63 @@ impl TypeChecker {
         node_for_check_write_only: Option<TNodeForCheckWriteOnly>,
         is_self_type_access: bool,
     ) {
-        unimplemented!()
+        let value_declaration = /*prop &&*/ if prop.flags().intersects(SymbolFlags::ClassMember) {
+            prop.maybe_value_declaration()
+        } else {
+            None
+        };
+        if value_declaration.is_none() {
+            return;
+        }
+        let value_declaration = value_declaration.unwrap();
+        let has_private_modifier =
+            has_effective_modifier(&value_declaration, ModifierFlags::Private);
+        let has_private_identifier = matches!(
+            prop.maybe_value_declaration().as_ref(),
+            Some(prop_value_declaration) if is_named_declaration(prop_value_declaration) &&
+                is_private_identifier(&prop_value_declaration.as_named_declaration().name())
+        );
+        if !has_private_modifier && !has_private_identifier {
+            return;
+        }
+        let node_for_check_write_only = node_for_check_write_only
+            .map(|node_for_check_write_only| node_for_check_write_only.borrow().node_wrapper());
+        if matches!(
+            node_for_check_write_only.as_ref(),
+            Some(node_for_check_write_only) if is_write_only_access(node_for_check_write_only)
+        ) && !prop.flags().intersects(SymbolFlags::SetAccessor)
+        {
+            return;
+        }
+        if is_self_type_access {
+            let containing_method = find_ancestor(
+                node_for_check_write_only.as_deref(),
+                is_function_like_declaration,
+            );
+            if matches!(
+                containing_method.as_ref(),
+                Some(containing_method) if matches!(
+                    containing_method.maybe_symbol().as_ref(),
+                    Some(containing_method_symbol) if ptr::eq(
+                        &**containing_method_symbol,
+                        prop
+                    )
+                )
+            ) {
+                return;
+            }
+        }
+
+        if get_check_flags(prop).intersects(CheckFlags::Instantiated) {
+            (*self.get_symbol_links(prop))
+                .borrow()
+                .target
+                .clone()
+                .unwrap()
+        } else {
+            prop.symbol_wrapper()
+        }
+        .set_is_referenced(Some(SymbolFlags::All));
     }
 
     pub(super) fn is_self_type_access<TParent: Borrow<Symbol>>(
@@ -351,7 +444,18 @@ impl TypeChecker {
         name: &Node, /*Expression | QualifiedName*/
         parent: Option<TParent>,
     ) -> bool {
-        unimplemented!()
+        let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
+        name.kind() == SyntaxKind::ThisKeyword
+            || matches!(
+                parent.as_ref(),
+                Some(parent) if is_entity_name_expression(name) &&
+                    Rc::ptr_eq(
+                        parent,
+                        &self.get_resolved_symbol(
+                            &get_first_identifier(name)
+                        ),
+                    )
+            )
     }
 
     pub(super) fn is_valid_property_access_(
@@ -359,7 +463,39 @@ impl TypeChecker {
         node: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         property_name: &__String,
     ) -> bool {
-        unimplemented!()
+        match node.kind() {
+            SyntaxKind::PropertyAccessExpression => {
+                let node_as_property_access_expression = node.as_property_access_expression();
+                self.is_valid_property_access_with_type(
+                    node,
+                    node_as_property_access_expression.expression.kind()
+                        == SyntaxKind::SuperKeyword,
+                    property_name,
+                    &self.get_widened_type(&self.check_expression(
+                        &node_as_property_access_expression.expression,
+                        None,
+                        None,
+                    )),
+                )
+            }
+            SyntaxKind::QualifiedName => self.is_valid_property_access_with_type(
+                node,
+                false,
+                property_name,
+                &self.get_widened_type(&self.check_expression(
+                    &node.as_qualified_name().left,
+                    None,
+                    None,
+                )),
+            ),
+            SyntaxKind::ImportType => self.is_valid_property_access_with_type(
+                node,
+                false,
+                property_name,
+                &self.get_type_from_type_node_(node),
+            ),
+            _ => unreachable!(),
+        }
     }
 
     pub fn is_valid_property_access_for_completions_(
@@ -367,6 +503,16 @@ impl TypeChecker {
         node_in: &Node, /*PropertyAccessExpression | ImportTypeNode | QualifiedName*/
         type_: &Type,
         property: &Symbol,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_valid_property_access_with_type(
+        &self,
+        node: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
+        is_super: bool,
+        property_name: &__String,
+        type_: &Type,
     ) -> bool {
         unimplemented!()
     }
