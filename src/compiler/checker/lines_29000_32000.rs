@@ -7,15 +7,43 @@ use super::{
     signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    is_import_call, Diagnostics, FunctionFlags, JsxReferenceKind, Signature, SignatureFlags,
-    Ternary, UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    find_index, is_import_call, Diagnostics, FunctionFlags, JsxReferenceKind, Signature,
+    SignatureFlags, Ternary, UnionReduction, __String, get_function_flags, has_initializer,
+    InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn is_spread_argument<TArg: Borrow<Node>>(&self, arg: Option<TArg>) -> bool {
+        if arg.is_none() {
+            return false;
+        }
+        let arg = arg.unwrap();
+        let arg = arg.borrow();
+        arg.kind() == SyntaxKind::SpreadElement
+            || arg.kind() == SyntaxKind::SyntheticExpression
+                && arg.as_synthetic_expression().is_spread
+    }
+
+    pub(super) fn get_spread_argument_index(
+        &self,
+        args: &[Rc<Node /*Expression*/>],
+    ) -> Option<usize> {
+        find_index(
+            args,
+            |arg: &Rc<Node>, _| self.is_spread_argument(Some(&**arg)),
+            None,
+        )
+    }
+
     pub(super) fn accepts_void(&self, t: &Type) -> bool {
         t.flags().intersects(TypeFlags::Void)
+    }
+
+    pub(super) fn accepts_void_undefined_unknown_or_any(&self, t: &Type) -> bool {
+        t.flags().intersects(
+            TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Unknown | TypeFlags::Any,
+        )
     }
 
     pub(super) fn get_single_call_signature(&self, type_: &Type) -> Option<Rc<Signature>> {
