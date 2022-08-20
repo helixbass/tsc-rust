@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use regex::Regex;
 use std::borrow::Borrow;
 use std::rc::Rc;
 
@@ -8,15 +9,31 @@ use super::{
     WideningKind,
 };
 use crate::{
-    is_import_call, Diagnostics, FunctionFlags, JsxReferenceKind, Signature, SignatureFlags,
-    StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String, get_function_flags,
-    has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    is_import_call, unescape_leading_underscores, Diagnostics, FunctionFlags, JsxReferenceKind,
+    Signature, SignatureFlags, StringOrRcNode, SymbolFlags, Ternary, UnionReduction, __String,
+    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn container_seems_to_be_empty_dom_element(&self, containing_type: &Type) -> bool {
-        unimplemented!()
+        matches!(
+            self.compiler_options.lib.as_ref(),
+            Some(compiler_options_lib) if compiler_options_lib.into_iter().position(|lib_item| lib_item == "dom").is_none()
+        ) &&
+            self.every_contained_type(
+                containing_type,
+                |type_: &Type| matches!(
+                    type_.maybe_symbol(),
+                    Some(type_symbol) if {
+                        lazy_static! {
+                            static ref element_regex: Regex = Regex::new("^(EventTarget|Node|((HTML[a-zA-Z]*)?Element))$").unwrap();
+                        }
+                        element_regex.is_match(&unescape_leading_underscores(type_symbol.escaped_name()))
+                    }
+                )
+            ) &&
+            self.is_empty_object_type(containing_type)
     }
 
     pub(super) fn type_has_static_property(
