@@ -1,33 +1,17 @@
 #![allow(non_upper_case_globals)]
 
-use regex::Regex;
 use std::borrow::Borrow;
-use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_literal_types, signature_has_rest_parameter, CheckMode, MinArgumentCountFlags,
-    ResolveNameNameArg, TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    capitalize, contains, filter, find, find_ancestor, get_assignment_target_kind, get_check_flags,
-    get_containing_class, get_first_identifier, get_script_target_features,
-    get_spelling_suggestion, has_effective_modifier, id_text, is_assignment_target,
-    is_binding_pattern, is_call_or_new_expression, is_entity_name_expression,
-    is_function_like_declaration, is_import_call, is_jsx_opening_like_element,
-    is_named_declaration, is_optional_chain, is_private_identifier,
-    is_private_identifier_class_element_declaration, is_property_access_expression, is_static,
-    is_string_literal_like, is_tagged_template_expression, is_write_only_access, map_defined,
-    maybe_for_each, skip_parentheses, starts_with, symbol_name,
-    try_get_property_access_or_identifier_to_string, unescape_leading_underscores, AccessFlags,
-    AssignmentKind, CheckFlags, Debug_, Diagnostics, FunctionFlags, JsxReferenceKind,
-    ModifierFlags, NamedDeclarationInterface, NodeFlags, Signature, SignatureFlags, StringOrRcNode,
-    SymbolFlags, SymbolTable, Ternary, UnionOrIntersectionTypeInterface, UnionReduction, __String,
-    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_import_call, Diagnostics, FunctionFlags, JsxReferenceKind, Signature, SignatureFlags,
+    Ternary, UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn accepts_void(&self, t: &Type) -> bool {
