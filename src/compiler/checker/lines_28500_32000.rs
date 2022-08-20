@@ -10,12 +10,13 @@ use super::{
     WideningKind,
 };
 use crate::{
-    capitalize, contains, filter, find, get_script_target_features, id_text, is_import_call,
-    is_property_access_expression, is_static, map_defined, symbol_name,
-    unescape_leading_underscores, Debug_, Diagnostics, FunctionFlags, JsxReferenceKind, Signature,
-    SignatureFlags, StringOrRcNode, SymbolFlags, SymbolTable, Ternary, UnionReduction, __String,
-    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    capitalize, contains, filter, find, get_script_target_features, id_text, is_assignment_target,
+    is_import_call, is_property_access_expression, is_static, map_defined, symbol_name,
+    try_get_property_access_or_identifier_to_string, unescape_leading_underscores, Debug_,
+    Diagnostics, FunctionFlags, JsxReferenceKind, Signature, SignatureFlags, StringOrRcNode,
+    SymbolFlags, SymbolTable, Ternary, UnionReduction, __String, get_function_flags,
+    has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -236,7 +237,11 @@ impl TypeChecker {
         outer_name: &__String,
         meaning: SymbolFlags,
     ) -> Option<String> {
-        unimplemented!()
+        let symbol_result =
+            self.get_suggested_symbol_for_nonexistent_symbol_(location, outer_name, meaning);
+        symbol_result
+            .as_ref()
+            .map(|symbol_result| symbol_name(symbol_result))
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_module(
@@ -244,16 +249,74 @@ impl TypeChecker {
         name: &Node, /*Identifier*/
         target_module: &Symbol,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if target_module.maybe_exports().is_some() {
+            self.get_spelling_suggestion_for_name(
+                &id_text(name),
+                &self.get_exports_of_module_as_array(target_module),
+                SymbolFlags::ModuleMember,
+            )
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_suggestion_for_nonexistent_export(
+        &self,
+        name: &Node, /*Identifier*/
+        target_module: &Symbol,
+    ) -> Option<String> {
+        let suggestion = self.get_suggested_symbol_for_nonexistent_module(name, target_module);
+        suggestion
+            .as_ref()
+            .map(|suggestion| symbol_name(suggestion))
     }
 
     pub(super) fn get_suggestion_for_nonexistent_index_signature(
         &self,
         object_type: &Type,
-        name: &Node, /*ElementAccessExpression*/
+        expr: &Node, /*ElementAccessExpression*/
         keyed_type: &Type,
     ) -> Option<String> {
-        unimplemented!()
+        let suggested_method = if is_assignment_target(expr) {
+            "set"
+        } else {
+            "get"
+        };
+        if !self.has_prop(object_type, keyed_type, suggested_method) {
+            return None;
+        }
+
+        let mut suggestion = try_get_property_access_or_identifier_to_string(
+            &expr.as_element_access_expression().expression,
+        );
+        match suggestion.as_mut() {
+            None => {
+                suggestion = Some(suggested_method.to_owned());
+            }
+            Some(suggestion) => {
+                suggestion.push_str(&format!(".{}", suggested_method));
+            }
+        }
+
+        suggestion
+    }
+
+    pub(super) fn has_prop(
+        &self,
+        object_type: &Type,
+        keyed_type: &Type,
+        name: &str, /*"set | "get"*/
+    ) -> bool {
+        let prop = self.get_property_of_object_type(object_type, &__String::new(name.to_owned()));
+        if let Some(prop) = prop.as_ref() {
+            let s = self.get_single_call_signature(&self.get_type_of_symbol(prop));
+            return matches!(
+                s.as_ref(),
+                Some(s) if self.get_min_argument_count(s, None) >= 1 &&
+                    self.is_type_assignable_to(keyed_type, &self.get_type_at_position(s, 0))
+            );
+        }
+        false
     }
 
     pub(super) fn get_suggested_type_for_nonexistent_string_literal_type(
