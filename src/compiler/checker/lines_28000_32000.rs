@@ -9,21 +9,23 @@ use super::{
     TypeFacts, WideningKind,
 };
 use crate::{
-    add_related_info, create_diagnostic_for_node, find_ancestor, for_each,
-    get_assignment_declaration_property_access_kind, get_assignment_target_kind,
+    add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, declaration_name_to_string, find_ancestor,
+    for_each, get_assignment_declaration_property_access_kind, get_assignment_target_kind,
     get_containing_class, get_source_file_of_node, get_symbol_name_for_private_identifier,
     get_this_container, get_this_parameter, id_text, is_access_expression, is_assignment_target,
     is_block, is_call_or_new_expression, is_class_static_block_declaration, is_delete_target,
     is_expression_node, is_function_like, is_identifier, is_import_call, is_method_declaration,
     is_named_declaration, is_part_of_type_query, is_private_identifier,
     is_property_access_expression, is_static, is_this_identifier, is_this_property,
-    is_write_access, maybe_for_each, should_preserve_const_enums, unescape_leading_underscores,
-    AssignmentDeclarationKind, AssignmentKind, Debug_, Diagnostic, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, FunctionFlags, JsxReferenceKind, NodeFlags,
-    ScriptKind, ScriptTarget, Signature, SignatureFlags, StringOrRcNode, SymbolFlags, Ternary,
-    UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    is_write_access, maybe_for_each, should_preserve_const_enums, symbol_name,
+    unescape_leading_underscores, AssignmentDeclarationKind, AssignmentKind, Debug_, Diagnostic,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, ExternalEmitHelpers,
+    FindAncestorCallbackReturn, FunctionFlags, JsxReferenceKind, NodeFlags, ScriptKind,
+    ScriptTarget, Signature, SignatureFlags, StringOrRcNode, SymbolFlags, Ternary,
+    UnionOrIntersectionTypeInterface, UnionReduction, __String, get_function_flags,
+    has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -1067,6 +1069,154 @@ impl TypeChecker {
         containing_type: &Type,
         is_unchecked_js: bool,
     ) {
+        let mut error_info: Option<DiagnosticMessageChain> = None;
+        let mut related_info: Option<Rc<DiagnosticRelatedInformation>> = None;
+        if !is_private_identifier(prop_node)
+            && containing_type.flags().intersects(TypeFlags::Union)
+            && !containing_type.flags().intersects(TypeFlags::Primitive)
+        {
+            for subtype in containing_type.as_union_type().types() {
+                if self
+                    .get_property_of_type_(subtype, &prop_node.as_identifier().escaped_text, None)
+                    .is_none()
+                    && self
+                        .get_applicable_index_info_for_name(
+                            subtype,
+                            &prop_node.as_identifier().escaped_text,
+                        )
+                        .is_none()
+                {
+                    error_info = Some(chain_diagnostic_messages(
+                        error_info,
+                        &Diagnostics::Property_0_does_not_exist_on_type_1,
+                        Some(vec![
+                            declaration_name_to_string(Some(prop_node)).into_owned(),
+                            self.type_to_string_(subtype, Option::<&Node>::None, None, None),
+                        ]),
+                    ));
+                    break;
+                }
+            }
+        }
+        if self
+            .type_has_static_property(&prop_node.as_member_name().escaped_text(), containing_type)
+        {
+            let prop_name = declaration_name_to_string(Some(prop_node)).into_owned();
+            let type_name =
+                self.type_to_string_(containing_type, Option::<&Node>::None, None, None);
+            error_info = Some(chain_diagnostic_messages(
+                error_info,
+                &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
+                Some(vec![
+                    prop_name.clone(),
+                    type_name.clone(),
+                    format!("{}.{}", type_name, prop_name)
+                ])
+            ));
+        } else {
+            let promised_type =
+                self.get_promised_type_of_promise(containing_type, Option::<&Node>::None);
+            if matches!(
+                promised_type.as_ref(),
+                Some(promised_type) if self.get_property_of_type_(promised_type, &prop_node.as_member_name().escaped_text(), None).is_some()
+            ) {
+                error_info = Some(chain_diagnostic_messages(
+                    error_info,
+                    &Diagnostics::Property_0_does_not_exist_on_type_1,
+                    Some(vec![
+                        declaration_name_to_string(Some(prop_node)).into_owned(),
+                        self.type_to_string_(containing_type, Option::<&Node>::None, None, None),
+                    ]),
+                ));
+                related_info = Some(Rc::new(
+                    create_diagnostic_for_node(
+                        prop_node,
+                        &Diagnostics::Did_you_forget_to_use_await,
+                        None,
+                    )
+                    .into(),
+                ));
+            } else {
+                let missing_property = declaration_name_to_string(Some(prop_node)).into_owned();
+                let container =
+                    self.type_to_string_(containing_type, Option::<&Node>::None, None, None);
+                let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
+                    &missing_property,
+                    containing_type,
+                );
+                if let Some(lib_suggestion) = lib_suggestion {
+                    error_info = Some(chain_diagnostic_messages(
+                        error_info,
+                        &Diagnostics::Property_0_does_not_exist_on_type_1_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_2_or_later,
+                        Some(vec![
+                            missing_property,
+                            container,
+                            lib_suggestion
+                        ])
+                    ));
+                } else {
+                    let suggestion = self.get_suggested_symbol_for_nonexistent_property(
+                        prop_node.node_wrapper(),
+                        containing_type,
+                    );
+                    if let Some(suggestion) = suggestion.as_ref() {
+                        let suggested_name = symbol_name(suggestion);
+                        let message = if is_unchecked_js {
+                            &*Diagnostics::Property_0_may_not_exist_on_type_1_Did_you_mean_2
+                        } else {
+                            &*Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2
+                        };
+                        error_info = Some(chain_diagnostic_messages(
+                            error_info,
+                            message,
+                            Some(vec![missing_property, container, suggested_name.clone()]),
+                        ));
+                        related_info = suggestion.maybe_value_declaration().as_ref().map(
+                            |suggestion_value_declaration| {
+                                Rc::new(
+                                    create_diagnostic_for_node(
+                                        suggestion_value_declaration,
+                                        &Diagnostics::_0_is_declared_here,
+                                        Some(vec![suggested_name]),
+                                    )
+                                    .into(),
+                                )
+                            },
+                        );
+                    } else {
+                        let diagnostic = if self
+                            .container_seems_to_be_empty_dom_element(containing_type)
+                        {
+                            &*Diagnostics::Property_0_does_not_exist_on_type_1_Try_changing_the_lib_compiler_option_to_include_dom
+                        } else {
+                            &*Diagnostics::Property_0_does_not_exist_on_type_1
+                        };
+                        error_info = Some(chain_diagnostic_messages(
+                            self.elaborate_never_intersection(error_info, containing_type),
+                            diagnostic,
+                            Some(vec![missing_property, container]),
+                        ));
+                    }
+                }
+            }
+        }
+        let error_info = error_info.unwrap();
+        let error_info_code = error_info.code;
+        let result_diagnostic: Rc<Diagnostic> = Rc::new(
+            create_diagnostic_for_node_from_message_chain(prop_node, error_info, None).into(),
+        );
+        if let Some(related_info) = related_info {
+            add_related_info(&result_diagnostic, vec![related_info]);
+        }
+        self.add_error_or_suggestion(
+            !is_unchecked_js
+                || error_info_code
+                    != Diagnostics::Property_0_may_not_exist_on_type_1_Did_you_mean_2.code,
+            result_diagnostic,
+        );
+    }
+
+    pub(super) fn container_seems_to_be_empty_dom_element(&self, containing_type: &Type) -> bool {
         unimplemented!()
     }
 
@@ -1078,12 +1228,28 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_suggested_lib_for_nonexistent_name(
+    pub(super) fn get_suggested_lib_for_non_existent_name(
         &self,
         name: ResolveNameNameArg,
     ) -> Option<String> {
         // unimplemented!()
         None
+    }
+
+    pub(super) fn get_suggested_lib_for_non_existent_property(
+        &self,
+        missing_property: &str,
+        containing_type: &Type,
+    ) -> Option<String> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_suggested_symbol_for_nonexistent_property<TName: Into<StringOrRcNode>>(
+        &self,
+        name: TName, /*Identifier | PrivateIdentifier*/
+        containing_type: &Type,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<

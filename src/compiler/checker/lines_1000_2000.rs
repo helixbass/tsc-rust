@@ -2023,7 +2023,8 @@ impl TypeChecker {
                     if suggestion.is_none() {
                         if let Some(name_arg) = name_arg {
                             let name_arg = name_arg.into();
-                            let lib = self.get_suggested_lib_for_nonexistent_name(name_arg.clone());
+                            let lib =
+                                self.get_suggested_lib_for_non_existent_name(name_arg.clone());
                             if let Some(lib) = lib {
                                 self.error(
                                     error_location,
