@@ -7,22 +7,19 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain,
-    CheckTypeErrorOutputContainer, CheckTypeErrorOutputContainerConcrete, IterationUse,
-    MinArgumentCountFlags, TypeFacts, WideningKind,
+    CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer,
+    CheckTypeErrorOutputContainerConcrete, IterationUse,
 };
 use crate::{
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node, entity_name_to_string,
-    find, find_index, is_import_call, is_in_js_file, is_jsx_opening_element,
-    is_jsx_opening_like_element, is_jsx_self_closing_element, is_optional_chain,
-    is_optional_chain_root, last, length, map, maybe_every, node_is_missing,
-    set_text_range_pos_end, some, AccessFlags, ContextFlags, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, ElementFlags, FunctionFlags, InferenceFlags,
-    InferenceInfo, InferencePriority, JsxReferenceKind, Number, ReadonlyTextRange,
-    RelationComparisonResult, Signature, SignatureFlags, SignatureKind, SymbolFlags, TypeComparer,
-    TypeMapper, UnionReduction, __String, get_function_flags, has_initializer, InferenceContext,
-    Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    find, find_index, is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element,
+    is_jsx_self_closing_element, is_optional_chain, is_optional_chain_root, last, length, map,
+    maybe_every, node_is_missing, set_text_range_pos_end, some, AccessFlags, ContextFlags, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags,
+    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, JsxReferenceKind, Node,
+    NodeInterface, Number, ReadonlyTextRange, RelationComparisonResult, Signature, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeComparer, TypeFlags,
+    TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
