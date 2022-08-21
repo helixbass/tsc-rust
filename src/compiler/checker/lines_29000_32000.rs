@@ -5,16 +5,17 @@ use std::cmp;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, IterationUse, MinArgumentCountFlags, TypeFacts,
+    WideningKind,
 };
 use crate::{
     find, find_index, is_import_call, is_in_js_file, is_jsx_opening_like_element,
     is_optional_chain, is_optional_chain_root, last, length, maybe_every, node_is_missing, some,
-    ContextFlags, Debug_, Diagnostics, FunctionFlags, InferenceFlags, InferenceInfo,
-    InferencePriority, JsxReferenceKind, ReadonlyTextRange, Signature, SignatureFlags,
-    SignatureKind, TypeComparer, UnionReduction, __String, get_function_flags, has_initializer,
-    InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    AccessFlags, ContextFlags, Debug_, Diagnostics, ElementFlags, FunctionFlags, InferenceFlags,
+    InferenceInfo, InferencePriority, JsxReferenceKind, Number, ReadonlyTextRange, Signature,
+    SignatureFlags, SignatureKind, TypeComparer, UnionReduction, __String, get_function_flags,
+    has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -483,16 +484,150 @@ impl TypeChecker {
         self.get_inferred_types(context)
     }
 
-    pub(super) fn get_spread_argument_type<TContext: Borrow<InferenceContext>>(
+    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Union) {
+            self.map_type(
+                type_,
+                &mut |type_: &Type| Some(self.get_mutable_array_or_tuple_type(type_)),
+                None,
+            )
+            .unwrap()
+        } else if type_.flags().intersects(TypeFlags::Any)
+            || self.is_mutable_array_or_tuple(
+                &*self
+                    .get_base_constraint_of_type(type_)
+                    .unwrap_or_else(|| type_.type_wrapper()),
+            )
+        {
+            type_.type_wrapper()
+        } else if self.is_tuple_type(type_) {
+            self.create_tuple_type(
+                &self.get_type_arguments(type_),
+                Some(
+                    &type_
+                        .as_type_reference()
+                        .target
+                        .as_tuple_type()
+                        .element_flags,
+                ),
+                Some(false),
+                type_
+                    .as_type_reference()
+                    .target
+                    .as_tuple_type()
+                    .labeled_element_declarations
+                    .as_deref(),
+            )
+        } else {
+            self.create_tuple_type(
+                &[type_.type_wrapper()],
+                Some(&[ElementFlags::Variadic]),
+                None,
+                None,
+            )
+        }
+    }
+
+    pub(super) fn get_spread_argument_type(
         &self,
         args: &[Rc<Node /*Expression*/>],
         index: usize,
         arg_count: usize,
         rest_type: &Type,
-        context: Option<TContext>,
+        context: Option<&InferenceContext>,
         check_mode: CheckMode,
     ) -> Rc<Type> {
-        unimplemented!()
+        if index >= arg_count - 1 {
+            let arg = &args[arg_count - 1];
+            if self.is_spread_argument(Some(&**arg)) {
+                return self.get_mutable_array_or_tuple_type(&*if arg.kind()
+                    == SyntaxKind::SyntheticExpression
+                {
+                    arg.as_synthetic_expression().type_.clone()
+                } else {
+                    self.check_expression_with_contextual_type(
+                        &arg.as_spread_element().expression,
+                        rest_type,
+                        context,
+                        Some(check_mode),
+                    )
+                });
+            }
+        }
+        let mut types: Vec<Rc<Type>> = vec![];
+        let mut flags: Vec<ElementFlags> = vec![];
+        let mut names: Vec<Rc<Node>> = vec![];
+        for i in index..arg_count {
+            let arg = &args[i];
+            if self.is_spread_argument(Some(&**arg)) {
+                let spread_type = if arg.kind() == SyntaxKind::SyntheticExpression {
+                    arg.as_synthetic_expression().type_.clone()
+                } else {
+                    self.check_expression(&arg.as_spread_element().expression, None, None)
+                };
+                if self.is_array_like_type(&spread_type) {
+                    types.push(spread_type);
+                    flags.push(ElementFlags::Variadic);
+                } else {
+                    types.push(self.check_iterated_type_or_element_type(
+                        IterationUse::Spread,
+                        &spread_type,
+                        &self.undefined_type(),
+                        Some(if arg.kind() == SyntaxKind::SpreadElement {
+                            arg.as_spread_element().expression.clone()
+                        } else {
+                            arg.clone()
+                        }),
+                    ));
+                    flags.push(ElementFlags::Rest);
+                }
+            } else {
+                let contextual_type = self.get_indexed_access_type(
+                    rest_type,
+                    &self.get_number_literal_type(Number::new((i - index) as f64)),
+                    Some(AccessFlags::Contextual),
+                    Option::<&Node>::None,
+                    Option::<&Symbol>::None,
+                    None,
+                );
+                let arg_type = self.check_expression_with_contextual_type(
+                    arg,
+                    &contextual_type,
+                    context,
+                    Some(check_mode),
+                );
+                let has_primitive_contextual_type = self.maybe_type_of_kind(
+                    &contextual_type,
+                    TypeFlags::Primitive
+                        | TypeFlags::Index
+                        | TypeFlags::TemplateLiteral
+                        | TypeFlags::StringMapping,
+                );
+                types.push(if has_primitive_contextual_type {
+                    self.get_regular_type_of_literal_type(&arg_type)
+                } else {
+                    self.get_widened_literal_type(&arg_type)
+                });
+                flags.push(ElementFlags::Required);
+            }
+            if arg.kind() == SyntaxKind::SyntheticExpression {
+                if let Some(arg_tuple_name_source) =
+                    arg.as_synthetic_expression().tuple_name_source.as_ref()
+                {
+                    names.push(arg_tuple_name_source.clone());
+                }
+            }
+        }
+        self.create_tuple_type(
+            &types,
+            Some(&flags),
+            Some(false),
+            if length(Some(&names)) == length(Some(&types)) {
+                Some(&*names)
+            } else {
+                None
+            },
+        )
     }
 
     pub(super) fn get_jsx_reference_kind(
