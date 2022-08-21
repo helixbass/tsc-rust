@@ -1113,7 +1113,7 @@ impl TypeMapperCallback for CreateInferenceContextWorkerNonFixingMapperCallback 
     }
 }
 
-struct TypeComparerCompareTypesAssignable {
+pub(super) struct TypeComparerCompareTypesAssignable {
     type_checker: Rc<TypeChecker>,
 }
 

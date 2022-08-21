@@ -9,7 +9,7 @@ use std::rc::Rc;
 use super::{
     anon, CheckTypeContainingMessageChain, CheckTypeRelatedTo, ErrorCalculationState,
     IntersectionState, RecursionFlags, ReportUnmeasurableMarkers, ReportUnreliableMarkers,
-    SignatureCheckMode, TypeFacts,
+    SignatureCheckMode, TypeComparerIsRelatedToWorker, TypeFacts,
 };
 use crate::{
     are_option_rcs_equal, cartesian_product, create_diagnostic_for_node, factory,
@@ -1444,13 +1444,7 @@ impl CheckTypeRelatedTo {
                 self.report_error(message, args)
             }),
             Some(&|source: &Type, target: &Type| incompatible_reporter(self, source, target)),
-            &mut |source: &Type, target: &Type, report_errors: Option<bool>| {
-                self.is_related_to_worker(
-                    source,
-                    target,
-                    report_errors.unwrap_or(false), // again here this default false isn't in the Typescript version but appears to be a type-checking error there
-                )
-            },
+            Rc::new(TypeComparerIsRelatedToWorker::new(self.rc_wrapper())),
             Some(
                 &self
                     .type_checker

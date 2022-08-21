@@ -1819,7 +1819,7 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
     }
 }
 
-struct TypeComparerIsRelatedToWorker {
+pub(super) struct TypeComparerIsRelatedToWorker {
     check_type_related_to: Rc<CheckTypeRelatedTo>,
 }
 

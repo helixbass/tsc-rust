@@ -6,13 +6,15 @@ use std::cmp;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{signature_has_rest_parameter, CheckMode, SignatureCheckMode};
+use super::{
+    signature_has_rest_parameter, CheckMode, SignatureCheckMode, TypeComparerCompareTypesAssignable,
+};
 use crate::{
     get_source_file_of_node, id_text, is_jsx_spread_attribute, unescape_leading_underscores,
     HasInitializerInterface, SignatureDeclarationInterface, SymbolFlags, SymbolInterface, Ternary,
-    __String, add_related_info, are_rc_slices_equal, create_diagnostic_for_node, format_message,
-    get_function_flags, get_semantic_jsx_children, get_text_of_node, has_type, is_block,
-    is_computed_non_literal_name, is_identifier_type_predicate, is_jsx_element,
+    TypeComparer, __String, add_related_info, are_rc_slices_equal, create_diagnostic_for_node,
+    format_message, get_function_flags, get_semantic_jsx_children, get_text_of_node, has_type,
+    is_block, is_computed_non_literal_name, is_identifier_type_predicate, is_jsx_element,
     is_jsx_opening_element, is_omitted_expression, is_spread_assignment, length, map, some, Debug_,
     Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
     FunctionLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
@@ -1186,7 +1188,7 @@ impl TypeChecker {
             false,
             &mut None,
             Option::<&fn(&Type, &Type)>::None,
-            &mut |source, target, _| self.compare_types_assignable(source, target),
+            Rc::new(TypeComparerCompareTypesAssignable::new(self.rc_wrapper())),
             None,
         ) != Ternary::False
     }
@@ -1208,10 +1210,7 @@ impl TypeChecker {
             && self.is_type_any(Some(self.get_return_type_of_signature(s)))
     }
 
-    pub(super) fn compare_signatures_related<
-        TIncompatibleErrorReporter: Fn(&Type, &Type),
-        TCompareTypes: FnMut(&Type, &Type, Option<bool>) -> Ternary,
-    >(
+    pub(super) fn compare_signatures_related<TIncompatibleErrorReporter: Fn(&Type, &Type)>(
         &self,
         mut source: Rc<Signature>,
         mut target: Rc<Signature>,
@@ -1219,7 +1218,7 @@ impl TypeChecker {
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
         incompatible_error_reporter: Option<&TIncompatibleErrorReporter>,
-        compare_types: &mut TCompareTypes,
+        compare_types: Rc<dyn TypeComparer>,
         report_unreliable_markers: Option<&TypeMapper>,
     ) -> Ternary {
         if Rc::ptr_eq(&source, &target) {
@@ -1251,10 +1250,10 @@ impl TypeChecker {
         ) {
             target = self.get_canonical_signature(target);
             source = self.instantiate_signature_in_context_of(
-                &source,
-                &target,
+                source.clone(),
+                target.clone(),
                 None,
-                Some(compare_types),
+                Some(compare_types.clone()),
             );
         }
 
@@ -1297,14 +1296,17 @@ impl TypeChecker {
             if let Some(target_this_type) = target_this_type.as_ref() {
                 let related = if !strict_variance {
                     let mut related =
-                        compare_types(source_this_type, target_this_type, Some(false));
+                        compare_types.call(source_this_type, target_this_type, Some(false));
                     if related == Ternary::False {
-                        related =
-                            compare_types(target_this_type, source_this_type, Some(report_errors));
+                        related = compare_types.call(
+                            target_this_type,
+                            source_this_type,
+                            Some(report_errors),
+                        );
                     }
                     related
                 } else {
-                    compare_types(target_this_type, source_this_type, Some(report_errors))
+                    compare_types.call(target_this_type, source_this_type, Some(report_errors))
                 };
                 if related == Ternary::False {
                     if report_errors {
@@ -1382,27 +1384,32 @@ impl TypeChecker {
                             report_errors,
                             error_reporter,
                             incompatible_error_reporter.clone(),
-                            compare_types,
+                            compare_types.clone(),
                             report_unreliable_markers,
                         )
                     } else {
                         if !check_mode.intersects(SignatureCheckMode::Callback) && !strict_variance
                         {
-                            let mut related = compare_types(source_type, target_type, Some(false));
+                            let mut related =
+                                compare_types.call(source_type, target_type, Some(false));
                             if related == Ternary::False {
-                                related =
-                                    compare_types(target_type, source_type, Some(report_errors));
+                                related = compare_types.call(
+                                    target_type,
+                                    source_type,
+                                    Some(report_errors),
+                                );
                             }
                             related
                         } else {
-                            compare_types(target_type, source_type, Some(report_errors))
+                            compare_types.call(target_type, source_type, Some(report_errors))
                         }
                     };
                     if related != Ternary::False
                         && check_mode.intersects(SignatureCheckMode::StrictArity)
                         && i >= self.get_min_argument_count(&source, None)
                         && i < self.get_min_argument_count(&target, None)
-                        && compare_types(source_type, target_type, Some(false)) != Ternary::False
+                        && compare_types.call(source_type, target_type, Some(false))
+                            != Ternary::False
                     {
                         related = Ternary::False;
                     }
@@ -1481,7 +1488,9 @@ impl TypeChecker {
                         target_type_predicate,
                         report_errors,
                         error_reporter,
-                        compare_types,
+                        &mut |s: &Type, t: &Type, report_errors: Option<bool>| {
+                            compare_types.call(s, t, report_errors)
+                        },
                     );
                 } else if is_identifier_type_predicate(target_type_predicate) {
                     if report_errors {
@@ -1501,9 +1510,9 @@ impl TypeChecker {
             } else {
                 result &= if check_mode.intersects(SignatureCheckMode::BivariantCallback) {
                     let mut val =
-                        compare_types(&target_return_type, &source_return_type, Some(false));
+                        compare_types.call(&target_return_type, &source_return_type, Some(false));
                     if val == Ternary::False {
-                        val = compare_types(
+                        val = compare_types.call(
                             &source_return_type,
                             &target_return_type,
                             Some(report_errors),
@@ -1511,7 +1520,7 @@ impl TypeChecker {
                     }
                     val
                 } else {
-                    compare_types(
+                    compare_types.call(
                         &source_return_type,
                         &target_return_type,
                         Some(report_errors),

@@ -8,11 +8,12 @@ use super::{
     signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    find_index, is_import_call, is_in_js_file, is_jsx_opening_like_element, last, node_is_missing,
-    Debug_, Diagnostics, FunctionFlags, JsxReferenceKind, ReadonlyTextRange, Signature,
-    SignatureFlags, Ternary, UnionReduction, __String, get_function_flags, has_initializer,
-    InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    find_index, is_import_call, is_in_js_file, is_jsx_opening_like_element, last, length,
+    node_is_missing, some, Debug_, Diagnostics, FunctionFlags, InferenceFlags, InferencePriority,
+    JsxReferenceKind, ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, TypeComparer,
+    UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -154,27 +155,120 @@ impl TypeChecker {
         true
     }
 
+    pub(super) fn has_correct_type_argument_arity(
+        &self,
+        signature: &Signature,
+        type_arguments: Option<&[Rc<Node>] /*NodeArray<TypeNode>*/>,
+    ) -> bool {
+        let num_type_parameters = length(signature.type_parameters.as_deref());
+        let min_type_argument_count =
+            self.get_min_type_argument_count(signature.type_parameters.as_deref());
+        !some(type_arguments, Option::<fn(&Rc<Node>) -> bool>::None) || {
+            let type_arguments = type_arguments.unwrap();
+            type_arguments.len() >= min_type_argument_count
+                && type_arguments.len() <= num_type_parameters
+        }
+    }
+
     pub(super) fn get_single_call_signature(&self, type_: &Type) -> Option<Rc<Signature>> {
-        unimplemented!()
+        self.get_single_signature(type_, SignatureKind::Call, false)
     }
 
     pub(super) fn get_single_call_or_construct_signature(
         &self,
         type_: &Type,
     ) -> Option<Rc<Signature>> {
-        unimplemented!()
+        self.get_single_signature(type_, SignatureKind::Call, false)
+            .or_else(|| self.get_single_signature(type_, SignatureKind::Construct, false))
     }
 
-    pub(super) fn instantiate_signature_in_context_of<
-        TCompareTypes: FnMut(&Type, &Type, Option<bool>) -> Ternary,
-    >(
+    pub(super) fn get_single_signature(
         &self,
-        signature: &Signature,
-        contextual_signature: &Signature,
+        type_: &Type,
+        kind: SignatureKind,
+        allow_members: bool,
+    ) -> Option<Rc<Signature>> {
+        if type_.flags().intersects(TypeFlags::Object) {
+            let resolved = self.resolve_structured_type_members(type_);
+            let resolved_as_resolved_type = resolved.as_resolved_type();
+            if allow_members
+                || resolved_as_resolved_type.properties().is_empty()
+                    && resolved_as_resolved_type.index_infos().is_empty()
+            {
+                if kind == SignatureKind::Call
+                    && resolved_as_resolved_type.call_signatures().len() == 1
+                    && resolved_as_resolved_type.construct_signatures().is_empty()
+                {
+                    return Some(resolved_as_resolved_type.call_signatures()[0].clone());
+                }
+                if kind == SignatureKind::Construct
+                    && resolved_as_resolved_type.construct_signatures().len() == 1
+                    && resolved_as_resolved_type.call_signatures().is_empty()
+                {
+                    return Some(resolved_as_resolved_type.construct_signatures()[0].clone());
+                }
+            }
+        }
+        None
+    }
+
+    pub(super) fn instantiate_signature_in_context_of(
+        &self,
+        signature: Rc<Signature>,
+        contextual_signature: Rc<Signature>,
         inference_context: Option<&InferenceContext>,
-        compare_types: Option<&mut TCompareTypes>,
+        compare_types: Option<Rc<dyn TypeComparer>>,
     ) -> Rc<Signature> {
-        unimplemented!()
+        let context = self.create_inference_context(
+            signature.type_parameters.as_deref().unwrap(),
+            Some(signature.clone()),
+            InferenceFlags::None,
+            compare_types,
+        );
+        let rest_type = self.get_effective_rest_type(&contextual_signature);
+        let mapper = inference_context.map(|inference_context| {
+            if matches!(
+                rest_type.as_ref(),
+                Some(rest_type) if rest_type.flags().intersects(TypeFlags::TypeParameter)
+            ) {
+                inference_context.non_fixing_mapper().clone()
+            } else {
+                inference_context.mapper().clone()
+            }
+        });
+        let source_signature = if let Some(mapper) = mapper.as_ref() {
+            Rc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None))
+        } else {
+            contextual_signature.clone()
+        };
+        self.apply_to_parameter_types(
+            &source_signature,
+            &signature,
+            |source: &Type, target: &Type| {
+                self.infer_types(&context.inferences, source, target, None, None);
+            },
+        );
+        if inference_context.is_none() {
+            self.apply_to_return_types(
+                contextual_signature.clone(),
+                signature.clone(),
+                |source: &Type, target: &Type| {
+                    self.infer_types(
+                        &context.inferences,
+                        source,
+                        target,
+                        Some(InferencePriority::ReturnType),
+                        None,
+                    );
+                },
+            );
+        }
+        self.get_signature_instantiation(
+            signature.clone(),
+            Some(&self.get_inferred_types(&context)),
+            is_in_js_file(contextual_signature.declaration.as_deref()),
+            None,
+        )
     }
 
     pub(super) fn create_signature_for_jsx_intrinsic(
