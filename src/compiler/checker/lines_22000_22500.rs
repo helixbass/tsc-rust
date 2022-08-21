@@ -446,7 +446,7 @@ impl InferTypes {
                                 self.get_inference_info_for_type(&element_types[start_length]);
                             if let Some(target_info) = target_info
                                 .as_ref()
-                                .filter(|target_info| target_info.implied_arity.is_some())
+                                .filter(|target_info| target_info.maybe_implied_arity().is_some())
                             {
                                 self.infer_from_types(
                                     &self.type_checker.slice_tuple_type(
@@ -454,7 +454,7 @@ impl InferTypes {
                                         start_length,
                                         Some(
                                             end_length + source_arity
-                                                - target_info.implied_arity.unwrap(),
+                                                - target_info.maybe_implied_arity().unwrap(),
                                         ),
                                     ),
                                     &element_types[start_length],
@@ -462,7 +462,7 @@ impl InferTypes {
                                 self.infer_from_types(
                                     &self.type_checker.slice_tuple_type(
                                         source,
-                                        start_length + target_info.implied_arity.unwrap(),
+                                        start_length + target_info.maybe_implied_arity().unwrap(),
                                         Some(end_length),
                                     ),
                                     &element_types[start_length + 1],

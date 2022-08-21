@@ -765,7 +765,7 @@ impl TypeChecker {
             inference.maybe_priority(),
             inference.top_level(),
             inference.is_fixed(),
-            inference.implied_arity,
+            inference.maybe_implied_arity(),
         )
     }
 

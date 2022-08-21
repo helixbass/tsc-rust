@@ -760,8 +760,9 @@ impl TypeChecker {
                         &inference_context.non_fixing_mapper(),
                     ));
                 }
+                let inference_context_return_mapper = inference_context.maybe_return_mapper();
                 if let Some(inference_context_return_mapper) =
-                    inference_context.return_mapper.as_ref()
+                    inference_context_return_mapper.as_ref()
                 {
                     return Some(self.instantiate_instantiable_types(
                         contextual_type,

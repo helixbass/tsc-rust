@@ -8,12 +8,13 @@ use super::{
     signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    find_index, is_import_call, is_in_js_file, is_jsx_opening_like_element, is_optional_chain,
-    is_optional_chain_root, last, length, node_is_missing, some, Debug_, Diagnostics,
-    FunctionFlags, InferenceFlags, InferencePriority, JsxReferenceKind, ReadonlyTextRange,
-    Signature, SignatureFlags, SignatureKind, TypeComparer, UnionReduction, __String,
-    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    find, find_index, is_import_call, is_in_js_file, is_jsx_opening_like_element,
+    is_optional_chain, is_optional_chain_root, last, length, maybe_every, node_is_missing, some,
+    ContextFlags, Debug_, Diagnostics, FunctionFlags, InferenceFlags, InferenceInfo,
+    InferencePriority, JsxReferenceKind, ReadonlyTextRange, Signature, SignatureFlags,
+    SignatureKind, TypeComparer, UnionReduction, __String, get_function_flags, has_initializer,
+    InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -315,21 +316,171 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_signature_for_jsx_intrinsic(
-        &self,
-        node: &Node, /*JsxOpeningLikeElement*/
-        result: &Type,
-    ) -> Rc<Signature> {
-        unimplemented!()
-    }
-
-    pub(super) fn get_resolved_signature_(
+    pub(super) fn infer_type_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&[Rc<Signature>]>,
-        check_mode: Option<CheckMode>,
-    ) -> Rc<Signature> {
-        unimplemented!()
+        signature: Rc<Signature>,
+        args: &[Rc<Node /*Expression*/>],
+        check_mode: CheckMode,
+        context: &InferenceContext,
+    ) -> Vec<Rc<Type>> {
+        if is_jsx_opening_like_element(node) {
+            return self.infer_jsx_type_arguments(node, signature, check_mode, context);
+        }
+
+        if node.kind() != SyntaxKind::Decorator {
+            let contextual_type = self.get_contextual_type_(
+                node,
+                Some(
+                    if maybe_every(signature.type_parameters.as_deref(), |p: &Rc<Type>, _| {
+                        self.get_default_from_type_parameter_(p).is_some()
+                    }) {
+                        ContextFlags::SkipBindingPatterns
+                    } else {
+                        ContextFlags::None
+                    },
+                ),
+            );
+            if let Some(contextual_type) = contextual_type.as_ref() {
+                let outer_context = self.get_inference_context(node);
+                let outer_mapper = self.get_mapper_from_context(
+                    self.clone_inference_context(
+                        outer_context.as_deref(),
+                        Some(InferenceFlags::NoDefault),
+                    )
+                    .as_deref(),
+                );
+                let instantiated_type =
+                    self.instantiate_type(contextual_type, outer_mapper.as_ref());
+                let contextual_signature = self.get_single_call_signature(&instantiated_type);
+                let inference_source_type = if let Some(contextual_signature_type_parameters) =
+                    contextual_signature
+                        .as_ref()
+                        .and_then(|contextual_signature| {
+                            contextual_signature.type_parameters.as_ref()
+                        }) {
+                    self.get_or_create_type_from_signature(
+                        self.get_signature_instantiation_without_filling_in_type_arguments(
+                            contextual_signature.clone().unwrap(),
+                            Some(contextual_signature_type_parameters),
+                        ),
+                    )
+                } else {
+                    instantiated_type.clone()
+                };
+                let inference_target_type = self.get_return_type_of_signature(signature.clone());
+                self.infer_types(
+                    &context.inferences,
+                    &inference_source_type,
+                    &inference_target_type,
+                    Some(InferencePriority::ReturnType),
+                    None,
+                );
+                let return_context = self.create_inference_context(
+                    signature.type_parameters.as_ref().unwrap(),
+                    Some(signature.clone()),
+                    context.flags,
+                    None,
+                );
+                let return_source_type = self.instantiate_type(
+                    contextual_type,
+                    if let Some(outer_context) = outer_context.as_ref() {
+                        outer_context.maybe_return_mapper().clone()
+                    } else {
+                        None
+                    }
+                    .as_ref(),
+                );
+                self.infer_types(
+                    &return_context.inferences,
+                    &return_source_type,
+                    &inference_target_type,
+                    None,
+                    None,
+                );
+                *context.maybe_return_mapper() = if some(
+                    Some(&return_context.inferences),
+                    Some(|inference: &Rc<InferenceInfo>| self.has_inference_candidates(inference)),
+                ) {
+                    self.get_mapper_from_context(
+                        self.clone_inferred_part_of_context(&return_context)
+                            .as_deref(),
+                    )
+                } else {
+                    None
+                };
+            }
+        }
+
+        let rest_type = self.get_non_array_rest_type(&signature);
+        let arg_count = if rest_type.is_some() {
+            cmp::min(self.get_parameter_count(&signature) - 1, args.len())
+        } else {
+            args.len()
+        };
+        if let Some(rest_type) = rest_type
+            .as_ref()
+            .filter(|rest_type| rest_type.flags().intersects(TypeFlags::TypeParameter))
+        {
+            let info = find(&context.inferences, |info: &Rc<InferenceInfo>, _| {
+                Rc::ptr_eq(&info.type_parameter, rest_type)
+            });
+            if let Some(info) = info {
+                info.set_implied_arity(
+                    if find_index(
+                        args,
+                        |arg: &Rc<Node>, _| self.is_spread_argument(Some(&**arg)),
+                        None,
+                    )
+                    .is_none()
+                    {
+                        Some(args.len() - arg_count)
+                    } else {
+                        None
+                    },
+                );
+            }
+        }
+
+        let this_type = self.get_this_type_of_signature(&signature);
+        if let Some(this_type) = this_type.as_ref() {
+            let this_argument_node = self.get_this_argument_of_call(node);
+            self.infer_types(
+                &context.inferences,
+                &self.get_this_argument_type(this_argument_node.as_deref()),
+                this_type,
+                None,
+                None,
+            );
+        }
+
+        for i in 0..arg_count {
+            let arg = &args[i];
+            if arg.kind() != SyntaxKind::OmittedExpression {
+                let param_type = self.get_type_at_position(&signature, i);
+                let arg_type = self.check_expression_with_contextual_type(
+                    arg,
+                    &param_type,
+                    Some(context),
+                    Some(check_mode),
+                );
+                self.infer_types(&context.inferences, &arg_type, &param_type, None, None);
+            }
+        }
+
+        if let Some(rest_type) = rest_type.as_ref() {
+            let spread_type = self.get_spread_argument_type(
+                args,
+                arg_count,
+                args.len(),
+                rest_type,
+                Some(context),
+                check_mode,
+            );
+            self.infer_types(&context.inferences, &spread_type, rest_type, None, None);
+        }
+
+        self.get_inferred_types(context)
     }
 
     pub(super) fn get_spread_argument_type<TContext: Borrow<InferenceContext>>(
@@ -351,6 +502,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_this_argument_of_call(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+    ) -> Option<Rc<Node /*LeftHandSideExpression*/>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_effective_call_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
@@ -363,6 +521,23 @@ impl TypeChecker {
         node: &Node, /*Decorator*/
         signature: &Signature,
     ) -> usize {
+        unimplemented!()
+    }
+
+    pub(super) fn create_signature_for_jsx_intrinsic(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+        result: &Type,
+    ) -> Rc<Signature> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_resolved_signature_(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        candidates_out_array: Option<&[Rc<Signature>]>,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Signature> {
         unimplemented!()
     }
 

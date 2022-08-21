@@ -789,7 +789,7 @@ pub struct InferenceInfo {
     priority: Cell<Option<InferencePriority>>,
     top_level: Cell<bool>,
     is_fixed: Cell<bool>,
-    pub implied_arity: Option<usize>,
+    implied_arity: Cell<Option<usize>>,
 }
 
 impl InferenceInfo {
@@ -811,7 +811,7 @@ impl InferenceInfo {
             priority: Cell::new(priority),
             top_level: Cell::new(top_level),
             is_fixed: Cell::new(is_fixed),
-            implied_arity,
+            implied_arity: Cell::new(implied_arity),
         }
     }
 
@@ -849,6 +849,14 @@ impl InferenceInfo {
 
     pub fn set_is_fixed(&self, is_fixed: bool) {
         self.is_fixed.set(is_fixed);
+    }
+
+    pub fn maybe_implied_arity(&self) -> Option<usize> {
+        self.implied_arity.get()
+    }
+
+    pub fn set_implied_arity(&self, implied_arity: Option<usize>) {
+        self.implied_arity.set(implied_arity);
     }
 }
 
@@ -908,7 +916,7 @@ pub struct InferenceContext {
     pub compare_types: Rc<dyn TypeComparer>,
     mapper: RefCell<Option<TypeMapper>>,
     non_fixing_mapper: RefCell<Option<TypeMapper>>,
-    pub return_mapper: Option<TypeMapper>,
+    return_mapper: RefCell<Option<TypeMapper>>,
     pub inferred_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
 }
 
@@ -930,7 +938,7 @@ impl InferenceContext {
             compare_types,
             mapper: RefCell::new(mapper),
             non_fixing_mapper: RefCell::new(non_fixing_mapper),
-            return_mapper,
+            return_mapper: RefCell::new(return_mapper),
             inferred_type_parameters,
         }
     }
@@ -951,6 +959,10 @@ impl InferenceContext {
 
     pub fn set_non_fixing_mapper(&self, non_fixing_mapper: TypeMapper) {
         *self.non_fixing_mapper.borrow_mut() = Some(non_fixing_mapper);
+    }
+
+    pub fn maybe_return_mapper(&self) -> RefMut<Option<TypeMapper>> {
+        self.return_mapper.borrow_mut()
     }
 }
 
