@@ -10,12 +10,14 @@ use super::{
     TypeFacts, WideningKind,
 };
 use crate::{
-    add_related_info, create_diagnostic_for_node, for_each, is_access_expression, is_import_call,
-    is_jsx_opening_element, is_jsx_opening_like_element, parse_base_node_factory,
+    add_related_info, create_diagnostic_for_node, for_each, get_error_span_for_node,
+    get_source_file_of_node, is_access_expression, is_import_call, is_jsx_opening_element,
+    is_jsx_opening_like_element, is_property_access_expression, parse_base_node_factory,
     parse_node_factory, set_parent, set_text_range, skip_outer_expressions, Debug_, Diagnostics,
-    ElementFlags, FunctionFlags, RelationComparisonResult, ScriptTarget, Signature, SignatureFlags,
-    UnionReduction, __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    ElementFlags, FunctionFlags, ReadonlyTextRange, RelationComparisonResult, ScriptTarget,
+    Signature, SignatureFlags, UnionReduction, __String, get_function_flags, has_initializer, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -305,6 +307,47 @@ impl TypeChecker {
             }
             SyntaxKind::Parameter => 3,
             _ => Debug_.fail(None),
+        }
+    }
+
+    pub(super) fn get_diagnostic_span_for_call_node(
+        &self,
+        node: &Node, /*CallExpression*/
+        do_not_include_arguments: Option<bool>,
+    ) -> GetDiagnosticSpanForCallNodeReturn {
+        let start: isize;
+        let length: isize;
+        let source_file = get_source_file_of_node(Some(node)).unwrap();
+
+        let node_as_call_expression = node.as_call_expression();
+        if is_property_access_expression(&node_as_call_expression.expression) {
+            let name_span = get_error_span_for_node(
+                &source_file,
+                &node_as_call_expression
+                    .expression
+                    .as_property_access_expression()
+                    .name,
+            );
+            start = name_span.start;
+            length = if do_not_include_arguments == Some(true) {
+                name_span.length
+            } else {
+                node.end() - start
+            };
+        } else {
+            let expression_span =
+                get_error_span_for_node(&source_file, &node_as_call_expression.expression);
+            start = expression_span.start;
+            length = if do_not_include_arguments == Some(true) {
+                expression_span.length
+            } else {
+                node.end() - start
+            };
+        }
+        GetDiagnosticSpanForCallNodeReturn {
+            start,
+            length,
+            source_file,
         }
     }
 
@@ -724,4 +767,10 @@ impl TypeChecker {
     ) -> Option<Vec<Rc<Type>>> {
         unimplemented!()
     }
+}
+
+pub(super) struct GetDiagnosticSpanForCallNodeReturn {
+    pub start: isize,
+    pub length: isize,
+    pub source_file: Rc<Node /*SourceFile*/>,
 }
