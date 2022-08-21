@@ -3,19 +3,22 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::cmp;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain, IterationUse,
-    MinArgumentCountFlags, TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain,
+    CheckTypeErrorOutputContainer, IterationUse, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    chain_diagnostic_messages, find, find_index, is_import_call, is_in_js_file,
-    is_jsx_opening_like_element, is_optional_chain, is_optional_chain_root, last, length, map,
-    maybe_every, node_is_missing, some, AccessFlags, ContextFlags, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, ElementFlags, FunctionFlags, InferenceFlags,
-    InferenceInfo, InferencePriority, JsxReferenceKind, Number, ReadonlyTextRange, Signature,
-    SignatureFlags, SignatureKind, TypeComparer, TypeMapper, UnionReduction, __String,
+    add_related_info, chain_diagnostic_messages, create_diagnostic_for_node, entity_name_to_string,
+    find, find_index, is_import_call, is_in_js_file, is_jsx_opening_element,
+    is_jsx_opening_like_element, is_jsx_self_closing_element, is_optional_chain,
+    is_optional_chain_root, last, length, map, maybe_every, node_is_missing, some, AccessFlags,
+    ContextFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
+    ElementFlags, FunctionFlags, InferenceFlags, InferenceInfo, InferencePriority,
+    JsxReferenceKind, Number, ReadonlyTextRange, RelationComparisonResult, Signature,
+    SignatureFlags, SignatureKind, SymbolFlags, TypeComparer, TypeMapper, UnionReduction, __String,
     get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
@@ -701,7 +704,198 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
     ) -> JsxReferenceKind {
-        unimplemented!()
+        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
+        if self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()) {
+            return JsxReferenceKind::Mixed;
+        }
+        let tag_type = self.get_apparent_type(&self.check_expression(
+            &node_as_jsx_opening_like_element.tag_name(),
+            None,
+            None,
+        ));
+        if length(Some(
+            &self.get_signatures_of_type(&tag_type, SignatureKind::Construct),
+        )) > 0
+        {
+            return JsxReferenceKind::Component;
+        }
+        if length(Some(
+            &self.get_signatures_of_type(&tag_type, SignatureKind::Call),
+        )) > 0
+        {
+            return JsxReferenceKind::Function;
+        }
+        JsxReferenceKind::Mixed
+    }
+
+    pub(super) fn check_applicable_signature_for_jsx_opening_like_element(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+        signature: Rc<Signature>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+        check_mode: CheckMode,
+        report_errors: bool,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        error_output_container: Rc<dyn CheckTypeErrorOutputContainer>,
+    ) -> bool {
+        let param_type =
+            self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
+        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
+        let attributes_type = self.check_expression_with_contextual_type(
+            &node_as_jsx_opening_like_element.attributes(),
+            &param_type,
+            None,
+            Some(check_mode),
+        );
+        self.check_tag_name_does_not_expect_too_many_arguments(
+            node,
+            report_errors,
+            error_output_container.clone(),
+        ) && self.check_type_related_to_and_optionally_elaborate(
+            &attributes_type,
+            &param_type,
+            relation,
+            if report_errors {
+                Some(node_as_jsx_opening_like_element.tag_name())
+            } else {
+                None
+            },
+            Some(node_as_jsx_opening_like_element.attributes()),
+            None,
+            containing_message_chain,
+            Some(error_output_container),
+        )
+    }
+
+    pub(super) fn check_tag_name_does_not_expect_too_many_arguments(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+        report_errors: bool,
+        error_output_container: Rc<dyn CheckTypeErrorOutputContainer>,
+    ) -> bool {
+        if self
+            .get_jsx_namespace_container_for_implicit_import(Some(node))
+            .is_some()
+        {
+            return true;
+        }
+        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
+        let tag_type = if is_jsx_opening_element(node)
+            || is_jsx_self_closing_element(node)
+                && !self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name())
+        {
+            Some(self.check_expression(&node_as_jsx_opening_like_element.tag_name(), None, None))
+        } else {
+            None
+        };
+        if tag_type.is_none() {
+            return true;
+        }
+        let tag_type = tag_type.unwrap();
+        let tag_call_signatures = self.get_signatures_of_type(&tag_type, SignatureKind::Call);
+        if length(Some(&*tag_call_signatures)) == 0 {
+            return true;
+        }
+        let factory = self.get_jsx_factory_entity(node);
+        if factory.is_none() {
+            return true;
+        }
+        let factory = factory.unwrap();
+        let factory_symbol = self.resolve_entity_name(
+            &factory,
+            SymbolFlags::Value,
+            Some(true),
+            Some(false),
+            Some(node),
+        );
+        if factory_symbol.is_none() {
+            return true;
+        }
+        let factory_symbol = factory_symbol.unwrap();
+
+        let factory_type = self.get_type_of_symbol(&factory_symbol);
+        let call_signatures = self.get_signatures_of_type(&factory_type, SignatureKind::Call);
+        if length(Some(&*call_signatures)) == 0 {
+            return true;
+        }
+
+        let mut has_first_param_signatures = false;
+        let mut max_param_count = 0;
+        for sig in &call_signatures {
+            let firstparam = self.get_type_at_position(sig, 0);
+            let signatures_of_param = self.get_signatures_of_type(&firstparam, SignatureKind::Call);
+            if length(Some(&*signatures_of_param)) == 0 {
+                continue;
+            }
+            for param_sig in &signatures_of_param {
+                has_first_param_signatures = true;
+                if self.has_effective_rest_parameter(param_sig) {
+                    return true;
+                }
+                let param_count = self.get_parameter_count(param_sig);
+                if param_count > max_param_count {
+                    max_param_count = param_count;
+                }
+            }
+        }
+        if !has_first_param_signatures {
+            return true;
+        }
+        let mut absolute_min_arg_count = usize::MAX;
+        for tag_sig in &tag_call_signatures {
+            let tag_required_arg_count = self.get_min_argument_count(tag_sig, None);
+            if tag_required_arg_count < absolute_min_arg_count {
+                absolute_min_arg_count = tag_required_arg_count;
+            }
+        }
+        if absolute_min_arg_count <= max_param_count {
+            return true;
+        }
+
+        if report_errors {
+            let diag: Rc<Diagnostic> = Rc::new(
+                create_diagnostic_for_node(
+                    &node_as_jsx_opening_like_element.tag_name(),
+                    &Diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
+                    Some(vec![
+                        entity_name_to_string(
+                            &node_as_jsx_opening_like_element.tag_name()
+                        ).into_owned(),
+                        absolute_min_arg_count.to_string(),
+                        entity_name_to_string(&factory).into_owned(),
+                        max_param_count.to_string(),
+                    ])
+                ).into()
+            );
+            let tag_name_declaration = self
+                .get_symbol_at_location_(&node_as_jsx_opening_like_element.tag_name(), None)
+                .and_then(|symbol| symbol.maybe_value_declaration());
+            if let Some(tag_name_declaration) = tag_name_declaration.as_ref() {
+                add_related_info(
+                    &diag,
+                    vec![Rc::new(
+                        create_diagnostic_for_node(
+                            tag_name_declaration,
+                            &Diagnostics::_0_is_declared_here,
+                            Some(vec![entity_name_to_string(
+                                &node_as_jsx_opening_like_element.tag_name(),
+                            )
+                            .into_owned()]),
+                        )
+                        .into(),
+                    )],
+                );
+            }
+            if
+            /*errorOutputContainer &&*/
+            error_output_container.skip_logging() == Some(true) {
+                error_output_container.push_error(diag.clone());
+            }
+            if error_output_container.skip_logging() != Some(true) {
+                self.diagnostics().add(diag);
+            }
+        }
+        false
     }
 
     pub(super) fn get_this_argument_of_call(
