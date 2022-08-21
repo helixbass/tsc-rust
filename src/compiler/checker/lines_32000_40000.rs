@@ -9,10 +9,10 @@ use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
     is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, AssignmentKind, Diagnostic,
-    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceInfo,
-    IterationTypes, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext,
+    InferenceInfo, IterationTypes, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
+    NodeArray, NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -130,6 +130,16 @@ impl TypeChecker {
         } else {
             self.string_type()
         }
+    }
+
+    pub(super) fn check_expression_with_contextual_type(
+        &self,
+        node: &Node, /*Expression*/
+        contextual_type: &Type,
+        inference_context: Option<&InferenceContext>,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn check_expression_cached(

@@ -8,12 +8,12 @@ use super::{
     signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    find_index, is_import_call, is_in_js_file, is_jsx_opening_like_element, last, length,
-    node_is_missing, some, Debug_, Diagnostics, FunctionFlags, InferenceFlags, InferencePriority,
-    JsxReferenceKind, ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, TypeComparer,
-    UnionReduction, __String, get_function_flags, has_initializer, InferenceContext, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    find_index, is_import_call, is_in_js_file, is_jsx_opening_like_element, is_optional_chain,
+    is_optional_chain_root, last, length, node_is_missing, some, Debug_, Diagnostics,
+    FunctionFlags, InferenceFlags, InferencePriority, JsxReferenceKind, ReadonlyTextRange,
+    Signature, SignatureFlags, SignatureKind, TypeComparer, UnionReduction, __String,
+    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -269,6 +269,50 @@ impl TypeChecker {
             is_in_js_file(contextual_signature.declaration.as_deref()),
             None,
         )
+    }
+
+    pub(super) fn infer_jsx_type_arguments(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+        signature: Rc<Signature>,
+        check_mode: CheckMode,
+        context: &InferenceContext,
+    ) -> Vec<Rc<Type>> {
+        let param_type =
+            self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
+        let check_attr_type = self.check_expression_with_contextual_type(
+            &node.as_jsx_opening_like_element().attributes(),
+            &param_type,
+            Some(context),
+            Some(check_mode),
+        );
+        self.infer_types(
+            &context.inferences,
+            &check_attr_type,
+            &param_type,
+            None,
+            None,
+        );
+        self.get_inferred_types(context)
+    }
+
+    pub(super) fn get_this_argument_type<TThisArgumentNode: Borrow<Node>>(
+        &self,
+        this_argument_node: Option<TThisArgumentNode /*LeftHandSideExpression*/>,
+    ) -> Rc<Type> {
+        if this_argument_node.is_none() {
+            return self.void_type();
+        }
+        let this_argument_node = this_argument_node.unwrap();
+        let this_argument_node = this_argument_node.borrow();
+        let this_argument_type = self.check_expression(this_argument_node, None, None);
+        if is_optional_chain_root(&this_argument_node.parent()) {
+            self.get_non_nullable_type(&this_argument_type)
+        } else if is_optional_chain(&this_argument_node.parent()) {
+            self.remove_optional_type_marker(&this_argument_type)
+        } else {
+            this_argument_type
+        }
     }
 
     pub(super) fn create_signature_for_jsx_intrinsic(
