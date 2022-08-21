@@ -1310,6 +1310,10 @@ impl Node {
     pub fn as_jsx_spread_attribute(&self) -> &JsxSpreadAttribute {
         enum_unwrapped!(self, [Node, JsxSpreadAttribute])
     }
+
+    pub fn as_decorator(&self) -> &Decorator {
+        enum_unwrapped!(self, [Node, Decorator])
+    }
 }
 
 #[derive(Debug)]

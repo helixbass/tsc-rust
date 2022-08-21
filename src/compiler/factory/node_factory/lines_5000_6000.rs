@@ -9,8 +9,8 @@ use crate::{
     InputFiles, LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind,
     ScriptTarget, ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode,
-    SyntaxKind, TransformFlags, UnparsedPrepend, UnparsedPrologue, UnparsedSource,
-    UnparsedTextLike,
+    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -264,6 +264,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     fn create_input_files(&self, base_factory: &TBaseNodeFactory) -> InputFiles {
         let node = self.create_base_node(base_factory, SyntaxKind::InputFiles);
         InputFiles::new(node, "".to_owned(), "".to_owned())
+    }
+
+    pub fn create_synthetic_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Rc<Type>,
+        is_spread: Option<bool>,
+        tuple_name_source: Option<Rc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
+    ) -> SyntheticExpression {
+        let is_spread = is_spread.unwrap_or(false);
+        unimplemented!()
     }
 
     pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Node {

@@ -10,10 +10,12 @@ use super::{
     TypeFacts, WideningKind,
 };
 use crate::{
-    add_related_info, create_diagnostic_for_node, is_import_call, Diagnostics, FunctionFlags,
-    RelationComparisonResult, Signature, SignatureFlags, UnionReduction, __String,
-    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    add_related_info, create_diagnostic_for_node, for_each, is_access_expression, is_import_call,
+    is_jsx_opening_element, is_jsx_opening_like_element, parse_base_node_factory,
+    parse_node_factory, set_parent, set_text_range, skip_outer_expressions, Debug_, Diagnostics,
+    ElementFlags, FunctionFlags, RelationComparisonResult, ScriptTarget, Signature, SignatureFlags,
+    UnionReduction, __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -65,7 +67,20 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallLikeExpression*/
     ) -> Option<Rc<Node /*LeftHandSideExpression*/>> {
-        unimplemented!()
+        let expression = if node.kind() == SyntaxKind::CallExpression {
+            Some(node.as_call_expression().expression.clone())
+        } else if node.kind() == SyntaxKind::TaggedTemplateExpression {
+            Some(node.as_tagged_template_expression().tag.clone())
+        } else {
+            None
+        };
+        if let Some(expression) = expression.as_ref() {
+            let callee = skip_outer_expressions(expression, None);
+            if is_access_expression(&callee) {
+                return callee.as_has_expression().maybe_expression();
+            }
+        }
+        None
     }
 
     pub(super) fn create_synthetic_expression<TTupleNameSource: Borrow<Node>>(
@@ -77,14 +92,200 @@ impl TypeChecker {
             TTupleNameSource, /*ParameterDeclaration | NamedTupleMember*/
         >,
     ) -> Rc<Node> {
-        unimplemented!()
+        let result: Rc<Node> = parse_node_factory.with(|parse_node_factory_| {
+            parse_base_node_factory.with(|parse_base_node_factory_| {
+                parse_node_factory_
+                    .create_synthetic_expression(
+                        parse_base_node_factory_,
+                        type_.type_wrapper(),
+                        is_spread,
+                        tuple_name_source
+                            .map(|tuple_name_source| tuple_name_source.borrow().node_wrapper()),
+                    )
+                    .into()
+            })
+        });
+        set_text_range(&*result, Some(parent));
+        set_parent(&result, Some(parent));
+        result
     }
 
     pub(super) fn get_effective_call_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
     ) -> Vec<Rc<Node /*Expression*/>> {
-        unimplemented!()
+        if node.kind() == SyntaxKind::TaggedTemplateExpression {
+            let template = &node.as_tagged_template_expression().template;
+            let mut args: Vec<Rc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
+                template,
+                &self.get_global_template_strings_array_type(),
+                None,
+                Option::<&Node>::None,
+            )];
+            if template.kind() == SyntaxKind::TemplateExpression {
+                for_each(
+                    &template.as_template_expression().template_spans,
+                    |span: &Rc<Node>, _| -> Option<()> {
+                        args.push(span.as_template_span().expression.clone());
+                        None
+                    },
+                );
+            }
+            return args;
+        }
+        if node.kind() == SyntaxKind::Decorator {
+            return self.get_effective_decorator_arguments(node);
+        }
+        if is_jsx_opening_like_element(node) {
+            return if !node
+                .as_jsx_opening_like_element()
+                .attributes()
+                .as_jsx_attributes()
+                .properties
+                .is_empty()
+                || is_jsx_opening_element(node)
+                    && !node.parent().as_jsx_element().children.is_empty()
+            {
+                vec![node.as_jsx_opening_like_element().attributes()]
+            } else {
+                vec![]
+            };
+        }
+        let args = node
+            .as_has_arguments()
+            .maybe_arguments()
+            .map_or_else(|| vec![], |arguments| arguments.to_vec());
+        let spread_index = self.get_spread_argument_index(&args);
+        if let Some(spread_index) = spread_index {
+            let mut effective_args = args[0..spread_index].to_owned();
+            for i in spread_index..args.len() {
+                let arg = &args[i];
+                let spread_type = if arg.kind() == SyntaxKind::SpreadElement {
+                    Some(if self.flow_loop_count() > 0 {
+                        self.check_expression(&arg.as_spread_element().expression, None, None)
+                    } else {
+                        self.check_expression_cached(&arg.as_spread_element().expression, None)
+                    })
+                } else {
+                    None
+                };
+                if let Some(spread_type) = spread_type
+                    .as_ref()
+                    .filter(|spread_type| self.is_tuple_type(spread_type))
+                {
+                    let spread_type_target_as_tuple_type =
+                        spread_type.as_type_reference().target.as_tuple_type();
+                    for_each(
+                        &self.get_type_arguments(spread_type),
+                        |t: &Rc<Type>, i| -> Option<()> {
+                            let flags = spread_type_target_as_tuple_type.element_flags[i];
+                            let synthetic_arg = self.create_synthetic_expression(
+                                arg,
+                                &*if flags.intersects(ElementFlags::Rest) {
+                                    self.create_array_type(t, None)
+                                } else {
+                                    t.clone()
+                                },
+                                Some(flags.intersects(ElementFlags::Variable)),
+                                spread_type_target_as_tuple_type
+                                    .labeled_element_declarations
+                                    .as_ref()
+                                    .and_then(|spread_type_target_labeled_element_declarations| {
+                                        spread_type_target_labeled_element_declarations
+                                            .get(i)
+                                            .cloned()
+                                    }),
+                            );
+                            effective_args.push(synthetic_arg);
+                            None
+                        },
+                    );
+                } else {
+                    effective_args.push(arg.clone());
+                }
+            }
+            return effective_args;
+        }
+        args
+    }
+
+    pub(super) fn get_effective_decorator_arguments(
+        &self,
+        node: &Node, /*Decorator*/
+    ) -> Vec<Rc<Node /*Expression*/>> {
+        let parent = node.parent();
+        let expr = &node.as_decorator().expression;
+        match parent.kind() {
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
+                vec![self.create_synthetic_expression(
+                    expr,
+                    &self.get_type_of_symbol(&self.get_symbol_of_node(&parent).unwrap()),
+                    None,
+                    Option::<&Node>::None,
+                )]
+            }
+            SyntaxKind::Parameter => {
+                let func = parent.parent();
+                vec![
+                    self.create_synthetic_expression(
+                        expr,
+                        &*if parent.parent().kind() == SyntaxKind::Constructor {
+                            self.get_type_of_symbol(&self.get_symbol_of_node(&func).unwrap())
+                        } else {
+                            self.error_type()
+                        },
+                        None,
+                        Option::<&Node>::None,
+                    ),
+                    self.create_synthetic_expression(
+                        expr,
+                        &self.any_type(),
+                        None,
+                        Option::<&Node>::None,
+                    ),
+                    self.create_synthetic_expression(
+                        expr,
+                        &self.number_type(),
+                        None,
+                        Option::<&Node>::None,
+                    ),
+                ]
+            }
+            SyntaxKind::PropertyDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor => {
+                let has_prop_desc = parent.kind() != SyntaxKind::PropertyDeclaration
+                    && self.language_version != ScriptTarget::ES3;
+                vec![
+                    self.create_synthetic_expression(
+                        expr,
+                        &self.get_parent_type_of_class_element(&parent),
+                        None,
+                        Option::<&Node>::None,
+                    ),
+                    self.create_synthetic_expression(
+                        expr,
+                        &self.get_class_element_property_key_type(&parent),
+                        None,
+                        Option::<&Node>::None,
+                    ),
+                    self.create_synthetic_expression(
+                        expr,
+                        &*if has_prop_desc {
+                            self.create_typed_property_descriptor_type(
+                                &self.get_type_of_node(&parent),
+                            )
+                        } else {
+                            self.any_type()
+                        },
+                        None,
+                        Option::<&Node>::None,
+                    ),
+                ]
+            }
+            _ => Debug_.fail(None),
+        }
     }
 
     pub(super) fn get_decorator_argument_count(
@@ -92,7 +293,19 @@ impl TypeChecker {
         node: &Node, /*Decorator*/
         signature: &Signature,
     ) -> usize {
-        unimplemented!()
+        match node.parent().kind() {
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => 1,
+            SyntaxKind::PropertyDeclaration => 2,
+            SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                if self.language_version == ScriptTarget::ES3 || signature.parameters().len() <= 2 {
+                    2
+                } else {
+                    3
+                }
+            }
+            SyntaxKind::Parameter => 3,
+            _ => Debug_.fail(None),
+        }
     }
 
     pub(super) fn create_signature_for_jsx_intrinsic(

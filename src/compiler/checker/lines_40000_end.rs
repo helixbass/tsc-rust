@@ -184,6 +184,20 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_parent_type_of_class_element(
+        &self,
+        node: &Node, /*ClassElement*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_class_element_property_key_type(
+        &self,
+        element: &Node, /*ClassElement*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_augmented_properties_of_type(&self, type_: &Type) -> Vec<Rc<Symbol>> {
         unimplemented!()
     }
