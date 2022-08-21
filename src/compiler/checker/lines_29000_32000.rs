@@ -1,21 +1,23 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::cmp;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, IterationUse, MinArgumentCountFlags, TypeFacts,
-    WideningKind,
+    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain, IterationUse,
+    MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    find, find_index, is_import_call, is_in_js_file, is_jsx_opening_like_element,
-    is_optional_chain, is_optional_chain_root, last, length, maybe_every, node_is_missing, some,
-    AccessFlags, ContextFlags, Debug_, Diagnostics, ElementFlags, FunctionFlags, InferenceFlags,
+    chain_diagnostic_messages, find, find_index, is_import_call, is_in_js_file,
+    is_jsx_opening_like_element, is_optional_chain, is_optional_chain_root, last, length, map,
+    maybe_every, node_is_missing, some, AccessFlags, ContextFlags, Debug_, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, ElementFlags, FunctionFlags, InferenceFlags,
     InferenceInfo, InferencePriority, JsxReferenceKind, Number, ReadonlyTextRange, Signature,
-    SignatureFlags, SignatureKind, TypeComparer, UnionReduction, __String, get_function_flags,
-    has_initializer, InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    SignatureFlags, SignatureKind, TypeComparer, TypeMapper, UnionReduction, __String,
+    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -630,6 +632,71 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn check_type_arguments(
+        &self,
+        signature: &Signature,
+        type_argument_nodes: &[Rc<Node /*TypeNode*/>],
+        report_errors: bool,
+        head_message: Option<&'static DiagnosticMessage>,
+    ) -> Option<Vec<Rc<Type>>> {
+        let is_javascript = is_in_js_file(signature.declaration.as_deref());
+        let type_parameters = signature.type_parameters.as_ref().unwrap();
+        let type_argument_types = self
+            .fill_missing_type_arguments(
+                Some(map(type_argument_nodes, |node: &Rc<Node>, _| {
+                    self.get_type_from_type_node_(node)
+                })),
+                Some(type_parameters),
+                self.get_min_type_argument_count(Some(type_parameters)),
+                is_javascript,
+            )
+            .unwrap();
+        let mut mapper: Option<TypeMapper> = None;
+        for i in 0..type_argument_nodes.len() {
+            Debug_.assert(
+                type_parameters.get(i).is_some(),
+                Some("Should not call checkTypeArguments with too many type arguments"),
+            );
+            let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);
+            if let Some(constraint) = constraint.as_ref() {
+                let error_info: Option<Rc<dyn CheckTypeContainingMessageChain>> =
+                    if report_errors && head_message.is_some() {
+                        Some(Rc::new(CheckTypeArgumentsErrorInfo))
+                    } else {
+                        None
+                    };
+                let type_argument_head_message =
+                    head_message.unwrap_or(&*Diagnostics::Type_0_does_not_satisfy_the_constraint_1);
+                if mapper.is_none() {
+                    mapper = Some(self.create_type_mapper(
+                        type_parameters.clone(),
+                        Some(type_argument_types.clone()),
+                    ));
+                }
+                let type_argument = &type_argument_types[i];
+                if !self.check_type_assignable_to(
+                    type_argument,
+                    &self.get_type_with_this_argument(
+                        &self.instantiate_type(constraint, mapper.as_ref()),
+                        Some(&**type_argument),
+                        None,
+                    ),
+                    if report_errors {
+                        Some(&*type_argument_nodes[i])
+                    } else {
+                        None
+                    },
+                    Some(type_argument_head_message),
+                    error_info.clone(),
+                    None,
+                ) {
+                    return None;
+                }
+            }
+        }
+        Some(type_argument_types)
+    }
+
     pub(super) fn get_jsx_reference_kind(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
@@ -1074,5 +1141,17 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Option<Vec<Rc<Type>>> {
         unimplemented!()
+    }
+}
+
+struct CheckTypeArgumentsErrorInfo;
+
+impl CheckTypeContainingMessageChain for CheckTypeArgumentsErrorInfo {
+    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
+        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+            None,
+            &Diagnostics::Type_0_does_not_satisfy_the_constraint_1,
+            None,
+        ))))
     }
 }
