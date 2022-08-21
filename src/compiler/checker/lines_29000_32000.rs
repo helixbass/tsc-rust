@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
@@ -8,19 +8,21 @@ use std::rc::Rc;
 
 use super::{
     signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain,
-    CheckTypeErrorOutputContainer, IterationUse, MinArgumentCountFlags, TypeFacts, WideningKind,
+    CheckTypeErrorOutputContainer, CheckTypeErrorOutputContainerConcrete, IterationUse,
+    MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node, entity_name_to_string,
     find, find_index, is_import_call, is_in_js_file, is_jsx_opening_element,
     is_jsx_opening_like_element, is_jsx_self_closing_element, is_optional_chain,
-    is_optional_chain_root, last, length, map, maybe_every, node_is_missing, some, AccessFlags,
-    ContextFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    ElementFlags, FunctionFlags, InferenceFlags, InferenceInfo, InferencePriority,
-    JsxReferenceKind, Number, ReadonlyTextRange, RelationComparisonResult, Signature,
-    SignatureFlags, SignatureKind, SymbolFlags, TypeComparer, TypeMapper, UnionReduction, __String,
-    get_function_flags, has_initializer, InferenceContext, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_optional_chain_root, last, length, map, maybe_every, node_is_missing,
+    set_text_range_pos_end, some, AccessFlags, ContextFlags, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, ElementFlags, FunctionFlags, InferenceFlags,
+    InferenceInfo, InferencePriority, JsxReferenceKind, Number, ReadonlyTextRange,
+    RelationComparisonResult, Signature, SignatureFlags, SignatureKind, SymbolFlags, TypeComparer,
+    TypeMapper, UnionReduction, __String, get_function_flags, has_initializer, InferenceContext,
+    Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -898,10 +900,238 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn get_signature_applicability_error(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        args: &[Rc<Node /*Expression*/>],
+        signature: Rc<Signature>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+        check_mode: CheckMode,
+        report_errors: bool,
+        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+    ) -> Option<Vec<Rc<Diagnostic>>> {
+        let error_output_container: Rc<dyn CheckTypeErrorOutputContainer> =
+            Rc::new(CheckTypeErrorOutputContainerConcrete::new(Some(true)));
+        if is_jsx_opening_like_element(node) {
+            if !self.check_applicable_signature_for_jsx_opening_like_element(
+                node,
+                signature.clone(),
+                relation.clone(),
+                check_mode,
+                report_errors,
+                containing_message_chain.clone(),
+                error_output_container.clone(),
+            ) {
+                Debug_.assert(
+                    !report_errors || error_output_container.errors_len() > 0,
+                    Some("jsx should have errors when reporting errors"),
+                );
+                return Some(error_output_container.errors()) /*|| emptyArray*/;
+            }
+            return None;
+        }
+        let this_type = self.get_this_type_of_signature(&signature);
+        if let Some(this_type) = this_type.as_ref().filter(|this_type| {
+            !Rc::ptr_eq(this_type, &self.void_type()) && node.kind() != SyntaxKind::NewExpression
+        }) {
+            let this_argument_node = self.get_this_argument_of_call(node);
+            let this_argument_type = self.get_this_argument_type(this_argument_node.as_deref());
+            let error_node = if report_errors {
+                Some(
+                    this_argument_node
+                        .clone()
+                        .unwrap_or_else(|| node.node_wrapper()),
+                )
+            } else {
+                None
+            };
+            let head_message = &Diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1;
+            if !self.check_type_related_to(
+                &this_argument_type,
+                this_type,
+                relation.clone(),
+                error_node,
+                Some(Cow::Borrowed(head_message)),
+                containing_message_chain.clone(),
+                Some(error_output_container.clone()),
+            ) {
+                Debug_.assert(
+                    !report_errors || error_output_container.errors_len() > 0,
+                    Some("this parameter should have errors when reporting errors"),
+                );
+                return Some(error_output_container.errors()) /*|| emptyArray*/;
+            }
+        }
+        let head_message =
+            &Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
+        let rest_type = self.get_non_array_rest_type(&signature);
+        let arg_count = if rest_type.is_some() {
+            cmp::min(self.get_parameter_count(&signature) - 1, args.len())
+        } else {
+            args.len()
+        };
+        for i in 0..arg_count {
+            let arg = &args[i];
+            if arg.kind() != SyntaxKind::OmittedExpression {
+                let param_type = self.get_type_at_position(&signature, i);
+                let arg_type = self.check_expression_with_contextual_type(
+                    arg,
+                    &param_type,
+                    None,
+                    Some(check_mode),
+                );
+                let check_arg_type = if check_mode.intersects(CheckMode::SkipContextSensitive) {
+                    self.get_regular_type_of_object_literal(&arg_type)
+                } else {
+                    arg_type.clone()
+                };
+                if !self.check_type_related_to_and_optionally_elaborate(
+                    &check_arg_type,
+                    &param_type,
+                    relation.clone(),
+                    if report_errors {
+                        Some(arg.clone())
+                    } else {
+                        None
+                    },
+                    Some(arg.clone()),
+                    Some(head_message),
+                    containing_message_chain.clone(),
+                    Some(error_output_container.clone()),
+                ) {
+                    Debug_.assert(
+                        !report_errors || error_output_container.errors_len() > 0,
+                        Some("parameter should have errors when reporting errors"),
+                    );
+                    self.maybe_add_missing_await_info(
+                        report_errors,
+                        error_output_container.clone(),
+                        relation.clone(),
+                        Some(&**arg),
+                        &check_arg_type,
+                        &param_type,
+                    );
+                    return Some(error_output_container.errors()) /*|| emptyArray*/;
+                }
+            }
+        }
+        if let Some(rest_type) = rest_type.as_ref() {
+            let spread_type = self.get_spread_argument_type(
+                args,
+                arg_count,
+                args.len(),
+                rest_type,
+                None,
+                check_mode,
+            );
+            let rest_arg_count = args.len() - arg_count;
+            let error_node = if !report_errors {
+                None
+            } else if rest_arg_count == 0 {
+                Some(node.node_wrapper())
+            } else if rest_arg_count == 1 {
+                Some(args[arg_count].clone())
+            } else {
+                let error_node = self.create_synthetic_expression(
+                    node,
+                    &spread_type,
+                    None,
+                    Option::<&Node>::None,
+                );
+                set_text_range_pos_end(
+                    &*error_node,
+                    args[arg_count].pos(),
+                    args[args.len() - 1].end(),
+                );
+                Some(error_node)
+            };
+            if !self.check_type_related_to(
+                &spread_type,
+                rest_type,
+                relation.clone(),
+                error_node.clone(),
+                Some(Cow::Borrowed(head_message)),
+                None,
+                Some(error_output_container.clone()),
+            ) {
+                Debug_.assert(
+                    !report_errors || error_output_container.errors_len() > 0,
+                    Some("rest parameter should have errors when reporting errors"),
+                );
+                self.maybe_add_missing_await_info(
+                    report_errors,
+                    error_output_container.clone(),
+                    relation.clone(),
+                    error_node,
+                    &spread_type,
+                    rest_type,
+                );
+                return Some(error_output_container.errors()) /*|| emptyArray*/;
+            }
+        }
+        None
+    }
+
+    pub(super) fn maybe_add_missing_await_info<TErrorNode: Borrow<Node>>(
+        &self,
+        report_errors: bool,
+        error_output_container: Rc<dyn CheckTypeErrorOutputContainer>,
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+        error_node: Option<TErrorNode>,
+        source: &Type,
+        target: &Type,
+    ) {
+        if let Some(error_node) = error_node {
+            let error_node = error_node.borrow();
+            if report_errors && error_output_container.errors_len() > 0 {
+                if self
+                    .get_awaited_type_of_promise(target, Option::<&Node>::None, None, None)
+                    .is_some()
+                {
+                    return;
+                }
+                let awaited_type_of_source =
+                    self.get_awaited_type_of_promise(source, Option::<&Node>::None, None, None);
+                if matches!(
+                    awaited_type_of_source.as_ref(),
+                    Some(awaited_type_of_source) if self.is_type_related_to(
+                        awaited_type_of_source,
+                        target,
+                        relation.clone()
+                    )
+                ) {
+                    add_related_info(
+                        &error_output_container.get_error(0).unwrap(),
+                        vec![Rc::new(
+                            create_diagnostic_for_node(
+                                error_node,
+                                &Diagnostics::Did_you_forget_to_use_await,
+                                None,
+                            )
+                            .into(),
+                        )],
+                    );
+                }
+            }
+        }
+    }
+
     pub(super) fn get_this_argument_of_call(
         &self,
         node: &Node, /*CallLikeExpression*/
     ) -> Option<Rc<Node /*LeftHandSideExpression*/>> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_synthetic_expression<TTupleNameSource: Borrow<Node>>(
+        &self,
+        parent: &Node,
+        type_: &Type,
+        is_spread: Option<bool>,
+        tuple_name_source: Option<
+            TTupleNameSource, /*ParameterDeclaration | NamedTupleMember*/
+        >,
+    ) -> Rc<Node> {
         unimplemented!()
     }
 

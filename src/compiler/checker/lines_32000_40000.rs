@@ -468,6 +468,16 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_awaited_type_of_promise<TErrorNode: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        error_node: Option<TErrorNode>,
+        diagnostic_message: Option<&DiagnosticMessage>,
+        args: Option<Vec<String>>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_promised_type_of_promise<TErrorNode: Borrow<Node>>(
         &self,
         type_: &Type,

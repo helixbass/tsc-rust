@@ -1559,6 +1559,7 @@ pub(super) trait CheckTypeErrorOutputContainer {
     fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>>;
     fn errors_len(&self) -> usize;
     fn skip_logging(&self) -> Option<bool>;
+    fn errors(&self) -> Vec<Rc<Diagnostic>>;
 }
 
 pub(super) struct CheckTypeErrorOutputContainerConcrete {
@@ -1594,5 +1595,9 @@ impl CheckTypeErrorOutputContainer for CheckTypeErrorOutputContainerConcrete {
 
     fn skip_logging(&self) -> Option<bool> {
         self.skip_logging
+    }
+
+    fn errors(&self) -> Vec<Rc<Diagnostic>> {
+        self.errors.borrow().clone()
     }
 }
