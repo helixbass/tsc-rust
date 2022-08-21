@@ -1,13 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cmp;
 use std::rc::Rc;
 
 use super::{
     signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    find_index, is_import_call, Diagnostics, FunctionFlags, JsxReferenceKind, Signature,
+    find_index, is_import_call, is_in_js_file, is_jsx_opening_like_element, last, node_is_missing,
+    Debug_, Diagnostics, FunctionFlags, JsxReferenceKind, ReadonlyTextRange, Signature,
     SignatureFlags, Ternary, UnionReduction, __String, get_function_flags, has_initializer,
     InferenceContext, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
     TypeFlags, TypeInterface,
@@ -44,6 +46,112 @@ impl TypeChecker {
         t.flags().intersects(
             TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Unknown | TypeFlags::Any,
         )
+    }
+
+    pub(super) fn has_correct_arity(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        args: &[Rc<Node /*Expression*/>],
+        signature: &Signature,
+        signature_help_trailing_comma: Option<bool>,
+    ) -> bool {
+        let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
+        let arg_count: usize;
+        let mut call_is_incomplete = false;
+        let mut effective_parameter_count = self.get_parameter_count(signature);
+        let mut effective_minimum_arguments = self.get_min_argument_count(signature, None);
+
+        if node.kind() == SyntaxKind::TaggedTemplateExpression {
+            arg_count = args.len();
+            let node_as_tagged_template_expression = node.as_tagged_template_expression();
+            if node_as_tagged_template_expression.template.kind() == SyntaxKind::TemplateExpression
+            {
+                let last_span = last(
+                    &node_as_tagged_template_expression
+                        .template
+                        .as_template_expression()
+                        .template_spans,
+                );
+                let last_span_as_template_span = last_span.as_template_span();
+                call_is_incomplete = node_is_missing(Some(&*last_span_as_template_span.literal))
+                    || last_span_as_template_span
+                        .literal
+                        .as_literal_like_node()
+                        .is_unterminated()
+                        == Some(true);
+            } else {
+                let template_literal = &node_as_tagged_template_expression.template;
+                Debug_.assert(
+                    template_literal.kind() == SyntaxKind::NoSubstitutionTemplateLiteral,
+                    None,
+                );
+                call_is_incomplete =
+                    template_literal.as_literal_like_node().is_unterminated() == Some(true);
+            }
+        } else if node.kind() == SyntaxKind::Decorator {
+            arg_count = self.get_decorator_argument_count(node, signature);
+        } else if is_jsx_opening_like_element(node) {
+            call_is_incomplete =
+                node.as_jsx_opening_like_element().attributes().end() == node.end();
+            if call_is_incomplete {
+                return true;
+            }
+            arg_count = if effective_minimum_arguments == 0 {
+                args.len()
+            } else {
+                1
+            };
+            effective_parameter_count = if args.is_empty() {
+                effective_parameter_count
+            } else {
+                1
+            };
+            effective_minimum_arguments = cmp::min(effective_minimum_arguments, 1);
+        } else if node.as_has_arguments().maybe_arguments().is_none() {
+            Debug_.assert(node.kind() == SyntaxKind::NewExpression, None);
+            return self.get_min_argument_count(signature, None) == 0;
+        } else {
+            arg_count = if signature_help_trailing_comma {
+                args.len() + 1
+            } else {
+                args.len()
+            };
+
+            call_is_incomplete =
+                node.as_has_arguments().maybe_arguments().unwrap().end() == node.end();
+
+            let spread_arg_index = self.get_spread_argument_index(args);
+            if let Some(spread_arg_index) = spread_arg_index {
+                return spread_arg_index >= self.get_min_argument_count(signature, None)
+                    && (self.has_effective_rest_parameter(signature)
+                        || spread_arg_index < self.get_parameter_count(signature));
+            }
+        }
+
+        if !self.has_effective_rest_parameter(signature) && arg_count > effective_parameter_count {
+            return false;
+        }
+
+        if call_is_incomplete || arg_count >= effective_minimum_arguments {
+            return true;
+        }
+        for i in arg_count..effective_minimum_arguments {
+            let type_ = self.get_type_at_position(signature, i);
+            if self
+                .filter_type(&type_, |type_: &Type| {
+                    if is_in_js_file(Some(node)) && !self.strict_null_checks {
+                        self.accepts_void_undefined_unknown_or_any(type_)
+                    } else {
+                        self.accepts_void(type_)
+                    }
+                })
+                .flags()
+                .intersects(TypeFlags::Never)
+            {
+                return false;
+            }
+        }
+        true
     }
 
     pub(super) fn get_single_call_signature(&self, type_: &Type) -> Option<Rc<Signature>> {
@@ -109,6 +217,14 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallLikeExpression*/
     ) -> Vec<Rc<Node /*Expression*/>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_decorator_argument_count(
+        &self,
+        node: &Node, /*Decorator*/
+        signature: &Signature,
+    ) -> usize {
         unimplemented!()
     }
 
