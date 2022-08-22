@@ -17,12 +17,12 @@ use crate::{
     is_binding_pattern, is_call_expression, is_function_expression_or_arrow_function,
     is_identifier, is_import_call, is_jsx_opening_element, is_jsx_opening_like_element,
     is_new_expression, is_parameter, is_property_access_expression, is_rest_parameter, last,
-    parse_base_node_factory, parse_node_factory, set_parent, set_text_range,
+    length, parse_base_node_factory, parse_node_factory, set_parent, set_text_range,
     set_text_range_pos_end, skip_outer_expressions, some, Debug_, Diagnostic, DiagnosticMessage,
-    Diagnostics, ElementFlags, FunctionFlags, ReadonlyTextRange, RelationComparisonResult,
-    ScriptTarget, Signature, SignatureFlags, SymbolFlags, UnionReduction, UsizeOrNegativeInfinity,
-    __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    Diagnostics, ElementFlags, FunctionFlags, NodeArray, ReadonlyTextRange,
+    RelationComparisonResult, ScriptTarget, Signature, SignatureFlags, SymbolFlags, UnionReduction,
+    UsizeOrNegativeInfinity, __String, get_function_flags, has_initializer, Node, NodeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -595,6 +595,84 @@ impl TypeChecker {
                 .into(),
             )
         }
+    }
+
+    pub(super) fn get_type_argument_arity_error(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        signatures: &[Rc<Signature>],
+        type_arguments: &NodeArray, /*<TypeNode>*/
+    ) -> Rc<Diagnostic> {
+        let arg_count = type_arguments.len();
+        if signatures.len() == 1 {
+            let sig = &signatures[0];
+            let min = self.get_min_type_argument_count(sig.type_parameters.as_deref());
+            let max = length(sig.type_parameters.as_deref());
+            return Rc::new(
+                create_diagnostic_for_node_array(
+                    &get_source_file_of_node(Some(node)).unwrap(),
+                    type_arguments,
+                    &Diagnostics::Expected_0_type_arguments_but_got_1,
+                    Some(vec![
+                        if min < max {
+                            format!("{}-{}", min, max)
+                        } else {
+                            min.to_string()
+                        },
+                        arg_count.to_string(),
+                    ]),
+                )
+                .into(),
+            );
+        }
+        let mut below_arg_count = UsizeOrNegativeInfinity::NegativeInfinity;
+        let mut above_arg_count = usize::MAX;
+        for sig in signatures {
+            let min = self.get_min_type_argument_count(sig.type_parameters.as_deref());
+            let max = length(sig.type_parameters.as_deref());
+            if min > arg_count {
+                above_arg_count = cmp::min(above_arg_count, min);
+            } else if max < arg_count {
+                below_arg_count = UsizeOrNegativeInfinity::Usize(match below_arg_count {
+                    UsizeOrNegativeInfinity::NegativeInfinity => max,
+                    UsizeOrNegativeInfinity::Usize(below_arg_count) => {
+                        cmp::max(below_arg_count, max)
+                    }
+                });
+            }
+        }
+        if let UsizeOrNegativeInfinity::Usize(below_arg_count) = below_arg_count {
+            if above_arg_count != usize::MAX {
+                return Rc::new(
+                    create_diagnostic_for_node_array(
+                        &get_source_file_of_node(Some(node)).unwrap(),
+                        type_arguments,
+                        &Diagnostics::No_overload_expects_0_arguments_but_overloads_do_exist_that_expect_either_1_or_2_arguments,
+                        Some(vec![
+                            arg_count.to_string(),
+                            below_arg_count.to_string(),
+                            above_arg_count.to_string(),
+                        ])
+                    ).into()
+                );
+            }
+        }
+        Rc::new(
+            create_diagnostic_for_node_array(
+                &get_source_file_of_node(Some(node)).unwrap(),
+                type_arguments,
+                &Diagnostics::Expected_0_type_arguments_but_got_1,
+                Some(vec![
+                    match below_arg_count {
+                        UsizeOrNegativeInfinity::NegativeInfinity => above_arg_count,
+                        UsizeOrNegativeInfinity::Usize(below_arg_count) => below_arg_count,
+                    }
+                    .to_string(),
+                    arg_count.to_string(),
+                ]),
+            )
+            .into(),
+        )
     }
 
     pub(super) fn create_signature_for_jsx_intrinsic(
