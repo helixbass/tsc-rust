@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::convert::TryInto;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -10,14 +11,14 @@ use super::{
 };
 use crate::{
     create_diagnostic_for_node, first, get_class_like_declaration_of_symbol, get_containing_class,
-    get_effective_base_type_node, get_jsdoc_class_tag, get_source_file_of_node,
+    get_effective_base_type_node, get_jsdoc_class_tag, get_object_flags, get_source_file_of_node,
     has_syntactic_modifier, is_call_chain, is_import_call, is_in_js_file, is_line_break,
-    is_outermost_optional_chain, last, map_defined, min_and_max, skip_trivia, text_char_at_index,
-    Debug_, DiagnosticRelatedInformation, Diagnostics, FunctionFlags, InferenceFlags, MinAndMax,
-    ModifierFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SignatureKind,
-    SourceFileLike, UnionReduction, __String, get_function_flags, has_initializer, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    is_outermost_optional_chain, last, length, map_defined, min_and_max, skip_trivia,
+    text_char_at_index, Debug_, DiagnosticRelatedInformation, Diagnostics, FunctionFlags,
+    InferenceFlags, MinAndMax, ModifierFlags, ObjectFlags, ReadonlyTextRange, ScriptTarget,
+    Signature, SignatureFlags, SignatureKind, SourceFileLike, UnionOrIntersectionTypeInterface,
+    UnionReduction, __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -639,6 +640,55 @@ impl TypeChecker {
             None,
         );
         self.resolve_error_call(node)
+    }
+
+    pub(super) fn type_has_protected_accessible_base(
+        &self,
+        target: &Symbol,
+        type_: &Type, /*InterfaceType*/
+    ) -> bool {
+        let base_types = self.get_base_types(type_);
+        if length(Some(&base_types)) == 0 {
+            return false;
+        }
+        let first_base = &base_types[0];
+        if first_base.flags().intersects(TypeFlags::Intersection) {
+            let types = first_base.as_intersection_type().types();
+            let mixin_flags = self.find_mixins(types);
+            let mut i = 0;
+            for intersection_member in first_base.as_intersection_type().types() {
+                if !mixin_flags[i] {
+                    if get_object_flags(intersection_member)
+                        .intersects(ObjectFlags::Class | ObjectFlags::Interface)
+                    {
+                        if matches!(
+                            intersection_member.maybe_symbol().as_ref(),
+                            Some(intersection_member_symbol) if ptr::eq(
+                                &**intersection_member_symbol,
+                                target
+                            )
+                        ) {
+                            return true;
+                        }
+                        if self.type_has_protected_accessible_base(target, intersection_member) {
+                            return true;
+                        }
+                    }
+                }
+                i += 1;
+            }
+            return false;
+        }
+        if matches!(
+            first_base.maybe_symbol().as_ref(),
+            Some(first_base_symbol) if ptr::eq(
+                &**first_base_symbol,
+                target
+            )
+        ) {
+            return true;
+        }
+        self.type_has_protected_accessible_base(target, first_base)
     }
 
     pub(super) fn is_constructor_accessible(
