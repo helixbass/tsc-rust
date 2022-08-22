@@ -1,27 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_literal_types, signature_has_rest_parameter, CheckMode, MinArgumentCountFlags,
-    TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    chain_diagnostic_messages, create_diagnostic_for_node, first,
-    get_class_like_declaration_of_symbol, get_containing_class, get_effective_base_type_node,
-    get_jsdoc_class_tag, get_object_flags, get_selected_effective_modifier_flags,
-    get_source_file_of_node, has_syntactic_modifier, is_call_chain, is_call_expression,
-    is_import_call, is_in_js_file, is_line_break, is_outermost_optional_chain, last, length,
-    map_defined, min_and_max, skip_trivia, text_char_at_index, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, FunctionFlags,
-    InferenceFlags, MinAndMax, ModifierFlags, ObjectFlags, ReadonlyTextRange, ScriptTarget,
-    Signature, SignatureFlags, SignatureKind, SourceFileLike, SymbolFlags,
-    UnionOrIntersectionTypeInterface, UnionReduction, __String, get_function_flags,
-    has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    is_import_call, DiagnosticRelatedInformation, Diagnostics, FunctionFlags, Signature,
+    SignatureFlags, SignatureKind, UnionReduction, __String, get_function_flags, has_initializer,
+    Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
