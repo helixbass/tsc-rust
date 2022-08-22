@@ -80,3 +80,9 @@ pub fn uncapitalize(string: &str) -> String {
         Some(f) => f.to_lowercase().collect::<String>() + c.as_str(),
     }
 }
+
+#[derive(Copy, Clone, Debug)]
+pub enum UsizeOrNegativeInfinity {
+    Usize(usize),
+    NegativeInfinity,
+}

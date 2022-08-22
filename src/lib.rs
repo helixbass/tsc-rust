@@ -341,13 +341,13 @@ pub use compiler::utilities::{
     concatenate_diagnostic_message_chains, contains_parse_error, copy_entries,
     create_compiler_diagnostic, create_detached_diagnostic, create_diagnostic_collection,
     create_diagnostic_for_file_from_message_chain, create_diagnostic_for_node,
-    create_diagnostic_for_node_from_message_chain, create_diagnostic_for_node_in_source_file,
-    create_file_diagnostic, create_symbol_table, create_text_writer, declaration_name_to_string,
-    default_maximum_truncation_length, ensure_script_kind, entity_name_to_string,
-    escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
-    export_assignment_is_alias, external_helpers_module_name_text,
-    for_each_enclosing_block_scope_container, for_each_entry, format_message,
-    format_string_from_args, full_triple_slash_amd_reference_path_reg_ex,
+    create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
+    create_diagnostic_for_node_in_source_file, create_file_diagnostic, create_symbol_table,
+    create_text_writer, declaration_name_to_string, default_maximum_truncation_length,
+    ensure_script_kind, entity_name_to_string, escape_jsx_attribute_string,
+    escape_non_ascii_string, escape_string, export_assignment_is_alias,
+    external_helpers_module_name_text, for_each_enclosing_block_scope_container, for_each_entry,
+    format_message, format_string_from_args, full_triple_slash_amd_reference_path_reg_ex,
     full_triple_slash_reference_path_reg_ex, get_alias_declaration_from_name,
     get_allow_js_compiler_option, get_allow_synthetic_default_imports, get_ancestor,
     get_assigned_expando_initializer, get_assignment_declaration_kind,
@@ -531,5 +531,5 @@ pub use rust_helpers::number::Number;
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_option_rcs_equal, are_rc_slices_equal, capitalize, index_of, index_of_rc, is_same_variant,
-    last_index_of, uncapitalize,
+    last_index_of, uncapitalize, UsizeOrNegativeInfinity,
 };
