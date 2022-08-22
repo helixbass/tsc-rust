@@ -1,36 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::{Cell, RefCell};
-use std::cmp;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain,
-    CheckTypeErrorOutputContainer, MinArgumentCountFlags, TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    add_related_info, are_option_rcs_equal, chain_diagnostic_messages,
-    chain_diagnostic_messages_multiple, create_diagnostic_for_node,
-    create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
-    create_file_diagnostic, every, factory, filter, find, first, flat_map, flatten, for_each,
-    get_error_span_for_node, get_first_identifier, get_source_file_of_node, id_text,
-    is_access_expression, is_binding_pattern, is_call_expression,
-    is_function_expression_or_arrow_function, is_function_like_declaration, is_identifier,
-    is_import_call, is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element,
-    is_new_expression, is_parameter, is_property_access_expression, is_rest_parameter, last,
-    length, map, maybe_for_each, node_is_present, parse_base_node_factory, parse_node_factory,
-    set_parent, set_text_range, set_text_range_pos_end, skip_outer_expressions, some,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, FunctionFlags,
-    InferenceContext, InferenceFlags, NodeArray, ReadonlyTextRange, RelationComparisonResult,
-    ScriptTarget, Signature, SignatureFlags, SymbolFlags, UnionReduction, UsizeOrNegativeInfinity,
+    is_import_call, Diagnostics, FunctionFlags, Signature, SignatureFlags, UnionReduction,
     __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface,
     SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn get_candidate_for_overload_failure(

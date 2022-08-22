@@ -6,10 +6,7 @@ use std::cmp;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{
-    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain,
-    CheckTypeErrorOutputContainer, MinArgumentCountFlags, TypeFacts, WideningKind,
-};
+use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
 use crate::{
     add_related_info, are_option_rcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
@@ -18,17 +15,16 @@ use crate::{
     get_error_span_for_node, get_first_identifier, get_source_file_of_node, id_text,
     is_access_expression, is_binding_pattern, is_call_expression,
     is_function_expression_or_arrow_function, is_function_like_declaration, is_identifier,
-    is_import_call, is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element,
-    is_new_expression, is_parameter, is_property_access_expression, is_rest_parameter, last,
-    length, map, maybe_for_each, node_is_present, parse_base_node_factory, parse_node_factory,
-    set_parent, set_text_range, set_text_range_pos_end, skip_outer_expressions, some,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, FunctionFlags,
-    InferenceContext, InferenceFlags, NodeArray, ReadonlyTextRange, RelationComparisonResult,
-    ScriptTarget, Signature, SignatureFlags, SymbolFlags, UnionReduction, UsizeOrNegativeInfinity,
-    __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element, is_new_expression,
+    is_parameter, is_property_access_expression, is_rest_parameter, last, length, map,
+    maybe_for_each, node_is_present, parse_base_node_factory, parse_node_factory, set_parent,
+    set_text_range, set_text_range_pos_end, skip_outer_expressions, some, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, InferenceContext,
+    InferenceFlags, Node, NodeArray, NodeInterface, ReadonlyTextRange, RelationComparisonResult,
+    ScriptTarget, Signature, SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
 };
 use local_macros::enum_unwrapped;
 
