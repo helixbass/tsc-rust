@@ -8,17 +8,17 @@ use super::{
     TypeFacts, WideningKind,
 };
 use crate::{
-    is_import_call, last, map_defined, min_and_max, Debug_, Diagnostics, FunctionFlags, MinAndMax,
-    Signature, SignatureFlags, UnionReduction, __String, get_function_flags, has_initializer, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    first, is_import_call, is_in_js_file, last, map_defined, min_and_max, Debug_, Diagnostics,
+    FunctionFlags, MinAndMax, Signature, SignatureFlags, UnionReduction, __String,
+    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn get_candidate_for_overload_failure(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates: &[Rc<Signature>],
+        candidates: &mut Vec<Rc<Signature>>,
         args: &[Rc<Node /*Expression*/>],
         has_candidates_out_array: bool,
     ) -> Rc<Signature> {
@@ -26,9 +26,7 @@ impl TypeChecker {
         self.check_node_deferred(node);
         if has_candidates_out_array
             || candidates.len() == 1
-            || candidates
-                .into_iter()
-                .any(|c: &Rc<Signature>| c.type_parameters.is_some())
+            || candidates.into_iter().any(|c| c.type_parameters.is_some())
         {
             self.pick_longest_candidate_signature(node, candidates, args)
         } else {
@@ -142,7 +140,12 @@ impl TypeChecker {
     }
 
     pub(super) fn get_num_non_rest_parameters(&self, signature: &Signature) -> usize {
-        unimplemented!()
+        let num_params = signature.parameters().len();
+        if signature_has_rest_parameter(signature) {
+            num_params - 1
+        } else {
+            num_params
+        }
     }
 
     pub(super) fn create_combined_symbol_from_types(
@@ -150,7 +153,16 @@ impl TypeChecker {
         sources: &[Rc<Symbol>],
         types: &[Rc<Type>],
     ) -> Rc<Symbol> {
-        unimplemented!()
+        self.create_combined_symbol_for_overload_failure(
+            sources,
+            &self.get_union_type(
+                types.to_owned(),
+                Some(UnionReduction::Subtype),
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            ),
+        )
     }
 
     pub(super) fn create_combined_symbol_for_overload_failure(
@@ -158,15 +170,79 @@ impl TypeChecker {
         sources: &[Rc<Symbol>],
         type_: &Type,
     ) -> Rc<Symbol> {
-        unimplemented!()
+        self.create_symbol_with_type(&*first(sources), Some(type_))
     }
 
     pub(super) fn pick_longest_candidate_signature(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates: &[Rc<Signature>],
+        candidates: &mut Vec<Rc<Signature>>,
         args: &[Rc<Node /*Expression*/>],
     ) -> Rc<Signature> {
+        let best_index = self.get_longest_candidate_index(
+            candidates,
+            match self.apparent_argument_count() {
+                None => args.len(),
+                Some(apparent_argument_count) => apparent_argument_count,
+            },
+        );
+        let candidate = &candidates[best_index];
+        let type_parameters = candidate.type_parameters.as_ref();
+        if type_parameters.is_none() {
+            return candidate.clone();
+        }
+        let type_parameters = type_parameters.unwrap();
+
+        let type_argument_nodes = if self.call_like_expression_may_have_type_arguments(node) {
+            node.as_has_type_arguments().maybe_type_arguments()
+        } else {
+            None
+        };
+        let instantiated = if let Some(type_argument_nodes) = type_argument_nodes {
+            Rc::new(self.create_signature_instantiation(
+                candidate.clone(),
+                Some(&self.get_type_arguments_from_nodes(
+                    type_argument_nodes,
+                    type_parameters,
+                    is_in_js_file(Some(node)),
+                )),
+            ))
+        } else {
+            self.infer_signature_instantiation_for_overload_failure(
+                node,
+                type_parameters,
+                candidate,
+                args,
+            )
+        };
+        candidates[best_index] = instantiated.clone();
+        instantiated
+    }
+
+    pub(super) fn get_type_arguments_from_nodes(
+        &self,
+        type_argument_nodes: &[Rc<Node /*TypeNode*/>],
+        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        is_js: bool,
+    ) -> Vec<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn infer_signature_instantiation_for_overload_failure(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        candidate: &Signature,
+        args: &[Rc<Node /*Expression*/>],
+    ) -> Rc<Signature> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_longest_candidate_index(
+        &self,
+        candidates: &[Rc<Signature>],
+        args_count: usize,
+    ) -> usize {
         unimplemented!()
     }
 
