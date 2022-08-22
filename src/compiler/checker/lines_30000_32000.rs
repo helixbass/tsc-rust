@@ -11,14 +11,15 @@ use super::{
 };
 use crate::{
     create_diagnostic_for_node, first, get_class_like_declaration_of_symbol, get_containing_class,
-    get_effective_base_type_node, get_jsdoc_class_tag, get_object_flags, get_source_file_of_node,
-    has_syntactic_modifier, is_call_chain, is_import_call, is_in_js_file, is_line_break,
-    is_outermost_optional_chain, last, length, map_defined, min_and_max, skip_trivia,
-    text_char_at_index, Debug_, DiagnosticRelatedInformation, Diagnostics, FunctionFlags,
-    InferenceFlags, MinAndMax, ModifierFlags, ObjectFlags, ReadonlyTextRange, ScriptTarget,
-    Signature, SignatureFlags, SignatureKind, SourceFileLike, UnionOrIntersectionTypeInterface,
-    UnionReduction, __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    get_effective_base_type_node, get_jsdoc_class_tag, get_object_flags,
+    get_selected_effective_modifier_flags, get_source_file_of_node, has_syntactic_modifier,
+    is_call_chain, is_import_call, is_in_js_file, is_line_break, is_outermost_optional_chain, last,
+    length, map_defined, min_and_max, skip_trivia, text_char_at_index, Debug_,
+    DiagnosticRelatedInformation, Diagnostics, FunctionFlags, InferenceFlags, MinAndMax,
+    ModifierFlags, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, SourceFileLike, UnionOrIntersectionTypeInterface, UnionReduction, __String,
+    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -696,7 +697,69 @@ impl TypeChecker {
         node: &Node, /*NewExpression*/
         signature: &Signature,
     ) -> bool {
-        unimplemented!()
+        if
+        /* !signature ||*/
+        signature.declaration.is_none() {
+            return true;
+        }
+
+        let declaration = signature.declaration.as_ref().unwrap();
+        let modifiers = get_selected_effective_modifier_flags(
+            declaration,
+            ModifierFlags::NonPublicAccessibilityModifier,
+        );
+
+        if modifiers == ModifierFlags::None || declaration.kind() != SyntaxKind::Constructor {
+            return true;
+        }
+
+        let declaring_class_declaration =
+            get_class_like_declaration_of_symbol(&declaration.parent().symbol()).unwrap();
+        let declaring_class = self.get_declared_type_of_symbol(&declaration.parent().symbol());
+
+        if !self.is_node_within_class(node, &declaring_class_declaration) {
+            let containing_class = get_containing_class(node);
+            if let Some(containing_class) = containing_class.as_ref() {
+                if modifiers.intersects(ModifierFlags::Protected) {
+                    let containing_type = self.get_type_of_node(containing_class);
+                    if self.type_has_protected_accessible_base(
+                        &declaration.parent().symbol(),
+                        &containing_type,
+                    ) {
+                        return true;
+                    }
+                }
+            }
+            if modifiers.intersects(ModifierFlags::Private) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration,
+                    Some(vec![
+                        self.type_to_string_(
+                            &declaring_class,
+                            Option::<&Node>::None,
+                            None, None,
+                        )
+                    ])
+                );
+            }
+            if modifiers.intersects(ModifierFlags::Protected) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Constructor_of_class_0_is_protected_and_only_accessible_within_the_class_declaration,
+                    Some(vec![
+                        self.type_to_string_(
+                            &declaring_class,
+                            Option::<&Node>::None,
+                            None, None,
+                        )
+                    ])
+                );
+            }
+            return false;
+        }
+
+        true
     }
 
     pub(super) fn invocation_error(
