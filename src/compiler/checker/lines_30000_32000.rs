@@ -10,16 +10,18 @@ use super::{
     TypeFacts, WideningKind,
 };
 use crate::{
-    create_diagnostic_for_node, first, get_class_like_declaration_of_symbol, get_containing_class,
-    get_effective_base_type_node, get_jsdoc_class_tag, get_object_flags,
-    get_selected_effective_modifier_flags, get_source_file_of_node, has_syntactic_modifier,
-    is_call_chain, is_import_call, is_in_js_file, is_line_break, is_outermost_optional_chain, last,
-    length, map_defined, min_and_max, skip_trivia, text_char_at_index, Debug_,
-    DiagnosticRelatedInformation, Diagnostics, FunctionFlags, InferenceFlags, MinAndMax,
-    ModifierFlags, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SourceFileLike, UnionOrIntersectionTypeInterface, UnionReduction, __String,
-    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    chain_diagnostic_messages, create_diagnostic_for_node, first,
+    get_class_like_declaration_of_symbol, get_containing_class, get_effective_base_type_node,
+    get_jsdoc_class_tag, get_object_flags, get_selected_effective_modifier_flags,
+    get_source_file_of_node, has_syntactic_modifier, is_call_chain, is_call_expression,
+    is_import_call, is_in_js_file, is_line_break, is_outermost_optional_chain, last, length,
+    map_defined, min_and_max, skip_trivia, text_char_at_index, Debug_, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, FunctionFlags,
+    InferenceFlags, MinAndMax, ModifierFlags, ObjectFlags, ReadonlyTextRange, ScriptTarget,
+    Signature, SignatureFlags, SignatureKind, SourceFileLike, SymbolFlags,
+    UnionOrIntersectionTypeInterface, UnionReduction, __String, get_function_flags,
+    has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -762,6 +764,149 @@ impl TypeChecker {
         true
     }
 
+    pub(super) fn invocation_error_details(
+        &self,
+        error_target: &Node,
+        apparent_type: &Type,
+        kind: SignatureKind,
+    ) -> InvocationErrorDetails {
+        let mut error_info: Option<DiagnosticMessageChain> = None;
+        let is_call = kind == SignatureKind::Call;
+        let awaited_type = self.get_awaited_type_(apparent_type, Option::<&Node>::None, None, None);
+        let maybe_missing_await = matches!(
+            awaited_type.as_ref(),
+            Some(awaited_type) if !self.get_signatures_of_type(awaited_type, kind).is_empty()
+        );
+        if apparent_type.flags().intersects(TypeFlags::Union) {
+            let types = apparent_type.as_union_type().types();
+            let mut has_signatures = false;
+            for constituent in types {
+                let signatures = self.get_signatures_of_type(constituent, kind);
+                if !signatures.is_empty() {
+                    has_signatures = true;
+                    if let Some(error_info) = error_info.as_ref() {
+                        break;
+                    }
+                } else {
+                    if error_info.is_none() {
+                        error_info = Some(chain_diagnostic_messages(
+                            error_info,
+                            if is_call {
+                                &*Diagnostics::Type_0_has_no_call_signatures
+                            } else {
+                                &*Diagnostics::Type_0_has_no_construct_signatures
+                            },
+                            Some(vec![self.type_to_string_(
+                                constituent,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            )]),
+                        ));
+                        error_info = Some(chain_diagnostic_messages(
+                            error_info,
+                            if is_call {
+                                &*Diagnostics::Not_all_constituents_of_type_0_are_callable
+                            } else {
+                                &*Diagnostics::Not_all_constituents_of_type_0_are_constructable
+                            },
+                            Some(vec![self.type_to_string_(
+                                apparent_type,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            )]),
+                        ));
+                    }
+                    if has_signatures {
+                        break;
+                    }
+                }
+            }
+            if !has_signatures {
+                error_info = Some(chain_diagnostic_messages(
+                    None,
+                    if is_call {
+                        &*Diagnostics::No_constituent_of_type_0_is_callable
+                    } else {
+                        &*Diagnostics::No_constituent_of_type_0_is_constructable
+                    },
+                    Some(vec![self.type_to_string_(
+                        apparent_type,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    )]),
+                ));
+            }
+            if error_info.is_none() {
+                error_info = Some(chain_diagnostic_messages(
+                    error_info,
+                    if is_call {
+                        &*Diagnostics::Each_member_of_the_union_type_0_has_signatures_but_none_of_those_signatures_are_compatible_with_each_other
+                    } else {
+                        &*Diagnostics::Each_member_of_the_union_type_0_has_construct_signatures_but_none_of_those_signatures_are_compatible_with_each_other
+                    },
+                    Some(vec![self.type_to_string_(
+                        apparent_type,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    )]),
+                ));
+            }
+        } else {
+            error_info = Some(chain_diagnostic_messages(
+                error_info,
+                if is_call {
+                    &*Diagnostics::Type_0_has_no_call_signatures
+                } else {
+                    &*Diagnostics::Type_0_has_no_construct_signatures
+                },
+                Some(vec![self.type_to_string_(
+                    apparent_type,
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                )]),
+            ));
+        }
+
+        let mut head_message = if is_call {
+            &*Diagnostics::This_expression_is_not_callable
+        } else {
+            &*Diagnostics::This_expression_is_not_constructable
+        };
+
+        if is_call_expression(&error_target.parent())
+            && error_target
+                .parent()
+                .as_call_expression()
+                .arguments
+                .is_empty()
+        {
+            let resolved_symbol = (*self.get_node_links(error_target))
+                .borrow()
+                .resolved_symbol
+                .clone();
+            if matches!(
+                resolved_symbol.as_ref(),
+                Some(resolved_symbol) if resolved_symbol.flags().intersects(SymbolFlags::GetAccessor)
+            ) {
+                head_message = &*Diagnostics::This_expression_is_not_callable_because_it_is_a_get_accessor_Did_you_mean_to_use_it_without;
+            }
+        }
+
+        InvocationErrorDetails {
+            message_chain: chain_diagnostic_messages(error_info, head_message, None),
+            related_message: if maybe_missing_await {
+                Some(&Diagnostics::Did_you_forget_to_use_await)
+            } else {
+                None
+            },
+        }
+    }
+
     pub(super) fn invocation_error(
         &self,
         error_target: &Node,
@@ -1188,4 +1333,9 @@ impl TypeChecker {
     ) -> Option<Vec<Rc<Type>>> {
         unimplemented!()
     }
+}
+
+pub(super) struct InvocationErrorDetails {
+    pub message_chain: DiagnosticMessageChain,
+    pub related_message: Option<&'static DiagnosticMessage>,
 }
