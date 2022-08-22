@@ -38,6 +38,19 @@ pub fn chain_diagnostic_messages(
     )
 }
 
+pub fn chain_diagnostic_messages_multiple(
+    details: Vec<DiagnosticMessageChain>,
+    message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
+) -> DiagnosticMessageChain {
+    let mut text = get_locale_specific_message(message);
+
+    if let Some(args) = args {
+        text = format_string_from_args(&text, args);
+    }
+    DiagnosticMessageChain::new(text, message.category, message.code, Some(details))
+}
+
 pub fn concatenate_diagnostic_message_chains(
     head_chain: &mut DiagnosticMessageChain,
     tail_chain: DiagnosticMessageChain,

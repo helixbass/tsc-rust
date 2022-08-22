@@ -17,9 +17,9 @@ use crate::{
     maybe_every, node_is_missing, set_text_range_pos_end, some, AccessFlags, ContextFlags, Debug_,
     Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags,
     InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, JsxReferenceKind, Node,
-    NodeInterface, Number, ReadonlyTextRange, RelationComparisonResult, Signature, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeComparer, TypeFlags,
-    TypeInterface, TypeMapper,
+    NodeArray, NodeInterface, Number, ReadonlyTextRange, RelationComparisonResult, Signature,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeComparer, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -164,12 +164,15 @@ impl TypeChecker {
     pub(super) fn has_correct_type_argument_arity(
         &self,
         signature: &Signature,
-        type_arguments: Option<&[Rc<Node>] /*NodeArray<TypeNode>*/>,
+        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
     ) -> bool {
         let num_type_parameters = length(signature.type_parameters.as_deref());
         let min_type_argument_count =
             self.get_min_type_argument_count(signature.type_parameters.as_deref());
-        !some(type_arguments, Option::<fn(&Rc<Node>) -> bool>::None) || {
+        !some(
+            type_arguments.map(|type_arguments| &**type_arguments),
+            Option::<fn(&Rc<Node>) -> bool>::None,
+        ) || {
             let type_arguments = type_arguments.unwrap();
             type_arguments.len() >= min_type_argument_count
                 && type_arguments.len() <= num_type_parameters

@@ -1,28 +1,34 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::cmp;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, CheckTypeErrorOutputContainer, MinArgumentCountFlags,
-    TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain,
+    CheckTypeErrorOutputContainer, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    add_related_info, create_diagnostic_for_node, create_diagnostic_for_node_array,
-    create_file_diagnostic, factory, first, for_each, get_error_span_for_node,
-    get_first_identifier, get_source_file_of_node, id_text, is_access_expression,
-    is_binding_pattern, is_call_expression, is_function_expression_or_arrow_function,
-    is_identifier, is_import_call, is_jsx_opening_element, is_jsx_opening_like_element,
-    is_new_expression, is_parameter, is_property_access_expression, is_rest_parameter, last,
-    length, parse_base_node_factory, parse_node_factory, set_parent, set_text_range,
-    set_text_range_pos_end, skip_outer_expressions, some, Debug_, Diagnostic, DiagnosticMessage,
-    Diagnostics, ElementFlags, FunctionFlags, NodeArray, ReadonlyTextRange,
-    RelationComparisonResult, ScriptTarget, Signature, SignatureFlags, SymbolFlags, UnionReduction,
-    UsizeOrNegativeInfinity, __String, get_function_flags, has_initializer, Node, NodeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    add_related_info, are_option_rcs_equal, chain_diagnostic_messages,
+    chain_diagnostic_messages_multiple, create_diagnostic_for_node,
+    create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
+    create_file_diagnostic, every, factory, filter, first, flat_map, flatten, for_each,
+    get_error_span_for_node, get_first_identifier, get_source_file_of_node, id_text,
+    is_access_expression, is_binding_pattern, is_call_expression,
+    is_function_expression_or_arrow_function, is_identifier, is_import_call,
+    is_jsx_opening_element, is_jsx_opening_like_element, is_new_expression, is_parameter,
+    is_property_access_expression, is_rest_parameter, last, length, map, maybe_for_each,
+    parse_base_node_factory, parse_node_factory, set_parent, set_text_range,
+    set_text_range_pos_end, skip_outer_expressions, some, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, FunctionFlags, NodeArray,
+    ReadonlyTextRange, RelationComparisonResult, ScriptTarget, Signature, SignatureFlags,
+    SymbolFlags, UnionReduction, UsizeOrNegativeInfinity, __String, get_function_flags,
+    has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -675,6 +681,339 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn resolve_call(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        signatures: &[Rc<Signature>],
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        check_mode: CheckMode,
+        call_chain_flags: SignatureFlags,
+        fallback_error: Option<&'static DiagnosticMessage>,
+    ) -> Rc<Signature> {
+        let is_tagged_template = node.kind() == SyntaxKind::TaggedTemplateExpression;
+        let is_decorator = node.kind() == SyntaxKind::Decorator;
+        let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(node);
+        let report_errors = candidates_out_array.is_none() && self.produce_diagnostics;
+
+        let mut type_arguments: Option<&NodeArray /*<TypeNode>*/> = None;
+
+        if !is_decorator {
+            type_arguments = node.as_has_type_arguments().maybe_type_arguments();
+
+            if is_tagged_template
+                || is_jsx_opening_or_self_closing_element
+                || node.as_has_expression().expression().kind() != SyntaxKind::SuperKeyword
+            {
+                maybe_for_each(
+                    type_arguments,
+                    |type_argument: &Rc<Node>, _| -> Option<()> {
+                        self.check_source_element(Some(&**type_argument));
+                        None
+                    },
+                );
+            }
+        }
+
+        let mut candidates_default = vec![];
+        let candidates_out_array_is_some = candidates_out_array.is_some();
+        let candidates = candidates_out_array.unwrap_or(&mut candidates_default);
+        self.reorder_candidates(signatures, candidates, call_chain_flags);
+        if candidates.is_empty() {
+            if report_errors {
+                self.diagnostics().add(self.get_diagnostic_for_call_node(
+                    node,
+                    &Diagnostics::Call_target_does_not_contain_any_signatures,
+                    None,
+                ));
+            }
+            return self.resolve_error_call(node);
+        }
+
+        let args = self.get_effective_call_arguments(node);
+
+        let is_single_non_generic_candidate =
+            candidates.len() == 1 && candidates[0].type_parameters.is_none();
+        let arg_check_mode = if !is_decorator
+            && !is_single_non_generic_candidate
+            && some(
+                Some(&*args),
+                Some(|arg: &Rc<Node>| self.is_context_sensitive(arg)),
+            ) {
+            CheckMode::SkipContextSensitive
+        } else {
+            CheckMode::Normal
+        };
+
+        let mut candidates_for_argument_error: Option<Vec<Rc<Signature>>> = None;
+        let mut candidate_for_argument_arity_error: Option<Rc<Signature>> = None;
+        let mut candidate_for_type_argument_error: Option<Rc<Signature>> = None;
+        let mut result: Option<Rc<Signature>> = None;
+
+        let signature_help_trailing_comma = check_mode.intersects(CheckMode::IsForSignatureHelp)
+            && node.kind() == SyntaxKind::CallExpression
+            && node.as_call_expression().arguments.has_trailing_comma;
+
+        if candidates.len() > 1 {
+            result = self.choose_overload(
+                &candidates,
+                self.subtype_relation.clone(),
+                is_single_non_generic_candidate,
+                Some(signature_help_trailing_comma),
+            );
+        }
+        if result.is_none() {
+            result = self.choose_overload(
+                &candidates,
+                self.assignable_relation.clone(),
+                is_single_non_generic_candidate,
+                Some(signature_help_trailing_comma),
+            );
+        }
+        if let Some(result) = result {
+            return result;
+        }
+
+        if report_errors {
+            if let Some(candidates_for_argument_error) = candidates_for_argument_error.as_ref() {
+                if candidates_for_argument_error.len() == 1
+                    || candidates_for_argument_error.len() > 3
+                {
+                    let last =
+                        &candidates_for_argument_error[candidates_for_argument_error.len() - 1];
+                    let mut chain: Option<DiagnosticMessageChain> = None;
+                    if candidates_for_argument_error.len() > 3 {
+                        chain = Some(chain_diagnostic_messages(
+                            chain,
+                            &Diagnostics::The_last_overload_gave_the_following_error,
+                            None,
+                        ));
+                        chain = Some(chain_diagnostic_messages(
+                            chain,
+                            &Diagnostics::No_overload_matches_this_call,
+                            None,
+                        ));
+                    }
+                    let diags = self.get_signature_applicability_error(
+                        node,
+                        &args,
+                        last.clone(),
+                        self.assignable_relation.clone(),
+                        CheckMode::Normal,
+                        true,
+                        Some(Rc::new(ResolveCallContainingMessageChain::new(
+                            chain.map(|chain| Rc::new(RefCell::new(chain))),
+                        ))),
+                    );
+                    if let Some(diags) = diags.as_ref() {
+                        for d in diags {
+                            if let Some(last_declaration) = last.declaration.as_ref() {
+                                if candidates_for_argument_error.len() > 3 {
+                                    add_related_info(
+                                        d,
+                                        vec![Rc::new(
+                                            create_diagnostic_for_node(
+                                                last_declaration,
+                                                &Diagnostics::The_last_overload_is_declared_here,
+                                                None,
+                                            )
+                                            .into(),
+                                        )],
+                                    );
+                                }
+                            }
+                            self.add_implementation_success_elaboration(last, d.clone());
+                            self.diagnostics().add(d.clone());
+                        }
+                    } else {
+                        Debug_.fail(Some("No error for last overload signature"));
+                    }
+                } else {
+                    let mut all_diagnostics: Vec<
+                        Vec<Rc<Diagnostic /*DiagnosticRelatedInformation*/>>,
+                    > = vec![];
+                    let mut max = 0;
+                    let mut min = usize::MAX;
+                    let mut min_index = 0;
+                    let i: Rc<Cell<usize>> = Rc::new(Cell::new(0));
+                    for c in candidates_for_argument_error {
+                        let chain = ResolveCallOverloadContainingMessageChain::new(
+                            self.rc_wrapper(),
+                            i.clone(),
+                            candidates.len(),
+                            c.clone(),
+                        );
+                        let diags = self.get_signature_applicability_error(
+                            node,
+                            &args,
+                            c.clone(),
+                            self.assignable_relation.clone(),
+                            CheckMode::Normal,
+                            true,
+                            Some(Rc::new(chain)),
+                        );
+                        if let Some(diags) = diags {
+                            if diags.len() <= min {
+                                min = diags.len();
+                                min_index = i.get();
+                            }
+                            max = cmp::max(max, diags.len());
+                            all_diagnostics.push(diags);
+                        } else {
+                            Debug_.fail(Some("No error for 3 or fewer overload signatures"));
+                        }
+                        i.set(i.get() + 1);
+                    }
+
+                    let diags = if max > 1 {
+                        all_diagnostics[min_index].clone()
+                    } else {
+                        flatten(&all_diagnostics)
+                    };
+                    Debug_.assert(
+                        !diags.is_empty(),
+                        Some("No errors reported for 3 or fewer overload signatures"),
+                    );
+                    let chain = chain_diagnostic_messages_multiple(
+                        map(&diags, |d: &Rc<Diagnostic>, _| match d.message_text() {
+                            DiagnosticMessageText::String(d_message_text) => {
+                                DiagnosticMessageChain::new(
+                                    d_message_text.clone(),
+                                    d.category(),
+                                    d.code(),
+                                    None,
+                                )
+                            }
+                            DiagnosticMessageText::DiagnosticMessageChain(d_message_text) => {
+                                d_message_text.clone()
+                            }
+                        }),
+                        &Diagnostics::No_overload_matches_this_call,
+                        None,
+                    );
+                    let related: Vec<Rc<DiagnosticRelatedInformation>> =
+                        flat_map(Some(&*diags), |d: &Rc<Diagnostic>, _| {
+                            d.related_information().clone().unwrap_or_else(|| vec![])
+                        });
+                    let diag: Rc<Diagnostic>;
+                    if every(&diags, |d: &Rc<Diagnostic>, _| {
+                        d.start() == diags[0].start()
+                            && d.length() == diags[0].length()
+                            && are_option_rcs_equal(
+                                d.maybe_file().as_ref(),
+                                diags[0].maybe_file().as_ref(),
+                            )
+                    }) {
+                        diag = Rc::new(
+                            BaseDiagnostic::new(
+                                BaseDiagnosticRelatedInformation::new(
+                                    chain.category,
+                                    chain.code,
+                                    diags[0].maybe_file(),
+                                    Some(diags[0].start()),
+                                    Some(diags[0].length()),
+                                    chain,
+                                ),
+                                Some(related),
+                            )
+                            .into(),
+                        );
+                    } else {
+                        diag = Rc::new(
+                            create_diagnostic_for_node_from_message_chain(
+                                node,
+                                chain,
+                                Some(related),
+                            )
+                            .into(),
+                        );
+                    }
+                    self.add_implementation_success_elaboration(
+                        &candidates_for_argument_error[0],
+                        diag.clone(),
+                    );
+                    self.diagnostics().add(diag);
+                }
+            } else if let Some(candidate_for_argument_arity_error) =
+                candidate_for_argument_arity_error
+            {
+                self.diagnostics().add(self.get_argument_arity_error(
+                    node,
+                    &[candidate_for_argument_arity_error],
+                    &args,
+                ));
+            } else if let Some(candidate_for_type_argument_error) =
+                candidate_for_type_argument_error.as_ref()
+            {
+                self.check_type_arguments(
+                    candidate_for_type_argument_error,
+                    node.as_has_type_arguments().maybe_type_arguments().unwrap(),
+                    true,
+                    fallback_error,
+                );
+            } else {
+                let signatures_with_correct_type_argument_arity =
+                    filter(signatures, |s: &Rc<Signature>| {
+                        self.has_correct_type_argument_arity(s, type_arguments)
+                    });
+                if signatures_with_correct_type_argument_arity.is_empty() {
+                    self.diagnostics().add(self.get_type_argument_arity_error(
+                        node,
+                        signatures,
+                        type_arguments.unwrap(),
+                    ));
+                } else if !is_decorator {
+                    self.diagnostics().add(self.get_argument_arity_error(
+                        node,
+                        &signatures_with_correct_type_argument_arity,
+                        &args,
+                    ));
+                } else if let Some(fallback_error) = fallback_error {
+                    self.diagnostics().add(self.get_diagnostic_for_call_node(
+                        node,
+                        fallback_error,
+                        None,
+                    ));
+                }
+            }
+        }
+
+        self.get_candidate_for_overload_failure(
+            node,
+            candidates,
+            &args,
+            candidates_out_array_is_some,
+        )
+    }
+
+    pub(super) fn add_implementation_success_elaboration(
+        &self,
+        failed: &Signature,
+        diagnostic: Rc<Diagnostic>,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn choose_overload(
+        &self,
+        candidates: &[Rc<Signature>],
+        relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+        is_single_non_generic_candidate: bool,
+        signature_help_trailing_comma: Option<bool>,
+    ) -> Option<Rc<Signature>> {
+        let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
+        unimplemented!()
+    }
+
+    pub(super) fn get_candidate_for_overload_failure(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        candidates: &[Rc<Signature>],
+        args: &[Rc<Node /*Expression*/>],
+        has_candidates_out_array: bool,
+    ) -> Rc<Signature> {
+        unimplemented!()
+    }
+
     pub(super) fn create_signature_for_jsx_intrinsic(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
@@ -1097,4 +1436,63 @@ pub(super) struct GetDiagnosticSpanForCallNodeReturn {
     pub start: isize,
     pub length: isize,
     pub source_file: Rc<Node /*SourceFile*/>,
+}
+
+struct ResolveCallContainingMessageChain {
+    chain: Option<Rc<RefCell<DiagnosticMessageChain>>>,
+}
+
+impl ResolveCallContainingMessageChain {
+    pub fn new(chain: Option<Rc<RefCell<DiagnosticMessageChain>>>) -> Self {
+        Self { chain }
+    }
+}
+
+impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
+    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
+        self.chain.clone()
+    }
+}
+
+struct ResolveCallOverloadContainingMessageChain {
+    type_checker: Rc<TypeChecker>,
+    i: Rc<Cell<usize>>,
+    candidates_len: usize,
+    c: Rc<Signature>,
+}
+
+impl ResolveCallOverloadContainingMessageChain {
+    pub fn new(
+        type_checker: Rc<TypeChecker>,
+        i: Rc<Cell<usize>>,
+        candidates_len: usize,
+        c: Rc<Signature>,
+    ) -> Self {
+        Self {
+            type_checker,
+            i,
+            candidates_len,
+            c,
+        }
+    }
+}
+
+impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageChain {
+    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
+        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+            None,
+            &Diagnostics::Overload_0_of_1_2_gave_the_following_error,
+            Some(vec![
+                (self.i.get() + 1).to_string(),
+                self.candidates_len.to_string(),
+                self.type_checker.signature_to_string_(
+                    &self.c,
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                    None,
+                ),
+            ]),
+        ))))
+    }
 }
