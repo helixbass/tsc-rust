@@ -2828,6 +2828,10 @@ impl TypeChecker {
         self.resolving_signature.as_ref().unwrap().clone()
     }
 
+    pub(super) fn silent_never_signature(&self) -> Rc<Signature> {
+        self.silent_never_signature.as_ref().unwrap().clone()
+    }
+
     pub(super) fn enum_number_index_info(&self) -> Rc<IndexInfo> {
         self.enum_number_index_info.as_ref().unwrap().clone()
     }

@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::{
@@ -8,10 +9,14 @@ use super::{
     TypeFacts, WideningKind,
 };
 use crate::{
-    first, is_import_call, is_in_js_file, last, map_defined, min_and_max, Debug_, Diagnostics,
-    FunctionFlags, MinAndMax, Signature, SignatureFlags, UnionReduction, __String,
-    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    create_diagnostic_for_node, first, get_containing_class, get_effective_base_type_node,
+    get_jsdoc_class_tag, get_source_file_of_node, is_call_chain, is_import_call, is_in_js_file,
+    is_line_break, is_outermost_optional_chain, last, map_defined, min_and_max, skip_trivia,
+    text_char_at_index, Debug_, DiagnosticRelatedInformation, Diagnostics, FunctionFlags,
+    InferenceFlags, MinAndMax, ReadonlyTextRange, Signature, SignatureFlags, SignatureKind,
+    SourceFileLike, UnionReduction, __String, get_function_flags, has_initializer, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -211,7 +216,7 @@ impl TypeChecker {
             self.infer_signature_instantiation_for_overload_failure(
                 node,
                 type_parameters,
-                candidate,
+                candidate.clone(),
                 args,
             )
         };
@@ -245,10 +250,27 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallLikeExpression*/
         type_parameters: &[Rc<Type /*TypeParameter*/>],
-        candidate: &Signature,
+        candidate: Rc<Signature>,
         args: &[Rc<Node /*Expression*/>],
     ) -> Rc<Signature> {
-        unimplemented!()
+        let inference_context = self.create_inference_context(
+            type_parameters,
+            Some(candidate.clone()),
+            if is_in_js_file(Some(node)) {
+                InferenceFlags::AnyDefault
+            } else {
+                InferenceFlags::None
+            },
+            None,
+        );
+        let type_argument_types = self.infer_type_arguments(
+            node,
+            candidate.clone(),
+            args,
+            CheckMode::SkipContextSensitive | CheckMode::SkipGenericFunctions,
+            &inference_context,
+        );
+        Rc::new(self.create_signature_instantiation(candidate, Some(&type_argument_types)))
     }
 
     pub(super) fn get_longest_candidate_index(
@@ -256,6 +278,237 @@ impl TypeChecker {
         candidates: &[Rc<Signature>],
         args_count: usize,
     ) -> usize {
+        let mut max_params_index: Option<usize> = None;
+        let mut max_params: Option<usize> = None;
+
+        for i in 0..candidates.len() {
+            let candidate = &candidates[i];
+            let param_count = self.get_parameter_count(candidate);
+            if self.has_effective_rest_parameter(candidate) || param_count >= args_count {
+                return i;
+            }
+            if match max_params {
+                None => true,
+                Some(max_params) => param_count > max_params,
+            } {
+                max_params = Some(param_count);
+                max_params_index = Some(i);
+            }
+        }
+
+        max_params_index.unwrap()
+    }
+
+    pub(super) fn resolve_call_expression(
+        &self,
+        node: &Node, /*CallExpression*/
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        check_mode: CheckMode,
+    ) -> Rc<Signature> {
+        let node_as_call_expression = node.as_call_expression();
+        if node_as_call_expression.expression.kind() == SyntaxKind::SuperKeyword {
+            let super_type = self.check_super_expression(&node_as_call_expression.expression);
+            if self.is_type_any(Some(&*super_type)) {
+                for arg in &node_as_call_expression.arguments {
+                    self.check_expression(arg, None, None);
+                }
+                return self.any_signature();
+            }
+            if !self.is_error_type(&super_type) {
+                let base_type_node =
+                    get_effective_base_type_node(&get_containing_class(node).unwrap());
+                if let Some(base_type_node) = base_type_node.as_ref() {
+                    let base_constructors = self.get_instantiated_constructors_for_type_arguments(
+                        &super_type,
+                        base_type_node
+                            .as_expression_with_type_arguments()
+                            .type_arguments
+                            .as_deref(),
+                        base_type_node,
+                    );
+                    return self.resolve_call(
+                        node,
+                        &base_constructors,
+                        candidates_out_array,
+                        check_mode,
+                        SignatureFlags::None,
+                        None,
+                    );
+                }
+            }
+            return self.resolve_untyped_call(node);
+        }
+
+        let call_chain_flags: SignatureFlags;
+        let mut func_type = self.check_expression(&node_as_call_expression.expression, None, None);
+        if is_call_chain(node) {
+            let non_optional_type =
+                self.get_optional_expression_type(&func_type, &node_as_call_expression.expression);
+            call_chain_flags = if Rc::ptr_eq(&non_optional_type, &func_type) {
+                SignatureFlags::None
+            } else if is_outermost_optional_chain(node) {
+                SignatureFlags::IsOuterCallChain
+            } else {
+                SignatureFlags::IsInnerCallChain
+            };
+            func_type = non_optional_type;
+        } else {
+            call_chain_flags = SignatureFlags::None;
+        }
+
+        func_type = self.check_non_null_type_with_reporter(
+            &func_type,
+            &node_as_call_expression.expression,
+            |node: &Node, flags: TypeFlags| {
+                self.report_cannot_invoke_possibly_null_or_undefined_error(node, flags)
+            },
+        );
+
+        if Rc::ptr_eq(&func_type, &self.silent_never_type()) {
+            return self.silent_never_signature();
+        }
+
+        let apparent_type = self.get_apparent_type(&func_type);
+        if self.is_error_type(&apparent_type) {
+            return self.resolve_error_call(node);
+        }
+
+        let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call);
+        let num_construct_signatures = self
+            .get_signatures_of_type(&apparent_type, SignatureKind::Construct)
+            .len();
+
+        if self.is_untyped_function_call(
+            &func_type,
+            &apparent_type,
+            call_signatures.len(),
+            num_construct_signatures,
+        ) {
+            if !self.is_error_type(&func_type) && node_as_call_expression.type_arguments.is_some() {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Untyped_function_calls_may_not_accept_type_arguments,
+                    None,
+                );
+            }
+            return self.resolve_untyped_call(node);
+        }
+        if call_signatures.is_empty() {
+            if num_construct_signatures > 0 {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
+                    Some(vec![self.type_to_string_(
+                        &func_type,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    )]),
+                );
+            } else {
+                let mut related_information: Option<Rc<DiagnosticRelatedInformation>> = None;
+                if node_as_call_expression.arguments.len() == 1 {
+                    let source_file = get_source_file_of_node(Some(node)).unwrap();
+                    let text = source_file.as_source_file().text_as_chars();
+                    if is_line_break(text_char_at_index(
+                        &text,
+                        TryInto::<usize>::try_into(skip_trivia(
+                            &text,
+                            node_as_call_expression.expression.end(),
+                            Some(true),
+                            None,
+                            None,
+                        ))
+                        .unwrap()
+                            - 1,
+                    )) {
+                        related_information = Some(Rc::new(
+                            create_diagnostic_for_node(
+                                &node_as_call_expression.expression,
+                                &Diagnostics::Are_you_missing_a_semicolon,
+                                None,
+                            )
+                            .into(),
+                        ));
+                    }
+                }
+                self.invocation_error(
+                    &node_as_call_expression.expression,
+                    &apparent_type,
+                    SignatureKind::Call,
+                    related_information,
+                );
+            }
+            return self.resolve_error_call(node);
+        }
+        if check_mode.intersects(CheckMode::SkipGenericFunctions)
+            && node_as_call_expression.type_arguments.is_none()
+            && call_signatures.iter().any(|call_signature| {
+                self.is_generic_function_returning_function(call_signature.clone())
+            })
+        {
+            self.skipped_generic_function(node, check_mode);
+            return self.resolving_signature();
+        }
+        if call_signatures.iter().any(|sig| {
+            is_in_js_file(sig.declaration.as_deref())
+                && get_jsdoc_class_tag(sig.declaration.as_ref().unwrap()).is_some()
+        }) {
+            self.error(
+                Some(node),
+                &Diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
+                Some(vec![self.type_to_string_(
+                    &func_type,
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                )]),
+            );
+            return self.resolve_error_call(node);
+        }
+
+        self.resolve_call(
+            node,
+            &call_signatures,
+            candidates_out_array,
+            check_mode,
+            call_chain_flags,
+            None,
+        )
+    }
+
+    pub(super) fn is_generic_function_returning_function(&self, signature: Rc<Signature>) -> bool {
+        signature.type_parameters.is_some()
+            && self.is_function_type(&self.get_return_type_of_signature(signature))
+    }
+
+    pub(super) fn is_untyped_function_call(
+        &self,
+        func_type: &Type,
+        apparent_func_type: &Type,
+        num_call_signatures: usize,
+        num_construct_signatures: usize,
+    ) -> bool {
+        self.is_type_any(Some(func_type))
+            || self.is_type_any(Some(apparent_func_type))
+                && func_type.flags().intersects(TypeFlags::TypeParameter)
+            || num_call_signatures == 0
+                && num_construct_signatures == 0
+                && !apparent_func_type.flags().intersects(TypeFlags::Union)
+                && !self
+                    .get_reduced_type(apparent_func_type)
+                    .flags()
+                    .intersects(TypeFlags::Never)
+                && self.is_type_assignable_to(func_type, &self.global_function_type())
+    }
+
+    pub(super) fn invocation_error(
+        &self,
+        error_target: &Node,
+        apparent_type: &Type,
+        kind: SignatureKind,
+        related_information: Option<Rc<DiagnosticRelatedInformation>>,
+    ) {
         unimplemented!()
     }
 

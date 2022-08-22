@@ -289,6 +289,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn skipped_generic_function(&self, node: &Node, check_mode: CheckMode) {
+        unimplemented!()
+    }
+
     pub(super) fn has_inference_candidates(&self, info: &InferenceInfo) -> bool {
         unimplemented!()
     }
