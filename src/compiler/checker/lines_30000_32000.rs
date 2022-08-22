@@ -9,11 +9,12 @@ use super::{
     TypeFacts, WideningKind,
 };
 use crate::{
-    create_diagnostic_for_node, first, get_containing_class, get_effective_base_type_node,
-    get_jsdoc_class_tag, get_source_file_of_node, is_call_chain, is_import_call, is_in_js_file,
-    is_line_break, is_outermost_optional_chain, last, map_defined, min_and_max, skip_trivia,
-    text_char_at_index, Debug_, DiagnosticRelatedInformation, Diagnostics, FunctionFlags,
-    InferenceFlags, MinAndMax, ReadonlyTextRange, Signature, SignatureFlags, SignatureKind,
+    create_diagnostic_for_node, first, get_class_like_declaration_of_symbol, get_containing_class,
+    get_effective_base_type_node, get_jsdoc_class_tag, get_source_file_of_node,
+    has_syntactic_modifier, is_call_chain, is_import_call, is_in_js_file, is_line_break,
+    is_outermost_optional_chain, last, map_defined, min_and_max, skip_trivia, text_char_at_index,
+    Debug_, DiagnosticRelatedInformation, Diagnostics, FunctionFlags, InferenceFlags, MinAndMax,
+    ModifierFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SignatureKind,
     SourceFileLike, UnionReduction, __String, get_function_flags, has_initializer, Node,
     NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,
@@ -500,6 +501,152 @@ impl TypeChecker {
                     .flags()
                     .intersects(TypeFlags::Never)
                 && self.is_type_assignable_to(func_type, &self.global_function_type())
+    }
+
+    pub(super) fn resolve_new_expression(
+        &self,
+        node: &Node, /*NewExpression*/
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        check_mode: CheckMode,
+    ) -> Rc<Signature> {
+        let node_as_new_expression = node.as_new_expression();
+        if let Some(node_arguments) = node_as_new_expression.arguments.as_ref() {
+            if self.language_version < ScriptTarget::ES5 {
+                let spread_index = self.get_spread_argument_index(node_arguments);
+                if let Some(spread_index) = spread_index {
+                    self.error(
+                        Some(&*node_arguments[spread_index]),
+                        &Diagnostics::Spread_operator_in_new_expressions_is_only_available_when_targeting_ECMAScript_5_and_higher,
+                        None,
+                    );
+                }
+            }
+        }
+
+        let mut expression_type =
+            self.check_non_null_expression(&node_as_new_expression.expression);
+        if Rc::ptr_eq(&expression_type, &self.silent_never_type()) {
+            return self.silent_never_signature();
+        }
+
+        expression_type = self.get_apparent_type(&expression_type);
+        if self.is_error_type(&expression_type) {
+            return self.resolve_error_call(node);
+        }
+
+        if self.is_type_any(Some(&*expression_type)) {
+            if node_as_new_expression.type_arguments.is_some() {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Untyped_function_calls_may_not_accept_type_arguments,
+                    None,
+                );
+            }
+            return self.resolve_untyped_call(node);
+        }
+
+        let construct_signatures =
+            self.get_signatures_of_type(&expression_type, SignatureKind::Construct);
+        if !construct_signatures.is_empty() {
+            if !self.is_constructor_accessible(node, &construct_signatures[0]) {
+                return self.resolve_error_call(node);
+            }
+            if construct_signatures
+                .iter()
+                .any(|signature| signature.flags.intersects(SignatureFlags::Abstract))
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Cannot_create_an_instance_of_an_abstract_class,
+                    None,
+                );
+                return self.resolve_error_call(node);
+            }
+            let value_decl =
+                expression_type
+                    .maybe_symbol()
+                    .as_ref()
+                    .and_then(|expression_type_symbol| {
+                        get_class_like_declaration_of_symbol(expression_type_symbol)
+                    });
+            if let Some(value_decl) = value_decl
+                .as_ref()
+                .filter(|value_decl| has_syntactic_modifier(value_decl, ModifierFlags::Abstract))
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Cannot_create_an_instance_of_an_abstract_class,
+                    None,
+                );
+                return self.resolve_error_call(node);
+            }
+
+            return self.resolve_call(
+                node,
+                &construct_signatures,
+                candidates_out_array,
+                check_mode,
+                SignatureFlags::None,
+                None,
+            );
+        }
+        let call_signatures = self.get_signatures_of_type(&expression_type, SignatureKind::Call);
+        if !call_signatures.is_empty() {
+            let signature = self.resolve_call(
+                node,
+                &call_signatures,
+                candidates_out_array,
+                check_mode,
+                SignatureFlags::None,
+                None,
+            );
+            if !self.no_implicit_any {
+                if matches!(
+                    signature.declaration.as_ref(),
+                    Some(signature_declaration) if !self.is_js_constructor(Some(&**signature_declaration)) &&
+                        !Rc::ptr_eq(
+                            &self.get_return_type_of_signature(signature.clone()),
+                            &self.void_type()
+                        )
+                ) {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Only_a_void_function_can_be_called_with_the_new_keyword,
+                        None,
+                    );
+                }
+                if matches!(
+                    self.get_this_type_of_signature(&signature).as_ref(),
+                    Some(this_type) if Rc::ptr_eq(
+                        this_type,
+                        &self.void_type()
+                    )
+                ) {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::A_function_that_is_called_with_the_new_keyword_cannot_have_a_this_type_that_is_void,
+                        None,
+                    );
+                }
+            }
+            return signature;
+        }
+
+        self.invocation_error(
+            &node_as_new_expression.expression,
+            &expression_type,
+            SignatureKind::Construct,
+            None,
+        );
+        self.resolve_error_call(node)
+    }
+
+    pub(super) fn is_constructor_accessible(
+        &self,
+        node: &Node, /*NewExpression*/
+        signature: &Signature,
+    ) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn invocation_error(
