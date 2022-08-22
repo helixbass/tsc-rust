@@ -14,21 +14,21 @@ use crate::{
     add_related_info, are_option_rcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
-    create_file_diagnostic, every, factory, filter, first, flat_map, flatten, for_each,
+    create_file_diagnostic, every, factory, filter, find, first, flat_map, flatten, for_each,
     get_error_span_for_node, get_first_identifier, get_source_file_of_node, id_text,
     is_access_expression, is_binding_pattern, is_call_expression,
-    is_function_expression_or_arrow_function, is_identifier, is_import_call,
-    is_jsx_opening_element, is_jsx_opening_like_element, is_new_expression, is_parameter,
-    is_property_access_expression, is_rest_parameter, last, length, map, maybe_for_each,
-    parse_base_node_factory, parse_node_factory, set_parent, set_text_range,
-    set_text_range_pos_end, skip_outer_expressions, some, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, FunctionFlags, NodeArray,
-    ReadonlyTextRange, RelationComparisonResult, ScriptTarget, Signature, SignatureFlags,
-    SymbolFlags, UnionReduction, UsizeOrNegativeInfinity, __String, get_function_flags,
-    has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    is_function_expression_or_arrow_function, is_function_like_declaration, is_identifier,
+    is_import_call, is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element,
+    is_new_expression, is_parameter, is_property_access_expression, is_rest_parameter, last,
+    length, map, maybe_for_each, node_is_present, parse_base_node_factory, parse_node_factory,
+    set_parent, set_text_range, set_text_range_pos_end, skip_outer_expressions, some,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, FunctionFlags,
+    InferenceContext, InferenceFlags, NodeArray, ReadonlyTextRange, RelationComparisonResult,
+    ScriptTarget, Signature, SignatureFlags, SymbolFlags, UnionReduction, UsizeOrNegativeInfinity,
+    __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -733,7 +733,7 @@ impl TypeChecker {
 
         let is_single_non_generic_candidate =
             candidates.len() == 1 && candidates[0].type_parameters.is_none();
-        let arg_check_mode = if !is_decorator
+        let mut arg_check_mode = if !is_decorator
             && !is_single_non_generic_candidate
             && some(
                 Some(&*args),
@@ -755,7 +755,14 @@ impl TypeChecker {
 
         if candidates.len() > 1 {
             result = self.choose_overload(
-                &candidates,
+                &mut candidates_for_argument_error,
+                &mut candidate_for_argument_arity_error,
+                &mut candidate_for_type_argument_error,
+                type_arguments,
+                node,
+                &args,
+                &mut arg_check_mode,
+                candidates,
                 self.subtype_relation.clone(),
                 is_single_non_generic_candidate,
                 Some(signature_help_trailing_comma),
@@ -763,7 +770,14 @@ impl TypeChecker {
         }
         if result.is_none() {
             result = self.choose_overload(
-                &candidates,
+                &mut candidates_for_argument_error,
+                &mut candidate_for_argument_arity_error,
+                &mut candidate_for_type_argument_error,
+                type_arguments,
+                node,
+                &args,
+                &mut arg_check_mode,
+                candidates,
                 self.assignable_relation.clone(),
                 is_single_non_generic_candidate,
                 Some(signature_help_trailing_comma),
@@ -774,14 +788,17 @@ impl TypeChecker {
         }
 
         if report_errors {
-            if let Some(candidates_for_argument_error) = candidates_for_argument_error.as_ref() {
-                if candidates_for_argument_error.len() == 1
-                    || candidates_for_argument_error.len() > 3
+            if let Some(candidates_for_argument_error_present) =
+                candidates_for_argument_error.clone()
+            {
+                if candidates_for_argument_error_present.len() == 1
+                    || candidates_for_argument_error_present.len() > 3
                 {
-                    let last =
-                        &candidates_for_argument_error[candidates_for_argument_error.len() - 1];
+                    let last = candidates_for_argument_error_present
+                        [candidates_for_argument_error_present.len() - 1]
+                        .clone();
                     let mut chain: Option<DiagnosticMessageChain> = None;
-                    if candidates_for_argument_error.len() > 3 {
+                    if candidates_for_argument_error_present.len() > 3 {
                         chain = Some(chain_diagnostic_messages(
                             chain,
                             &Diagnostics::The_last_overload_gave_the_following_error,
@@ -807,7 +824,7 @@ impl TypeChecker {
                     if let Some(diags) = diags.as_ref() {
                         for d in diags {
                             if let Some(last_declaration) = last.declaration.as_ref() {
-                                if candidates_for_argument_error.len() > 3 {
+                                if candidates_for_argument_error_present.len() > 3 {
                                     add_related_info(
                                         d,
                                         vec![Rc::new(
@@ -821,7 +838,17 @@ impl TypeChecker {
                                     );
                                 }
                             }
-                            self.add_implementation_success_elaboration(last, d.clone());
+                            self.add_implementation_success_elaboration(
+                                &mut candidates_for_argument_error,
+                                &mut candidate_for_argument_arity_error,
+                                &mut candidate_for_type_argument_error,
+                                type_arguments,
+                                node,
+                                &args,
+                                &mut arg_check_mode,
+                                &last,
+                                d,
+                            );
                             self.diagnostics().add(d.clone());
                         }
                     } else {
@@ -835,7 +862,7 @@ impl TypeChecker {
                     let mut min = usize::MAX;
                     let mut min_index = 0;
                     let i: Rc<Cell<usize>> = Rc::new(Cell::new(0));
-                    for c in candidates_for_argument_error {
+                    for c in &candidates_for_argument_error_present {
                         let chain = ResolveCallOverloadContainingMessageChain::new(
                             self.rc_wrapper(),
                             i.clone(),
@@ -928,8 +955,15 @@ impl TypeChecker {
                         );
                     }
                     self.add_implementation_success_elaboration(
-                        &candidates_for_argument_error[0],
-                        diag.clone(),
+                        &mut candidates_for_argument_error,
+                        &mut candidate_for_argument_arity_error,
+                        &mut candidate_for_type_argument_error,
+                        type_arguments,
+                        node,
+                        &args,
+                        &mut arg_check_mode,
+                        &candidates_for_argument_error_present[0],
+                        &diag,
                     );
                     self.diagnostics().add(diag);
                 }
@@ -987,21 +1021,283 @@ impl TypeChecker {
 
     pub(super) fn add_implementation_success_elaboration(
         &self,
+        candidates_for_argument_error: &mut Option<Vec<Rc<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Rc<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Rc<Signature>>,
+        type_arguments: Option<&NodeArray>,
+        node: &Node,
+        args: &[Rc<Node>],
+        arg_check_mode: &mut CheckMode,
         failed: &Signature,
-        diagnostic: Rc<Diagnostic>,
+        diagnostic: &Diagnostic,
     ) {
-        unimplemented!()
+        let old_candidates_for_argument_error = candidates_for_argument_error.clone();
+        let old_candidate_for_argument_arity_error = candidate_for_argument_arity_error.clone();
+        let old_candidate_for_type_argument_error = candidate_for_type_argument_error.clone();
+
+        let failed_signature_declarations = failed
+            .declaration
+            .as_ref()
+            .and_then(|failed_declaration| failed_declaration.maybe_symbol())
+            .and_then(|failed_declaration_symbol| {
+                failed_declaration_symbol.maybe_declarations().clone()
+            })
+            .unwrap_or_else(|| vec![]);
+        let is_overload = failed_signature_declarations.len() > 1;
+        let impl_decl = if is_overload {
+            find(&failed_signature_declarations, |d: &Rc<Node>, _| {
+                is_function_like_declaration(d)
+                    && node_is_present(d.as_function_like_declaration().maybe_body())
+            })
+        } else {
+            None
+        };
+        if let Some(impl_decl) = impl_decl {
+            let candidate = self.get_signature_from_declaration_(impl_decl);
+            let is_single_non_generic_candidate = candidate.type_parameters.is_none();
+            let mut candidates = vec![candidate];
+            if self
+                .choose_overload(
+                    candidates_for_argument_error,
+                    candidate_for_argument_arity_error,
+                    candidate_for_type_argument_error,
+                    type_arguments,
+                    node,
+                    args,
+                    arg_check_mode,
+                    &mut candidates,
+                    self.assignable_relation.clone(),
+                    is_single_non_generic_candidate,
+                    None,
+                )
+                .is_some()
+            {
+                add_related_info(
+                    diagnostic,
+                    vec![
+                        Rc::new(
+                            create_diagnostic_for_node(
+                                impl_decl,
+                                &Diagnostics::The_call_would_have_succeeded_against_this_implementation_but_implementation_signatures_of_overloads_are_not_externally_visible,
+                                None,
+                            ).into()
+                        )
+                    ]
+                );
+            }
+        }
+
+        *candidates_for_argument_error = old_candidates_for_argument_error;
+        *candidate_for_argument_arity_error = old_candidate_for_argument_arity_error;
+        *candidate_for_type_argument_error = old_candidate_for_type_argument_error;
     }
 
     pub(super) fn choose_overload(
         &self,
-        candidates: &[Rc<Signature>],
+        candidates_for_argument_error: &mut Option<Vec<Rc<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Rc<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Rc<Signature>>,
+        type_arguments: Option<&NodeArray>,
+        node: &Node,
+        args: &[Rc<Node>],
+        arg_check_mode: &mut CheckMode,
+        candidates: &mut Vec<Rc<Signature>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         is_single_non_generic_candidate: bool,
         signature_help_trailing_comma: Option<bool>,
     ) -> Option<Rc<Signature>> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
-        unimplemented!()
+        *candidates_for_argument_error = None;
+        *candidate_for_argument_arity_error = None;
+        *candidate_for_type_argument_error = None;
+
+        if is_single_non_generic_candidate {
+            let candidate = &candidates[0];
+            if some(
+                type_arguments.map(|type_arguments| &**type_arguments),
+                Option::<fn(&Rc<Node>) -> bool>::None,
+            ) || !self.has_correct_arity(
+                node,
+                args,
+                candidate,
+                Some(signature_help_trailing_comma),
+            ) {
+                return None;
+            }
+            if self
+                .get_signature_applicability_error(
+                    node,
+                    args,
+                    candidate.clone(),
+                    relation.clone(),
+                    CheckMode::Normal,
+                    false,
+                    None,
+                )
+                .is_some()
+            {
+                *candidates_for_argument_error = Some(vec![candidate.clone()]);
+                return None;
+            }
+            return Some(candidate.clone());
+        }
+
+        for candidate_index in 0..candidates.len() {
+            let candidate = &candidates[candidate_index];
+            if !self.has_correct_type_argument_arity(candidate, type_arguments)
+                || !self.has_correct_arity(
+                    node,
+                    args,
+                    candidate,
+                    Some(signature_help_trailing_comma),
+                )
+            {
+                continue;
+            }
+
+            let mut check_candidate: Rc<Signature>;
+            let mut inference_context: Option<Rc<InferenceContext>> = None;
+
+            if let Some(candidate_type_parameters) = candidate.type_parameters.as_ref() {
+                let type_argument_types: Option<Vec<Rc<Type>>>;
+                if some(
+                    type_arguments.map(|type_arguments| &**type_arguments),
+                    Option::<fn(&Rc<Node>) -> bool>::None,
+                ) {
+                    type_argument_types =
+                        self.check_type_arguments(candidate, type_arguments.unwrap(), false, None);
+                    if type_argument_types.is_none() {
+                        *candidate_for_type_argument_error = Some(candidate.clone());
+                        continue;
+                    }
+                } else {
+                    inference_context = Some(self.create_inference_context(
+                        candidate_type_parameters,
+                        Some(candidate.clone()),
+                        if is_in_js_file(Some(node)) {
+                            InferenceFlags::AnyDefault
+                        } else {
+                            InferenceFlags::None
+                        },
+                        None,
+                    ));
+                    type_argument_types = Some(self.infer_type_arguments(
+                        node,
+                        candidate.clone(),
+                        args,
+                        *arg_check_mode | CheckMode::SkipGenericFunctions,
+                        inference_context.as_ref().unwrap(),
+                    ));
+                    *arg_check_mode |= if inference_context
+                        .as_ref()
+                        .unwrap()
+                        .flags
+                        .intersects(InferenceFlags::SkippedGenericFunction)
+                    {
+                        CheckMode::SkipGenericFunctions
+                    } else {
+                        CheckMode::Normal
+                    };
+                }
+                check_candidate = self.get_signature_instantiation(
+                    candidate.clone(),
+                    type_argument_types.as_deref(),
+                    is_in_js_file(candidate.declaration.as_deref()),
+                    inference_context.as_ref().and_then(|inference_context| {
+                        inference_context.inferred_type_parameters.as_deref()
+                    }),
+                );
+                if self.get_non_array_rest_type(candidate).is_some()
+                    && !self.has_correct_arity(
+                        node,
+                        args,
+                        &check_candidate,
+                        Some(signature_help_trailing_comma),
+                    )
+                {
+                    *candidate_for_argument_arity_error = Some(check_candidate.clone());
+                    continue;
+                }
+            } else {
+                check_candidate = candidate.clone();
+            }
+            if self
+                .get_signature_applicability_error(
+                    node,
+                    args,
+                    check_candidate.clone(),
+                    relation.clone(),
+                    *arg_check_mode,
+                    false,
+                    None,
+                )
+                .is_some()
+            {
+                if candidates_for_argument_error.is_none() {
+                    *candidates_for_argument_error = Some(vec![]);
+                }
+                candidates_for_argument_error
+                    .as_mut()
+                    .unwrap()
+                    .push(check_candidate.clone());
+                continue;
+            }
+            if *arg_check_mode != CheckMode::Normal {
+                *arg_check_mode = CheckMode::Normal;
+                if let Some(inference_context) = inference_context.as_ref() {
+                    let type_argument_types = self.infer_type_arguments(
+                        node,
+                        candidate.clone(),
+                        args,
+                        *arg_check_mode,
+                        inference_context,
+                    );
+                    check_candidate = self.get_signature_instantiation(
+                        candidate.clone(),
+                        Some(&type_argument_types),
+                        is_in_js_file(candidate.declaration.as_deref()),
+                        /*inferenceContext &&*/
+                        inference_context.inferred_type_parameters.as_deref(),
+                    );
+                    if self.get_non_array_rest_type(candidate).is_some()
+                        && !self.has_correct_arity(
+                            node,
+                            args,
+                            &check_candidate,
+                            Some(signature_help_trailing_comma),
+                        )
+                    {
+                        *candidate_for_argument_arity_error = Some(check_candidate.clone());
+                        continue;
+                    }
+                }
+                if self
+                    .get_signature_applicability_error(
+                        node,
+                        args,
+                        check_candidate.clone(),
+                        relation.clone(),
+                        *arg_check_mode,
+                        false,
+                        None,
+                    )
+                    .is_some()
+                {
+                    if candidates_for_argument_error.is_none() {
+                        *candidates_for_argument_error = Some(vec![]);
+                    }
+                    candidates_for_argument_error
+                        .as_mut()
+                        .unwrap()
+                        .push(check_candidate.clone());
+                    continue;
+                }
+            }
+            candidates[candidate_index] = check_candidate.clone();
+            return Some(check_candidate);
+        }
+
+        None
     }
 
     pub(super) fn get_candidate_for_overload_failure(
