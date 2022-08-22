@@ -429,7 +429,7 @@ pub use compiler::utilities::{
     is_type_node_kind, is_umd_export_symbol, is_valid_es_symbol_declaration,
     is_valid_type_only_alias_use_site, is_value_signature_declaration, is_var_const,
     is_variable_like, is_watch_set, is_write_access, is_write_only_access, maybe_set_parent,
-    modifier_to_flag, modifiers_to_flags, no_truncation_maximum_truncation_length,
+    min_and_max, modifier_to_flag, modifiers_to_flags, no_truncation_maximum_truncation_length,
     node_is_decorated, node_is_missing, node_is_present, node_is_synthesized,
     node_starts_new_lexical_environment, object_allocator, out_file, package_id_to_string,
     parameter_is_this_keyword, parse_pseudo_big_int, position_is_synthesized,
@@ -443,7 +443,8 @@ pub use compiler::utilities::{
     using_single_line_string_writer, walk_up_parenthesized_expressions,
     walk_up_parenthesized_types, walk_up_parenthesized_types_and_get_parent_and_child,
     write_file_ensuring_directories, AssignmentKind, Associativity, FileMatcherPatterns,
-    FunctionFlags, GetLiteralTextFlags, OperatorPrecedence, StringOrPattern, SymlinkCache,
+    FunctionFlags, GetLiteralTextFlags, MinAndMax, OperatorPrecedence, StringOrPattern,
+    SymlinkCache,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,

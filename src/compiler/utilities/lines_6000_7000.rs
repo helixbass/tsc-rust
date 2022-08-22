@@ -906,3 +906,26 @@ pub fn add_related_info(
         .extend(related_information);
     // return diagnostic;
 }
+
+pub fn min_and_max<TItem, TGetValue: FnMut(&TItem) -> usize>(
+    arr: &[TItem],
+    mut get_value: TGetValue,
+) -> MinAndMax {
+    Debug_.assert(!arr.is_empty(), None);
+    let mut min = get_value(&arr[0]);
+    let mut max = min;
+    for i in 1..arr.len() {
+        let value = get_value(&arr[i]);
+        if value < min {
+            min = value;
+        } else if value > max {
+            max = value;
+        }
+    }
+    MinAndMax { min, max }
+}
+
+pub struct MinAndMax {
+    pub min: usize,
+    pub max: usize,
+}

@@ -4,12 +4,14 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
+    signature_has_literal_types, signature_has_rest_parameter, CheckMode, MinArgumentCountFlags,
+    TypeFacts, WideningKind,
 };
 use crate::{
-    is_import_call, Diagnostics, FunctionFlags, Signature, SignatureFlags, UnionReduction,
-    __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_import_call, last, map_defined, min_and_max, Debug_, Diagnostics, FunctionFlags, MinAndMax,
+    Signature, SignatureFlags, UnionReduction, __String, get_function_flags, has_initializer, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -19,6 +21,151 @@ impl TypeChecker {
         candidates: &[Rc<Signature>],
         args: &[Rc<Node /*Expression*/>],
         has_candidates_out_array: bool,
+    ) -> Rc<Signature> {
+        Debug_.assert(!candidates.is_empty(), None);
+        self.check_node_deferred(node);
+        if has_candidates_out_array
+            || candidates.len() == 1
+            || candidates
+                .into_iter()
+                .any(|c: &Rc<Signature>| c.type_parameters.is_some())
+        {
+            self.pick_longest_candidate_signature(node, candidates, args)
+        } else {
+            self.create_union_of_signatures_for_overload_failure(candidates)
+        }
+    }
+
+    pub(super) fn create_union_of_signatures_for_overload_failure(
+        &self,
+        candidates: &[Rc<Signature>],
+    ) -> Rc<Signature> {
+        let this_parameters = map_defined(Some(candidates), |c: &Rc<Signature>, _| {
+            c.this_parameter.clone()
+        });
+        let mut this_parameter: Option<Rc<Symbol>> = None;
+        if !this_parameters.is_empty() {
+            this_parameter = Some(
+                self.create_combined_symbol_from_types(
+                    &this_parameters,
+                    &this_parameters
+                        .iter()
+                        .map(|parameter: &Rc<Symbol>| self.get_type_of_parameter(parameter))
+                        .collect::<Vec<_>>(),
+                ),
+            );
+        }
+        let MinAndMax {
+            min: min_argument_count,
+            max: max_non_rest_param,
+        } = min_and_max(candidates, |candidate: &Rc<Signature>| {
+            self.get_num_non_rest_parameters(candidate)
+        });
+        let mut parameters: Vec<Rc<Symbol>> = vec![];
+        for i in 0..max_non_rest_param {
+            let symbols = map_defined(Some(candidates), |s: &Rc<Signature>, _| {
+                if signature_has_rest_parameter(s) {
+                    if i < s.parameters().len() - 1 {
+                        Some(s.parameters()[i].clone())
+                    } else {
+                        Some(last(s.parameters()).clone())
+                    }
+                } else {
+                    if i < s.parameters().len() {
+                        Some(s.parameters()[i].clone())
+                    } else {
+                        None
+                    }
+                }
+            });
+            Debug_.assert(!symbols.is_empty(), None);
+            parameters.push(self.create_combined_symbol_from_types(
+                &symbols,
+                &map_defined(Some(candidates), |candidate: &Rc<Signature>, _| {
+                    self.try_get_type_at_position(candidate, i)
+                }),
+            ));
+        }
+        let rest_parameter_symbols = map_defined(Some(candidates), |c: &Rc<Signature>, _| {
+            if signature_has_rest_parameter(c) {
+                Some(last(c.parameters()).clone())
+            } else {
+                None
+            }
+        });
+        let mut flags = SignatureFlags::None;
+        if !rest_parameter_symbols.is_empty() {
+            let type_ = self.create_array_type(
+                &self.get_union_type(
+                    map_defined(Some(candidates), |candidate: &Rc<Signature>, _| {
+                        self.try_get_rest_type_of_signature(candidate)
+                    }),
+                    Some(UnionReduction::Subtype),
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ),
+                None,
+            );
+            parameters.push(
+                self.create_combined_symbol_for_overload_failure(&rest_parameter_symbols, &type_),
+            );
+            flags |= SignatureFlags::HasRestParameter;
+        }
+        if candidates
+            .into_iter()
+            .any(|candidate: &Rc<Signature>| signature_has_literal_types(candidate))
+        {
+            flags |= SignatureFlags::HasLiteralTypes;
+        }
+        Rc::new(
+            self.create_signature(
+                candidates[0].declaration.clone(),
+                None,
+                this_parameter,
+                parameters,
+                Some(
+                    self.get_intersection_type(
+                        &candidates
+                            .into_iter()
+                            .map(|candidate| self.get_return_type_of_signature(candidate.clone()))
+                            .collect::<Vec<_>>(),
+                        Option::<&Symbol>::None,
+                        None,
+                    ),
+                ),
+                None,
+                min_argument_count,
+                flags,
+            ),
+        )
+    }
+
+    pub(super) fn get_num_non_rest_parameters(&self, signature: &Signature) -> usize {
+        unimplemented!()
+    }
+
+    pub(super) fn create_combined_symbol_from_types(
+        &self,
+        sources: &[Rc<Symbol>],
+        types: &[Rc<Type>],
+    ) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_combined_symbol_for_overload_failure(
+        &self,
+        sources: &[Rc<Symbol>],
+        type_: &Type,
+    ) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
+    pub(super) fn pick_longest_candidate_signature(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        candidates: &[Rc<Signature>],
+        args: &[Rc<Node /*Expression*/>],
     ) -> Rc<Signature> {
         unimplemented!()
     }
