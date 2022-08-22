@@ -225,7 +225,20 @@ impl TypeChecker {
         type_parameters: &[Rc<Type /*TypeParameter*/>],
         is_js: bool,
     ) -> Vec<Rc<Type>> {
-        unimplemented!()
+        let mut type_arguments = type_argument_nodes
+            .into_iter()
+            .map(|type_argument_node| self.get_type_of_node(type_argument_node))
+            .collect::<Vec<_>>();
+        while type_arguments.len() > type_parameters.len() {
+            type_arguments.pop();
+        }
+        while type_arguments.len() < type_parameters.len() {
+            type_arguments.push(
+                self.get_constraint_of_type_parameter(&type_parameters[type_arguments.len()])
+                    .unwrap_or_else(|| self.get_default_type_argument_type(is_js)),
+            );
+        }
+        type_arguments
     }
 
     pub(super) fn infer_signature_instantiation_for_overload_failure(
