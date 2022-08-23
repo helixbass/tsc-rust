@@ -6,9 +6,10 @@ use std::rc::Rc;
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
     BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
-    HasPropertiesInterface, HasPropertyNameInterface, HasStatementsInterface, HasTypeInterface,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    SyntaxKind, VariableLikeDeclarationInterface,
+    HasPropertiesInterface, HasPropertyNameInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SyntaxKind,
+    VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 
@@ -116,7 +117,7 @@ pub trait HasTagNameInterface {
     fn tag_name(&self) -> Rc<Node>;
 }
 
-pub trait JsxOpeningLikeElementInterface: HasTagNameInterface {
+pub trait JsxOpeningLikeElementInterface: HasTagNameInterface + HasTypeArgumentsInterface {
     fn attributes(&self) -> Rc<Node>;
 }
 
@@ -129,6 +130,12 @@ impl HasTagNameInterface for JsxOpeningElement {
 impl JsxOpeningLikeElementInterface for JsxOpeningElement {
     fn attributes(&self) -> Rc<Node> {
         self.attributes.clone()
+    }
+}
+
+impl HasTypeArgumentsInterface for JsxOpeningElement {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
+        self.type_arguments.as_ref()
     }
 }
 
@@ -166,6 +173,12 @@ impl HasTagNameInterface for JsxSelfClosingElement {
 impl JsxOpeningLikeElementInterface for JsxSelfClosingElement {
     fn attributes(&self) -> Rc<Node> {
         self.attributes.clone()
+    }
+}
+
+impl HasTypeArgumentsInterface for JsxSelfClosingElement {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
+        self.type_arguments.as_ref()
     }
 }
 

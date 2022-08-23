@@ -5,13 +5,16 @@ use std::rc::Rc;
 
 use super::{
     signature_has_rest_parameter, CheckMode, GetDiagnosticSpanForCallNodeReturn,
-    InvocationErrorDetails, MinArgumentCountFlags, TypeFacts, WideningKind,
+    InvocationErrorDetails, JsxNames, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-chain_diagnostic_messages,get_text_of_node,Debug_,DiagnosticMessage,    add_related_info, create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain,
-    is_array_literal_expression, is_call_expression, is_import_call, Diagnostic,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics,
-    FunctionFlags, Signature, SignatureFlags, SignatureKind, UnionReduction, __String,
+    add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
+    create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain, every,
+    factory, get_source_file_of_node, get_text_of_node, is_array_literal_expression,
+    is_call_expression, is_import_call, length, maybe_for_each, synthetic_factory, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, FunctionFlags, NodeArray, Signature,
+    SignatureFlags, SignatureKind, SymbolFlags, TransientSymbolInterface, UnionReduction, __String,
     get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
     Type, TypeChecker, TypeFlags, TypeInterface,
 };
@@ -183,7 +186,7 @@ impl TypeChecker {
             SyntaxKind::MethodDeclaration |
             SyntaxKind::GetAccessor |
             SyntaxKind::SetAccessor => &*Diagnostics::Unable_to_resolve_signature_of_method_decorator_when_called_as_an_expression,
-            
+
             _ => Debug_.fail(None)
         }
     }
@@ -201,14 +204,10 @@ impl TypeChecker {
             return self.resolve_error_call(node);
         }
 
-        let call_signatures = self.get_signatures_of_type(
-            &apparent_type,
-            SignatureKind::Call
-        );
-        let num_construct_signatures = self.get_signatures_of_type(
-            &apparent_type,
-            SignatureKind::Construct
-        ).len();
+        let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call);
+        let num_construct_signatures = self
+            .get_signatures_of_type(&apparent_type, SignatureKind::Construct)
+            .len();
         if self.is_untyped_function_call(
             &func_type,
             &apparent_type,
@@ -218,11 +217,9 @@ impl TypeChecker {
             return self.resolve_untyped_call(node);
         }
 
-        if self.is_potentially_uncalled_decorator(
-            node,
-            &call_signatures
-        ) {
-            let node_str = get_text_of_node(&node_as_decorator.expression, Some(false)).into_owned();
+        if self.is_potentially_uncalled_decorator(node, &call_signatures) {
+            let node_str =
+                get_text_of_node(&node_as_decorator.expression, Some(false)).into_owned();
             self.error(
                 Some(node),
                 &Diagnostics::_0_accepts_too_few_arguments_to_be_used_as_a_decorator_here_Did_you_mean_to_call_it_first_and_write_0,
@@ -238,41 +235,37 @@ impl TypeChecker {
             let error_details = self.invocation_error_details(
                 &node_as_decorator.expression,
                 &apparent_type,
-                SignatureKind::Call
+                SignatureKind::Call,
             );
-            let InvocationErrorDetails {message_chain: error_details_message_chain, related_message: error_details_related_message} = error_details;
-            let message_chain = chain_diagnostic_messages(
-                Some(error_details_message_chain),
-                head_message,
-                None,
-            );
+            let InvocationErrorDetails {
+                message_chain: error_details_message_chain,
+                related_message: error_details_related_message,
+            } = error_details;
+            let message_chain =
+                chain_diagnostic_messages(Some(error_details_message_chain), head_message, None);
             let diag: Rc<Diagnostic> = Rc::new(
                 create_diagnostic_for_node_from_message_chain(
                     &node_as_decorator.expression,
                     message_chain,
                     None,
-                ).into()
+                )
+                .into(),
             );
             if let Some(error_details_related_message) = error_details_related_message {
                 add_related_info(
                     &diag,
-                    vec![
-                        Rc::new(
-                            create_diagnostic_for_node(
-                                &node_as_decorator.expression,
-                                error_details_related_message,
-                                None,
-                            ).into()
+                    vec![Rc::new(
+                        create_diagnostic_for_node(
+                            &node_as_decorator.expression,
+                            error_details_related_message,
+                            None,
                         )
-                    ]
+                        .into(),
+                    )],
                 );
             }
             self.diagnostics().add(diag.clone());
-            self.invocation_error_recovery(
-                &apparent_type,
-                SignatureKind::Call,
-                &diag
-            );
+            self.invocation_error_recovery(&apparent_type, SignatureKind::Call, &diag);
             return self.resolve_error_call(node);
         }
 
@@ -282,7 +275,7 @@ impl TypeChecker {
             candidates_out_array,
             check_mode,
             SignatureFlags::None,
-            Some(head_message)
+            Some(head_message),
         )
     }
 
@@ -291,15 +284,230 @@ impl TypeChecker {
         node: &Node, /*JsxOpeningLikeElement*/
         result: &Type,
     ) -> Rc<Signature> {
-        unimplemented!()
+        let namespace = self.get_jsx_namespace_at(Some(node));
+        let exports = namespace
+            .as_ref()
+            .map(|namespace| self.get_exports_of_symbol(namespace));
+        let type_symbol = exports.as_ref().and_then(|exports| {
+            self.get_symbol(&(**exports).borrow(), &JsxNames::Element, SymbolFlags::Type)
+        });
+        let return_node = type_symbol.as_ref().and_then(|type_symbol| {
+            self.node_builder.symbol_to_entity_name(
+                self,
+                type_symbol,
+                Some(SymbolFlags::Type),
+                Some(node),
+                None,
+                None,
+            )
+        });
+        let declaration: Rc<Node> = factory.with(|factory_| {
+            synthetic_factory.with(|synthetic_factory_| {
+                factory_
+                    .create_function_type_node(
+                        synthetic_factory_,
+                        Option::<NodeArray>::None,
+                        vec![factory_
+                            .create_parameter_declaration(
+                                synthetic_factory_,
+                                Option::<NodeArray>::None,
+                                Option::<NodeArray>::None,
+                                None,
+                                Some("props".to_owned()),
+                                None,
+                                self.node_builder.type_to_type_node(
+                                    self,
+                                    result,
+                                    Some(node),
+                                    None,
+                                    None,
+                                ),
+                                None,
+                            )
+                            .into()],
+                        Some(if let Some(return_node) = return_node {
+                            factory_
+                                .create_type_reference_node(
+                                    synthetic_factory_,
+                                    return_node,
+                                    Option::<NodeArray>::None,
+                                )
+                                .into()
+                        } else {
+                            factory_
+                                .create_keyword_type_node(
+                                    synthetic_factory_,
+                                    SyntaxKind::AnyKeyword,
+                                )
+                                .into()
+                        }),
+                    )
+                    .into()
+            })
+        });
+        let parameter_symbol: Rc<Symbol> = self
+            .create_symbol(
+                SymbolFlags::FunctionScopedVariable,
+                __String::new("props".to_owned()),
+                None,
+            )
+            .into();
+        parameter_symbol
+            .as_transient_symbol()
+            .symbol_links()
+            .borrow_mut()
+            .type_ = Some(result.type_wrapper());
+        Rc::new(self.create_signature(
+            Some(declaration),
+            None,
+            None,
+            vec![parameter_symbol],
+            Some(if let Some(type_symbol) = type_symbol.as_ref() {
+                self.get_declared_type_of_symbol(type_symbol)
+            } else {
+                self.error_type()
+            }),
+            None,
+            1,
+            SignatureFlags::None,
+        ))
+    }
+
+    pub(super) fn resolve_jsx_opening_like_element(
+        &self,
+        node: &Node, /*JsxOpeningLikeElement*/
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        check_mode: CheckMode,
+    ) -> Rc<Signature> {
+        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
+        if self.is_jsx_intrinsic_identifier(&node_as_jsx_opening_like_element.tag_name()) {
+            let result = self.get_intrinsic_attributes_type_from_jsx_opening_like_element(node);
+            let fake_signature = self.create_signature_for_jsx_intrinsic(node, &result);
+            self.check_type_assignable_to_and_optionally_elaborate(
+                &self.check_expression_with_contextual_type(
+                    &node_as_jsx_opening_like_element.attributes(),
+                    &self.get_effective_first_argument_for_jsx_signature(
+                        fake_signature.clone(),
+                        node,
+                    ),
+                    None,
+                    Some(CheckMode::Normal),
+                ),
+                &result,
+                Some(node_as_jsx_opening_like_element.tag_name()),
+                Some(node_as_jsx_opening_like_element.attributes()),
+                None,
+                None,
+            );
+            if length(
+                node_as_jsx_opening_like_element
+                    .maybe_type_arguments()
+                    .map(|type_arguments| &**type_arguments),
+            ) > 0
+            {
+                maybe_for_each(
+                    node_as_jsx_opening_like_element.maybe_type_arguments(),
+                    |type_argument: &Rc<Node>, _| -> Option<()> {
+                        self.check_source_element(Some(&**type_argument));
+                        None
+                    },
+                );
+                self.diagnostics().add(Rc::new(
+                    create_diagnostic_for_node_array(
+                        &get_source_file_of_node(Some(node)).unwrap(),
+                        node_as_jsx_opening_like_element
+                            .maybe_type_arguments()
+                            .unwrap(),
+                        &Diagnostics::Expected_0_type_arguments_but_got_1,
+                        Some(vec![
+                            0usize.to_string(),
+                            length(
+                                node_as_jsx_opening_like_element
+                                    .maybe_type_arguments()
+                                    .map(|type_arguments| &**type_arguments),
+                            )
+                            .to_string(),
+                        ]),
+                    )
+                    .into(),
+                ));
+            }
+            return fake_signature;
+        }
+        let expr_types =
+            self.check_expression(&node_as_jsx_opening_like_element.tag_name(), None, None);
+        let apparent_type = self.get_apparent_type(&expr_types);
+        if self.is_error_type(&apparent_type) {
+            return self.resolve_error_call(node);
+        }
+
+        let signatures = self.get_uninstantiated_jsx_signatures_of_type(&expr_types, node);
+        if self.is_untyped_function_call(&expr_types, &apparent_type, signatures.len(), 0) {
+            return self.resolve_untyped_call(node);
+        }
+
+        if signatures.is_empty() {
+            self.error(
+                Some(node_as_jsx_opening_like_element.tag_name()),
+                &Diagnostics::JSX_element_type_0_does_not_have_any_construct_or_call_signatures,
+                Some(vec![get_text_of_node(
+                    &node_as_jsx_opening_like_element.tag_name(),
+                    None,
+                )
+                .into_owned()]),
+            );
+            return self.resolve_error_call(node);
+        }
+
+        self.resolve_call(
+            node,
+            &signatures,
+            candidates_out_array,
+            check_mode,
+            SignatureFlags::None,
+            None,
+        )
     }
 
     pub(super) fn is_potentially_uncalled_decorator(
         &self,
         decorator: &Node, /*Decorator*/
-        signatures: &[Rc<Signature>]
+        signatures: &[Rc<Signature>],
     ) -> bool {
-        unimplemented!()
+        !signatures.is_empty()
+            && every(signatures, |signature: &Rc<Signature>, _| {
+                signature.min_argument_count() == 0
+                    && !signature_has_rest_parameter(signature)
+                    && signature.parameters().len()
+                        < self.get_decorator_argument_count(decorator, signature)
+            })
+    }
+
+    pub(super) fn resolve_signature(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        check_mode: CheckMode,
+    ) -> Rc<Signature> {
+        match node.kind() {
+            SyntaxKind::CallExpression => {
+                self.resolve_call_expression(node, candidates_out_array, check_mode)
+            }
+            SyntaxKind::NewExpression => {
+                self.resolve_new_expression(node, candidates_out_array, check_mode)
+            }
+            SyntaxKind::TaggedTemplateExpression => {
+                self.resolve_tagged_template_expression(node, candidates_out_array, check_mode)
+            }
+            SyntaxKind::Decorator => self.resolve_decorator(node, candidates_out_array, check_mode),
+            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
+                self.resolve_jsx_opening_like_element(node, candidates_out_array, check_mode)
+            }
+            _ => Debug_.assert_never(
+                node,
+                Some("Branch in 'resolveSignature' should be unreachable."),
+            ),
+        }
     }
 
     pub(super) fn get_resolved_signature_(
