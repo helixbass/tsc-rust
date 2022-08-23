@@ -1,6 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
@@ -9,14 +12,18 @@ use super::{
 };
 use crate::{
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
-    create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain, every,
-    factory, get_source_file_of_node, get_text_of_node, is_array_literal_expression,
-    is_call_expression, is_import_call, length, maybe_for_each, synthetic_factory, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, FunctionFlags, NodeArray, Signature,
-    SignatureFlags, SignatureKind, SymbolFlags, TransientSymbolInterface, UnionReduction, __String,
-    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
+    create_symbol_table, every, factory, get_expando_initializer, get_jsdoc_class_tag,
+    get_source_file_of_node, get_symbol_id, get_text_of_node, is_array_literal_expression,
+    is_binary_expression, is_bindable_static_name_expression, is_call_expression,
+    is_function_declaration, is_function_expression, is_function_like_declaration, is_import_call,
+    is_in_js_file, is_prototype_access, is_same_entity_name, is_transient_symbol, is_var_const,
+    is_variable_declaration, length, maybe_for_each, synthetic_factory, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Diagnostics, FunctionFlags, HasInitializerInterface, NamedDeclarationInterface, NodeArray,
+    Signature, SignatureFlags, SignatureKind, SymbolFlags, TransientSymbolInterface,
+    UnionReduction, __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -513,14 +520,66 @@ impl TypeChecker {
     pub(super) fn get_resolved_signature_(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&[Rc<Signature>]>,
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
         check_mode: Option<CheckMode>,
     ) -> Rc<Signature> {
-        unimplemented!()
+        let links = self.get_node_links(node);
+        let cached = (*links).borrow().resolved_signature.clone();
+        if let Some(cached) = cached.as_ref().filter(|cached| {
+            !Rc::ptr_eq(cached, &self.resolving_signature()) && candidates_out_array.is_none()
+        }) {
+            return cached.clone();
+        }
+        links.borrow_mut().resolved_signature = Some(self.resolving_signature());
+        let result = self.resolve_signature(
+            node,
+            candidates_out_array,
+            check_mode.unwrap_or(CheckMode::Normal),
+        );
+        if !Rc::ptr_eq(&result, &self.resolving_signature()) {
+            links.borrow_mut().resolved_signature =
+                if self.flow_loop_start() == self.flow_loop_count() {
+                    Some(result.clone())
+                } else {
+                    cached
+                }
+        }
+        result
     }
 
     pub(super) fn is_js_constructor<TNode: Borrow<Node>>(&self, node: Option<TNode>) -> bool {
-        unimplemented!()
+        if node.is_none() {
+            return false;
+        }
+        let node = node.unwrap();
+        let node = node.borrow();
+        if !is_in_js_file(Some(node)) {
+            return false;
+        }
+        let func = if is_function_declaration(node) || is_function_expression(node) {
+            Some(node.node_wrapper())
+        } else if is_variable_declaration(node)
+            && matches!(
+                node.as_variable_declaration().maybe_initializer().as_ref(),
+                Some(node_initializer) if is_function_expression(node_initializer)
+            )
+        {
+            node.as_variable_declaration().maybe_initializer()
+        } else {
+            None
+        };
+        if let Some(func) = func.as_ref() {
+            if get_jsdoc_class_tag(node).is_some() {
+                return true;
+            }
+
+            let symbol = self.get_symbol_of_node(func);
+            return matches!(
+                symbol.as_ref().and_then(|symbol| symbol.maybe_members().clone()).as_ref(),
+                Some(symbol_members) if !(**symbol_members).borrow().is_empty(),
+            );
+        }
+        false
     }
 
     pub(super) fn merge_js_symbols<TSource: Borrow<Symbol>>(
@@ -528,14 +587,95 @@ impl TypeChecker {
         target: &Symbol,
         source: Option<TSource>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let source = source?;
+        let source = source.borrow();
+        let links = self.get_symbol_links(source);
+        if !matches!(
+            (*links).borrow().inferred_class_symbol.as_ref(),
+            Some(links_inferred_class_symbol) if links_inferred_class_symbol.contains_key(&get_symbol_id(target))
+        ) {
+            let inferred = if is_transient_symbol(target) {
+                target.symbol_wrapper()
+            } else {
+                Rc::new(self.clone_symbol(target))
+            };
+            {
+                let mut inferred_exports = inferred.maybe_exports();
+                if inferred_exports.is_none() {
+                    *inferred_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                }
+            }
+            {
+                let mut inferred_members = inferred.maybe_members();
+                if inferred_members.is_none() {
+                    *inferred_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                }
+            }
+            inferred.set_flags(inferred.flags() | (source.flags() & SymbolFlags::Class));
+            if matches!(
+                source.maybe_exports().as_ref(),
+                Some(source_exports) if !(**source_exports).borrow().is_empty()
+            ) {
+                self.merge_symbol_table(
+                    &mut inferred.maybe_exports().clone().unwrap().borrow_mut(),
+                    &(*source.maybe_exports().clone().unwrap()).borrow(),
+                    None,
+                );
+            }
+            if matches!(
+                source.maybe_members().as_ref(),
+                Some(source_members) if !(**source_members).borrow().is_empty()
+            ) {
+                self.merge_symbol_table(
+                    &mut inferred.maybe_members().clone().unwrap().borrow_mut(),
+                    &(*source.maybe_members().clone().unwrap()).borrow(),
+                    None,
+                );
+            }
+            {
+                let mut links = links.borrow_mut();
+                if links.inferred_class_symbol.is_none() {
+                    links.inferred_class_symbol = Some(HashMap::new());
+                }
+                links
+                    .inferred_class_symbol
+                    .as_mut()
+                    .unwrap()
+                    .insert(get_symbol_id(&inferred), inferred.clone());
+            }
+            return Some(inferred);
+        }
+        let ret = (*links)
+            .borrow()
+            .inferred_class_symbol
+            .as_ref()
+            .unwrap()
+            .get(&get_symbol_id(target))
+            .cloned();
+        ret
     }
 
     pub(super) fn get_assigned_class_symbol(
         &self,
         decl: &Node, /*Declaration*/
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let assignment_symbol = /*decl &&*/ self.get_symbol_of_expando(decl, true);
+        let prototype = assignment_symbol
+            .as_ref()
+            .and_then(|assignment_symbol| assignment_symbol.maybe_exports().clone())
+            .and_then(|assignment_symbol_exports| {
+                (*assignment_symbol_exports)
+                    .borrow()
+                    .get(&__String::new("prototype".to_owned()))
+                    .cloned()
+            });
+        let init = prototype
+            .as_ref()
+            .and_then(|prototype| prototype.maybe_value_declaration())
+            .and_then(|prototype_value_declaration| {
+                self.get_assigned_js_prototype(&prototype_value_declaration)
+            });
+        init.as_ref().and_then(|init| self.get_symbol_of_node(init))
     }
 
     pub(super) fn get_symbol_of_expando(
@@ -543,6 +683,93 @@ impl TypeChecker {
         node: &Node,
         allow_declaration: bool,
     ) -> Option<Rc<Symbol>> {
+        if node.maybe_parent().is_none() {
+            return None;
+        }
+        let mut name: Option<Rc<Node /*Expression | BindingName*/>> = None;
+        let mut decl: Option<Rc<Node>> = None;
+        if is_variable_declaration(&node.parent())
+            && matches!(
+                node.parent().as_variable_declaration().maybe_initializer().as_ref(),
+                Some(node_parent_initializer) if ptr::eq(
+                    &**node_parent_initializer,
+                    node
+                )
+            )
+        {
+            if !is_in_js_file(Some(node))
+                && !(is_var_const(&node.parent()) && is_function_like_declaration(node))
+            {
+                return None;
+            }
+            name = node.parent().as_variable_declaration().maybe_name();
+            decl = Some(node.parent());
+        } else if is_binary_expression(&node.parent()) {
+            let parent_node = node.parent();
+            let parent_node_as_binary_expression = parent_node.as_binary_expression();
+            let parent_node_operator = node.parent().as_binary_expression().operator_token.kind();
+            if parent_node_operator == SyntaxKind::EqualsToken
+                && (allow_declaration || ptr::eq(&*parent_node_as_binary_expression.right, node))
+            {
+                name = Some(parent_node_as_binary_expression.left.clone());
+                decl = name.clone();
+            } else if matches!(
+                parent_node_operator,
+                SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+            ) {
+                if is_variable_declaration(&parent_node.parent())
+                    && matches!(
+                        parent_node.parent().as_variable_declaration().maybe_initializer().as_ref(),
+                        Some(parent_node_parent_initializer) if Rc::ptr_eq(
+                            parent_node_parent_initializer,
+                            &parent_node
+                        )
+                    )
+                {
+                    name = parent_node.parent().as_variable_declaration().maybe_name();
+                    decl = Some(parent_node.parent());
+                } else if is_binary_expression(&parent_node.parent())
+                    && parent_node
+                        .parent()
+                        .as_binary_expression()
+                        .operator_token
+                        .kind()
+                        == SyntaxKind::EqualsToken
+                    && (allow_declaration
+                        || Rc::ptr_eq(
+                            &parent_node.parent().as_binary_expression().right,
+                            &parent_node,
+                        ))
+                {
+                    name = Some(parent_node.parent().as_binary_expression().left.clone());
+                    decl = name.clone();
+                }
+
+                if match name.as_ref() {
+                    None => true,
+                    Some(name) => {
+                        !is_bindable_static_name_expression(name, None)
+                            || !is_same_entity_name(name, &parent_node.as_binary_expression().left)
+                    }
+                } {
+                    return None;
+                }
+            }
+        } else if allow_declaration && is_function_declaration(node) {
+            name = node.as_named_declaration().maybe_name();
+            decl = Some(node.node_wrapper());
+        }
+
+        let decl = decl?;
+        let name = name?;
+        if !allow_declaration && get_expando_initializer(node, is_prototype_access(&name)).is_none()
+        {
+            return None;
+        }
+        self.get_symbol_of_node(&decl)
+    }
+
+    pub(super) fn get_assigned_js_prototype(&self, node: &Node) -> Option<Rc<Node>> {
         unimplemented!()
     }
 

@@ -2148,7 +2148,7 @@ impl TypeChecker {
     pub fn get_resolved_signature(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&[Rc<Signature>]>,
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
         argument_count: Option<usize>,
     ) -> Option<Rc<Signature>> {
         self.get_resolved_signature_worker(
@@ -2162,7 +2162,7 @@ impl TypeChecker {
     pub fn get_resolved_signature_for_signature_help(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&[Rc<Signature>]>,
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
         argument_count: Option<usize>,
     ) -> Option<Rc<Signature>> {
         self.get_resolved_signature_worker(
@@ -2522,7 +2522,7 @@ impl TypeChecker {
     pub(super) fn get_resolved_signature_worker(
         &self,
         node_in: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&[Rc<Signature>]>,
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
         argument_count: Option<usize>,
         check_mode: CheckMode,
     ) -> Option<Rc<Signature>> {
