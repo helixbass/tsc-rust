@@ -10,11 +10,11 @@ use super::{
 use crate::{
     create_symbol_table, file_extension_is_one_of, get_declaration_of_kind,
     get_source_file_of_node, is_call_expression, is_identifier, is_import_call,
-    is_property_access_expression, is_require_call, is_source_file, Debug_, Diagnostics, Extension,
-    ExternalEmitHelpers, FunctionFlags, InternalSymbolName, NodeFlags, ObjectFlags, ScriptTarget,
-    Signature, SignatureFlags, SymbolFlags, TransientSymbolInterface, UnionReduction, __String,
-    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    is_property_access_expression, is_require_call, is_source_file, Debug_, Diagnostics, EnumKind,
+    Extension, ExternalEmitHelpers, FunctionFlags, InternalSymbolName, NodeFlags, ObjectFlags,
+    ScriptTarget, Signature, SignatureFlags, SymbolFlags, TransientSymbolInterface, UnionReduction,
+    __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -345,6 +345,48 @@ impl TypeChecker {
             &node.as_has_expression().expression(),
             None,
         )
+    }
+
+    pub(super) fn is_valid_const_assertion_argument(&self, node: &Node) -> bool {
+        match node.kind() {
+            SyntaxKind::StringLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::TemplateExpression => true,
+            SyntaxKind::ParenthesizedExpression => self
+                .is_valid_const_assertion_argument(&node.as_parenthesized_expression().expression),
+            SyntaxKind::PrefixUnaryExpression => {
+                let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+                let op = node_as_prefix_unary_expression.operator;
+                let arg = &node_as_prefix_unary_expression.operand;
+                op == SyntaxKind::MinusToken
+                    && matches!(
+                        arg.kind(),
+                        SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral
+                    )
+                    || op == SyntaxKind::PlusToken && arg.kind() == SyntaxKind::NumericLiteral
+            }
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                let expr = node.as_has_expression().expression();
+                let mut symbol = self.get_type_of_node(&expr).maybe_symbol();
+                if let Some(symbol_present) = symbol
+                    .as_ref()
+                    .filter(|symbol| symbol.flags().intersects(SymbolFlags::Alias))
+                {
+                    symbol = Some(self.resolve_alias(symbol_present));
+                }
+                matches!(
+                    symbol.as_ref(),
+                    Some(symbol) if symbol.flags().intersects(SymbolFlags::Enum) && self.get_enum_kind(symbol) == EnumKind::Literal
+                )
+            }
+            _ => false,
+        }
     }
 
     pub(super) fn check_assertion_worker(
