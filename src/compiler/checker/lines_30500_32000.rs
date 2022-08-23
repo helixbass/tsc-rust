@@ -13,17 +13,19 @@ use super::{
 use crate::{
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
-    create_symbol_table, every, factory, get_expando_initializer, get_jsdoc_class_tag,
-    get_source_file_of_node, get_symbol_id, get_text_of_node, is_array_literal_expression,
-    is_binary_expression, is_bindable_static_name_expression, is_call_expression,
-    is_function_declaration, is_function_expression, is_function_like_declaration, is_import_call,
-    is_in_js_file, is_prototype_access, is_same_entity_name, is_transient_symbol, is_var_const,
-    is_variable_declaration, length, maybe_for_each, synthetic_factory, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    Diagnostics, FunctionFlags, HasInitializerInterface, NamedDeclarationInterface, NodeArray,
-    Signature, SignatureFlags, SignatureKind, SymbolFlags, TransientSymbolInterface,
-    UnionReduction, __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    create_symbol_table, every, factory, get_expando_initializer,
+    get_initializer_of_binary_expression, get_jsdoc_class_tag, get_source_file_of_node,
+    get_symbol_id, get_text_of_node, is_array_literal_expression, is_binary_expression,
+    is_bindable_static_name_expression, is_call_expression, is_function_declaration,
+    is_function_expression, is_function_like_declaration, is_import_call, is_in_js_file,
+    is_object_literal_expression, is_prototype_access, is_same_entity_name, is_transient_symbol,
+    is_var_const, is_variable_declaration, length, maybe_for_each, synthetic_factory, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, FunctionFlags, HasInitializerInterface,
+    NamedDeclarationInterface, NodeArray, Signature, SignatureFlags, SignatureKind, SymbolFlags,
+    TransientSymbolInterface, UnionReduction, __String, get_function_flags, has_initializer, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -770,7 +772,31 @@ impl TypeChecker {
     }
 
     pub(super) fn get_assigned_js_prototype(&self, node: &Node) -> Option<Rc<Node>> {
-        unimplemented!()
+        if node.maybe_parent().is_none() {
+            return None;
+        }
+        let mut parent = node.maybe_parent();
+        while let Some(parent_present) = parent
+            .as_ref()
+            .filter(|parent| parent.kind() == SyntaxKind::PropertyAccessExpression)
+        {
+            parent = parent_present.maybe_parent();
+        }
+        if let Some(parent) = parent.as_ref().filter(|parent| {
+            is_binary_expression(parent) && {
+                let parent_as_binary_expression = parent.as_binary_expression();
+                is_prototype_access(&parent_as_binary_expression.left)
+                    && parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken
+            }
+        }) {
+            let right = get_initializer_of_binary_expression(parent);
+            return if is_object_literal_expression(&right) {
+                Some(right)
+            } else {
+                None
+            };
+        }
+        None
     }
 
     pub(super) fn check_deprecated_signature(
