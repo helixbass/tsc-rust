@@ -4,13 +4,16 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, GetDiagnosticSpanForCallNodeReturn,
+    InvocationErrorDetails, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    is_import_call, DiagnosticRelatedInformation, Diagnostics, FunctionFlags, Signature,
-    SignatureFlags, SignatureKind, UnionReduction, __String, get_function_flags, has_initializer,
-    Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+chain_diagnostic_messages,get_text_of_node,Debug_,DiagnosticMessage,    add_related_info, create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain,
+    is_array_literal_expression, is_call_expression, is_import_call, Diagnostic,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics,
+    FunctionFlags, Signature, SignatureFlags, SignatureKind, UnionReduction, __String,
+    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -21,7 +24,266 @@ impl TypeChecker {
         kind: SignatureKind,
         related_information: Option<Rc<DiagnosticRelatedInformation>>,
     ) {
-        unimplemented!()
+        let InvocationErrorDetails {
+            message_chain,
+            related_message: related_info,
+        } = self.invocation_error_details(error_target, apparent_type, kind);
+        let diagnostic: Rc<Diagnostic> = Rc::new(
+            create_diagnostic_for_node_from_message_chain(error_target, message_chain, None).into(),
+        );
+        if let Some(related_info) = related_info {
+            add_related_info(
+                &diagnostic,
+                vec![Rc::new(
+                    create_diagnostic_for_node(error_target, related_info, None).into(),
+                )],
+            );
+        }
+        if is_call_expression(&error_target.parent()) {
+            let GetDiagnosticSpanForCallNodeReturn { start, length, .. } =
+                self.get_diagnostic_span_for_call_node(&error_target.parent(), Some(true));
+            diagnostic.set_start(Some(start));
+            diagnostic.set_length(Some(length));
+        }
+        self.diagnostics().add(diagnostic.clone());
+        self.invocation_error_recovery(
+            apparent_type,
+            kind,
+            &*if let Some(related_information) = related_information {
+                add_related_info(&diagnostic, vec![related_information]);
+                diagnostic
+            } else {
+                diagnostic
+            },
+        )
+    }
+
+    pub(super) fn invocation_error_recovery(
+        &self,
+        apparent_type: &Type,
+        kind: SignatureKind,
+        diagnostic: &Diagnostic,
+    ) {
+        let apparent_type_symbol = apparent_type.maybe_symbol();
+        if apparent_type_symbol.is_none() {
+            return;
+        }
+        let apparent_type_symbol = apparent_type_symbol.unwrap();
+        let import_node = (*self.get_symbol_links(&apparent_type_symbol))
+            .borrow()
+            .originating_import
+            .clone();
+        if let Some(import_node) = import_node
+            .as_ref()
+            .filter(|import_node| !is_import_call(import_node))
+        {
+            let sigs = self.get_signatures_of_type(
+                &self.get_type_of_symbol(
+                    &(*self.get_symbol_links(&apparent_type_symbol))
+                        .borrow()
+                        .target
+                        .clone()
+                        .unwrap(),
+                ),
+                kind,
+            );
+            if
+            /* !sigs ||*/
+            sigs.is_empty() {
+                return;
+            }
+
+            add_related_info(
+                diagnostic,
+                vec![
+                    Rc::new(
+                        create_diagnostic_for_node(
+                            import_node,
+                            &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
+                            None,
+                        ).into()
+                    )
+                ]
+            );
+        }
+    }
+
+    pub(super) fn resolve_tagged_template_expression(
+        &self,
+        node: &Node, /*TaggedTemplateExpression*/
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        check_mode: CheckMode,
+    ) -> Rc<Signature> {
+        let node_as_tagged_template_expression = node.as_tagged_template_expression();
+        let tag_type = self.check_expression(&node_as_tagged_template_expression.tag, None, None);
+        let apparent_type = self.get_apparent_type(&tag_type);
+
+        if self.is_error_type(&apparent_type) {
+            return self.resolve_error_call(node);
+        }
+
+        let call_signatures = self.get_signatures_of_type(&apparent_type, SignatureKind::Call);
+        let num_construct_signatures = self
+            .get_signatures_of_type(&apparent_type, SignatureKind::Construct)
+            .len();
+
+        if self.is_untyped_function_call(
+            &tag_type,
+            &apparent_type,
+            call_signatures.len(),
+            num_construct_signatures,
+        ) {
+            return self.resolve_untyped_call(node);
+        }
+
+        if call_signatures.is_empty() {
+            if is_array_literal_expression(&node.parent()) {
+                let diagnostic: Rc<Diagnostic> = Rc::new(
+                    create_diagnostic_for_node(
+                        &node_as_tagged_template_expression.tag,
+                        &Diagnostics::It_is_likely_that_you_are_missing_a_comma_to_separate_these_two_template_expressions_They_form_a_tagged_template_expression_which_cannot_be_invoked,
+                        None,
+                    ).into()
+                );
+                self.diagnostics().add(diagnostic);
+                return self.resolve_error_call(node);
+            }
+
+            self.invocation_error(
+                &node_as_tagged_template_expression.tag,
+                &apparent_type,
+                SignatureKind::Call,
+                None,
+            );
+            return self.resolve_error_call(node);
+        }
+
+        self.resolve_call(
+            node,
+            &call_signatures,
+            candidates_out_array,
+            check_mode,
+            SignatureFlags::None,
+            None,
+        )
+    }
+
+    pub(super) fn get_diagnostic_head_message_for_decorator_resolution(
+        &self,
+        node: &Node, /*Decorator*/
+    ) -> &'static DiagnosticMessage {
+        match node.parent().kind() {
+            SyntaxKind::ClassDeclaration |
+            SyntaxKind::ClassExpression => &*Diagnostics::Unable_to_resolve_signature_of_class_decorator_when_called_as_an_expression,
+
+            SyntaxKind::Parameter => &*Diagnostics::Unable_to_resolve_signature_of_parameter_decorator_when_called_as_an_expression,
+
+            SyntaxKind::PropertyDeclaration => &*Diagnostics::Unable_to_resolve_signature_of_property_decorator_when_called_as_an_expression,
+
+            SyntaxKind::MethodDeclaration |
+            SyntaxKind::GetAccessor |
+            SyntaxKind::SetAccessor => &*Diagnostics::Unable_to_resolve_signature_of_method_decorator_when_called_as_an_expression,
+            
+            _ => Debug_.fail(None)
+        }
+    }
+
+    pub(super) fn resolve_decorator(
+        &self,
+        node: &Node, /*Decorator*/
+        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        check_mode: CheckMode,
+    ) -> Rc<Signature> {
+        let node_as_decorator = node.as_decorator();
+        let func_type = self.check_expression(&node_as_decorator.expression, None, None);
+        let apparent_type = self.get_apparent_type(&func_type);
+        if self.is_error_type(&apparent_type) {
+            return self.resolve_error_call(node);
+        }
+
+        let call_signatures = self.get_signatures_of_type(
+            &apparent_type,
+            SignatureKind::Call
+        );
+        let num_construct_signatures = self.get_signatures_of_type(
+            &apparent_type,
+            SignatureKind::Construct
+        ).len();
+        if self.is_untyped_function_call(
+            &func_type,
+            &apparent_type,
+            call_signatures.len(),
+            num_construct_signatures,
+        ) {
+            return self.resolve_untyped_call(node);
+        }
+
+        if self.is_potentially_uncalled_decorator(
+            node,
+            &call_signatures
+        ) {
+            let node_str = get_text_of_node(&node_as_decorator.expression, Some(false)).into_owned();
+            self.error(
+                Some(node),
+                &Diagnostics::_0_accepts_too_few_arguments_to_be_used_as_a_decorator_here_Did_you_mean_to_call_it_first_and_write_0,
+                Some(vec![
+                    node_str
+                ])
+            );
+            return self.resolve_error_call(node);
+        }
+
+        let head_message = self.get_diagnostic_head_message_for_decorator_resolution(node);
+        if call_signatures.is_empty() {
+            let error_details = self.invocation_error_details(
+                &node_as_decorator.expression,
+                &apparent_type,
+                SignatureKind::Call
+            );
+            let InvocationErrorDetails {message_chain: error_details_message_chain, related_message: error_details_related_message} = error_details;
+            let message_chain = chain_diagnostic_messages(
+                Some(error_details_message_chain),
+                head_message,
+                None,
+            );
+            let diag: Rc<Diagnostic> = Rc::new(
+                create_diagnostic_for_node_from_message_chain(
+                    &node_as_decorator.expression,
+                    message_chain,
+                    None,
+                ).into()
+            );
+            if let Some(error_details_related_message) = error_details_related_message {
+                add_related_info(
+                    &diag,
+                    vec![
+                        Rc::new(
+                            create_diagnostic_for_node(
+                                &node_as_decorator.expression,
+                                error_details_related_message,
+                                None,
+                            ).into()
+                        )
+                    ]
+                );
+            }
+            self.diagnostics().add(diag.clone());
+            self.invocation_error_recovery(
+                &apparent_type,
+                SignatureKind::Call,
+                &diag
+            );
+            return self.resolve_error_call(node);
+        }
+
+        self.resolve_call(
+            node,
+            &call_signatures,
+            candidates_out_array,
+            check_mode,
+            SignatureFlags::None,
+            Some(head_message)
+        )
     }
 
     pub(super) fn create_signature_for_jsx_intrinsic(
@@ -29,6 +291,14 @@ impl TypeChecker {
         node: &Node, /*JsxOpeningLikeElement*/
         result: &Type,
     ) -> Rc<Signature> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_potentially_uncalled_decorator(
+        &self,
+        decorator: &Node, /*Decorator*/
+        signatures: &[Rc<Signature>]
+    ) -> bool {
         unimplemented!()
     }
 

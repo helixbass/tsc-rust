@@ -1143,12 +1143,20 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.start()
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        self._diagnostic_related_information.set_start(start);
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         self._diagnostic_related_information.maybe_length()
     }
 
     fn length(&self) -> isize {
         self._diagnostic_related_information.length()
+    }
+
+    fn set_length(&self, length: Option<isize>) {
+        self._diagnostic_related_information.set_length(length);
     }
 
     fn message_text(&self) -> &DiagnosticMessageText {
@@ -1233,6 +1241,14 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.set_start(start),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.set_start(start),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.set_start(start),
+        }
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_length(),
@@ -1246,6 +1262,14 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.length(),
             Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.length(),
             Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.length(),
+        }
+    }
+
+    fn set_length(&self, length: Option<isize>) {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.set_length(length),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.set_length(length),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.set_length(length),
         }
     }
 
@@ -1304,8 +1328,10 @@ pub trait DiagnosticRelatedInformationInterface {
     fn maybe_file(&self) -> Option<Rc<Node>>;
     fn maybe_start(&self) -> Option<isize>;
     fn start(&self) -> isize;
+    fn set_start(&self, start: Option<isize>);
     fn maybe_length(&self) -> Option<isize>;
     fn length(&self) -> isize;
+    fn set_length(&self, length: Option<isize>);
     fn message_text(&self) -> &DiagnosticMessageText;
 }
 
@@ -1396,6 +1422,15 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
         }
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.set_start(start),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.set_start(start),
+        }
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         match self {
             DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
@@ -1414,6 +1449,15 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
         }
     }
 
+    fn set_length(&self, length: Option<isize>) {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.set_length(length),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.set_length(length),
+        }
+    }
+
     fn message_text(&self) -> &DiagnosticMessageText {
         match self {
             DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
@@ -1429,8 +1473,8 @@ pub struct BaseDiagnosticRelatedInformation {
     category: Cell<DiagnosticCategory>,
     code: u32,
     file: Option<Weak<Node /*SourceFile*/>>,
-    start: Option<isize>,
-    length: Option<isize>,
+    start: Cell<Option<isize>>,
+    length: Cell<Option<isize>>,
     message_text: DiagnosticMessageText,
 }
 
@@ -1447,8 +1491,8 @@ impl BaseDiagnosticRelatedInformation {
             category: Cell::new(category),
             code,
             file: file.map(|file| Rc::downgrade(&file)),
-            start,
-            length,
+            start: Cell::new(start),
+            length: Cell::new(length),
             message_text: message_text.into(),
         }
     }
@@ -1476,19 +1520,27 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
     }
 
     fn maybe_start(&self) -> Option<isize> {
-        self.start
+        self.start.get()
     }
 
     fn start(&self) -> isize {
-        self.start.unwrap()
+        self.start.get().unwrap()
+    }
+
+    fn set_start(&self, start: Option<isize>) {
+        self.start.set(start);
     }
 
     fn maybe_length(&self) -> Option<isize> {
-        self.length
+        self.length.get()
     }
 
     fn length(&self) -> isize {
-        self.length.unwrap()
+        self.length.get().unwrap()
+    }
+
+    fn set_length(&self, length: Option<isize>) {
+        self.length.set(length);
     }
 
     fn message_text(&self) -> &DiagnosticMessageText {
@@ -1542,12 +1594,20 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.start()
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        self._diagnostic.set_start(start)
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         self._diagnostic.maybe_length()
     }
 
     fn length(&self) -> isize {
         self._diagnostic.length()
+    }
+
+    fn set_length(&self, length: Option<isize>) {
+        self._diagnostic.set_length(length)
     }
 
     fn message_text(&self) -> &DiagnosticMessageText {
@@ -1623,12 +1683,20 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.start()
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        self._diagnostic.set_start(start)
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         self._diagnostic.maybe_length()
     }
 
     fn length(&self) -> isize {
         self._diagnostic.length()
+    }
+
+    fn set_length(&self, length: Option<isize>) {
+        self._diagnostic.set_length(length)
     }
 
     fn message_text(&self) -> &DiagnosticMessageText {
