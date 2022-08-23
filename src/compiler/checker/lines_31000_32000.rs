@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -9,12 +9,13 @@ use super::{
 };
 use crate::{
     create_symbol_table, file_extension_is_one_of, get_declaration_of_kind,
-    get_source_file_of_node, is_call_expression, is_identifier, is_import_call,
-    is_property_access_expression, is_require_call, is_source_file, Debug_, Diagnostics, EnumKind,
-    Extension, ExternalEmitHelpers, FunctionFlags, InternalSymbolName, NodeFlags, ObjectFlags,
-    ScriptTarget, Signature, SignatureFlags, SymbolFlags, TransientSymbolInterface, UnionReduction,
-    __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    get_source_file_of_node, is_call_expression, is_const_type_reference, is_identifier,
+    is_import_call, is_property_access_expression, is_require_call, is_source_file, Debug_,
+    Diagnostics, EnumKind, Extension, ExternalEmitHelpers, FunctionFlags, InternalSymbolName,
+    NodeFlags, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
+    TransientSymbolInterface, UnionReduction, __String, get_function_flags, has_initializer, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -396,6 +397,103 @@ impl TypeChecker {
         expression: &Node, /*UnaryExpression | Expression*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
+        let mut expr_type = self.check_expression(expression, check_mode, None);
+        if is_const_type_reference(type_) {
+            if !self.is_valid_const_assertion_argument(expression) {
+                self.error(
+                    Some(expression),
+                    &Diagnostics::A_const_assertions_can_only_be_applied_to_references_to_enum_members_or_string_number_boolean_array_or_object_literals,
+                    None,
+                );
+            }
+            return self.get_regular_type_of_literal_type(&expr_type);
+        }
+        self.check_source_element(Some(type_));
+        expr_type = self
+            .get_regular_type_of_object_literal(&self.get_base_type_of_literal_type(&expr_type));
+        let target_type = self.get_type_from_type_node_(type_);
+        if self.produce_diagnostics && !self.is_error_type(&target_type) {
+            let widened_type = self.get_widened_type(&expr_type);
+            if !self.is_type_comparable_to(&target_type, &widened_type) {
+                self.check_type_comparable_to(
+                    &expr_type,
+                    &target_type,
+                    err_node,
+                    Some(Cow::Borrowed(&Diagnostics::Conversion_of_type_0_to_type_1_may_be_a_mistake_because_neither_type_sufficiently_overlaps_with_the_other_If_this_was_intentional_convert_the_expression_to_unknown_first)),
+                    None,
+                );
+            }
+        }
+        target_type
+    }
+
+    pub(super) fn check_non_null_chain(&self, node: &Node /*NonNullChain*/) -> Rc<Type> {
+        let left_type = self.check_expression(&node.as_has_expression().expression(), None, None);
+        let non_optional_type =
+            self.get_optional_expression_type(&left_type, &node.as_has_expression().expression());
+        self.propagate_optional_type_marker(
+            &self.get_non_nullable_type(&non_optional_type),
+            node,
+            !Rc::ptr_eq(&non_optional_type, &left_type),
+        )
+    }
+
+    pub(super) fn check_non_null_assertion(
+        &self,
+        node: &Node, /*NonNullExpression*/
+    ) -> Rc<Type> {
+        if node.flags().intersects(NodeFlags::OptionalChain) {
+            self.check_non_null_chain(node)
+        } else {
+            self.get_non_nullable_type(&self.check_expression(
+                &node.as_has_expression().expression(),
+                None,
+                None,
+            ))
+        }
+    }
+
+    pub(super) fn check_meta_property(&self, node: &Node /*MetaProperty*/) -> Rc<Type> {
+        self.check_grammar_meta_property(node);
+
+        let node_as_meta_property = node.as_meta_property();
+        if node_as_meta_property.keyword_token == SyntaxKind::NewKeyword {
+            return self.check_new_target_meta_property(node);
+        }
+
+        if node_as_meta_property.keyword_token == SyntaxKind::ImportKeyword {
+            return self.check_import_meta_property(node);
+        }
+
+        Debug_.assert_never(node_as_meta_property.keyword_token, None);
+    }
+
+    pub(super) fn check_meta_property_keyword(
+        &self,
+        node: &Node, /*MetaProperty*/
+    ) -> Rc<Type> {
+        match node.as_meta_property().keyword_token {
+            SyntaxKind::ImportKeyword => self.get_global_import_meta_expression_type(),
+            SyntaxKind::NewKeyword => {
+                let type_ = self.check_new_target_meta_property(node);
+                if self.is_error_type(&type_) {
+                    self.error_type()
+                } else {
+                    self.create_new_target_expression_type(&type_)
+                }
+            }
+            _ => Debug_.assert_never(node.as_meta_property().keyword_token, None),
+        }
+    }
+
+    pub(super) fn check_new_target_meta_property(
+        &self,
+        node: &Node, /*MetaProperty*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_import_meta_property(&self, node: &Node /*MetaProperty*/) -> Rc<Type> {
         unimplemented!()
     }
 
@@ -605,6 +703,10 @@ impl TypeChecker {
         }
 
         promise_type
+    }
+
+    pub(super) fn create_new_target_expression_type(&self, target_type: &Type) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_return_type_from_body(

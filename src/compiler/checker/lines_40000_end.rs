@@ -352,6 +352,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_meta_property(&self, node: &Node /*MetaProperty*/) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn has_parse_diagnostics(&self, source_file: &Node /*SourceFile*/) -> bool {
         unimplemented!()
     }
