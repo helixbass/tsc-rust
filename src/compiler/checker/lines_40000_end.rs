@@ -312,6 +312,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_tagged_template_chain(
+        &self,
+        node: &Node, /*TaggedTemplateExpression*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_arguments(
         &self,
         args: Option<&NodeArray /*<Expression>*/>,

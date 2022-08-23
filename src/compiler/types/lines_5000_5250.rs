@@ -586,6 +586,9 @@ pub trait TypeInterface {
     fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_resolved_index_type(&self) -> RefMut<Option<Rc<Type /*IndexType*/>>>;
     fn maybe_resolved_string_index_type(&self) -> RefMut<Option<Rc<Type /*IndexType*/>>>;
+    // SyntheticDefaultModuleType fields
+    fn maybe_synthetic_type(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_default_only_type(&self) -> RefMut<Option<Rc<Type>>>;
 }
 
 #[derive(Clone, Debug)]
@@ -606,6 +609,9 @@ pub struct BaseType {
     resolved_base_constraint: RefCell<Option<Rc<Type>>>,
     resolved_index_type: RefCell<Option<Rc<Type /*IndexType*/>>>,
     resolved_string_index_type: RefCell<Option<Rc<Type /*IndexType*/>>>,
+    // SyntheticDefaultModuleType fields
+    synthetic_type: RefCell<Option<Rc<Type>>>,
+    default_only_type: RefCell<Option<Rc<Type>>>,
 }
 
 impl BaseType {
@@ -626,6 +632,8 @@ impl BaseType {
             resolved_base_constraint: RefCell::new(None),
             resolved_index_type: RefCell::new(None),
             resolved_string_index_type: RefCell::new(None),
+            synthetic_type: RefCell::new(None),
+            default_only_type: RefCell::new(None),
         }
     }
 }
@@ -718,6 +726,14 @@ impl TypeInterface for BaseType {
 
     fn maybe_resolved_string_index_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.resolved_string_index_type.borrow_mut()
+    }
+
+    fn maybe_synthetic_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.synthetic_type.borrow_mut()
+    }
+
+    fn maybe_default_only_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.default_only_type.borrow_mut()
     }
 }
 

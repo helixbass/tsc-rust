@@ -1250,6 +1250,14 @@ fn get_type_struct_interface_impl(
                     fn maybe_resolved_string_index_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
                         self.#first_field_name.maybe_resolved_string_index_type()
                     }
+
+                    fn maybe_synthetic_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.maybe_synthetic_type()
+                    }
+
+                    fn maybe_default_only_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.maybe_default_only_type()
+                    }
                 }
             }
         }
@@ -1688,6 +1696,18 @@ fn get_type_enum_interface_impl(
                     fn maybe_resolved_string_index_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_string_index_type()),*
+                        }
+                    }
+
+                    fn maybe_synthetic_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_synthetic_type()),*
+                        }
+                    }
+
+                    fn maybe_default_only_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_default_only_type()),*
                         }
                     }
                 }

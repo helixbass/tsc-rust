@@ -1,20 +1,171 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{
     signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    is_import_call, Diagnostics, FunctionFlags, Signature, SignatureFlags, UnionReduction,
-    __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    create_symbol_table, file_extension_is_one_of, get_declaration_of_kind,
+    get_source_file_of_node, is_call_expression, is_identifier, is_import_call,
+    is_property_access_expression, is_require_call, is_source_file, Debug_, Diagnostics, Extension,
+    ExternalEmitHelpers, FunctionFlags, InternalSymbolName, NodeFlags, ObjectFlags, ScriptTarget,
+    Signature, SignatureFlags, SymbolFlags, TransientSymbolInterface, UnionReduction, __String,
+    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn is_symbol_or_symbol_for_call(&self, node: &Node) -> bool {
-        unimplemented!()
+        if !is_call_expression(node) {
+            return false;
+        }
+        let node_as_call_expression = node.as_call_expression();
+        let mut left = node_as_call_expression.expression.clone();
+        if is_property_access_expression(&left)
+            && left
+                .as_property_access_expression()
+                .name
+                .as_member_name()
+                .escaped_text()
+                .eq_str("for")
+        {
+            left = left.as_property_access_expression().expression.clone();
+        }
+        if !is_identifier(&left) || !left.as_identifier().escaped_text.eq_str("Symbol") {
+            return false;
+        }
+
+        let global_es_symbol = self.get_global_es_symbol_constructor_symbol(false);
+        if global_es_symbol.is_none() {
+            return false;
+        }
+        let global_es_symbol = global_es_symbol.as_ref().unwrap();
+
+        matches!(
+            self.resolve_name_(
+                Some(left),
+                &__String::new("Symbol".to_owned()),
+                SymbolFlags::Value,
+                None,
+                Option::<Rc<Node>>::None,
+                false,
+                None,
+            ).as_ref(),
+            Some(resolved_name) if Rc::ptr_eq(
+                global_es_symbol,
+                resolved_name
+            )
+        )
+    }
+
+    pub(super) fn check_import_call_expression(&self, node: &Node /*ImportCall*/) -> Rc<Type> {
+        let node_as_call_expression = node.as_call_expression();
+        if !self.check_grammar_arguments(Some(&node_as_call_expression.arguments)) {
+            self.check_grammar_import_call_expression(node);
+        }
+
+        if node_as_call_expression.arguments.is_empty() {
+            return self.create_promise_return_type(node, &self.any_type());
+        }
+
+        let specifier = &node_as_call_expression.arguments[0];
+        let specifier_type = self.check_expression_cached(specifier, None);
+        let options_type = if node_as_call_expression.arguments.len() > 1 {
+            Some(self.check_expression_cached(&node_as_call_expression.arguments[1], None))
+        } else {
+            None
+        };
+        for i in 2..node_as_call_expression.arguments.len() {
+            self.check_expression_cached(&node_as_call_expression.arguments[i], None);
+        }
+
+        if specifier_type.flags().intersects(TypeFlags::Undefined)
+            || specifier_type.flags().intersects(TypeFlags::Null)
+            || !self.is_type_assignable_to(&specifier_type, &self.string_type())
+        {
+            self.error(
+                Some(&**specifier),
+                &Diagnostics::Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0,
+                Some(vec![self.type_to_string_(
+                    &specifier_type,
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                )]),
+            );
+        }
+
+        if let Some(options_type) = options_type.as_ref() {
+            let import_call_options_type = self.get_global_import_call_options_type(true);
+            if !Rc::ptr_eq(&import_call_options_type, &self.empty_object_type()) {
+                self.check_type_assignable_to(
+                    options_type,
+                    &self.get_nullable_type(&import_call_options_type, TypeFlags::Undefined),
+                    Some(&*node_as_call_expression.arguments[1]),
+                    None,
+                    None,
+                    None,
+                );
+            }
+        }
+
+        let module_symbol = self.resolve_external_module_name_(node, specifier, None);
+        if let Some(module_symbol) = module_symbol.as_ref() {
+            let es_module_symbol =
+                self.resolve_es_module_symbol(Some(&**module_symbol), specifier, true, false);
+            if let Some(es_module_symbol) = es_module_symbol.as_ref() {
+                return self.create_promise_return_type(
+                    node,
+                    &self
+                        .get_type_with_synthetic_default_only(
+                            &self.get_type_of_symbol(es_module_symbol),
+                            es_module_symbol,
+                            module_symbol,
+                            specifier,
+                        )
+                        .unwrap_or_else(|| {
+                            self.get_type_with_synthetic_default_import_type(
+                                &self.get_type_of_symbol(es_module_symbol),
+                                es_module_symbol,
+                                module_symbol,
+                                specifier,
+                            )
+                        }),
+                );
+            }
+        }
+        self.create_promise_return_type(node, &self.any_type())
+    }
+
+    pub(super) fn create_default_property_wrapper_for_module<TAnonymousSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: &Symbol,
+        original_symbol: &Symbol,
+        anonymous_symbol: Option<TAnonymousSymbol>,
+    ) -> Rc<Type> {
+        let mut member_table = create_symbol_table(None);
+        let new_symbol: Rc<Symbol> = self
+            .create_symbol(SymbolFlags::Alias, InternalSymbolName::Default(), None)
+            .into();
+        new_symbol.set_parent(Some(original_symbol.symbol_wrapper()));
+        {
+            let new_symbol_links = new_symbol.as_transient_symbol().symbol_links();
+            let mut new_symbol_links = new_symbol_links.borrow_mut();
+            new_symbol_links.name_type = Some(self.get_string_literal_type("default"));
+            new_symbol_links.target = self.resolve_symbol(Some(symbol), None);
+        }
+        member_table.insert(InternalSymbolName::Default(), new_symbol);
+        self.create_anonymous_type(
+            anonymous_symbol,
+            Rc::new(RefCell::new(member_table)),
+            vec![],
+            vec![],
+            vec![],
+        )
+        .into()
     }
 
     pub(super) fn get_type_with_synthetic_default_only(
@@ -24,7 +175,24 @@ impl TypeChecker {
         original_symbol: &Symbol,
         module_specifier: &Node, /*Expression*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let has_default_only = self.is_only_imported_as_default(module_specifier);
+        if has_default_only {
+            if
+            /*type &&*/
+            !self.is_error_type(type_) {
+                let synth_type = type_;
+                if synth_type.maybe_default_only_type().is_none() {
+                    let type_ = self.create_default_property_wrapper_for_module(
+                        symbol,
+                        original_symbol,
+                        Option::<&Symbol>::None,
+                    );
+                    *synth_type.maybe_default_only_type() = Some(type_);
+                }
+                return synth_type.maybe_default_only_type().clone();
+            }
+        }
+        None
     }
 
     pub(super) fn get_type_with_synthetic_default_import_type(
@@ -34,10 +202,158 @@ impl TypeChecker {
         original_symbol: &Symbol,
         module_specifier: &Node, /*Expression*/
     ) -> Rc<Type> {
-        unimplemented!()
+        if self.allow_synthetic_default_imports && /*type &&*/ !self.is_error_type(type_) {
+            let synth_type = type_;
+            if synth_type.maybe_synthetic_type().is_none() {
+                let file = original_symbol.maybe_declarations().as_ref().and_then(
+                    |original_symbol_declarations| {
+                        original_symbol_declarations
+                            .into_iter()
+                            .find(|declaration| is_source_file(declaration))
+                            .cloned()
+                    },
+                );
+                let has_synthetic_default = self.can_have_synthetic_default(
+                    file.as_deref(),
+                    original_symbol,
+                    false,
+                    module_specifier,
+                );
+                if has_synthetic_default {
+                    let anonymous_symbol: Rc<Symbol> = self
+                        .create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type(), None)
+                        .into();
+                    let default_containing_object = self
+                        .create_default_property_wrapper_for_module(
+                            symbol,
+                            original_symbol,
+                            Some(&*anonymous_symbol),
+                        );
+                    anonymous_symbol
+                        .as_transient_symbol()
+                        .symbol_links()
+                        .borrow_mut()
+                        .type_ = Some(default_containing_object.clone());
+                    *synth_type.maybe_synthetic_type() =
+                        Some(if self.is_valid_spread_type(type_) {
+                            self.get_spread_type(
+                                type_,
+                                &default_containing_object,
+                                Some(anonymous_symbol),
+                                ObjectFlags::None,
+                                false,
+                            )
+                        } else {
+                            default_containing_object
+                        });
+                } else {
+                    *synth_type.maybe_synthetic_type() = Some(type_.type_wrapper());
+                }
+            }
+            return synth_type.maybe_synthetic_type().clone().unwrap();
+        }
+        type_.type_wrapper()
     }
 
     pub(super) fn is_common_js_require(&self, node: &Node) -> bool {
+        if !is_require_call(node, true) {
+            return false;
+        }
+        let node_as_call_expression = node.as_call_expression();
+
+        if !is_identifier(&node_as_call_expression.expression) {
+            Debug_.fail(None);
+        }
+        let resolved_require = self
+            .resolve_name_(
+                Some(&*node_as_call_expression.expression),
+                &node_as_call_expression
+                    .expression
+                    .as_identifier()
+                    .escaped_text,
+                SymbolFlags::Value,
+                None,
+                Option::<Rc<Node>>::None,
+                true,
+                None,
+            )
+            .unwrap();
+        if Rc::ptr_eq(&resolved_require, &self.require_symbol()) {
+            return true;
+        }
+        if resolved_require.flags().intersects(SymbolFlags::Alias) {
+            return false;
+        }
+
+        let target_declaration_kind = if resolved_require.flags().intersects(SymbolFlags::Function)
+        {
+            SyntaxKind::FunctionDeclaration
+        } else if resolved_require.flags().intersects(SymbolFlags::Variable) {
+            SyntaxKind::VariableDeclaration
+        } else {
+            SyntaxKind::Unknown
+        };
+        if target_declaration_kind != SyntaxKind::Unknown {
+            let decl = get_declaration_of_kind(&resolved_require, target_declaration_kind);
+            return matches!(
+                decl.as_ref(),
+                Some(decl) if decl.flags().intersects(NodeFlags::Ambient)
+            );
+        }
+        false
+    }
+
+    pub(super) fn check_tagged_template_expression(
+        &self,
+        node: &Node, /*TaggedTemplateExpression*/
+    ) -> Rc<Type> {
+        let node_as_tagged_template_expression = node.as_tagged_template_expression();
+        if !self.check_grammar_tagged_template_chain(node) {
+            self.check_grammar_type_arguments(
+                node,
+                node_as_tagged_template_expression.type_arguments.as_ref(),
+            );
+        }
+        if self.language_version < ScriptTarget::ES2015 {
+            self.check_external_emit_helpers(node, ExternalEmitHelpers::MakeTemplateObject);
+        }
+        let signature = self.get_resolved_signature_(node, None, None);
+        self.check_deprecated_signature(&signature, node);
+        self.get_return_type_of_signature(signature)
+    }
+
+    pub(super) fn check_assertion(&self, node: &Node /*AssertionExpression*/) -> Rc<Type> {
+        if node.kind() == SyntaxKind::TypeAssertionExpression {
+            let file = get_source_file_of_node(Some(node));
+            if matches!(
+                file.as_ref(),
+                Some(file) if file_extension_is_one_of(
+                    &file.as_source_file().file_name(),
+                    &[Extension::Cts.to_str(), Extension::Mts.to_str()]
+                )
+            ) {
+                self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::This_syntax_is_reserved_in_files_with_the_mts_or_cts_extension_Use_an_as_expression_instead,
+                    None,
+                );
+            }
+        }
+        self.check_assertion_worker(
+            node,
+            &node.as_has_type().maybe_type().unwrap(),
+            &node.as_has_expression().expression(),
+            None,
+        )
+    }
+
+    pub(super) fn check_assertion_worker(
+        &self,
+        err_node: &Node,
+        type_: &Node,      /*TypeNode*/
+        expression: &Node, /*UnaryExpression | Expression*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
