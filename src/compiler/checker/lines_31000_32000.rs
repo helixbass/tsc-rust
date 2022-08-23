@@ -1,33 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, GetDiagnosticSpanForCallNodeReturn,
-    InvocationErrorDetails, JsxNames, MinArgumentCountFlags, TypeFacts, WideningKind,
+    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
-    create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
-    create_symbol_table, every, factory, get_expando_initializer,
-    get_initializer_of_binary_expression, get_invoked_expression, get_jsdoc_class_tag,
-    get_source_file_of_node, get_symbol_id, get_text_of_node, is_array_literal_expression,
-    is_binary_expression, is_bindable_static_name_expression, is_call_expression, is_dotted_name,
-    is_function_declaration, is_function_expression, is_function_like_declaration, is_import_call,
-    is_in_js_file, is_jsdoc_construct_signature, is_object_literal_expression, is_prototype_access,
-    is_qualified_name, is_same_entity_name, is_transient_symbol, is_var_const,
-    is_variable_declaration, length, maybe_for_each, skip_parentheses, synthetic_factory,
-    try_get_property_access_or_identifier_to_string, walk_up_parenthesized_expressions, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, FunctionFlags, HasInitializerInterface,
-    NamedDeclarationInterface, NodeArray, NodeFlags, ObjectFlags, Signature, SignatureFlags,
-    SignatureKind, SymbolFlags, TransientSymbolInterface, UnionReduction, __String,
-    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    is_import_call, Diagnostics, FunctionFlags, Signature, SignatureFlags, UnionReduction,
+    __String, get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {

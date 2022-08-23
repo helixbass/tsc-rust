@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use super::{
     signature_has_rest_parameter, CheckMode, GetDiagnosticSpanForCallNodeReturn,
-    InvocationErrorDetails, JsxNames, MinArgumentCountFlags, TypeFacts, WideningKind,
+    InvocationErrorDetails, JsxNames,
 };
 use crate::{
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
@@ -23,11 +23,10 @@ use crate::{
     is_variable_declaration, length, maybe_for_each, skip_parentheses, synthetic_factory,
     try_get_property_access_or_identifier_to_string, walk_up_parenthesized_expressions, Debug_,
     Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, FunctionFlags, HasInitializerInterface,
-    NamedDeclarationInterface, NodeArray, NodeFlags, ObjectFlags, Signature, SignatureFlags,
-    SignatureKind, SymbolFlags, TransientSymbolInterface, UnionReduction, __String,
-    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    DiagnosticRelatedInformationInterface, Diagnostics, HasInitializerInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, __String,
 };
 
 impl TypeChecker {
