@@ -2732,6 +2732,10 @@ impl TypeChecker {
         self.silent_never_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn non_inferrable_type(&self) -> Rc<Type> {
+        self.non_inferrable_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn implicit_never_type(&self) -> Rc<Type> {
         self.implicit_never_type.as_ref().unwrap().clone()
     }

@@ -14,18 +14,20 @@ use crate::{
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
     create_symbol_table, every, factory, get_expando_initializer,
-    get_initializer_of_binary_expression, get_jsdoc_class_tag, get_source_file_of_node,
-    get_symbol_id, get_text_of_node, is_array_literal_expression, is_binary_expression,
-    is_bindable_static_name_expression, is_call_expression, is_function_declaration,
-    is_function_expression, is_function_like_declaration, is_import_call, is_in_js_file,
-    is_object_literal_expression, is_prototype_access, is_same_entity_name, is_transient_symbol,
-    is_var_const, is_variable_declaration, length, maybe_for_each, synthetic_factory, Debug_,
+    get_initializer_of_binary_expression, get_invoked_expression, get_jsdoc_class_tag,
+    get_source_file_of_node, get_symbol_id, get_text_of_node, is_array_literal_expression,
+    is_binary_expression, is_bindable_static_name_expression, is_call_expression, is_dotted_name,
+    is_function_declaration, is_function_expression, is_function_like_declaration, is_import_call,
+    is_in_js_file, is_jsdoc_construct_signature, is_object_literal_expression, is_prototype_access,
+    is_qualified_name, is_same_entity_name, is_transient_symbol, is_var_const,
+    is_variable_declaration, length, maybe_for_each, skip_parentheses, synthetic_factory,
+    try_get_property_access_or_identifier_to_string, walk_up_parenthesized_expressions, Debug_,
     Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Diagnostics, FunctionFlags, HasInitializerInterface,
-    NamedDeclarationInterface, NodeArray, Signature, SignatureFlags, SignatureKind, SymbolFlags,
-    TransientSymbolInterface, UnionReduction, __String, get_function_flags, has_initializer, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    NamedDeclarationInterface, NodeArray, NodeFlags, ObjectFlags, Signature, SignatureFlags,
+    SignatureKind, SymbolFlags, TransientSymbolInterface, UnionReduction, __String,
+    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -799,11 +801,186 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn check_call_expression(
+        &self,
+        node: &Node, /*CallExpression |} NewExpression*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        if !self
+            .check_grammar_type_arguments(node, node.as_has_type_arguments().maybe_type_arguments())
+        {
+            self.check_grammar_arguments(node.as_has_arguments().maybe_arguments());
+        }
+
+        let signature = self.get_resolved_signature_(node, None, check_mode);
+        if Rc::ptr_eq(&signature, &self.resolving_signature()) {
+            return self.non_inferrable_type();
+        }
+
+        self.check_deprecated_signature(&signature, node);
+
+        if node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword {
+            return self.void_type();
+        }
+
+        if node.kind() == SyntaxKind::NewKeyword {
+            let declaration = signature.declaration.as_ref();
+
+            if let Some(declaration) = declaration.filter(|declaration| {
+                !matches!(
+                    declaration.kind(),
+                    SyntaxKind::Constructor
+                        | SyntaxKind::ConstructSignature
+                        | SyntaxKind::ConstructorType
+                ) && !is_jsdoc_construct_signature(declaration)
+                    && !self.is_js_constructor(Some(&***declaration))
+            }) {
+                if self.no_implicit_any {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::new_expression_whose_target_lacks_a_construct_signature_implicitly_has_an_any_type,
+                        None,
+                    );
+                }
+                return self.any_type();
+            }
+        }
+
+        if is_in_js_file(Some(node)) && self.is_common_js_require(node) {
+            return self.resolve_external_module_type_by_literal(
+                &node.as_has_arguments().maybe_arguments().unwrap()[0],
+            );
+        }
+
+        let return_type = self.get_return_type_of_signature(signature.clone());
+        if return_type.flags().intersects(TypeFlags::ESSymbolLike)
+            && self.is_symbol_or_symbol_for_call(node)
+        {
+            return self.get_es_symbol_like_type_for_node(
+                &walk_up_parenthesized_expressions(&node.parent()).unwrap(),
+            );
+        }
+        if node.kind() == SyntaxKind::CallExpression
+            && node.as_call_expression().question_dot_token.is_none()
+            && node.parent().kind() == SyntaxKind::ExpressionStatement
+            && return_type.flags().intersects(TypeFlags::Void)
+            && self.get_type_predicate_of_signature(&signature).is_some()
+        {
+            let node_as_call_expression = node.as_call_expression();
+            if !is_dotted_name(&node_as_call_expression.expression) {
+                self.error(
+                    Some(&*node_as_call_expression.expression),
+                    &Diagnostics::Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name,
+                    None,
+                );
+            } else if self.get_effects_signature(node).is_none() {
+                let diagnostic = self.error(
+                    Some(&*node_as_call_expression.expression),
+                    &Diagnostics::Assertions_require_every_name_in_the_call_target_to_be_declared_with_an_explicit_type_annotation,
+                    None,
+                );
+                self.get_type_of_dotted_name(
+                    &node_as_call_expression.expression,
+                    Some(&diagnostic),
+                );
+            }
+        }
+
+        if is_in_js_file(Some(node)) {
+            let js_symbol = self.get_symbol_of_expando(node, false);
+            if let Some(js_symbol_exports) = js_symbol
+                .as_ref()
+                .and_then(|js_symbol| js_symbol.maybe_exports().clone())
+                .filter(|js_symbol_exports| !(**js_symbol_exports).borrow().is_empty())
+            {
+                let js_assignment_type: Rc<Type> = self
+                    .create_anonymous_type(
+                        js_symbol.as_deref(),
+                        js_symbol_exports,
+                        vec![],
+                        vec![],
+                        vec![],
+                    )
+                    .into();
+                let js_assignment_type_as_object_flags_type =
+                    js_assignment_type.as_object_flags_type();
+                js_assignment_type_as_object_flags_type.set_object_flags(
+                    js_assignment_type_as_object_flags_type.object_flags() | ObjectFlags::JSLiteral,
+                );
+                return self.get_intersection_type(
+                    &[return_type, js_assignment_type],
+                    Option::<&Symbol>::None,
+                    None,
+                );
+            }
+        }
+
+        return_type
+    }
+
     pub(super) fn check_deprecated_signature(
         &self,
         signature: &Signature,
         node: &Node, /*CallLikeExpression*/
     ) {
+        if let Some(signature_declaration) =
+            signature
+                .declaration
+                .as_ref()
+                .filter(|signature_declaration| {
+                    signature_declaration
+                        .flags()
+                        .intersects(NodeFlags::Deprecated)
+                })
+        {
+            let suggestion_node = self.get_deprecated_suggestion_node(node);
+            let name =
+                try_get_property_access_or_identifier_to_string(&get_invoked_expression(node));
+            self.add_deprecated_suggestion_with_signature(
+                &suggestion_node,
+                signature_declaration,
+                name.as_deref(),
+                &self.signature_to_string_(signature, Option::<&Node>::None, None, None, None),
+            );
+        }
+    }
+
+    pub(super) fn get_deprecated_suggestion_node(&self, node: &Node) -> Rc<Node> {
+        let node = skip_parentheses(node, None);
+        match node.kind() {
+            SyntaxKind::CallExpression | SyntaxKind::Decorator | SyntaxKind::NewExpression => {
+                self.get_deprecated_suggestion_node(&node.as_has_expression().expression())
+            }
+            SyntaxKind::TaggedTemplateExpression => {
+                self.get_deprecated_suggestion_node(&node.as_tagged_template_expression().tag)
+            }
+            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
+                self.get_deprecated_suggestion_node(&node.as_jsx_opening_like_element().tag_name())
+            }
+            SyntaxKind::ElementAccessExpression => self.get_deprecated_suggestion_node(
+                &node.as_element_access_expression().argument_expression,
+            ),
+            SyntaxKind::PropertyAccessExpression => {
+                self.get_deprecated_suggestion_node(&node.as_property_access_expression().name)
+            }
+            SyntaxKind::TypeReference => {
+                let type_reference = &node;
+                let type_reference_as_type_reference_node = type_reference.as_type_reference_node();
+                if is_qualified_name(&type_reference_as_type_reference_node.type_name) {
+                    type_reference_as_type_reference_node
+                        .type_name
+                        .as_qualified_name()
+                        .right
+                        .clone()
+                } else {
+                    type_reference.clone()
+                }
+            }
+            _ => node,
+        }
+    }
+
+    pub(super) fn is_symbol_or_symbol_for_call(&self, node: &Node) -> bool {
         unimplemented!()
     }
 

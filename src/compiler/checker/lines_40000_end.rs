@@ -304,6 +304,21 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_type_arguments(
+        &self,
+        node: &Node,
+        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_grammar_arguments(
+        &self,
+        args: Option<&NodeArray /*<Expression>*/>,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_object_literal_expression(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
