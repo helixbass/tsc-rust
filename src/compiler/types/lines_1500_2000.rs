@@ -185,6 +185,16 @@ impl ParameterDeclaration {
     }
 }
 
+pub trait HasDotDotDotTokenInterface {
+    fn maybe_dot_dot_dot_token(&self) -> Option<Rc<Node>>;
+}
+
+impl HasDotDotDotTokenInterface for ParameterDeclaration {
+    fn maybe_dot_dot_dot_token(&self) -> Option<Rc<Node>> {
+        self.dot_dot_dot_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct KeywordTypeNode {
@@ -439,6 +449,12 @@ impl HasTypeInterface for NamedTupleMember {
 
     fn set_type(&mut self, type_: Option<Rc<Node>>) {
         self.type_ = type_.unwrap();
+    }
+}
+
+impl HasDotDotDotTokenInterface for NamedTupleMember {
+    fn maybe_dot_dot_dot_token(&self) -> Option<Rc<Node>> {
+        self.dot_dot_dot_token.clone()
     }
 }
 

@@ -5,8 +5,8 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
 use crate::{
-    HasArgumentsInterface, HasChildrenInterface, HasTagNameInterface, InferenceContext,
-    JsxOpeningLikeElementInterface, SyntheticExpression,
+    HasArgumentsInterface, HasChildrenInterface, HasDotDotDotTokenInterface, HasTagNameInterface,
+    InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
 };
 
 use super::{
@@ -748,6 +748,14 @@ impl Node {
             Node::JsxSelfClosingElement(node) => node,
             Node::JsxClosingElement(node) => node,
             _ => panic!("Expected has tag name"),
+        }
+    }
+
+    pub fn as_has_dot_dot_dot_token(&self) -> &dyn HasDotDotDotTokenInterface {
+        match self {
+            Node::ParameterDeclaration(node) => node,
+            Node::NamedTupleMember(node) => node,
+            _ => panic!("Expected has dot dot dot token"),
         }
     }
 

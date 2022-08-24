@@ -8,14 +8,15 @@ use super::{
     signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
 };
 use crate::{
-    create_symbol_table, file_extension_is_one_of, get_declaration_of_kind,
+    create_symbol_table, file_extension_is_one_of, find_index, get_declaration_of_kind,
     get_new_target_container, get_source_file_of_node, is_call_expression, is_const_type_reference,
-    is_identifier, is_import_call, is_property_access_expression, is_require_call, is_source_file,
-    Debug_, Diagnostics, EnumKind, Extension, ExternalEmitHelpers, FunctionFlags,
-    InternalSymbolName, ModuleKind, NodeFlags, ObjectFlags, ScriptTarget, Signature,
-    SignatureFlags, SymbolFlags, TransientSymbolInterface, UnionReduction, __String,
-    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    is_identifier, is_import_call, is_parameter, is_property_access_expression, is_require_call,
+    is_source_file, length, Debug_, Diagnostics, ElementFlags, EnumKind, Extension,
+    ExternalEmitHelpers, FunctionFlags, InternalSymbolName, ModuleKind, NamedDeclarationInterface,
+    NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
+    TransientSymbolInterface, UnionReduction, __String, get_function_flags, has_initializer, Node,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -618,6 +619,123 @@ impl TypeChecker {
         rest_parameter.escaped_name().clone()
     }
 
+    pub(super) fn get_parameter_identifier_name_at_position(
+        &self,
+        signature: &Signature,
+        pos: usize,
+    ) -> Option<(__String, bool)> {
+        let param_count = signature.parameters().len()
+            - if signature_has_rest_parameter(signature) {
+                1
+            } else {
+                0
+            };
+        if pos < param_count {
+            let param = &signature.parameters()[pos];
+            return if self.is_parameter_declaration_with_identifier_name(param) {
+                Some((param.escaped_name().clone(), false))
+            } else {
+                None
+            };
+        }
+
+        let rest_parameter = signature
+            .parameters()
+            .get(param_count)
+            .cloned()
+            .unwrap_or_else(|| self.unknown_symbol());
+        if !self.is_parameter_declaration_with_identifier_name(&rest_parameter) {
+            return None;
+        }
+
+        let rest_type = self.get_type_of_symbol(&rest_parameter);
+        if self.is_tuple_type(&rest_type) {
+            let associated_names = rest_type
+                .as_type_reference()
+                .target
+                .as_tuple_type()
+                .labeled_element_declarations
+                .as_ref();
+            let index = pos - param_count;
+            let associated_name =
+                associated_names.and_then(|associated_names| associated_names.get(index).cloned());
+            let is_rest_tuple_element = matches!(
+                associated_name.as_ref(),
+                Some(associated_name) if associated_name.as_has_dot_dot_dot_token().maybe_dot_dot_dot_token().is_some()
+            );
+            return associated_name.as_ref().map(|associated_name| {
+                (
+                    self.get_tuple_element_label(associated_name),
+                    is_rest_tuple_element,
+                )
+            });
+        }
+
+        if pos == param_count {
+            return Some((rest_parameter.escaped_name().clone(), true));
+        }
+        None
+    }
+
+    pub(super) fn is_parameter_declaration_with_identifier_name(&self, symbol: &Symbol) -> bool {
+        matches!(
+            symbol.maybe_value_declaration().as_ref(),
+            Some(symbol_value_declaration) if is_parameter(symbol_value_declaration) &&
+                is_identifier(&symbol_value_declaration.as_parameter_declaration().name())
+        )
+    }
+
+    pub(super) fn is_valid_declaration_for_tuple_label(
+        &self,
+        d: &Node, /*Declaration*/
+    ) -> bool {
+        d.kind() == SyntaxKind::NamedTupleMember
+            || is_parameter(d)
+                && matches!(
+                    d.as_parameter_declaration().maybe_name().as_ref(),
+                    Some(d_name) if is_identifier(d_name)
+                )
+    }
+
+    pub(super) fn get_nameable_declaration_at_position(
+        &self,
+        signature: &Signature,
+        pos: usize,
+    ) -> Option<Rc<Node>> {
+        let param_count = signature.parameters().len()
+            - if signature_has_rest_parameter(signature) {
+                1
+            } else {
+                0
+            };
+        if pos < param_count {
+            let decl = signature.parameters()[pos].maybe_value_declaration();
+            return decl.filter(|decl| self.is_valid_declaration_for_tuple_label(decl));
+        }
+        let rest_parameter = signature
+            .parameters()
+            .get(param_count)
+            .cloned()
+            .unwrap_or_else(|| self.unknown_symbol());
+        let rest_type = self.get_type_of_symbol(&rest_parameter);
+        if self.is_tuple_type(&rest_type) {
+            let associated_names = rest_type
+                .as_type_reference()
+                .target
+                .as_tuple_type()
+                .labeled_element_declarations
+                .as_ref();
+            let index = pos - param_count;
+            return associated_names
+                .and_then(|associated_names| associated_names.get(index).cloned());
+        }
+        rest_parameter
+            .maybe_value_declaration()
+            .filter(|rest_parameter_value_declaration| {
+                self.is_valid_declaration_for_tuple_label(rest_parameter_value_declaration)
+            })
+    }
+
     pub(super) fn get_type_at_position(&self, signature: &Signature, pos: usize) -> Rc<Type> {
         self.try_get_type_at_position(signature, pos)
             .unwrap_or_else(|| self.any_type())
@@ -640,13 +758,78 @@ impl TypeChecker {
         if signature_has_rest_parameter(signature) {
             let rest_type = self.get_type_of_symbol(&signature.parameters()[param_count]);
             let index = pos - param_count;
-            unimplemented!()
+            if !self.is_tuple_type(&rest_type) || {
+                let rest_type_target_as_tuple_type =
+                    rest_type.as_type_reference().target.as_tuple_type();
+                rest_type_target_as_tuple_type.has_rest_element
+                    || index < rest_type_target_as_tuple_type.fixed_length
+            } {
+                return Some(self.get_indexed_access_type(
+                    &rest_type,
+                    &self.get_number_literal_type(Number::new(index as f64)),
+                    None,
+                    Option::<&Node>::None,
+                    Option::<&Symbol>::None,
+                    None,
+                ));
+            }
         }
         None
     }
 
-    pub(super) fn get_rest_type_at_position(&self, signature: &Signature, pos: usize) -> Rc<Type> {
-        unimplemented!()
+    pub(super) fn get_rest_type_at_position(&self, source: &Signature, pos: usize) -> Rc<Type> {
+        let parameter_count = self.get_parameter_count(source);
+        let min_argument_count = self.get_min_argument_count(source, None);
+        let rest_type = self.get_effective_rest_type(source);
+        if let Some(rest_type) = rest_type.as_ref() {
+            if pos >= parameter_count - 1 {
+                return if pos == parameter_count - 1 {
+                    rest_type.clone()
+                } else {
+                    self.create_array_type(
+                        &self.get_indexed_access_type(
+                            rest_type,
+                            &self.number_type(),
+                            None,
+                            Option::<&Node>::None,
+                            Option::<&Symbol>::None,
+                            None,
+                        ),
+                        None,
+                    )
+                };
+            }
+        }
+        let mut types = vec![];
+        let mut flags = vec![];
+        let mut names = vec![];
+        for i in pos..parameter_count {
+            if rest_type.is_none() || i < parameter_count - 1 {
+                types.push(self.get_type_at_position(source, i));
+                flags.push(if i < min_argument_count {
+                    ElementFlags::Required
+                } else {
+                    ElementFlags::Optional
+                });
+            } else {
+                types.push(rest_type.clone().unwrap());
+                flags.push(ElementFlags::Variadic);
+            }
+            let name = self.get_nameable_declaration_at_position(source, i);
+            if let Some(name) = name {
+                names.push(name);
+            }
+        }
+        self.create_tuple_type(
+            &types,
+            Some(&flags),
+            Some(false),
+            if length(Some(&names)) == length(Some(&types)) {
+                Some(&names)
+            } else {
+                None
+            },
+        )
     }
 
     pub(super) fn get_parameter_count(&self, signature: &Signature) -> usize {
@@ -654,7 +837,14 @@ impl TypeChecker {
         if signature_has_rest_parameter(signature) {
             let rest_type = self.get_type_of_symbol(&signature.parameters()[length - 1]);
             if self.is_tuple_type(&rest_type) {
-                unimplemented!()
+                let rest_type_target_as_tuple_type =
+                    rest_type.as_type_reference().target.as_tuple_type();
+                return length + rest_type_target_as_tuple_type.fixed_length
+                    - if rest_type_target_as_tuple_type.has_rest_element {
+                        0
+                    } else {
+                        1
+                    };
             }
         }
         length
@@ -679,7 +869,19 @@ impl TypeChecker {
                 let rest_type = self
                     .get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1]);
                 if self.is_tuple_type(&rest_type) {
-                    unimplemented!()
+                    let rest_type_target_as_tuple_type =
+                        rest_type.as_type_reference().target.as_tuple_type();
+                    let first_optional_index = find_index(
+                        &rest_type_target_as_tuple_type.element_flags,
+                        |f: &ElementFlags, _| !f.intersects(ElementFlags::Required),
+                        None,
+                    );
+                    let required_count =
+                        first_optional_index.unwrap_or(rest_type_target_as_tuple_type.fixed_length);
+                    if required_count > 0 {
+                        min_argument_count =
+                            Some(signature.parameters().len() - 1 + required_count);
+                    }
                 }
             }
             if min_argument_count.is_none() {
@@ -718,24 +920,53 @@ impl TypeChecker {
         if signature_has_rest_parameter(signature) {
             let rest_type =
                 self.get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1]);
-            return !self.is_tuple_type(&rest_type) || unimplemented!();
+            return !self.is_tuple_type(&rest_type)
+                || rest_type
+                    .as_type_reference()
+                    .target
+                    .as_tuple_type()
+                    .has_rest_element;
         }
         false
     }
 
     pub(super) fn get_effective_rest_type(&self, signature: &Signature) -> Option<Rc<Type>> {
-        unimplemented!()
+        if signature_has_rest_parameter(signature) {
+            let rest_type =
+                self.get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1]);
+            if !self.is_tuple_type(&rest_type) {
+                return Some(rest_type);
+            }
+            let rest_type_target_as_tuple_type =
+                rest_type.as_type_reference().target.as_tuple_type();
+            if rest_type_target_as_tuple_type.has_rest_element {
+                return Some(self.slice_tuple_type(
+                    &rest_type,
+                    rest_type_target_as_tuple_type.fixed_length,
+                    None,
+                ));
+            }
+        }
+        None
     }
 
     pub(super) fn get_non_array_rest_type(&self, signature: &Signature) -> Option<Rc<Type>> {
-        unimplemented!()
+        let rest_type = self.get_effective_rest_type(signature);
+        rest_type.filter(|rest_type| {
+            !self.is_array_type(rest_type)
+                && !self.is_type_any(Some(&**rest_type))
+                && !self
+                    .get_reduced_type(rest_type)
+                    .flags()
+                    .intersects(TypeFlags::Never)
+        })
     }
 
     pub(super) fn get_type_of_first_parameter_of_signature(
         &self,
         signature: &Signature,
     ) -> Rc<Type> {
-        unimplemented!()
+        self.get_type_of_first_parameter_of_signature_with_fallback(signature, &self.never_type())
     }
 
     pub(super) fn get_type_of_first_parameter_of_signature_with_fallback(
