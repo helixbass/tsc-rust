@@ -1,14 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{signature_has_rest_parameter, CheckMode, TypeFacts, WideningKind};
 use crate::{
-    get_effective_type_annotation_node, get_function_flags, is_import_call, is_transient_symbol,
-    last, Diagnostics, FunctionFlags, HasTypeInterface, InferenceContext, Node, NodeInterface,
-    Signature, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionReduction,
+    create_symbol_table, get_effective_type_annotation_node, get_function_flags, is_import_call,
+    is_omitted_expression, is_transient_symbol, last, CheckFlags, Diagnostics, FunctionFlags,
+    HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeInterface, Signature,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction, __String,
 };
 
 impl TypeChecker {
@@ -150,7 +152,40 @@ impl TypeChecker {
         parameter: &Symbol,
         type_: Option<TType>,
     ) {
-        unimplemented!()
+        let links = self.get_symbol_links(parameter);
+        let type_ = type_.map(|type_| type_.borrow().type_wrapper());
+        if (*links).borrow().type_.is_none() {
+            let declaration = parameter.maybe_value_declaration().unwrap();
+            links.borrow_mut().type_ = Some(type_.unwrap_or_else(|| {
+                self.get_widened_type_for_variable_like_declaration(&declaration, Some(true))
+            }));
+            let declaration_name = declaration.as_named_declaration().name();
+            if declaration_name.kind() != SyntaxKind::Identifier {
+                if Rc::ptr_eq(
+                    (*links).borrow().type_.as_ref().unwrap(),
+                    &self.unknown_type(),
+                ) {
+                    links.borrow_mut().type_ =
+                        Some(self.get_type_from_binding_pattern(&declaration_name, None, None));
+                }
+                self.assign_binding_element_types(&declaration_name);
+            }
+        }
+    }
+
+    pub(super) fn assign_binding_element_types(&self, pattern: &Node /*BindingPattern*/) {
+        for element in pattern.as_has_elements().elements() {
+            if !is_omitted_expression(element) {
+                let element_as_binding_element = element.as_binding_element();
+                if element_as_binding_element.name().kind() == SyntaxKind::Identifier {
+                    self.get_symbol_links(&self.get_symbol_of_node(element).unwrap())
+                        .borrow_mut()
+                        .type_ = self.get_type_for_binding_element(element);
+                } else {
+                    self.assign_binding_element_types(&element_as_binding_element.name());
+                }
+            }
+        }
     }
 
     pub(super) fn create_promise_type(&self, promised_type: &Type) -> Rc<Type> {
@@ -171,7 +206,21 @@ impl TypeChecker {
     }
 
     pub(super) fn create_promise_like_type(&self, promised_type: &Type) -> Rc<Type> {
-        unimplemented!()
+        let global_promise_like_type = self.get_global_promise_like_type(true);
+        if !Rc::ptr_eq(&global_promise_like_type, &self.empty_generic_type()) {
+            let promised_type = self
+                .get_awaited_type_no_alias(
+                    &self.unwrap_awaited_type(promised_type),
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                )
+                .unwrap_or_else(|| self.unknown_type());
+            return self
+                .create_type_reference(&global_promise_like_type, Some(vec![promised_type]));
+        }
+
+        self.unknown_type()
     }
 
     pub(super) fn create_promise_return_type(
@@ -207,7 +256,34 @@ impl TypeChecker {
     }
 
     pub(super) fn create_new_target_expression_type(&self, target_type: &Type) -> Rc<Type> {
-        unimplemented!()
+        let symbol: Rc<Symbol> = self
+            .create_symbol(
+                SymbolFlags::None,
+                __String::new("NewTargetExpression".to_owned()),
+                None,
+            )
+            .into();
+
+        let target_property_symbol: Rc<Symbol> = self
+            .create_symbol(
+                SymbolFlags::Property,
+                __String::new("target".to_owned()),
+                Some(CheckFlags::Readonly),
+            )
+            .into();
+        target_property_symbol.set_parent(Some(symbol.clone()));
+        target_property_symbol
+            .as_transient_symbol()
+            .symbol_links()
+            .borrow_mut()
+            .type_ = Some(target_type.type_wrapper());
+
+        let members = Rc::new(RefCell::new(create_symbol_table(Some(&[
+            target_property_symbol,
+        ]))));
+        *symbol.maybe_members() = Some(members.clone());
+        self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
+            .into()
     }
 
     pub(super) fn get_return_type_from_body(
