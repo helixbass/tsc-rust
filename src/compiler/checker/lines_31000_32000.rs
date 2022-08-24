@@ -9,13 +9,13 @@ use super::{
 };
 use crate::{
     create_symbol_table, file_extension_is_one_of, get_declaration_of_kind,
-    get_source_file_of_node, is_call_expression, is_const_type_reference, is_identifier,
-    is_import_call, is_property_access_expression, is_require_call, is_source_file, Debug_,
-    Diagnostics, EnumKind, Extension, ExternalEmitHelpers, FunctionFlags, InternalSymbolName,
-    NodeFlags, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
-    TransientSymbolInterface, UnionReduction, __String, get_function_flags, has_initializer, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    get_new_target_container, get_source_file_of_node, is_call_expression, is_const_type_reference,
+    is_identifier, is_import_call, is_property_access_expression, is_require_call, is_source_file,
+    Debug_, Diagnostics, EnumKind, Extension, ExternalEmitHelpers, FunctionFlags,
+    InternalSymbolName, ModuleKind, NodeFlags, ObjectFlags, ScriptTarget, Signature,
+    SignatureFlags, SymbolFlags, TransientSymbolInterface, UnionReduction, __String,
+    get_function_flags, has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -490,11 +490,68 @@ impl TypeChecker {
         &self,
         node: &Node, /*MetaProperty*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let container = get_new_target_container(node);
+        match container.as_ref() {
+            None => {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Meta_property_0_is_only_allowed_in_the_body_of_a_function_declaration_function_expression_or_constructor,
+                    Some(vec![
+                        "new.target".to_owned()
+                    ])
+                );
+                self.error_type()
+            }
+            Some(container) => {
+                if container.kind() == SyntaxKind::Constructor {
+                    let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
+                    self.get_type_of_symbol(&symbol)
+                } else {
+                    let symbol = self.get_symbol_of_node(container).unwrap();
+                    self.get_type_of_symbol(&symbol)
+                }
+            }
+        }
     }
 
     pub(super) fn check_import_meta_property(&self, node: &Node /*MetaProperty*/) -> Rc<Type> {
-        unimplemented!()
+        if matches!(self.module_kind, ModuleKind::Node12 | ModuleKind::NodeNext) {
+            if get_source_file_of_node(Some(node))
+                .unwrap()
+                .as_source_file()
+                .maybe_implied_node_format()
+                != Some(ModuleKind::ESNext)
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::The_import_meta_meta_property_is_not_allowed_in_files_which_will_build_into_CommonJS_output,
+                    None,
+                );
+            }
+        } else if self.module_kind < ModuleKind::ES2020 && self.module_kind != ModuleKind::System {
+            self.error(
+                Some(node),
+                &Diagnostics::The_import_meta_meta_property_is_only_allowed_when_the_module_option_is_es2020_es2022_esnext_system_node12_or_nodenext,
+                None,
+            );
+        }
+        let file = get_source_file_of_node(Some(node)).unwrap();
+        Debug_.assert(
+            file.flags()
+                .intersects(NodeFlags::PossiblyContainsImportMeta),
+            Some("Containing file is missing import meta node flag."),
+        );
+        if node
+            .as_meta_property()
+            .name
+            .as_identifier()
+            .escaped_text
+            .eq_str("meta")
+        {
+            self.get_global_import_meta_type()
+        } else {
+            self.error_type()
+        }
     }
 
     pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> Rc<Type> {
@@ -512,7 +569,12 @@ impl TypeChecker {
         &self,
         d: &Node, /*ParameterDeclaration | NamedTupleMember*/
     ) -> __String {
-        unimplemented!()
+        Debug_.assert(is_identifier(&d.as_named_declaration().name()), None);
+        d.as_named_declaration()
+            .name()
+            .as_identifier()
+            .escaped_text
+            .clone()
     }
 
     pub(super) fn get_parameter_name_at_position<TOverrideRestType: Borrow<Type>>(
@@ -521,7 +583,39 @@ impl TypeChecker {
         pos: usize,
         override_rest_type: Option<TOverrideRestType>,
     ) -> __String {
-        unimplemented!()
+        let param_count = signature.parameters().len()
+            - if signature_has_rest_parameter(signature) {
+                1
+            } else {
+                0
+            };
+        if pos < param_count {
+            return signature.parameters()[pos].escaped_name().clone();
+        }
+        let rest_parameter = signature
+            .parameters()
+            .get(param_count)
+            .cloned()
+            .unwrap_or_else(|| self.unknown_symbol());
+        let override_rest_type =
+            override_rest_type.map(|override_rest_type| override_rest_type.borrow().type_wrapper());
+        let rest_type =
+            override_rest_type.unwrap_or_else(|| self.get_type_of_symbol(&rest_parameter));
+        if self.is_tuple_type(&rest_type) {
+            let associated_names = rest_type
+                .as_type_reference()
+                .target
+                .as_tuple_type()
+                .labeled_element_declarations
+                .as_ref();
+            let index = pos - param_count;
+            return associated_names
+                .map(|associated_names| self.get_tuple_element_label(&associated_names[index]))
+                .unwrap_or_else(|| {
+                    __String::new(format!("{}_{}", &**rest_parameter.escaped_name(), index))
+                });
+        }
+        rest_parameter.escaped_name().clone()
     }
 
     pub(super) fn get_type_at_position(&self, signature: &Signature, pos: usize) -> Rc<Type> {
