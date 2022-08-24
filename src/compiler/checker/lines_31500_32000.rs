@@ -4,12 +4,16 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{signature_has_rest_parameter, CheckMode, IterationTypeKind, TypeFacts, WideningKind};
+use super::{
+    signature_has_rest_parameter, CheckMode, IterationTypeKind, IterationUse, TypeFacts,
+    WideningKind,
+};
 use crate::{
-    create_symbol_table, get_effective_type_annotation_node, get_function_flags, is_import_call,
-    is_omitted_expression, is_transient_symbol, last, some, CheckFlags, Diagnostics, FunctionFlags,
-    HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeInterface, Signature,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    create_symbol_table, for_each_yield_expression, get_effective_type_annotation_node,
+    get_function_flags, is_import_call, is_omitted_expression, is_transient_symbol, last,
+    push_if_unique_rc, some, CheckFlags, Diagnostics, FunctionFlags, HasTypeInterface,
+    InferenceContext, NamedDeclarationInterface, Node, NodeInterface, Signature, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, UnionReduction, __String,
 };
 
@@ -559,6 +563,64 @@ impl TypeChecker {
         func: &Node, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> CheckAndAggregateYieldOperandTypesReturn {
+        let mut yield_types: Vec<Rc<Type>> = vec![];
+        let mut next_types: Vec<Rc<Type>> = vec![];
+        let is_async = get_function_flags(Some(func)).intersects(FunctionFlags::Async);
+        for_each_yield_expression(
+            &func.as_function_like_declaration().maybe_body().unwrap(),
+            |yield_expression: &Node| {
+                let yield_expression_as_yield_expression = yield_expression.as_yield_expression();
+                let yield_expression_type = if let Some(yield_expression_expression) =
+                    yield_expression_as_yield_expression.expression.as_ref()
+                {
+                    self.check_expression(yield_expression_expression, check_mode, None)
+                } else {
+                    self.undefined_widening_type()
+                };
+                if let Some(ref yielded_type) = self.get_yielded_type_of_yield_expression(
+                    yield_expression,
+                    &yield_expression_type,
+                    &self.any_type(),
+                    is_async,
+                ) {
+                    push_if_unique_rc(&mut yield_types, yielded_type);
+                }
+                let next_type: Option<Rc<Type>>;
+                if yield_expression_as_yield_expression
+                    .asterisk_token
+                    .is_some()
+                {
+                    let iteration_types = self.get_iteration_types_of_iterable(
+                        &yield_expression_type,
+                        if is_async {
+                            IterationUse::AsyncYieldStar
+                        } else {
+                            IterationUse::YieldStar
+                        },
+                        yield_expression_as_yield_expression.expression.as_deref(),
+                    );
+                    next_type = iteration_types.map(|iteration_types| iteration_types.next_type());
+                } else {
+                    next_type = self.get_contextual_type_(yield_expression, None);
+                }
+                if let Some(next_type) = next_type.as_ref() {
+                    push_if_unique_rc(&mut next_types, next_type);
+                }
+            },
+        );
+        CheckAndAggregateYieldOperandTypesReturn {
+            yield_types,
+            next_types,
+        }
+    }
+
+    pub(super) fn get_yielded_type_of_yield_expression(
+        &self,
+        node: &Node, /*YieldExpression*/
+        expression_type: &Type,
+        sent_type: &Type,
+        is_async: bool,
+    ) -> Option<Rc<Type>> {
         unimplemented!()
     }
 
