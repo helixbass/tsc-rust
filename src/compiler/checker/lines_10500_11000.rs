@@ -599,9 +599,9 @@ impl TypeChecker {
     ) -> Signature {
         let mut sig = (self.Signature)(flags);
         sig.declaration = declaration;
-        sig.type_parameters = type_parameters;
+        *sig.maybe_type_parameters_mut() = type_parameters;
         sig.set_parameters(parameters);
-        sig.this_parameter = this_parameter;
+        *sig.maybe_this_parameter_mut() = this_parameter;
         *sig.maybe_resolved_return_type() = resolved_return_type;
         *sig.maybe_resolved_type_predicate() = resolved_type_predicate;
         sig.set_min_argument_count(min_argument_count);
@@ -611,8 +611,8 @@ impl TypeChecker {
     pub(super) fn clone_signature(&self, sig: &Signature) -> Signature {
         let mut result = self.create_signature(
             sig.declaration.clone(),
-            sig.type_parameters.clone(),
-            sig.this_parameter.clone(),
+            sig.maybe_type_parameters().clone(),
+            sig.maybe_this_parameter().clone(),
             sig.parameters().to_owned(),
             None,
             None,
@@ -816,8 +816,8 @@ impl TypeChecker {
         let class_type_as_interface_type = class_type.as_interface_type();
         for base_sig in base_signatures {
             let min_type_argument_count =
-                self.get_min_type_argument_count(base_sig.type_parameters.as_deref());
-            let type_param_count = length(base_sig.type_parameters.as_deref());
+                self.get_min_type_argument_count(base_sig.maybe_type_parameters().as_deref());
+            let type_param_count = length(base_sig.maybe_type_parameters().as_deref());
             if is_java_script
                 || type_arg_count >= min_type_argument_count && type_arg_count <= type_param_count
             {
@@ -826,7 +826,7 @@ impl TypeChecker {
                         base_sig.clone(),
                         self.fill_missing_type_arguments(
                             type_arguments.clone(),
-                            base_sig.type_parameters.as_deref(),
+                            base_sig.maybe_type_parameters().as_deref(),
                             min_type_argument_count,
                             is_java_script,
                         )
@@ -835,7 +835,7 @@ impl TypeChecker {
                 } else {
                     self.clone_signature(&base_sig)
                 };
-                sig.type_parameters = class_type_as_interface_type
+                *sig.maybe_type_parameters_mut() = class_type_as_interface_type
                     .maybe_local_type_parameters()
                     .map(ToOwned::to_owned);
                 *sig.maybe_resolved_return_type() = Some(class_type.type_wrapper());
@@ -886,7 +886,7 @@ impl TypeChecker {
         signature: Rc<Signature>,
         list_index: usize,
     ) -> Option<Vec<Rc<Signature>>> {
-        if signature.type_parameters.is_some() {
+        if signature.maybe_type_parameters().is_some() {
             if list_index > 0 {
                 return None;
             }
@@ -944,10 +944,10 @@ impl TypeChecker {
                     if let Some(union_signatures) = union_signatures {
                         let mut s = signature.clone();
                         if union_signatures.len() > 1 {
-                            let mut this_parameter = signature.this_parameter.clone();
+                            let mut this_parameter = signature.maybe_this_parameter().clone();
                             let first_this_parameter_of_union_signatures =
                                 for_each(&union_signatures, |sig: &Rc<Signature>, _| {
-                                    sig.this_parameter.clone()
+                                    sig.maybe_this_parameter().clone()
                                 });
                             if let Some(first_this_parameter_of_union_signatures) =
                                 first_this_parameter_of_union_signatures
@@ -956,9 +956,11 @@ impl TypeChecker {
                                     &map_defined(
                                         Some(&union_signatures),
                                         |sig: &Rc<Signature>, _| {
-                                            sig.this_parameter.as_ref().map(|this_parameter| {
-                                                self.get_type_of_symbol(this_parameter)
-                                            })
+                                            sig.maybe_this_parameter().as_ref().map(
+                                                |this_parameter| {
+                                                    self.get_type_of_symbol(this_parameter)
+                                                },
+                                            )
                                         },
                                     ),
                                     Option::<&Symbol>::None,
@@ -971,7 +973,7 @@ impl TypeChecker {
                             }
                             let mut s_not_wrapped =
                                 self.create_union_signature(signature, union_signatures);
-                            s_not_wrapped.this_parameter = this_parameter;
+                            *s_not_wrapped.maybe_this_parameter_mut() = this_parameter;
                             s = Rc::new(s_not_wrapped);
                         }
                         if result.is_none() {

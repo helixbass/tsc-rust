@@ -439,7 +439,7 @@ impl TypeChecker {
 
     pub(super) fn get_this_type_of_signature(&self, signature: &Signature) -> Option<Rc<Type>> {
         signature
-            .this_parameter
+            .maybe_this_parameter()
             .as_ref()
             .map(|this_parameter| self.get_type_of_symbol(this_parameter))
     }
@@ -751,8 +751,8 @@ impl TypeChecker {
                 signature.clone(),
                 self.fill_missing_type_arguments(
                     type_arguments.map(ToOwned::to_owned),
-                    signature.type_parameters.as_deref(),
-                    self.get_min_type_argument_count(signature.type_parameters.as_deref()),
+                    signature.maybe_type_parameters().as_deref(),
+                    self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref()),
                     is_javascript,
                 )
                 .as_deref(),
@@ -763,7 +763,8 @@ impl TypeChecker {
             );
             if let Some(return_signature) = return_signature {
                 let mut new_return_signature = self.clone_signature(&return_signature);
-                new_return_signature.type_parameters = Some(inferred_type_parameters.to_owned());
+                *new_return_signature.maybe_type_parameters_mut() =
+                    Some(inferred_type_parameters.to_owned());
                 let new_instantiated_signature = self.clone_signature(&instantiated_signature);
                 *new_instantiated_signature.maybe_resolved_return_type() =
                     Some(self.get_or_create_type_from_signature(Rc::new(new_return_signature)));
@@ -812,13 +813,13 @@ impl TypeChecker {
         type_arguments: Option<&[Rc<Type>]>,
     ) -> TypeMapper {
         self.create_type_mapper(
-            signature.type_parameters.clone().unwrap(),
+            signature.maybe_type_parameters().clone().unwrap(),
             type_arguments.map(ToOwned::to_owned),
         )
     }
 
     pub(super) fn get_erased_signature(&self, signature: Rc<Signature>) -> Rc<Signature> {
-        if signature.type_parameters.is_some() {
+        if signature.maybe_type_parameters().is_some() {
             if signature.maybe_erased_signature_cache().is_none() {
                 *signature.maybe_erased_signature_cache() =
                     Some(Rc::new(self.create_erased_signature(signature.clone())));
@@ -832,13 +833,13 @@ impl TypeChecker {
     pub(super) fn create_erased_signature(&self, signature: Rc<Signature>) -> Signature {
         self.instantiate_signature(
             signature.clone(),
-            &self.create_type_eraser(signature.type_parameters.clone().unwrap()),
+            &self.create_type_eraser(signature.maybe_type_parameters().clone().unwrap()),
             Some(true),
         )
     }
 
     pub(super) fn get_canonical_signature(&self, signature: Rc<Signature>) -> Rc<Signature> {
-        if signature.type_parameters.is_some() {
+        if signature.maybe_type_parameters().is_some() {
             if signature.maybe_canonical_signature_cache().is_none() {
                 *signature.maybe_canonical_signature_cache() =
                     Some(self.create_canonical_signature(signature.clone()));
@@ -852,13 +853,16 @@ impl TypeChecker {
     pub(super) fn create_canonical_signature(&self, signature: Rc<Signature>) -> Rc<Signature> {
         self.get_signature_instantiation(
             signature.clone(),
-            maybe_map(signature.type_parameters.as_deref(), |tp: &Rc<Type>, _| {
-                tp.as_type_parameter()
-                    .target
-                    .clone()
-                    .filter(|target| self.get_constraint_of_type_parameter(target).is_none())
-                    .unwrap_or_else(|| tp.clone())
-            })
+            maybe_map(
+                signature.maybe_type_parameters().as_deref(),
+                |tp: &Rc<Type>, _| {
+                    tp.as_type_parameter()
+                        .target
+                        .clone()
+                        .filter(|target| self.get_constraint_of_type_parameter(target).is_none())
+                        .unwrap_or_else(|| tp.clone())
+                },
+            )
             .as_deref(),
             is_in_js_file(signature.declaration.as_deref()),
             None,
@@ -866,8 +870,8 @@ impl TypeChecker {
     }
 
     pub(super) fn get_base_signature(&self, signature: Rc<Signature>) -> Rc<Signature> {
-        let type_parameters = signature.type_parameters.as_ref();
-        if let Some(type_parameters) = type_parameters {
+        let type_parameters = signature.maybe_type_parameters().clone();
+        if let Some(ref type_parameters) = type_parameters {
             if let Some(signature_base_signature_cache) =
                 signature.maybe_base_signature_cache().clone()
             {

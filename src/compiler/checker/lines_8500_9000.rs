@@ -409,7 +409,7 @@ impl TypeChecker {
                                 None,
                             );
                             return Some(self.get_type_of_symbol(
-                                getter_signature.this_parameter.as_ref().unwrap(),
+                                getter_signature.maybe_this_parameter().as_ref().unwrap(),
                             ));
                         }
                     }

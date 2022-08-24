@@ -867,7 +867,7 @@ impl TypeChecker {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
         let mut mapper = mapper.clone();
         let mut fresh_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
-        if let Some(signature_type_parameters) = signature.type_parameters.clone() {
+        if let Some(signature_type_parameters) = signature.maybe_type_parameters().clone() {
             if !erase_type_parameters {
                 fresh_type_parameters =
                     Some(map(&signature_type_parameters, |type_parameter, _| {
@@ -889,7 +889,7 @@ impl TypeChecker {
             signature.declaration.clone(),
             fresh_type_parameters,
             signature
-                .this_parameter
+                .maybe_this_parameter()
                 .as_ref()
                 .map(|this_parameter| self.instantiate_symbol(this_parameter, &mapper)),
             self.instantiate_list(

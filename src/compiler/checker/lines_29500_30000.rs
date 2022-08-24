@@ -540,7 +540,12 @@ impl TypeChecker {
                 .and_then(|closest_signature_declaration_arguments| {
                     closest_signature_declaration_arguments
                         .get(
-                            if closest_signature.as_ref().unwrap().this_parameter.is_some() {
+                            if closest_signature
+                                .as_ref()
+                                .unwrap()
+                                .maybe_this_parameter()
+                                .is_some()
+                            {
                                 args.len() + 1
                             } else {
                                 args.len()
@@ -608,8 +613,8 @@ impl TypeChecker {
         let arg_count = type_arguments.len();
         if signatures.len() == 1 {
             let sig = &signatures[0];
-            let min = self.get_min_type_argument_count(sig.type_parameters.as_deref());
-            let max = length(sig.type_parameters.as_deref());
+            let min = self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref());
+            let max = length(sig.maybe_type_parameters().as_deref());
             return Rc::new(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(Some(node)).unwrap(),
@@ -630,8 +635,8 @@ impl TypeChecker {
         let mut below_arg_count = UsizeOrNegativeInfinity::NegativeInfinity;
         let mut above_arg_count = usize::MAX;
         for sig in signatures {
-            let min = self.get_min_type_argument_count(sig.type_parameters.as_deref());
-            let max = length(sig.type_parameters.as_deref());
+            let min = self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref());
+            let max = length(sig.maybe_type_parameters().as_deref());
             if min > arg_count {
                 above_arg_count = cmp::min(above_arg_count, min);
             } else if max < arg_count {
@@ -728,7 +733,7 @@ impl TypeChecker {
         let args = self.get_effective_call_arguments(node);
 
         let is_single_non_generic_candidate =
-            candidates.len() == 1 && candidates[0].type_parameters.is_none();
+            candidates.len() == 1 && candidates[0].maybe_type_parameters().is_none();
         let mut arg_check_mode = if !is_decorator
             && !is_single_non_generic_candidate
             && some(
@@ -1050,7 +1055,7 @@ impl TypeChecker {
         };
         if let Some(impl_decl) = impl_decl {
             let candidate = self.get_signature_from_declaration_(impl_decl);
-            let is_single_non_generic_candidate = candidate.type_parameters.is_none();
+            let is_single_non_generic_candidate = candidate.maybe_type_parameters().is_none();
             let mut candidates = vec![candidate];
             if self
                 .choose_overload(
@@ -1154,7 +1159,7 @@ impl TypeChecker {
             let mut check_candidate: Rc<Signature>;
             let mut inference_context: Option<Rc<InferenceContext>> = None;
 
-            if let Some(candidate_type_parameters) = candidate.type_parameters.as_ref() {
+            if let Some(ref candidate_type_parameters) = candidate.maybe_type_parameters().clone() {
                 let type_argument_types: Option<Vec<Rc<Type>>>;
                 if some(
                     type_arguments.map(|type_arguments| &**type_arguments),

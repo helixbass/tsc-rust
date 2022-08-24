@@ -928,18 +928,19 @@ impl TypeChecker {
                     .unwrap_or_else(|| self.unknown_type()),
                 SignatureKind::Call,
             );
-            let candidate = if signatures.len() == 1 && signatures[0].type_parameters.is_none() {
-                Some(signatures[0].clone())
-            } else if some(
-                Some(&signatures),
-                Some(|signature: &Rc<Signature>| {
-                    self.has_type_predicate_or_never_return_type(signature)
-                }),
-            ) {
-                Some(self.get_resolved_signature_(node, None, None))
-            } else {
-                None
-            };
+            let candidate =
+                if signatures.len() == 1 && signatures[0].maybe_type_parameters().is_none() {
+                    Some(signatures[0].clone())
+                } else if some(
+                    Some(&signatures),
+                    Some(|signature: &Rc<Signature>| {
+                        self.has_type_predicate_or_never_return_type(signature)
+                    }),
+                ) {
+                    Some(self.get_resolved_signature_(node, None, None))
+                } else {
+                    None
+                };
             signature = Some(
                 if let Some(candidate) = candidate
                     .filter(|candidate| self.has_type_predicate_or_never_return_type(candidate))

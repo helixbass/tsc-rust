@@ -184,8 +184,8 @@ impl TypeChecker {
                     } {
                         left
                     } else if self.compare_type_parameters_identical(
-                        left.as_ref().unwrap().type_parameters.as_deref(),
-                        right.type_parameters.as_deref(),
+                        left.as_ref().unwrap().maybe_type_parameters().as_deref(),
+                        right.maybe_type_parameters().as_deref(),
                     ) {
                         Some(self.combine_signatures_of_intersection_members(
                             left.clone().unwrap(),
@@ -352,27 +352,27 @@ impl TypeChecker {
         right: Rc<Signature>,
     ) -> Rc<Signature> {
         let type_params = left
-            .type_parameters
-            .as_ref()
-            .or_else(|| right.type_parameters.as_ref());
+            .maybe_type_parameters()
+            .clone()
+            .or_else(|| right.maybe_type_parameters().clone());
         let mut param_mapper: Option<TypeMapper> = None;
-        if left.type_parameters.is_some() && right.type_parameters.is_some() {
+        if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
             param_mapper = Some(self.create_type_mapper(
-                right.type_parameters.clone().unwrap(),
-                left.type_parameters.clone(),
+                right.maybe_type_parameters().clone().unwrap(),
+                left.maybe_type_parameters().clone(),
             ));
         }
         let declaration = left.declaration.as_ref();
         let params = self.combine_intersection_parameters(&left, &right, param_mapper.as_ref());
         let this_param = self.combine_intersection_this_param(
-            left.this_parameter.as_deref(),
-            right.this_parameter.as_deref(),
+            left.maybe_this_parameter().as_deref(),
+            right.maybe_this_parameter().as_deref(),
             param_mapper.as_ref(),
         );
         let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
         let mut result = self.create_signature(
             declaration.cloned(),
-            type_params.cloned(),
+            type_params,
             this_param,
             params,
             None,

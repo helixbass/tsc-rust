@@ -1194,8 +1194,9 @@ impl TypeChecker {
     }
 
     pub(super) fn is_any_signature(&self, s: Rc<Signature>) -> bool {
-        s.type_parameters.is_none()
-            && match s.this_parameter.as_ref() {
+        let s_type_parameters_is_none = s.maybe_type_parameters().is_none();
+        s_type_parameters_is_none
+            && match s.maybe_this_parameter().as_ref() {
                 None => true,
                 Some(s_this_parameter) => {
                     self.is_type_any(Some(self.get_type_of_parameter(s_this_parameter)))
@@ -1242,9 +1243,9 @@ impl TypeChecker {
         }
 
         if matches!(
-            source.type_parameters.as_ref(),
+            source.maybe_type_parameters().as_ref(),
             Some(source_type_parameters) if !matches!(
-                target.type_parameters.as_ref(),
+                target.maybe_type_parameters().as_ref(),
                 Some(target_type_parameters) if are_rc_slices_equal(source_type_parameters, target_type_parameters)
             )
         ) {

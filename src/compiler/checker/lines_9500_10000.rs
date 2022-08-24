@@ -620,7 +620,7 @@ impl TypeChecker {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct);
         if signatures.len() == 1 {
             let s = &signatures[0];
-            if s.type_parameters.is_none()
+            if s.maybe_type_parameters().is_none()
                 && s.parameters().len() == 1
                 && signature_has_rest_parameter(s)
             {
@@ -672,8 +672,8 @@ impl TypeChecker {
             |sig: &Rc<Signature>| {
                 (is_javascript
                     || type_arg_count
-                        >= self.get_min_type_argument_count(sig.type_parameters.as_deref()))
-                    && type_arg_count <= length(sig.type_parameters.as_deref())
+                        >= self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref()))
+                    && type_arg_count <= length(sig.maybe_type_parameters().as_deref())
             },
         )
     }
@@ -691,7 +691,7 @@ impl TypeChecker {
         });
         same_map(&signatures, |sig: &Rc<Signature>, _| {
             if some(
-                sig.type_parameters.as_deref(),
+                sig.maybe_type_parameters().as_deref(),
                 Option::<fn(&Rc<Type>) -> bool>::None,
             ) {
                 self.get_signature_instantiation(

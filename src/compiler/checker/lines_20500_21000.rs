@@ -31,11 +31,13 @@ impl TypeChecker {
         if !self.is_matching_signature(&source, &target, partial_match) {
             return Ternary::False;
         }
-        if length(source.type_parameters.as_deref()) != length(target.type_parameters.as_deref()) {
+        if length(source.maybe_type_parameters().as_deref())
+            != length(target.maybe_type_parameters().as_deref())
+        {
             return Ternary::False;
         }
-        if let Some(target_type_parameters) = target.type_parameters.as_ref() {
-            let source_type_parameters = source.type_parameters.as_ref().unwrap();
+        if let Some(ref target_type_parameters) = target.maybe_type_parameters().clone() {
+            let source_type_parameters = source.maybe_type_parameters().clone().unwrap();
             let mapper = self.create_type_mapper(
                 source_type_parameters.clone(),
                 Some(target_type_parameters.clone()),

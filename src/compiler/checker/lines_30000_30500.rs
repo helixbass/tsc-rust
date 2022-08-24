@@ -31,7 +31,9 @@ impl TypeChecker {
         self.check_node_deferred(node);
         if has_candidates_out_array
             || candidates.len() == 1
-            || candidates.into_iter().any(|c| c.type_parameters.is_some())
+            || candidates
+                .into_iter()
+                .any(|c| c.maybe_type_parameters().is_some())
         {
             self.pick_longest_candidate_signature(node, candidates, args)
         } else {
@@ -44,7 +46,7 @@ impl TypeChecker {
         candidates: &[Rc<Signature>],
     ) -> Rc<Signature> {
         let this_parameters = map_defined(Some(candidates), |c: &Rc<Signature>, _| {
-            c.this_parameter.clone()
+            c.maybe_this_parameter().clone()
         });
         let mut this_parameter: Option<Rc<Symbol>> = None;
         if !this_parameters.is_empty() {
@@ -192,11 +194,12 @@ impl TypeChecker {
             },
         );
         let candidate = &candidates[best_index];
-        let type_parameters = candidate.type_parameters.as_ref();
+        let type_parameters = candidate.maybe_type_parameters().clone();
         if type_parameters.is_none() {
             return candidate.clone();
         }
         let type_parameters = type_parameters.unwrap();
+        let type_parameters = &type_parameters;
 
         let type_argument_nodes = if self.call_like_expression_may_have_type_arguments(node) {
             node.as_has_type_arguments().maybe_type_arguments()
@@ -478,7 +481,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_generic_function_returning_function(&self, signature: Rc<Signature>) -> bool {
-        signature.type_parameters.is_some()
+        let signature_type_parameters_is_some = signature.maybe_type_parameters().is_some();
+        signature_type_parameters_is_some
             && self.is_function_type(&self.get_return_type_of_signature(signature))
     }
 

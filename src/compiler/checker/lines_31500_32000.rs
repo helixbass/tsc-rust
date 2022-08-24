@@ -1,11 +1,14 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::rc::Rc;
 
-use super::{CheckMode, TypeFacts, WideningKind};
+use super::{signature_has_rest_parameter, CheckMode, TypeFacts, WideningKind};
 use crate::{
-    get_function_flags, is_import_call, Diagnostics, FunctionFlags, Node, NodeInterface, Signature,
-    Symbol, SyntaxKind, Type, TypeChecker, UnionReduction,
+    get_effective_type_annotation_node, get_function_flags, is_import_call, is_transient_symbol,
+    last, Diagnostics, FunctionFlags, HasTypeInterface, InferenceContext, Node, NodeInterface,
+    Signature, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -14,6 +17,139 @@ impl TypeChecker {
         signature: &Signature,
         fallback_type: &Type,
     ) -> Rc<Type> {
+        if !signature.parameters().is_empty() {
+            self.get_type_at_position(signature, 0)
+        } else {
+            fallback_type.type_wrapper()
+        }
+    }
+
+    pub(super) fn infer_from_annotated_parameters(
+        &self,
+        signature: &Signature,
+        context: Rc<Signature>,
+        inference_context: &InferenceContext,
+    ) {
+        let len = signature.parameters().len()
+            - if signature_has_rest_parameter(signature) {
+                1
+            } else {
+                0
+            };
+        for i in 0..len {
+            let declaration = signature.parameters()[i].maybe_value_declaration().unwrap();
+            if declaration
+                .as_parameter_declaration()
+                .maybe_type()
+                .is_some()
+            {
+                let type_node = get_effective_type_annotation_node(&declaration);
+                if let Some(type_node) = type_node.as_ref() {
+                    self.infer_types(
+                        &inference_context.inferences,
+                        &self.get_type_from_type_node_(type_node),
+                        &self.get_type_at_position(&context, i),
+                        None,
+                        None,
+                    );
+                }
+            }
+        }
+        let rest_type = self.get_effective_rest_type(&context);
+        if let Some(rest_type) = rest_type
+            .as_ref()
+            .filter(|rest_type| rest_type.flags().intersects(TypeFlags::TypeParameter))
+        {
+            let instantiated_context = self.instantiate_signature(
+                context.clone(),
+                &inference_context.non_fixing_mapper(),
+                None,
+            );
+            self.assign_contextual_parameter_types(signature, &instantiated_context);
+            let rest_pos = self.get_parameter_count(&context) - 1;
+            self.infer_types(
+                &inference_context.inferences,
+                &self.get_rest_type_at_position(signature, rest_pos),
+                rest_type,
+                None,
+                None,
+            );
+        }
+    }
+
+    pub(super) fn assign_contextual_parameter_types(
+        &self,
+        signature: &Signature,
+        context: &Signature,
+    ) {
+        if let Some(context_type_parameters) = context.maybe_type_parameters().as_ref() {
+            if signature.maybe_type_parameters().is_none() {
+                *signature.maybe_type_parameters_mut() = Some(context_type_parameters.clone());
+            } else {
+                return;
+            }
+        }
+        if let Some(context_this_parameter) = context.maybe_this_parameter().as_ref() {
+            let parameter = signature.maybe_this_parameter().clone();
+            if match parameter.as_ref() {
+                None => true,
+                Some(parameter) => matches!(
+                    parameter.maybe_value_declaration().as_ref(),
+                    Some(parameter_value_declaration) if parameter_value_declaration.as_has_type().maybe_type().is_none()
+                ),
+            } {
+                if parameter.is_none() {
+                    *signature.maybe_this_parameter_mut() = Some(
+                        self.create_symbol_with_type(context_this_parameter, Option::<&Type>::None),
+                    );
+                }
+                self.assign_parameter_type(
+                    signature.maybe_this_parameter().as_ref().unwrap(),
+                    Some(self.get_type_of_symbol(context_this_parameter)),
+                );
+            }
+        }
+        let len = signature.parameters().len()
+            - if signature_has_rest_parameter(signature) {
+                1
+            } else {
+                0
+            };
+        for i in 0..len {
+            let parameter = &signature.parameters()[i];
+            if get_effective_type_annotation_node(&parameter.maybe_value_declaration().unwrap())
+                .is_none()
+            {
+                let contextual_parameter_type = self.try_get_type_at_position(context, i);
+                self.assign_parameter_type(parameter, contextual_parameter_type);
+            }
+        }
+        if signature_has_rest_parameter(signature) {
+            let parameter = last(signature.parameters());
+            if is_transient_symbol(parameter)
+                || get_effective_type_annotation_node(&parameter.maybe_value_declaration().unwrap())
+                    .is_none()
+            {
+                let contextual_parameter_type = self.get_rest_type_at_position(context, len);
+                self.assign_parameter_type(parameter, Some(contextual_parameter_type));
+            }
+        }
+    }
+
+    pub(super) fn assign_non_contextual_parameter_types(&self, signature: &Signature) {
+        if let Some(signature_this_parameter) = signature.maybe_this_parameter().as_ref() {
+            self.assign_parameter_type(signature_this_parameter, Option::<&Type>::None);
+        }
+        for parameter in signature.parameters() {
+            self.assign_parameter_type(parameter, Option::<&Type>::None);
+        }
+    }
+
+    pub(super) fn assign_parameter_type<TType: Borrow<Type>>(
+        &self,
+        parameter: &Symbol,
+        type_: Option<TType>,
+    ) {
         unimplemented!()
     }
 

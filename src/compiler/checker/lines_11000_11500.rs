@@ -170,21 +170,21 @@ impl TypeChecker {
         right: Rc<Signature>,
     ) -> Signature {
         let type_params = left
-            .type_parameters
+            .maybe_type_parameters()
             .clone()
-            .or_else(|| right.type_parameters.clone());
+            .or_else(|| right.maybe_type_parameters().clone());
         let mut param_mapper: Option<TypeMapper> = None;
-        if left.type_parameters.is_some() && right.type_parameters.is_some() {
+        if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
             param_mapper = Some(self.create_type_mapper(
-                right.type_parameters.clone().unwrap(),
-                left.type_parameters.clone(),
+                right.maybe_type_parameters().clone().unwrap(),
+                left.maybe_type_parameters().clone(),
             ));
         }
         let declaration = left.declaration.clone();
         let params = self.combine_union_parameters(&left, &right, param_mapper.as_ref());
         let this_param = self.combine_union_this_param(
-            left.this_parameter.as_deref(),
-            right.this_parameter.as_deref(),
+            left.maybe_this_parameter().as_deref(),
+            right.maybe_this_parameter().as_deref(),
             param_mapper.as_ref(),
         );
         let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
@@ -629,8 +629,8 @@ impl TypeChecker {
                                 if self.is_js_constructor(sig.declaration.as_deref()) {
                                     Some(Rc::new(self.create_signature(
                                         sig.declaration.clone(),
-                                        sig.type_parameters.clone(),
-                                        sig.this_parameter.clone(),
+                                        sig.maybe_type_parameters().clone(),
+                                        sig.maybe_this_parameter().clone(),
                                         sig.parameters().to_owned(),
                                         Some(class_type.clone()),
                                         None,

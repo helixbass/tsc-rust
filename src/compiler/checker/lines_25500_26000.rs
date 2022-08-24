@@ -122,8 +122,8 @@ impl TypeChecker {
         if self.is_context_sensitive_function_or_object_literal_method(func) {
             let contextual_signature = self.get_contextual_signature(func);
             if let Some(contextual_signature) = contextual_signature.as_ref() {
-                let this_parameter = contextual_signature.this_parameter.as_ref();
-                if let Some(this_parameter) = this_parameter {
+                let this_parameter = contextual_signature.maybe_this_parameter();
+                if let Some(this_parameter) = this_parameter.as_ref() {
                     return Some(self.get_type_of_symbol(this_parameter));
                 }
             }

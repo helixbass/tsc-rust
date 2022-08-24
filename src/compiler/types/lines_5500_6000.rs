@@ -549,9 +549,9 @@ bitflags! {
 pub struct Signature {
     pub flags: SignatureFlags,
     pub declaration: Option<Rc<Node /*SignatureDeclaration | JSDocSignature*/>>,
-    pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    type_parameters: RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>,
     parameters: Option<Vec<Rc<Symbol>>>,
-    pub this_parameter: Option<Rc<Symbol>>,
+    this_parameter: RefCell<Option<Rc<Symbol>>>,
     resolved_return_type: RefCell<Option<Rc<Type>>>,
     resolved_type_predicate: RefCell<Option<Rc<TypePredicate>>>,
     min_argument_count: Option<usize>,
@@ -573,9 +573,9 @@ impl Signature {
         Self {
             flags,
             declaration: None,
-            type_parameters: None,
+            type_parameters: RefCell::new(None),
             parameters: None,
-            this_parameter: None,
+            this_parameter: RefCell::new(None),
             resolved_return_type: RefCell::new(None),
             resolved_type_predicate: RefCell::new(None),
             min_argument_count: None,
@@ -593,12 +593,28 @@ impl Signature {
         }
     }
 
+    pub fn maybe_type_parameters(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.type_parameters.borrow()
+    }
+
+    pub fn maybe_type_parameters_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.type_parameters.borrow_mut()
+    }
+
     pub fn parameters(&self) -> &[Rc<Symbol>] {
         self.parameters.as_ref().unwrap()
     }
 
     pub fn set_parameters(&mut self, parameters: Vec<Rc<Symbol>>) {
         self.parameters = Some(parameters);
+    }
+
+    pub fn maybe_this_parameter(&self) -> Ref<Option<Rc<Symbol>>> {
+        self.this_parameter.borrow()
+    }
+
+    pub fn maybe_this_parameter_mut(&self) -> RefMut<Option<Rc<Symbol>>> {
+        self.this_parameter.borrow_mut()
     }
 
     pub fn maybe_resolved_return_type(&self) -> RefMut<Option<Rc<Type>>> {

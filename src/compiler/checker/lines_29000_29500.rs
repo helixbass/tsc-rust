@@ -166,9 +166,9 @@ impl TypeChecker {
         signature: &Signature,
         type_arguments: Option<&NodeArray /*<TypeNode>*/>,
     ) -> bool {
-        let num_type_parameters = length(signature.type_parameters.as_deref());
+        let num_type_parameters = length(signature.maybe_type_parameters().as_deref());
         let min_type_argument_count =
-            self.get_min_type_argument_count(signature.type_parameters.as_deref());
+            self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref());
         !some(
             type_arguments.map(|type_arguments| &**type_arguments),
             Option::<fn(&Rc<Node>) -> bool>::None,
@@ -229,7 +229,7 @@ impl TypeChecker {
         compare_types: Option<Rc<dyn TypeComparer>>,
     ) -> Rc<Signature> {
         let context = self.create_inference_context(
-            signature.type_parameters.as_deref().unwrap(),
+            &signature.maybe_type_parameters().clone().unwrap(),
             Some(signature.clone()),
             InferenceFlags::None,
             compare_types,
@@ -340,9 +340,10 @@ impl TypeChecker {
             let contextual_type = self.get_contextual_type_(
                 node,
                 Some(
-                    if maybe_every(signature.type_parameters.as_deref(), |p: &Rc<Type>, _| {
-                        self.get_default_from_type_parameter_(p).is_some()
-                    }) {
+                    if maybe_every(
+                        signature.maybe_type_parameters().as_deref(),
+                        |p: &Rc<Type>, _| self.get_default_from_type_parameter_(p).is_some(),
+                    ) {
                         ContextFlags::SkipBindingPatterns
                     } else {
                         ContextFlags::None
@@ -361,11 +362,11 @@ impl TypeChecker {
                 let instantiated_type =
                     self.instantiate_type(contextual_type, outer_mapper.as_ref());
                 let contextual_signature = self.get_single_call_signature(&instantiated_type);
-                let inference_source_type = if let Some(contextual_signature_type_parameters) =
+                let inference_source_type = if let Some(ref contextual_signature_type_parameters) =
                     contextual_signature
                         .as_ref()
                         .and_then(|contextual_signature| {
-                            contextual_signature.type_parameters.as_ref()
+                            contextual_signature.maybe_type_parameters().clone()
                         }) {
                     self.get_or_create_type_from_signature(
                         self.get_signature_instantiation_without_filling_in_type_arguments(
@@ -385,7 +386,7 @@ impl TypeChecker {
                     None,
                 );
                 let return_context = self.create_inference_context(
-                    signature.type_parameters.as_ref().unwrap(),
+                    &signature.maybe_type_parameters().clone().unwrap(),
                     Some(signature.clone()),
                     context.flags,
                     None,
@@ -645,14 +646,14 @@ impl TypeChecker {
         head_message: Option<&'static DiagnosticMessage>,
     ) -> Option<Vec<Rc<Type>>> {
         let is_javascript = is_in_js_file(signature.declaration.as_deref());
-        let type_parameters = signature.type_parameters.as_ref().unwrap();
+        let type_parameters = signature.maybe_type_parameters().clone().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(
                 Some(map(type_argument_nodes, |node: &Rc<Node>, _| {
                     self.get_type_from_type_node_(node)
                 })),
-                Some(type_parameters),
-                self.get_min_type_argument_count(Some(type_parameters)),
+                Some(&type_parameters),
+                self.get_min_type_argument_count(Some(&type_parameters)),
                 is_javascript,
             )
             .unwrap();
