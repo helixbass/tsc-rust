@@ -4,19 +4,16 @@ use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{
-    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, TypeFacts, WideningKind,
-};
+use super::{signature_has_rest_parameter, CheckMode, MinArgumentCountFlags};
 use crate::{
     create_symbol_table, file_extension_is_one_of, find_index, get_declaration_of_kind,
     get_new_target_container, get_source_file_of_node, is_call_expression, is_const_type_reference,
-    is_identifier, is_import_call, is_parameter, is_property_access_expression, is_require_call,
-    is_source_file, length, Debug_, Diagnostics, ElementFlags, EnumKind, Extension,
-    ExternalEmitHelpers, FunctionFlags, InternalSymbolName, ModuleKind, NamedDeclarationInterface,
-    NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
-    TransientSymbolInterface, UnionReduction, __String, get_function_flags, has_initializer, Node,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    is_identifier, is_parameter, is_property_access_expression, is_require_call, is_source_file,
+    length, Debug_, Diagnostics, ElementFlags, EnumKind, Extension, ExternalEmitHelpers,
+    InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeFlags, Number, ObjectFlags,
+    ScriptTarget, Signature, SignatureFlags, SymbolFlags, TransientSymbolInterface, __String,
+    has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
