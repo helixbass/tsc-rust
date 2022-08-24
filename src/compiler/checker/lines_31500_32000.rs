@@ -4,10 +4,10 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{signature_has_rest_parameter, CheckMode, TypeFacts, WideningKind};
+use super::{signature_has_rest_parameter, CheckMode, IterationTypeKind, TypeFacts, WideningKind};
 use crate::{
     create_symbol_table, get_effective_type_annotation_node, get_function_flags, is_import_call,
-    is_omitted_expression, is_transient_symbol, last, CheckFlags, Diagnostics, FunctionFlags,
+    is_omitted_expression, is_transient_symbol, last, some, CheckFlags, Diagnostics, FunctionFlags,
     HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeInterface, Signature,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, UnionReduction, __String,
@@ -304,17 +304,61 @@ impl TypeChecker {
         let mut return_type: Option<Rc<Type>> = None;
         let mut yield_type: Option<Rc<Type>> = None;
         let mut next_type: Option<Rc<Type>> = None;
-        let fallback_return_type = self.void_type();
+        let mut fallback_return_type = self.void_type();
         if func_body.kind() != SyntaxKind::Block {
             return_type = Some(self.check_expression_cached(
                 &func_body,
                 check_mode.map(|check_mode| check_mode & !CheckMode::SkipGenericFunctions),
             ));
             if is_async {
-                unimplemented!()
+                return_type = Some(self.unwrap_awaited_type(
+                    &self.check_awaited_type(
+                        return_type.as_ref().unwrap(),
+                        false,
+                        func,
+                        &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
+                        None,
+                    )
+                ));
             }
         } else if is_generator {
-            unimplemented!()
+            let return_types = self.check_and_aggregate_return_expression_types(func, check_mode);
+            match return_types {
+                None => {
+                    fallback_return_type = self.never_type();
+                }
+                Some(return_types) => {
+                    if !return_types.is_empty() {
+                        return_type = Some(self.get_union_type(
+                            return_types,
+                            Some(UnionReduction::Subtype),
+                            Option::<&Symbol>::None,
+                            None,
+                            Option::<&Type>::None,
+                        ));
+                    }
+                }
+            }
+            let CheckAndAggregateYieldOperandTypesReturn {
+                yield_types,
+                next_types,
+            } = self.check_and_aggregate_yield_operand_types(func, check_mode);
+            yield_type = if some(Some(&yield_types), Option::<fn(&Rc<Type>) -> bool>::None) {
+                Some(self.get_union_type(
+                    yield_types,
+                    Some(UnionReduction::Subtype),
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ))
+            } else {
+                None
+            };
+            next_type = if some(Some(&next_types), Option::<fn(&Rc<Type>) -> bool>::None) {
+                Some(self.get_intersection_type(&next_types, Option::<&Symbol>::None, None))
+            } else {
+                None
+            };
         } else {
             let types = self.check_and_aggregate_return_expression_types(func, check_mode);
             if types.is_none() {
@@ -369,7 +413,56 @@ impl TypeChecker {
                 || matches!(yield_type.as_ref(), Some(yield_type) if self.is_unit_type(yield_type))
                 || matches!(next_type.as_ref(), Some(next_type) if self.is_unit_type(next_type))
             {
-                unimplemented!()
+                let contextual_signature =
+                    self.get_contextual_signature_for_function_like_declaration(func);
+                let contextual_type = contextual_signature.and_then(|contextual_signature| {
+                    if Rc::ptr_eq(
+                        &contextual_signature,
+                        &self.get_signature_from_declaration_(func),
+                    ) {
+                        if is_generator {
+                            None
+                        } else {
+                            return_type.clone()
+                        }
+                    } else {
+                        self.instantiate_contextual_type(
+                            Some(self.get_return_type_of_signature(contextual_signature)),
+                            func,
+                            None,
+                        )
+                    }
+                });
+                if is_generator {
+                    yield_type = self
+                        .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
+                            yield_type.as_deref(),
+                            contextual_type.as_deref(),
+                            IterationTypeKind::Yield,
+                            is_async,
+                        );
+                    return_type = self
+                        .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
+                            return_type.as_deref(),
+                            contextual_type.as_deref(),
+                            IterationTypeKind::Return,
+                            is_async,
+                        );
+                    next_type = self
+                        .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
+                            next_type.as_deref(),
+                            contextual_type.as_deref(),
+                            IterationTypeKind::Next,
+                            is_async,
+                        );
+                } else {
+                    return_type = self
+                        .get_widened_literal_like_type_for_contextual_return_type_if_needed(
+                            return_type.as_deref(),
+                            contextual_type.as_deref(),
+                            is_async,
+                        );
+                }
             }
 
             if let Some(yield_type_present) = yield_type {
@@ -384,7 +477,14 @@ impl TypeChecker {
         }
 
         if is_generator {
-            unimplemented!()
+            self.create_generator_return_type(
+                &yield_type.unwrap_or_else(|| self.never_type()),
+                &return_type.unwrap_or(fallback_return_type),
+                &next_type
+                    .or_else(|| self.get_contextual_iteration_type(IterationTypeKind::Next, func))
+                    .unwrap_or_else(|| self.unknown_type()),
+                is_async,
+            )
         } else {
             if is_async {
                 self.create_promise_type(&return_type.unwrap_or(fallback_return_type))
@@ -392,6 +492,24 @@ impl TypeChecker {
                 return_type.unwrap_or(fallback_return_type)
             }
         }
+    }
+
+    pub(super) fn create_generator_return_type(
+        &self,
+        yield_type: &Type,
+        return_type: &Type,
+        next_type: &Type,
+        is_async_generator: bool,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_and_aggregate_yield_operand_types(
+        &self,
+        func: &Node, /*FunctionLikeDeclaration*/
+        check_mode: Option<CheckMode>,
+    ) -> CheckAndAggregateYieldOperandTypesReturn {
+        unimplemented!()
     }
 
     pub(super) fn get_facts_from_typeof_switch(
@@ -418,4 +536,9 @@ impl TypeChecker {
     ) -> Option<Vec<Rc<Type>>> {
         unimplemented!()
     }
+}
+
+pub(super) struct CheckAndAggregateYieldOperandTypesReturn {
+    pub yield_types: Vec<Rc<Type>>,
+    pub next_types: Vec<Rc<Type>>,
 }
