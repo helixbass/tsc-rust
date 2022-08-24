@@ -5,8 +5,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, IterationTypeKind, IterationUse, TypeFacts,
-    WideningKind,
+    signature_has_rest_parameter, typeof_eq_facts, typeof_ne_facts, CheckMode, IterationTypeKind,
+    IterationUse, TypeFacts, WideningKind,
 };
 use crate::{
     create_symbol_table, for_each_yield_expression, get_effective_type_annotation_node,
@@ -621,7 +621,39 @@ impl TypeChecker {
         sent_type: &Type,
         is_async: bool,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let node_as_yield_expression = node.as_yield_expression();
+        let error_node = node_as_yield_expression
+            .expression
+            .clone()
+            .unwrap_or_else(|| node.node_wrapper());
+        let yielded_type = if node_as_yield_expression.asterisk_token.is_some() {
+            self.check_iterated_type_or_element_type(
+                if is_async {
+                    IterationUse::AsyncYieldStar
+                } else {
+                    IterationUse::YieldStar
+                },
+                expression_type,
+                sent_type,
+                Some(&*error_node),
+            )
+        } else {
+            expression_type.type_wrapper()
+        };
+        if !is_async {
+            Some(yielded_type)
+        } else {
+            self.get_awaited_type_(
+                &yielded_type,
+                Some(error_node),
+                Some(if node_as_yield_expression.asterisk_token.is_some() {
+                    &*Diagnostics::Type_of_iterated_elements_of_a_yield_Asterisk_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member
+                } else {
+                    &*Diagnostics::Type_of_yield_operand_in_an_async_generator_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member
+                }),
+                None,
+            )
+        }
     }
 
     pub(super) fn get_facts_from_typeof_switch(
@@ -631,10 +663,76 @@ impl TypeChecker {
         witnesses: &[String],
         has_default: bool,
     ) -> TypeFacts {
-        unimplemented!()
+        let mut facts = TypeFacts::None;
+        if has_default {
+            for i in end..witnesses.len() {
+                facts |= match typeof_ne_facts.get(&&*witnesses[i]).copied() {
+                    None => TypeFacts::TypeofNEHostObject,
+                    Some(fact) => {
+                        if fact == TypeFacts::None {
+                            TypeFacts::TypeofNEHostObject
+                        } else {
+                            fact
+                        }
+                    }
+                };
+            }
+            for i in start..end {
+                facts &= !typeof_ne_facts
+                    .get(&&*witnesses[i])
+                    .copied()
+                    .unwrap_or(TypeFacts::None)
+            }
+            for i in 0..start {
+                facts |= match typeof_ne_facts.get(&&*witnesses[i]).copied() {
+                    None => TypeFacts::TypeofNEHostObject,
+                    Some(fact) => {
+                        if fact == TypeFacts::None {
+                            TypeFacts::TypeofNEHostObject
+                        } else {
+                            fact
+                        }
+                    }
+                };
+            }
+        } else {
+            for i in start..end {
+                facts |= match typeof_eq_facts.get(&&*witnesses[i]).copied() {
+                    None => TypeFacts::TypeofEQHostObject,
+                    Some(fact) => {
+                        if fact == TypeFacts::None {
+                            TypeFacts::TypeofEQHostObject
+                        } else {
+                            fact
+                        }
+                    }
+                };
+            }
+            for i in 0..start {
+                facts &= !typeof_eq_facts
+                    .get(&&*witnesses[i])
+                    .copied()
+                    .unwrap_or(TypeFacts::None)
+            }
+        }
+        facts
     }
 
     pub(super) fn is_exhaustive_switch_statement(
+        &self,
+        node: &Node, /*SwitchStatement*/
+    ) -> bool {
+        let links = self.get_node_links(node);
+        let links_is_exhaustive = (*links).borrow().is_exhaustive;
+        if let Some(links_is_exhaustive) = links_is_exhaustive {
+            return links_is_exhaustive;
+        }
+        let ret = self.compute_exhaustive_switch_statement(node);
+        links.borrow_mut().is_exhaustive = Some(ret);
+        ret
+    }
+
+    pub(super) fn compute_exhaustive_switch_statement(
         &self,
         node: &Node, /*SwitchStatement*/
     ) -> bool {
