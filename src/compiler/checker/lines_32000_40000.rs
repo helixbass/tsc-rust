@@ -10,9 +10,10 @@ use crate::{
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
     is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, AssignmentKind, Diagnostic,
     DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext,
-    InferenceInfo, IterationTypes, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    InferenceInfo, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -738,6 +739,14 @@ impl TypeChecker {
         use_: IterationUse,
         error_node: Option<TErrorNode>,
     ) -> Option<IterationTypes> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_iteration_types_of_global_iterable_type(
+        &self,
+        global_type: &Type,
+        resolver: &IterationTypesResolver,
+    ) -> IterationTypes {
         unimplemented!()
     }
 

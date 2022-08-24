@@ -501,7 +501,57 @@ impl TypeChecker {
         next_type: &Type,
         is_async_generator: bool,
     ) -> Rc<Type> {
-        unimplemented!()
+        let resolver = if is_async_generator {
+            &self.async_iteration_types_resolver
+        } else {
+            &self.sync_iteration_types_resolver
+        };
+        let global_generator_type = (resolver.get_global_generator_type)(self, false);
+        let yield_type = (resolver.resolve_iteration_type)(self, yield_type, None)
+            .unwrap_or_else(|| self.unknown_type());
+        let return_type = (resolver.resolve_iteration_type)(self, return_type, None)
+            .unwrap_or_else(|| self.unknown_type());
+        let next_type = (resolver.resolve_iteration_type)(self, next_type, None)
+            .unwrap_or_else(|| self.unknown_type());
+        if Rc::ptr_eq(&global_generator_type, &self.empty_generic_type()) {
+            let global_type = (resolver.get_global_iterable_iterator_type)(self, false);
+            let iteration_types = if !Rc::ptr_eq(&global_type, &self.empty_generic_type()) {
+                Some(self.get_iteration_types_of_global_iterable_type(&global_type, resolver))
+            } else {
+                None
+            };
+            let iterable_iterator_return_type =
+                if let Some(iteration_types) = iteration_types.as_ref() {
+                    iteration_types.return_type()
+                } else {
+                    self.any_type()
+                };
+            let iterable_iterator_next_type =
+                if let Some(iteration_types) = iteration_types.as_ref() {
+                    iteration_types.next_type()
+                } else {
+                    self.undefined_type()
+                };
+            if self.is_type_assignable_to(&return_type, &iterable_iterator_return_type)
+                && self.is_type_assignable_to(&iterable_iterator_next_type, &next_type)
+            {
+                if !Rc::ptr_eq(&global_type, &self.empty_generic_type()) {
+                    return self
+                        .create_type_from_generic_global_type(&global_type, vec![yield_type]);
+                }
+
+                (resolver.get_global_iterable_iterator_type)(self, true);
+                return self.empty_object_type();
+            }
+
+            (resolver.get_global_generator_type)(self, true);
+            return self.empty_object_type();
+        }
+
+        self.create_type_from_generic_global_type(
+            &global_generator_type,
+            vec![yield_type, return_type, next_type],
+        )
     }
 
     pub(super) fn check_and_aggregate_yield_operand_types(
