@@ -6,11 +6,12 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    first_or_undefined, for_each, get_combined_node_flags,
+    __String, first_or_undefined, for_each, get_combined_node_flags,
     get_containing_function_or_class_static_block, get_effective_initializer,
     get_effective_return_type_node, get_function_flags, has_context_sensitive_parameters,
-    is_binding_element, is_function_expression, is_function_or_module_block,
-    is_object_literal_method, is_private_identifier, map, maybe_for_each, parse_pseudo_big_int,
+    is_bindable_object_define_property_call, is_binding_element, is_call_expression,
+    is_function_expression, is_function_or_module_block, is_object_literal_method,
+    is_private_identifier, is_property_assignment, map, maybe_for_each, parse_pseudo_big_int,
     AssignmentKind, Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
     HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
     IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
@@ -258,6 +259,60 @@ impl TypeChecker {
             return false;
         }
         true
+    }
+
+    pub(super) fn is_readonly_assignment_declaration(&self, d: &Node /*Declaration*/) -> bool {
+        if !is_call_expression(d) {
+            return false;
+        }
+        if !is_bindable_object_define_property_call(d) {
+            return false;
+        }
+        let d_as_call_expression = d.as_call_expression();
+        let object_lit_type =
+            self.check_expression_cached(&d_as_call_expression.arguments[2], None);
+        let value_type = self
+            .get_type_of_property_of_type_(&object_lit_type, &__String::new("value".to_owned()));
+        if let Some(value_type) = value_type.as_ref() {
+            let writable_prop = self.get_property_of_type_(
+                &object_lit_type,
+                &__String::new("writable".to_owned()),
+                None,
+            );
+            let writable_type = writable_prop
+                .as_ref()
+                .map(|writable_prop| self.get_type_of_symbol(writable_prop));
+            if match writable_type.as_ref() {
+                None => true,
+                Some(writable_type) => {
+                    Rc::ptr_eq(writable_type, &self.false_type())
+                        || Rc::ptr_eq(writable_type, &self.regular_false_type())
+                }
+            } {
+                return true;
+            }
+            if let Some(ref writable_prop_value_declaration) = writable_prop
+                .as_ref()
+                .and_then(|writable_prop| writable_prop.maybe_value_declaration())
+                .filter(|writable_prop_value_declaration| {
+                    is_property_assignment(writable_prop_value_declaration)
+                })
+            {
+                let initializer = &writable_prop_value_declaration
+                    .as_property_assignment()
+                    .initializer;
+                let raw_original_type = self.check_expression(initializer, None, None);
+                if Rc::ptr_eq(&raw_original_type, &self.false_type())
+                    || Rc::ptr_eq(&raw_original_type, &self.regular_false_type())
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        let set_prop =
+            self.get_property_of_type_(&object_lit_type, &__String::new("set".to_owned()), None);
+        set_prop.is_none()
     }
 
     pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> bool {
