@@ -6,18 +6,20 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    __String, first_or_undefined, for_each, get_combined_node_flags,
-    get_containing_function_or_class_static_block, get_effective_initializer,
-    get_effective_return_type_node, get_function_flags, has_context_sensitive_parameters,
+    __String, are_option_rcs_equal, first_or_undefined, for_each, get_check_flags,
+    get_combined_node_flags, get_containing_function,
+    get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
+    get_effective_initializer, get_effective_return_type_node, get_function_flags,
+    has_context_sensitive_parameters, is_access_expression, is_binary_expression,
     is_bindable_object_define_property_call, is_binding_element, is_call_expression,
     is_function_expression, is_function_or_module_block, is_object_literal_method,
     is_private_identifier, is_property_assignment, map, maybe_for_each, parse_pseudo_big_int,
-    AssignmentKind, Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
-    HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
-    IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, PseudoBigInt, SignatureFlags,
-    SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface,
+    skip_parentheses, some, AssignmentKind, CheckFlags, Debug_, Diagnostic, DiagnosticMessage,
+    Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo,
+    IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
+    ObjectFlags, PseudoBigInt, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -316,7 +318,21 @@ impl TypeChecker {
     }
 
     pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> bool {
-        unimplemented!()
+        get_check_flags(symbol).intersects(CheckFlags::Readonly)
+            || symbol.flags().intersects(SymbolFlags::Property)
+                && get_declaration_modifier_flags_from_symbol(symbol, None)
+                    .intersects(ModifierFlags::Readonly)
+            || symbol.flags().intersects(SymbolFlags::Variable)
+                && self
+                    .get_declaration_node_flags_from_symbol(symbol)
+                    .intersects(NodeFlags::Const)
+            || symbol.flags().intersects(SymbolFlags::Accessor)
+                && !symbol.flags().intersects(SymbolFlags::SetAccessor)
+            || symbol.flags().intersects(SymbolFlags::EnumMember)
+            || some(
+                symbol.maybe_declarations().as_deref(),
+                Some(|declaration: &Rc<Node>| self.is_readonly_assignment_declaration(declaration)),
+            )
     }
 
     pub(super) fn is_assignment_to_readonly_entity(
@@ -325,7 +341,79 @@ impl TypeChecker {
         symbol: &Symbol,
         assignment_kind: AssignmentKind,
     ) -> bool {
-        unimplemented!()
+        if assignment_kind == AssignmentKind::None {
+            return false;
+        }
+        if self.is_readonly_symbol(symbol) {
+            if symbol.flags().intersects(SymbolFlags::Property)
+                && is_access_expression(expr)
+                && expr.as_has_expression().expression().kind() == SyntaxKind::ThisKeyword
+            {
+                let ctor = get_containing_function(expr);
+                if !matches!(
+                    ctor.as_ref(),
+                    Some(ctor) if ctor.kind() == SyntaxKind::Constructor || self.is_js_constructor(Some(&**ctor))
+                ) {
+                    return true;
+                }
+                let ctor = ctor.unwrap();
+                if let Some(symbol_value_declaration) = symbol.maybe_value_declaration().as_ref() {
+                    let is_assignment_declaration = is_binary_expression(symbol_value_declaration);
+                    let is_local_property_declaration = are_option_rcs_equal(
+                        ctor.maybe_parent().as_ref(),
+                        symbol_value_declaration.maybe_parent().as_ref(),
+                    );
+                    let is_local_parameter_property = matches!(
+                        symbol_value_declaration.maybe_parent().as_ref(),
+                        Some(symbol_value_declaration_parent) if Rc::ptr_eq(
+                            &ctor,
+                            symbol_value_declaration_parent
+                        )
+                    );
+                    let is_local_this_property_assignment = is_assignment_declaration
+                        && are_option_rcs_equal(
+                            symbol
+                                .maybe_parent()
+                                .and_then(|symbol_parent| symbol_parent.maybe_value_declaration())
+                                .as_ref(),
+                            ctor.maybe_parent().as_ref(),
+                        );
+                    let is_local_this_property_assignment_constructor_function =
+                        is_assignment_declaration
+                            && matches!(
+                                symbol.maybe_parent().and_then(|symbol_parent| symbol_parent.maybe_value_declaration()).as_ref(),
+                                Some(symbol_parent_value_declaration) if Rc::ptr_eq(
+                                    symbol_parent_value_declaration,
+                                    &ctor,
+                                )
+                            );
+                    let is_writeable_symbol = is_local_property_declaration
+                        || is_local_parameter_property
+                        || is_local_this_property_assignment
+                        || is_local_this_property_assignment_constructor_function;
+                    return !is_writeable_symbol;
+                }
+            }
+            return true;
+        }
+        if is_access_expression(expr) {
+            let node = skip_parentheses(&expr.as_has_expression().expression(), None);
+            if node.kind() == SyntaxKind::Identifier {
+                let symbol = (*self.get_node_links(&node))
+                    .borrow()
+                    .resolved_symbol
+                    .clone()
+                    .unwrap();
+                if symbol.flags().intersects(SymbolFlags::Alias) {
+                    let declaration = self.get_declaration_of_alias_symbol(&symbol);
+                    return matches!(
+                        declaration.as_ref(),
+                        Some(declaration) if declaration.kind() == SyntaxKind::NamespaceImport
+                    );
+                }
+            }
+        }
+        false
     }
 
     pub(super) fn check_prefix_unary_expression(
