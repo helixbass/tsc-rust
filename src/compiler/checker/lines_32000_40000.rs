@@ -172,16 +172,88 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn check_function_expression_or_object_literal_method_deferred(
+        &self,
+        node: &Node, /*ArrowFunction | FunctionExpression | MethodDeclaration*/
+    ) {
+        Debug_.assert(
+            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
+            None,
+        );
+
+        let function_flags = get_function_flags(Some(node));
+        let return_type = self.get_return_type_from_annotation(node);
+        self.check_all_code_paths_in_non_void_function_return_or_throw(
+            node,
+            return_type.as_deref(),
+        );
+
+        if let Some(node_body) = node.as_function_like_declaration().maybe_body().as_ref() {
+            if get_effective_return_type_node(node).is_none() {
+                self.get_return_type_of_signature(self.get_signature_from_declaration_(node));
+            }
+
+            if node_body.kind() == SyntaxKind::Block {
+                self.check_source_element(Some(&**node_body));
+            } else {
+                let expr_type = self.check_expression(node_body, None, None);
+                let return_or_promised_type = return_type
+                    .as_ref()
+                    .map(|return_type| self.unwrap_return_type(return_type, function_flags));
+                if let Some(return_or_promised_type) = return_or_promised_type.as_ref() {
+                    if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::Async {
+                        let awaited_type = self.check_awaited_type(
+                            &expr_type,
+                            false,
+                            node_body,
+                            &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
+                            None,
+                        );
+                        self.check_type_assignable_to_and_optionally_elaborate(
+                            &awaited_type,
+                            return_or_promised_type,
+                            Some(&**node_body),
+                            Some(&**node_body),
+                            None,
+                            None,
+                        );
+                    } else {
+                        self.check_type_assignable_to_and_optionally_elaborate(
+                            &expr_type,
+                            return_or_promised_type,
+                            Some(&**node_body),
+                            Some(&**node_body),
+                            None,
+                            None,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     pub(super) fn check_arithmetic_operand_type(
         &self,
         operand: &Node, /*Expression*/
         type_: &Type,
         diagnostic: &DiagnosticMessage,
+        is_await_valid: Option<bool>,
     ) -> bool {
+        let is_await_valid = is_await_valid.unwrap_or(false);
         if !self.is_type_assignable_to(type_, &self.number_or_big_int_type()) {
+            let awaited_type = if is_await_valid {
+                self.get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)
+            } else {
+                None
+            };
             self.error_and_maybe_suggest_await(
-                operand, false, // TODO: this is wrong
-                diagnostic, None,
+                operand,
+                matches!(
+                    awaited_type.as_ref(),
+                    Some(awaited_type) if self.is_type_assignable_to(awaited_type, &self.number_or_big_int_type())
+                ),
+                diagnostic,
+                None,
             );
             return false;
         }
@@ -210,7 +282,7 @@ impl TypeChecker {
         let operand_type = self.check_expression(operand, None, None);
         match node_as_prefix_unary_expression.operator {
             SyntaxKind::PlusPlusToken => {
-                self.check_arithmetic_operand_type(operand, &operand_type, &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
+                self.check_arithmetic_operand_type(operand, &operand_type, &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type, None);
                 return self.get_unary_result_type(&operand_type);
             }
             _ => {
