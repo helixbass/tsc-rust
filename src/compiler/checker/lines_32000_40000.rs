@@ -767,6 +767,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_unwrapped_return_type_void_or_any(
+        &self,
+        func: &Node, /*SignatureDeclaration*/
+        return_type: &Type,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_return_statement(&self, node: &Node /*ReturnStatement*/) {
         let container = get_containing_function_or_class_static_block(node);
 

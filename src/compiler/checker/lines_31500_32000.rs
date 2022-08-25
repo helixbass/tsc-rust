@@ -9,12 +9,13 @@ use super::{
     IterationUse, TypeFacts, WideningKind,
 };
 use crate::{
-    create_symbol_table, for_each_yield_expression, get_effective_type_annotation_node,
+    are_option_rcs_equal, create_symbol_table, for_each_return_statement,
+    for_each_yield_expression, get_effective_return_type_node, get_effective_type_annotation_node,
     get_function_flags, is_import_call, is_omitted_expression, is_transient_symbol, last,
-    push_if_unique_rc, some, CheckFlags, Diagnostics, FunctionFlags, HasTypeInterface,
-    InferenceContext, NamedDeclarationInterface, Node, NodeInterface, Signature, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionReduction, __String,
+    node_is_missing, push_if_unique_rc, some, CheckFlags, Diagnostics, FunctionFlags,
+    HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction, __String,
 };
 
 impl TypeChecker {
@@ -736,7 +737,66 @@ impl TypeChecker {
         &self,
         node: &Node, /*SwitchStatement*/
     ) -> bool {
-        unimplemented!()
+        let node_as_switch_statement = node.as_switch_statement();
+        if node_as_switch_statement.expression.kind() == SyntaxKind::TypeOfExpression {
+            let operand_type = self.get_type_of_expression(
+                &node_as_switch_statement
+                    .expression
+                    .as_type_of_expression()
+                    .expression,
+            );
+            let witnesses = self
+                .get_switch_clause_type_of_witnesses(node, false)
+                .into_iter()
+                .map(Option::unwrap)
+                .collect::<Vec<_>>();
+            let not_equal_facts = self.get_facts_from_typeof_switch(0, 0, &witnesses, true);
+            let type_ = self
+                .get_base_constraint_of_type(&operand_type)
+                .unwrap_or(operand_type);
+            if type_.flags().intersects(TypeFlags::AnyOrUnknown) {
+                return TypeFacts::AllTypeofNE & not_equal_facts == TypeFacts::AllTypeofNE;
+            }
+            return self
+                .filter_type(&type_, |t: &Type| {
+                    self.get_type_facts(t, None) & not_equal_facts == not_equal_facts
+                })
+                .flags()
+                .intersects(TypeFlags::Never);
+        }
+        let type_ = self.get_type_of_expression(&node_as_switch_statement.expression);
+        if !self.is_literal_type(&type_) {
+            return false;
+        }
+        let switch_types = self.get_switch_clause_types(node);
+        if switch_types.is_empty()
+            || some(
+                Some(&switch_types),
+                Some(|switch_type: &Rc<Type>| self.is_neither_unit_type_nor_never(switch_type)),
+            )
+        {
+            return false;
+        }
+        self.each_type_contained_in(
+            &self
+                .map_type(
+                    &type_,
+                    &mut |type_: &Type| Some(self.get_regular_type_of_literal_type(type_)),
+                    None,
+                )
+                .unwrap(),
+            &switch_types,
+        )
+    }
+
+    pub(super) fn function_has_implicit_return(
+        &self,
+        func: &Node, /*FunctionLikeDeclaration*/
+    ) -> bool {
+        matches!(
+            func.as_function_like_declaration().maybe_end_flow_node().as_ref(),
+            Some(func_end_flow_node) if self.is_reachable_flow_node(func_end_flow_node.clone())
+        )
     }
 
     pub(super) fn check_and_aggregate_return_expression_types(
@@ -744,7 +804,150 @@ impl TypeChecker {
         func: &Node, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> Option<Vec<Rc<Type>>> {
-        unimplemented!()
+        let function_flags = get_function_flags(Some(func));
+        let mut aggregated_types: Vec<Rc<Type>> = vec![];
+        let mut has_return_with_no_expression = self.function_has_implicit_return(func);
+        let mut has_return_of_type_never = false;
+        for_each_return_statement(
+            &func.as_function_like_declaration().maybe_body().unwrap(),
+            |return_statement: &Node| {
+                let expr = return_statement.as_return_statement().expression.as_ref();
+                if let Some(expr) = expr {
+                    let mut type_ = self.check_expression_cached(
+                        expr,
+                        check_mode.map(|check_mode| check_mode & !CheckMode::SkipGenericFunctions),
+                    );
+                    if function_flags.intersects(FunctionFlags::Async) {
+                        type_ = self.unwrap_awaited_type(
+                            &self.check_awaited_type(
+                                &type_,
+                                false,
+                                func,
+                                &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
+                                None,
+                            )
+                        );
+                    }
+                    if type_.flags().intersects(TypeFlags::Never) {
+                        has_return_of_type_never = true;
+                    }
+                    push_if_unique_rc(&mut aggregated_types, &type_);
+                } else {
+                    has_return_with_no_expression = true;
+                }
+            },
+        );
+        if aggregated_types.is_empty()
+            && !has_return_with_no_expression
+            && (has_return_of_type_never || self.may_return_never(func))
+        {
+            return None;
+        }
+        if self.strict_null_checks
+            && !aggregated_types.is_empty()
+            && has_return_with_no_expression
+            && !(self.is_js_constructor(Some(func))
+                && aggregated_types.iter().any(|t| {
+                    are_option_rcs_equal(t.maybe_symbol().as_ref(), func.maybe_symbol().as_ref())
+                }))
+        {
+            push_if_unique_rc(&mut aggregated_types, &self.undefined_type());
+        }
+        Some(aggregated_types)
+    }
+
+    pub(super) fn may_return_never(&self, func: &Node /*FunctionLikeDeclaration*/) -> bool {
+        match func.kind() {
+            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => true,
+            SyntaxKind::MethodDeclaration => {
+                func.parent().kind() == SyntaxKind::ObjectLiteralExpression
+            }
+            _ => false,
+        }
+    }
+
+    pub(super) fn check_all_code_paths_in_non_void_function_return_or_throw<
+        TReturnType: Borrow<Type>,
+    >(
+        &self,
+        func: &Node, /*FunctionLikeDeclaration | MethodSignature*/
+        return_type: Option<TReturnType>,
+    ) {
+        if !self.produce_diagnostics {
+            return;
+        }
+
+        let function_flags = get_function_flags(Some(func));
+        let type_ = return_type.map(|return_type| {
+            let return_type = return_type.borrow();
+            self.unwrap_return_type(return_type, function_flags)
+        });
+
+        if matches!(
+            type_.as_ref(),
+            Some(type_) if self.maybe_type_of_kind(type_, TypeFlags::Any | TypeFlags::Void)
+        ) {
+            return;
+        }
+
+        if func.kind() == SyntaxKind::MethodSignature || {
+            let func_as_function_like_declaration = func.as_function_like_declaration();
+            node_is_missing(func_as_function_like_declaration.maybe_body())
+                || func_as_function_like_declaration
+                    .maybe_body()
+                    .unwrap()
+                    .kind()
+                    != SyntaxKind::Block
+                || !self.function_has_implicit_return(func)
+        } {
+            return;
+        }
+
+        let has_explicit_return = func.flags().intersects(NodeFlags::HasExplicitReturn);
+        let error_node =
+            get_effective_return_type_node(func).unwrap_or_else(|| func.node_wrapper());
+
+        if matches!(
+            type_.as_ref(),
+            Some(type_) if type_.flags().intersects(TypeFlags::Never)
+        ) {
+            self.error(
+                Some(&*error_node),
+                &Diagnostics::A_function_returning_never_cannot_have_a_reachable_end_point,
+                None,
+            );
+        } else if type_.is_some() && !has_explicit_return {
+            self.error(
+                Some(&*error_node),
+                &Diagnostics::A_function_whose_declared_type_is_neither_void_nor_any_must_return_a_value,
+                None,
+            );
+        } else if matches!(
+            type_.as_ref(),
+            Some(type_) if self.strict_null_checks && !self.is_type_assignable_to(&self.undefined_type(), type_)
+        ) {
+            self.error(
+                Some(&*error_node),
+                &Diagnostics::Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined,
+                None,
+            );
+        } else if self.compiler_options.no_implicit_returns == Some(true) {
+            if type_.is_none() {
+                if !has_explicit_return {
+                    return;
+                }
+                let inferred_return_type =
+                    self.get_return_type_of_signature(self.get_signature_from_declaration_(func));
+                if self.is_unwrapped_return_type_void_or_any(func, &inferred_return_type) {
+                    return;
+                }
+            }
+            self.error(
+                Some(&*error_node),
+                &Diagnostics::Not_all_code_paths_return_a_value,
+                None,
+            );
+        }
     }
 }
 
