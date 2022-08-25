@@ -304,6 +304,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_function_like_declaration(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration | MethodSignature*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_type_arguments(
         &self,
         node: &Node,
@@ -322,6 +329,13 @@ impl TypeChecker {
     pub(super) fn check_grammar_arguments(
         &self,
         args: Option<&NodeArray /*<Expression>*/>,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_grammar_for_generator(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration*/
     ) -> bool {
         unimplemented!()
     }

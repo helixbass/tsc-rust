@@ -6,17 +6,172 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
-    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, AssignmentKind, Diagnostic,
-    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext,
-    InferenceInfo, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface,
+    first_or_undefined, for_each, get_combined_node_flags,
+    get_containing_function_or_class_static_block, get_effective_initializer,
+    get_effective_return_type_node, get_function_flags, has_context_sensitive_parameters,
+    is_binding_element, is_function_expression, is_function_or_module_block,
+    is_object_literal_method, is_private_identifier, map, maybe_for_each, parse_pseudo_big_int,
+    AssignmentKind, Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
+    HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
+    IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, PseudoBigInt, SignatureFlags,
+    SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn check_function_expression_or_object_literal_method(
+        &self,
+        node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        Debug_.assert(
+            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
+            None,
+        );
+        self.check_node_deferred(node);
+
+        if is_function_expression(node) {
+            self.check_collisions_for_declaration_name(
+                node,
+                node.as_named_declaration().maybe_name(),
+            );
+        }
+
+        if matches!(
+            check_mode,
+            Some(check_mode) if check_mode.intersects(CheckMode::SkipContextSensitive)
+        ) && self.is_context_sensitive(node)
+        {
+            if get_effective_return_type_node(node).is_none()
+                && !has_context_sensitive_parameters(node)
+            {
+                let contextual_signature = self.get_contextual_signature(node);
+                if matches!(
+                    contextual_signature.as_ref(),
+                    Some(contextual_signature) if self.could_contain_type_variables(&self.get_return_type_of_signature(contextual_signature.clone()))
+                ) {
+                    let links = self.get_node_links(node);
+                    if let Some(links_context_free_type) =
+                        (*links).borrow().context_free_type.clone()
+                    {
+                        return links_context_free_type;
+                    }
+                    let return_type = self.get_return_type_from_body(node, check_mode);
+                    let return_only_signature = Rc::new(self.create_signature(
+                        None,
+                        None,
+                        None,
+                        vec![],
+                        Some(return_type),
+                        None,
+                        0,
+                        SignatureFlags::None,
+                    ));
+                    let return_only_type: Rc<Type> = self
+                        .create_anonymous_type(
+                            node.maybe_symbol(),
+                            self.empty_symbols(),
+                            vec![return_only_signature],
+                            vec![],
+                            vec![],
+                        )
+                        .into();
+                    let return_only_type_as_object_flags_type =
+                        return_only_type.as_object_flags_type();
+                    return_only_type_as_object_flags_type.set_object_flags(
+                        return_only_type_as_object_flags_type.object_flags()
+                            | ObjectFlags::NonInferrableType,
+                    );
+                    links.borrow_mut().context_free_type = Some(return_only_type.clone());
+                    return return_only_type;
+                }
+            }
+            return self.any_function_type();
+        }
+
+        let has_grammar_error = self.check_grammar_function_like_declaration(node);
+        if !has_grammar_error && node.kind() == SyntaxKind::FunctionExpression {
+            self.check_grammar_for_generator(node);
+        }
+
+        self.contextually_check_function_expression_or_object_literal_method(node, check_mode);
+
+        self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap())
+    }
+
+    pub(super) fn contextually_check_function_expression_or_object_literal_method(
+        &self,
+        node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
+        check_mode: Option<CheckMode>,
+    ) {
+        let links = self.get_node_links(node);
+        if !(*links)
+            .borrow()
+            .flags
+            .intersects(NodeCheckFlags::ContextChecked)
+        {
+            let contextual_signature = self.get_contextual_signature(node);
+            if !(*links)
+                .borrow()
+                .flags
+                .intersects(NodeCheckFlags::ContextChecked)
+            {
+                links.borrow_mut().flags |= NodeCheckFlags::ContextChecked;
+                let signatures_of_type = self.get_signatures_of_type(
+                    &self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap()),
+                    SignatureKind::Call,
+                );
+                let signature = first_or_undefined(&signatures_of_type);
+                if signature.is_none() {
+                    return;
+                }
+                let signature = signature.unwrap();
+                if self.is_context_sensitive(node) {
+                    if let Some(contextual_signature) = contextual_signature.as_ref() {
+                        let inference_context = self.get_inference_context(node);
+                        if matches!(
+                            check_mode,
+                            Some(check_mode) if check_mode.intersects(CheckMode::Inferential)
+                        ) {
+                            self.infer_from_annotated_parameters(
+                                signature,
+                                contextual_signature.clone(),
+                                inference_context.as_ref().unwrap(),
+                            );
+                        }
+                        let instantiated_contextual_signature =
+                            if let Some(inference_context) = inference_context.as_ref() {
+                                Rc::new(self.instantiate_signature(
+                                    contextual_signature.clone(),
+                                    &inference_context.mapper(),
+                                    None,
+                                ))
+                            } else {
+                                contextual_signature.clone()
+                            };
+                        self.assign_contextual_parameter_types(
+                            signature,
+                            &instantiated_contextual_signature,
+                        );
+                    } else {
+                        self.assign_non_contextual_parameter_types(signature);
+                    }
+                }
+                if contextual_signature.is_some()
+                    && self.get_return_type_from_annotation(node).is_none()
+                    && signature.maybe_resolved_return_type().is_none()
+                {
+                    let return_type = self.get_return_type_from_body(node, check_mode);
+                    if signature.maybe_resolved_return_type().is_none() {
+                        *signature.maybe_resolved_return_type() = Some(return_type);
+                    }
+                }
+                self.check_signature_declaration(node);
+            }
+        }
+    }
+
     pub(super) fn check_arithmetic_operand_type(
         &self,
         operand: &Node, /*Expression*/
@@ -386,6 +541,10 @@ impl TypeChecker {
         // TODO
     }
 
+    pub(super) fn check_signature_declaration(&self, node: &Node /*SignatureDeclaration*/) {
+        unimplemented!()
+    }
+
     pub(super) fn check_property_declaration(&self, node: &Node /*PropertySignature*/) {
         self.check_variable_like_declaration(node);
     }
@@ -589,6 +748,14 @@ impl TypeChecker {
                 Option::<()>::None
             });
         }
+    }
+
+    pub(super) fn check_collisions_for_declaration_name<TName: Borrow<Node>>(
+        &self,
+        node: &Node,
+        name: Option<TName /*Identifier*/>,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Rc<Type> {
