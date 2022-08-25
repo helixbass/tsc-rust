@@ -3208,6 +3208,10 @@ impl TypeChecker {
         self.typeof_types_by_name.as_ref().unwrap()
     }
 
+    pub(super) fn typeof_type(&self) -> Rc<Type> {
+        self.typeof_type.clone().unwrap()
+    }
+
     pub(super) fn subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
         (*self.subtype_relation).borrow()
     }

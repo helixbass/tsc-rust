@@ -13,13 +13,14 @@ use crate::{
     has_context_sensitive_parameters, is_access_expression, is_binary_expression,
     is_bindable_object_define_property_call, is_binding_element, is_call_expression,
     is_function_expression, is_function_or_module_block, is_object_literal_method,
-    is_private_identifier, is_property_assignment, map, maybe_for_each, parse_pseudo_big_int,
-    skip_parentheses, some, AssignmentKind, CheckFlags, Debug_, Diagnostic, DiagnosticMessage,
-    Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo,
-    IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
-    ObjectFlags, PseudoBigInt, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    is_private_identifier, is_property_access_expression, is_property_assignment, map,
+    maybe_for_each, parse_pseudo_big_int, skip_outer_expressions, skip_parentheses, some,
+    AssignmentKind, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
+    HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
+    IterationTypesResolver, LiteralLikeNodeInterface, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds,
+    PseudoBigInt, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -414,6 +415,103 @@ impl TypeChecker {
             }
         }
         false
+    }
+
+    pub(super) fn check_reference_expression(
+        &self,
+        expr: &Node, /*Expression*/
+        invalid_reference_message: &'static DiagnosticMessage,
+        invalid_optional_chain_message: &'static DiagnosticMessage,
+    ) -> bool {
+        let node = skip_outer_expressions(
+            expr,
+            Some(OuterExpressionKinds::Assertions | OuterExpressionKinds::Parentheses),
+        );
+        if node.kind() != SyntaxKind::Identifier && !is_access_expression(&node) {
+            self.error(Some(expr), invalid_reference_message, None);
+            return false;
+        }
+        if node.flags().intersects(NodeFlags::OptionalChain) {
+            self.error(Some(expr), invalid_optional_chain_message, None);
+            return false;
+        }
+        true
+    }
+
+    pub(super) fn check_delete_expression(
+        &self,
+        node: &Node, /*DeleteExpression*/
+    ) -> Rc<Type> {
+        let node_as_delete_expression = node.as_delete_expression();
+        self.check_expression(&node_as_delete_expression.expression, None, None);
+        let expr = skip_parentheses(&node_as_delete_expression.expression, None);
+        if !is_access_expression(&expr) {
+            self.error(
+                Some(&*expr),
+                &Diagnostics::The_operand_of_a_delete_operator_must_be_a_property_reference,
+                None,
+            );
+            return self.boolean_type();
+        }
+        if is_property_access_expression(&expr)
+            && is_private_identifier(&expr.as_property_access_expression().name)
+        {
+            self.error(
+                Some(&*expr),
+                &Diagnostics::The_operand_of_a_delete_operator_cannot_be_a_private_identifier,
+                None,
+            );
+        }
+        let links = self.get_node_links(&expr);
+        let resolved_symbol = (*links).borrow().resolved_symbol.clone();
+        let symbol = self.get_export_symbol_of_value_symbol_if_exported(resolved_symbol);
+        if let Some(symbol) = symbol.as_ref() {
+            if self.is_readonly_symbol(symbol) {
+                self.error(
+                    Some(&*expr),
+                    &Diagnostics::The_operand_of_a_delete_operator_cannot_be_a_read_only_property,
+                    None,
+                );
+            }
+            self.check_delete_expression_must_be_optional(&expr, symbol);
+        }
+        self.boolean_type()
+    }
+
+    pub(super) fn check_delete_expression_must_be_optional(
+        &self,
+        expr: &Node, /*AccessExpression*/
+        symbol: &Symbol,
+    ) {
+        let type_ = self.get_type_of_symbol(symbol);
+        if self.strict_null_checks
+            && !type_.flags().intersects(TypeFlags::Any | TypeFlags::Never)
+            && !if self.exact_optional_property_types == Some(true) {
+                symbol.flags().intersects(SymbolFlags::Optional)
+            } else {
+                self.get_falsy_flags(&type_)
+                    .intersects(TypeFlags::Undefined)
+            }
+        {
+            self.error(
+                Some(expr),
+                &Diagnostics::The_operand_of_a_delete_operator_must_be_optional,
+                None,
+            );
+        }
+    }
+
+    pub(super) fn check_type_of_expression(
+        &self,
+        node: &Node, /*TypeOfExpression*/
+    ) -> Rc<Type> {
+        self.check_expression(&node.as_type_of_expression().expression, None, None);
+        self.typeof_type()
+    }
+
+    pub(super) fn check_void_expression(&self, node: &Node /*VoidExpression*/) -> Rc<Type> {
+        self.check_expression(&node.as_void_expression().expression, None, None);
+        self.undefined_widening_type()
     }
 
     pub(super) fn check_prefix_unary_expression(
