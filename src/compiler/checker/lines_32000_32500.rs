@@ -1,32 +1,27 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
+use super::{CheckMode, TypeFacts};
 use crate::{
     every, get_containing_class, get_object_flags, token_to_string, ExternalEmitHelpers, Number,
     __String, add_related_info, are_option_rcs_equal, create_diagnostic_for_node,
-    create_file_diagnostic, first_or_undefined, for_each, get_check_flags, get_combined_node_flags,
-    get_containing_function, get_containing_function_or_class_static_block,
-    get_declaration_modifier_flags_from_symbol, get_effective_initializer,
+    create_file_diagnostic, first_or_undefined, get_check_flags, get_containing_function,
+    get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
     get_effective_return_type_node, get_function_flags, get_source_file_of_node,
     get_span_of_token_at_position, has_context_sensitive_parameters, is_access_expression,
-    is_binary_expression, is_bindable_object_define_property_call, is_binding_element,
-    is_call_expression, is_class_static_block_declaration, is_effective_external_module,
-    is_function_expression, is_function_or_module_block, is_in_top_level_context,
-    is_object_literal_method, is_private_identifier, is_property_access_expression,
-    is_property_assignment, map, maybe_for_each, parse_pseudo_big_int, skip_outer_expressions,
-    skip_parentheses, some, AssignmentKind, CheckFlags, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformation, Diagnostics, FunctionFlags, HasTypeParametersInterface,
-    InferenceContext, InferenceInfo, IterationTypes, IterationTypesResolver,
-    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
-    NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds,
-    PseudoBigInt, ReadonlyTextRange, ScriptTarget, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface,
+    is_binary_expression, is_bindable_object_define_property_call, is_call_expression,
+    is_class_static_block_declaration, is_effective_external_module, is_function_expression,
+    is_in_top_level_context, is_object_literal_method, is_private_identifier,
+    is_property_access_expression, is_property_assignment, parse_pseudo_big_int,
+    skip_outer_expressions, skip_parentheses, some, AssignmentKind, CheckFlags, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics, FunctionFlags,
+    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, Node, NodeCheckFlags, NodeFlags,
+    NodeInterface, ObjectFlags, OuterExpressionKinds, PseudoBigInt, ReadonlyTextRange,
+    ScriptTarget, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TextSpan, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
