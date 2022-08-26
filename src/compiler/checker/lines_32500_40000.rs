@@ -8,15 +8,145 @@ use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
-    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, Diagnostic,
-    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext,
-    InferenceInfo, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface,
+    is_private_identifier, is_spread_assignment, map, maybe_for_each, parse_pseudo_big_int,
+    AccessFlags, Diagnostic, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags,
+    HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
+    IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, PseudoBigInt, ScriptTarget, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn check_object_literal_assignment(
+        &self,
+        node: &Node, /*ObjectLiteralExpression*/
+        source_type: &Type,
+        right_is_this: Option<bool>,
+    ) -> Rc<Type> {
+        let properties = &node.as_object_literal_expression().properties;
+        if self.strict_null_checks && properties.is_empty() {
+            return self.check_non_null_type(source_type, node);
+        }
+        for i in 0..properties.len() {
+            self.check_object_literal_destructuring_property_assignment(
+                node,
+                source_type,
+                i,
+                Some(properties),
+                right_is_this,
+            );
+        }
+        source_type.type_wrapper()
+    }
+
+    pub(super) fn check_object_literal_destructuring_property_assignment(
+        &self,
+        node: &Node, /*ObjectLiteralExpression*/
+        object_literal_type: &Type,
+        property_index: usize,
+        all_properties: Option<&NodeArray /*<ObjectLiteralElementLike>*/>,
+        right_is_this: Option<bool>,
+    ) -> Option<Rc<Type>> {
+        let right_is_this = right_is_this.unwrap_or(false);
+        let properties = &node.as_object_literal_expression().properties;
+        let property = &properties[property_index];
+        match property.kind() {
+            SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
+                let name = property.as_named_declaration().name();
+                let expr_type = self.get_literal_type_from_property_name(&name);
+                if self.is_type_usable_as_property_name(&expr_type) {
+                    let text = self.get_property_name_from_type(&expr_type);
+                    let prop = self.get_property_of_type_(object_literal_type, &text, None);
+                    if let Some(prop) = prop.as_ref() {
+                        self.mark_property_as_referenced(prop, Some(&**property), right_is_this);
+                        self.check_property_accessibility(
+                            property,
+                            false,
+                            true,
+                            object_literal_type,
+                            prop,
+                            None,
+                        );
+                    }
+                }
+                let element_type = self.get_indexed_access_type(
+                    object_literal_type,
+                    &expr_type,
+                    Some(AccessFlags::ExpressionPosition),
+                    Some(&*name),
+                    Option::<&Symbol>::None,
+                    None,
+                );
+                let type_ = self.get_flow_type_of_destructuring(property, &element_type);
+                Some(self.check_destructuring_assignment(
+                    &*if property.kind() == SyntaxKind::ShorthandPropertyAssignment {
+                        property.clone()
+                    } else {
+                        property.as_has_initializer().maybe_initializer().unwrap()
+                    },
+                    &type_,
+                    None,
+                    None,
+                ))
+            }
+            SyntaxKind::SpreadAssignment => {
+                if property_index < properties.len() - 1 {
+                    self.error(
+                        Some(&**property),
+                        &Diagnostics::A_rest_element_must_be_last_in_a_destructuring_pattern,
+                        None,
+                    );
+                    None
+                } else {
+                    if self.language_version < ScriptTarget::ESNext {
+                        self.check_external_emit_helpers(property, ExternalEmitHelpers::Rest);
+                    }
+                    let mut non_rest_names: Vec<Rc<Node /*PropertyName*/>> = vec![];
+                    if let Some(all_properties) = all_properties {
+                        for other_property in all_properties {
+                            if !is_spread_assignment(other_property) {
+                                non_rest_names.push(other_property.as_named_declaration().name());
+                            }
+                        }
+                    }
+                    let type_ = self.get_rest_type(
+                        object_literal_type,
+                        &non_rest_names,
+                        object_literal_type.maybe_symbol(),
+                    );
+                    self.check_grammar_for_disallowed_trailing_comma(
+                        all_properties,
+                        Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
+                    );
+                    Some(self.check_destructuring_assignment(
+                        &property.as_has_expression().expression(),
+                        &type_,
+                        None,
+                        None,
+                    ))
+                }
+            }
+            _ => {
+                self.error(
+                    Some(&**property),
+                    &Diagnostics::Property_assignment_expected,
+                    None,
+                );
+                None
+            }
+        }
+    }
+
+    pub(super) fn check_destructuring_assignment(
+        &self,
+        expr_or_assignment: &Node, /*Expression | ShorthandPropertyAssignment*/
+        source_type: &Type,
+        check_mode: Option<CheckMode>,
+        right_is_this: Option<bool>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn check_template_expression(
         &self,
         node: &Node, /*TemplateExpression*/
