@@ -1,25 +1,30 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{CheckMode, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
 use crate::{
-    __String, are_option_rcs_equal, first_or_undefined, for_each, get_check_flags,
-    get_combined_node_flags, get_containing_function,
+    token_to_string, Number, __String, add_related_info, are_option_rcs_equal,
+    create_diagnostic_for_node, create_file_diagnostic, first_or_undefined, for_each,
+    get_check_flags, get_combined_node_flags, get_containing_function,
     get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
     get_effective_initializer, get_effective_return_type_node, get_function_flags,
-    has_context_sensitive_parameters, is_access_expression, is_binary_expression,
-    is_bindable_object_define_property_call, is_binding_element, is_call_expression,
-    is_function_expression, is_function_or_module_block, is_object_literal_method,
-    is_private_identifier, is_property_access_expression, is_property_assignment, map,
-    maybe_for_each, parse_pseudo_big_int, skip_outer_expressions, skip_parentheses, some,
-    AssignmentKind, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
-    HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
-    IterationTypesResolver, LiteralLikeNodeInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds,
-    PseudoBigInt, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    get_source_file_of_node, get_span_of_token_at_position, has_context_sensitive_parameters,
+    is_access_expression, is_binary_expression, is_bindable_object_define_property_call,
+    is_binding_element, is_call_expression, is_class_static_block_declaration,
+    is_effective_external_module, is_function_expression, is_function_or_module_block,
+    is_in_top_level_context, is_object_literal_method, is_private_identifier,
+    is_property_access_expression, is_property_assignment, map, maybe_for_each,
+    parse_pseudo_big_int, skip_outer_expressions, skip_parentheses, some, AssignmentKind,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
+    FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
+    IterationTypesResolver, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
+    ObjectFlags, OuterExpressionKinds, PseudoBigInt, ReadonlyTextRange, ScriptTarget,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TextSpan,
     Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
@@ -514,21 +519,255 @@ impl TypeChecker {
         self.undefined_widening_type()
     }
 
+    pub(super) fn check_await_expression(&self, node: &Node /*AwaitExpression*/) -> Rc<Type> {
+        if self.produce_diagnostics {
+            let container = get_containing_function_or_class_static_block(node);
+            if matches!(
+                container.as_ref(),
+                Some(container) if is_class_static_block_declaration(container)
+            ) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Await_expression_cannot_be_used_inside_a_class_static_block,
+                    None,
+                );
+            } else if !node.flags().intersects(NodeFlags::AwaitContext) {
+                if is_in_top_level_context(node) {
+                    let source_file = get_source_file_of_node(Some(node)).unwrap();
+                    if !self.has_parse_diagnostics(&source_file) {
+                        let mut span: Option<TextSpan> = None;
+                        if !is_effective_external_module(&source_file, &self.compiler_options) {
+                            if span.is_none() {
+                                span = Some(get_span_of_token_at_position(
+                                    &source_file,
+                                    node.pos().try_into().unwrap(),
+                                ));
+                            }
+                            let diagnostic: Rc<Diagnostic> = Rc::new(
+                                create_file_diagnostic(
+                                    &source_file,
+                                    span.unwrap().start,
+                                    span.unwrap().length,
+                                    &Diagnostics::await_expressions_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module,
+                                    None,
+                                ).into()
+                            );
+                            self.diagnostics().add(diagnostic);
+                        }
+                        if !matches!(
+                            self.module_kind,
+                            ModuleKind::ES2022 | ModuleKind::ESNext | ModuleKind::System
+                        ) && !(self.module_kind == ModuleKind::NodeNext
+                            && get_source_file_of_node(Some(node))
+                                .unwrap()
+                                .as_source_file()
+                                .maybe_implied_node_format()
+                                == Some(ModuleKind::ESNext))
+                            || self.language_version < ScriptTarget::ES2017
+                        {
+                            span = Some(get_span_of_token_at_position(
+                                &source_file,
+                                node.pos().try_into().unwrap(),
+                            ));
+                            let diagnostic: Rc<Diagnostic> = Rc::new(
+                                create_file_diagnostic(
+                                    &source_file,
+                                    span.unwrap().start,
+                                    span.unwrap().length,
+                                    &Diagnostics::Top_level_await_expressions_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_or_nodenext_and_the_target_option_is_set_to_es2017_or_higher,
+                                    None,
+                                ).into()
+                            );
+                            self.diagnostics().add(diagnostic);
+                        }
+                    }
+                } else {
+                    let source_file = get_source_file_of_node(Some(node)).unwrap();
+                    if !self.has_parse_diagnostics(&source_file) {
+                        let span = get_span_of_token_at_position(
+                            &source_file,
+                            node.pos().try_into().unwrap(),
+                        );
+                        let diagnostic: Rc<Diagnostic> = Rc::new(
+                            create_file_diagnostic(
+                                &source_file,
+                                span.start,
+                                span.length,
+                                &Diagnostics::await_expressions_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules,
+                                None,
+                            ).into()
+                        );
+                        if let Some(container) = container.as_ref().filter(|container| {
+                            container.kind() != SyntaxKind::Constructor
+                                && !get_function_flags(Some(&***container))
+                                    .intersects(FunctionFlags::Async)
+                        }) {
+                            let related_info: Rc<DiagnosticRelatedInformation> = Rc::new(
+                                create_diagnostic_for_node(
+                                    container,
+                                    &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
+                                    None,
+                                )
+                                .into(),
+                            );
+                            add_related_info(&diagnostic, vec![related_info]);
+                        }
+                        self.diagnostics().add(diagnostic);
+                    }
+                }
+            }
+
+            if self.is_in_parameter_initializer_before_containing_function(node) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::await_expressions_cannot_be_used_in_a_parameter_initializer,
+                    None,
+                );
+            }
+        }
+
+        let operand_type =
+            self.check_expression(&node.as_await_expression().expression, None, None);
+        let awaited_type = self.check_awaited_type(
+            &operand_type,
+            true,
+            node,
+            &Diagnostics::Type_of_await_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
+            None,
+        );
+        if Rc::ptr_eq(&awaited_type, &operand_type)
+            && !self.is_error_type(&awaited_type)
+            && !operand_type.flags().intersects(TypeFlags::AnyOrUnknown)
+        {
+            self.add_error_or_suggestion(
+                false,
+                Rc::new(
+                    create_diagnostic_for_node(
+                        node,
+                        &Diagnostics::await_has_no_effect_on_the_type_of_this_expression,
+                        None,
+                    )
+                    .into(),
+                ),
+            );
+        }
+        awaited_type
+    }
+
     pub(super) fn check_prefix_unary_expression(
         &self,
         node: &Node, /*PrefixUnaryExpression*/
     ) -> Rc<Type> {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
-        let operand = &node_as_prefix_unary_expression.operand;
-        let operand_type = self.check_expression(operand, None, None);
+        let operand_type =
+            self.check_expression(&node_as_prefix_unary_expression.operand, None, None);
+        if Rc::ptr_eq(&operand_type, &self.silent_never_type()) {
+            return self.silent_never_type();
+        }
+        match node_as_prefix_unary_expression.operand.kind() {
+            SyntaxKind::NumericLiteral => match node_as_prefix_unary_expression.operator {
+                SyntaxKind::MinusToken => {
+                    return self.get_fresh_type_of_literal_type(
+                        &self.get_number_literal_type(Number::new(
+                            node_as_prefix_unary_expression
+                                .operand
+                                .as_numeric_literal()
+                                .text()
+                                .parse::<f64>()
+                                .unwrap()
+                                * -1.0,
+                        )),
+                    );
+                }
+                SyntaxKind::PlusToken => {
+                    return self.get_fresh_type_of_literal_type(
+                        &self.get_number_literal_type(Number::new(
+                            node_as_prefix_unary_expression
+                                .operand
+                                .as_numeric_literal()
+                                .text()
+                                .parse::<f64>()
+                                .unwrap(),
+                        )),
+                    );
+                }
+                _ => (),
+            },
+            SyntaxKind::BigIntLiteral => {
+                if node_as_prefix_unary_expression.operator == SyntaxKind::MinusToken {
+                    return self.get_fresh_type_of_literal_type(
+                        &self.get_big_int_literal_type(PseudoBigInt::new(
+                            true,
+                            parse_pseudo_big_int(
+                                &node_as_prefix_unary_expression
+                                    .operand
+                                    .as_big_int_literal()
+                                    .text(),
+                            ),
+                        )),
+                    );
+                }
+            }
+            _ => (),
+        }
         match node_as_prefix_unary_expression.operator {
+            SyntaxKind::PlusToken | SyntaxKind::MinusToken | SyntaxKind::TildeToken => {
+                self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand);
+                if self.maybe_type_of_kind(&operand_type, TypeFlags::ESSymbolLike) {
+                    self.error(
+                        Some(&*node_as_prefix_unary_expression.operand),
+                        &Diagnostics::The_0_operator_cannot_be_applied_to_type_symbol,
+                        Some(vec![token_to_string(
+                            node_as_prefix_unary_expression.operator,
+                        )
+                        .unwrap()
+                        .to_owned()]),
+                    );
+                }
+                if node_as_prefix_unary_expression.operator == SyntaxKind::PlusToken {
+                    if self.maybe_type_of_kind(&operand_type, TypeFlags::BigIntLike) {
+                        self.error(
+                            Some(&*node_as_prefix_unary_expression.operand),
+                            &Diagnostics::Operator_0_cannot_be_applied_to_type_1,
+                            Some(vec![
+                                token_to_string(node_as_prefix_unary_expression.operator)
+                                    .unwrap()
+                                    .to_owned(),
+                                self.type_to_string_(
+                                    &self.get_base_type_of_literal_type(&operand_type),
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                ),
+                            ]),
+                        );
+                    }
+                    return self.number_type();
+                }
+                self.get_unary_result_type(&operand_type)
+            }
+            SyntaxKind::ExclamationToken => {
+                self.check_truthiness_expression(&node_as_prefix_unary_expression.operand, None);
+                let facts = self.get_type_facts(&operand_type, None)
+                    & (TypeFacts::Truthy | TypeFacts::Falsy);
+                match facts {
+                    TypeFacts::Truthy => self.false_type(),
+                    TypeFacts::Falsy => self.true_type(),
+                    _ => self.boolean_type(),
+                }
+            }
             SyntaxKind::PlusPlusToken => {
-                self.check_arithmetic_operand_type(operand, &operand_type, &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type, None);
-                return self.get_unary_result_type(&operand_type);
+                let ok = self.check_arithmetic_operand_type(&node_as_prefix_unary_expression.operand, &self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand), &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type, None);
+                if ok {
+                    self.check_reference_expression(
+                        &node_as_prefix_unary_expression.operand,
+                        &Diagnostics::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
+                        &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
+                    );
+                }
+                self.get_unary_result_type(&operand_type)
             }
-            _ => {
-                unimplemented!();
-            }
+            _ => self.error_type(),
         }
     }
 

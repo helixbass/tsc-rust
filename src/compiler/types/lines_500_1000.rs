@@ -1322,6 +1322,14 @@ impl Node {
     pub fn as_decorator(&self) -> &Decorator {
         enum_unwrapped!(self, [Node, Decorator])
     }
+
+    pub fn as_await_expression(&self) -> &AwaitExpression {
+        enum_unwrapped!(self, [Node, AwaitExpression])
+    }
+
+    pub fn as_big_int_literal(&self) -> &BigIntLiteral {
+        enum_unwrapped!(self, [Node, BigIntLiteral])
+    }
 }
 
 #[derive(Debug)]
