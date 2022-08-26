@@ -7,25 +7,26 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
 use crate::{
-    every, get_object_flags, token_to_string, Number, __String, add_related_info,
-    are_option_rcs_equal, create_diagnostic_for_node, create_file_diagnostic, first_or_undefined,
-    for_each, get_check_flags, get_combined_node_flags, get_containing_function,
-    get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
-    get_effective_initializer, get_effective_return_type_node, get_function_flags,
-    get_source_file_of_node, get_span_of_token_at_position, has_context_sensitive_parameters,
-    is_access_expression, is_binary_expression, is_bindable_object_define_property_call,
-    is_binding_element, is_call_expression, is_class_static_block_declaration,
-    is_effective_external_module, is_function_expression, is_function_or_module_block,
-    is_in_top_level_context, is_object_literal_method, is_private_identifier,
-    is_property_access_expression, is_property_assignment, map, maybe_for_each,
-    parse_pseudo_big_int, skip_outer_expressions, skip_parentheses, some, AssignmentKind,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
-    FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
-    IterationTypesResolver, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
-    ObjectFlags, OuterExpressionKinds, PseudoBigInt, ReadonlyTextRange, ScriptTarget,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TextSpan,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    every, get_containing_class, get_object_flags, token_to_string, ExternalEmitHelpers, Number,
+    __String, add_related_info, are_option_rcs_equal, create_diagnostic_for_node,
+    create_file_diagnostic, first_or_undefined, for_each, get_check_flags, get_combined_node_flags,
+    get_containing_function, get_containing_function_or_class_static_block,
+    get_declaration_modifier_flags_from_symbol, get_effective_initializer,
+    get_effective_return_type_node, get_function_flags, get_source_file_of_node,
+    get_span_of_token_at_position, has_context_sensitive_parameters, is_access_expression,
+    is_binary_expression, is_bindable_object_define_property_call, is_binding_element,
+    is_call_expression, is_class_static_block_declaration, is_effective_external_module,
+    is_function_expression, is_function_or_module_block, is_in_top_level_context,
+    is_object_literal_method, is_private_identifier, is_property_access_expression,
+    is_property_assignment, map, maybe_for_each, parse_pseudo_big_int, skip_outer_expressions,
+    skip_parentheses, some, AssignmentKind, CheckFlags, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformation, Diagnostics, FunctionFlags, HasTypeParametersInterface,
+    InferenceContext, InferenceInfo, IterationTypes, IterationTypesResolver,
+    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
+    NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds,
+    PseudoBigInt, ReadonlyTextRange, ScriptTarget, SignatureFlags, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -888,6 +889,117 @@ impl TypeChecker {
 
     pub(super) fn is_const_enum_symbol(&self, symbol: &Symbol) -> bool {
         symbol.flags().intersects(SymbolFlags::ConstEnum)
+    }
+
+    pub(super) fn check_instance_of_expression(
+        &self,
+        left: &Node,  /*Expression*/
+        right: &Node, /*Expression*/
+        left_type: &Type,
+        right_type: &Type,
+    ) -> Rc<Type> {
+        if ptr::eq(left_type, &*self.silent_never_type())
+            || ptr::eq(right_type, &*self.silent_never_type())
+        {
+            return self.silent_never_type();
+        }
+        if !self.is_type_any(Some(left_type))
+            && self.all_types_assignable_to_kind(left_type, TypeFlags::Primitive, None)
+        {
+            self.error(
+                Some(left),
+                &Diagnostics::The_left_hand_side_of_an_instanceof_expression_must_be_of_type_any_an_object_type_or_a_type_parameter,
+                None,
+            );
+        }
+        if !(self.is_type_any(Some(right_type))
+            || self.type_has_call_or_construct_signatures(right_type)
+            || self.is_type_subtype_of(right_type, &self.global_function_type()))
+        {
+            self.error(
+                Some(right),
+                &Diagnostics::The_right_hand_side_of_an_instanceof_expression_must_be_of_type_any_or_of_a_type_assignable_to_the_Function_interface_type,
+                None,
+            );
+        }
+        self.boolean_type()
+    }
+
+    pub(super) fn check_in_expression(
+        &self,
+        left: &Node,  /*Expression*/
+        right: &Node, /*Expression*/
+        left_type: &Type,
+        right_type: &Type,
+    ) -> Rc<Type> {
+        if ptr::eq(left_type, &*self.silent_never_type())
+            || ptr::eq(right_type, &*self.silent_never_type())
+        {
+            return self.silent_never_type();
+        }
+        let mut left_type = left_type.type_wrapper();
+        if is_private_identifier(left) {
+            if self.language_version < ScriptTarget::ESNext {
+                self.check_external_emit_helpers(left, ExternalEmitHelpers::ClassPrivateFieldIn);
+            }
+            if (*self.get_node_links(left))
+                .borrow()
+                .resolved_symbol
+                .is_some()
+                && get_containing_class(left).is_some()
+            {
+                let is_unchecked_js =
+                    self.is_unchecked_js_suggestion(Some(left), right_type.maybe_symbol(), true);
+                self.report_nonexistent_property(left, right_type, is_unchecked_js);
+            }
+        } else {
+            left_type = self.check_non_null_type(&left_type, left);
+            if !(self.all_types_assignable_to_kind(
+                &left_type,
+                TypeFlags::StringLike | TypeFlags::NumberLike | TypeFlags::ESSymbolLike,
+                None,
+            ) || self.is_type_assignable_to_kind(
+                &left_type,
+                TypeFlags::Index
+                    | TypeFlags::TemplateLiteral
+                    | TypeFlags::StringMapping
+                    | TypeFlags::TypeParameter,
+                None,
+            )) {
+                self.error(
+                    Some(left),
+                    &Diagnostics::The_left_hand_side_of_an_in_expression_must_be_a_private_identifier_or_of_type_any_string_number_or_symbol,
+                    None
+                );
+            }
+        }
+        let right_type = self.check_non_null_type(right_type, right);
+        let right_type_constraint = self.get_constraint_of_type(&right_type);
+        if !self.all_types_assignable_to_kind(
+            &right_type,
+            TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
+            None,
+        ) || matches!(
+            right_type_constraint.as_ref(),
+            Some(right_type_constraint) if self.is_type_assignable_to_kind(
+                &right_type,
+                TypeFlags::UnionOrIntersection,
+                None,
+            ) &&
+                !self.all_types_assignable_to_kind(
+                    right_type_constraint,
+                    TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
+                    None,
+                ) ||
+                !self.maybe_type_of_kind(right_type_constraint, TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive | TypeFlags::Object)
+        ) {
+            self.error(
+                Some(right),
+                &Diagnostics::The_right_hand_side_of_an_in_expression_must_not_be_a_primitive,
+                None,
+            );
+        }
+        self.boolean_type()
     }
 
     pub(super) fn check_template_expression(
