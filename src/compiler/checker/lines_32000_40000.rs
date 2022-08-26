@@ -771,7 +771,42 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn check_postfix_unary_expression(
+        &self,
+        node: &Node, /*PostfixUnaryExpression*/
+    ) -> Rc<Type> {
+        let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
+        let operand_type =
+            self.check_expression(&node_as_postfix_unary_expression.operand, None, None);
+        if Rc::ptr_eq(&operand_type, &self.silent_never_type()) {
+            return self.silent_never_type();
+        }
+        let ok = self.check_arithmetic_operand_type(
+            &node_as_postfix_unary_expression.operand,
+            &self.check_non_null_type(&operand_type, &node_as_postfix_unary_expression.operand),
+            &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
+            None,
+        );
+        if ok {
+            self.check_reference_expression(
+                &node_as_postfix_unary_expression.operand,
+                &Diagnostics::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
+                &Diagnostics::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
+            );
+        }
+        self.get_unary_result_type(&operand_type)
+    }
+
     pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> Rc<Type> {
+        if self.maybe_type_of_kind(operand_type, TypeFlags::BigIntLike) {
+            return if self.is_type_assignable_to_kind(operand_type, TypeFlags::AnyOrUnknown, None)
+                || self.maybe_type_of_kind(operand_type, TypeFlags::NumberLike)
+            {
+                self.number_or_big_int_type()
+            } else {
+                self.bigint_type()
+            };
+        }
         self.number_type()
     }
 
@@ -779,9 +814,10 @@ impl TypeChecker {
         if type_.flags().intersects(kind) {
             return true;
         }
-        if let Type::UnionOrIntersectionType(type_) = type_ {
-            for t in type_.types() {
-                if self.maybe_type_of_kind(&**t, kind) {
+        if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+            let types = type_.as_union_or_intersection_type_interface().types();
+            for t in types {
+                if self.maybe_type_of_kind(t, kind) {
                     return true;
                 }
             }
