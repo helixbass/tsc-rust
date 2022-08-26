@@ -137,6 +137,66 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn check_array_literal_assignment(
+        &self,
+        node: &Node, /*ArrayLiteralExpression*/
+        source_type: &Type,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        let node_as_array_literal_expression = node.as_array_literal_expression();
+        let elements = &node_as_array_literal_expression.elements;
+        if self.language_version < ScriptTarget::ES2015
+            && self.compiler_options.downlevel_iteration == Some(true)
+        {
+            self.check_external_emit_helpers(node, ExternalEmitHelpers::Read);
+        }
+        let possibly_out_of_bounds_type = self.check_iterated_type_or_element_type(
+            IterationUse::Destructuring | IterationUse::PossiblyOutOfBounds,
+            source_type,
+            &self.undefined_type(),
+            Some(node)
+        ) /*|| errorType*/;
+        let mut in_bounds_type = if self.compiler_options.no_unchecked_indexed_access == Some(true)
+        {
+            None
+        } else {
+            Some(possibly_out_of_bounds_type.clone())
+        };
+        for i in 0..elements.len() {
+            let mut type_ = possibly_out_of_bounds_type.clone();
+            if node_as_array_literal_expression.elements[i].kind() == SyntaxKind::SpreadElement {
+                in_bounds_type = Some(in_bounds_type.unwrap_or_else(|| {
+                    self.check_iterated_type_or_element_type(
+                        IterationUse::Destructuring,
+                        source_type,
+                        &self.undefined_type(),
+                        Some(node),
+                    ) /*|| errorType*/
+                }));
+                type_ = in_bounds_type.clone().unwrap();
+            }
+            self.check_array_literal_destructuring_element_assignment(
+                node,
+                source_type,
+                i,
+                &type_,
+                check_mode,
+            );
+        }
+        source_type.type_wrapper()
+    }
+
+    pub(super) fn check_array_literal_destructuring_element_assignment(
+        &self,
+        node: &Node, /*ArrayLiteralExpression*/
+        source_type: &Type,
+        element_index: usize,
+        element_type: &Type,
+        check_mode: Option<CheckMode>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn check_destructuring_assignment(
         &self,
         expr_or_assignment: &Node, /*Expression | ShorthandPropertyAssignment*/
