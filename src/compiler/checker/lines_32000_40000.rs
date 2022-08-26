@@ -7,9 +7,9 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
 use crate::{
-    token_to_string, Number, __String, add_related_info, are_option_rcs_equal,
-    create_diagnostic_for_node, create_file_diagnostic, first_or_undefined, for_each,
-    get_check_flags, get_combined_node_flags, get_containing_function,
+    every, get_object_flags, token_to_string, Number, __String, add_related_info,
+    are_option_rcs_equal, create_diagnostic_for_node, create_file_diagnostic, first_or_undefined,
+    for_each, get_check_flags, get_combined_node_flags, get_containing_function,
     get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
     get_effective_initializer, get_effective_return_type_node, get_function_flags,
     get_source_file_of_node, get_span_of_token_at_position, has_context_sensitive_parameters,
@@ -831,7 +831,36 @@ impl TypeChecker {
         kind: TypeFlags,
         strict: Option<bool>,
     ) -> bool {
-        unimplemented!()
+        if source.flags().intersects(kind) {
+            return true;
+        }
+        if strict == Some(true)
+            && source.flags().intersects(
+                TypeFlags::AnyOrUnknown | TypeFlags::Void | TypeFlags::Undefined | TypeFlags::Null,
+            )
+        {
+            return false;
+        }
+        kind.intersects(TypeFlags::NumberLike)
+            && self.is_type_assignable_to(source, &self.number_type())
+            || kind.intersects(TypeFlags::BigIntLike)
+                && self.is_type_assignable_to(source, &self.bigint_type())
+            || kind.intersects(TypeFlags::StringLike)
+                && self.is_type_assignable_to(source, &self.string_type())
+            || kind.intersects(TypeFlags::BooleanLike)
+                && self.is_type_assignable_to(source, &self.boolean_type())
+            || kind.intersects(TypeFlags::Void)
+                && self.is_type_assignable_to(source, &self.void_type())
+            || kind.intersects(TypeFlags::Never)
+                && self.is_type_assignable_to(source, &self.never_type())
+            || kind.intersects(TypeFlags::Null)
+                && self.is_type_assignable_to(source, &self.null_type())
+            || kind.intersects(TypeFlags::Undefined)
+                && self.is_type_assignable_to(source, &self.undefined_type())
+            || kind.intersects(TypeFlags::ESSymbol)
+                && self.is_type_assignable_to(source, &self.es_symbol_type())
+            || kind.intersects(TypeFlags::NonPrimitive)
+                && self.is_type_assignable_to(source, &self.non_primitive_type())
     }
 
     pub(super) fn all_types_assignable_to_kind(
@@ -840,11 +869,25 @@ impl TypeChecker {
         kind: TypeFlags,
         strict: Option<bool>,
     ) -> bool {
-        unimplemented!()
+        if source.flags().intersects(TypeFlags::Union) {
+            every(source.as_union_type().types(), |sub_type: &Rc<Type>, _| {
+                self.all_types_assignable_to_kind(sub_type, kind, strict)
+            })
+        } else {
+            self.is_type_assignable_to_kind(source, kind, strict)
+        }
     }
 
     pub(super) fn is_const_enum_object_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        get_object_flags(type_).intersects(ObjectFlags::Anonymous)
+            && matches!(
+                type_.maybe_symbol().as_ref(),
+                Some(type_symbol) if self.is_const_enum_symbol(type_symbol)
+            )
+    }
+
+    pub(super) fn is_const_enum_symbol(&self, symbol: &Symbol) -> bool {
+        symbol.flags().intersects(SymbolFlags::ConstEnum)
     }
 
     pub(super) fn check_template_expression(
