@@ -82,7 +82,7 @@ impl DebugType {
         self.log_message(LogLevel::Info, s)
     }
 
-    fn should_assert(&self, level: AssertionLevel) -> bool {
+    pub fn should_assert(&self, level: AssertionLevel) -> bool {
         self.current_assertion_level() >= level
     }
 

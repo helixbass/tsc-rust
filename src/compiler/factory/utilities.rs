@@ -1,12 +1,14 @@
 use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
     first_or_undefined, get_emit_flags, get_jsdoc_type_tag, is_assignment_expression,
     is_declaration_binding_element, is_identifier, is_in_js_file, is_object_literal_element_like,
     is_parenthesized_expression, is_prologue_directive, is_spread_element, is_string_literal,
-    EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, OuterExpressionKinds, SyntaxKind,
+    AssertionLevel, Debug_, EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds, SyntaxKind,
 };
 
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
@@ -162,4 +164,475 @@ pub(crate) fn get_jsdoc_type_alias_name<TFullName: Borrow<Node>>(
                 .unwrap();
         }
     })
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum BinaryExpressionState {
+    Enter,
+    Left,
+    Operator,
+    Right,
+    Exit,
+    Done,
+}
+
+fn binary_expression_state_call<TMachine: BinaryExpressionStateMachine>(
+    state: BinaryExpressionState,
+    machine: &TMachine,
+    stack_index: usize,
+    state_stack: &mut Vec<BinaryExpressionState>,
+    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    user_state_stack: &mut Vec<Option<TMachine::TState>>,
+    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    outer_state: TMachine::TOuterState,
+) -> usize {
+    match state {
+        BinaryExpressionState::Enter => binary_expression_state_enter(
+            machine,
+            stack_index,
+            state_stack,
+            node_stack,
+            user_state_stack,
+            result_holder,
+            outer_state,
+        ),
+        BinaryExpressionState::Left => binary_expression_state_left(
+            machine,
+            stack_index,
+            state_stack,
+            node_stack,
+            user_state_stack,
+            result_holder,
+            outer_state,
+        ),
+        BinaryExpressionState::Operator => binary_expression_state_operator(
+            machine,
+            stack_index,
+            state_stack,
+            node_stack,
+            user_state_stack,
+            result_holder,
+            outer_state,
+        ),
+        BinaryExpressionState::Right => binary_expression_state_right(
+            machine,
+            stack_index,
+            state_stack,
+            node_stack,
+            user_state_stack,
+            result_holder,
+            outer_state,
+        ),
+        BinaryExpressionState::Exit => binary_expression_state_exit(
+            machine,
+            stack_index,
+            state_stack,
+            node_stack,
+            user_state_stack,
+            result_holder,
+            outer_state,
+        ),
+        BinaryExpressionState::Done => binary_expression_state_done(
+            machine,
+            stack_index,
+            state_stack,
+            node_stack,
+            user_state_stack,
+            result_holder,
+            outer_state,
+        ),
+    }
+}
+
+fn binary_expression_state_enter<TMachine: BinaryExpressionStateMachine>(
+    machine: &TMachine,
+    stack_index: usize,
+    state_stack: &mut Vec<BinaryExpressionState>,
+    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    user_state_stack: &mut Vec<Option<TMachine::TState>>,
+    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    outer_state: TMachine::TOuterState,
+) -> usize {
+    let prev_user_state = if stack_index > 0 {
+        Some(user_state_stack[stack_index - 1].clone().unwrap())
+    } else {
+        None
+    };
+    Debug_.assert_equal(
+        &state_stack[stack_index],
+        &BinaryExpressionState::Enter,
+        None,
+        None,
+    );
+    push_or_replace(
+        user_state_stack,
+        stack_index,
+        Some(machine.on_enter(&node_stack[stack_index], prev_user_state, outer_state)),
+    );
+    push_or_replace(
+        state_stack,
+        stack_index,
+        binary_expression_state_next_state(machine, BinaryExpressionState::Enter),
+    );
+    stack_index
+}
+
+fn binary_expression_state_left<TMachine: BinaryExpressionStateMachine>(
+    machine: &TMachine,
+    stack_index: usize,
+    state_stack: &mut Vec<BinaryExpressionState>,
+    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    user_state_stack: &mut Vec<Option<TMachine::TState>>,
+    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    outer_state: TMachine::TOuterState,
+) -> usize {
+    Debug_.assert_equal(
+        &state_stack[stack_index],
+        &BinaryExpressionState::Left,
+        None,
+        None,
+    );
+    Debug_.assert(machine.implements_on_left(), None);
+    push_or_replace(
+        state_stack,
+        stack_index,
+        binary_expression_state_next_state(machine, BinaryExpressionState::Left),
+    );
+    let next_node = machine.on_left(
+        &node_stack[stack_index].as_binary_expression().left,
+        user_state_stack[stack_index].clone().unwrap(),
+        &node_stack[stack_index],
+    );
+    if let Some(next_node) = next_node.as_ref() {
+        binary_expression_state_check_circularity(stack_index, node_stack, next_node);
+        return binary_expression_state_push_stack(
+            stack_index,
+            state_stack,
+            node_stack,
+            user_state_stack,
+            next_node,
+        );
+    }
+    stack_index
+}
+
+fn binary_expression_state_operator<TMachine: BinaryExpressionStateMachine>(
+    machine: &TMachine,
+    stack_index: usize,
+    state_stack: &mut Vec<BinaryExpressionState>,
+    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    user_state_stack: &mut Vec<Option<TMachine::TState>>,
+    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    outer_state: TMachine::TOuterState,
+) -> usize {
+    Debug_.assert_equal(
+        &state_stack[stack_index],
+        &BinaryExpressionState::Operator,
+        None,
+        None,
+    );
+    Debug_.assert(machine.implements_on_operator(), None);
+    push_or_replace(
+        state_stack,
+        stack_index,
+        binary_expression_state_next_state(machine, BinaryExpressionState::Operator),
+    );
+    machine.on_operator(
+        &node_stack[stack_index]
+            .as_binary_expression()
+            .operator_token,
+        user_state_stack[stack_index].clone().unwrap(),
+        &node_stack[stack_index],
+    );
+    stack_index
+}
+
+fn binary_expression_state_right<TMachine: BinaryExpressionStateMachine>(
+    machine: &TMachine,
+    stack_index: usize,
+    state_stack: &mut Vec<BinaryExpressionState>,
+    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    user_state_stack: &mut Vec<Option<TMachine::TState>>,
+    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    outer_state: TMachine::TOuterState,
+) -> usize {
+    Debug_.assert_equal(
+        &state_stack[stack_index],
+        &BinaryExpressionState::Right,
+        None,
+        None,
+    );
+    Debug_.assert(machine.implements_on_right(), None);
+    push_or_replace(
+        state_stack,
+        stack_index,
+        binary_expression_state_next_state(machine, BinaryExpressionState::Right),
+    );
+    let next_node = machine.on_right(
+        &node_stack[stack_index].as_binary_expression().right,
+        user_state_stack[stack_index].clone().unwrap(),
+        &node_stack[stack_index],
+    );
+    if let Some(next_node) = next_node.as_ref() {
+        binary_expression_state_check_circularity(stack_index, node_stack, next_node);
+        return binary_expression_state_push_stack(
+            stack_index,
+            state_stack,
+            node_stack,
+            user_state_stack,
+            next_node,
+        );
+    }
+    stack_index
+}
+
+fn binary_expression_state_exit<TMachine: BinaryExpressionStateMachine>(
+    machine: &TMachine,
+    mut stack_index: usize,
+    state_stack: &mut Vec<BinaryExpressionState>,
+    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    user_state_stack: &mut Vec<Option<TMachine::TState>>,
+    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    _outer_state: TMachine::TOuterState,
+) -> usize {
+    Debug_.assert_equal(
+        &state_stack[stack_index],
+        &BinaryExpressionState::Exit,
+        None,
+        None,
+    );
+    push_or_replace(
+        state_stack,
+        stack_index,
+        binary_expression_state_next_state(machine, BinaryExpressionState::Exit),
+    );
+    let result = machine.on_exit(
+        &node_stack[stack_index],
+        user_state_stack[stack_index].clone().unwrap(),
+    );
+    if stack_index > 0 {
+        stack_index -= 1;
+        if machine.implements_fold_state() {
+            let side = if state_stack[stack_index] == BinaryExpressionState::Exit {
+                LeftOrRight::Right
+            } else {
+                LeftOrRight::Left
+            };
+            push_or_replace(
+                user_state_stack,
+                stack_index,
+                Some(machine.fold_state(
+                    user_state_stack[stack_index].clone().unwrap(),
+                    result,
+                    side,
+                )),
+            );
+        }
+    } else {
+        *result_holder.borrow_mut() = Some(result);
+    }
+    stack_index
+}
+
+fn binary_expression_state_done<TMachine: BinaryExpressionStateMachine>(
+    machine: &TMachine,
+    stack_index: usize,
+    state_stack: &mut Vec<BinaryExpressionState>,
+    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    user_state_stack: &mut Vec<Option<TMachine::TState>>,
+    result_holder: Rc<RefCell<Option<TMachine::TResult>>>,
+    outer_state: TMachine::TOuterState,
+) -> usize {
+    Debug_.assert_equal(
+        &state_stack[stack_index],
+        &BinaryExpressionState::Done,
+        None,
+        None,
+    );
+    stack_index
+}
+
+fn binary_expression_state_next_state<TMachine: BinaryExpressionStateMachine>(
+    machine: &TMachine,
+    current_state: BinaryExpressionState,
+) -> BinaryExpressionState {
+    match current_state {
+        BinaryExpressionState::Enter => {
+            if machine.implements_on_left() {
+                BinaryExpressionState::Left
+            } else if machine.implements_on_operator() {
+                BinaryExpressionState::Operator
+            } else if machine.implements_on_right() {
+                BinaryExpressionState::Right
+            } else {
+                BinaryExpressionState::Exit
+            }
+        }
+        BinaryExpressionState::Left => {
+            if machine.implements_on_operator() {
+                BinaryExpressionState::Operator
+            } else if machine.implements_on_right() {
+                BinaryExpressionState::Right
+            } else {
+                BinaryExpressionState::Exit
+            }
+        }
+        BinaryExpressionState::Operator => {
+            if machine.implements_on_right() {
+                BinaryExpressionState::Right
+            } else {
+                BinaryExpressionState::Exit
+            }
+        }
+        BinaryExpressionState::Right => BinaryExpressionState::Exit,
+        BinaryExpressionState::Exit => BinaryExpressionState::Done,
+        BinaryExpressionState::Done => BinaryExpressionState::Done,
+    }
+}
+
+fn binary_expression_state_push_stack<TState>(
+    mut stack_index: usize,
+    state_stack: &mut Vec<BinaryExpressionState>,
+    node_stack: &mut Vec<Rc<Node /*BinaryExpression*/>>,
+    user_state_stack: &mut Vec<Option<TState>>,
+    node: &Node, /*BinaryExpression*/
+) -> usize {
+    stack_index += 1;
+    push_or_replace(state_stack, stack_index, BinaryExpressionState::Enter);
+    push_or_replace(node_stack, stack_index, node.node_wrapper());
+    push_or_replace(user_state_stack, stack_index, None);
+    stack_index
+}
+
+fn push_or_replace<TValue>(vec: &mut Vec<TValue>, index: usize, value: TValue) {
+    if index >= vec.len() {
+        vec.push(value);
+    } else {
+        vec[index] = value;
+    }
+}
+
+fn binary_expression_state_check_circularity(
+    mut stack_index: usize,
+    node_stack: &[Rc<Node /*BinaryExpression*/>],
+    node: &Node, /*BinaryExpression*/
+) {
+    if Debug_.should_assert(AssertionLevel::Aggressive) {
+        while stack_index >= 0 {
+            Debug_.assert(
+                !ptr::eq(&*node_stack[stack_index], node),
+                Some("Circular traversal detected."),
+            );
+            stack_index -= 1;
+        }
+    }
+}
+
+pub trait BinaryExpressionStateMachine {
+    type TResult: Clone;
+    type TOuterState: Clone;
+    type TState: Clone;
+
+    fn on_enter(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        prev: Option<Self::TState>,
+        outer_state: Self::TOuterState,
+    ) -> Self::TState;
+
+    fn on_left(
+        &self,
+        left: &Node, /*Expression*/
+        user_state: Self::TState,
+        node: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        panic!("Shouldn't call default on_left()")
+    }
+
+    fn on_operator(
+        &self,
+        operator_token: &Node, /*BinaryOperatorToken*/
+        user_state: Self::TState,
+        node: &Node, /*BinaryExpression*/
+    ) {
+        panic!("Shouldn't call default on_operator()")
+    }
+
+    fn on_right(
+        &self,
+        right: &Node, /*Expression*/
+        user_state: Self::TState,
+        node: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        panic!("Shouldn't call default on_left()")
+    }
+
+    fn on_exit(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        user_state: Self::TState,
+    ) -> Self::TResult;
+
+    fn fold_state(
+        &self,
+        user_state: Self::TState,
+        result: Self::TResult,
+        side: LeftOrRight,
+    ) -> Self::TState {
+        panic!("Shouldn't call default fold_state()")
+    }
+
+    fn implements_on_left(&self) -> bool;
+    fn implements_on_operator(&self) -> bool;
+    fn implements_on_right(&self) -> bool;
+    fn implements_fold_state(&self) -> bool;
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum LeftOrRight {
+    Left,
+    Right,
+}
+
+pub fn create_binary_expression_trampoline<TMachine: BinaryExpressionStateMachine>(
+    machine: TMachine,
+) -> BinaryExpressionTrampoline<TMachine> {
+    BinaryExpressionTrampoline::new(machine)
+}
+
+pub struct BinaryExpressionTrampoline<TMachine: BinaryExpressionStateMachine> {
+    machine: TMachine,
+}
+
+impl<TMachine: BinaryExpressionStateMachine> BinaryExpressionTrampoline<TMachine> {
+    pub fn new(machine: TMachine) -> Self {
+        Self { machine }
+    }
+
+    pub fn call(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        outer_state: TMachine::TOuterState,
+    ) -> TMachine::TResult {
+        let result_holder: Rc<RefCell<Option<TMachine::TResult>>> = Rc::new(RefCell::new(None));
+        let mut state_stack: Vec<BinaryExpressionState> = vec![BinaryExpressionState::Enter];
+        let mut node_stack: Vec<Rc<Node /*BinaryExpression*/>> = vec![node.node_wrapper()];
+        let mut user_state_stack: Vec<Option<TMachine::TState>> = vec![None];
+        let mut stack_index = 0;
+        while state_stack[stack_index] != BinaryExpressionState::Done {
+            stack_index = binary_expression_state_call(
+                state_stack[stack_index],
+                &self.machine,
+                stack_index,
+                &mut state_stack,
+                &mut node_stack,
+                &mut user_state_stack,
+                result_holder.clone(),
+                outer_state.clone(),
+            );
+        }
+        Debug_.assert_equal(&stack_index, &0, None, None);
+        let ret = (*result_holder).borrow().clone().unwrap();
+        ret
+    }
 }
