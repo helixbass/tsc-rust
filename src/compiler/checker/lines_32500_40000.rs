@@ -7,13 +7,15 @@ use std::rc::Rc;
 use super::{CheckMode, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
-    is_private_identifier, is_spread_assignment, map, maybe_for_each, parse_pseudo_big_int,
-    AccessFlags, Diagnostic, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags,
-    HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
-    IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, Number, PseudoBigInt, ScriptTarget, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    get_effective_initializer, get_function_flags, is_assignment_operator, is_binding_element,
+    is_function_or_module_block, is_private_identifier,
+    is_private_identifier_property_access_expression, is_spread_assignment, map, maybe_for_each,
+    parse_pseudo_big_int, skip_parentheses, AccessFlags, Diagnostic, DiagnosticMessage,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, InferenceContext,
+    InferenceInfo, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, Number, PseudoBigInt,
+    ScriptTarget, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -340,7 +342,92 @@ impl TypeChecker {
         source_type: &Type,
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let target_type = self.check_expression(target, check_mode, None);
+        let error = if target.parent().kind() == SyntaxKind::SpreadAssignment {
+            &*Diagnostics::The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access
+        } else {
+            &*Diagnostics::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access
+        };
+        let optional_error = if target.parent().kind() == SyntaxKind::SpreadAssignment {
+            &*Diagnostics::The_target_of_an_object_rest_assignment_may_not_be_an_optional_property_access
+        } else {
+            &*Diagnostics::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access
+        };
+        if self.check_reference_expression(target, error, optional_error) {
+            self.check_type_assignable_to_and_optionally_elaborate(
+                source_type,
+                &target_type,
+                Some(target),
+                Some(target),
+                None,
+                None,
+            );
+        }
+        if is_private_identifier_property_access_expression(target) {
+            self.check_external_emit_helpers(
+                &target.parent(),
+                ExternalEmitHelpers::ClassPrivateFieldSet,
+            );
+        }
+        source_type.type_wrapper()
+    }
+
+    pub(super) fn is_side_effect_free(&self, node: &Node) -> bool {
+        let node = skip_parentheses(node, None);
+        match node.kind() {
+            SyntaxKind::Identifier
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::RegularExpressionLiteral
+            | SyntaxKind::TaggedTemplateExpression
+            | SyntaxKind::TemplateExpression
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::UndefinedKeyword
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::TypeOfExpression
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::JsxSelfClosingElement
+            | SyntaxKind::JsxElement => true,
+
+            SyntaxKind::ConditionalExpression => {
+                let node_as_conditional_expression = node.as_conditional_expression();
+                self.is_side_effect_free(&node_as_conditional_expression.when_true)
+                    && self.is_side_effect_free(&node_as_conditional_expression.when_false)
+            }
+
+            SyntaxKind::BinaryExpression => {
+                let node_as_binary_expression = node.as_binary_expression();
+                if is_assignment_operator(node_as_binary_expression.operator_token.kind()) {
+                    return false;
+                }
+                self.is_side_effect_free(&node_as_binary_expression.left)
+                    && self.is_side_effect_free(&node_as_binary_expression.right)
+            }
+
+            SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression => {
+                matches!(
+                    node.as_unary_expression().operator(),
+                    SyntaxKind::ExclamationToken
+                        | SyntaxKind::PlusToken
+                        | SyntaxKind::MinusToken
+                        | SyntaxKind::TildeToken
+                )
+            }
+
+            _ => false,
+        }
+    }
+
+    pub(super) fn is_type_equality_comparable_to(&self, source: &Type, target: &Type) -> bool {
+        target.flags().intersects(TypeFlags::Nullable) || self.is_type_comparable_to(source, target)
     }
 
     pub(super) fn create_check_binary_expression(&self) -> CheckBinaryExpression {
