@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{CheckMode, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
@@ -12,8 +12,8 @@ use crate::{
     AccessFlags, Diagnostic, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags,
     HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
     IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, PseudoBigInt, ScriptTarget, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    NodeFlags, NodeInterface, Number, PseudoBigInt, ScriptTarget, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -194,7 +194,91 @@ impl TypeChecker {
         element_type: &Type,
         check_mode: Option<CheckMode>,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let node_as_array_literal_expression = node.as_array_literal_expression();
+        let elements = &node_as_array_literal_expression.elements;
+        let element = &elements[element_index];
+        if element.kind() != SyntaxKind::OmittedExpression {
+            if element.kind() != SyntaxKind::SpreadElement {
+                let index_type = self.get_number_literal_type(Number::new(element_index as f64));
+                if self.is_array_like_type(source_type) {
+                    let access_flags = AccessFlags::ExpressionPosition
+                        | if self.has_default_value(element) {
+                            AccessFlags::NoTupleBoundsCheck
+                        } else {
+                            AccessFlags::None
+                        };
+                    let element_type = self
+                        .get_indexed_access_type_or_undefined(
+                            source_type,
+                            &index_type,
+                            Some(access_flags),
+                            Some(self.create_synthetic_expression(
+                                element,
+                                &index_type,
+                                None,
+                                Option::<&Node>::None,
+                            )),
+                            Option::<&Symbol>::None,
+                            None,
+                        )
+                        .unwrap_or_else(|| self.error_type());
+                    let assigned_type = if self.has_default_value(element) {
+                        self.get_type_with_facts(&element_type, TypeFacts::NEUndefined)
+                    } else {
+                        element_type.clone()
+                    };
+                    let type_ = self.get_flow_type_of_destructuring(element, &assigned_type);
+                    return Some(
+                        self.check_destructuring_assignment(element, &type_, check_mode, None),
+                    );
+                }
+                return Some(self.check_destructuring_assignment(
+                    element,
+                    element_type,
+                    check_mode,
+                    None,
+                ));
+            }
+            if element_index < elements.len() - 1 {
+                self.error(
+                    Some(&**element),
+                    &Diagnostics::A_rest_element_must_be_last_in_a_destructuring_pattern,
+                    None,
+                );
+            } else {
+                let rest_expression = &element.as_spread_element().expression;
+                if rest_expression.kind() == SyntaxKind::BinaryExpression
+                    && rest_expression.as_binary_expression().operator_token.kind()
+                        == SyntaxKind::EqualsToken
+                {
+                    self.error(
+                        Some(&*rest_expression.as_binary_expression().operator_token),
+                        &Diagnostics::A_rest_element_cannot_have_an_initializer,
+                        None,
+                    );
+                } else {
+                    self.check_grammar_for_disallowed_trailing_comma(Some(&node_as_array_literal_expression.elements), Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma));
+                    let type_ =
+                        if self.every_type(source_type, |type_: &Type| self.is_tuple_type(type_)) {
+                            self.map_type(
+                                source_type,
+                                &mut |t: &Type| Some(self.slice_tuple_type(t, element_index, None)),
+                                None,
+                            )
+                            .unwrap()
+                        } else {
+                            self.create_array_type(element_type, None)
+                        };
+                    return Some(self.check_destructuring_assignment(
+                        rest_expression,
+                        &type_,
+                        check_mode,
+                        None,
+                    ));
+                }
+            }
+        }
+        None
     }
 
     pub(super) fn check_destructuring_assignment(
@@ -203,6 +287,74 @@ impl TypeChecker {
         source_type: &Type,
         check_mode: Option<CheckMode>,
         right_is_this: Option<bool>,
+    ) -> Rc<Type> {
+        let mut target: Rc<Node>;
+        let mut source_type = source_type.type_wrapper();
+        if expr_or_assignment.kind() == SyntaxKind::ShorthandPropertyAssignment {
+            let prop = expr_or_assignment.as_shorthand_property_assignment();
+            if let Some(prop_object_assignment_initializer) =
+                prop.object_assignment_initializer.as_ref()
+            {
+                if self.strict_null_checks
+                    && !self
+                        .get_falsy_flags(&self.check_expression(
+                            prop_object_assignment_initializer,
+                            None,
+                            None,
+                        ))
+                        .intersects(TypeFlags::Undefined)
+                {
+                    source_type = self.get_type_with_facts(&source_type, TypeFacts::NEUndefined);
+                }
+                self.check_binary_like_expression(
+                    &prop.name(),
+                    prop.equals_token.as_ref().unwrap(),
+                    prop_object_assignment_initializer,
+                    check_mode,
+                    Option::<&Node>::None,
+                );
+            }
+            target = expr_or_assignment.as_shorthand_property_assignment().name();
+        } else {
+            target = expr_or_assignment.node_wrapper();
+        }
+
+        if target.kind() == SyntaxKind::BinaryExpression
+            && target.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
+        {
+            self.check_binary_expression().call(&target, check_mode);
+            target = target.as_binary_expression().left.clone();
+        }
+        if target.kind() == SyntaxKind::ObjectLiteralExpression {
+            return self.check_object_literal_assignment(&target, &source_type, right_is_this);
+        }
+        if target.kind() == SyntaxKind::ArrayLiteralExpression {
+            return self.check_array_literal_assignment(&target, &source_type, check_mode);
+        }
+        self.check_reference_assignment(&target, &source_type, check_mode)
+    }
+
+    pub(super) fn check_reference_assignment(
+        &self,
+        target: &Node, /*Expression*/
+        source_type: &Type,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_check_binary_expression(&self) -> CheckBinaryExpression {
+        // unimplemented!()
+        CheckBinaryExpression
+    }
+
+    pub(super) fn check_binary_like_expression<TErrorNode: Borrow<Node>>(
+        &self,
+        left: &Node, /*Expression*/
+        operator_token: &Node,
+        right: &Node, /*Expression*/
+        check_mode: Option<CheckMode>,
+        error_node: Option<TErrorNode>,
     ) -> Rc<Type> {
         unimplemented!()
     }
@@ -989,5 +1141,18 @@ impl TypeChecker {
         } else {
             self.check_source_element(Some(&*node_as_type_alias_declaration.type_));
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct CheckBinaryExpression;
+
+impl CheckBinaryExpression {
+    pub fn call(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 }

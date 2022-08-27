@@ -16,8 +16,8 @@ use crate::{
     add_range, contains_parse_error, get_first_identifier, is_function_like,
     is_property_access_expression, is_property_access_or_qualified_name_or_import_type_node,
     is_source_file, parse_pseudo_big_int, skip_type_checking, unescape_leading_underscores,
-    BaseInterfaceType, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
-    DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
+    BaseInterfaceType, CancellationTokenDebuggable, CheckBinaryExpression, CheckFlags,
+    ContextFlags, Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, EmitTextWriter,
     Extension, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo,
     IndexKind, InternalSymbolName, IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray,
@@ -355,7 +355,7 @@ pub(crate) enum TypeSystemPropertyName {
 }
 
 bitflags! {
-    pub(super) struct CheckMode: u32 {
+    pub struct CheckMode: u32 {
         const Normal = 0;
         const Contextual = 1 << 0;
         const Inferential = 1 << 1;
@@ -568,7 +568,7 @@ pub fn create_type_checker(
         },
         exact_optional_property_types: compiler_options.exact_optional_property_types,
 
-        // const checkBinaryExpression = createCheckBinaryExpression();
+        check_binary_expression: None,
         emit_resolver: None,
         node_builder: create_node_builder(),
 
@@ -828,6 +828,7 @@ pub fn create_type_checker(
             (".json", ".json"),
         ],
     };
+    type_checker.check_binary_expression = Some(type_checker.create_check_binary_expression());
     type_checker.emit_resolver = Some(type_checker.create_resolver());
     type_checker.undefined_symbol = Some(
         type_checker
@@ -1561,6 +1562,10 @@ impl TypeChecker {
 
     pub(super) fn emit_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
         self.emit_resolver.clone().unwrap()
+    }
+
+    pub(super) fn check_binary_expression(&self) -> &CheckBinaryExpression {
+        self.check_binary_expression.as_ref().unwrap()
     }
 
     pub(super) fn globals(&self) -> Ref<SymbolTable> {

@@ -10,7 +10,9 @@ pub use compiler::builder::ProgramBuildInfo;
 pub use compiler::builder_public::{
     BuilderProgram, EmitAndSemanticDiagnosticsBuilderProgram, SemanticDiagnosticsBuilderProgram,
 };
-pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
+pub use compiler::checker::{
+    create_type_checker, get_node_id, get_symbol_id, CheckBinaryExpression, NodeBuilder,
+};
 use compiler::checker::{
     DuplicateInfoForFiles, DuplicateInfoForSymbol, IterationTypesResolver, TypeSystemEntity,
     TypeSystemPropertyName,

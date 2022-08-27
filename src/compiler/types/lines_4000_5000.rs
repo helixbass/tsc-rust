@@ -15,10 +15,10 @@ use super::{
     TypeFlags, TypeMapper, __String,
 };
 use crate::{
-    Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo, IterationTypes,
-    IterationTypesResolver, MappedSymbol, NodeBuilder, Number, PatternAmbientModule,
-    ReverseMappedSymbol, StringOrNumber, TypeId, TypeSystemEntity, TypeSystemPropertyName,
-    VarianceFlags,
+    CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
+    IterationTypes, IterationTypesResolver, MappedSymbol, NodeBuilder, Number,
+    PatternAmbientModule, ReverseMappedSymbol, StringOrNumber, TypeId, TypeSystemEntity,
+    TypeSystemPropertyName, VarianceFlags,
 };
 use local_macros::{enum_unwrapped, symbol_type};
 
@@ -164,6 +164,7 @@ pub struct TypeChecker {
     pub(crate) keyof_strings_only: bool,
     pub(crate) fresh_object_literal_flag: ObjectFlags,
     pub(crate) exact_optional_property_types: Option<bool>,
+    pub(crate) check_binary_expression: Option<CheckBinaryExpression>,
     pub(crate) emit_resolver: Option<Rc<dyn EmitResolverDebuggable>>,
     pub(crate) node_builder: NodeBuilder,
     pub(crate) globals: Rc<RefCell<SymbolTable>>,
