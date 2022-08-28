@@ -9,15 +9,16 @@ use crate::{
     are_option_rcs_equal, expression_result_is_unused, for_each, get_assigned_expando_initializer,
     get_combined_node_flags, get_containing_function,
     get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
-    is_assignment_operator, is_binding_element, is_function_or_module_block, is_identifier,
-    is_jsdoc_typedef_tag, is_object_literal_expression, is_private_identifier,
-    is_property_access_expression, map, maybe_for_each, parse_pseudo_big_int, token_to_string,
-    unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
-    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, InferenceContext,
-    InferenceInfo, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
-    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface,
+    is_assignment_operator, is_binding_element, is_element_access_expression,
+    is_function_or_module_block, is_identifier, is_jsdoc_typedef_tag, is_object_literal_expression,
+    is_parenthesized_expression, is_private_identifier, is_property_access_expression, map,
+    maybe_for_each, parse_pseudo_big_int, token_to_string, unescape_leading_underscores,
+    AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
+    IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, PseudoBigInt, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -473,6 +474,42 @@ impl TypeChecker {
             }
         }
         type_.unwrap()
+    }
+
+    pub(super) fn check_conditional_expression(
+        &self,
+        node: &Node, /*ConditionalExpression*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        let node_as_conditional_expression = node.as_conditional_expression();
+        let type_ =
+            self.check_truthiness_expression(&node_as_conditional_expression.condition, None);
+        self.check_testing_known_truthy_callable_or_awaitable_type(
+            &node_as_conditional_expression.condition,
+            &type_,
+            Some(&*node_as_conditional_expression.when_true),
+        );
+        let type1 =
+            self.check_expression(&node_as_conditional_expression.when_true, check_mode, None);
+        let type2 =
+            self.check_expression(&node_as_conditional_expression.when_false, check_mode, None);
+        self.get_union_type(
+            vec![type1, type2],
+            Some(UnionReduction::Subtype),
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        )
+    }
+
+    pub(super) fn is_template_literal_context(&self, node: &Node) -> bool {
+        let parent = node.parent();
+        is_parenthesized_expression(node) && self.is_template_literal_context(&parent)
+            || is_element_access_expression(&parent)
+                && ptr::eq(
+                    &*parent.as_element_access_expression().argument_expression,
+                    node,
+                )
     }
 
     pub(super) fn check_template_expression(
