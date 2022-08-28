@@ -6,9 +6,10 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, is_assignment_operator, is_binding_element,
-    is_function_or_module_block, is_identifier, is_jsdoc_typedef_tag, is_private_identifier,
+    are_option_rcs_equal, for_each, get_assigned_expando_initializer, get_combined_node_flags,
+    get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
+    is_assignment_operator, is_binding_element, is_function_or_module_block, is_identifier,
+    is_jsdoc_typedef_tag, is_object_literal_expression, is_private_identifier,
     is_property_access_expression, map, maybe_for_each, parse_pseudo_big_int, token_to_string,
     unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
     Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo,
@@ -162,21 +163,135 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_assignment_declaration(&self, kind: AssignmentDeclarationKind) -> bool {
-        unimplemented!()
-    }
-
-    pub(super) fn report_operator_error_unless<TTypesAreCompatible: FnMut(&Type, &Type) -> bool>(
+    pub(super) fn is_assignment_declaration(
         &self,
-        types_are_compatible: TTypesAreCompatible,
+        left: &Node,
+        right: &Node,
+        kind: AssignmentDeclarationKind,
     ) -> bool {
+        match kind {
+            AssignmentDeclarationKind::ModuleExports => true,
+            AssignmentDeclarationKind::ExportsProperty
+            | AssignmentDeclarationKind::Property
+            | AssignmentDeclarationKind::Prototype
+            | AssignmentDeclarationKind::PrototypeProperty
+            | AssignmentDeclarationKind::ThisProperty => {
+                let symbol = self.get_symbol_of_node(left);
+                let init = get_assigned_expando_initializer(Some(right));
+                matches!(
+                    init.as_ref(),
+                    Some(init) if is_object_literal_expression(init)
+                ) && matches!(
+                    symbol.as_ref().and_then(|symbol| symbol.maybe_exports().clone()),
+                    Some(symbol_exports) if !(*symbol_exports).borrow().is_empty()
+                )
+            }
+            _ => false,
+        }
+    }
+
+    pub(super) fn report_operator_error_unless<
+        TErrorNode: Borrow<Node>,
+        TTypesAreCompatible: FnMut(&Type, &Type) -> bool,
+    >(
+        &self,
+        left_type: &Type,
+        right_type: &Type,
+        operator_token: &Node,
+        error_node: Option<TErrorNode>,
+        mut types_are_compatible: TTypesAreCompatible,
+    ) -> bool {
+        if !types_are_compatible(left_type, right_type) {
+            self.report_operator_error(
+                error_node,
+                operator_token,
+                left_type,
+                right_type,
+                Some(types_are_compatible),
+            );
+            return true;
+        }
+        false
+    }
+
+    pub(super) fn report_operator_error<
+        TErrorNode: Borrow<Node>,
+        TIsRelated: FnMut(&Type, &Type) -> bool,
+    >(
+        &self,
+        error_node: Option<TErrorNode>,
+        operator_token: &Node,
+        left_type: &Type,
+        right_type: &Type,
+        mut is_related: Option<TIsRelated>,
+    ) {
+        let mut would_work_with_await = false;
+        let err_node = error_node.map_or_else(
+            || operator_token.node_wrapper(),
+            |error_node| error_node.borrow().node_wrapper(),
+        );
+        if let Some(is_related) = is_related.as_mut() {
+            let awaited_left_type =
+                self.get_awaited_type_no_alias(left_type, Option::<&Node>::None, None, None);
+            let awaited_right_type =
+                self.get_awaited_type_no_alias(right_type, Option::<&Node>::None, None, None);
+            would_work_with_await = !(are_option_rcs_equal(
+                awaited_left_type.as_ref(),
+                Some(&left_type.type_wrapper()),
+            ) && are_option_rcs_equal(
+                awaited_right_type.as_ref(),
+                Some(&right_type.type_wrapper()),
+            )) && awaited_left_type.is_some()
+                && awaited_right_type.is_some()
+                && is_related(
+                    awaited_left_type.as_ref().unwrap(),
+                    awaited_right_type.as_ref().unwrap(),
+                );
+        }
+
+        let mut effective_left = left_type.type_wrapper();
+        let mut effective_right = right_type.type_wrapper();
+        if !would_work_with_await {
+            if let Some(is_related) = is_related.as_mut() {
+                (effective_left, effective_right) =
+                    self.get_base_types_if_unrelated(left_type, right_type, is_related);
+            }
+        }
+        let (left_str, right_str) =
+            self.get_type_names_for_error_display(&effective_left, &effective_right);
+        if self
+            .try_give_better_primary_error(&err_node, would_work_with_await, &left_str, &right_str)
+            .is_none()
+        {
+            self.error_and_maybe_suggest_await(
+                &err_node,
+                would_work_with_await,
+                &Diagnostics::Operator_0_cannot_be_applied_to_types_1_and_2,
+                Some(vec![
+                    token_to_string(operator_token.kind()).unwrap().to_owned(),
+                    left_str,
+                    right_str,
+                ]),
+            );
+        }
+    }
+
+    pub(super) fn try_give_better_primary_error(
+        &self,
+        err_node: &Node,
+        maybe_missing_await: bool,
+        left_str: &str,
+        right_str: &str,
+    ) -> Option<Rc<Diagnostic>> {
         unimplemented!()
     }
 
-    pub(super) fn report_operator_error<TIsRelated: FnMut(&Type, &Type) -> bool>(
+    pub(super) fn get_base_types_if_unrelated<TIsRelated: FnMut(&Type, &Type) -> bool>(
         &self,
-        is_related: Option<TIsRelated>,
-    ) {
+        left_type: &Type,
+        right_type: &Type,
+        is_related: &mut TIsRelated,
+    ) -> (Rc<Type>, Rc<Type>) {
         unimplemented!()
     }
 

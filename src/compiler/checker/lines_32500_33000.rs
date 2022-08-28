@@ -622,6 +622,10 @@ impl TypeChecker {
                             SyntaxKind::GreaterThanGreaterThanGreaterThanToken
                             | SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken => {
                                 self.report_operator_error(
+                                    error_node.as_deref(),
+                                    operator_token,
+                                    &left_type,
+                                    &right_type,
                                     Option::<fn(&Type, &Type) -> bool>::None,
                                 );
                             }
@@ -639,9 +643,15 @@ impl TypeChecker {
                         }
                         result_type = self.bigint_type();
                     } else {
-                        self.report_operator_error(Some(|type1: &Type, type2: &Type| {
-                            self.both_are_big_int_like(type1, type2)
-                        }));
+                        self.report_operator_error(
+                            error_node.as_deref(),
+                            operator_token,
+                            &left_type,
+                            &right_type,
+                            Some(|type1: &Type, type2: &Type| {
+                                self.both_are_big_int_like(type1, type2)
+                            }),
+                        );
                         result_type = self.error_type();
                     }
                     if left_ok && right_ok {
@@ -730,10 +740,16 @@ impl TypeChecker {
                         | TypeFlags::BigIntLike
                         | TypeFlags::StringLike
                         | TypeFlags::AnyOrUnknown;
-                    self.report_operator_error(Some(|left: &Type, right: &Type| {
-                        self.is_type_assignable_to_kind(left, close_enough_kind, None)
-                            && self.is_type_assignable_to_kind(right, close_enough_kind, None)
-                    }));
+                    self.report_operator_error(
+                        error_node.as_deref(),
+                        operator_token,
+                        &left_type,
+                        &right_type,
+                        Some(|left: &Type, right: &Type| {
+                            self.is_type_assignable_to_kind(left, close_enough_kind, None)
+                                && self.is_type_assignable_to_kind(right, close_enough_kind, None)
+                        }),
+                    );
                     return self.any_type();
                 }
                 let result_type = result_type.unwrap();
@@ -755,12 +771,21 @@ impl TypeChecker {
                     let right_type = self.get_base_type_of_literal_type(
                         &self.check_non_null_type(right_type, right),
                     );
-                    self.report_operator_error_unless(|left: &Type, right: &Type| {
-                        self.is_type_comparable_to(left, right)
-                            || self.is_type_comparable_to(right, left)
-                            || self.is_type_assignable_to(left, &self.number_or_big_int_type())
-                                && self.is_type_assignable_to(right, &self.number_or_big_int_type())
-                    });
+                    self.report_operator_error_unless(
+                        &left_type,
+                        &right_type,
+                        operator_token,
+                        error_node.as_deref(),
+                        |left: &Type, right: &Type| {
+                            self.is_type_comparable_to(left, right)
+                                || self.is_type_comparable_to(right, left)
+                                || self.is_type_assignable_to(left, &self.number_or_big_int_type())
+                                    && self.is_type_assignable_to(
+                                        right,
+                                        &self.number_or_big_int_type(),
+                                    )
+                        },
+                    );
                 }
                 self.boolean_type()
             }
@@ -768,10 +793,16 @@ impl TypeChecker {
             | SyntaxKind::ExclamationEqualsToken
             | SyntaxKind::EqualsEqualsEqualsToken
             | SyntaxKind::ExclamationEqualsEqualsToken => {
-                self.report_operator_error_unless(|left: &Type, right: &Type| {
-                    self.is_type_equality_comparable_to(left, right)
-                        || self.is_type_equality_comparable_to(right, left)
-                });
+                self.report_operator_error_unless(
+                    left_type,
+                    right_type,
+                    operator_token,
+                    error_node.as_deref(),
+                    |left: &Type, right: &Type| {
+                        self.is_type_equality_comparable_to(left, right)
+                            || self.is_type_equality_comparable_to(right, left)
+                    },
+                );
                 self.boolean_type()
             }
 
@@ -859,7 +890,7 @@ impl TypeChecker {
                     AssignmentDeclarationKind::None
                 };
                 self.check_assignment_declaration(decl_kind, right_type);
-                if self.is_assignment_declaration(decl_kind) {
+                if self.is_assignment_declaration(left, right, decl_kind) {
                     if !right_type.flags().intersects(TypeFlags::Object)
                         || !matches!(
                             decl_kind,
