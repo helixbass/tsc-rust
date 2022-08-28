@@ -8,18 +8,21 @@ use std::rc::Rc;
 use super::{CheckMode, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
 use crate::{
     create_binary_expression_trampoline, for_each, get_assigned_expando_initializer,
-    get_combined_node_flags, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, is_assignment_operator, is_binary_expression,
+    get_assignment_declaration_kind, get_combined_node_flags,
+    get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
+    get_object_flags, get_source_file_of_node, is_assignment_operator, is_binary_expression,
     is_binding_element, is_function_or_module_block, is_if_statement, is_in_js_file,
     is_private_identifier, is_private_identifier_property_access_expression, is_spread_assignment,
-    map, maybe_for_each, parse_pseudo_big_int, push_or_replace, skip_parentheses,
-    walk_up_parenthesized_expressions, AccessFlags, BinaryExpressionStateMachine,
-    BinaryExpressionTrampoline, Debug_, Diagnostic, DiagnosticMessage, Diagnostics,
+    map, maybe_for_each, parse_pseudo_big_int, push_or_replace, skip_parentheses, skip_trivia,
+    text_span_contains_position, token_to_string, walk_up_parenthesized_expressions, AccessFlags,
+    AssignmentDeclarationKind, BinaryExpressionStateMachine, BinaryExpressionTrampoline, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
     ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, InferenceContext,
     InferenceInfo, IterationTypes, IterationTypesResolver, LeftOrRight, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, Number, PseudoBigInt,
-    ScriptTarget, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, Number, ObjectFlags,
+    PseudoBigInt, ReadonlyTextRange, ScriptTarget, SourceFileLike, Symbol, SymbolInterface,
+    SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -445,7 +448,46 @@ impl TypeChecker {
         &self,
         node: &Node, /*BinaryExpression*/
     ) {
-        unimplemented!()
+        let node_as_binary_expression = node.as_binary_expression();
+        let left = &node_as_binary_expression.left;
+        let operator_token = &node_as_binary_expression.operator_token;
+        let right = &node_as_binary_expression.right;
+        if operator_token.kind() == SyntaxKind::QuestionQuestionToken {
+            if is_binary_expression(left)
+                && matches!(
+                    left.as_binary_expression().operator_token.kind(),
+                    SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
+                )
+            {
+                self.grammar_error_on_node(
+                    left,
+                    &Diagnostics::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                    Some(vec![
+                        token_to_string(left.as_binary_expression().operator_token.kind())
+                            .unwrap()
+                            .to_owned(),
+                        token_to_string(operator_token.kind()).unwrap().to_owned(),
+                    ]),
+                );
+            }
+            if is_binary_expression(right)
+                && matches!(
+                    right.as_binary_expression().operator_token.kind(),
+                    SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
+                )
+            {
+                self.grammar_error_on_node(
+                    right,
+                    &Diagnostics::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                    Some(vec![
+                        token_to_string(right.as_binary_expression().operator_token.kind())
+                            .unwrap()
+                            .to_owned(),
+                        token_to_string(operator_token.kind()).unwrap().to_owned(),
+                    ]),
+                );
+            }
+        }
     }
 
     pub(super) fn check_binary_like_expression<TErrorNode: Borrow<Node>>(
@@ -456,7 +498,41 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         error_node: Option<TErrorNode>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let operator = operator_token.kind();
+        if operator == SyntaxKind::EqualsToken
+            && matches!(
+                left.kind(),
+                SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
+            )
+        {
+            return self.check_destructuring_assignment(
+                left,
+                &self.check_expression(right, check_mode, None),
+                check_mode,
+                Some(right.kind() == SyntaxKind::ThisKeyword),
+            );
+        }
+        let left_type: Rc<Type>;
+        if matches!(
+            operator,
+            SyntaxKind::AmpersandAmpersandToken
+                | SyntaxKind::BarBarToken
+                | SyntaxKind::QuestionQuestionToken
+        ) {
+            left_type = self.check_truthiness_expression(left, check_mode);
+        } else {
+            left_type = self.check_expression(left, check_mode, None);
+        }
+
+        let right_type = self.check_expression(right, check_mode, None);
+        self.check_binary_like_expression_worker(
+            left,
+            operator_token,
+            right,
+            &left_type,
+            &right_type,
+            error_node,
+        )
     }
 
     pub(super) fn check_binary_like_expression_worker<TErrorNode: Borrow<Node>>(
@@ -468,6 +544,415 @@ impl TypeChecker {
         right_type: &Type,
         error_node: Option<TErrorNode>,
     ) -> Rc<Type> {
+        let operator = operator_token.kind();
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        match operator {
+            SyntaxKind::AsteriskToken
+            | SyntaxKind::AsteriskAsteriskToken
+            | SyntaxKind::AsteriskEqualsToken
+            | SyntaxKind::AsteriskAsteriskEqualsToken
+            | SyntaxKind::SlashToken
+            | SyntaxKind::SlashEqualsToken
+            | SyntaxKind::PercentToken
+            | SyntaxKind::PercentEqualsToken
+            | SyntaxKind::MinusToken
+            | SyntaxKind::MinusEqualsToken
+            | SyntaxKind::LessThanLessThanToken
+            | SyntaxKind::LessThanLessThanEqualsToken
+            | SyntaxKind::GreaterThanGreaterThanToken
+            | SyntaxKind::GreaterThanGreaterThanEqualsToken
+            | SyntaxKind::GreaterThanGreaterThanGreaterThanToken
+            | SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken
+            | SyntaxKind::BarToken
+            | SyntaxKind::BarEqualsToken
+            | SyntaxKind::CaretToken
+            | SyntaxKind::CaretEqualsToken
+            | SyntaxKind::AmpersandToken
+            | SyntaxKind::AmpersandEqualsToken => {
+                if ptr::eq(left_type, &*self.silent_never_type())
+                    || ptr::eq(right_type, &*self.silent_never_type())
+                {
+                    return self.silent_never_type();
+                }
+
+                let left_type = self.check_non_null_type(left_type, left);
+                let right_type = self.check_non_null_type(right_type, left);
+
+                let mut suggested_operator: Option<SyntaxKind> = None;
+                if left_type.flags().intersects(TypeFlags::BooleanLike)
+                    && right_type.flags().intersects(TypeFlags::BooleanLike)
+                    && {
+                        suggested_operator =
+                            self.get_suggested_boolean_operator(operator_token.kind());
+                        suggested_operator.is_some()
+                    }
+                {
+                    self.error(
+                        Some(
+                            &*error_node.clone().unwrap_or_else(|| operator_token.node_wrapper())
+                        ),
+                        &Diagnostics::The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead,
+                        Some(vec![
+                            token_to_string(operator_token.kind()).unwrap().to_owned(),
+                            token_to_string(suggested_operator.unwrap()).unwrap().to_owned(),
+                        ])
+                    );
+                    self.number_type()
+                } else {
+                    let left_ok = self.check_arithmetic_operand_type(
+                        left,
+                        &left_type,
+                        &Diagnostics::The_left_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
+                        Some(true)
+                    );
+                    let right_ok = self.check_arithmetic_operand_type(
+                        right,
+                        &right_type,
+                        &Diagnostics::The_right_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
+                        Some(true)
+                    );
+                    let result_type: Rc<Type>;
+                    if self.is_type_assignable_to_kind(&left_type, TypeFlags::AnyOrUnknown, None)
+                        && self.is_type_assignable_to_kind(
+                            &right_type,
+                            TypeFlags::AnyOrUnknown,
+                            None,
+                        )
+                        || !(self.maybe_type_of_kind(&left_type, TypeFlags::BigIntLike)
+                            || self.maybe_type_of_kind(&right_type, TypeFlags::BigIntLike))
+                    {
+                        result_type = self.number_type();
+                    } else if self.both_are_big_int_like(&left_type, &right_type) {
+                        match operator {
+                            SyntaxKind::GreaterThanGreaterThanGreaterThanToken
+                            | SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken => {
+                                self.report_operator_error(
+                                    Option::<fn(&Type, &Type) -> bool>::None,
+                                );
+                            }
+                            SyntaxKind::AsteriskAsteriskToken
+                            | SyntaxKind::AsteriskAsteriskEqualsToken => {
+                                if self.language_version < ScriptTarget::ES2016 {
+                                    self.error(
+                                        error_node.as_deref(),
+                                        &Diagnostics::Exponentiation_cannot_be_performed_on_bigint_values_unless_the_target_option_is_set_to_es2016_or_later,
+                                        None,
+                                    );
+                                }
+                            }
+                            _ => (),
+                        }
+                        result_type = self.bigint_type();
+                    } else {
+                        self.report_operator_error(Some(|type1: &Type, type2: &Type| {
+                            self.both_are_big_int_like(type1, type2)
+                        }));
+                        result_type = self.error_type();
+                    }
+                    if left_ok && right_ok {
+                        self.check_assignment_operator(&result_type);
+                    }
+                    result_type
+                }
+            }
+            SyntaxKind::PlusToken | SyntaxKind::PlusEqualsToken => {
+                if ptr::eq(left_type, &*self.silent_never_type())
+                    || ptr::eq(right_type, &*self.silent_never_type())
+                {
+                    return self.silent_never_type();
+                }
+
+                let mut left_type = left_type.type_wrapper();
+                let mut right_type = right_type.type_wrapper();
+                if !self.is_type_assignable_to_kind(&left_type, TypeFlags::StringLike, None)
+                    && !self.is_type_assignable_to_kind(&right_type, TypeFlags::StringLike, None)
+                {
+                    left_type = self.check_non_null_type(&left_type, left);
+                    right_type = self.check_non_null_type(&right_type, left);
+                }
+
+                let mut result_type: Option<Rc<Type>> = None;
+                if self.is_type_assignable_to_kind(&left_type, TypeFlags::NumberLike, Some(true))
+                    && self.is_type_assignable_to_kind(
+                        &right_type,
+                        TypeFlags::NumberLike,
+                        Some(true),
+                    )
+                {
+                    result_type = Some(self.number_type());
+                } else if self.is_type_assignable_to_kind(
+                    &left_type,
+                    TypeFlags::BigIntLike,
+                    Some(true),
+                ) && self.is_type_assignable_to_kind(
+                    &right_type,
+                    TypeFlags::BigIntLike,
+                    Some(true),
+                ) {
+                    result_type = Some(self.bigint_type());
+                } else if self.is_type_assignable_to_kind(
+                    &left_type,
+                    TypeFlags::StringLike,
+                    Some(true),
+                ) && self.is_type_assignable_to_kind(
+                    &right_type,
+                    TypeFlags::StringLike,
+                    Some(true),
+                ) {
+                    result_type = Some(self.string_type());
+                } else if self.is_type_any(Some(&*left_type))
+                    || self.is_type_any(Some(&*right_type))
+                {
+                    result_type = Some(
+                        if self.is_error_type(&left_type) || self.is_error_type(&right_type) {
+                            self.error_type()
+                        } else {
+                            self.any_type()
+                        },
+                    );
+                }
+
+                if let Some(result_type) = result_type.as_ref() {
+                    if !self.check_for_disallowed_es_symbol_operand(operator) {
+                        return result_type.clone();
+                    }
+                }
+
+                if result_type.is_none() {
+                    let close_enough_kind = TypeFlags::NumberLike
+                        | TypeFlags::BigIntLike
+                        | TypeFlags::StringLike
+                        | TypeFlags::AnyOrUnknown;
+                    self.report_operator_error(Some(|left: &Type, right: &Type| {
+                        self.is_type_assignable_to_kind(left, close_enough_kind, None)
+                            && self.is_type_assignable_to_kind(right, close_enough_kind, None)
+                    }));
+                    return self.any_type();
+                }
+                let result_type = result_type.unwrap();
+
+                if operator == SyntaxKind::PlusEqualsToken {
+                    self.check_assignment_operator(&result_type);
+                }
+                result_type
+            }
+            SyntaxKind::LessThanToken
+            | SyntaxKind::GreaterThanToken
+            | SyntaxKind::LessThanEqualsToken
+            | SyntaxKind::GreaterThanEqualsToken => {
+                if self.check_for_disallowed_es_symbol_operand(operator) {
+                    let left_type = self
+                        .get_base_type_of_literal_type(&self.check_non_null_type(left_type, left));
+                    let right_type = self.get_base_type_of_literal_type(
+                        &self.check_non_null_type(right_type, right),
+                    );
+                    self.report_operator_error_unless(|left: &Type, right: &Type| {
+                        self.is_type_comparable_to(left, right)
+                            || self.is_type_comparable_to(right, left)
+                            || self.is_type_assignable_to(left, &self.number_or_big_int_type())
+                                && self.is_type_assignable_to(right, &self.number_or_big_int_type())
+                    });
+                }
+                self.boolean_type()
+            }
+            SyntaxKind::EqualsEqualsToken
+            | SyntaxKind::ExclamationEqualsToken
+            | SyntaxKind::EqualsEqualsEqualsToken
+            | SyntaxKind::ExclamationEqualsEqualsToken => {
+                self.report_operator_error_unless(|left: &Type, right: &Type| {
+                    self.is_type_equality_comparable_to(left, right)
+                        || self.is_type_equality_comparable_to(right, left)
+                });
+                self.boolean_type()
+            }
+
+            SyntaxKind::InstanceOfKeyword => {
+                self.check_instance_of_expression(left, right, left_type, right_type)
+            }
+            SyntaxKind::InKeyword => self.check_in_expression(left, right, left_type, right_type),
+            SyntaxKind::AmpersandAmpersandToken | SyntaxKind::AmpersandAmpersandEqualsToken => {
+                let result_type = if self
+                    .get_type_facts(left_type, None)
+                    .intersects(TypeFacts::Truthy)
+                {
+                    self.get_union_type(
+                        vec![
+                            self.extract_definitely_falsy_types(&*if self.strict_null_checks {
+                                left_type.type_wrapper()
+                            } else {
+                                self.get_base_type_of_literal_type(right_type)
+                            }),
+                            right_type.type_wrapper(),
+                        ],
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                } else {
+                    left_type.type_wrapper()
+                };
+                if operator == SyntaxKind::AmpersandAmpersandEqualsToken {
+                    self.check_assignment_operator(right_type);
+                }
+                result_type
+            }
+            SyntaxKind::BarBarToken | SyntaxKind::BarBarEqualsToken => {
+                let result_type = if self
+                    .get_type_facts(left_type, None)
+                    .intersects(TypeFacts::Falsy)
+                {
+                    self.get_union_type(
+                        vec![
+                            self.remove_definitely_falsy_types(left_type),
+                            right_type.type_wrapper(),
+                        ],
+                        Some(UnionReduction::Subtype),
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                } else {
+                    left_type.type_wrapper()
+                };
+                if operator == SyntaxKind::BarBarEqualsToken {
+                    self.check_assignment_operator(right_type);
+                }
+                result_type
+            }
+            SyntaxKind::QuestionQuestionToken | SyntaxKind::QuestionQuestionEqualsToken => {
+                let result_type = if self
+                    .get_type_facts(left_type, None)
+                    .intersects(TypeFacts::EQUndefinedOrNull)
+                {
+                    self.get_union_type(
+                        vec![
+                            self.get_non_nullable_type(left_type),
+                            right_type.type_wrapper(),
+                        ],
+                        Some(UnionReduction::Subtype),
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                } else {
+                    left_type.type_wrapper()
+                };
+                if operator == SyntaxKind::QuestionQuestionEqualsToken {
+                    self.check_assignment_operator(right_type);
+                }
+                result_type
+            }
+            SyntaxKind::EqualsToken => {
+                let decl_kind = if is_binary_expression(&left.parent()) {
+                    get_assignment_declaration_kind(&left.parent())
+                } else {
+                    AssignmentDeclarationKind::None
+                };
+                self.check_assignment_declaration(decl_kind, right_type);
+                if self.is_assignment_declaration(decl_kind) {
+                    if !right_type.flags().intersects(TypeFlags::Object)
+                        || !matches!(
+                            decl_kind,
+                            AssignmentDeclarationKind::ModuleExports
+                                | AssignmentDeclarationKind::Prototype
+                        ) && !self.is_empty_object_type(right_type)
+                            && !self.is_function_object_type(right_type)
+                            && !get_object_flags(right_type).intersects(ObjectFlags::Class)
+                    {
+                        self.check_assignment_operator(right_type);
+                    }
+                    left_type.type_wrapper()
+                } else {
+                    self.check_assignment_operator(right_type);
+                    self.get_regular_type_of_object_literal(right_type)
+                }
+            }
+            SyntaxKind::CommaToken => {
+                if self.compiler_options.allow_unreachable_code != Some(true)
+                    && self.is_side_effect_free(left)
+                    && !self.is_eval_node(right)
+                {
+                    let sf = get_source_file_of_node(Some(left)).unwrap();
+                    let sf_as_source_file = sf.as_source_file();
+                    let source_text = sf_as_source_file.text_as_chars();
+                    let start = skip_trivia(&source_text, left.pos(), None, None, None);
+                    let is_in_diag_2657 =
+                        sf_as_source_file.parse_diagnostics().iter().any(|diag| {
+                            if diag.code()
+                                != Diagnostics::JSX_expressions_must_have_one_parent_element.code
+                            {
+                                return false;
+                            }
+                            text_span_contains_position(
+                                &TextSpan {
+                                    start: diag.start(),
+                                    length: diag.length(),
+                                },
+                                start,
+                            )
+                        });
+                    if !is_in_diag_2657 {
+                        self.error(
+                            Some(left),
+                            &Diagnostics::Left_side_of_comma_operator_is_unused_and_has_no_side_effects,
+                            None,
+                        );
+                    }
+                }
+                right_type.type_wrapper()
+            }
+
+            _ => Debug_.fail(None),
+        }
+    }
+
+    pub(super) fn both_are_big_int_like(&self, left: &Type, right: &Type) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_assignment_declaration(
+        &self,
+        kind: AssignmentDeclarationKind,
+        right_type: &Type,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn is_eval_node(&self, node: &Node /*Expression*/) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_for_disallowed_es_symbol_operand(&self, operator: SyntaxKind) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_suggested_boolean_operator(
+        &self,
+        operator: SyntaxKind,
+    ) -> Option<SyntaxKind> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_assignment_operator(&self, value_type: &Type) {
+        unimplemented!()
+    }
+
+    pub(super) fn is_assignment_declaration(&self, kind: AssignmentDeclarationKind) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn report_operator_error_unless<TTypesAreCompatible: FnMut(&Type, &Type) -> bool>(
+        &self,
+        types_are_compatible: TTypesAreCompatible,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn report_operator_error<TIsRelated: FnMut(&Type, &Type) -> bool>(
+        &self,
+        is_related: Option<TIsRelated>,
+    ) {
         unimplemented!()
     }
 
