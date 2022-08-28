@@ -6,19 +6,13 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    are_option_rcs_equal, expression_result_is_unused, for_each, get_assigned_expando_initializer,
-    get_combined_node_flags, get_containing_function,
-    get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
-    is_assignment_operator, is_binding_element, is_element_access_expression,
-    is_function_or_module_block, is_identifier, is_jsdoc_typedef_tag, is_jsx_self_closing_element,
-    is_object_literal_expression, is_parenthesized_expression, is_private_identifier,
-    is_property_access_expression, map, maybe_for_each, parse_pseudo_big_int, token_to_string,
-    unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
-    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, InferenceContext,
-    InferenceInfo, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
-    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
+    for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
+    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, Diagnostic,
+    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceInfo,
+    IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
