@@ -84,6 +84,10 @@ pub fn set_parent_recursive<TNode: Borrow<Node>>(root_node: Option<TNode>, incre
     unimplemented!()
 }
 
+pub fn expression_result_is_unused(node: &Node /*Expression*/) -> bool {
+    unimplemented!()
+}
+
 pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/) -> bool {
     unimplemented!()
 }

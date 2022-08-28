@@ -6,16 +6,18 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    are_option_rcs_equal, for_each, get_assigned_expando_initializer, get_combined_node_flags,
+    are_option_rcs_equal, expression_result_is_unused, for_each, get_assigned_expando_initializer,
+    get_combined_node_flags, get_containing_function,
     get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
     is_assignment_operator, is_binding_element, is_function_or_module_block, is_identifier,
     is_jsdoc_typedef_tag, is_object_literal_expression, is_private_identifier,
     is_property_access_expression, map, maybe_for_each, parse_pseudo_big_int, token_to_string,
     unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
-    Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo,
-    IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, InferenceContext,
+    InferenceInfo, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
+    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -323,7 +325,154 @@ impl TypeChecker {
         right_type: &Type,
         is_related: &mut TIsRelated,
     ) -> (Rc<Type>, Rc<Type>) {
-        unimplemented!()
+        let mut effective_left = left_type.type_wrapper();
+        let mut effective_right = right_type.type_wrapper();
+        let left_base = self.get_base_type_of_literal_type(left_type);
+        let right_base = self.get_base_type_of_literal_type(right_type);
+        if !is_related(&left_base, &right_base) {
+            effective_left = left_base;
+            effective_right = right_base;
+        }
+        (effective_left, effective_right)
+    }
+
+    pub(super) fn check_yield_expression(&self, node: &Node /*YieldExpression*/) -> Rc<Type> {
+        if self.produce_diagnostics {
+            if !node.flags().intersects(NodeFlags::YieldContext) {
+                self.grammar_error_on_first_token(
+                    node,
+                    &Diagnostics::A_yield_expression_is_only_allowed_in_a_generator_body,
+                    None,
+                );
+            }
+
+            if self.is_in_parameter_initializer_before_containing_function(node) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::yield_expressions_cannot_be_used_in_a_parameter_initializer,
+                    None,
+                );
+            }
+        }
+
+        let func = get_containing_function(node);
+        if func.is_none() {
+            return self.any_type();
+        }
+        let func = func.unwrap();
+        let function_flags = get_function_flags(Some(&*func));
+
+        if !function_flags.intersects(FunctionFlags::Generator) {
+            return self.any_type();
+        }
+
+        let is_async = function_flags.intersects(FunctionFlags::Async);
+        let node_as_yield_expression = node.as_yield_expression();
+        if node_as_yield_expression.asterisk_token.is_some() {
+            if is_async && self.language_version < ScriptTarget::ESNext {
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::AsyncDelegatorIncludes);
+            }
+
+            if !is_async
+                && self.language_version < ScriptTarget::ES2015
+                && self.compiler_options.downlevel_iteration == Some(true)
+            {
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Values);
+            }
+        }
+
+        let return_type = self.get_return_type_from_annotation(&func);
+        let iteration_types = return_type.as_ref().and_then(|return_type| {
+            self.get_iteration_types_of_generator_function_return_type(return_type, is_async)
+        });
+        let signature_yield_type = iteration_types
+            .as_ref()
+            .map(|iteration_types| iteration_types.yield_type())
+            .unwrap_or_else(|| self.any_type());
+        let signature_next_type = iteration_types
+            .as_ref()
+            .map(|iteration_types| iteration_types.next_type())
+            .unwrap_or_else(|| self.any_type());
+        let resolved_signature_next_type = if is_async {
+            self.get_awaited_type_(&signature_next_type, Option::<&Node>::None, None, None)
+                .unwrap_or_else(|| self.any_type())
+        } else {
+            signature_next_type
+        };
+        let yield_expression_type =
+            if let Some(node_expression) = node_as_yield_expression.expression.as_ref() {
+                self.check_expression(node_expression, None, None)
+            } else {
+                self.undefined_widening_type()
+            };
+        let yielded_type = self.get_yielded_type_of_yield_expression(
+            node,
+            &yield_expression_type,
+            &resolved_signature_next_type,
+            is_async,
+        );
+        if return_type.is_some() {
+            if let Some(yielded_type) = yielded_type.as_ref() {
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    yielded_type,
+                    &signature_yield_type,
+                    Some(
+                        node_as_yield_expression
+                            .expression
+                            .clone()
+                            .unwrap_or_else(|| node.node_wrapper()),
+                    ),
+                    node_as_yield_expression.expression.as_deref(),
+                    None,
+                    None,
+                );
+            }
+        }
+
+        if node_as_yield_expression.asterisk_token.is_some() {
+            let use_ = if is_async {
+                IterationUse::AsyncYieldStar
+            } else {
+                IterationUse::YieldStar
+            };
+            return self
+                .get_iteration_type_of_iterable(
+                    use_,
+                    IterationTypeKind::Return,
+                    &yield_expression_type,
+                    node_as_yield_expression.expression.as_deref(),
+                )
+                .unwrap_or_else(|| self.any_type());
+        } else if let Some(return_type) = return_type.as_ref() {
+            return self
+                .get_iteration_type_of_generator_function_return_type(
+                    IterationTypeKind::Next,
+                    return_type,
+                    is_async,
+                )
+                .unwrap_or_else(|| self.any_type());
+        }
+        let mut type_ = self.get_contextual_iteration_type(IterationTypeKind::Next, &func);
+        if type_.is_none() {
+            type_ = Some(self.any_type());
+            if self.produce_diagnostics
+                && self.no_implicit_any
+                && !expression_result_is_unused(node)
+            {
+                let contextual_type = self.get_contextual_type_(node, None);
+                if match contextual_type.as_ref() {
+                    None => true,
+                    Some(contextual_type) => self.is_type_any(Some(&**contextual_type)),
+                } {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::yield_expression_implicitly_results_in_an_any_type_because_its_containing_generator_lacks_a_return_type_annotation,
+                        None,
+                    );
+                }
+            }
+        }
+        type_.unwrap()
     }
 
     pub(super) fn check_template_expression(
@@ -964,6 +1113,16 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_iteration_type_of_iterable<TErrorNode: Borrow<Node>>(
+        &self,
+        use_: IterationUse,
+        type_kind: IterationTypeKind,
+        input_type: &Type,
+        error_node: Option<TErrorNode>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn create_iteration_types(
         &self,
         yield_type: Option<Rc<Type>>,
@@ -999,6 +1158,14 @@ impl TypeChecker {
         return_type: &Type,
         is_async_generator: bool,
     ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_iteration_types_of_generator_function_return_type(
+        &self,
+        type_: &Type,
+        is_async_generator: bool,
+    ) -> Option<IterationTypes> {
         unimplemented!()
     }
 
