@@ -1,18 +1,22 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
 use crate::{
-    for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, is_assignment_operator, is_binding_element,
-    is_function_or_module_block, is_private_identifier,
-    is_private_identifier_property_access_expression, is_spread_assignment, map, maybe_for_each,
-    parse_pseudo_big_int, skip_parentheses, AccessFlags, Diagnostic, DiagnosticMessage,
-    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, InferenceContext,
-    InferenceInfo, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
+    create_binary_expression_trampoline, for_each, get_assigned_expando_initializer,
+    get_combined_node_flags, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_function_flags, is_assignment_operator, is_binary_expression,
+    is_binding_element, is_function_or_module_block, is_if_statement, is_in_js_file,
+    is_private_identifier, is_private_identifier_property_access_expression, is_spread_assignment,
+    map, maybe_for_each, parse_pseudo_big_int, push_or_replace, skip_parentheses,
+    walk_up_parenthesized_expressions, AccessFlags, BinaryExpressionStateMachine,
+    BinaryExpressionTrampoline, Debug_, Diagnostic, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, InferenceContext,
+    InferenceInfo, IterationTypes, IterationTypesResolver, LeftOrRight, LiteralLikeNodeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, Number, PseudoBigInt,
     ScriptTarget, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface,
@@ -431,8 +435,17 @@ impl TypeChecker {
     }
 
     pub(super) fn create_check_binary_expression(&self) -> CheckBinaryExpression {
-        // unimplemented!()
-        CheckBinaryExpression
+        let trampoline = create_binary_expression_trampoline(
+            CheckBinaryExpressionStateMachine::new(self.rc_wrapper()),
+        );
+        CheckBinaryExpression::new(trampoline)
+    }
+
+    pub(super) fn check_grammar_nullish_coalesce_with_logical_expression(
+        &self,
+        node: &Node, /*BinaryExpression*/
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn check_binary_like_expression<TErrorNode: Borrow<Node>>(
@@ -441,6 +454,18 @@ impl TypeChecker {
         operator_token: &Node,
         right: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
+        error_node: Option<TErrorNode>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_binary_like_expression_worker<TErrorNode: Borrow<Node>>(
+        &self,
+        left: &Node, /*Expression*/
+        operator_token: &Node,
+        right: &Node, /*Expression*/
+        left_type: &Type,
+        right_type: &Type,
         error_node: Option<TErrorNode>,
     ) -> Rc<Type> {
         unimplemented!()
@@ -1027,6 +1052,15 @@ impl TypeChecker {
         self.check_source_element(node_as_if_statement.else_statement.clone());
     }
 
+    pub(super) fn check_testing_known_truthy_callable_or_awaitable_type<TBody: Borrow<Node>>(
+        &self,
+        cond_expr: &Node, /*Expression*/
+        type_: &Type,
+        body: Option<TBody /*Statement | Expression*/>,
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn check_truthiness_of_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Void) {
             self.error(
@@ -1232,14 +1266,290 @@ impl TypeChecker {
 }
 
 #[derive(Debug)]
-pub struct CheckBinaryExpression;
+pub struct CheckBinaryExpression {
+    trampoline: BinaryExpressionTrampoline<CheckBinaryExpressionStateMachine>,
+}
 
 impl CheckBinaryExpression {
+    pub fn new(trampoline: BinaryExpressionTrampoline<CheckBinaryExpressionStateMachine>) -> Self {
+        Self { trampoline }
+    }
+
     pub fn call(
         &self,
         node: &Node, /*BinaryExpression*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let result = self.trampoline.call(node, check_mode);
+        Debug_.assert_is_defined(&result, None);
+        result.unwrap()
+    }
+}
+
+pub struct WorkArea {
+    pub check_mode: Option<CheckMode>,
+    pub skip: bool,
+    pub stack_index: usize,
+    pub type_stack: Vec<Option<Rc<Type>>>,
+}
+
+#[derive(Debug)]
+pub struct CheckBinaryExpressionStateMachine {
+    type_checker: Rc<TypeChecker>,
+}
+
+impl CheckBinaryExpressionStateMachine {
+    pub fn new(type_checker: Rc<TypeChecker>) -> Self {
+        Self { type_checker }
+    }
+
+    pub fn maybe_check_expression(
+        &self,
+        state: Rc<RefCell<WorkArea>>,
+        node: &Node, /*Expression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        if is_binary_expression(node) {
+            return Some(node.node_wrapper());
+        }
+        let type_ = self
+            .type_checker
+            .check_expression(node, (*state).borrow().check_mode, None);
+        self.set_last_result(&mut state.borrow_mut(), Some(type_));
+        None
+    }
+
+    pub fn get_left_type(&self, state: Rc<RefCell<WorkArea>>) -> Option<Rc<Type>> {
+        let state = (*state).borrow();
+        state.type_stack.get(state.stack_index).cloned().flatten()
+    }
+
+    pub fn set_left_type<TType: Borrow<Type>>(&self, state: &mut WorkArea, type_: Option<TType>) {
+        push_or_replace(
+            &mut state.type_stack,
+            state.stack_index,
+            type_.map(|type_| type_.borrow().type_wrapper()),
+        );
+    }
+
+    pub fn get_last_result(&self, state: Rc<RefCell<WorkArea>>) -> Option<Rc<Type>> {
+        let state = (*state).borrow();
+        state
+            .type_stack
+            .get(state.stack_index + 1)
+            .cloned()
+            .flatten()
+    }
+
+    pub fn set_last_result<TType: Borrow<Type>>(&self, state: &mut WorkArea, type_: Option<TType>) {
+        push_or_replace(
+            &mut state.type_stack,
+            state.stack_index + 1,
+            type_.map(|type_| type_.borrow().type_wrapper()),
+        );
+    }
+}
+
+impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
+    type TResult = Option<Rc<Type>>;
+    type TOuterState = Option<CheckMode>;
+    type TState = Rc<RefCell<WorkArea>>;
+
+    fn on_enter(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        mut state: Option<Rc<RefCell<WorkArea>>>,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<RefCell<WorkArea>> {
+        if let Some(state) = state.as_ref() {
+            let mut state = state.borrow_mut();
+            state.stack_index += 1;
+            state.skip = false;
+            self.set_left_type(&mut state, Option::<&Type>::None);
+            self.set_last_result(&mut state, Option::<&Type>::None);
+        } else {
+            state = Some(Rc::new(RefCell::new(WorkArea {
+                check_mode,
+                skip: false,
+                stack_index: 0,
+                type_stack: vec![None, None],
+            })));
+        }
+        let state = state.unwrap();
+
+        let node_as_binary_expression = node.as_binary_expression();
+        if is_in_js_file(Some(node)) && get_assigned_expando_initializer(Some(node)).is_some() {
+            {
+                let mut state = state.borrow_mut();
+                state.skip = true;
+                self.set_last_result(
+                    &mut state,
+                    Some(self.type_checker.check_expression(
+                        &node_as_binary_expression.right,
+                        check_mode,
+                        None,
+                    )),
+                );
+            }
+            return state;
+        }
+
+        self.type_checker
+            .check_grammar_nullish_coalesce_with_logical_expression(node);
+
+        let operator = node_as_binary_expression.operator_token.kind();
+        if operator == SyntaxKind::EqualsToken
+            && matches!(
+                node_as_binary_expression.left.kind(),
+                SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
+            )
+        {
+            {
+                let mut state = state.borrow_mut();
+                state.skip = true;
+                self.set_last_result(
+                    &mut state,
+                    Some(self.type_checker.check_destructuring_assignment(
+                        &node_as_binary_expression.left,
+                        &self.type_checker.check_expression(
+                            &node_as_binary_expression.right,
+                            check_mode,
+                            None,
+                        ),
+                        check_mode,
+                        Some(node_as_binary_expression.right.kind() == SyntaxKind::ThisKeyword),
+                    )),
+                );
+            }
+            return state;
+        }
+
+        state
+    }
+
+    fn on_left(
+        &self,
+        left: &Node, /*Expression*/
+        state: Rc<RefCell<WorkArea>>,
+        _node: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        if !(*state).borrow().skip {
+            return self.maybe_check_expression(state, left);
+        }
+        None
+    }
+
+    fn on_operator(
+        &self,
+        operator_token: &Node, /*BinaryOperatorToken*/
+        state: Rc<RefCell<WorkArea>>,
+        node: &Node, /*BinaryExpression*/
+    ) {
+        if !(*state).borrow().skip {
+            let left_type = self.get_last_result(state.clone());
+            Debug_.assert_is_defined(&left_type, None);
+            let left_type = left_type.unwrap();
+            self.set_left_type(&mut state.borrow_mut(), Some(&*left_type));
+            self.set_last_result(&mut state.borrow_mut(), Option::<&Type>::None);
+            let operator = operator_token.kind();
+            if matches!(
+                operator,
+                SyntaxKind::AmpersandAmpersandToken
+                    | SyntaxKind::BarBarToken
+                    | SyntaxKind::QuestionQuestionToken
+            ) {
+                let node_as_binary_expression = node.as_binary_expression();
+                if operator == SyntaxKind::AmpersandAmpersandToken {
+                    let parent = walk_up_parenthesized_expressions(&node.parent()).unwrap();
+                    self.type_checker
+                        .check_testing_known_truthy_callable_or_awaitable_type(
+                            &node_as_binary_expression.left,
+                            &left_type,
+                            if is_if_statement(&parent) {
+                                Some(&*parent.as_if_statement().then_statement)
+                            } else {
+                                None
+                            },
+                        );
+                }
+                self.type_checker
+                    .check_truthiness_of_type(&left_type, &node_as_binary_expression.left);
+            }
+        }
+    }
+
+    fn on_right(
+        &self,
+        right: &Node, /*Expression*/
+        state: Rc<RefCell<WorkArea>>,
+        _node: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        if !(*state).borrow().skip {
+            return self.maybe_check_expression(state, right);
+        }
+        None
+    }
+
+    fn on_exit(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        state: Rc<RefCell<WorkArea>>,
+    ) -> Option<Rc<Type>> {
+        let result: Option<Rc<Type>>;
+        if (*state).borrow().skip {
+            result = self.get_last_result(state.clone());
+        } else {
+            let left_type = self.get_left_type(state.clone());
+            Debug_.assert_is_defined(&left_type, None);
+            let left_type = left_type.unwrap();
+
+            let right_type = self.get_last_result(state.clone());
+            Debug_.assert_is_defined(&right_type, None);
+            let right_type = right_type.unwrap();
+
+            let node_as_binary_expression = node.as_binary_expression();
+            result = Some(self.type_checker.check_binary_like_expression_worker(
+                &node_as_binary_expression.left,
+                &node_as_binary_expression.operator_token,
+                &node_as_binary_expression.right,
+                &left_type,
+                &right_type,
+                Some(node),
+            ));
+        }
+
+        {
+            let mut state = state.borrow_mut();
+            state.skip = false;
+            self.set_left_type(&mut state, Option::<&Type>::None);
+            self.set_last_result(&mut state, Option::<&Type>::None);
+            state.stack_index -= 1;
+        }
+        result
+    }
+
+    fn fold_state(
+        &self,
+        state: Rc<RefCell<WorkArea>>,
+        result: Option<Rc<Type>>,
+        _side: LeftOrRight,
+    ) -> Rc<RefCell<WorkArea>> {
+        self.set_last_result(&mut state.borrow_mut(), result);
+        state
+    }
+
+    fn implements_on_left(&self) -> bool {
+        true
+    }
+
+    fn implements_on_operator(&self) -> bool {
+        true
+    }
+
+    fn implements_on_right(&self) -> bool {
+        true
+    }
+
+    fn implements_fold_state(&self) -> bool {
+        true
     }
 }

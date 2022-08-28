@@ -86,3 +86,11 @@ pub enum UsizeOrNegativeInfinity {
     Usize(usize),
     NegativeInfinity,
 }
+
+pub fn push_or_replace<TValue>(vec: &mut Vec<TValue>, index: usize, value: TValue) {
+    if index >= vec.len() {
+        vec.push(value);
+    } else {
+        vec[index] = value;
+    }
+}

@@ -135,9 +135,10 @@ pub use compiler::factory::parenthesizer_rules::{
 };
 use compiler::factory::utilities::get_jsdoc_type_alias_name;
 pub use compiler::factory::utilities::{
-    get_elements_of_binding_or_assignment_pattern, get_target_of_binding_or_assignment_element,
-    is_comma_sequence, is_local_name, is_outer_expression, skip_outer_expressions,
-    starts_with_use_strict,
+    create_binary_expression_trampoline, get_elements_of_binding_or_assignment_pattern,
+    get_target_of_binding_or_assignment_element, is_comma_sequence, is_local_name,
+    is_outer_expression, skip_outer_expressions, starts_with_use_strict,
+    BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
 };
 pub use compiler::factory::utilities_public::set_text_range;
 use compiler::module_name_resolver::{
@@ -537,5 +538,5 @@ pub use rust_helpers::number::Number;
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_option_rcs_equal, are_rc_slices_equal, capitalize, index_of, index_of_rc, is_same_variant,
-    last_index_of, uncapitalize, UsizeOrNegativeInfinity,
+    last_index_of, push_or_replace, uncapitalize, UsizeOrNegativeInfinity,
 };

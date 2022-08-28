@@ -7,8 +7,9 @@ use crate::{
     first_or_undefined, get_emit_flags, get_jsdoc_type_tag, is_assignment_expression,
     is_declaration_binding_element, is_identifier, is_in_js_file, is_object_literal_element_like,
     is_parenthesized_expression, is_prologue_directive, is_spread_element, is_string_literal,
-    AssertionLevel, Debug_, EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds, SyntaxKind,
+    push_or_replace, AssertionLevel, Debug_, EmitFlags, HasInitializerInterface,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds,
+    SyntaxKind,
 };
 
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
@@ -504,14 +505,6 @@ fn binary_expression_state_push_stack<TState>(
     stack_index
 }
 
-fn push_or_replace<TValue>(vec: &mut Vec<TValue>, index: usize, value: TValue) {
-    if index >= vec.len() {
-        vec.push(value);
-    } else {
-        vec[index] = value;
-    }
-}
-
 fn binary_expression_state_check_circularity(
     mut stack_index: usize,
     node_stack: &[Rc<Node /*BinaryExpression*/>],
@@ -600,6 +593,7 @@ pub fn create_binary_expression_trampoline<TMachine: BinaryExpressionStateMachin
     BinaryExpressionTrampoline::new(machine)
 }
 
+#[derive(Debug)]
 pub struct BinaryExpressionTrampoline<TMachine: BinaryExpressionStateMachine> {
     machine: TMachine,
 }

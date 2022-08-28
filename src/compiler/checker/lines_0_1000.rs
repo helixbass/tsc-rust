@@ -568,7 +568,7 @@ pub fn create_type_checker(
         },
         exact_optional_property_types: compiler_options.exact_optional_property_types,
 
-        check_binary_expression: None,
+        check_binary_expression: RefCell::new(None),
         emit_resolver: None,
         node_builder: create_node_builder(),
 
@@ -828,7 +828,6 @@ pub fn create_type_checker(
             (".json", ".json"),
         ],
     };
-    type_checker.check_binary_expression = Some(type_checker.create_check_binary_expression());
     type_checker.emit_resolver = Some(type_checker.create_resolver());
     type_checker.undefined_symbol = Some(
         type_checker
@@ -1374,6 +1373,10 @@ pub fn create_type_checker(
 
     let rc_wrapped = Rc::new(type_checker);
     rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
+
+    *rc_wrapped.check_binary_expression.borrow_mut() =
+        Some(Rc::new(rc_wrapped.create_check_binary_expression()));
+
     rc_wrapped
 }
 
@@ -1564,8 +1567,8 @@ impl TypeChecker {
         self.emit_resolver.clone().unwrap()
     }
 
-    pub(super) fn check_binary_expression(&self) -> &CheckBinaryExpression {
-        self.check_binary_expression.as_ref().unwrap()
+    pub(super) fn check_binary_expression(&self) -> Rc<CheckBinaryExpression> {
+        self.check_binary_expression.borrow().clone().unwrap()
     }
 
     pub(super) fn globals(&self) -> Ref<SymbolTable> {
