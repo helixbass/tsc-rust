@@ -260,7 +260,13 @@ impl TypeChecker {
         let (left_str, right_str) =
             self.get_type_names_for_error_display(&effective_left, &effective_right);
         if self
-            .try_give_better_primary_error(&err_node, would_work_with_await, &left_str, &right_str)
+            .try_give_better_primary_error(
+                operator_token,
+                &err_node,
+                would_work_with_await,
+                &left_str,
+                &right_str,
+            )
             .is_none()
         {
             self.error_and_maybe_suggest_await(
@@ -278,12 +284,37 @@ impl TypeChecker {
 
     pub(super) fn try_give_better_primary_error(
         &self,
+        operator_token: &Node,
         err_node: &Node,
         maybe_missing_await: bool,
         left_str: &str,
         right_str: &str,
     ) -> Option<Rc<Diagnostic>> {
-        unimplemented!()
+        let mut type_name: Option<&'static str> = None;
+        match operator_token.kind() {
+            SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::EqualsEqualsToken => {
+                type_name = Some("false");
+            }
+            SyntaxKind::ExclamationEqualsEqualsToken | SyntaxKind::ExclamationEqualsToken => {
+                type_name = Some("true");
+            }
+            _ => (),
+        }
+
+        if let Some(type_name) = type_name {
+            return Some(self.error_and_maybe_suggest_await(
+                err_node,
+                maybe_missing_await,
+                &Diagnostics::This_condition_will_always_return_0_since_the_types_1_and_2_have_no_overlap,
+                Some(vec![
+                    type_name.to_owned(),
+                    left_str.to_owned(),
+                    right_str.to_owned(),
+                ])
+            ));
+        }
+
+        None
     }
 
     pub(super) fn get_base_types_if_unrelated<TIsRelated: FnMut(&Type, &Type) -> bool>(
