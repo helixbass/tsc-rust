@@ -1,28 +1,19 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
+use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    create_binary_expression_trampoline, for_each, get_assigned_expando_initializer,
-    get_assignment_declaration_kind, get_combined_node_flags,
-    get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
-    get_object_flags, get_source_file_of_node, is_assignment_operator, is_binary_expression,
-    is_binding_element, is_function_or_module_block, is_if_statement, is_in_js_file,
-    is_private_identifier, is_private_identifier_property_access_expression, is_spread_assignment,
-    map, maybe_for_each, parse_pseudo_big_int, push_or_replace, skip_parentheses, skip_trivia,
-    text_span_contains_position, token_to_string, walk_up_parenthesized_expressions, AccessFlags,
-    AssignmentDeclarationKind, BinaryExpressionStateMachine, BinaryExpressionTrampoline, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, InferenceContext,
-    InferenceInfo, IterationTypes, IterationTypesResolver, LeftOrRight, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, Number, ObjectFlags,
-    PseudoBigInt, ReadonlyTextRange, ScriptTarget, SourceFileLike, Symbol, SymbolInterface,
-    SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
+    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, AssignmentDeclarationKind,
+    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
+    InferenceContext, InferenceInfo, IterationTypes, IterationTypesResolver,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
