@@ -7,8 +7,9 @@ use std::rc::Rc;
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
-    is_jsdoc_typedef_tag, is_private_identifier, map, maybe_for_each, parse_pseudo_big_int,
+    get_effective_initializer, get_function_flags, is_assignment_operator, is_binding_element,
+    is_function_or_module_block, is_identifier, is_jsdoc_typedef_tag, is_private_identifier,
+    is_property_access_expression, map, maybe_for_each, parse_pseudo_big_int, token_to_string,
     unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
     Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo,
     IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface,
@@ -70,19 +71,95 @@ impl TypeChecker {
         node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text.eq_str("eval")
     }
 
-    pub(super) fn check_for_disallowed_es_symbol_operand(&self, operator: SyntaxKind) -> bool {
-        unimplemented!()
+    pub(super) fn check_for_disallowed_es_symbol_operand(
+        &self,
+        left_type: &Type,
+        right_type: &Type,
+        left: &Node,
+        right: &Node,
+        operator: SyntaxKind,
+    ) -> bool {
+        let offending_symbol_operand =
+            if self.maybe_type_of_kind(left_type, TypeFlags::ESSymbolLike) {
+                Some(left.node_wrapper())
+            } else if self.maybe_type_of_kind(right_type, TypeFlags::ESSymbolLike) {
+                Some(right.node_wrapper())
+            } else {
+                None
+            };
+
+        if let Some(offending_symbol_operand) = offending_symbol_operand.as_ref() {
+            self.error(
+                Some(&**offending_symbol_operand),
+                &Diagnostics::The_0_operator_cannot_be_applied_to_type_symbol,
+                Some(vec![token_to_string(operator).unwrap().to_owned()]),
+            );
+            return false;
+        }
+
+        true
     }
 
     pub(super) fn get_suggested_boolean_operator(
         &self,
         operator: SyntaxKind,
     ) -> Option<SyntaxKind> {
-        unimplemented!()
+        match operator {
+            SyntaxKind::BarToken | SyntaxKind::BarEqualsToken => Some(SyntaxKind::BarBarToken),
+            SyntaxKind::CaretToken | SyntaxKind::CaretEqualsToken => {
+                Some(SyntaxKind::ExclamationEqualsEqualsToken)
+            }
+            SyntaxKind::AmpersandToken | SyntaxKind::AmpersandEqualsToken => {
+                Some(SyntaxKind::AmpersandAmpersandToken)
+            }
+            _ => None,
+        }
     }
 
-    pub(super) fn check_assignment_operator(&self, value_type: &Type) {
-        unimplemented!()
+    pub(super) fn check_assignment_operator(
+        &self,
+        operator: SyntaxKind,
+        left: &Node,
+        left_type: &Type,
+        right: &Node,
+        value_type: &Type,
+    ) {
+        if self.produce_diagnostics && is_assignment_operator(operator) {
+            if self.check_reference_expression(
+                left,
+                &Diagnostics::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access,
+                &Diagnostics::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access,
+            ) && (
+                !is_identifier(left) ||
+                unescape_leading_underscores(&left.as_identifier().escaped_text) != "exports"
+            ) {
+                let mut head_message: Option<&'static DiagnosticMessage> = None;
+                if self.exact_optional_property_types == Some(true) && is_property_access_expression(left) && self.maybe_type_of_kind(
+                    value_type,
+                    TypeFlags::Undefined
+                ) {
+                    let left_as_property_access_expression = left.as_property_access_expression();
+                    let target = self.get_type_of_property_of_type_(
+                        &self.get_type_of_expression(&left_as_property_access_expression.expression),
+                        &left_as_property_access_expression.name.as_member_name().escaped_text()
+                    );
+                    if self.is_exact_optional_property_mismatch(
+                        Some(value_type),
+                        target
+                    ) {
+                        head_message = Some(&Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target);
+                    }
+                }
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    value_type,
+                    left_type,
+                    Some(left),
+                    Some(right),
+                    head_message,
+                    None,
+                );
+            }
+        }
     }
 
     pub(super) fn is_assignment_declaration(&self, kind: AssignmentDeclarationKind) -> bool {

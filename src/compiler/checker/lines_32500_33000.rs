@@ -645,7 +645,13 @@ impl TypeChecker {
                         result_type = self.error_type();
                     }
                     if left_ok && right_ok {
-                        self.check_assignment_operator(&result_type);
+                        self.check_assignment_operator(
+                            operator,
+                            left,
+                            &left_type,
+                            right,
+                            &result_type,
+                        );
                     }
                     result_type
                 }
@@ -708,7 +714,13 @@ impl TypeChecker {
                 }
 
                 if let Some(result_type) = result_type.as_ref() {
-                    if !self.check_for_disallowed_es_symbol_operand(operator) {
+                    if !self.check_for_disallowed_es_symbol_operand(
+                        &left_type,
+                        &right_type,
+                        left,
+                        right,
+                        operator,
+                    ) {
                         return result_type.clone();
                     }
                 }
@@ -727,7 +739,7 @@ impl TypeChecker {
                 let result_type = result_type.unwrap();
 
                 if operator == SyntaxKind::PlusEqualsToken {
-                    self.check_assignment_operator(&result_type);
+                    self.check_assignment_operator(operator, left, &left_type, right, &result_type);
                 }
                 result_type
             }
@@ -735,7 +747,9 @@ impl TypeChecker {
             | SyntaxKind::GreaterThanToken
             | SyntaxKind::LessThanEqualsToken
             | SyntaxKind::GreaterThanEqualsToken => {
-                if self.check_for_disallowed_es_symbol_operand(operator) {
+                if self.check_for_disallowed_es_symbol_operand(
+                    left_type, right_type, left, right, operator,
+                ) {
                     let left_type = self
                         .get_base_type_of_literal_type(&self.check_non_null_type(left_type, left));
                     let right_type = self.get_base_type_of_literal_type(
@@ -788,7 +802,7 @@ impl TypeChecker {
                     left_type.type_wrapper()
                 };
                 if operator == SyntaxKind::AmpersandAmpersandEqualsToken {
-                    self.check_assignment_operator(right_type);
+                    self.check_assignment_operator(operator, left, left_type, right, right_type);
                 }
                 result_type
             }
@@ -811,7 +825,7 @@ impl TypeChecker {
                     left_type.type_wrapper()
                 };
                 if operator == SyntaxKind::BarBarEqualsToken {
-                    self.check_assignment_operator(right_type);
+                    self.check_assignment_operator(operator, left, left_type, right, right_type);
                 }
                 result_type
             }
@@ -834,7 +848,7 @@ impl TypeChecker {
                     left_type.type_wrapper()
                 };
                 if operator == SyntaxKind::QuestionQuestionEqualsToken {
-                    self.check_assignment_operator(right_type);
+                    self.check_assignment_operator(operator, left, left_type, right, right_type);
                 }
                 result_type
             }
@@ -855,11 +869,13 @@ impl TypeChecker {
                             && !self.is_function_object_type(right_type)
                             && !get_object_flags(right_type).intersects(ObjectFlags::Class)
                     {
-                        self.check_assignment_operator(right_type);
+                        self.check_assignment_operator(
+                            operator, left, left_type, right, right_type,
+                        );
                     }
                     left_type.type_wrapper()
                 } else {
-                    self.check_assignment_operator(right_type);
+                    self.check_assignment_operator(operator, left, left_type, right, right_type);
                     self.get_regular_type_of_object_literal(right_type)
                 }
             }
