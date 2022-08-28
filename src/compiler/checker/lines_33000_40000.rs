@@ -8,17 +8,18 @@ use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
-    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, AssignmentDeclarationKind,
-    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
-    InferenceContext, InferenceInfo, IterationTypes, IterationTypesResolver,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface,
+    is_jsdoc_typedef_tag, is_private_identifier, map, maybe_for_each, parse_pseudo_big_int,
+    unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
+    Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo,
+    IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn both_are_big_int_like(&self, left: &Type, right: &Type) -> bool {
-        unimplemented!()
+        self.is_type_assignable_to_kind(left, TypeFlags::BigIntLike, None)
+            && self.is_type_assignable_to_kind(right, TypeFlags::BigIntLike, None)
     }
 
     pub(super) fn check_assignment_declaration(
@@ -26,11 +27,47 @@ impl TypeChecker {
         kind: AssignmentDeclarationKind,
         right_type: &Type,
     ) {
-        unimplemented!()
+        if kind == AssignmentDeclarationKind::ModuleExports {
+            for prop in &self.get_properties_of_object_type(right_type) {
+                let prop_type = self.get_type_of_symbol(prop);
+                if matches!(
+                    prop_type.maybe_symbol().as_ref(),
+                    Some(prop_type_symbol) if prop_type_symbol.flags().intersects(SymbolFlags::Class)
+                ) {
+                    let name = prop.escaped_name();
+                    let symbol = self.resolve_name_(
+                        prop.maybe_value_declaration(),
+                        name,
+                        SymbolFlags::Type,
+                        None,
+                        Some(name.clone()),
+                        false,
+                        None,
+                    );
+                    if matches!(
+                        symbol.as_ref().and_then(|symbol| symbol.maybe_declarations().clone()).as_ref(),
+                        Some(symbol_declarations) if symbol_declarations.iter().any(|symbol_declaration| is_jsdoc_typedef_tag(symbol_declaration))
+                    ) {
+                        self.add_duplicate_declaration_errors_for_symbols(
+                            symbol.as_ref().unwrap(),
+                            &Diagnostics::Duplicate_identifier_0,
+                            &unescape_leading_underscores(name),
+                            prop,
+                        );
+                        self.add_duplicate_declaration_errors_for_symbols(
+                            prop,
+                            &Diagnostics::Duplicate_identifier_0,
+                            &unescape_leading_underscores(name),
+                            symbol.as_ref().unwrap(),
+                        );
+                    }
+                }
+            }
+        }
     }
 
     pub(super) fn is_eval_node(&self, node: &Node /*Expression*/) -> bool {
-        unimplemented!()
+        node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text.eq_str("eval")
     }
 
     pub(super) fn check_for_disallowed_es_symbol_operand(&self, operator: SyntaxKind) -> bool {
