@@ -271,7 +271,7 @@ impl TypeChecker {
             candidate.clone(),
             args,
             CheckMode::SkipContextSensitive | CheckMode::SkipGenericFunctions,
-            &inference_context,
+            inference_context,
         );
         Rc::new(self.create_signature_instantiation(candidate, Some(&type_argument_types)))
     }

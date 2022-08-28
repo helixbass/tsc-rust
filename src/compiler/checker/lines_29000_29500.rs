@@ -285,15 +285,15 @@ impl TypeChecker {
         node: &Node, /*JsxOpeningLikeElement*/
         signature: Rc<Signature>,
         check_mode: CheckMode,
-        context: &InferenceContext,
+        context: Rc<InferenceContext>,
     ) -> Vec<Rc<Type>> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
         let check_attr_type = self.check_expression_with_contextual_type(
             &node.as_jsx_opening_like_element().attributes(),
             &param_type,
-            Some(context),
-            Some(check_mode),
+            Some(context.clone()),
+            check_mode,
         );
         self.infer_types(
             &context.inferences,
@@ -302,7 +302,7 @@ impl TypeChecker {
             None,
             None,
         );
-        self.get_inferred_types(context)
+        self.get_inferred_types(&context)
     }
 
     pub(super) fn get_this_argument_type<TThisArgumentNode: Borrow<Node>>(
@@ -330,7 +330,7 @@ impl TypeChecker {
         signature: Rc<Signature>,
         args: &[Rc<Node /*Expression*/>],
         check_mode: CheckMode,
-        context: &InferenceContext,
+        context: Rc<InferenceContext>,
     ) -> Vec<Rc<Type>> {
         if is_jsx_opening_like_element(node) {
             return self.infer_jsx_type_arguments(node, signature, check_mode, context);
@@ -470,8 +470,8 @@ impl TypeChecker {
                 let arg_type = self.check_expression_with_contextual_type(
                     arg,
                     &param_type,
-                    Some(context),
-                    Some(check_mode),
+                    Some(context.clone()),
+                    check_mode,
                 );
                 self.infer_types(&context.inferences, &arg_type, &param_type, None, None);
             }
@@ -483,13 +483,13 @@ impl TypeChecker {
                 arg_count,
                 args.len(),
                 rest_type,
-                Some(context),
+                Some(context.clone()),
                 check_mode,
             );
             self.infer_types(&context.inferences, &spread_type, rest_type, None, None);
         }
 
-        self.get_inferred_types(context)
+        self.get_inferred_types(&context)
     }
 
     pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> Rc<Type> {
@@ -542,7 +542,7 @@ impl TypeChecker {
         index: usize,
         arg_count: usize,
         rest_type: &Type,
-        context: Option<&InferenceContext>,
+        context: Option<Rc<InferenceContext>>,
         check_mode: CheckMode,
     ) -> Rc<Type> {
         if index >= arg_count - 1 {
@@ -556,8 +556,8 @@ impl TypeChecker {
                     self.check_expression_with_contextual_type(
                         &arg.as_spread_element().expression,
                         rest_type,
-                        context,
-                        Some(check_mode),
+                        context.clone(),
+                        check_mode,
                     )
                 });
             }
@@ -601,8 +601,8 @@ impl TypeChecker {
                 let arg_type = self.check_expression_with_contextual_type(
                     arg,
                     &contextual_type,
-                    context,
-                    Some(check_mode),
+                    context.clone(),
+                    check_mode,
                 );
                 let has_primitive_contextual_type = self.maybe_type_of_kind(
                     &contextual_type,
@@ -748,7 +748,7 @@ impl TypeChecker {
             &node_as_jsx_opening_like_element.attributes(),
             &param_type,
             None,
-            Some(check_mode),
+            check_mode,
         );
         self.check_tag_name_does_not_expect_too_many_arguments(
             node,
@@ -975,12 +975,8 @@ impl TypeChecker {
             let arg = &args[i];
             if arg.kind() != SyntaxKind::OmittedExpression {
                 let param_type = self.get_type_at_position(&signature, i);
-                let arg_type = self.check_expression_with_contextual_type(
-                    arg,
-                    &param_type,
-                    None,
-                    Some(check_mode),
-                );
+                let arg_type =
+                    self.check_expression_with_contextual_type(arg, &param_type, None, check_mode);
                 let check_arg_type = if check_mode.intersects(CheckMode::SkipContextSensitive) {
                     self.get_regular_type_of_object_literal(&arg_type)
                 } else {

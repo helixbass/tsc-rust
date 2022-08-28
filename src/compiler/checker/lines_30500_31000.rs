@@ -401,7 +401,7 @@ impl TypeChecker {
                         node,
                     ),
                     None,
-                    Some(CheckMode::Normal),
+                    CheckMode::Normal,
                 ),
                 &result,
                 Some(node_as_jsx_opening_like_element.tag_name()),

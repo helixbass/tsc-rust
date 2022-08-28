@@ -227,7 +227,7 @@ impl TypeChecker {
                     index_of_parameter,
                     args.len(),
                     &self.any_type(),
-                    Option::<&InferenceContext>::None,
+                    None,
                     CheckMode::Normal,
                 ));
             }

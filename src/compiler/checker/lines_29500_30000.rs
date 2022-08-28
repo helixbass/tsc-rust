@@ -1187,7 +1187,7 @@ impl TypeChecker {
                         candidate.clone(),
                         args,
                         *arg_check_mode | CheckMode::SkipGenericFunctions,
-                        inference_context.as_ref().unwrap(),
+                        inference_context.clone().unwrap(),
                     ));
                     *arg_check_mode |= if inference_context
                         .as_ref()
@@ -1251,7 +1251,7 @@ impl TypeChecker {
                         candidate.clone(),
                         args,
                         *arg_check_mode,
-                        inference_context,
+                        inference_context.clone(),
                     );
                     check_candidate = self.get_signature_instantiation(
                         candidate.clone(),

@@ -10,15 +10,15 @@ use crate::{
     get_combined_node_flags, get_containing_function,
     get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
     is_assignment_operator, is_binding_element, is_element_access_expression,
-    is_function_or_module_block, is_identifier, is_jsdoc_typedef_tag, is_object_literal_expression,
-    is_parenthesized_expression, is_private_identifier, is_property_access_expression, map,
-    maybe_for_each, parse_pseudo_big_int, token_to_string, unescape_leading_underscores,
-    AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceInfo, IterationTypes,
-    IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, PseudoBigInt, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    is_function_or_module_block, is_identifier, is_jsdoc_typedef_tag, is_jsx_self_closing_element,
+    is_object_literal_expression, is_parenthesized_expression, is_private_identifier,
+    is_property_access_expression, map, maybe_for_each, parse_pseudo_big_int, token_to_string,
+    unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, InferenceContext,
+    InferenceInfo, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
+    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -525,6 +525,13 @@ impl TypeChecker {
         for span in node_as_template_expression.template_spans.iter() {
             let span = span.as_template_span();
             let type_ = self.check_expression(&span.expression, None, None);
+            if self.maybe_type_of_kind(&type_, TypeFlags::ESSymbolLike) {
+                self.error(
+                    Some(&*span.expression),
+                    &Diagnostics::Implicit_conversion_of_a_symbol_to_a_string_will_fail_at_runtime_Consider_wrapping_this_expression_in_String,
+                    None,
+                );
+            }
             texts.push(span.literal.as_literal_like_node().text());
             types.push(
                 if self.is_type_assignable_to(&type_, &self.template_constraint_type()) {
@@ -534,21 +541,91 @@ impl TypeChecker {
                 },
             );
         }
-        if false {
-            unimplemented!()
+        if self.is_const_context(node)
+            || self.is_template_literal_context(node)
+            || self.some_type(
+                &self
+                    .get_contextual_type_(node, None)
+                    .unwrap_or_else(|| self.unknown_type()),
+                |type_: &Type| self.is_template_literal_contextual_type(type_),
+            )
+        {
+            self.get_template_literal_type(
+                &texts
+                    .into_iter()
+                    .map(|text| text.clone())
+                    .collect::<Vec<_>>(),
+                &types,
+            )
         } else {
             self.string_type()
         }
+    }
+
+    pub(super) fn is_template_literal_contextual_type(&self, type_: &Type) -> bool {
+        type_
+            .flags()
+            .intersects(TypeFlags::StringLiteral | TypeFlags::TemplateLiteral)
+            || type_
+                .flags()
+                .intersects(TypeFlags::InstantiableNonPrimitive)
+                && self.maybe_type_of_kind(
+                    &self
+                        .get_base_constraint_of_type(type_)
+                        .unwrap_or_else(|| self.unknown_type()),
+                    TypeFlags::StringLike,
+                )
+    }
+
+    pub(super) fn get_context_node(&self, node: &Node /*Expression*/) -> Rc<Node> {
+        if node.kind() == SyntaxKind::JsxAttributes && !is_jsx_self_closing_element(&node.parent())
+        {
+            return node.parent().parent();
+        }
+        node.node_wrapper()
     }
 
     pub(super) fn check_expression_with_contextual_type(
         &self,
         node: &Node, /*Expression*/
         contextual_type: &Type,
-        inference_context: Option<&InferenceContext>,
-        check_mode: Option<CheckMode>,
+        inference_context: Option<Rc<InferenceContext>>,
+        check_mode: CheckMode,
     ) -> Rc<Type> {
-        unimplemented!()
+        let context = self.get_context_node(node);
+        let save_contextual_type = context.maybe_contextual_type().clone();
+        let save_inference_context = context.maybe_inference_context().clone();
+        // try {
+        *context.maybe_contextual_type() = Some(contextual_type.type_wrapper());
+        *context.maybe_inference_context() = inference_context.clone();
+        let type_ = self.check_expression(
+            node,
+            Some(
+                check_mode
+                    | CheckMode::Contextual
+                    | if inference_context.is_some() {
+                        CheckMode::Inferential
+                    } else {
+                        CheckMode::Normal
+                    },
+            ),
+            None,
+        );
+        let result = if self.maybe_type_of_kind(&type_, TypeFlags::Literal)
+            && self.is_literal_of_contextual_type(
+                &type_,
+                self.instantiate_contextual_type(Some(contextual_type), node, None),
+            ) {
+            self.get_regular_type_of_literal_type(&type_)
+        } else {
+            type_
+        };
+        // }
+        // finally {
+        *context.maybe_contextual_type() = save_contextual_type;
+        *context.maybe_inference_context() = save_inference_context;
+        // }
+        result
     }
 
     pub(super) fn check_expression_cached(
@@ -564,8 +641,13 @@ impl TypeChecker {
                     return self.check_expression(node, Some(check_mode), None);
                 }
             }
+            let save_flow_loop_start = self.flow_loop_start();
+            let save_flow_type_cache = self.maybe_flow_type_cache().take();
+            self.set_flow_loop_start(self.flow_loop_count());
             let resolved_type = self.check_expression(node, check_mode, None);
             links.borrow_mut().resolved_type = Some(resolved_type);
+            *self.maybe_flow_type_cache() = save_flow_type_cache;
+            self.set_flow_loop_start(save_flow_loop_start);
         }
         let resolved_type = (*links).borrow().resolved_type.clone().unwrap();
         resolved_type
