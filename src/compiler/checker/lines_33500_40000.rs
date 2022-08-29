@@ -415,7 +415,7 @@ impl TypeChecker {
     }
 
     pub(super) fn has_inference_candidates(&self, info: &InferenceInfo) -> bool {
-        unimplemented!()
+        info.maybe_candidates().is_some() || info.maybe_contra_candidates().is_some()
     }
 
     pub(super) fn has_overlapping_inferences(
@@ -423,15 +423,26 @@ impl TypeChecker {
         a: &[Rc<InferenceInfo>],
         b: &[Rc<InferenceInfo>],
     ) -> bool {
-        unimplemented!()
+        for i in 0..a.len() {
+            if self.has_inference_candidates(&a[i]) && self.has_inference_candidates(&b[i]) {
+                return true;
+            }
+        }
+        false
     }
 
     pub(super) fn merge_inferences(
         &self,
         target: &mut Vec<Rc<InferenceInfo>>,
-        b: &[Rc<InferenceInfo>],
-    ) -> bool {
-        unimplemented!()
+        source: &[Rc<InferenceInfo>],
+    ) {
+        for i in 0..target.len() {
+            if !self.has_inference_candidates(&target[i])
+                && self.has_inference_candidates(&source[i])
+            {
+                target[i] = source[i].clone();
+            }
+        }
     }
 
     pub(super) fn get_unique_type_parameters(
