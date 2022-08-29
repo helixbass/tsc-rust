@@ -2,24 +2,26 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain, IterationTypeKind,
-    IterationUse, UnusedKind,
+    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain, DeclarationMeaning,
+    IterationTypeKind, IterationUse, UnusedKind,
 };
 use crate::{
-    chain_diagnostic_messages, for_each, get_containing_function,
+    __String, chain_diagnostic_messages, for_each, get_containing_function,
     get_containing_function_or_class_static_block, get_effective_initializer,
     get_effective_return_type_node, get_effective_type_parameter_declarations, get_function_flags,
-    has_syntactic_modifier, is_binding_element, is_binding_pattern, is_function_or_module_block,
-    is_identifier, is_omitted_expression, is_private_identifier, map, maybe_for_each,
-    node_is_present, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
+    get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier,
+    is_binding_element, is_binding_pattern, is_function_or_module_block, is_identifier,
+    is_omitted_expression, is_parameter_property_declaration, is_private_identifier, is_static,
+    map, maybe_for_each, node_is_present, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
     IterationTypesResolver, ModifierFlags, NamedDeclarationInterface, Node, NodeInterface,
-    ScriptTarget, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypePredicateKind,
+    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypePredicateKind,
 };
 
 impl TypeChecker {
@@ -467,6 +469,176 @@ impl TypeChecker {
                 SyntaxKind::IndexSignature | SyntaxKind::JSDocFunctionType
             ) {
                 self.register_for_unused_identifiers_check(node);
+            }
+        }
+    }
+
+    pub(super) fn check_class_for_duplicate_declarations(
+        &self,
+        node: &Node, /*ClassLikeDeclaration*/
+    ) {
+        let mut instance_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
+        let mut static_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
+        let mut private_identifiers: HashMap<__String, DeclarationMeaning> = HashMap::new();
+        for member in node.as_class_like_declaration().members() {
+            if member.kind() == SyntaxKind::Constructor {
+                for param in member.as_constructor_declaration().parameters() {
+                    if is_parameter_property_declaration(param, member)
+                        && !is_binding_pattern(param.as_named_declaration().maybe_name())
+                    {
+                        self.add_name(
+                            &mut instance_names,
+                            &param.as_named_declaration().name(),
+                            &param
+                                .as_named_declaration()
+                                .name()
+                                .as_identifier()
+                                .escaped_text,
+                            DeclarationMeaning::GetOrSetAccessor,
+                        );
+                    }
+                }
+            } else {
+                let is_static_member = is_static(member);
+                let name = member.as_named_declaration().maybe_name();
+                if name.is_none() {
+                    continue;
+                }
+                let name = name.unwrap();
+                let is_private = is_private_identifier(&name);
+                let private_static_flags = if is_private && is_static_member {
+                    DeclarationMeaning::PrivateStatic
+                } else {
+                    DeclarationMeaning::None
+                };
+                let names = if is_private {
+                    &mut private_identifiers
+                } else if is_static_member {
+                    &mut static_names
+                } else {
+                    &mut instance_names
+                };
+
+                let member_name = /*name &&*/ get_property_name_for_property_name_node(&name);
+                if let Some(member_name) = member_name.as_ref() {
+                    match member.kind() {
+                        SyntaxKind::GetAccessor => {
+                            self.add_name(
+                                names,
+                                &name,
+                                member_name,
+                                DeclarationMeaning::GetAccessor | private_static_flags,
+                            );
+                        }
+
+                        SyntaxKind::SetAccessor => {
+                            self.add_name(
+                                names,
+                                &name,
+                                member_name,
+                                DeclarationMeaning::SetAccessor | private_static_flags,
+                            );
+                        }
+
+                        SyntaxKind::PropertyDeclaration => {
+                            self.add_name(
+                                names,
+                                &name,
+                                member_name,
+                                DeclarationMeaning::GetOrSetAccessor | private_static_flags,
+                            );
+                        }
+
+                        SyntaxKind::MethodDeclaration => {
+                            self.add_name(
+                                names,
+                                &name,
+                                member_name,
+                                DeclarationMeaning::Method | private_static_flags,
+                            );
+                        }
+                        _ => (),
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn add_name(
+        &self,
+        names: &mut HashMap<__String, DeclarationMeaning>,
+        location: &Node,
+        name: &__String,
+        meaning: DeclarationMeaning,
+    ) {
+        let prev = names.get(name);
+        if let Some(prev) = prev {
+            if *prev & DeclarationMeaning::PrivateStatic
+                != meaning & DeclarationMeaning::PrivateStatic
+            {
+                self.error(
+                    Some(location),
+                    &Diagnostics::Duplicate_identifier_0_Static_and_instance_elements_cannot_share_the_same_private_name,
+                    Some(vec![
+                        get_text_of_node(location, None).into_owned()
+                    ])
+                );
+            } else {
+                let prev_is_method = prev.intersects(DeclarationMeaning::Method);
+                let is_method = meaning.intersects(DeclarationMeaning::Method);
+                if prev_is_method || is_method {
+                    if prev_is_method != is_method {
+                        self.error(
+                            Some(location),
+                            &Diagnostics::Duplicate_identifier_0,
+                            Some(vec![get_text_of_node(location, None).into_owned()]),
+                        );
+                    }
+                } else if (*prev & meaning).intersects(!DeclarationMeaning::PrivateStatic) {
+                    self.error(
+                        Some(location),
+                        &Diagnostics::Duplicate_identifier_0,
+                        Some(vec![get_text_of_node(location, None).into_owned()]),
+                    );
+                } else {
+                    names.insert(name.clone(), *prev | meaning);
+                }
+            }
+        } else {
+            names.insert(name.clone(), meaning);
+        }
+    }
+
+    pub(super) fn check_class_for_static_property_name_conflicts(
+        &self,
+        node: &Node, /*ClassLikeDeclaration*/
+    ) {
+        for member in node.as_class_like_declaration().members() {
+            let member_name_node = member.as_named_declaration().maybe_name();
+            let is_static_member = is_static(member);
+            if is_static_member {
+                if let Some(member_name_node) = member_name_node.as_ref() {
+                    let member_name = get_property_name_for_property_name_node(member_name_node);
+                    if let Some(member_name) = member_name {
+                        if matches!(
+                            &*member_name,
+                            "name" | "length" | "caller" | "arguments" | "prototype"
+                        ) {
+                            let message = &Diagnostics::Static_property_0_conflicts_with_built_in_property_Function_0_of_constructor_function_1;
+                            let class_name = self
+                                .get_name_of_symbol_as_written(
+                                    &self.get_symbol_of_node(node).unwrap(),
+                                    None,
+                                )
+                                .into_owned();
+                            self.error(
+                                Some(&**member_name_node),
+                                message,
+                                Some(vec![member_name.into_string(), class_name]),
+                            );
+                        }
+                    }
+                }
             }
         }
     }
