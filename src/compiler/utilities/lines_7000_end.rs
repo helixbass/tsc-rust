@@ -4,7 +4,8 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    CompilerOptions, Node, NodeInterface, PseudoBigInt, ReadonlyTextRange, Symbol, SyntaxKind,
+    CompilerOptions, Node, NodeFlags, NodeInterface, PseudoBigInt, ReadonlyTextRange, Symbol,
+    SyntaxKind,
 };
 
 pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
@@ -57,6 +58,17 @@ pub fn set_text_range_pos_width<TRange: ReadonlyTextRange>(
     width: isize,
 ) {
     set_text_range_pos_end(range, pos, pos + width);
+}
+
+pub fn set_node_flags<TNode: Borrow<Node>>(
+    node: Option<TNode>,
+    new_flags: NodeFlags,
+) -> Option<Rc<Node>> {
+    node.map(|node| {
+        let node = node.borrow();
+        node.set_flags(new_flags);
+        node.node_wrapper()
+    })
 }
 
 pub fn set_parent<TParent: Borrow<Node>>(child: &Node, parent: Option<TParent>) -> &Node {

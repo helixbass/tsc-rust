@@ -1,23 +1,25 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{get_node_id, CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    append, SymbolFlags, __String, concatenate, every, for_each, get_combined_node_flags,
-    get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
-    get_jsdoc_type_assertion_type, is_array_literal_expression, is_assertion_expression,
-    is_binding_element, is_const_type_reference, is_declaration_readonly,
-    is_function_or_module_block, is_in_js_file, is_jsdoc_type_assertion, is_omitted_expression,
-    is_parameter, is_parenthesized_expression, is_private_identifier, is_property_assignment,
-    is_shorthand_property_assignment, is_spread_element, is_template_span, map, maybe_for_each,
-    parse_pseudo_big_int, skip_parentheses, some, ContextFlags, Diagnostic, DiagnosticMessage,
-    Diagnostics, ElementFlags, FunctionFlags, HasTypeParametersInterface, InferenceContext,
-    InferenceFlags, InferenceInfo, InferencePriority, IterationTypes, IterationTypesResolver,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    PseudoBigInt, SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    append, set_node_flags, text_char_at_index, CharacterCodes, SymbolFlags, __String, concatenate,
+    every, for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_function_flags, get_jsdoc_type_assertion_type,
+    is_array_literal_expression, is_assertion_expression, is_binding_element,
+    is_const_type_reference, is_declaration_readonly, is_function_or_module_block, is_in_js_file,
+    is_jsdoc_type_assertion, is_omitted_expression, is_parameter, is_parenthesized_expression,
+    is_private_identifier, is_property_assignment, is_shorthand_property_assignment,
+    is_spread_element, is_template_span, map, maybe_for_each, parse_pseudo_big_int,
+    skip_parentheses, some, ContextFlags, Diagnostic, DiagnosticMessage, Diagnostics, ElementFlags,
+    FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceFlags, InferenceInfo,
+    InferencePriority, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
+    SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
@@ -521,11 +523,78 @@ impl TypeChecker {
         type_parameters: &[Rc<Type /*TypeParameter*/>],
         base_name: &__String,
     ) -> __String {
-        unimplemented!()
+        let base_name_as_chars = base_name.chars().collect::<Vec<_>>();
+        let mut len = base_name_as_chars.len();
+        while len > 1
+            && text_char_at_index(&base_name_as_chars, len - 1) >= CharacterCodes::_0
+            && text_char_at_index(&base_name_as_chars, len - 1) <= CharacterCodes::_9
+        {
+            len -= 1;
+        }
+        let s: String = base_name_as_chars[0..len].into_iter().collect();
+        let mut index = 1;
+        loop {
+            let augmented_name = __String::new(format!("{}{}", s, index));
+            if !self.has_type_parameter_by_name(Some(type_parameters), &augmented_name) {
+                return augmented_name;
+            }
+            index += 1;
+        }
+    }
+
+    pub(super) fn get_return_type_of_single_non_generic_call_signature(
+        &self,
+        func_type: &Type,
+    ) -> Option<Rc<Type>> {
+        let signature = self.get_single_call_signature(func_type);
+        signature
+            .filter(|signature| signature.maybe_type_parameters().is_none())
+            .map(|signature| self.get_return_type_of_signature(signature))
+    }
+
+    pub(super) fn get_return_type_of_single_non_generic_signature_of_call_chain(
+        &self,
+        expr: &Node, /*CallChain*/
+    ) -> Option<Rc<Type>> {
+        let expr_as_call_expression = expr.as_call_expression();
+        let func_type = self.check_expression(&expr_as_call_expression.expression, None, None);
+        let non_optional_type =
+            self.get_optional_expression_type(&func_type, &expr_as_call_expression.expression);
+        let return_type = self.get_return_type_of_single_non_generic_call_signature(&func_type);
+        return_type.as_ref().map(|return_type| {
+            self.propagate_optional_type_marker(
+                return_type,
+                expr,
+                !Rc::ptr_eq(&non_optional_type, &func_type),
+            )
+        })
     }
 
     pub(super) fn get_type_of_expression(&self, node: &Node /*Expression*/) -> Rc<Type> {
-        unimplemented!()
+        let quick_type = self.get_quick_type_of_expression(node);
+        if let Some(quick_type) = quick_type {
+            return quick_type;
+        }
+        if node.flags().intersects(NodeFlags::TypeCached) {
+            if let Some(flow_type_cache) = self.maybe_flow_type_cache().as_ref() {
+                let cached_type = flow_type_cache.get(&get_node_id(node));
+                if let Some(cached_type) = cached_type {
+                    return cached_type.clone();
+                }
+            }
+        }
+        let start_invocation_count = self.flow_invocation_count();
+        let type_ = self.check_expression(node, None, None);
+        if self.flow_invocation_count() != start_invocation_count {
+            let mut flow_type_cache = self.maybe_flow_type_cache();
+            if flow_type_cache.is_none() {
+                *flow_type_cache = Some(HashMap::new());
+            }
+            let cache = flow_type_cache.as_mut().unwrap();
+            cache.insert(get_node_id(node), type_.clone());
+            set_node_flags(Some(node), node.flags() | NodeFlags::TypeCached);
+        }
+        type_
     }
 
     pub(super) fn get_quick_type_of_expression(
