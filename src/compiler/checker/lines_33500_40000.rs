@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    concatenate, every, for_each, get_combined_node_flags,
+    append, SymbolFlags, __String, concatenate, every, for_each, get_combined_node_flags,
     get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
     get_jsdoc_type_assertion_type, is_array_literal_expression, is_assertion_expression,
     is_binding_element, is_const_type_reference, is_declaration_readonly,
@@ -450,6 +450,77 @@ impl TypeChecker {
         context: &InferenceContext,
         type_parameters: &[Rc<Type /*TypeParameter*/>],
     ) -> Vec<Rc<Type /*TypeParameter*/>> {
+        let mut result: Vec<Rc<Type /*TypeParameter*/>> = vec![];
+        let mut old_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        let mut new_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        for tp in type_parameters {
+            let tp_symbol = tp.symbol();
+            let name = tp_symbol.escaped_name();
+            if self.has_type_parameter_by_name(
+                context.maybe_inferred_type_parameters().as_deref(),
+                name,
+            ) || self.has_type_parameter_by_name(Some(&result), name)
+            {
+                let new_name = self.get_unique_type_parameter_name(
+                    &concatenate(
+                        context
+                            .maybe_inferred_type_parameters()
+                            .clone()
+                            .unwrap_or_else(|| vec![]),
+                        result.clone(),
+                    ),
+                    name,
+                );
+                let symbol: Rc<Symbol> = self
+                    .create_symbol(SymbolFlags::TypeParameter, new_name, None)
+                    .into();
+                let mut new_type_parameter = self.create_type_parameter(Some(&*symbol));
+                new_type_parameter.target = Some(tp.clone());
+                let new_type_parameter: Rc<Type> = new_type_parameter.into();
+                if old_type_parameters.is_none() {
+                    old_type_parameters = Some(vec![]);
+                }
+                append(old_type_parameters.as_mut().unwrap(), Some(tp.clone()));
+                if new_type_parameters.is_none() {
+                    new_type_parameters = Some(vec![]);
+                }
+                append(
+                    new_type_parameters.as_mut().unwrap(),
+                    Some(new_type_parameter.clone()),
+                );
+                result.push(new_type_parameter);
+            } else {
+                result.push(tp.clone());
+            }
+        }
+        if let Some(new_type_parameters) = new_type_parameters.as_ref() {
+            let mapper = self.create_type_mapper(
+                old_type_parameters.unwrap(),
+                Some(new_type_parameters.clone()),
+            );
+            for tp in new_type_parameters {
+                tp.as_type_parameter().set_mapper(mapper.clone());
+            }
+        }
+        result
+    }
+
+    pub(super) fn has_type_parameter_by_name(
+        &self,
+        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        name: &__String,
+    ) -> bool {
+        some(
+            type_parameters,
+            Some(|tp: &Rc<Type>| tp.symbol().escaped_name() == name),
+        )
+    }
+
+    pub(super) fn get_unique_type_parameter_name(
+        &self,
+        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        base_name: &__String,
+    ) -> __String {
         unimplemented!()
     }
 
