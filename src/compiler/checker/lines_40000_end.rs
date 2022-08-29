@@ -302,6 +302,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_decorators_and_modifiers(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_for_disallowed_trailing_comma(
         &self,
         list: Option<&NodeArray>,

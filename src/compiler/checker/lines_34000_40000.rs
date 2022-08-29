@@ -6,17 +6,179 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    for_each, get_containing_function_or_class_static_block, get_effective_initializer,
-    get_function_flags, is_binding_element, is_function_or_module_block, is_private_identifier,
-    map, maybe_for_each, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
-    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    for_each, get_containing_function, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_function_flags, has_syntactic_modifier, is_binding_element,
+    is_binding_pattern, is_function_or_module_block, is_identifier, is_private_identifier, map,
+    maybe_for_each, node_is_present, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
+    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn check_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
-        // TODO
+        let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
+        if let Some(node_expression) = node_as_type_parameter_declaration.expression.as_ref() {
+            self.grammar_error_on_first_token(node_expression, &Diagnostics::Type_expected, None);
+        }
+
+        self.check_source_element(node_as_type_parameter_declaration.constraint.as_deref());
+        self.check_source_element(node_as_type_parameter_declaration.default.as_deref());
+        let type_parameter =
+            self.get_declared_type_of_type_parameter(&self.get_symbol_of_node(node).unwrap());
+        self.get_base_constraint_of_type(&type_parameter);
+        if !self.has_non_circular_type_parameter_default(&type_parameter) {
+            self.error(
+                node_as_type_parameter_declaration.default.as_deref(),
+                &Diagnostics::Type_parameter_0_has_a_circular_default,
+                Some(vec![self.type_to_string_(
+                    &type_parameter,
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                )]),
+            );
+        }
+        let constraint_type = self.get_constraint_of_type_parameter(&type_parameter);
+        let default_type = self.get_default_from_type_parameter_(&type_parameter);
+        if let (Some(constraint_type), Some(default_type)) =
+            (constraint_type.as_ref(), default_type.as_ref())
+        {
+            self.check_type_assignable_to(
+                default_type,
+                &self.get_type_with_this_argument(
+                    &self.instantiate_type(
+                        constraint_type,
+                        Some(&self.make_unary_type_mapper(&type_parameter, default_type)),
+                    ),
+                    Some(&**default_type),
+                    None,
+                ),
+                node_as_type_parameter_declaration.default.as_deref(),
+                Some(&Diagnostics::Type_0_does_not_satisfy_the_constraint_1),
+                None,
+                None,
+            );
+        }
+        if self.produce_diagnostics {
+            self.check_type_name_is_reserved(
+                &node_as_type_parameter_declaration.name(),
+                &Diagnostics::Type_parameter_name_cannot_be_0,
+            );
+        }
+    }
+
+    pub(super) fn check_parameter(&self, node: &Node /*ParameterDeclaration*/) {
+        self.check_grammar_decorators_and_modifiers(node);
+
+        self.check_variable_like_declaration(node);
+        let func = get_containing_function(node).unwrap();
+        let node_as_parameter_declaration = node.as_parameter_declaration();
+        if has_syntactic_modifier(node, ModifierFlags::ParameterPropertyModifier) {
+            if !(func.kind() == SyntaxKind::Constructor
+                && node_is_present(func.as_function_like_declaration().maybe_body()))
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::A_parameter_property_is_only_allowed_in_a_constructor_implementation,
+                    None,
+                );
+            }
+            if func.kind() == SyntaxKind::Constructor
+                && is_identifier(&node_as_parameter_declaration.name())
+                && node_as_parameter_declaration
+                    .name()
+                    .as_identifier()
+                    .escaped_text
+                    .eq_str("constructor")
+            {
+                self.error(
+                    Some(node_as_parameter_declaration.name()),
+                    &Diagnostics::constructor_cannot_be_used_as_a_parameter_property_name,
+                    None,
+                );
+            }
+        }
+        if node_as_parameter_declaration.question_token.is_some()
+            && is_binding_pattern(node_as_parameter_declaration.maybe_name())
+            && func.as_function_like_declaration().maybe_body().is_some()
+        {
+            self.error(
+                Some(node),
+                &Diagnostics::A_binding_pattern_parameter_cannot_be_optional_in_an_implementation_signature,
+                None,
+            );
+        }
+        if let Some(node_name) =
+            node_as_parameter_declaration
+                .maybe_name()
+                .as_ref()
+                .filter(|node_name| {
+                    is_identifier(node_name)
+                        && matches!(&*node_name.as_identifier().escaped_text, "this" | "new")
+                })
+        {
+            if func
+                .as_signature_declaration()
+                .parameters()
+                .into_iter()
+                .position(|parameter| ptr::eq(&**parameter, node))
+                != Some(0)
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::A_0_parameter_must_be_the_first_parameter,
+                    Some(vec![node_name
+                        .as_identifier()
+                        .escaped_text
+                        .clone()
+                        .into_string()]),
+                );
+            }
+            if matches!(
+                func.kind(),
+                SyntaxKind::Constructor
+                    | SyntaxKind::ConstructSignature
+                    | SyntaxKind::ConstructorType
+            ) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::A_constructor_cannot_have_a_this_parameter,
+                    None,
+                );
+            }
+            if func.kind() == SyntaxKind::ArrowFunction {
+                self.error(
+                    Some(node),
+                    &Diagnostics::An_arrow_function_cannot_have_a_this_parameter,
+                    None,
+                );
+            }
+            if matches!(
+                func.kind(),
+                SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+            ) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::get_and_set_accessors_cannot_declare_this_parameters,
+                    None,
+                );
+            }
+        }
+
+        if node_as_parameter_declaration.dot_dot_dot_token.is_some()
+            && !is_binding_pattern(node_as_parameter_declaration.maybe_name())
+            && !self.is_type_assignable_to(
+                &self.get_reduced_type(&self.get_type_of_symbol(&node.symbol())),
+                &self.any_readonly_array_type(),
+            )
+        {
+            self.error(
+                Some(node),
+                &Diagnostics::A_rest_parameter_must_be_of_an_array_type,
+                None,
+            );
+        }
     }
 
     pub(super) fn check_signature_declaration(&self, node: &Node /*SignatureDeclaration*/) {
@@ -489,6 +651,14 @@ impl TypeChecker {
                 // }
             }
         }
+    }
+
+    pub(super) fn check_type_name_is_reserved(
+        &self,
+        name: &Node, /*Identifier*/
+        message: &'static DiagnosticMessage,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn check_type_parameters(
