@@ -6,18 +6,19 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, get_jsdoc_type_assertion_type,
-    is_array_literal_expression, is_assertion_expression, is_binding_element,
-    is_const_type_reference, is_declaration_readonly, is_function_or_module_block, is_in_js_file,
-    is_jsdoc_type_assertion, is_omitted_expression, is_parameter, is_parenthesized_expression,
-    is_private_identifier, is_property_assignment, is_shorthand_property_assignment,
-    is_spread_element, is_template_span, map, maybe_for_each, parse_pseudo_big_int,
-    skip_parentheses, some, Diagnostic, DiagnosticMessage, Diagnostics, ElementFlags,
-    FunctionFlags, HasTypeParametersInterface, InferenceInfo, IterationTypes,
-    IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    concatenate, every, for_each, get_combined_node_flags,
+    get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
+    get_jsdoc_type_assertion_type, is_array_literal_expression, is_assertion_expression,
+    is_binding_element, is_const_type_reference, is_declaration_readonly,
+    is_function_or_module_block, is_in_js_file, is_jsdoc_type_assertion, is_omitted_expression,
+    is_parameter, is_parenthesized_expression, is_private_identifier, is_property_assignment,
+    is_shorthand_property_assignment, is_spread_element, is_template_span, map, maybe_for_each,
+    parse_pseudo_big_int, skip_parentheses, some, ContextFlags, Diagnostic, DiagnosticMessage,
+    Diagnostics, ElementFlags, FunctionFlags, HasTypeParametersInterface, InferenceContext,
+    InferenceInfo, InferencePriority, IterationTypes, IterationTypesResolver,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    PseudoBigInt, SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -254,7 +255,156 @@ impl TypeChecker {
         node: &Node, /*MethodDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
-        unimplemented!()
+        self.check_grammar_method(node);
+
+        let node_as_method_declaration = node.as_method_declaration();
+        if node_as_method_declaration.name().kind() == SyntaxKind::ComputedPropertyName {
+            self.check_computed_property_name(&node_as_method_declaration.name());
+        }
+
+        let uninstantiated_type =
+            self.check_function_expression_or_object_literal_method(node, check_mode);
+        self.instantiate_type_with_single_generic_call_signature(
+            node,
+            &uninstantiated_type,
+            check_mode,
+        )
+    }
+
+    pub(super) fn instantiate_type_with_single_generic_call_signature(
+        &self,
+        node: &Node, /*Expression | MethodDeclaration | QualifiedName*/
+        type_: &Type,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        if let Some(check_mode) = check_mode.filter(|check_mode| {
+            check_mode.intersects(CheckMode::Inferential | CheckMode::SkipGenericFunctions)
+        }) {
+            let call_signature = self.get_single_signature(type_, SignatureKind::Call, true);
+            let construct_signature =
+                self.get_single_signature(type_, SignatureKind::Construct, true);
+            let signature = call_signature
+                .clone()
+                .or_else(|| construct_signature.clone());
+            if let Some(signature) = signature
+                .as_ref()
+                .filter(|signature| signature.maybe_type_parameters().is_some())
+            {
+                let contextual_type = self
+                    .get_apparent_type_of_contextual_type(node, Some(ContextFlags::NoConstraints));
+                if let Some(contextual_type) = contextual_type.as_ref() {
+                    let contextual_signature = self.get_single_signature(
+                        &self.get_non_nullable_type(contextual_type),
+                        if call_signature.is_some() {
+                            SignatureKind::Call
+                        } else {
+                            SignatureKind::Construct
+                        },
+                        false,
+                    );
+                    if let Some(contextual_signature) =
+                        contextual_signature
+                            .as_ref()
+                            .filter(|contextual_signature| {
+                                contextual_signature.maybe_type_parameters().is_none()
+                            })
+                    {
+                        if check_mode.intersects(CheckMode::SkipGenericFunctions) {
+                            self.skipped_generic_function(node, check_mode);
+                            return self.any_function_type();
+                        }
+                        let context = self.get_inference_context(node).unwrap();
+                        let return_type = context.signature.as_ref().map(|context_signature| {
+                            self.get_return_type_of_signature(context_signature.clone())
+                        });
+                        let return_signature = return_type.as_ref().and_then(|return_type| {
+                            self.get_single_call_or_construct_signature(return_type)
+                        });
+                        if let Some(return_signature) =
+                            return_signature.as_ref().filter(|return_signature| {
+                                return_signature.maybe_type_parameters().is_none()
+                                    && !every(
+                                        &context.inferences(),
+                                        |inference: &Rc<InferenceInfo>, _| {
+                                            self.has_inference_candidates(inference)
+                                        },
+                                    )
+                            })
+                        {
+                            let unique_type_parameters = self.get_unique_type_parameters(
+                                &context,
+                                signature.maybe_type_parameters().as_ref().unwrap(),
+                            );
+                            let instantiated_signature = self
+                                .get_signature_instantiation_without_filling_in_type_arguments(
+                                    signature.clone(),
+                                    Some(&unique_type_parameters),
+                                );
+                            let inferences =
+                                map(&*context.inferences(), |info: &Rc<InferenceInfo>, _| {
+                                    Rc::new(self.create_inference_info(&info.type_parameter))
+                                });
+                            self.apply_to_parameter_types(
+                                &instantiated_signature,
+                                contextual_signature,
+                                |source: &Type, target: &Type| {
+                                    self.infer_types(
+                                        &inferences,
+                                        source,
+                                        target,
+                                        Some(InferencePriority::None),
+                                        Some(true),
+                                    );
+                                },
+                            );
+                            if some(
+                                Some(&inferences),
+                                Some(|inference: &Rc<InferenceInfo>| {
+                                    self.has_inference_candidates(inference)
+                                }),
+                            ) {
+                                self.apply_to_return_types(
+                                    instantiated_signature.clone(),
+                                    contextual_signature.clone(),
+                                    |source: &Type, target: &Type| {
+                                        self.infer_types(&inferences, source, target, None, None);
+                                    },
+                                );
+                                if !self
+                                    .has_overlapping_inferences(&context.inferences(), &inferences)
+                                {
+                                    self.merge_inferences(
+                                        &mut context.inferences_mut(),
+                                        &inferences,
+                                    );
+                                    {
+                                        let mut context_inferred_type_parameters =
+                                            context.maybe_inferred_type_parameters_mut();
+                                        *context_inferred_type_parameters = Some(concatenate(
+                                            context_inferred_type_parameters
+                                                .clone()
+                                                .unwrap_or_else(|| vec![]),
+                                            unique_type_parameters,
+                                        ));
+                                    }
+                                    return self
+                                        .get_or_create_type_from_signature(instantiated_signature);
+                                }
+                            }
+                        }
+                        return self.get_or_create_type_from_signature(
+                            self.instantiate_signature_in_context_of(
+                                signature.clone(),
+                                contextual_signature.clone(),
+                                Some(&context),
+                                None,
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+        type_.type_wrapper()
     }
 
     pub(super) fn skipped_generic_function(&self, node: &Node, check_mode: CheckMode) {
@@ -262,6 +412,30 @@ impl TypeChecker {
     }
 
     pub(super) fn has_inference_candidates(&self, info: &InferenceInfo) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn has_overlapping_inferences(
+        &self,
+        a: &[Rc<InferenceInfo>],
+        b: &[Rc<InferenceInfo>],
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn merge_inferences(
+        &self,
+        target: &mut Vec<Rc<InferenceInfo>>,
+        b: &[Rc<InferenceInfo>],
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_unique_type_parameters(
+        &self,
+        context: &InferenceContext,
+        type_parameters: &[Rc<Type /*TypeParameter*/>],
+    ) -> Vec<Rc<Type /*TypeParameter*/>> {
         unimplemented!()
     }
 

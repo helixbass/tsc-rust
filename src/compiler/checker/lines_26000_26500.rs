@@ -744,7 +744,7 @@ impl TypeChecker {
             if let Some(inference_context) =
                 inference_context.as_ref().filter(|inference_context| {
                     some(
-                        Some(&inference_context.inferences),
+                        Some(&inference_context.inferences()),
                         Some(|inference: &Rc<InferenceInfo>| {
                             self.has_inference_candidates(inference)
                         }),

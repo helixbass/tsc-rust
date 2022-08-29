@@ -677,9 +677,12 @@ impl TypeChecker {
         let extra_flags = extra_flags.unwrap_or(InferenceFlags::None);
         context.map(|context| {
             self.create_inference_context_worker(
-                map(&context.inferences, |inference: &Rc<InferenceInfo>, _| {
-                    Rc::new(self.clone_inference_info(inference))
-                }),
+                map(
+                    &*context.inferences(),
+                    |inference: &Rc<InferenceInfo>, _| {
+                        Rc::new(self.clone_inference_info(inference))
+                    },
+                ),
                 context.signature.clone(),
                 context.flags | extra_flags,
                 context.compare_types.clone(),
@@ -719,7 +722,8 @@ impl TypeChecker {
         t: &Type,
         fix: bool,
     ) -> Rc<Type> {
-        let inferences = &context.inferences;
+        let inferences = context.inferences();
+        let inferences = &*inferences;
         for (i, inference) in inferences.into_iter().enumerate() {
             if ptr::eq(t, &*inference.type_parameter) {
                 if fix && !inference.is_fixed() {
@@ -773,7 +777,7 @@ impl TypeChecker {
         &self,
         context: &InferenceContext,
     ) -> Option<Rc<InferenceContext>> {
-        let inferences = filter(&context.inferences, |inference: &Rc<InferenceInfo>| {
+        let inferences = filter(&context.inferences(), |inference: &Rc<InferenceInfo>| {
             self.has_inference_candidates(inference)
         });
         if !inferences.is_empty() {

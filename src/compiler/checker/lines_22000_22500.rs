@@ -816,13 +816,13 @@ impl TypeChecker {
     }
 
     pub(super) fn get_inferred_type(&self, context: &InferenceContext, index: usize) -> Rc<Type> {
-        let inference = &context.inferences[index];
+        let inference = context.inferences()[index].clone();
         if inference.maybe_inferred_type().is_none() {
             let mut inferred_type: Option<Rc<Type>> = None;
             let signature = context.signature.as_ref();
             if let Some(signature) = signature {
                 let inferred_covariant_type = if inference.maybe_candidates().is_some() {
-                    Some(self.get_covariant_inference(inference, signature.clone()))
+                    Some(self.get_covariant_inference(&inference, signature.clone()))
                 } else {
                     None
                 };
@@ -844,7 +844,7 @@ impl TypeChecker {
                         {
                             inferred_covariant_type.clone()
                         } else {
-                            self.get_contravariant_inference(inference)
+                            self.get_contravariant_inference(&inference)
                         },
                     );
                 } else if let Some(inferred_covariant_type) = inferred_covariant_type.as_ref() {
@@ -865,7 +865,7 @@ impl TypeChecker {
                     }
                 }
             } else {
-                inferred_type = self.get_type_from_inference(inference);
+                inferred_type = self.get_type_from_inference(&inference);
             }
 
             *inference.maybe_inferred_type() = Some(inferred_type.clone().unwrap_or_else(|| {
@@ -898,7 +898,8 @@ impl TypeChecker {
             }
         }
 
-        inference.maybe_inferred_type().clone().unwrap()
+        let ret = inference.maybe_inferred_type().clone().unwrap();
+        ret
     }
 
     pub(super) fn get_default_type_argument_type(&self, is_in_java_script_file: bool) -> Rc<Type> {
@@ -911,7 +912,7 @@ impl TypeChecker {
 
     pub(super) fn get_inferred_types(&self, context: &InferenceContext) -> Vec<Rc<Type>> {
         let mut result: Vec<Rc<Type>> = vec![];
-        for i in 0..context.inferences.len() {
+        for i in 0..context.inferences().len() {
             result.push(self.get_inferred_type(context, i));
         }
         result

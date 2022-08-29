@@ -1524,7 +1524,7 @@ impl CheckTypeRelatedTo {
                         ))),
                     );
                     self.type_checker.infer_types(
-                        &ctx.inferences,
+                        &ctx.inferences(),
                         &target.as_conditional_type().extends_type,
                         &source_extends,
                         Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),

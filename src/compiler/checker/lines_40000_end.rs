@@ -366,6 +366,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_method(
+        &self,
+        node: &Node, /*MethodDeclaration | MethodSignature*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_meta_property(&self, node: &Node /*MetaProperty*/) -> bool {
         unimplemented!()
     }

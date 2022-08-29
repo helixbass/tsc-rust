@@ -203,7 +203,7 @@ impl TypeChecker {
                 );
                 if !check_type_instantiable {
                     self.infer_types(
-                        &context.inferences,
+                        &context.inferences(),
                         &check_type,
                         &extends_type,
                         Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),

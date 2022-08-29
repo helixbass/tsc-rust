@@ -1131,7 +1131,7 @@ struct BackreferenceMapperCallback {
 impl BackreferenceMapperCallback {
     pub fn new(context: &InferenceContext, index: usize) -> Self {
         Self {
-            context_inferences: context.inferences.clone(),
+            context_inferences: context.inferences().clone(),
             index,
         }
     }

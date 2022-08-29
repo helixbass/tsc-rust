@@ -1204,9 +1204,12 @@ impl TypeChecker {
                     candidate.clone(),
                     type_argument_types.as_deref(),
                     is_in_js_file(candidate.declaration.as_deref()),
-                    inference_context.as_ref().and_then(|inference_context| {
-                        inference_context.inferred_type_parameters.as_deref()
-                    }),
+                    inference_context
+                        .as_ref()
+                        .and_then(|inference_context| {
+                            inference_context.maybe_inferred_type_parameters().clone()
+                        })
+                        .as_deref(),
                 );
                 if self.get_non_array_rest_type(candidate).is_some()
                     && !self.has_correct_arity(
@@ -1258,7 +1261,9 @@ impl TypeChecker {
                         Some(&type_argument_types),
                         is_in_js_file(candidate.declaration.as_deref()),
                         /*inferenceContext &&*/
-                        inference_context.inferred_type_parameters.as_deref(),
+                        inference_context
+                            .maybe_inferred_type_parameters()
+                            .as_deref(),
                     );
                     if self.get_non_array_rest_type(candidate).is_some()
                         && !self.has_correct_arity(

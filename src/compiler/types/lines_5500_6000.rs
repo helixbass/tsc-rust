@@ -926,14 +926,14 @@ pub trait TypeComparer {
 }
 
 pub struct InferenceContext {
-    pub inferences: Vec<Rc<InferenceInfo>>,
+    inferences: RefCell<Vec<Rc<InferenceInfo>>>,
     pub signature: Option<Rc<Signature>>,
     pub flags: InferenceFlags,
     pub compare_types: Rc<dyn TypeComparer>,
     mapper: RefCell<Option<TypeMapper>>,
     non_fixing_mapper: RefCell<Option<TypeMapper>>,
     return_mapper: RefCell<Option<TypeMapper>>,
-    pub inferred_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    inferred_type_parameters: RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>,
 }
 
 impl InferenceContext {
@@ -948,15 +948,23 @@ impl InferenceContext {
         inferred_type_parameters: Option<Vec<Rc<Type>>>,
     ) -> Self {
         Self {
-            inferences,
+            inferences: RefCell::new(inferences),
             signature,
             flags,
             compare_types,
             mapper: RefCell::new(mapper),
             non_fixing_mapper: RefCell::new(non_fixing_mapper),
             return_mapper: RefCell::new(return_mapper),
-            inferred_type_parameters,
+            inferred_type_parameters: RefCell::new(inferred_type_parameters),
         }
+    }
+
+    pub fn inferences(&self) -> Ref<Vec<Rc<InferenceInfo>>> {
+        self.inferences.borrow()
+    }
+
+    pub fn inferences_mut(&self) -> RefMut<Vec<Rc<InferenceInfo>>> {
+        self.inferences.borrow_mut()
     }
 
     pub fn mapper(&self) -> Ref<TypeMapper> {
@@ -979,6 +987,14 @@ impl InferenceContext {
 
     pub fn maybe_return_mapper(&self) -> RefMut<Option<TypeMapper>> {
         self.return_mapper.borrow_mut()
+    }
+
+    pub fn maybe_inferred_type_parameters(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.inferred_type_parameters.borrow()
+    }
+
+    pub fn maybe_inferred_type_parameters_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.inferred_type_parameters.borrow_mut()
     }
 }
 
