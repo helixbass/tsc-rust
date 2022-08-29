@@ -928,7 +928,7 @@ pub trait TypeComparer {
 pub struct InferenceContext {
     inferences: RefCell<Vec<Rc<InferenceInfo>>>,
     pub signature: Option<Rc<Signature>>,
-    pub flags: InferenceFlags,
+    flags: Cell<InferenceFlags>,
     pub compare_types: Rc<dyn TypeComparer>,
     mapper: RefCell<Option<TypeMapper>>,
     non_fixing_mapper: RefCell<Option<TypeMapper>>,
@@ -950,7 +950,7 @@ impl InferenceContext {
         Self {
             inferences: RefCell::new(inferences),
             signature,
-            flags,
+            flags: Cell::new(flags),
             compare_types,
             mapper: RefCell::new(mapper),
             non_fixing_mapper: RefCell::new(non_fixing_mapper),
@@ -965,6 +965,14 @@ impl InferenceContext {
 
     pub fn inferences_mut(&self) -> RefMut<Vec<Rc<InferenceInfo>>> {
         self.inferences.borrow_mut()
+    }
+
+    pub fn flags(&self) -> InferenceFlags {
+        self.flags.get()
+    }
+
+    pub fn set_flags(&self, flags: InferenceFlags) {
+        self.flags.set(flags);
     }
 
     pub fn mapper(&self) -> Ref<TypeMapper> {

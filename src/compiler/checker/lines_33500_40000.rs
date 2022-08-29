@@ -15,7 +15,7 @@ use crate::{
     is_shorthand_property_assignment, is_spread_element, is_template_span, map, maybe_for_each,
     parse_pseudo_big_int, skip_parentheses, some, ContextFlags, Diagnostic, DiagnosticMessage,
     Diagnostics, ElementFlags, FunctionFlags, HasTypeParametersInterface, InferenceContext,
-    InferenceInfo, InferencePriority, IterationTypes, IterationTypesResolver,
+    InferenceFlags, InferenceInfo, InferencePriority, IterationTypes, IterationTypesResolver,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     PseudoBigInt, SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionOrIntersectionTypeInterface,
@@ -408,7 +408,10 @@ impl TypeChecker {
     }
 
     pub(super) fn skipped_generic_function(&self, node: &Node, check_mode: CheckMode) {
-        unimplemented!()
+        if check_mode.intersects(CheckMode::Inferential) {
+            let context = self.get_inference_context(node).unwrap();
+            context.set_flags(context.flags() | InferenceFlags::SkippedGenericFunction);
+        }
     }
 
     pub(super) fn has_inference_candidates(&self, info: &InferenceInfo) -> bool {

@@ -1192,7 +1192,7 @@ impl TypeChecker {
                     *arg_check_mode |= if inference_context
                         .as_ref()
                         .unwrap()
-                        .flags
+                        .flags()
                         .intersects(InferenceFlags::SkippedGenericFunction)
                     {
                         CheckMode::SkipGenericFunctions

@@ -684,7 +684,7 @@ impl TypeChecker {
                     },
                 ),
                 context.signature.clone(),
-                context.flags | extra_flags,
+                context.flags() | extra_flags,
                 context.compare_types.clone(),
             )
         })
@@ -786,7 +786,7 @@ impl TypeChecker {
                     Rc::new(self.clone_inference_info(inference))
                 }),
                 context.signature.clone(),
-                context.flags,
+                context.flags(),
                 context.compare_types.clone(),
             ))
         } else {

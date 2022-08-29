@@ -388,7 +388,7 @@ impl TypeChecker {
                 let return_context = self.create_inference_context(
                     &signature.maybe_type_parameters().clone().unwrap(),
                     Some(signature.clone()),
-                    context.flags,
+                    context.flags(),
                     None,
                 );
                 let return_source_type = self.instantiate_type(

@@ -849,7 +849,7 @@ impl TypeChecker {
                     );
                 } else if let Some(inferred_covariant_type) = inferred_covariant_type.as_ref() {
                     inferred_type = Some(inferred_covariant_type.clone());
-                } else if context.flags.intersects(InferenceFlags::NoDefault) {
+                } else if context.flags().intersects(InferenceFlags::NoDefault) {
                     inferred_type = Some(self.silent_never_type());
                 } else {
                     let default_type =
@@ -870,7 +870,7 @@ impl TypeChecker {
 
             *inference.maybe_inferred_type() = Some(inferred_type.clone().unwrap_or_else(|| {
                 self.get_default_type_argument_type(
-                    context.flags.intersects(InferenceFlags::AnyDefault),
+                    context.flags().intersects(InferenceFlags::AnyDefault),
                 )
             }));
 
