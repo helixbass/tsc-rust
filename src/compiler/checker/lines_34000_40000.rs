@@ -1,18 +1,23 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{
+    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain, IterationTypeKind,
+    IterationUse, UnusedKind,
+};
 use crate::{
-    for_each, get_containing_function, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, has_syntactic_modifier, is_binding_element,
-    is_binding_pattern, is_function_or_module_block, is_identifier, is_private_identifier, map,
-    maybe_for_each, node_is_present, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
-    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    chain_diagnostic_messages, for_each, get_containing_function,
+    get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
+    has_syntactic_modifier, is_binding_element, is_binding_pattern, is_function_or_module_block,
+    is_identifier, is_omitted_expression, is_private_identifier, map, maybe_for_each,
+    node_is_present, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
+    FunctionFlags, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicateKind,
 };
 
 impl TypeChecker {
@@ -179,6 +184,153 @@ impl TypeChecker {
                 None,
             );
         }
+    }
+
+    pub(super) fn check_type_predicate(&self, node: &Node /*TypePredicateNode*/) {
+        let parent = self.get_type_predicate_parent(node);
+        if parent.is_none() {
+            self.error(
+                Some(node),
+                &Diagnostics::A_type_predicate_is_only_allowed_in_return_type_position_for_functions_and_methods,
+                None,
+            );
+            return;
+        }
+        let parent = parent.unwrap();
+
+        let signature = self.get_signature_from_declaration_(&parent);
+        let type_predicate = self.get_type_predicate_of_signature(&signature);
+        if type_predicate.is_none() {
+            return;
+        }
+        let type_predicate = type_predicate.unwrap();
+
+        let node_as_type_predicate_node = node.as_type_predicate_node();
+        self.check_source_element(node_as_type_predicate_node.type_.as_deref());
+
+        let parameter_name = &node_as_type_predicate_node.parameter_name;
+        if matches!(
+            type_predicate.kind,
+            TypePredicateKind::This | TypePredicateKind::AssertsThis
+        ) {
+            self.get_type_from_this_type_node(parameter_name);
+        } else {
+            if let Some(type_predicate_parameter_index) = type_predicate.parameter_index {
+                if signature_has_rest_parameter(&signature)
+                    && type_predicate_parameter_index == signature.parameters().len() - 1
+                {
+                    self.error(
+                        Some(&**parameter_name),
+                        &Diagnostics::A_type_predicate_cannot_reference_a_rest_parameter,
+                        None,
+                    );
+                } else {
+                    if let Some(type_predicate_type) = type_predicate.type_.as_ref() {
+                        let leading_error: Rc<dyn CheckTypeContainingMessageChain> =
+                            Rc::new(CheckTypePredicateContainingMessageChain);
+                        self.check_type_assignable_to(
+                            type_predicate_type,
+                            &self.get_type_of_symbol(
+                                &signature.parameters()[type_predicate_parameter_index],
+                            ),
+                            node_as_type_predicate_node.type_.as_deref(),
+                            None,
+                            Some(leading_error),
+                            None,
+                        );
+                    }
+                }
+            } else
+            /*if (parameterName)*/
+            {
+                let mut has_reported_error = false;
+                for parameter in parent.as_signature_declaration().parameters() {
+                    let name = parameter.as_named_declaration().name();
+                    if is_binding_pattern(Some(&*name))
+                        && self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
+                            &name,
+                            parameter_name,
+                            type_predicate.parameter_name.as_ref().unwrap(),
+                        )
+                    {
+                        has_reported_error = true;
+                        break;
+                    }
+                }
+                if !has_reported_error {
+                    self.error(
+                        Some(&*node_as_type_predicate_node.parameter_name),
+                        &Diagnostics::Cannot_find_parameter_0,
+                        Some(vec![type_predicate.parameter_name.clone().unwrap()]),
+                    );
+                }
+            }
+        }
+    }
+
+    pub(super) fn get_type_predicate_parent(
+        &self,
+        node: &Node,
+    ) -> Option<Rc<Node /*SignatureDeclaration*/>> {
+        match node.parent().kind() {
+            SyntaxKind::ArrowFunction
+            | SyntaxKind::CallSignature
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::FunctionType
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature => {
+                let parent = node.parent();
+                if matches!(
+                    parent.as_has_type().maybe_type().as_ref(),
+                    Some(parent_type) if ptr::eq(node, &**parent_type)
+                ) {
+                    return Some(parent);
+                }
+            }
+            _ => (),
+        }
+        None
+    }
+
+    pub(super) fn check_if_type_predicate_variable_is_declared_in_binding_pattern(
+        &self,
+        pattern: &Node, /*BindingPattern*/
+        predicate_variable_node: &Node,
+        predicate_variable_name: &str,
+    ) -> bool {
+        for element in pattern.as_has_elements().elements() {
+            if is_omitted_expression(element) {
+                continue;
+            }
+
+            let name = element.as_named_declaration().name();
+            if name.kind() == SyntaxKind::Identifier
+                && name
+                    .as_identifier()
+                    .escaped_text
+                    .eq_str(predicate_variable_name)
+            {
+                self.error(
+                    Some(predicate_variable_node),
+                    &Diagnostics::A_type_predicate_cannot_reference_element_0_in_a_binding_pattern,
+                    Some(vec![predicate_variable_name.to_owned()]),
+                );
+                return true;
+            } else if matches!(
+                name.kind(),
+                SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern
+            ) {
+                if self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
+                    &name,
+                    predicate_variable_node,
+                    predicate_variable_name,
+                ) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     pub(super) fn check_signature_declaration(&self, node: &Node /*SignatureDeclaration*/) {
@@ -720,5 +872,17 @@ impl TypeChecker {
         } else {
             self.check_source_element(Some(&*node_as_type_alias_declaration.type_));
         }
+    }
+}
+
+struct CheckTypePredicateContainingMessageChain;
+
+impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChain {
+    fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>> {
+        Some(Rc::new(RefCell::new(chain_diagnostic_messages(
+            None,
+            &Diagnostics::A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type,
+            None,
+        ))))
     }
 }
