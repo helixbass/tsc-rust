@@ -140,6 +140,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_in_right_side_of_import_or_export_assignment(
+        &self,
+        node: &Node, /*EntityName*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_symbol_at_location_(
         &self,
         node: &Node,

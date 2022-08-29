@@ -1555,6 +1555,10 @@ impl TypeChecker {
         self.current_node.borrow().clone()
     }
 
+    pub(super) fn set_current_node(&self, current_node: Option<Rc<Node>>) {
+        *self.current_node.borrow_mut() = current_node;
+    }
+
     pub(super) fn empty_symbols(&self) -> Rc<RefCell<SymbolTable>> {
         self.empty_symbols.clone()
     }

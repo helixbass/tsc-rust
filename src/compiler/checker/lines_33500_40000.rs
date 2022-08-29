@@ -7,8 +7,9 @@ use std::rc::Rc;
 
 use super::{get_node_id, CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    append, set_node_flags, text_char_at_index, CharacterCodes, SymbolFlags, __String, concatenate,
-    every, for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
+    append, is_call_chain, is_call_expression, is_require_call, set_node_flags, text_char_at_index,
+    CharacterCodes, Debug_, SymbolFlags, __String, concatenate, every, for_each,
+    get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, get_jsdoc_type_assertion_type,
     is_array_literal_expression, is_assertion_expression, is_binding_element,
     is_const_type_reference, is_declaration_readonly, is_function_or_module_block, is_in_js_file,
@@ -601,9 +602,33 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
     ) -> Option<Rc<Type>> {
-        let expr = node;
-        if false {
-            unimplemented!()
+        let mut expr = skip_parentheses(node, Some(true));
+        if is_jsdoc_type_assertion(&expr) {
+            let type_ = get_jsdoc_type_assertion_type(&expr);
+            if !is_const_type_reference(&type_) {
+                return Some(self.get_type_from_type_node_(&type_));
+            }
+        }
+        expr = skip_parentheses(node, None);
+        if is_call_expression(node)
+            && expr.as_call_expression().expression.kind() != SyntaxKind::SuperKeyword
+            && !is_require_call(&expr, true)
+            && !self.is_symbol_or_symbol_for_call(&expr)
+        {
+            let type_ = if is_call_chain(&expr) {
+                self.get_return_type_of_single_non_generic_signature_of_call_chain(&expr)
+            } else {
+                self.get_return_type_of_single_non_generic_call_signature(
+                    &self.check_non_null_expression(&expr.as_call_expression().expression),
+                )
+            };
+            if type_.is_some() {
+                return type_;
+            }
+        } else if is_assertion_expression(&expr)
+            && !is_const_type_reference(&expr.as_has_type().maybe_type().unwrap())
+        {
+            return Some(self.get_type_from_type_node_(&expr.as_has_type().maybe_type().unwrap()));
         } else if matches!(
             node.kind(),
             SyntaxKind::NumericLiteral
@@ -620,7 +645,20 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let links = self.get_node_links(node);
+        if let Some(links_context_free_type) = (*links).borrow().context_free_type.clone() {
+            return links_context_free_type;
+        }
+        let save_contextual_type = node.maybe_contextual_type().clone();
+        *node.maybe_contextual_type() = Some(self.any_type());
+        // try {
+        let type_ = self.check_expression(node, Some(CheckMode::SkipContextSensitive), None);
+        links.borrow_mut().context_free_type = Some(type_.clone());
+        // }
+        // finally {
+        *node.maybe_contextual_type() = save_contextual_type;
+        // }
+        type_
     }
 
     pub(super) fn check_expression(
@@ -629,7 +667,72 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
     ) -> Rc<Type> {
-        self.check_expression_worker(node, check_mode)
+        // tracing?.push(tracing.Phase.Check, "checkExpression", { kind: node.kind, pos: node.pos, end: node.end });
+        let save_current_node = self.maybe_current_node();
+        self.set_current_node(Some(node.node_wrapper()));
+        self.set_instantiation_count(0);
+        let uninstantiated_type = self.check_expression_worker(node, check_mode);
+        let type_ = self.instantiate_type_with_single_generic_call_signature(
+            node,
+            &uninstantiated_type,
+            check_mode,
+        );
+        if self.is_const_enum_object_type(&type_) {
+            self.check_const_enum_access(node, &type_);
+        }
+        self.set_current_node(save_current_node);
+        // tracing?.pop();
+        type_
+    }
+
+    pub(super) fn check_const_enum_access(
+        &self,
+        node: &Node, /*Expression | QualifiedName*/
+        type_: &Type,
+    ) {
+        let ok = (node.parent().kind() == SyntaxKind::PropertyAccessExpression
+            && ptr::eq(
+                &*node.parent().as_property_access_expression().expression,
+                node,
+            ))
+            || (node.parent().kind() == SyntaxKind::ElementAccessExpression
+                && ptr::eq(
+                    &*node.parent().as_element_access_expression().expression,
+                    node,
+                ))
+            || (matches!(
+                node.kind(),
+                SyntaxKind::Identifier | SyntaxKind::QualifiedName
+            ) && self.is_in_right_side_of_import_or_export_assignment(node)
+                || node.parent().kind() == SyntaxKind::TypeQuery
+                    && ptr::eq(&*node.parent().as_type_query_node().expr_name, node))
+            || node.parent().kind() == SyntaxKind::ExportSpecifier;
+
+        if !ok {
+            self.error(
+                Some(node),
+                &Diagnostics::const_enums_can_only_be_used_in_property_or_index_access_expressions_or_the_right_hand_side_of_an_import_declaration_or_export_assignment_or_type_query,
+                None,
+            );
+        }
+
+        if self.compiler_options.isolated_modules == Some(true) {
+            Debug_.assert(
+                type_.symbol().flags().intersects(SymbolFlags::ConstEnum),
+                None,
+            );
+            let const_enum_declaration = type_.symbol().maybe_value_declaration().unwrap();
+            if const_enum_declaration
+                .flags()
+                .intersects(NodeFlags::Ambient)
+            {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Cannot_access_ambient_const_enums_when_the_isolatedModules_flag_is_provided,
+                    None,
+                );
+            }
+        }
     }
 
     pub(super) fn check_expression_worker(
