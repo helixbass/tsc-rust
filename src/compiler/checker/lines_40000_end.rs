@@ -322,6 +322,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_index_signature(
+        &self,
+        node: &Node, /*SignatureDeclaration*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_type_arguments(
         &self,
         node: &Node,

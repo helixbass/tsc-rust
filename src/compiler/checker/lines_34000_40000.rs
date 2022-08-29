@@ -11,13 +11,15 @@ use super::{
 };
 use crate::{
     chain_diagnostic_messages, for_each, get_containing_function,
-    get_containing_function_or_class_static_block, get_effective_initializer, get_function_flags,
+    get_containing_function_or_class_static_block, get_effective_initializer,
+    get_effective_return_type_node, get_effective_type_parameter_declarations, get_function_flags,
     has_syntactic_modifier, is_binding_element, is_binding_pattern, is_function_or_module_block,
     is_identifier, is_omitted_expression, is_private_identifier, map, maybe_for_each,
     node_is_present, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    FunctionFlags, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicateKind,
+    ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
+    IterationTypesResolver, ModifierFlags, NamedDeclarationInterface, Node, NodeInterface,
+    ScriptTarget, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypePredicateKind,
 };
 
 impl TypeChecker {
@@ -334,7 +336,139 @@ impl TypeChecker {
     }
 
     pub(super) fn check_signature_declaration(&self, node: &Node /*SignatureDeclaration*/) {
-        unimplemented!()
+        if node.kind() == SyntaxKind::IndexSignature {
+            self.check_grammar_index_signature(node);
+        } else if matches!(
+            node.kind(),
+            SyntaxKind::FunctionType
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::ConstructorType
+                | SyntaxKind::CallSignature
+                | SyntaxKind::Constructor
+                | SyntaxKind::ConstructSignature
+        ) {
+            self.check_grammar_function_like_declaration(node);
+        }
+
+        let function_flags = get_function_flags(Some(node));
+        if !function_flags.intersects(FunctionFlags::Invalid) {
+            if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::AsyncGenerator
+                && self.language_version < ScriptTarget::ESNext
+            {
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::AsyncGeneratorIncludes);
+            }
+
+            if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::Async
+                && self.language_version < ScriptTarget::ES2017
+            {
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Awaiter);
+            }
+
+            if function_flags & FunctionFlags::AsyncGenerator != FunctionFlags::Normal
+                && self.language_version < ScriptTarget::ES2015
+            {
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Generator);
+            }
+        }
+
+        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node)));
+
+        let node_as_signature_declaration = node.as_signature_declaration();
+        for_each(
+            node_as_signature_declaration.parameters(),
+            |parameter: &Rc<Node>, _| -> Option<()> {
+                self.check_parameter(parameter);
+                None
+            },
+        );
+
+        if let Some(node_type) = node_as_signature_declaration.maybe_type().as_ref() {
+            self.check_source_element(Some(&**node_type));
+        }
+
+        if self.produce_diagnostics {
+            self.check_collision_with_arguments_in_generated_code(node);
+            let return_type_node = get_effective_return_type_node(node);
+            if self.no_implicit_any && return_type_node.is_none() {
+                match node.kind() {
+                    SyntaxKind::ConstructSignature => {
+                        self.error(
+                            Some(node),
+                            &Diagnostics::Construct_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type,
+                            None,
+                        );
+                    }
+                    SyntaxKind::CallSignature => {
+                        self.error(
+                            Some(node),
+                            &Diagnostics::Call_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type,
+                            None,
+                        );
+                    }
+                    _ => (),
+                }
+            }
+
+            if let Some(return_type_node) = return_type_node.as_ref() {
+                let function_flags = get_function_flags(Some(node));
+                if function_flags & (FunctionFlags::Invalid | FunctionFlags::Generator)
+                    == FunctionFlags::Generator
+                {
+                    let return_type = self.get_type_from_type_node_(return_type_node);
+                    if Rc::ptr_eq(&return_type, &self.void_type()) {
+                        self.error(
+                            Some(&**return_type_node),
+                            &Diagnostics::A_generator_cannot_have_a_void_type_annotation,
+                            None,
+                        );
+                    } else {
+                        let generator_yield_type = self
+                            .get_iteration_type_of_generator_function_return_type(
+                                IterationTypeKind::Yield,
+                                &return_type,
+                                function_flags.intersects(FunctionFlags::Async),
+                            )
+                            .unwrap_or_else(|| self.any_type());
+                        let generator_return_type = self
+                            .get_iteration_type_of_generator_function_return_type(
+                                IterationTypeKind::Return,
+                                &return_type,
+                                function_flags.intersects(FunctionFlags::Async),
+                            )
+                            .unwrap_or_else(|| generator_yield_type.clone());
+                        let generator_next_type = self
+                            .get_iteration_type_of_generator_function_return_type(
+                                IterationTypeKind::Next,
+                                &return_type,
+                                function_flags.intersects(FunctionFlags::Async),
+                            )
+                            .unwrap_or_else(|| self.unknown_type());
+                        let generator_instantiation = self.create_generator_return_type(
+                            &generator_yield_type,
+                            &generator_return_type,
+                            &generator_next_type,
+                            function_flags.intersects(FunctionFlags::Async),
+                        );
+                        self.check_type_assignable_to(
+                            &generator_instantiation,
+                            &return_type,
+                            Some(&**return_type_node),
+                            None,
+                            None,
+                            None,
+                        );
+                    }
+                } else if function_flags & FunctionFlags::AsyncGenerator == FunctionFlags::Async {
+                    self.check_async_function_return_type(node, return_type_node);
+                }
+            }
+            if !matches!(
+                node.kind(),
+                SyntaxKind::IndexSignature | SyntaxKind::JSDocFunctionType
+            ) {
+                self.register_for_unused_identifiers_check(node);
+            }
+        }
     }
 
     pub(super) fn check_property_declaration(&self, node: &Node /*PropertySignature*/) {
@@ -503,6 +637,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_async_function_return_type(
+        &self,
+        node: &Node,             /*FunctionLikeDeclaration | MethodSignature*/
+        return_type_node: &Node, /*TypeNode*/
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn check_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
         if self.produce_diagnostics {
             self.check_function_or_method_declaration(node);
@@ -515,6 +657,13 @@ impl TypeChecker {
     ) {
         // self.check_decorators(node);
         // self.check_signature_declaration(node);
+    }
+
+    pub(super) fn register_for_unused_identifiers_check(
+        &self,
+        node: &Node, /*PotentiallyUnusedIdentifier*/
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn check_unused_identifiers<
@@ -540,6 +689,13 @@ impl TypeChecker {
                 Option::<()>::None
             });
         }
+    }
+
+    pub(super) fn check_collision_with_arguments_in_generated_code(
+        &self,
+        node: &Node, /*SignatureDeclaration*/
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn check_collisions_for_declaration_name<TName: Borrow<Node>>(
@@ -815,7 +971,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_parameters(
         &self,
-        type_parameter_declarations: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
+        type_parameter_declarations: Option<&[Rc<Node /*TypeParameterDeclaration*/>]>,
     ) {
         if let Some(type_parameter_declarations) = type_parameter_declarations {
             for node in type_parameter_declarations {
@@ -852,7 +1008,7 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_interface_declaration
                 .maybe_type_parameters()
-                .as_ref(),
+                .as_deref(),
         );
         for_each(&node_as_interface_declaration.members, |member, _| {
             self.check_source_element(Some(&**member));
@@ -865,7 +1021,7 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_type_alias_declaration
                 .maybe_type_parameters()
-                .as_ref(),
+                .as_deref(),
         );
         if false {
             unimplemented!()
