@@ -47,6 +47,10 @@ pub fn is_jsdoc_type_assertion(node: &Node) -> bool {
         && get_jsdoc_type_tag(node).is_some()
 }
 
+pub fn get_jsdoc_type_assertion_type(node: &Node /*JSDocTypeAssertion*/) -> Rc<Node> {
+    unimplemented!()
+}
+
 pub fn is_outer_expression(node: &Node, kinds: Option<OuterExpressionKinds>) -> bool {
     let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
     match node.kind() {

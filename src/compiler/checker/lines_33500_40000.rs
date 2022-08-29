@@ -7,15 +7,28 @@ use std::rc::Rc;
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
-    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, Diagnostic,
-    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, InferenceInfo,
-    IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    get_effective_initializer, get_function_flags, get_jsdoc_type_assertion_type,
+    is_array_literal_expression, is_assertion_expression, is_binding_element,
+    is_const_type_reference, is_declaration_readonly, is_function_or_module_block, is_in_js_file,
+    is_jsdoc_type_assertion, is_omitted_expression, is_parameter, is_parenthesized_expression,
+    is_private_identifier, is_property_assignment, is_shorthand_property_assignment,
+    is_spread_element, is_template_span, map, maybe_for_each, parse_pseudo_big_int,
+    skip_parentheses, some, Diagnostic, DiagnosticMessage, Diagnostics, ElementFlags,
+    FunctionFlags, HasTypeParametersInterface, InferenceInfo, IterationTypes,
+    IterationTypesResolver, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, PseudoBigInt, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn is_type_assertion(&self, node: &Node /*Expression*/) -> bool {
+        let node = skip_parentheses(node, Some(true));
+        matches!(
+            node.kind(),
+            SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression
+        ) || is_jsdoc_type_assertion(&node)
+    }
+
     pub(super) fn check_declaration_initializer<TType: Borrow<Type>>(
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
@@ -26,16 +39,71 @@ impl TypeChecker {
             .get_quick_type_of_expression(&initializer)
             .unwrap_or_else(|| {
                 if let Some(contextual_type) = contextual_type {
-                    unimplemented!()
+                    self.check_expression_with_contextual_type(
+                        &initializer,
+                        contextual_type.borrow(),
+                        None,
+                        CheckMode::Normal,
+                    )
                 } else {
                     self.check_expression_cached(&initializer, None)
                 }
             });
-        if false {
-            unimplemented!()
+        if is_parameter(declaration)
+            && declaration.as_parameter_declaration().name().kind()
+                == SyntaxKind::ArrayBindingPattern
+            && self.is_tuple_type(&type_)
+            && !type_
+                .as_type_reference()
+                .target
+                .as_tuple_type()
+                .has_rest_element
+            && self.get_type_reference_arity(&type_)
+                < declaration
+                    .as_parameter_declaration()
+                    .name()
+                    .as_array_binding_pattern()
+                    .elements
+                    .len()
+        {
+            self.pad_tuple_type(&type_, &declaration.as_parameter_declaration().name())
         } else {
             type_
         }
+    }
+
+    pub(super) fn pad_tuple_type(
+        &self,
+        type_: &Type,   /*TupleTypeReference*/
+        pattern: &Node, /*ArrayBindingPattern*/
+    ) -> Rc<Type> {
+        let pattern_elements = &pattern.as_array_binding_pattern().elements;
+        let mut element_types = self.get_type_arguments(type_);
+        let type_target_as_tuple_type = type_.as_type_reference().target.as_tuple_type();
+        let mut element_flags = type_target_as_tuple_type.element_flags.clone();
+        for i in self.get_type_reference_arity(type_)..pattern_elements.len() {
+            let e = &pattern_elements[i];
+            if i < pattern_elements.len() - 1
+                || !(e.kind() == SyntaxKind::BindingElement
+                    && e.as_binding_element().dot_dot_dot_token.is_some())
+            {
+                element_types.push(if !is_omitted_expression(e) && self.has_default_value(e) {
+                    self.get_type_from_binding_element(e, Some(false), Some(false))
+                } else {
+                    self.any_type()
+                });
+                element_flags.push(ElementFlags::Optional);
+                if !is_omitted_expression(e) && !self.has_default_value(e) {
+                    self.report_implicit_any(e, &self.any_type(), None);
+                }
+            }
+        }
+        self.create_tuple_type(
+            &element_types,
+            Some(&element_flags),
+            Some(type_target_as_tuple_type.readonly),
+            None,
+        )
     }
 
     pub(super) fn widen_type_inferred_from_initializer(
@@ -43,57 +111,97 @@ impl TypeChecker {
         declaration: &Node, /*HasExpressionInitializer*/
         type_: &Type,
     ) -> Rc<Type> {
-        let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const) {
+        let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const)
+            || is_declaration_readonly(declaration)
+        {
             type_.type_wrapper()
         } else {
             self.get_widened_literal_type(type_)
         };
+        if is_in_js_file(Some(declaration)) {
+            if self.is_empty_literal_type(&widened) {
+                self.report_implicit_any(declaration, &self.any_type(), None);
+                return self.any_type();
+            } else if self.is_empty_array_literal_type(&widened) {
+                self.report_implicit_any(declaration, &self.any_array_type(), None);
+                return self.any_array_type();
+            }
+        }
         widened
     }
 
-    pub(super) fn is_literal_of_contextual_type<TTypeRef: Borrow<Type>>(
+    pub(super) fn is_literal_of_contextual_type<TContextualType: Borrow<Type>>(
         &self,
         candidate_type: &Type,
-        contextual_type: Option<TTypeRef>,
+        contextual_type: Option<TContextualType>,
     ) -> bool {
         if let Some(contextual_type) = contextual_type {
             let contextual_type = contextual_type.borrow();
-            if let Type::UnionOrIntersectionType(union_or_intersection_type) = contextual_type {
-                let types = union_or_intersection_type.types();
-                // return some(
-                //     types,
-                //     Some(Box::new(|t| {
-                //         self.is_literal_of_contextual_type(candidate_type, Some(t.clone()))
-                //     })),
-                // );
-                return types
-                    .iter()
-                    .any(|t| self.is_literal_of_contextual_type(candidate_type, Some(&**t)));
+            if contextual_type
+                .flags()
+                .intersects(TypeFlags::UnionOrIntersection)
+            {
+                let types = contextual_type.as_union_type().types();
+                return some(
+                    Some(types),
+                    Some(|t: &Rc<Type>| {
+                        self.is_literal_of_contextual_type(candidate_type, Some(&**t))
+                    }),
+                );
+            }
+            if contextual_type
+                .flags()
+                .intersects(TypeFlags::InstantiableNonPrimitive)
+            {
+                let constraint = self
+                    .get_base_constraint_of_type(contextual_type)
+                    .unwrap_or_else(|| self.unknown_type());
+                return self.maybe_type_of_kind(&constraint, TypeFlags::String)
+                    && self.maybe_type_of_kind(candidate_type, TypeFlags::StringLiteral)
+                    || self.maybe_type_of_kind(&constraint, TypeFlags::Number)
+                        && self.maybe_type_of_kind(candidate_type, TypeFlags::NumberLiteral)
+                    || self.maybe_type_of_kind(&constraint, TypeFlags::BigInt)
+                        && self.maybe_type_of_kind(candidate_type, TypeFlags::BigIntLiteral)
+                    || self.maybe_type_of_kind(&constraint, TypeFlags::ESSymbol)
+                        && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol)
+                    || self.is_literal_of_contextual_type(candidate_type, Some(constraint));
             }
             return contextual_type.flags().intersects(
                 TypeFlags::StringLiteral
                     | TypeFlags::Index
                     | TypeFlags::TemplateLiteral
                     | TypeFlags::StringMapping,
-            ) && self.maybe_type_of_kind(&*candidate_type, TypeFlags::StringLiteral)
+            ) && self.maybe_type_of_kind(candidate_type, TypeFlags::StringLiteral)
                 || contextual_type.flags().intersects(TypeFlags::NumberLiteral)
-                    && self.maybe_type_of_kind(&*candidate_type, TypeFlags::NumberLiteral)
+                    && self.maybe_type_of_kind(candidate_type, TypeFlags::NumberLiteral)
                 || contextual_type.flags().intersects(TypeFlags::BigIntLiteral)
-                    && self.maybe_type_of_kind(&*candidate_type, TypeFlags::BigIntLiteral)
+                    && self.maybe_type_of_kind(candidate_type, TypeFlags::BigIntLiteral)
                 || contextual_type
                     .flags()
                     .intersects(TypeFlags::BooleanLiteral)
-                    && self.maybe_type_of_kind(&*candidate_type, TypeFlags::BooleanLiteral)
+                    && self.maybe_type_of_kind(candidate_type, TypeFlags::BooleanLiteral)
                 || contextual_type
                     .flags()
                     .intersects(TypeFlags::UniqueESSymbol)
-                    && self.maybe_type_of_kind(&*candidate_type, TypeFlags::UniqueESSymbol);
+                    && self.maybe_type_of_kind(candidate_type, TypeFlags::UniqueESSymbol);
         }
         false
     }
 
     pub(super) fn is_const_context(&self, node: &Node /*Expression*/) -> bool {
-        unimplemented!()
+        let parent = node.parent();
+        is_assertion_expression(&parent)
+            && is_const_type_reference(&parent.as_has_type().maybe_type().unwrap())
+            || is_jsdoc_type_assertion(&parent)
+                && is_const_type_reference(&get_jsdoc_type_assertion_type(&parent))
+            || (is_parenthesized_expression(&parent)
+                || is_array_literal_expression(&parent)
+                || is_spread_element(&parent))
+                && self.is_const_context(&parent)
+            || (is_property_assignment(&parent)
+                || is_shorthand_property_assignment(&parent)
+                || is_template_span(&parent))
+                && self.is_const_context(&parent.parent())
     }
 
     pub(super) fn check_expression_for_mutable_location<TContextualType: Borrow<Type>>(
@@ -104,8 +212,10 @@ impl TypeChecker {
         force_tuple: Option<bool>,
     ) -> Rc<Type> {
         let type_ = self.check_expression(node, check_mode, force_tuple);
-        if false {
-            unimplemented!()
+        if self.is_const_context(node) {
+            self.get_regular_type_of_literal_type(&type_)
+        } else if self.is_type_assertion(node) {
+            type_.type_wrapper()
         } else {
             self.get_widened_literal_like_type_for_contextual_type(
                 &type_,
@@ -127,8 +237,12 @@ impl TypeChecker {
         node: &Node, /*PropertyAssignment*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
+        let node_as_property_assignment = node.as_property_assignment();
+        if node_as_property_assignment.name().kind() == SyntaxKind::ComputedPropertyName {
+            self.check_computed_property_name(&node_as_property_assignment.name());
+        }
         self.check_expression_for_mutable_location(
-            &node.as_property_assignment().initializer,
+            &node_as_property_assignment.initializer,
             check_mode,
             Option::<&Type>::None,
             None,
