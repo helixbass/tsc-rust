@@ -5,23 +5,19 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{get_node_id, CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{get_node_id, CheckMode};
 use crate::{
     append, has_jsdoc_nodes, is_call_chain, is_call_expression, is_require_call, set_node_flags,
     text_char_at_index, CharacterCodes, Debug_, Number, SymbolFlags, __String, concatenate, every,
-    for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, get_jsdoc_type_assertion_type,
-    is_array_literal_expression, is_assertion_expression, is_binding_element,
-    is_const_type_reference, is_declaration_readonly, is_function_or_module_block, is_in_js_file,
-    is_jsdoc_type_assertion, is_omitted_expression, is_parameter, is_parenthesized_expression,
-    is_private_identifier, is_property_assignment, is_shorthand_property_assignment,
-    is_spread_element, is_template_span, map, maybe_for_each, parse_pseudo_big_int,
-    skip_parentheses, some, ContextFlags, Diagnostic, DiagnosticMessage, Diagnostics, ElementFlags,
-    FunctionFlags, HasTypeParametersInterface, InferenceContext, InferenceFlags, InferenceInfo,
-    InferencePriority, IterationTypes, IterationTypesResolver, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
-    SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionOrIntersectionTypeInterface,
+    get_combined_node_flags, get_effective_initializer, get_jsdoc_type_assertion_type,
+    is_array_literal_expression, is_assertion_expression, is_const_type_reference,
+    is_declaration_readonly, is_in_js_file, is_jsdoc_type_assertion, is_omitted_expression,
+    is_parameter, is_parenthesized_expression, is_property_assignment,
+    is_shorthand_property_assignment, is_spread_element, is_template_span, map,
+    parse_pseudo_big_int, skip_parentheses, some, ContextFlags, Diagnostics, ElementFlags,
+    InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, NamedDeclarationInterface,
+    Node, NodeFlags, NodeInterface, PseudoBigInt, SignatureKind, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
