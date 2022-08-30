@@ -1,13 +1,10 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
     add_related_info, create_diagnostic_for_node, first, get_containing_function,
     get_function_flags, get_set_accessor_value_parameter, get_source_file_of_node,
@@ -19,13 +16,11 @@ use crate::{
     is_jsdoc_type_tag, is_let, is_private_identifier, is_property_access_expression, is_static,
     is_string_or_numeric_literal_like, is_var_const, is_variable_declaration,
     is_variable_declaration_in_variable_statement, last, token_to_string,
-    walk_up_parenthesized_types, Debug_, DiagnosticMessage, DiagnosticRelatedInformation,
-    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasInitializerInterface, HasTypeInterface,
-    ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray, NodeFlags, ReadonlyTextRange,
-    ScriptTarget, SyntaxKind, TypeFlags, TypeInterface, __String, bind_source_file, for_each,
-    is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
-    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
-    Type, TypeChecker,
+    walk_up_parenthesized_types, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformation, Diagnostics, FunctionFlags, HasInitializerInterface,
+    HasTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeFlags,
+    NodeInterface, ReadonlyTextRange, ScriptTarget, SyntaxKind, TypeChecker, TypeFlags,
+    TypeInterface, __String,
 };
 
 impl TypeChecker {
