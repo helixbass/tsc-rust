@@ -7,21 +7,23 @@ use std::rc::Rc;
 
 use super::{ambient_module_symbol_regex, UnusedKind};
 use crate::{
-    are_option_rcs_equal, filter, find, get_object_flags, has_abstract_modifier,
+    are_option_rcs_equal, filter, find, first_or_undefined, get_effective_return_type_node,
+    get_jsdoc_type_parameter_declarations, get_object_flags, has_abstract_modifier,
     has_syntactic_modifier, is_binary_expression, is_child_of_node_with_kind, is_class_like,
-    is_computed_property_name, is_declaration, is_function_like, is_private_identifier,
-    is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
-    length, text_span_end, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    HasInitializerInterface, HasTypeInterface, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
-    NodeArray, NodeFlags, ObjectFlags, ReadonlyTextRange, SignatureKind, SymbolInterface, Ternary,
-    TokenFlags, TypeFlags, TypeInterface, __String, bind_source_file, create_file_diagnostic,
-    for_each, for_each_bool, get_source_file_of_node, get_span_of_token_at_position, is_accessor,
-    is_external_or_common_js_module, is_literal_type_node, is_prefix_unary_expression,
-    AllAccessorDeclarations, CancellationTokenDebuggable, Diagnostic, EmitResolver,
-    EmitResolverDebuggable, IndexInfo, Node, NodeBuilderFlags, NodeCheckFlags, NodeInterface,
-    ScriptTarget, Signature, SignatureFlags, StringOrNumber, Symbol, SymbolAccessibilityResult,
-    SymbolFlags, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker,
-    TypeReferenceSerializationKind,
+    is_computed_property_name, is_declaration, is_function_like, is_in_js_file,
+    is_private_identifier, is_property_declaration, is_spread_element, is_static,
+    is_string_literal, is_type_literal_node, length, skip_trivia, text_span_end, DiagnosticMessage,
+    Diagnostics, ExternalEmitHelpers, HasInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NodeArray,
+    NodeFlags, ObjectFlags, ReadonlyTextRange, SignatureKind, SourceFileLike, SymbolInterface,
+    Ternary, TokenFlags, TypeFlags, TypeInterface, __String, bind_source_file,
+    create_file_diagnostic, for_each, for_each_bool, get_source_file_of_node,
+    get_span_of_token_at_position, is_accessor, is_external_or_common_js_module,
+    is_literal_type_node, is_prefix_unary_expression, AllAccessorDeclarations,
+    CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
+    NodeBuilderFlags, NodeCheckFlags, NodeInterface, ScriptTarget, Signature, SignatureFlags,
+    StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker,
+    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -431,6 +433,17 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn grammar_error_at_pos(
+        &self,
+        node_for_source_file: &Node,
+        start: isize,
+        length: isize,
+        message: &'static DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn grammar_error_on_node(
         &self,
         node: &Node,
@@ -438,6 +451,71 @@ impl TypeChecker {
         args: Option<Vec<String>>,
     ) -> bool {
         unimplemented!()
+    }
+
+    pub(super) fn check_grammar_constructor_type_parameters(
+        &self,
+        node: &Node, /*ConstructorDeclaration*/
+    ) -> bool {
+        let jsdoc_type_parameters = if is_in_js_file(Some(node)) {
+            Some(get_jsdoc_type_parameter_declarations(node))
+        } else {
+            None
+        };
+        let range: Option<Rc<dyn ReadonlyTextRange>> = node
+            .as_constructor_declaration()
+            .maybe_type_parameters()
+            .as_ref()
+            .map(|node_type_parameters| {
+                Rc::new(node_type_parameters.clone()) as Rc<dyn ReadonlyTextRange>
+            })
+            .or_else(|| {
+                jsdoc_type_parameters
+                    .as_ref()
+                    .and_then(|jsdoc_type_parameters| {
+                        first_or_undefined(jsdoc_type_parameters).cloned()
+                    })
+                    .map(|jsdoc_type_parameter| jsdoc_type_parameter as Rc<dyn ReadonlyTextRange>)
+            });
+        if let Some(range) = range {
+            let pos = if range.pos() == range.end() {
+                range.pos()
+            } else {
+                skip_trivia(
+                    &get_source_file_of_node(Some(node))
+                        .unwrap()
+                        .as_source_file()
+                        .text_as_chars(),
+                    range.pos(),
+                    None,
+                    None,
+                    None,
+                )
+            };
+            return self.grammar_error_at_pos(
+                node,
+                pos,
+                range.end() - pos,
+                &Diagnostics::Type_parameters_cannot_appear_on_a_constructor_declaration,
+                None,
+            );
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_constructor_type_annotation(
+        &self,
+        node: &Node, /*ConstructorDeclaration*/
+    ) -> bool {
+        let type_ = get_effective_return_type_node(node);
+        if let Some(type_) = type_.as_ref() {
+            return self.grammar_error_on_node(
+                type_,
+                &Diagnostics::Type_annotation_cannot_appear_on_a_constructor_declaration,
+                None,
+            );
+        }
+        false
     }
 
     pub(super) fn check_grammar_property(
