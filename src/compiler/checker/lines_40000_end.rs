@@ -9,22 +9,22 @@ use super::{ambient_module_symbol_regex, UnusedKind};
 use crate::{
     are_option_rcs_equal, create_diagnostic_for_node, filter, find, first_or_undefined,
     get_effective_return_type_node, get_jsdoc_type_parameter_declarations, get_object_flags,
-    has_abstract_modifier, has_syntactic_modifier, is_binary_expression,
+    has_abstract_modifier, has_syntactic_modifier, id_text, is_binary_expression,
     is_child_of_node_with_kind, is_class_like, is_computed_property_name, is_declaration,
-    is_function_like, is_in_js_file, is_private_identifier, is_property_declaration,
-    is_spread_element, is_static, is_string_literal, is_type_literal_node, length, skip_trivia,
-    text_span_end, token_to_string, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
-    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NodeArray, NodeFlags, ObjectFlags,
-    ReadonlyTextRange, SignatureKind, SourceFileLike, SymbolInterface, Ternary, TokenFlags,
-    TypeFlags, TypeInterface, __String, bind_source_file, create_file_diagnostic, for_each,
-    for_each_bool, get_source_file_of_node, get_span_of_token_at_position, is_accessor,
-    is_external_or_common_js_module, is_literal_type_node, is_prefix_unary_expression,
-    AllAccessorDeclarations, CancellationTokenDebuggable, Diagnostic, EmitResolver,
-    EmitResolverDebuggable, IndexInfo, Node, NodeBuilderFlags, NodeCheckFlags, NodeInterface,
-    ScriptTarget, Signature, SignatureFlags, StringOrNumber, Symbol, SymbolAccessibilityResult,
-    SymbolFlags, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker,
-    TypeReferenceSerializationKind,
+    is_function_like, is_in_js_file, is_let, is_omitted_expression, is_private_identifier,
+    is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
+    is_var_const, length, skip_trivia, text_span_end, token_to_string, DiagnosticMessage,
+    Diagnostics, ExternalEmitHelpers, HasInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, NodeArray, NodeFlags, ObjectFlags, ReadonlyTextRange, SignatureKind,
+    SourceFileLike, SymbolInterface, Ternary, TokenFlags, TypeFlags, TypeInterface, __String,
+    bind_source_file, create_file_diagnostic, for_each, for_each_bool, get_source_file_of_node,
+    get_span_of_token_at_position, is_accessor, is_external_or_common_js_module,
+    is_literal_type_node, is_prefix_unary_expression, AllAccessorDeclarations,
+    CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
+    NodeBuilderFlags, NodeCheckFlags, NodeInterface, ScriptTarget, Signature, SignatureFlags,
+    StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker,
+    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -415,6 +415,121 @@ impl TypeChecker {
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature*/
     ) -> bool {
         unimplemented!()
+    }
+
+    pub(super) fn check_es_module_marker(
+        &self,
+        name: &Node, /*Identifier | BindingPattern*/
+    ) -> bool {
+        if name.kind() == SyntaxKind::Identifier {
+            if id_text(name) == "__esModule" {
+                return self.grammar_error_on_node_skipped_on(
+                    "noEmit".to_owned(),
+                    name,
+                    &Diagnostics::Identifier_expected_esModule_is_reserved_as_an_exported_marker_when_transforming_ECMAScript_modules,
+                    None,
+                );
+            }
+        } else {
+            let elements = name.as_has_elements().elements();
+            for element in elements {
+                if !is_omitted_expression(element) {
+                    return self.check_es_module_marker(&element.as_binding_element().name());
+                }
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_name_in_let_or_const_declarations(
+        &self,
+        name: &Node, /*Identifier | BindingPattern*/
+    ) -> bool {
+        if name.kind() == SyntaxKind::Identifier {
+            if name.as_identifier().original_keyword_kind == Some(SyntaxKind::LetKeyword) {
+                return self.grammar_error_on_node(
+                    name,
+                    &Diagnostics::let_is_not_allowed_to_be_used_as_a_name_in_let_or_const_declarations,
+                    None,
+                );
+            }
+        } else {
+            let elements = name.as_has_elements().elements();
+            for element in elements {
+                if !is_omitted_expression(element) {
+                    self.check_grammar_name_in_let_or_const_declarations(
+                        &element.as_binding_element().name(),
+                    );
+                }
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_variable_declaration_list(
+        &self,
+        declaration_list: &Node, /*VariableDeclarationList*/
+    ) -> bool {
+        let declaration_list_as_variable_declaration_list =
+            declaration_list.as_variable_declaration_list();
+        let declarations = &declaration_list_as_variable_declaration_list.declarations;
+        if self.check_grammar_for_disallowed_trailing_comma(
+            Some(&declaration_list_as_variable_declaration_list.declarations),
+            None,
+        ) {
+            return true;
+        }
+
+        if declaration_list_as_variable_declaration_list
+            .declarations
+            .is_empty()
+        {
+            return self.grammar_error_at_pos(
+                declaration_list,
+                declarations.pos(),
+                declarations.end() - declarations.pos(),
+                &Diagnostics::Variable_declaration_list_cannot_be_empty,
+                None,
+            );
+        }
+        false
+    }
+
+    pub(super) fn allow_let_and_const_declarations(&self, parent: &Node) -> bool {
+        match parent.kind() {
+            SyntaxKind::IfStatement
+            | SyntaxKind::DoStatement
+            | SyntaxKind::WhileStatement
+            | SyntaxKind::WithStatement
+            | SyntaxKind::ForStatement
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement => false,
+            SyntaxKind::LabeledStatement => self.allow_let_and_const_declarations(&parent.parent()),
+            _ => true,
+        }
+    }
+
+    pub(super) fn check_grammar_for_disallowed_let_or_const_statement(
+        &self,
+        node: &Node, /*VariableStatement*/
+    ) -> bool {
+        if !self.allow_let_and_const_declarations(&node.parent()) {
+            let node_as_variable_statement = node.as_variable_statement();
+            if is_let(&node_as_variable_statement.declaration_list) {
+                return self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::let_declarations_can_only_be_declared_inside_a_block,
+                    None,
+                );
+            } else if is_var_const(&node_as_variable_statement.declaration_list) {
+                return self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::const_declarations_can_only_be_declared_inside_a_block,
+                    None,
+                );
+            }
+        }
+        false
     }
 
     pub(super) fn check_grammar_meta_property(&self, node: &Node /*MetaProperty*/) -> bool {
