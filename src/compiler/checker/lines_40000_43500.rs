@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
@@ -10,12 +11,12 @@ use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
     add_related_info, create_diagnostic_for_node, first, get_containing_function,
     get_function_flags, get_set_accessor_value_parameter, get_source_file_of_node,
-    get_this_parameter, has_effective_readonly_modifier, has_syntactic_modifier,
-    is_binding_pattern, is_class_like, is_declaration_readonly, is_effective_external_module,
-    is_element_access_expression, is_entity_name_expression, is_for_of_statement,
-    is_function_like_or_class_static_block_declaration, is_identifier, is_in_js_file,
-    is_in_top_level_context, is_iteration_statement, is_jsdoc_type_expression, is_jsdoc_type_tag,
-    is_let, is_private_identifier, is_property_access_expression, is_static,
+    get_this_parameter, has_effective_readonly_modifier, has_syntactic_modifier, id_text,
+    is_binding_pattern, is_class_like, is_comma_sequence, is_declaration_readonly,
+    is_effective_external_module, is_element_access_expression, is_entity_name_expression,
+    is_for_of_statement, is_function_like_or_class_static_block_declaration, is_identifier,
+    is_in_js_file, is_in_top_level_context, is_iteration_statement, is_jsdoc_type_expression,
+    is_jsdoc_type_tag, is_let, is_private_identifier, is_property_access_expression, is_static,
     is_string_or_numeric_literal_like, is_var_const, is_variable_declaration,
     is_variable_declaration_in_variable_statement, last, token_to_string,
     walk_up_parenthesized_types, Debug_, DiagnosticMessage, DiagnosticRelatedInformation,
@@ -397,11 +398,99 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
     ) -> bool {
-        unimplemented!()
+        let node_as_jsx_opening_like_element = node.as_jsx_opening_like_element();
+        self.check_grammar_jsx_name(&node_as_jsx_opening_like_element.tag_name());
+        self.check_grammar_type_arguments(
+            node,
+            node.as_has_type_arguments().maybe_type_arguments(),
+        );
+        let mut seen: HashMap<__String, bool> = HashMap::new();
+
+        for attr in &node_as_jsx_opening_like_element
+            .attributes()
+            .as_jsx_attributes()
+            .properties
+        {
+            if attr.kind() == SyntaxKind::JsxSpreadAttribute {
+                continue;
+            }
+
+            let attr_as_jsx_attribute = attr.as_jsx_attribute();
+            let name = &attr_as_jsx_attribute.name;
+            let initializer = attr_as_jsx_attribute.initializer.as_ref();
+            let name_as_identifier = name.as_identifier();
+            if seen.get(&name_as_identifier.escaped_text).copied() != Some(true) {
+                seen.insert(name_as_identifier.escaped_text.clone(), true);
+            } else {
+                return self.grammar_error_on_node(
+                    name,
+                    &Diagnostics::JSX_elements_cannot_have_multiple_attributes_with_the_same_name,
+                    None,
+                );
+            }
+
+            if let Some(initializer) = initializer.filter(|initializer| {
+                initializer.kind() == SyntaxKind::JsxExpression
+                    && initializer.as_jsx_expression().expression.is_none()
+            }) {
+                return self.grammar_error_on_node(
+                    initializer,
+                    &Diagnostics::JSX_attributes_must_only_be_assigned_a_non_empty_expression,
+                    None,
+                );
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_jsx_name(&self, node: &Node /*JsxTagNameExpression*/) -> bool {
+        if is_property_access_expression(node) {
+            let mut prop_name: Rc<Node /*JsxTagNameExpression*/> = node.node_wrapper();
+            while {
+                let check = self
+                    .check_grammar_jsx_nested_identifier(&prop_name.as_named_declaration().name());
+                if check {
+                    return check;
+                }
+                prop_name = prop_name.as_has_expression().expression();
+                is_property_access_expression(&prop_name)
+            } {}
+            let check = self.check_grammar_jsx_nested_identifier(&prop_name);
+            if check {
+                return check;
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_jsx_nested_identifier(
+        &self,
+        name: &Node, /*MemberName | ThisExpression*/
+    ) -> bool {
+        if is_identifier(name) && id_text(name).contains(":") {
+            return self.grammar_error_on_node(
+                name,
+                &Diagnostics::JSX_property_access_expressions_cannot_include_JSX_namespace_names,
+                None,
+            );
+        }
+        false
     }
 
     pub(super) fn check_grammar_jsx_expression(&self, node: &Node /*JsxExpression*/) -> bool {
-        unimplemented!()
+        if let Some(node_expression) = node
+            .as_jsx_expression()
+            .expression
+            .as_ref()
+            .filter(|node_expression| is_comma_sequence(node_expression))
+        {
+            return self.grammar_error_on_node(
+                node_expression,
+                &Diagnostics::JSX_expressions_may_not_use_the_comma_operator_Did_you_mean_to_write_an_array,
+                None,
+            );
+        }
+        false
     }
 
     pub(super) fn check_grammar_for_in_or_for_of_statement(
