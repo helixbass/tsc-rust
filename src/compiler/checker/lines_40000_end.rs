@@ -7,9 +7,10 @@ use std::rc::Rc;
 
 use super::{ambient_module_symbol_regex, UnusedKind};
 use crate::{
-    are_option_rcs_equal, filter, find, get_object_flags, is_spread_element, length, text_span_end,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, LiteralLikeNodeInterface,
-    LiteralTypeInterface, ModuleKind, NodeArray, ObjectFlags, ReadonlyTextRange, SignatureKind,
+    are_option_rcs_equal, filter, find, get_object_flags, has_syntactic_modifier,
+    is_child_of_node_with_kind, is_declaration, is_function_like, is_spread_element, length,
+    text_span_end, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, LiteralLikeNodeInterface,
+    ModifierFlags, ModuleKind, NodeArray, NodeFlags, ObjectFlags, ReadonlyTextRange, SignatureKind,
     SymbolInterface, Ternary, TokenFlags, TypeFlags, TypeInterface, __String, bind_source_file,
     create_file_diagnostic, for_each, for_each_bool, get_source_file_of_node,
     get_span_of_token_at_position, is_accessor, is_external_or_common_js_module,
@@ -428,10 +429,129 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_top_level_element_for_required_declare_modifier(
+        &self,
+        node: &Node,
+    ) -> bool {
+        if matches!(
+            node.kind(),
+            SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::ImportDeclaration
+                | SyntaxKind::ImportEqualsDeclaration
+                | SyntaxKind::ExportDeclaration
+                | SyntaxKind::ExportAssignment
+                | SyntaxKind::NamespaceExportDeclaration
+        ) || has_syntactic_modifier(
+            node,
+            ModifierFlags::Ambient | ModifierFlags::Export | ModifierFlags::Default,
+        ) {
+            return false;
+        }
+
+        self.grammar_error_on_first_token(
+            node,
+            &Diagnostics::Top_level_declarations_in_d_ts_files_must_start_with_either_a_declare_or_export_modifier,
+            None,
+        )
+    }
+
+    pub(super) fn check_grammar_top_level_elements_for_required_declare_modifier(
+        &self,
+        file: &Node, /*SourceFile*/
+    ) -> bool {
+        for decl in &file.as_source_file().statements {
+            if is_declaration(decl) || decl.kind() == SyntaxKind::VariableStatement {
+                if self.check_grammar_top_level_element_for_required_declare_modifier(decl) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_source_file(&self, node: &Node /*SourceFile*/) -> bool {
+        node.flags().intersects(NodeFlags::Ambient)
+            && self.check_grammar_top_level_elements_for_required_declare_modifier(node)
+    }
+
+    pub(super) fn check_grammar_statement_in_ambient_context(&self, node: &Node) -> bool {
+        if node.flags().intersects(NodeFlags::Ambient) {
+            let links = self.get_node_links(node);
+            if (*links).borrow().has_reported_statement_in_ambient_context != Some(true)
+                && (is_function_like(node.maybe_parent()) || is_accessor(&node.parent()))
+            {
+                let ret = self.grammar_error_on_first_token(
+                    node,
+                    &Diagnostics::An_implementation_cannot_be_declared_in_ambient_contexts,
+                    None,
+                );
+                links.borrow_mut().has_reported_statement_in_ambient_context = Some(ret);
+                return ret;
+            }
+
+            if matches!(
+                node.parent().kind(),
+                SyntaxKind::Block | SyntaxKind::ModuleBlock | SyntaxKind::SourceFile
+            ) {
+                let links = self.get_node_links(&node.parent());
+                if (*links).borrow().has_reported_statement_in_ambient_context != Some(true) {
+                    let ret = self.grammar_error_on_first_token(
+                        node,
+                        &Diagnostics::Statements_are_not_allowed_in_ambient_contexts,
+                        None,
+                    );
+                    links.borrow_mut().has_reported_statement_in_ambient_context = Some(ret);
+                    return ret;
+                }
+            }
+            // else {
+            // }
+        }
+        false
+    }
+
     pub(super) fn check_grammar_numeric_literal(
         &self,
         node: &Node, /*NumericLiteral*/
     ) -> bool {
+        let node_as_numeric_literal = node.as_numeric_literal();
+        if node_as_numeric_literal
+            .numeric_literal_flags
+            .intersects(TokenFlags::Octal)
+        {
+            let mut diagnostic_message: Option<&'static DiagnosticMessage> = None;
+            if self.language_version >= ScriptTarget::ES5 {
+                diagnostic_message = Some(&Diagnostics::Octal_literals_are_not_available_when_targeting_ECMAScript_5_and_higher_Use_the_syntax_0);
+            } else if is_child_of_node_with_kind(node, SyntaxKind::LiteralType) {
+                diagnostic_message =
+                    Some(&Diagnostics::Octal_literal_types_must_use_ES2015_syntax_Use_the_syntax_0);
+            } else if is_child_of_node_with_kind(node, SyntaxKind::EnumMember) {
+                diagnostic_message = Some(&Diagnostics::Octal_literals_are_not_allowed_in_enums_members_initializer_Use_the_syntax_0);
+            }
+            if let Some(diagnostic_message) = diagnostic_message {
+                let with_minus = is_prefix_unary_expression(&node.parent())
+                    && node.parent().as_prefix_unary_expression().operator
+                        == SyntaxKind::MinusToken;
+                let literal = format!(
+                    "{}0o{}",
+                    if with_minus { "-" } else { "" },
+                    &*node_as_numeric_literal.text()
+                );
+                return self.grammar_error_on_node(
+                    &*if with_minus {
+                        node.parent()
+                    } else {
+                        node.node_wrapper()
+                    },
+                    diagnostic_message,
+                    Some(vec![literal]),
+                );
+            }
+        }
+
+        self.check_numeric_literal_value_size(node);
+
         false
     }
 

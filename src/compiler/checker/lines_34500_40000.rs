@@ -6,14 +6,38 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    for_each, get_containing_function_or_class_static_block, get_effective_initializer,
-    get_function_flags, is_binding_element, is_function_or_module_block, map, maybe_for_each,
-    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
-    IterationTypes, IterationTypesResolver, Node, NodeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    for_each, for_each_child, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
+    map, maybe_for_each, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
+    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, Node, NodeArray,
+    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn check_class_static_block_declaration(
+        &self,
+        node: &Node, /*ClassStaticBlockDeclaration*/
+    ) {
+        self.check_grammar_decorators_and_modifiers(node);
+
+        for_each_child(
+            node,
+            |child: &Node| self.check_source_element(Some(child)),
+            Option::<fn(&NodeArray)>::None,
+        );
+    }
+
+    pub(super) fn check_constructor_declaration(
+        &self,
+        node: &Node, /*ConstructorDeclaration*/
+    ) {
+        unimplemented!()
+        // self.check_signature_declaration(node);
+        // if !self.check_grammar_constructor_type_parameters() {
+        // }
+    }
+
     pub(super) fn get_effective_type_arguments(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
