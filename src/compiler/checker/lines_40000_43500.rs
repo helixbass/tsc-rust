@@ -8,17 +8,20 @@ use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    first, get_set_accessor_value_parameter, get_source_file_of_node, get_this_parameter,
-    has_effective_readonly_modifier, has_syntactic_modifier, is_binding_pattern, is_class_like,
-    is_declaration_readonly, is_element_access_expression, is_entity_name_expression,
-    is_function_like_or_class_static_block_declaration, is_in_js_file, is_iteration_statement,
-    is_jsdoc_type_expression, is_jsdoc_type_tag, is_let, is_private_identifier,
-    is_property_access_expression, is_static, is_string_or_numeric_literal_like, is_var_const,
-    is_variable_declaration, is_variable_declaration_in_variable_statement, last, token_to_string,
-    walk_up_parenthesized_types, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    HasInitializerInterface, HasTypeInterface, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, NodeArray, NodeFlags, ReadonlyTextRange, ScriptTarget, SyntaxKind,
-    TypeFlags, TypeInterface, __String, bind_source_file, for_each,
+    add_related_info, create_diagnostic_for_node, first, get_containing_function,
+    get_function_flags, get_set_accessor_value_parameter, get_source_file_of_node,
+    get_this_parameter, has_effective_readonly_modifier, has_syntactic_modifier,
+    is_binding_pattern, is_class_like, is_declaration_readonly, is_effective_external_module,
+    is_element_access_expression, is_entity_name_expression, is_for_of_statement,
+    is_function_like_or_class_static_block_declaration, is_identifier, is_in_js_file,
+    is_in_top_level_context, is_iteration_statement, is_jsdoc_type_expression, is_jsdoc_type_tag,
+    is_let, is_private_identifier, is_property_access_expression, is_static,
+    is_string_or_numeric_literal_like, is_var_const, is_variable_declaration,
+    is_variable_declaration_in_variable_statement, last, token_to_string,
+    walk_up_parenthesized_types, Debug_, DiagnosticMessage, DiagnosticRelatedInformation,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasInitializerInterface, HasTypeInterface,
+    ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray, NodeFlags, ReadonlyTextRange,
+    ScriptTarget, SyntaxKind, TypeFlags, TypeInterface, __String, bind_source_file, for_each,
     is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
     EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
     Type, TypeChecker,
@@ -399,6 +402,187 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_jsx_expression(&self, node: &Node /*JsxExpression*/) -> bool {
         unimplemented!()
+    }
+
+    pub(super) fn check_grammar_for_in_or_for_of_statement(
+        &self,
+        for_in_or_of_statement: &Node, /*ForInOrOfStatement*/
+    ) -> bool {
+        if self.check_grammar_statement_in_ambient_context(for_in_or_of_statement) {
+            return true;
+        }
+
+        if for_in_or_of_statement.kind() == SyntaxKind::ForOfStatement {
+            if let Some(for_in_or_of_statement_await_modifier) = for_in_or_of_statement
+                .as_for_of_statement()
+                .await_modifier
+                .as_ref()
+            {
+                if !for_in_or_of_statement
+                    .flags()
+                    .intersects(NodeFlags::AwaitContext)
+                {
+                    let source_file =
+                        get_source_file_of_node(Some(for_in_or_of_statement)).unwrap();
+                    if is_in_top_level_context(for_in_or_of_statement) {
+                        if !self.has_parse_diagnostics(&source_file) {
+                            if !is_effective_external_module(&source_file, &self.compiler_options) {
+                                self.diagnostics().add(
+                                    Rc::new(
+                                        create_diagnostic_for_node(
+                                            for_in_or_of_statement_await_modifier,
+                                            &Diagnostics::for_await_loops_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module,
+                                            None,
+                                        ).into()
+                                    )
+                                );
+                            }
+                            if !matches!(
+                                self.module_kind,
+                                ModuleKind::ES2022 | ModuleKind::ESNext | ModuleKind::System
+                            ) && !(self.module_kind == ModuleKind::NodeNext
+                                && get_source_file_of_node(Some(for_in_or_of_statement))
+                                    .unwrap()
+                                    .as_source_file()
+                                    .maybe_implied_node_format()
+                                    == Some(ModuleKind::ESNext))
+                                || self.language_version < ScriptTarget::ES2017
+                            {
+                                self.diagnostics().add(
+                                    Rc::new(
+                                        create_diagnostic_for_node(
+                                            for_in_or_of_statement_await_modifier,
+                                            &Diagnostics::Top_level_for_await_loops_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_or_nodenext_and_the_target_option_is_set_to_es2017_or_higher,
+                                            None,
+                                        ).into()
+                                    )
+                                );
+                            }
+                        }
+                    } else {
+                        if !self.has_parse_diagnostics(&source_file) {
+                            let diagnostic: Rc<Diagnostic> = Rc::new(
+                                create_diagnostic_for_node(
+                                    for_in_or_of_statement_await_modifier,
+                                    &Diagnostics::for_await_loops_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules,
+                                    None,
+                                ).into()
+                            );
+                            let func = get_containing_function(for_in_or_of_statement);
+                            if let Some(func) = func
+                                .as_ref()
+                                .filter(|func| func.kind() != SyntaxKind::Constructor)
+                            {
+                                Debug_.assert(
+                                    !get_function_flags(Some(&**func))
+                                        .intersects(FunctionFlags::Async),
+                                    Some("Enclosing function should never be an async function."),
+                                );
+                                let related_info: Rc<DiagnosticRelatedInformation> = Rc::new(
+                                    create_diagnostic_for_node(
+                                        func,
+                                        &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
+                                        None,
+                                    )
+                                    .into(),
+                                );
+                                add_related_info(&diagnostic, vec![related_info]);
+                            }
+                            self.diagnostics().add(diagnostic);
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
+
+        if is_for_of_statement(for_in_or_of_statement)
+            && !for_in_or_of_statement
+                .flags()
+                .intersects(NodeFlags::AwaitContext)
+        {
+            let for_in_or_of_statement_as_for_of_statement =
+                for_in_or_of_statement.as_for_of_statement();
+            if is_identifier(&for_in_or_of_statement_as_for_of_statement.initializer)
+                && for_in_or_of_statement_as_for_of_statement
+                    .initializer
+                    .as_identifier()
+                    .escaped_text
+                    .eq_str("async")
+            {
+                self.grammar_error_on_node(
+                    &for_in_or_of_statement_as_for_of_statement.initializer,
+                    &Diagnostics::The_left_hand_side_of_a_for_of_statement_may_not_be_async,
+                    None,
+                );
+                return false;
+            }
+        }
+
+        if for_in_or_of_statement
+            .as_has_initializer()
+            .maybe_initializer()
+            .unwrap()
+            .kind()
+            == SyntaxKind::VariableDeclarationList
+        {
+            let variable_list = for_in_or_of_statement
+                .as_has_initializer()
+                .maybe_initializer()
+                .unwrap();
+            if !self.check_grammar_variable_declaration_list(&variable_list) {
+                let declarations = &variable_list.as_variable_declaration_list().declarations;
+
+                if declarations.is_empty() {
+                    return false;
+                }
+
+                if declarations.len() > 1 {
+                    let diagnostic = if for_in_or_of_statement.kind() == SyntaxKind::ForInStatement
+                    {
+                        &*Diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement
+                    } else {
+                        &*Diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement
+                    };
+                    return self.grammar_error_on_first_token(
+                        &variable_list.as_variable_declaration_list().declarations[1],
+                        diagnostic,
+                        None,
+                    );
+                }
+                let first_declaration = &declarations[0];
+
+                if first_declaration
+                    .as_has_initializer()
+                    .maybe_initializer()
+                    .is_some()
+                {
+                    let diagnostic = if for_in_or_of_statement.kind() == SyntaxKind::ForInStatement
+                    {
+                        &*Diagnostics::The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer
+                    } else {
+                        &*Diagnostics::The_variable_declaration_of_a_for_of_statement_cannot_have_an_initializer
+                    };
+                    return self.grammar_error_on_node(
+                        &first_declaration.as_named_declaration().name(),
+                        diagnostic,
+                        None,
+                    );
+                }
+                if first_declaration.as_has_type().maybe_type().is_some() {
+                    let diagnostic = if for_in_or_of_statement.kind() == SyntaxKind::ForInStatement
+                    {
+                        &*Diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation
+                    } else {
+                        &*Diagnostics::The_left_hand_side_of_a_for_of_statement_cannot_use_a_type_annotation
+                    };
+                    return self.grammar_error_on_node(first_declaration, diagnostic, None);
+                }
+            }
+        }
+
+        false
     }
 
     pub(super) fn check_grammar_accessor(
