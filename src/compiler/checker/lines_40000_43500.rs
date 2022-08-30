@@ -6,7 +6,10 @@ use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, NodeArray, __String, bind_source_file,
+    get_source_file_of_node, has_syntactic_modifier, is_binding_pattern, is_declaration_readonly,
+    is_let, is_var_const, is_variable_declaration, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, HasInitializerInterface, HasTypeInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, NodeArray, NodeFlags, SyntaxKind, __String, bind_source_file,
     for_each, is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
     EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
     Type, TypeChecker,
@@ -395,10 +398,139 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_string_or_numeric_literal_expression(
+        &self,
+        expr: &Node, /*Expression*/
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_big_int_literal_expression(&self, expr: &Node /*Expression*/) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_simple_literal_enum_reference(&self, expr: &Node /*Expression*/) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_ambient_initializer(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature*/
     ) -> bool {
-        unimplemented!()
+        let initializer = node.as_has_initializer().maybe_initializer();
+        if let Some(initializer) = initializer.as_ref() {
+            let is_invalid_initializer = !(self
+                .is_string_or_numeric_literal_expression(initializer)
+                || self.is_simple_literal_enum_reference(initializer)
+                || matches!(
+                    initializer.kind(),
+                    SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword
+                )
+                || self.is_big_int_literal_expression(initializer));
+            let is_const_or_readonly = is_declaration_readonly(node)
+                || is_variable_declaration(node) && is_var_const(node);
+            if is_const_or_readonly && node.as_has_type().maybe_type().is_none() {
+                if is_invalid_initializer {
+                    return self.grammar_error_on_node(
+                        initializer,
+                        &Diagnostics::A_const_initializer_in_an_ambient_context_must_be_a_string_or_numeric_literal_or_literal_enum_reference,
+                        None,
+                    );
+                }
+            } else {
+                return self.grammar_error_on_node(
+                    initializer,
+                    &Diagnostics::Initializers_are_not_allowed_in_ambient_contexts,
+                    None,
+                );
+            }
+            if !is_const_or_readonly || is_invalid_initializer {
+                return self.grammar_error_on_node(
+                    initializer,
+                    &Diagnostics::Initializers_are_not_allowed_in_ambient_contexts,
+                    None,
+                );
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_variable_declaration(
+        &self,
+        node: &Node, /*VariableDeclaration*/
+    ) -> bool {
+        let node_as_variable_declaration = node.as_variable_declaration();
+        if !matches!(
+            node.parent().parent().kind(),
+            SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
+        ) {
+            if node.flags().intersects(NodeFlags::Ambient) {
+                self.check_ambient_initializer(node);
+            } else if node_as_variable_declaration.maybe_initializer().is_none() {
+                if is_binding_pattern(node_as_variable_declaration.maybe_name())
+                    && !is_binding_pattern(node.maybe_parent())
+                {
+                    return self.grammar_error_on_node(
+                        node,
+                        &Diagnostics::A_destructuring_declaration_must_have_an_initializer,
+                        None,
+                    );
+                }
+                if is_var_const(node) {
+                    return self.grammar_error_on_node(
+                        node,
+                        &Diagnostics::const_declarations_must_be_initialized,
+                        None,
+                    );
+                }
+            }
+        }
+
+        if node_as_variable_declaration.exclamation_token.is_some()
+            && (node.parent().parent().kind() != SyntaxKind::VariableStatement
+                || node_as_variable_declaration.maybe_type().is_none()
+                || node_as_variable_declaration.maybe_initializer().is_some()
+                || node.flags().intersects(NodeFlags::Ambient))
+        {
+            let message = if node_as_variable_declaration.maybe_initializer().is_some() {
+                &*Diagnostics::Declarations_with_initializers_cannot_also_have_definite_assignment_assertions
+            } else if node_as_variable_declaration.maybe_type().is_none() {
+                &*Diagnostics::Declarations_with_definite_assignment_assertions_must_also_have_type_annotations
+            } else {
+                &*Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context
+            };
+            return self.grammar_error_on_node(
+                node_as_variable_declaration
+                    .exclamation_token
+                    .as_ref()
+                    .unwrap(),
+                message,
+                None,
+            );
+        }
+
+        if (self.module_kind < ModuleKind::ES2015
+            || get_source_file_of_node(Some(node))
+                .unwrap()
+                .as_source_file()
+                .maybe_implied_node_format()
+                == Some(ModuleKind::CommonJS))
+            && self.module_kind != ModuleKind::System
+            && !node
+                .parent()
+                .parent()
+                .flags()
+                .intersects(NodeFlags::Ambient)
+            && has_syntactic_modifier(&node.parent().parent(), ModifierFlags::Export)
+        {
+            self.check_es_module_marker(&node_as_variable_declaration.name());
+        }
+
+        let check_let_const_names = is_let(node) || is_var_const(node);
+
+        check_let_const_names
+            && self.check_grammar_name_in_let_or_const_declarations(
+                &node_as_variable_declaration.name(),
+            )
     }
 }
