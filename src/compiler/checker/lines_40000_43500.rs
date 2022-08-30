@@ -2,21 +2,23 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    get_source_file_of_node, has_syntactic_modifier, is_binding_pattern, is_declaration_readonly,
-    is_element_access_expression, is_entity_name_expression,
+    first, get_source_file_of_node, has_syntactic_modifier, is_binding_pattern, is_class_like,
+    is_declaration_readonly, is_element_access_expression, is_entity_name_expression,
     is_function_like_or_class_static_block_declaration, is_iteration_statement, is_let,
-    is_property_access_expression, is_string_or_numeric_literal_like, is_var_const,
-    is_variable_declaration, last, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    HasInitializerInterface, HasTypeInterface, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, NodeArray, NodeFlags, ReadonlyTextRange, SyntaxKind, TypeFlags,
-    TypeInterface, __String, bind_source_file, for_each, is_external_or_common_js_module,
-    CancellationTokenDebuggable, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
-    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    is_private_identifier, is_property_access_expression, is_string_or_numeric_literal_like,
+    is_var_const, is_variable_declaration, last, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, HasInitializerInterface, HasTypeInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, NodeArray, NodeFlags, ReadonlyTextRange, ScriptTarget, SyntaxKind,
+    TypeFlags, TypeInterface, __String, bind_source_file, for_each,
+    is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
+    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
+    Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -361,6 +363,22 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_for_invalid_question_mark<TQuestionToken: Borrow<Node>>(
+        &self,
+        question_token: Option<TQuestionToken /*QuestionToken*/>,
+        message: &DiagnosticMessage,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_grammar_for_invalid_exclamation_token<TExclamationToken: Borrow<Node>>(
+        &self,
+        exclamation_token: Option<TExclamationToken /*ExclamationToken*/>,
+        message: &DiagnosticMessage,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_object_literal_expression(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
@@ -392,14 +410,96 @@ impl TypeChecker {
         node: &Node, /*DeclarationName*/
         message: &'static DiagnosticMessage,
     ) -> bool {
-        unimplemented!()
+        if self.is_non_bindable_dynamic_name(node) {
+            return self.grammar_error_on_node(node, message, None);
+        }
+        false
     }
 
     pub(super) fn check_grammar_method(
         &self,
         node: &Node, /*MethodDeclaration | MethodSignature*/
     ) -> bool {
-        unimplemented!()
+        if self.check_grammar_function_like_declaration(node) {
+            return true;
+        }
+
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        if node.kind() == SyntaxKind::MethodDeclaration {
+            if node.parent().kind() == SyntaxKind::ObjectLiteralExpression {
+                if matches!(
+                    node_as_function_like_declaration.maybe_modifiers().as_ref(),
+                    Some(node_modifiers) if !(
+                        node_modifiers.len() == 1 && first(&*node_modifiers).kind() == SyntaxKind::AsyncKeyword
+                    )
+                ) {
+                    return self.grammar_error_on_first_token(
+                        node,
+                        &Diagnostics::Modifiers_cannot_appear_here,
+                        None,
+                    );
+                } else if self.check_grammar_for_invalid_question_mark(
+                    node_as_function_like_declaration.maybe_question_token(),
+                    &Diagnostics::An_object_member_cannot_be_declared_optional,
+                ) {
+                    return true;
+                } else if self.check_grammar_for_invalid_exclamation_token(
+                    node_as_function_like_declaration
+                        .maybe_exclamation_token()
+                        .as_deref(),
+                    &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
+                ) {
+                    return true;
+                } else if node_as_function_like_declaration.maybe_body().is_none() {
+                    return self.grammar_error_at_pos(
+                        node,
+                        node.end() - 1,
+                        ";".len().try_into().unwrap(),
+                        &Diagnostics::_0_expected,
+                        Some(vec!["{".to_owned()]),
+                    );
+                }
+            }
+            if self.check_grammar_for_generator(node) {
+                return true;
+            }
+        }
+
+        if is_class_like(&node.parent()) {
+            if self.language_version < ScriptTarget::ES2015
+                && is_private_identifier(&node_as_function_like_declaration.name())
+            {
+                return self.grammar_error_on_node(
+                    &node_as_function_like_declaration.name(),
+                    &Diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
+                    None,
+                );
+            }
+            if node.flags().intersects(NodeFlags::Ambient) {
+                return self.check_grammar_for_invalid_dynamic_name(
+                    &node_as_function_like_declaration.name(),
+                    &Diagnostics::A_computed_property_name_in_an_ambient_context_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
+                );
+            } else if node.kind() == SyntaxKind::MethodDeclaration
+                && node_as_function_like_declaration.maybe_body().is_none()
+            {
+                return self.check_grammar_for_invalid_dynamic_name(
+                    &node_as_function_like_declaration.name(),
+                    &Diagnostics::A_computed_property_name_in_a_method_overload_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
+                );
+            }
+        } else if node.parent().kind() == SyntaxKind::InterfaceDeclaration {
+            return self.check_grammar_for_invalid_dynamic_name(
+                &node_as_function_like_declaration.name(),
+                &Diagnostics::A_computed_property_name_in_an_interface_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
+            );
+        } else if node.parent().kind() == SyntaxKind::TypeLiteral {
+            return self.check_grammar_for_invalid_dynamic_name(
+                &node_as_function_like_declaration.name(),
+                &Diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
+            );
+        }
+        false
     }
 
     pub(super) fn check_grammar_break_or_continue_statement(

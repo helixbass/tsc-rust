@@ -12,7 +12,7 @@ use crate::{
     declaration_name_to_string, escape_leading_underscores, every, filter, for_each,
     get_assignment_declaration_kind, get_check_flags, get_class_like_declaration_of_symbol,
     get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
-    has_static_modifier, has_syntactic_modifier, is_binary_expression,
+    has_static_modifier, has_syntactic_modifier, is_binary_expression, is_dynamic_name,
     is_element_access_expression, is_in_js_file, last_or_undefined, length, map, map_defined,
     maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
@@ -35,6 +35,13 @@ impl TypeChecker {
 
     pub(super) fn has_bindable_name(&self, node: &Node /*Declaration*/) -> bool {
         !has_dynamic_name(node) || self.has_late_bindable_name(node)
+    }
+
+    pub(super) fn is_non_bindable_dynamic_name(
+        &self,
+        node: &Node, /*DeclarationName*/
+    ) -> bool {
+        is_dynamic_name(node) && !self.is_late_bindable_name(node)
     }
 
     pub(super) fn get_property_name_from_type(
