@@ -2,29 +2,14 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::{ambient_module_symbol_regex, EmitResolverCreateResolver, UnusedKind};
+use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    are_option_rcs_equal, create_diagnostic_for_node, filter, find, first_or_undefined,
-    get_effective_return_type_node, get_jsdoc_type_parameter_declarations, get_object_flags,
-    has_abstract_modifier, has_syntactic_modifier, id_text, is_binary_expression,
-    is_child_of_node_with_kind, is_class_like, is_computed_property_name, is_declaration,
-    is_function_like, is_in_js_file, is_let, is_omitted_expression, is_private_identifier,
-    is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
-    is_var_const, length, skip_trivia, text_span_end, token_to_string, DiagnosticMessage,
-    Diagnostics, ExternalEmitHelpers, HasInitializerInterface, HasTypeInterface,
-    HasTypeParametersInterface, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, NodeArray, NodeFlags, ObjectFlags, ReadonlyTextRange, SignatureKind,
-    SourceFileLike, SymbolInterface, Ternary, TokenFlags, TypeFlags, TypeInterface, __String,
-    bind_source_file, create_file_diagnostic, for_each, for_each_bool, get_source_file_of_node,
-    get_span_of_token_at_position, is_accessor, is_external_or_common_js_module,
-    is_literal_type_node, is_prefix_unary_expression, AllAccessorDeclarations,
-    CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
-    NodeBuilderFlags, NodeCheckFlags, NodeInterface, ScriptTarget, Signature, SignatureFlags,
-    StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker,
-    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeReferenceSerializationKind,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, NodeArray, __String, bind_source_file,
+    for_each, is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
+    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
+    Type, TypeChecker,
 };
 
 impl TypeChecker {
