@@ -6,7 +6,7 @@ use std::rc::Rc;
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
     BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
-    HasPropertiesInterface, HasPropertyNameInterface, HasStatementsInterface,
+    HasMembersInterface, HasPropertiesInterface, HasPropertyNameInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeInterface, LiteralLikeNodeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, SyntaxKind,
     VariableLikeDeclarationInterface,
@@ -1361,6 +1361,12 @@ impl InterfaceDeclaration {
             _interface_or_class_like_declaration: base_interface_or_class_like_declaration,
             members,
         }
+    }
+}
+
+impl HasMembersInterface for InterfaceDeclaration {
+    fn members(&self) -> &NodeArray {
+        &self.members
     }
 }
 

@@ -5,8 +5,8 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
 use crate::{
-    HasArgumentsInterface, HasChildrenInterface, HasDotDotDotTokenInterface, HasTagNameInterface,
-    InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
+    HasArgumentsInterface, HasChildrenInterface, HasDotDotDotTokenInterface, HasMembersInterface,
+    HasTagNameInterface, InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
 };
 
 use super::{
@@ -756,6 +756,14 @@ impl Node {
             Node::ParameterDeclaration(node) => node,
             Node::NamedTupleMember(node) => node,
             _ => panic!("Expected has dot dot dot token"),
+        }
+    }
+
+    pub fn as_has_members(&self) -> &dyn HasMembersInterface {
+        match self {
+            Node::TypeLiteralNode(node) => node,
+            Node::InterfaceDeclaration(node) => node,
+            _ => panic!("Expected has members"),
         }
     }
 

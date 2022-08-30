@@ -11,10 +11,11 @@ use super::{
     IterationTypeKind, IterationUse, UnusedKind,
 };
 use crate::{
-    __String, chain_diagnostic_messages, for_each, get_containing_function,
-    get_containing_function_or_class_static_block, get_effective_initializer,
-    get_effective_return_type_node, get_effective_type_parameter_declarations, get_function_flags,
-    get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier,
+    HasTypeInterface, TypeId, __String, chain_diagnostic_messages, for_each,
+    get_containing_function, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_effective_return_type_node,
+    get_effective_type_parameter_declarations, get_function_flags, get_name_of_declaration,
+    get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier, id_text,
     is_binding_element, is_binding_pattern, is_function_or_module_block, is_identifier,
     is_omitted_expression, is_parameter_property_declaration, is_private_identifier, is_static,
     map, maybe_for_each, node_is_present, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
@@ -643,6 +644,115 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn check_object_type_for_duplicate_declarations(
+        &self,
+        node: &Node, /*TypeLiteralNode | InterfaceDeclaration*/
+    ) {
+        let mut names: HashMap<String, bool> = HashMap::new();
+        for member in node.as_has_members().members() {
+            if member.kind() == SyntaxKind::PropertySignature {
+                let member_name: String;
+                let name = member.as_named_declaration().name();
+                match name.kind() {
+                    SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral => {
+                        member_name = name.as_literal_like_node().text().clone();
+                    }
+                    SyntaxKind::Identifier => {
+                        member_name = id_text(&name);
+                    }
+                    _ => {
+                        continue;
+                    }
+                }
+
+                if names.get(&member_name).cloned() == Some(true) {
+                    self.error(
+                        get_name_of_declaration(member.symbol().maybe_value_declaration()),
+                        &Diagnostics::Duplicate_identifier_0,
+                        Some(vec![member_name.clone()]),
+                    );
+                    self.error(
+                        member.as_named_declaration().maybe_name(),
+                        &Diagnostics::Duplicate_identifier_0,
+                        Some(vec![member_name]),
+                    );
+                } else {
+                    names.insert(member_name, true);
+                }
+            }
+        }
+    }
+
+    pub(super) fn check_type_for_duplicate_index_signatures(&self, node: &Node) {
+        if node.kind() == SyntaxKind::InterfaceDeclaration {
+            let node_symbol = self.get_symbol_of_node(node).unwrap();
+            if matches!(
+                node_symbol.maybe_declarations().as_ref(),
+                Some(node_symbol_declarations) if !node_symbol_declarations.is_empty() &&
+                    !ptr::eq(
+                        &*node_symbol_declarations[0],
+                        node
+                    )
+            ) {
+                return;
+            }
+        }
+
+        let index_symbol = self.get_index_symbol(&self.get_symbol_of_node(node).unwrap());
+        if let Some(index_symbol_declarations) = index_symbol
+            .as_ref()
+            .and_then(|index_symbol| index_symbol.maybe_declarations().clone())
+            .as_ref()
+        {
+            let mut index_signature_map: HashMap<TypeId, IndexSignatureMapValue> = HashMap::new();
+            for declaration in index_symbol_declarations {
+                if declaration
+                    .as_index_signature_declaration()
+                    .parameters()
+                    .len()
+                    == 1
+                {
+                    if let Some(declaration_parameters_0_type) =
+                        declaration.as_index_signature_declaration().parameters()[0]
+                            .as_parameter_declaration()
+                            .maybe_type()
+                            .as_ref()
+                    {
+                        self.for_each_type(
+                            &self.get_type_from_type_node_(declaration_parameters_0_type),
+                            |type_: &Type| -> Option<()> {
+                                let entry = index_signature_map
+                                    .entry(self.get_type_id(type_))
+                                    .or_insert_with(|| IndexSignatureMapValue {
+                                        type_: type_.type_wrapper(),
+                                        declarations: vec![],
+                                    });
+                                entry.declarations.push(declaration.clone());
+                                None
+                            },
+                        );
+                    }
+                }
+            }
+            index_signature_map.values().for_each(|entry| {
+                if entry.declarations.len() > 1 {
+                    for declaration in &entry.declarations {
+                        self.error(
+                            Some(&**declaration),
+                            &Diagnostics::Duplicate_index_signature_for_type_0,
+                            Some(vec![self.type_to_string_(
+                                &entry.type_,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            )]),
+                        );
+                    }
+                }
+            });
+        }
+    }
+
     pub(super) fn check_property_declaration(&self, node: &Node /*PropertySignature*/) {
         self.check_variable_like_declaration(node);
     }
@@ -1213,4 +1323,9 @@ impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChai
             None,
         ))))
     }
+}
+
+struct IndexSignatureMapValue {
+    pub type_: Rc<Type>,
+    pub declarations: Vec<Rc<Node /*IndexSignatureDeclaration*/>>,
 }

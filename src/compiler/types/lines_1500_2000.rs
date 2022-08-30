@@ -366,6 +366,10 @@ impl TypeQueryNode {
     }
 }
 
+pub trait HasMembersInterface {
+    fn members(&self) -> &NodeArray;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct TypeLiteralNode {
@@ -379,6 +383,12 @@ impl TypeLiteralNode {
             _node: base_node,
             members,
         }
+    }
+}
+
+impl HasMembersInterface for TypeLiteralNode {
+    fn members(&self) -> &NodeArray {
+        &self.members
     }
 }
 
