@@ -1,30 +1,25 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    signature_has_rest_parameter, CheckMode, CheckTypeContainingMessageChain, DeclarationMeaning,
-    IterationTypeKind, IterationUse, UnusedKind,
+    signature_has_rest_parameter, CheckTypeContainingMessageChain, DeclarationMeaning,
+    IterationTypeKind,
 };
 use crate::{
     declaration_name_to_string, get_containing_class, get_enclosing_block_scope_container,
     has_static_modifier, is_class_expression, HasTypeInterface, NodeCheckFlags, TypeId, __String,
-    chain_diagnostic_messages, for_each, get_containing_function,
-    get_containing_function_or_class_static_block, get_effective_initializer,
-    get_effective_return_type_node, get_effective_type_parameter_declarations, get_function_flags,
-    get_name_of_declaration, get_property_name_for_property_name_node, get_text_of_node,
-    has_syntactic_modifier, id_text, is_binding_element, is_binding_pattern,
-    is_function_or_module_block, is_identifier, is_omitted_expression,
-    is_parameter_property_declaration, is_private_identifier, is_static, map, maybe_for_each,
-    node_is_present, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
-    IterationTypesResolver, ModifierFlags, NamedDeclarationInterface, Node, NodeInterface,
-    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypePredicateKind,
+    chain_diagnostic_messages, for_each, get_containing_function, get_effective_return_type_node,
+    get_effective_type_parameter_declarations, get_function_flags, get_name_of_declaration,
+    get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier, id_text,
+    is_binding_pattern, is_identifier, is_omitted_expression, is_parameter_property_declaration,
+    is_private_identifier, is_static, node_is_present, DiagnosticMessageChain, Diagnostics,
+    ExternalEmitHelpers, FunctionFlags, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeInterface, ScriptTarget, SignatureDeclarationInterface, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeInterface, TypePredicateKind,
 };
 
 impl TypeChecker {
