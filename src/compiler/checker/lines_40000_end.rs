@@ -7,18 +7,21 @@ use std::rc::Rc;
 
 use super::{ambient_module_symbol_regex, UnusedKind};
 use crate::{
-    are_option_rcs_equal, filter, find, get_object_flags, has_syntactic_modifier,
-    is_child_of_node_with_kind, is_declaration, is_function_like, is_spread_element, length,
-    text_span_end, DiagnosticMessage, Diagnostics, ExternalEmitHelpers, LiteralLikeNodeInterface,
-    ModifierFlags, ModuleKind, NodeArray, NodeFlags, ObjectFlags, ReadonlyTextRange, SignatureKind,
-    SymbolInterface, Ternary, TokenFlags, TypeFlags, TypeInterface, __String, bind_source_file,
-    create_file_diagnostic, for_each, for_each_bool, get_source_file_of_node,
-    get_span_of_token_at_position, is_accessor, is_external_or_common_js_module,
-    is_literal_type_node, is_prefix_unary_expression, AllAccessorDeclarations,
-    CancellationTokenDebuggable, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
-    NodeBuilderFlags, NodeCheckFlags, NodeInterface, ScriptTarget, Signature, SignatureFlags,
-    StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker,
-    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeReferenceSerializationKind,
+    are_option_rcs_equal, filter, find, get_object_flags, has_abstract_modifier,
+    has_syntactic_modifier, is_binary_expression, is_child_of_node_with_kind, is_class_like,
+    is_computed_property_name, is_declaration, is_function_like, is_private_identifier,
+    is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
+    length, text_span_end, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    HasInitializerInterface, HasTypeInterface, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
+    NodeArray, NodeFlags, ObjectFlags, ReadonlyTextRange, SignatureKind, SymbolInterface, Ternary,
+    TokenFlags, TypeFlags, TypeInterface, __String, bind_source_file, create_file_diagnostic,
+    for_each, for_each_bool, get_source_file_of_node, get_span_of_token_at_position, is_accessor,
+    is_external_or_common_js_module, is_literal_type_node, is_prefix_unary_expression,
+    AllAccessorDeclarations, CancellationTokenDebuggable, Diagnostic, EmitResolver,
+    EmitResolverDebuggable, IndexInfo, Node, NodeBuilderFlags, NodeCheckFlags, NodeInterface,
+    ScriptTarget, Signature, SignatureFlags, StringOrNumber, Symbol, SymbolAccessibilityResult,
+    SymbolFlags, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker,
+    TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -389,9 +392,24 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_for_invalid_dynamic_name(
+        &self,
+        node: &Node, /*DeclarationName*/
+        message: &'static DiagnosticMessage,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_method(
         &self,
         node: &Node, /*MethodDeclaration | MethodSignature*/
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_ambient_initializer(
+        &self,
+        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature*/
     ) -> bool {
         unimplemented!()
     }
@@ -426,7 +444,108 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyDeclaration | PropertySignature*/
     ) -> bool {
-        unimplemented!()
+        let node_as_named_declaration = node.as_named_declaration();
+        let node_name = node_as_named_declaration.name();
+        if is_computed_property_name(&node_name) && {
+            let node_name_as_computed_property_name = node_name.as_computed_property_name();
+            is_binary_expression(&node_name_as_computed_property_name.expression)
+                && node_name_as_computed_property_name
+                    .expression
+                    .as_binary_expression()
+                    .operator_token
+                    .kind()
+                    == SyntaxKind::InKeyword
+        } {
+            return self.grammar_error_on_node(
+                &node.parent().as_has_members().members()[0],
+                &Diagnostics::A_mapped_type_may_not_declare_properties_or_methods,
+                None,
+            );
+        }
+        if is_class_like(&node.parent()) {
+            if is_string_literal(&node_name)
+                && &*node_name.as_string_literal().text() == "constructor"
+            {
+                return self.grammar_error_on_node(
+                    &node_name,
+                    &Diagnostics::Classes_may_not_have_a_field_named_constructor,
+                    None,
+                );
+            }
+            if self.check_grammar_for_invalid_dynamic_name(
+                &node_name,
+                &Diagnostics::A_computed_property_name_in_a_class_property_declaration_must_have_a_simple_literal_type_or_a_unique_symbol_type,
+            ) {
+                return true;
+            }
+            if self.language_version < ScriptTarget::ES2015 && is_private_identifier(&node_name) {
+                return self.grammar_error_on_node(
+                    &node_name,
+                    &Diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
+                    None,
+                );
+            }
+        } else if node.parent().kind() == SyntaxKind::InterfaceDeclaration {
+            if self.check_grammar_for_invalid_dynamic_name(
+                &node_name,
+                &Diagnostics::A_computed_property_name_in_an_interface_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
+            ) {
+                return true;
+            }
+            if let Some(node_initializer) = node.as_has_initializer().maybe_initializer().as_ref() {
+                return self.grammar_error_on_node(
+                    node_initializer,
+                    &Diagnostics::An_interface_property_cannot_have_an_initializer,
+                    None,
+                );
+            }
+        } else if is_type_literal_node(&node.parent()) {
+            if self.check_grammar_for_invalid_dynamic_name(
+                &node_name,
+                &Diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
+            ) {
+                return true;
+            }
+            if let Some(node_initializer) = node.as_has_initializer().maybe_initializer().as_ref() {
+                return self.grammar_error_on_node(
+                    node_initializer,
+                    &Diagnostics::A_type_literal_property_cannot_have_an_initializer,
+                    None,
+                );
+            }
+        }
+
+        if node.flags().intersects(NodeFlags::Ambient) {
+            self.check_ambient_initializer(node);
+        }
+
+        if is_property_declaration(node) && {
+            let node_as_property_declaration = node.as_property_declaration();
+            node_as_property_declaration.exclamation_token.is_some()
+                && (!is_class_like(&node.parent())
+                    || node_as_property_declaration.maybe_type().is_none()
+                    || node_as_property_declaration.maybe_initializer().is_some()
+                    || node.flags().intersects(NodeFlags::Ambient)
+                    || is_static(node)
+                    || has_abstract_modifier(node))
+        } {
+            let message = if node.as_has_initializer().maybe_initializer().is_some() {
+                &*Diagnostics::Declarations_with_initializers_cannot_also_have_definite_assignment_assertions
+            } else if node.as_has_type().maybe_type().is_none() {
+                &*Diagnostics::Declarations_with_definite_assignment_assertions_must_also_have_type_annotations
+            } else {
+                &*Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context
+            };
+            return self.grammar_error_on_node(
+                node.as_property_declaration()
+                    .exclamation_token
+                    .as_ref()
+                    .unwrap(),
+                message,
+                None,
+            );
+        }
+        false
     }
 
     pub(super) fn check_grammar_top_level_element_for_required_declare_modifier(
