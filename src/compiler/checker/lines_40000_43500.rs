@@ -8,12 +8,15 @@ use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    first, get_source_file_of_node, has_syntactic_modifier, is_binding_pattern, is_class_like,
+    first, get_set_accessor_value_parameter, get_source_file_of_node, get_this_parameter,
+    has_effective_readonly_modifier, has_syntactic_modifier, is_binding_pattern, is_class_like,
     is_declaration_readonly, is_element_access_expression, is_entity_name_expression,
-    is_function_like_or_class_static_block_declaration, is_iteration_statement, is_let,
-    is_private_identifier, is_property_access_expression, is_string_or_numeric_literal_like,
-    is_var_const, is_variable_declaration, last, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, HasInitializerInterface, HasTypeInterface, ModifierFlags, ModuleKind,
+    is_function_like_or_class_static_block_declaration, is_in_js_file, is_iteration_statement,
+    is_jsdoc_type_expression, is_jsdoc_type_tag, is_let, is_private_identifier,
+    is_property_access_expression, is_static, is_string_or_numeric_literal_like, is_var_const,
+    is_variable_declaration, is_variable_declaration_in_variable_statement, last, token_to_string,
+    walk_up_parenthesized_types, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    HasInitializerInterface, HasTypeInterface, ModifierFlags, ModuleKind,
     NamedDeclarationInterface, NodeArray, NodeFlags, ReadonlyTextRange, ScriptTarget, SyntaxKind,
     TypeFlags, TypeInterface, __String, bind_source_file, for_each,
     is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
@@ -398,11 +401,254 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_accessor(
+        &self,
+        accessor: &Node, /*AccessorDeclaration*/
+    ) -> bool {
+        let accessor_as_function_like_declaration = accessor.as_function_like_declaration();
+        if !accessor.flags().intersects(NodeFlags::Ambient)
+            && !matches!(
+                accessor.parent().kind(),
+                SyntaxKind::TypeLiteral | SyntaxKind::InterfaceDeclaration
+            )
+        {
+            if self.language_version < ScriptTarget::ES5 {
+                return self.grammar_error_on_node(
+                    &accessor_as_function_like_declaration.name(),
+                    &Diagnostics::Accessors_are_only_available_when_targeting_ECMAScript_5_and_higher,
+                    None,
+                );
+            }
+            if self.language_version < ScriptTarget::ES2015
+                && is_private_identifier(&accessor_as_function_like_declaration.name())
+            {
+                return self.grammar_error_on_node(
+                    &accessor_as_function_like_declaration.name(),
+                    &Diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
+                    None,
+                );
+            }
+            if accessor_as_function_like_declaration.maybe_body().is_none()
+                && !has_syntactic_modifier(accessor, ModifierFlags::Abstract)
+            {
+                return self.grammar_error_at_pos(
+                    accessor,
+                    accessor.end() - 1,
+                    ";".len().try_into().unwrap(),
+                    &Diagnostics::_0_expected,
+                    Some(vec!["{".to_owned()]),
+                );
+            }
+        }
+        if let Some(accessor_body) = accessor_as_function_like_declaration.maybe_body().as_ref() {
+            if has_syntactic_modifier(accessor, ModifierFlags::Abstract) {
+                return self.grammar_error_on_node(
+                    accessor,
+                    &Diagnostics::An_abstract_accessor_cannot_have_an_implementation,
+                    None,
+                );
+            }
+            if matches!(
+                accessor.parent().kind(),
+                SyntaxKind::TypeLiteral | SyntaxKind::InterfaceDeclaration
+            ) {
+                return self.grammar_error_on_node(
+                    accessor_body,
+                    &Diagnostics::An_implementation_cannot_be_declared_in_ambient_contexts,
+                    None,
+                );
+            }
+        }
+        if accessor_as_function_like_declaration
+            .maybe_type_parameters()
+            .is_some()
+        {
+            return self.grammar_error_on_node(
+                &accessor_as_function_like_declaration.name(),
+                &Diagnostics::An_accessor_cannot_have_type_parameters,
+                None,
+            );
+        }
+        if !self.does_accessor_have_correct_parameter_count(accessor) {
+            return self.grammar_error_on_node(
+                &accessor_as_function_like_declaration.name(),
+                if accessor.kind() == SyntaxKind::GetAccessor {
+                    &*Diagnostics::A_get_accessor_cannot_have_parameters
+                } else {
+                    &*Diagnostics::A_set_accessor_must_have_exactly_one_parameter
+                },
+                None,
+            );
+        }
+        if accessor.kind() == SyntaxKind::SetAccessor {
+            if accessor_as_function_like_declaration.maybe_type().is_some() {
+                return self.grammar_error_on_node(
+                    &accessor_as_function_like_declaration.name(),
+                    &Diagnostics::A_set_accessor_cannot_have_a_return_type_annotation,
+                    None,
+                );
+            }
+            let parameter = Debug_.check_defined(
+                get_set_accessor_value_parameter(accessor),
+                Some("Return value does not match parameter count assertion."),
+            );
+            let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+            if parameter_as_parameter_declaration
+                .dot_dot_dot_token
+                .is_some()
+            {
+                return self.grammar_error_on_node(
+                    parameter_as_parameter_declaration
+                        .dot_dot_dot_token
+                        .as_ref()
+                        .unwrap(),
+                    &Diagnostics::A_set_accessor_cannot_have_rest_parameter,
+                    None,
+                );
+            }
+            if parameter_as_parameter_declaration.question_token.is_some() {
+                return self.grammar_error_on_node(
+                    parameter_as_parameter_declaration
+                        .question_token
+                        .as_ref()
+                        .unwrap(),
+                    &Diagnostics::A_set_accessor_cannot_have_an_optional_parameter,
+                    None,
+                );
+            }
+            if parameter_as_parameter_declaration
+                .maybe_initializer()
+                .is_some()
+            {
+                return self.grammar_error_on_node(
+                    &accessor_as_function_like_declaration.name(),
+                    &Diagnostics::A_set_accessor_parameter_cannot_have_an_initializer,
+                    None,
+                );
+            }
+        }
+        false
+    }
+
+    pub(super) fn does_accessor_have_correct_parameter_count(
+        &self,
+        accessor: &Node, /*AccessorDeclaration*/
+    ) -> bool {
+        self.get_accessor_this_parameter(accessor).is_some()
+            || accessor.as_function_like_declaration().parameters().len()
+                == if accessor.kind() == SyntaxKind::GetAccessor {
+                    0
+                } else {
+                    1
+                }
+    }
+
     pub(super) fn get_accessor_this_parameter(
         &self,
         accessor: &Node, /*AccessorDeclaration*/
     ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
-        unimplemented!()
+        if accessor.as_function_like_declaration().parameters().len()
+            == if accessor.kind() == SyntaxKind::GetAccessor {
+                1
+            } else {
+                2
+            }
+        {
+            return get_this_parameter(accessor);
+        }
+        None
+    }
+
+    pub(super) fn check_grammar_type_operator_node(
+        &self,
+        node: &Node, /*TypeOperatorNode*/
+    ) -> bool {
+        let node_as_type_operator_node = node.as_type_operator_node();
+        if node_as_type_operator_node.operator == SyntaxKind::UniqueKeyword {
+            if node_as_type_operator_node.type_.kind() != SyntaxKind::SymbolKeyword {
+                return self.grammar_error_on_node(
+                    &node_as_type_operator_node.type_,
+                    &Diagnostics::_0_expected,
+                    Some(vec![token_to_string(SyntaxKind::SymbolKeyword)
+                        .unwrap()
+                        .to_owned()]),
+                );
+            }
+
+            let mut parent = walk_up_parenthesized_types(&node.parent()).unwrap();
+            if is_in_js_file(Some(&*parent)) && is_jsdoc_type_expression(&parent) {
+                parent = parent.parent();
+                if is_jsdoc_type_tag(&parent) {
+                    parent = parent.parent().parent();
+                }
+            }
+            match parent.kind() {
+                SyntaxKind::VariableDeclaration => {
+                    let decl = &parent;
+                    if decl.as_variable_declaration().name().kind() != SyntaxKind::Identifier {
+                        return self.grammar_error_on_node(
+                            node,
+                            &Diagnostics::unique_symbol_types_may_not_be_used_on_a_variable_declaration_with_a_binding_name,
+                            None,
+                        );
+                    }
+                    if !is_variable_declaration_in_variable_statement(decl) {
+                        return self.grammar_error_on_node(
+                            node,
+                            &Diagnostics::unique_symbol_types_are_only_allowed_on_variables_in_a_variable_statement,
+                            None,
+                        );
+                    }
+                    if !decl.parent().flags().intersects(NodeFlags::Const) {
+                        return self.grammar_error_on_node(
+                            &parent.as_variable_declaration().name(),
+                            &Diagnostics::A_variable_whose_type_is_a_unique_symbol_type_must_be_const,
+                            None,
+                        );
+                    }
+                }
+
+                SyntaxKind::PropertyDeclaration => {
+                    if !is_static(&parent) || !has_effective_readonly_modifier(&parent) {
+                        return self.grammar_error_on_node(
+                            &parent.as_property_declaration().name(),
+                            &Diagnostics::A_property_of_a_class_whose_type_is_a_unique_symbol_type_must_be_both_static_and_readonly,
+                            None,
+                        );
+                    }
+                }
+
+                SyntaxKind::PropertySignature => {
+                    if !has_syntactic_modifier(&parent, ModifierFlags::Readonly) {
+                        return self.grammar_error_on_node(
+                            &parent.as_property_signature().name(),
+                            &Diagnostics::A_property_of_an_interface_or_type_literal_whose_type_is_a_unique_symbol_type_must_be_readonly,
+                            None,
+                        );
+                    }
+                }
+
+                _ => {
+                    return self.grammar_error_on_node(
+                        node,
+                        &Diagnostics::unique_symbol_types_are_not_allowed_here,
+                        None,
+                    );
+                }
+            }
+        } else if node_as_type_operator_node.operator == SyntaxKind::ReadonlyKeyword {
+            if !matches!(
+                node_as_type_operator_node.type_.kind(),
+                SyntaxKind::ArrayType | SyntaxKind::TupleType
+            ) {
+                return self.grammar_error_on_first_token(
+                    node,
+                    &Diagnostics::readonly_type_modifier_is_only_permitted_on_array_and_tuple_literal_types,
+                    None,
+                );
+            }
+        }
+        false
     }
 
     pub(super) fn check_grammar_for_invalid_dynamic_name(
