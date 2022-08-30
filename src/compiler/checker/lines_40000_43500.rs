@@ -2,17 +2,21 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
     get_source_file_of_node, has_syntactic_modifier, is_binding_pattern, is_declaration_readonly,
-    is_let, is_var_const, is_variable_declaration, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, HasInitializerInterface, HasTypeInterface, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, NodeArray, NodeFlags, SyntaxKind, __String, bind_source_file,
-    for_each, is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
-    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
-    Type, TypeChecker,
+    is_element_access_expression, is_entity_name_expression,
+    is_function_like_or_class_static_block_declaration, is_iteration_statement, is_let,
+    is_property_access_expression, is_string_or_numeric_literal_like, is_var_const,
+    is_variable_declaration, last, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    HasInitializerInterface, HasTypeInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, NodeArray, NodeFlags, ReadonlyTextRange, SyntaxKind, TypeFlags,
+    TypeInterface, __String, bind_source_file, for_each, is_external_or_common_js_module,
+    CancellationTokenDebuggable, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
+    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -398,19 +402,163 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn is_string_or_numeric_literal_expression(
+    pub(super) fn check_grammar_break_or_continue_statement(
+        &self,
+        node: &Node, /*BreakOrContinueStatement*/
+    ) -> bool {
+        let mut current: Option<Rc<Node>> = Some(node.node_wrapper());
+        let node_as_has_label = node.as_has_label();
+        while let Some(current_present) = current.as_ref() {
+            if is_function_like_or_class_static_block_declaration(Some(&**current_present)) {
+                return self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::Jump_target_cannot_cross_function_boundary,
+                    None,
+                );
+            }
+
+            match current_present.kind() {
+                SyntaxKind::LabeledStatement => {
+                    let current_as_labeled_statement = current_present.as_labeled_statement();
+                    if matches!(
+                        node_as_has_label.maybe_label().as_ref(),
+                        Some(node_label) if current_as_labeled_statement.label.as_identifier().escaped_text == node_label.as_identifier().escaped_text
+                    ) {
+                        let is_misplaced_continue_label = node.kind()
+                            == SyntaxKind::ContinueStatement
+                            && !is_iteration_statement(
+                                &current_as_labeled_statement.statement,
+                                true,
+                            );
+
+                        if is_misplaced_continue_label {
+                            return self.grammar_error_on_node(
+                                node,
+                                &Diagnostics::A_continue_statement_can_only_jump_to_a_label_of_an_enclosing_iteration_statement,
+                                None,
+                            );
+                        }
+
+                        return false;
+                    }
+                }
+                SyntaxKind::SwitchStatement => {
+                    if node.kind() == SyntaxKind::BreakStatement
+                        && node_as_has_label.maybe_label().is_none()
+                    {
+                        return false;
+                    }
+                }
+                _ => {
+                    if is_iteration_statement(current_present, false)
+                        && node_as_has_label.maybe_label().is_none()
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            current = current_present.maybe_parent();
+        }
+
+        if node_as_has_label.maybe_label().is_some() {
+            let message = if node.kind() == SyntaxKind::BreakStatement {
+                &*Diagnostics::A_break_statement_can_only_jump_to_a_label_of_an_enclosing_statement
+            } else {
+                &*Diagnostics::A_continue_statement_can_only_jump_to_a_label_of_an_enclosing_iteration_statement
+            };
+
+            self.grammar_error_on_node(node, message, None)
+        } else {
+            let message = if node.kind() == SyntaxKind::BreakStatement {
+                &*Diagnostics::A_break_statement_can_only_be_used_within_an_enclosing_iteration_or_switch_statement
+            } else {
+                &*Diagnostics::A_continue_statement_can_only_be_used_within_an_enclosing_iteration_statement
+            };
+            self.grammar_error_on_node(node, message, None)
+        }
+    }
+
+    pub(super) fn check_grammar_binding_element(
+        &self,
+        node: &Node, /*BindingElement*/
+    ) -> bool {
+        let node_as_binding_element = node.as_binding_element();
+        if node_as_binding_element.dot_dot_dot_token.is_some() {
+            let node_parent = node.parent();
+            let elements = node_parent.as_has_elements().elements();
+            if !ptr::eq(node, &**last(&*elements)) {
+                return self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::A_rest_element_must_be_last_in_a_destructuring_pattern,
+                    None,
+                );
+            }
+            self.check_grammar_for_disallowed_trailing_comma(
+                Some(elements),
+                Some(
+                    &Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
+                ),
+            );
+
+            if node_as_binding_element.property_name.is_some() {
+                return self.grammar_error_on_node(
+                    &node_as_binding_element.name(),
+                    &Diagnostics::A_rest_element_cannot_have_a_property_name,
+                    None,
+                );
+            }
+        }
+
+        if node_as_binding_element.dot_dot_dot_token.is_some() {
+            if let Some(node_initializer) = node_as_binding_element.maybe_initializer().as_ref() {
+                return self.grammar_error_at_pos(
+                    node,
+                    node_initializer.pos() - 1,
+                    1,
+                    &Diagnostics::A_rest_element_cannot_have_an_initializer,
+                    None,
+                );
+            }
+        }
+        false
+    }
+
+    pub(super) fn is_string_or_number_literal_expression(
         &self,
         expr: &Node, /*Expression*/
     ) -> bool {
-        unimplemented!()
+        is_string_or_numeric_literal_like(expr)
+            || expr.kind() == SyntaxKind::PrefixUnaryExpression && {
+                let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
+                expr_as_prefix_unary_expression.operator == SyntaxKind::MinusToken
+                    && expr_as_prefix_unary_expression.operand.kind() == SyntaxKind::NumericLiteral
+            }
     }
 
     pub(super) fn is_big_int_literal_expression(&self, expr: &Node /*Expression*/) -> bool {
-        unimplemented!()
+        expr.kind() == SyntaxKind::BigIntLiteral
+            || expr.kind() == SyntaxKind::PrefixUnaryExpression && {
+                let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
+                expr_as_prefix_unary_expression.operator == SyntaxKind::MinusToken
+                    && expr_as_prefix_unary_expression.operand.kind() == SyntaxKind::BigIntLiteral
+            }
     }
 
     pub(super) fn is_simple_literal_enum_reference(&self, expr: &Node /*Expression*/) -> bool {
-        unimplemented!()
+        if (is_property_access_expression(expr)
+            || is_element_access_expression(expr)
+                && self.is_string_or_number_literal_expression(
+                    &expr.as_element_access_expression().argument_expression,
+                ))
+            && is_entity_name_expression(&expr.as_has_expression().expression())
+        {
+            return self
+                .check_expression_cached(expr, None)
+                .flags()
+                .intersects(TypeFlags::EnumLiteral);
+        }
+        false
     }
 
     pub(super) fn check_ambient_initializer(
@@ -420,7 +568,7 @@ impl TypeChecker {
         let initializer = node.as_has_initializer().maybe_initializer();
         if let Some(initializer) = initializer.as_ref() {
             let is_invalid_initializer = !(self
-                .is_string_or_numeric_literal_expression(initializer)
+                .is_string_or_number_literal_expression(initializer)
                 || self.is_simple_literal_enum_reference(initializer)
                 || matches!(
                     initializer.kind(),
