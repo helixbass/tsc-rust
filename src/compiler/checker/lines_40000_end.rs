@@ -351,6 +351,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_grammar_computed_property_name(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_for_generator(
         &self,
         node: &Node, /*FunctionLikeDeclaration*/
@@ -413,6 +417,13 @@ impl TypeChecker {
         node: &Node,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_grammar_property(
+        &self,
+        node: &Node, /*PropertyDeclaration | PropertySignature*/
     ) -> bool {
         unimplemented!()
     }

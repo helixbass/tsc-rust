@@ -11,15 +11,17 @@ use super::{
     IterationTypeKind, IterationUse, UnusedKind,
 };
 use crate::{
-    HasTypeInterface, TypeId, __String, chain_diagnostic_messages, for_each,
-    get_containing_function, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_effective_return_type_node,
-    get_effective_type_parameter_declarations, get_function_flags, get_name_of_declaration,
-    get_property_name_for_property_name_node, get_text_of_node, has_syntactic_modifier, id_text,
-    is_binding_element, is_binding_pattern, is_function_or_module_block, is_identifier,
-    is_omitted_expression, is_parameter_property_declaration, is_private_identifier, is_static,
-    map, maybe_for_each, node_is_present, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
-    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
+    declaration_name_to_string, get_containing_class, get_enclosing_block_scope_container,
+    has_static_modifier, is_class_expression, HasTypeInterface, NodeCheckFlags, TypeId, __String,
+    chain_diagnostic_messages, for_each, get_containing_function,
+    get_containing_function_or_class_static_block, get_effective_initializer,
+    get_effective_return_type_node, get_effective_type_parameter_declarations, get_function_flags,
+    get_name_of_declaration, get_property_name_for_property_name_node, get_text_of_node,
+    has_syntactic_modifier, id_text, is_binding_element, is_binding_pattern,
+    is_function_or_module_block, is_identifier, is_omitted_expression,
+    is_parameter_property_declaration, is_private_identifier, is_static, map, maybe_for_each,
+    node_is_present, Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
+    ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
     IterationTypesResolver, ModifierFlags, NamedDeclarationInterface, Node, NodeInterface,
     ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface, TypePredicateKind,
@@ -754,18 +756,121 @@ impl TypeChecker {
     }
 
     pub(super) fn check_property_declaration(&self, node: &Node /*PropertySignature*/) {
+        let node_as_named_declaration = node.as_named_declaration();
+        if !self.check_grammar_decorators_and_modifiers(node) && !self.check_grammar_property(node)
+        {
+            self.check_grammar_computed_property_name(&node_as_named_declaration.name());
+        }
         self.check_variable_like_declaration(node);
+
+        self.set_node_links_for_private_identifier_scope(node);
+        if is_private_identifier(&node_as_named_declaration.name()) && has_static_modifier(node) {
+            if let Some(node_initializer) = node.as_has_initializer().maybe_initializer().as_ref() {
+                if self.language_version == ScriptTarget::ESNext
+                    && self.compiler_options.use_define_for_class_fields != Some(true)
+                {
+                    self.error(
+                        Some(&**node_initializer),
+                        &Diagnostics::Static_fields_with_private_names_can_t_have_initializers_when_the_useDefineForClassFields_flag_is_not_specified_with_a_target_of_esnext_Consider_adding_the_useDefineForClassFields_flag,
+                        None,
+                    );
+                }
+            }
+        }
+        if has_syntactic_modifier(node, ModifierFlags::Abstract)
+            && node.kind() == SyntaxKind::PropertyDeclaration
+            && node.as_has_initializer().maybe_initializer().is_some()
+        {
+            self.error(
+                Some(node),
+                &Diagnostics::Property_0_cannot_have_an_initializer_because_it_is_marked_abstract,
+                Some(vec![declaration_name_to_string(
+                    node_as_named_declaration.maybe_name(),
+                )
+                .into_owned()]),
+            );
+        }
     }
 
     pub(super) fn check_property_signature(&self, node: &Node /*PropertySignature*/) {
-        if is_private_identifier(&*node.as_property_signature().name()) {
+        if is_private_identifier(&node.as_property_signature().name()) {
             self.error(
-                Some(node.node_wrapper()),
+                Some(node),
                 &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
                 None,
             );
         }
         self.check_property_declaration(node)
+    }
+
+    pub(super) fn check_method_declaration(
+        &self,
+        node: &Node, /*MethodDeclaration | MethodSignature*/
+    ) {
+        let node_as_named_declaration = node.as_named_declaration();
+        if !self.check_grammar_method(node) {
+            self.check_grammar_computed_property_name(&node_as_named_declaration.name());
+        }
+
+        self.check_function_or_method_declaration(node);
+
+        if has_syntactic_modifier(node, ModifierFlags::Abstract)
+            && node.kind() == SyntaxKind::MethodDeclaration
+            && node.as_function_like_declaration().maybe_body().is_some()
+        {
+            self.error(
+                Some(node),
+                &Diagnostics::Method_0_cannot_have_an_implementation_because_it_is_marked_abstract,
+                Some(vec![declaration_name_to_string(
+                    node_as_named_declaration.maybe_name(),
+                )
+                .into_owned()]),
+            );
+        }
+
+        if is_private_identifier(&node_as_named_declaration.name())
+            && get_containing_class(node).is_none()
+        {
+            self.error(
+                Some(node),
+                &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+                None,
+            );
+        }
+
+        self.set_node_links_for_private_identifier_scope(node);
+    }
+
+    pub(super) fn set_node_links_for_private_identifier_scope(
+        &self,
+        node: &Node, /*PropertyDeclaration | PropertySignature | MethodDeclaration | MethodSignature | AccessorDeclaration*/
+    ) {
+        let node_as_named_declaration = node.as_named_declaration();
+        if is_private_identifier(&node_as_named_declaration.name())
+            && self.language_version < ScriptTarget::ESNext
+        {
+            let mut lexical_scope = get_enclosing_block_scope_container(node);
+            while let Some(ref lexical_scope_present) = lexical_scope {
+                self.get_node_links(lexical_scope_present)
+                    .borrow_mut()
+                    .flags |= NodeCheckFlags::ContainsClassWithPrivateIdentifiers;
+                lexical_scope = get_enclosing_block_scope_container(lexical_scope_present);
+            }
+
+            if is_class_expression(&node.parent()) {
+                let enclosing_iteration_statement =
+                    self.get_enclosing_iteration_statement(&node.parent());
+                if let Some(enclosing_iteration_statement) = enclosing_iteration_statement.as_ref()
+                {
+                    self.get_node_links(&node_as_named_declaration.name())
+                        .borrow_mut()
+                        .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
+                    self.get_node_links(enclosing_iteration_statement)
+                        .borrow_mut()
+                        .flags |= NodeCheckFlags::LoopWithCapturedBlockScopedBinding;
+                }
+            }
+        }
     }
 
     pub(super) fn get_effective_type_arguments(
