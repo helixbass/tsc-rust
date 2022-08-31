@@ -6,23 +6,26 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, MappedTypeModifiers, UnusedKind};
 use crate::{
-    add_related_info, are_option_rcs_equal, create_diagnostic_for_node, filter, find_ancestor,
-    for_each, for_each_child, get_class_extends_heritage_element, get_combined_modifier_flags,
+    add_related_info, are_option_rcs_equal, create_diagnostic_for_node, declaration_name_to_string,
+    filter, find_ancestor, for_each, for_each_child, for_each_child_returns,
+    get_class_extends_heritage_element, get_combined_modifier_flags,
     get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
     get_declaration_of_kind, get_effective_constraint_of_type_parameter, get_effective_initializer,
-    get_effective_modifier_flags, get_emit_script_target, get_function_flags,
-    get_name_of_declaration, get_object_flags, has_effective_modifier, has_question_token,
-    has_syntactic_modifier, is_assignment_target, is_binding_element, is_function_or_module_block,
-    is_global_scope_augmentation, is_in_js_file, is_in_jsdoc, is_module_block,
-    is_module_declaration, is_named_tuple_member, is_private_identifier_class_element_declaration,
-    is_prologue_directive, is_static, is_super_call, is_type_reference_type, map, maybe_for_each,
-    node_is_missing, node_is_present, some, symbol_name, try_cast, unescape_leading_underscores,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics, ElementFlags,
-    FunctionFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, ModifierFlags, Node,
-    NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange,
-    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    get_effective_modifier_flags, get_emit_script_target,
+    get_escaped_text_of_identifier_or_literal, get_function_flags, get_name_of_declaration,
+    get_object_flags, has_effective_modifier, has_question_token, has_syntactic_modifier,
+    is_assignment_target, is_binding_element, is_computed_property_name,
+    is_function_or_module_block, is_global_scope_augmentation, is_in_js_file, is_in_jsdoc,
+    is_module_block, is_module_declaration, is_named_tuple_member, is_private_identifier,
+    is_private_identifier_class_element_declaration, is_prologue_directive,
+    is_property_name_literal, is_static, is_super_call, is_type_reference_type, map,
+    maybe_for_each, node_is_missing, node_is_present, some, symbol_name, try_cast,
+    unescape_leading_underscores, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
+    Diagnostics, ElementFlags, FunctionFlags, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
+    ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
+    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -909,6 +912,7 @@ impl TypeChecker {
                     ) && previous_declaration.as_ref().unwrap().end() != node.pos()
                     {
                         self.report_implementation_expected_error(
+                            is_constructor,
                             previous_declaration.as_ref().unwrap(),
                         );
                     }
@@ -1026,7 +1030,10 @@ impl TypeChecker {
                         .is_none()
             })
         {
-            self.report_implementation_expected_error(last_seen_non_ambient_declaration);
+            self.report_implementation_expected_error(
+                is_constructor,
+                last_seen_non_ambient_declaration,
+            );
         }
 
         if has_overloads {
@@ -1154,14 +1161,127 @@ impl TypeChecker {
         some_have_question_token: bool,
         all_have_question_token: bool,
     ) {
-        unimplemented!()
+        if some_have_question_token != all_have_question_token {
+            let canonical_has_question_token =
+                has_question_token(&self.get_canonical_overload(overloads, implementation));
+            for_each(overloads, |o: &Rc<Node>, _| -> Option<()> {
+                let deviation = has_question_token(o) != canonical_has_question_token;
+                if deviation {
+                    self.error(
+                        get_name_of_declaration(Some(&**o)),
+                        &Diagnostics::Overload_signatures_must_all_be_optional_or_required,
+                        None,
+                    );
+                }
+                None
+            });
+        }
     }
 
     pub(super) fn report_implementation_expected_error(
         &self,
+        is_constructor: bool,
         node: &Node, /*SignatureDeclaration*/
     ) {
-        unimplemented!()
+        let node_as_signature_declaration = node.as_signature_declaration();
+        if matches!(
+            node_as_signature_declaration.maybe_name().as_ref(),
+            Some(node_name) if node_is_missing(Some(&**node_name))
+        ) {
+            return;
+        }
+
+        let mut seen = false;
+        let subsequent_node = for_each_child_returns(
+            &node.parent(),
+            |c: &Node| {
+                if seen {
+                    Some(c.node_wrapper())
+                } else {
+                    seen = ptr::eq(c, node);
+                    None
+                }
+            },
+            Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+        );
+        if let Some(subsequent_node) = subsequent_node
+            .as_ref()
+            .filter(|subsequent_node| subsequent_node.pos() == node.end())
+        {
+            if subsequent_node.kind() == node.kind() {
+                let error_node = subsequent_node
+                    .as_named_declaration()
+                    .maybe_name()
+                    .unwrap_or_else(|| subsequent_node.clone());
+                let subsequent_name = subsequent_node.as_named_declaration().maybe_name();
+                if let (Some(node_name), Some(subsequent_name)) = (
+                    node.as_named_declaration().maybe_name().as_ref(),
+                    subsequent_name.as_ref(),
+                ) {
+                    if is_private_identifier(node_name)
+                        && is_private_identifier(subsequent_name)
+                        && node_name.as_private_identifier().escaped_text
+                            == subsequent_name.as_private_identifier().escaped_text
+                        || is_computed_property_name(node_name)
+                            && is_computed_property_name(subsequent_name)
+                        || is_property_name_literal(node_name)
+                            && is_property_name_literal(subsequent_name)
+                            && get_escaped_text_of_identifier_or_literal(node_name)
+                                == get_escaped_text_of_identifier_or_literal(subsequent_name)
+                    {
+                        let report_error = matches!(
+                            node.kind(),
+                            SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature
+                        ) && is_static(node) != is_static(subsequent_node);
+                        if report_error {
+                            let diagnostic = if is_static(node) {
+                                &*Diagnostics::Function_overload_must_be_static
+                            } else {
+                                &*Diagnostics::Function_overload_must_not_be_static
+                            };
+                            self.error(Some(&*error_node), diagnostic, None);
+                        }
+                        return;
+                    }
+                }
+                if node_is_present(subsequent_node.as_function_like_declaration().maybe_body()) {
+                    self.error(
+                        Some(&*error_node),
+                        &Diagnostics::Function_implementation_name_must_be_0,
+                        Some(vec![declaration_name_to_string(
+                            node.as_named_declaration().maybe_name(),
+                        )
+                        .into_owned()]),
+                    );
+                    return;
+                }
+            }
+        }
+        let error_node = node
+            .as_signature_declaration()
+            .maybe_name()
+            .unwrap_or_else(|| node.node_wrapper());
+        if is_constructor {
+            self.error(
+                Some(&*error_node),
+                &Diagnostics::Constructor_implementation_is_missing,
+                None,
+            );
+        } else {
+            if has_syntactic_modifier(node, ModifierFlags::Abstract) {
+                self.error(
+                    Some(&*error_node),
+                    &Diagnostics::All_declarations_of_an_abstract_method_must_be_consecutive,
+                    None,
+                );
+            } else {
+                self.error(
+                    Some(&*error_node),
+                    &Diagnostics::Function_implementation_is_missing_or_not_immediately_following_the_declaration,
+                    None,
+                );
+            }
+        }
     }
 
     pub(super) fn get_awaited_type_of_promise<TErrorNode: Borrow<Node>>(
