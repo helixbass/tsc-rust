@@ -6,19 +6,20 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, MappedTypeModifiers, UnusedKind};
 use crate::{
-    for_each, for_each_child, get_class_extends_heritage_element,
+    find_ancestor, for_each, for_each_child, get_class_extends_heritage_element,
     get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
-    get_declaration_of_kind, get_effective_initializer, get_effective_modifier_flags,
-    get_emit_script_target, get_function_flags, get_object_flags, has_syntactic_modifier,
-    is_assignment_target, is_binding_element, is_function_or_module_block, is_in_js_file,
-    is_in_jsdoc, is_named_tuple_member, is_private_identifier_class_element_declaration,
-    is_prologue_directive, is_static, is_super_call, is_type_reference_type, map, maybe_for_each,
-    node_is_missing, node_is_present, some, try_cast, unescape_leading_underscores, Diagnostic,
-    DiagnosticMessage, Diagnostics, ElementFlags, FunctionFlags, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
-    ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
-    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    get_declaration_of_kind, get_effective_constraint_of_type_parameter, get_effective_initializer,
+    get_effective_modifier_flags, get_emit_script_target, get_function_flags, get_object_flags,
+    has_syntactic_modifier, is_assignment_target, is_binding_element, is_function_or_module_block,
+    is_in_js_file, is_in_jsdoc, is_named_tuple_member,
+    is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
+    is_super_call, is_type_reference_type, map, maybe_for_each, node_is_missing, node_is_present,
+    some, try_cast, unescape_leading_underscores, Diagnostic, DiagnosticMessage, Diagnostics,
+    ElementFlags, FunctionFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, ModifierFlags, Node,
+    NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, ScriptTarget,
+    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -634,6 +635,109 @@ impl TypeChecker {
             ]),
         );
         self.error_type()
+    }
+
+    pub(super) fn check_indexed_access_type(&self, node: &Node /*IndexedAccessTypeNode*/) {
+        let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
+        self.check_source_element(Some(&*node_as_indexed_access_type_node.object_type));
+        self.check_source_element(Some(&*node_as_indexed_access_type_node.index_type));
+        self.check_indexed_access_index_type(
+            &self.get_type_from_indexed_access_type_node(node),
+            node,
+        );
+    }
+
+    pub(super) fn check_mapped_type(&self, node: &Node /*MappedTypeNode*/) {
+        self.check_grammar_mapped_type(node);
+        let node_as_mapped_type_node = node.as_mapped_type_node();
+        self.check_source_element(Some(&*node_as_mapped_type_node.type_parameter));
+        self.check_source_element(node_as_mapped_type_node.name_type.as_deref());
+        self.check_source_element(node_as_mapped_type_node.type_.as_deref());
+
+        if node_as_mapped_type_node.type_.is_none() {
+            self.report_implicit_any(node, &self.any_type(), None);
+        }
+
+        let type_ = self.get_type_from_mapped_type_node(node);
+        let name_type = self.get_name_type_from_mapped_type(&type_);
+        if let Some(name_type) = name_type.as_ref() {
+            self.check_type_assignable_to(
+                name_type,
+                &self.keyof_constraint_type(),
+                node_as_mapped_type_node.name_type.as_deref(),
+                None,
+                None,
+                None,
+            );
+        } else {
+            let constraint_type = self.get_constraint_type_from_mapped_type(&type_);
+            self.check_type_assignable_to(
+                &constraint_type,
+                &self.keyof_constraint_type(),
+                get_effective_constraint_of_type_parameter(
+                    &node_as_mapped_type_node.type_parameter,
+                ),
+                None,
+                None,
+                None,
+            );
+        }
+    }
+
+    pub(super) fn check_grammar_mapped_type(&self, node: &Node /*MappedTypeNode*/) -> bool {
+        if let Some(node_members) = node
+            .as_mapped_type_node()
+            .members
+            .as_ref()
+            .filter(|node_members| !node_members.is_empty())
+        {
+            return self.grammar_error_on_node(
+                &node_members[0],
+                &Diagnostics::A_mapped_type_may_not_declare_properties_or_methods,
+                None,
+            );
+        }
+        false
+    }
+
+    pub(super) fn check_this_type(&self, node: &Node /*ThisTypeNode*/) {
+        self.get_type_from_this_type_node(node);
+    }
+
+    pub(super) fn check_type_operator(&self, node: &Node /*TypeOperatorNode*/) {
+        self.check_grammar_type_operator_node(node);
+        self.check_source_element(Some(&*node.as_type_operator_node().type_));
+    }
+
+    pub(super) fn check_conditional_type(&self, node: &Node /*ConditionalTypeNode*/) {
+        for_each_child(
+            node,
+            |child: &Node| self.check_source_element(Some(child)),
+            Option::<fn(&NodeArray)>::None,
+        );
+    }
+
+    pub(super) fn check_infer_type(&self, node: &Node /*InferTypeNode*/) {
+        if find_ancestor(Some(node), |n: &Node| {
+            matches!(
+                n.maybe_parent().as_ref(),
+                Some(n_parent) if n_parent.kind() == SyntaxKind::ConditionalType &&
+                    ptr::eq(
+                        &*n_parent.as_conditional_type_node().extends_type,
+                        n
+                    )
+            )
+        })
+        .is_none()
+        {
+            self.grammar_error_on_node(
+                node,
+                &Diagnostics::infer_declarations_are_only_permitted_in_the_extends_clause_of_a_conditional_type,
+                None,
+            );
+        }
+        self.check_source_element(Some(&*node.as_infer_type_node().type_parameter));
+        self.register_for_unused_identifiers_check(node);
     }
 
     pub(super) fn is_private_within_ambient(&self, node: &Node) -> bool {
