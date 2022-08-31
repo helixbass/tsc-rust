@@ -6,10 +6,10 @@ use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, NodeArray, __String, bind_source_file,
-    for_each, is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
-    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
-    Type, TypeChecker,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, NodeArray, NodeCheckFlags, __String,
+    bind_source_file, for_each, is_external_or_common_js_module, CancellationTokenDebuggable,
+    Diagnostic, EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol,
+    SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -213,6 +213,10 @@ impl TypeChecker {
         &self,
         node: &Node, /*SignatureDeclaration*/
     ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags {
         unimplemented!()
     }
 

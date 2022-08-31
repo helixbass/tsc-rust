@@ -6,12 +6,17 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    for_each, for_each_child, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
-    map, maybe_for_each, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
-    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, Node, NodeArray,
-    NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    for_each, for_each_child, get_class_extends_heritage_element,
+    get_containing_function_or_class_static_block, get_declaration_of_kind,
+    get_effective_initializer, get_effective_modifier_flags, get_emit_script_target,
+    get_function_flags, has_syntactic_modifier, is_binding_element, is_function_or_module_block,
+    is_in_js_file, is_private_identifier_class_element_declaration, is_prologue_directive,
+    is_static, is_super_call, map, maybe_for_each, node_is_missing, node_is_present, some,
+    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
+    ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget,
+    SignatureDeclarationInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -32,10 +37,215 @@ impl TypeChecker {
         &self,
         node: &Node, /*ConstructorDeclaration*/
     ) {
-        unimplemented!()
-        // self.check_signature_declaration(node);
-        // if !self.check_grammar_constructor_type_parameters() {
-        // }
+        self.check_signature_declaration(node);
+        if !self.check_grammar_constructor_type_parameters(node) {
+            self.check_grammar_constructor_type_annotation(node);
+        }
+
+        let node_as_constructor_declaration = node.as_constructor_declaration();
+        self.check_source_element(node_as_constructor_declaration.maybe_body());
+
+        let symbol = self.get_symbol_of_node(node).unwrap();
+        let first_declaration = get_declaration_of_kind(&symbol, node.kind());
+
+        if matches!(
+            first_declaration.as_ref(),
+            Some(first_declaration) if ptr::eq(node, &**first_declaration)
+        ) {
+            self.check_function_or_constructor_symbol(&symbol);
+        }
+
+        if node_is_missing(node_as_constructor_declaration.maybe_body()) {
+            return;
+        }
+        let node_body = node_as_constructor_declaration.maybe_body().unwrap();
+
+        if !self.produce_diagnostics {
+            return;
+        }
+
+        let containing_class_decl = node.parent();
+        if get_class_extends_heritage_element(&containing_class_decl).is_some() {
+            self.capture_lexical_this(&node.parent(), &containing_class_decl);
+            let class_extends_null = self.class_declaration_extends_null(&containing_class_decl);
+            let super_call = self.find_first_super_call(&node_body);
+            if let Some(super_call) = super_call.as_ref() {
+                if class_extends_null {
+                    self.error(
+                        Some(&**super_call),
+                        &Diagnostics::A_constructor_cannot_contain_a_super_call_when_its_class_extends_null,
+                        None,
+                    );
+                }
+
+                let super_call_should_be_first = (get_emit_script_target(&self.compiler_options)
+                    != ScriptTarget::ESNext
+                    || !self.use_define_for_class_fields)
+                    && (some(
+                        Some(&*node.parent().as_class_like_declaration().members()),
+                        Some(|member: &Rc<Node>| {
+                            self.is_instance_property_with_initializer_or_private_identifier_property(member)
+                        }),
+                    ) || some(
+                        Some(&*node_as_constructor_declaration.parameters()),
+                        Some(|p: &Rc<Node>| {
+                            has_syntactic_modifier(p, ModifierFlags::ParameterPropertyModifier)
+                        }),
+                    ));
+
+                if super_call_should_be_first {
+                    let statements = &node_body.as_block().statements;
+                    let mut super_call_statement: Option<Rc<Node /*ExpressionStatement*/>> = None;
+
+                    for statement in statements {
+                        if statement.kind() == SyntaxKind::ExpressionStatement
+                            && is_super_call(&statement.as_expression_statement().expression)
+                        {
+                            super_call_statement = Some(statement.node_wrapper());
+                            break;
+                        }
+                        if !is_prologue_directive(statement) {
+                            break;
+                        }
+                    }
+                    if super_call_statement.is_none() {
+                        self.error(
+                            Some(node),
+                            &Diagnostics::A_super_call_must_be_the_first_statement_in_the_constructor_when_a_class_contains_initialized_properties_parameter_properties_or_private_identifiers,
+                            None,
+                        );
+                    }
+                }
+            } else if !class_extends_null {
+                self.error(
+                    Some(node),
+                    &Diagnostics::Constructors_for_derived_classes_must_contain_a_super_call,
+                    None,
+                );
+            }
+        }
+    }
+
+    pub(super) fn is_instance_property_with_initializer_or_private_identifier_property(
+        &self,
+        n: &Node,
+    ) -> bool {
+        if is_private_identifier_class_element_declaration(n) {
+            return true;
+        }
+        n.kind() == SyntaxKind::PropertyDeclaration
+            && !is_static(n)
+            && n.as_property_declaration().maybe_initializer().is_some()
+    }
+
+    pub(super) fn check_accessor_declaration(&self, node: &Node /*AccessorDeclaration*/) {
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        if self.produce_diagnostics {
+            if !self.check_grammar_function_like_declaration(node)
+                && !self.check_grammar_accessor(node)
+            {
+                self.check_grammar_computed_property_name(
+                    &node_as_function_like_declaration.name(),
+                );
+            }
+
+            self.check_decorators(node);
+            self.check_signature_declaration(node);
+            if node.kind() == SyntaxKind::GetAccessor {
+                if !node.flags().intersects(NodeFlags::Ambient)
+                    && node_is_present(node_as_function_like_declaration.maybe_body())
+                    && node.flags().intersects(NodeFlags::HasImplicitReturn)
+                {
+                    if !node.flags().intersects(NodeFlags::HasExplicitReturn) {
+                        self.error(
+                            node_as_function_like_declaration.maybe_name(),
+                            &Diagnostics::A_get_accessor_must_return_a_value,
+                            None,
+                        );
+                    }
+                }
+            }
+            if node_as_function_like_declaration.name().kind() == SyntaxKind::ComputedPropertyName {
+                self.check_computed_property_name(&node_as_function_like_declaration.name());
+            }
+
+            if self.has_bindable_name(node) {
+                let symbol = self.get_symbol_of_node(node).unwrap();
+                let getter = get_declaration_of_kind(&symbol, SyntaxKind::GetAccessor);
+                let setter = get_declaration_of_kind(&symbol, SyntaxKind::SetAccessor);
+                if let Some(getter) = getter.as_ref() {
+                    if let Some(setter) = setter.as_ref() {
+                        if !self
+                            .get_node_check_flags(getter)
+                            .intersects(NodeCheckFlags::TypeChecked)
+                        {
+                            self.get_node_links(getter).borrow_mut().flags |=
+                                NodeCheckFlags::TypeChecked;
+                            let getter_flags = get_effective_modifier_flags(getter);
+                            let setter_flags = get_effective_modifier_flags(setter);
+                            if getter_flags & ModifierFlags::Abstract
+                                != setter_flags & ModifierFlags::Abstract
+                            {
+                                self.error(
+                                    getter.as_named_declaration().maybe_name(),
+                                    &Diagnostics::Accessors_must_both_be_abstract_or_non_abstract,
+                                    None,
+                                );
+                                self.error(
+                                    setter.as_named_declaration().maybe_name(),
+                                    &Diagnostics::Accessors_must_both_be_abstract_or_non_abstract,
+                                    None,
+                                );
+                            }
+                            if getter_flags.intersects(ModifierFlags::Protected)
+                                && !setter_flags
+                                    .intersects(ModifierFlags::Protected | ModifierFlags::Private)
+                                || getter_flags.intersects(ModifierFlags::Private)
+                                    && !setter_flags.intersects(ModifierFlags::Private)
+                            {
+                                self.error(
+                                    getter.as_named_declaration().maybe_name(),
+                                    &Diagnostics::A_get_accessor_must_be_at_least_as_accessible_as_the_setter,
+                                    None,
+                                );
+                                self.error(
+                                    setter.as_named_declaration().maybe_name(),
+                                    &Diagnostics::A_get_accessor_must_be_at_least_as_accessible_as_the_setter,
+                                    None,
+                                );
+                            }
+
+                            let getter_type = self.get_annotated_accessor_type(Some(&**getter));
+                            let setter_type = self.get_annotated_accessor_type(Some(&**setter));
+                            if let (Some(getter_type), Some(setter_type)) =
+                                (getter_type.as_ref(), setter_type.as_ref())
+                            {
+                                self.check_type_assignable_to(
+                                    getter_type,
+                                    setter_type,
+                                    Some(&**getter),
+                                    Some(&Diagnostics::The_return_type_of_a_get_accessor_must_be_assignable_to_its_set_accessor_type),
+                                    None, None,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            let return_type = self.get_type_of_accessors(&self.get_symbol_of_node(node).unwrap());
+            if node.kind() == SyntaxKind::GetAccessor {
+                self.check_all_code_paths_in_non_void_function_return_or_throw(
+                    node,
+                    Some(&*return_type),
+                );
+            }
+        }
+        self.check_source_element(node_as_function_like_declaration.maybe_body());
+        self.set_node_links_for_private_identifier_scope(node);
+    }
+
+    pub(super) fn check_missing_declaration(&self, node: &Node) {
+        self.check_decorators(node);
     }
 
     pub(super) fn get_effective_type_arguments(
@@ -49,8 +259,8 @@ impl TypeChecker {
                 |type_argument, _| self.get_type_from_type_node_(type_argument),
             )),
             Some(type_parameters),
-            0, // TODO: this is wrong
-            false,
+            self.get_min_type_argument_count(Some(type_parameters)),
+            is_in_js_file(Some(node)),
         )
         .unwrap()
     }
@@ -107,6 +317,10 @@ impl TypeChecker {
     }
 
     pub(super) fn is_private_within_ambient(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_function_or_constructor_symbol(&self, symbol: &Symbol) {
         unimplemented!()
     }
 
@@ -194,6 +408,10 @@ impl TypeChecker {
         node: &Node,             /*FunctionLikeDeclaration | MethodSignature*/
         return_type_node: &Node, /*TypeNode*/
     ) {
+        unimplemented!()
+    }
+
+    pub(super) fn check_decorators(&self, node: &Node) {
         unimplemented!()
     }
 
