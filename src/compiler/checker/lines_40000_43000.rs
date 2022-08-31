@@ -2,14 +2,17 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{EmitResolverCreateResolver, UnusedKind};
+use super::{DeclarationMeaning, EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, NodeArray, NodeCheckFlags, __String,
-    bind_source_file, for_each, is_external_or_common_js_module, CancellationTokenDebuggable,
-    Diagnostic, EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol,
-    SymbolFlags, Type, TypeChecker,
+    get_property_name_for_property_name_node, get_text_of_node, is_array_literal_expression,
+    is_object_literal_expression, skip_parentheses, Debug_, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, NodeArray, NodeCheckFlags, SyntaxKind, __String, bind_source_file,
+    for_each, is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
+    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
+    Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -383,6 +386,154 @@ impl TypeChecker {
         node: &Node, /*ObjectLiteralExpression*/
         in_destructuring: bool,
     ) -> bool {
-        unimplemented!()
+        let mut seen: HashMap<__String, DeclarationMeaning> = HashMap::new();
+
+        for prop in &node.as_object_literal_expression().properties {
+            if prop.kind() == SyntaxKind::SpreadAssignment {
+                if in_destructuring {
+                    let expression =
+                        skip_parentheses(&prop.as_spread_assignment().expression, None);
+                    if is_array_literal_expression(&expression)
+                        || is_object_literal_expression(&expression)
+                    {
+                        return self.grammar_error_on_node(
+                            &prop.as_spread_assignment().expression,
+                            &Diagnostics::A_rest_element_cannot_contain_a_binding_pattern,
+                            None,
+                        );
+                    }
+                }
+                continue;
+            }
+            let name = prop.as_named_declaration().name();
+            if name.kind() == SyntaxKind::ComputedPropertyName {
+                self.check_grammar_computed_property_name(&name);
+            }
+
+            if prop.kind() == SyntaxKind::ShorthandPropertyAssignment
+                && !in_destructuring
+                && prop
+                    .as_shorthand_property_assignment()
+                    .object_assignment_initializer
+                    .is_some()
+            {
+                return self.grammar_error_on_node(
+                    prop.as_shorthand_property_assignment().equals_token.as_ref().unwrap(),
+                    &Diagnostics::Did_you_mean_to_use_a_Colon_An_can_only_follow_a_property_name_when_the_containing_object_literal_is_part_of_a_destructuring_pattern,
+                    None,
+                );
+            }
+
+            if name.kind() == SyntaxKind::PrivateIdentifier {
+                self.grammar_error_on_node(
+                    &name,
+                    &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+                    None,
+                );
+            }
+
+            if let Some(prop_modifiers) = prop.maybe_modifiers().as_ref() {
+                for mod_ in prop_modifiers {
+                    if mod_.kind() != SyntaxKind::AsyncKeyword
+                        || prop.kind() != SyntaxKind::MethodDeclaration
+                    {
+                        self.grammar_error_on_node(
+                            mod_,
+                            &Diagnostics::_0_modifier_cannot_be_used_here,
+                            Some(vec![get_text_of_node(mod_, None).into_owned()]),
+                        );
+                    }
+                }
+            }
+
+            let current_kind: DeclarationMeaning;
+            match prop.kind() {
+                SyntaxKind::ShorthandPropertyAssignment => {
+                    self.check_grammar_for_invalid_exclamation_token(
+                        prop.as_shorthand_property_assignment().exclamation_token.as_deref(),
+                        &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
+                    );
+                    self.check_grammar_for_invalid_question_mark(
+                        prop.as_has_question_token().maybe_question_token(),
+                        &Diagnostics::An_object_member_cannot_be_declared_optional,
+                    );
+                    if name.kind() == SyntaxKind::NumericLiteral {
+                        self.check_grammar_numeric_literal(&name);
+                    }
+                    current_kind = DeclarationMeaning::PropertyAssignment;
+                }
+                SyntaxKind::PropertyAssignment => {
+                    self.check_grammar_for_invalid_question_mark(
+                        prop.as_has_question_token().maybe_question_token(),
+                        &Diagnostics::An_object_member_cannot_be_declared_optional,
+                    );
+                    if name.kind() == SyntaxKind::NumericLiteral {
+                        self.check_grammar_numeric_literal(&name);
+                    }
+                    current_kind = DeclarationMeaning::PropertyAssignment;
+                }
+                SyntaxKind::MethodDeclaration => {
+                    current_kind = DeclarationMeaning::Method;
+                }
+                SyntaxKind::GetAccessor => {
+                    current_kind = DeclarationMeaning::GetAccessor;
+                }
+                SyntaxKind::SetAccessor => {
+                    current_kind = DeclarationMeaning::SetAccessor;
+                }
+                _ => Debug_.assert_never(
+                    prop,
+                    Some(&format!("Unexpected syntax kind:{:?}", prop.kind())),
+                ),
+            }
+
+            if !in_destructuring {
+                let effective_name = get_property_name_for_property_name_node(&name);
+                if effective_name.is_none() {
+                    continue;
+                }
+                let effective_name = effective_name.unwrap();
+
+                let existing_kind = seen.get(&effective_name).copied();
+                match existing_kind {
+                    None => {
+                        seen.insert(effective_name, current_kind);
+                    }
+                    Some(existing_kind) => {
+                        if current_kind.intersects(DeclarationMeaning::PropertyAssignmentOrMethod)
+                            && existing_kind
+                                .intersects(DeclarationMeaning::PropertyAssignmentOrMethod)
+                        {
+                            self.grammar_error_on_node(
+                                &name,
+                                &Diagnostics::Duplicate_identifier_0,
+                                Some(vec![get_text_of_node(&name, None).into_owned()]),
+                            );
+                        } else if current_kind.intersects(DeclarationMeaning::GetOrSetAccessor)
+                            && existing_kind.intersects(DeclarationMeaning::GetOrSetAccessor)
+                        {
+                            if existing_kind != DeclarationMeaning::GetOrSetAccessor
+                                && current_kind != existing_kind
+                            {
+                                seen.insert(effective_name, current_kind | existing_kind);
+                            } else {
+                                return self.grammar_error_on_node(
+                                    &name,
+                                    &Diagnostics::An_object_literal_cannot_have_multiple_get_Slashset_accessors_with_the_same_name,
+                                    None,
+                                );
+                            }
+                        } else {
+                            return self.grammar_error_on_node(
+                                &name,
+                                &Diagnostics::An_object_literal_cannot_have_property_and_accessor_with_the_same_name,
+                                None
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        false
     }
 }

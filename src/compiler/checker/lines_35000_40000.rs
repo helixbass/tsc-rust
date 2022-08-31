@@ -4,17 +4,18 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{CheckMode, DeclarationSpaces, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
     declaration_name_to_string, for_each, for_each_child_returns,
-    get_containing_function_or_class_static_block, get_effective_initializer,
-    get_escaped_text_of_identifier_or_literal, get_function_flags, has_syntactic_modifier,
-    is_binding_element, is_computed_property_name, is_function_or_module_block,
-    is_private_identifier, is_property_name_literal, is_static, node_is_missing, node_is_present,
-    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
-    IterationTypes, IterationTypesResolver, ModifierFlags, Node, NodeArray, NodeInterface,
-    ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    get_containing_function_or_class_static_block, get_declaration_of_kind,
+    get_effective_initializer, get_escaped_text_of_identifier_or_literal, get_function_flags,
+    get_module_instance_state, get_name_of_declaration, has_syntactic_modifier, is_ambient_module,
+    is_binding_element, is_computed_property_name, is_entity_name_expression, is_export_assignment,
+    is_function_or_module_block, is_private_identifier, is_property_name_literal, is_static,
+    maybe_for_each, node_is_missing, node_is_present, Debug_, Diagnostic, DiagnosticMessage,
+    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
+    ModifierFlags, ModuleInstanceState, Node, NodeArray, NodeInterface, ReadonlyTextRange, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -124,6 +125,161 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn check_exports_on_merged_declarations(&self, node: &Node /*Declaration*/) {
+        if !self.produce_diagnostics {
+            return;
+        }
+
+        let mut symbol = node.maybe_local_symbol();
+        if symbol.is_none() {
+            symbol = self.get_symbol_of_node(node);
+            let symbol = symbol.as_ref().unwrap();
+            if symbol.maybe_export_symbol().is_none() {
+                return;
+            }
+        }
+        let symbol = symbol.unwrap();
+
+        if !matches!(
+            get_declaration_of_kind(&symbol, node.kind()).as_ref(),
+            Some(declaration) if ptr::eq(&**declaration, node)
+        ) {
+            return;
+        }
+
+        let mut exported_declaration_spaces = DeclarationSpaces::None;
+        let mut non_exported_declaration_spaces = DeclarationSpaces::None;
+        let mut default_exported_declaration_spaces = DeclarationSpaces::None;
+        for d in symbol.maybe_declarations().as_ref().unwrap() {
+            let declaration_spaces = self.get_declaration_spaces(d);
+            let effective_declaration_flags = self
+                .get_effective_declaration_flags(d, ModifierFlags::Export | ModifierFlags::Default);
+
+            if effective_declaration_flags.intersects(ModifierFlags::Export) {
+                if effective_declaration_flags.intersects(ModifierFlags::Default) {
+                    default_exported_declaration_spaces |= declaration_spaces;
+                } else {
+                    exported_declaration_spaces |= declaration_spaces;
+                }
+            } else {
+                non_exported_declaration_spaces |= declaration_spaces;
+            }
+        }
+
+        let non_default_exported_declaration_spaces =
+            exported_declaration_spaces | non_exported_declaration_spaces;
+
+        let common_declaration_spaces_for_exports_and_locals =
+            exported_declaration_spaces & non_exported_declaration_spaces;
+        let common_declaration_spaces_for_default_and_non_default =
+            default_exported_declaration_spaces & non_default_exported_declaration_spaces;
+
+        if common_declaration_spaces_for_exports_and_locals != DeclarationSpaces::None
+            || common_declaration_spaces_for_default_and_non_default != DeclarationSpaces::None
+        {
+            for d in symbol.maybe_declarations().as_ref().unwrap() {
+                let declaration_spaces = self.get_declaration_spaces(d);
+
+                let name = get_name_of_declaration(Some(&**d));
+                if declaration_spaces
+                    .intersects(common_declaration_spaces_for_default_and_non_default)
+                {
+                    self.error(
+                        name.as_deref(),
+                        &Diagnostics::Merged_declaration_0_cannot_include_a_default_export_declaration_Consider_adding_a_separate_export_default_0_declaration_instead,
+                        Some(vec![
+                            declaration_name_to_string(name.as_deref()).into_owned()
+                        ])
+                    );
+                } else if declaration_spaces
+                    .intersects(common_declaration_spaces_for_exports_and_locals)
+                {
+                    self.error(
+                        name.as_deref(),
+                        &Diagnostics::Individual_declarations_in_merged_declaration_0_must_be_all_exported_or_all_local,
+                        Some(vec![
+                            declaration_name_to_string(name.as_deref()).into_owned()
+                        ])
+                    );
+                }
+            }
+        }
+    }
+
+    pub(super) fn get_declaration_spaces(
+        &self,
+        decl: &Node, /*Declaration*/
+    ) -> DeclarationSpaces {
+        let d = decl;
+        match d.kind() {
+            SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocEnumTag => DeclarationSpaces::ExportType,
+            SyntaxKind::ModuleDeclaration => {
+                if is_ambient_module(d)
+                    || get_module_instance_state(d, None) != ModuleInstanceState::NonInstantiated
+                {
+                    DeclarationSpaces::ExportNamespace | DeclarationSpaces::ExportValue
+                } else {
+                    DeclarationSpaces::ExportNamespace
+                }
+            }
+            SyntaxKind::ClassDeclaration | SyntaxKind::EnumDeclaration | SyntaxKind::EnumMember => {
+                DeclarationSpaces::ExportType | DeclarationSpaces::ExportValue
+            }
+            SyntaxKind::SourceFile => {
+                DeclarationSpaces::ExportType
+                    | DeclarationSpaces::ExportValue
+                    | DeclarationSpaces::ExportNamespace
+            }
+            SyntaxKind::ExportAssignment | SyntaxKind::BinaryExpression => {
+                let node = d;
+                let expression = if is_export_assignment(node) {
+                    node.as_export_assignment().expression.clone()
+                } else {
+                    node.as_binary_expression().right.clone()
+                };
+                if !is_entity_name_expression(&expression) {
+                    return DeclarationSpaces::ExportValue;
+                }
+
+                let d = expression;
+                let mut result = DeclarationSpaces::None;
+                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap());
+                maybe_for_each(
+                    target.maybe_declarations().as_deref(),
+                    |d: &Rc<Node>, _| -> Option<()> {
+                        result |= self.get_declaration_spaces(d);
+                        None
+                    },
+                );
+                result
+            }
+            SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::ImportClause => {
+                let mut result = DeclarationSpaces::None;
+                let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap());
+                maybe_for_each(
+                    target.maybe_declarations().as_deref(),
+                    |d: &Rc<Node>, _| -> Option<()> {
+                        result |= self.get_declaration_spaces(d);
+                        None
+                    },
+                );
+                result
+            }
+            SyntaxKind::VariableDeclaration
+            | SyntaxKind::BindingElement
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::Identifier => DeclarationSpaces::ExportValue,
+            _ => Debug_.fail_bad_syntax_kind(d, None),
+        }
+    }
+
     pub(super) fn get_awaited_type_of_promise<TErrorNode: Borrow<Node>>(
         &self,
         type_: &Type,
@@ -131,7 +287,11 @@ impl TypeChecker {
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        let promised_type = self.get_promised_type_of_promise(type_, error_node.as_deref());
+        promised_type.as_ref().and_then(|promised_type| {
+            self.get_awaited_type_(promised_type, error_node, diagnostic_message, args)
+        })
     }
 
     pub(super) fn get_promised_type_of_promise<TErrorNode: Borrow<Node>>(
@@ -139,6 +299,11 @@ impl TypeChecker {
         type_: &Type,
         error_node: Option<TErrorNode>,
     ) -> Option<Rc<Type>> {
+        if self.is_type_any(Some(type_)) {
+            return None;
+        }
+
+        // let type_as_promise =
         unimplemented!()
     }
 
