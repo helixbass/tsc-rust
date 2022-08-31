@@ -9,14 +9,16 @@ use crate::{
     for_each, for_each_child, get_class_extends_heritage_element,
     get_containing_function_or_class_static_block, get_declaration_of_kind,
     get_effective_initializer, get_effective_modifier_flags, get_emit_script_target,
-    get_function_flags, has_syntactic_modifier, is_binding_element, is_function_or_module_block,
-    is_in_js_file, is_private_identifier_class_element_declaration, is_prologue_directive,
-    is_static, is_super_call, map, maybe_for_each, node_is_missing, node_is_present, some,
-    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
-    ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    get_function_flags, get_object_flags, has_syntactic_modifier, is_binding_element,
+    is_function_or_module_block, is_in_js_file, is_in_jsdoc,
+    is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
+    is_super_call, is_type_reference_type, map, maybe_for_each, node_is_missing, node_is_present,
+    some, try_cast, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeParametersInterface,
+    IterationTypes, IterationTypesResolver, ModifierFlags, Node, NodeArray, NodeCheckFlags,
+    NodeFlags, NodeInterface, ObjectFlags, ScriptTarget, SignatureDeclarationInterface, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper,
 };
 
 impl TypeChecker {
@@ -265,29 +267,198 @@ impl TypeChecker {
         .unwrap()
     }
 
+    pub(super) fn check_type_argument_constraints(
+        &self,
+        node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+        type_parameters: &[Rc<Type /*TypeParameter*/>],
+    ) -> bool {
+        let mut type_arguments: Option<Vec<Rc<Type>>> = None;
+        let mut mapper: Option<TypeMapper> = None;
+        let mut result = true;
+        for i in 0..type_parameters.len() {
+            let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);
+            if let Some(constraint) = constraint.as_ref() {
+                if type_arguments.is_none() {
+                    type_arguments = Some(self.get_effective_type_arguments(node, type_parameters));
+                    mapper = Some(
+                        self.create_type_mapper(type_parameters.to_owned(), type_arguments.clone()),
+                    );
+                }
+                result = result
+                    && self.check_type_assignable_to(
+                        &type_arguments.as_ref().unwrap()[i],
+                        &self.instantiate_type(constraint, mapper.as_ref()),
+                        node.as_has_type_arguments()
+                            .maybe_type_arguments()
+                            .unwrap()
+                            .get(i)
+                            .cloned(),
+                        Some(&Diagnostics::Type_0_does_not_satisfy_the_constraint_1),
+                        None,
+                        None,
+                    );
+            }
+        }
+        result
+    }
+
     pub(super) fn get_type_parameters_for_type_reference(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
     ) -> Option<Vec<Rc<Type>>> {
-        unimplemented!()
+        let type_ = self.get_type_from_type_reference(node);
+        if !self.is_error_type(&type_) {
+            let symbol = (*self.get_node_links(node))
+                .borrow()
+                .resolved_symbol
+                .clone();
+            if let Some(symbol) = symbol.as_ref() {
+                return if symbol.flags().intersects(SymbolFlags::TypeAlias) {
+                    (*self.get_symbol_links(symbol))
+                        .borrow()
+                        .type_parameters
+                        .clone()
+                } else {
+                    None
+                }
+                .or_else(|| {
+                    if get_object_flags(&type_).intersects(ObjectFlags::Reference) {
+                        type_
+                            .as_type_reference()
+                            .target
+                            .as_interface_type_interface()
+                            .maybe_local_type_parameters()
+                            .map(ToOwned::to_owned)
+                    } else {
+                        None
+                    }
+                });
+            }
+        }
+        None
     }
 
-    pub(super) fn check_type_reference_node(&self, node: &Node /*TypeReferenceNode*/) {
+    pub(super) fn check_type_reference_node(
+        &self,
+        node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+    ) {
+        let node_as_has_type_arguments = node.as_has_type_arguments();
+        self.check_grammar_type_arguments(node, node_as_has_type_arguments.maybe_type_arguments());
+        if node.kind() == SyntaxKind::TypeReference {
+            if let Some(node_type_name_jsdoc_dot_pos) = node
+                .as_type_reference_node()
+                .type_name
+                .as_has_jsdoc_dot_pos()
+                .maybe_jsdoc_dot_pos()
+            {
+                if !is_in_js_file(Some(node)) && !is_in_jsdoc(Some(node)) {
+                    self.grammar_error_at_pos(
+                        node,
+                        node_type_name_jsdoc_dot_pos,
+                        1,
+                        &Diagnostics::JSDoc_types_can_only_be_used_inside_documentation_comments,
+                        None,
+                    );
+                }
+            }
+        }
         maybe_for_each(
-            node.as_type_reference_node().type_arguments.as_ref(),
+            node_as_has_type_arguments.maybe_type_arguments(),
             |type_argument, _| {
                 self.check_source_element(Some(&**type_argument));
                 Option::<()>::None
             },
         );
         let type_ = self.get_type_from_type_reference(node);
+        if !self.is_error_type(&type_) {
+            if node_as_has_type_arguments.maybe_type_arguments().is_some()
+                && self.produce_diagnostics
+            {
+                let type_parameters = self.get_type_parameters_for_type_reference(node);
+                if let Some(type_parameters) = type_parameters.as_ref() {
+                    self.check_type_argument_constraints(node, type_parameters);
+                }
+            }
+            let symbol = (*self.get_node_links(node))
+                .borrow()
+                .resolved_symbol
+                .clone();
+            if let Some(symbol) = symbol.as_ref() {
+                if some(
+                    symbol.maybe_declarations().as_deref(),
+                    Some(|d: &Rc<Node>| {
+                        self.is_type_declaration(d) && d.flags().intersects(NodeFlags::Deprecated)
+                    }),
+                ) {
+                    self.add_deprecated_suggestion(
+                        &self.get_deprecated_suggestion_node(node),
+                        symbol.maybe_declarations().as_ref().unwrap(),
+                        &**symbol.escaped_name(),
+                    );
+                }
+                if type_.flags().intersects(TypeFlags::Enum)
+                    && symbol.flags().intersects(SymbolFlags::EnumMember)
+                {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Enum_type_0_has_members_with_initializers_that_are_not_literals,
+                        Some(vec![
+                            self.type_to_string_(
+                                &type_,
+                                Option::<&Node>::None,
+                                None, None,
+                            )
+                        ])
+                    );
+                }
+            }
+        }
     }
 
     pub(super) fn get_type_argument_constraint_(
         &self,
         node: &Node, /*TypeNode*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let type_reference_node = try_cast(node.parent(), |parent: &Rc<Node>| {
+            is_type_reference_type(parent)
+        })?;
+        let type_parameters = self.get_type_parameters_for_type_reference(&type_reference_node)?;
+        let constraint = self.get_constraint_of_type_parameter(
+            &type_parameters[type_reference_node
+                .as_has_type_arguments()
+                .maybe_type_arguments()
+                .unwrap()
+                .into_iter()
+                .position(|type_argument| ptr::eq(&**type_argument, node))
+                .unwrap()],
+        )?;
+        Some(self.instantiate_type(
+            &constraint,
+            Some(&self.create_type_mapper(
+                type_parameters.clone(),
+                Some(self.get_effective_type_arguments(&type_reference_node, &type_parameters)),
+            )),
+        ))
+    }
+
+    pub(super) fn check_type_query(&self, node: &Node /*TypeQueryNode*/) {
+        self.get_type_from_type_query_node(node);
+    }
+
+    pub(super) fn check_type_literal(&self, node: &Node /*TypeLiteralNode*/) {
+        for_each(
+            &node.as_type_literal_node().members,
+            |member: &Rc<Node>, _| -> Option<()> {
+                self.check_source_element(Some(&**member));
+                None
+            },
+        );
+        if self.produce_diagnostics {
+            let type_ = self.get_type_from_type_literal_or_function_or_constructor_type_node(node);
+            self.check_index_constraints(&type_, &type_.symbol(), None);
+            self.check_type_for_duplicate_index_signatures(node);
+            self.check_object_type_for_duplicate_declarations(node);
+        }
     }
 
     pub(super) fn check_array_type(&self, node: &Node /*ArrayTypeNode*/) {
@@ -729,6 +900,15 @@ impl TypeChecker {
                 // }
             }
         }
+    }
+
+    pub(super) fn check_index_constraints(
+        &self,
+        type_: &Type,
+        symbol: &Symbol,
+        is_static_index: Option<bool>,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn check_type_name_is_reserved(

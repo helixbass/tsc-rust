@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
     BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
-    JsxFlags, Node, ObjectFlags, Pattern, WeakSelf,
+    InterfaceTypeInterface, JsxFlags, Node, ObjectFlags, Pattern, WeakSelf,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -446,6 +446,13 @@ impl Type {
         match self {
             Type::ObjectType(ObjectType::InterfaceType(interface_type)) => interface_type,
             _ => panic!("Expected generic type"),
+        }
+    }
+
+    pub fn as_interface_type_interface(&self) -> &dyn InterfaceTypeInterface {
+        match self {
+            Type::ObjectType(ObjectType::InterfaceType(interface_type)) => interface_type,
+            _ => panic!("Expected interface type"),
         }
     }
 

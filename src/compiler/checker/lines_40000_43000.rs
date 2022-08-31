@@ -108,6 +108,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_type_declaration(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_type_reference_identifier(&self, node: &Node /*EntityName*/) -> bool {
         unimplemented!()
     }
