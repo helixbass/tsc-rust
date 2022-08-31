@@ -6,22 +6,23 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, MappedTypeModifiers, UnusedKind};
 use crate::{
-    find_ancestor, for_each, for_each_child, get_class_extends_heritage_element,
-    get_combined_modifier_flags, get_containing_function_or_class_static_block,
-    get_declaration_modifier_flags_from_symbol, get_declaration_of_kind,
-    get_effective_constraint_of_type_parameter, get_effective_initializer,
-    get_effective_modifier_flags, get_emit_script_target, get_function_flags, get_object_flags,
-    has_effective_modifier, has_syntactic_modifier, is_assignment_target, is_binding_element,
-    is_function_or_module_block, is_global_scope_augmentation, is_in_js_file, is_in_jsdoc,
-    is_module_block, is_module_declaration, is_named_tuple_member,
-    is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
-    is_super_call, is_type_reference_type, map, maybe_for_each, node_is_missing, node_is_present,
-    some, try_cast, unescape_leading_underscores, Diagnostic, DiagnosticMessage, Diagnostics,
-    ElementFlags, FunctionFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    add_related_info, are_option_rcs_equal, create_diagnostic_for_node, filter, find_ancestor,
+    for_each, for_each_child, get_class_extends_heritage_element, get_combined_modifier_flags,
+    get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
+    get_declaration_of_kind, get_effective_constraint_of_type_parameter, get_effective_initializer,
+    get_effective_modifier_flags, get_emit_script_target, get_function_flags,
+    get_name_of_declaration, get_object_flags, has_effective_modifier, has_question_token,
+    has_syntactic_modifier, is_assignment_target, is_binding_element, is_function_or_module_block,
+    is_global_scope_augmentation, is_in_js_file, is_in_jsdoc, is_module_block,
+    is_module_declaration, is_named_tuple_member, is_private_identifier_class_element_declaration,
+    is_prologue_directive, is_static, is_super_call, is_type_reference_type, map, maybe_for_each,
+    node_is_missing, node_is_present, some, symbol_name, try_cast, unescape_leading_underscores,
+    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics, ElementFlags,
+    FunctionFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
     HasTypeParametersInterface, IterationTypes, IterationTypesResolver, ModifierFlags, Node,
-    NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -827,6 +828,339 @@ impl TypeChecker {
     }
 
     pub(super) fn check_function_or_constructor_symbol(&self, symbol: &Symbol) {
+        if !self.produce_diagnostics {
+            return;
+        }
+
+        let flags_to_check = ModifierFlags::Export
+            | ModifierFlags::Ambient
+            | ModifierFlags::Private
+            | ModifierFlags::Protected
+            | ModifierFlags::Abstract;
+        let mut some_node_flags = ModifierFlags::None;
+        let mut all_node_flags = flags_to_check;
+        let mut some_have_question_token = false;
+        let mut all_have_question_token = true;
+        let mut has_overloads = false;
+        let mut body_declaration: Option<Rc<Node /*FunctionLikeDeclaration*/>> = None;
+        let mut last_seen_non_ambient_declaration: Option<Rc<Node /*FunctionLikeDeclaration*/>> =
+            None;
+        let mut previous_declaration: Option<Rc<Node /*SignatureDeclaration*/>> = None;
+
+        let declarations = symbol.maybe_declarations();
+        let is_constructor = symbol.flags().intersects(SymbolFlags::Constructor);
+
+        let mut duplicate_function_declaration = false;
+        let mut multiple_constructor_implementation = false;
+        let mut has_non_ambient_class = false;
+        let mut function_declarations: Vec<Rc<Node /*Declaration*/>> = vec![];
+        if let Some(declarations) = declarations.as_ref() {
+            for current in declarations {
+                let node = current;
+                let in_ambient_context = node.flags().intersects(NodeFlags::Ambient);
+                let in_ambient_context_or_interface = matches!(
+                    node.maybe_parent().as_ref(),
+                    Some(node_parent) if matches!(
+                        node_parent.kind(),
+                        SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeLiteral
+                    )
+                ) || in_ambient_context;
+                if in_ambient_context_or_interface {
+                    previous_declaration = None;
+                }
+
+                if matches!(
+                    node.kind(),
+                    SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                ) && !in_ambient_context
+                {
+                    has_non_ambient_class = true;
+                }
+
+                if matches!(
+                    node.kind(),
+                    SyntaxKind::FunctionDeclaration
+                        | SyntaxKind::MethodDeclaration
+                        | SyntaxKind::MethodSignature
+                        | SyntaxKind::Constructor
+                ) {
+                    function_declarations.push(node.clone());
+                    let current_node_flags =
+                        self.get_effective_declaration_flags(node, flags_to_check);
+                    some_node_flags |= current_node_flags;
+                    all_node_flags &= current_node_flags;
+                    some_have_question_token = some_have_question_token || has_question_token(node);
+                    all_have_question_token = all_have_question_token && has_question_token(node);
+                    let body_is_present =
+                        node_is_present(node.as_function_like_declaration().maybe_body());
+
+                    if body_is_present && body_declaration.is_some() {
+                        if is_constructor {
+                            multiple_constructor_implementation = true;
+                        } else {
+                            duplicate_function_declaration = true;
+                        }
+                    } else if are_option_rcs_equal(
+                        previous_declaration
+                            .as_ref()
+                            .and_then(|previous_declaration| previous_declaration.maybe_parent())
+                            .as_ref(),
+                        node.maybe_parent().as_ref(),
+                    ) && previous_declaration.as_ref().unwrap().end() != node.pos()
+                    {
+                        self.report_implementation_expected_error(
+                            previous_declaration.as_ref().unwrap(),
+                        );
+                    }
+
+                    if body_is_present {
+                        if body_declaration.is_none() {
+                            body_declaration = Some(node.clone());
+                        }
+                    } else {
+                        has_overloads = true;
+                    }
+
+                    previous_declaration = Some(node.clone());
+
+                    if !in_ambient_context_or_interface {
+                        last_seen_non_ambient_declaration = Some(node.clone());
+                    }
+                }
+            }
+        }
+
+        if multiple_constructor_implementation {
+            for_each(
+                &function_declarations,
+                |declaration: &Rc<Node>, _| -> Option<()> {
+                    self.error(
+                        Some(&**declaration),
+                        &Diagnostics::Multiple_constructor_implementations_are_not_allowed,
+                        None,
+                    );
+                    None
+                },
+            );
+        }
+
+        if duplicate_function_declaration {
+            for_each(
+                &function_declarations,
+                |declaration: &Rc<Node>, _| -> Option<()> {
+                    self.error(
+                        Some(
+                            get_name_of_declaration(Some(&**declaration))
+                                .unwrap_or_else(|| declaration.clone()),
+                        ),
+                        &Diagnostics::Duplicate_function_implementation,
+                        None,
+                    );
+                    None
+                },
+            );
+        }
+
+        if has_non_ambient_class
+            && !is_constructor
+            && symbol.flags().intersects(SymbolFlags::Function)
+        {
+            if let Some(declarations) = declarations.as_ref() {
+                let related_diagnostics: Vec<Rc<DiagnosticRelatedInformation>> =
+                    filter(declarations, |d: &Rc<Node>| {
+                        d.kind() == SyntaxKind::ClassDeclaration
+                    })
+                    .iter()
+                    .map(|d| {
+                        Rc::new(
+                            create_diagnostic_for_node(
+                                d,
+                                &Diagnostics::Consider_adding_a_declare_modifier_to_this_class,
+                                None,
+                            )
+                            .into(),
+                        )
+                    })
+                    .collect();
+
+                for_each(declarations, |declaration: &Rc<Node>, _| -> Option<()> {
+                    let diagnostic = if declaration.kind() == SyntaxKind::ClassDeclaration {
+                        Some(&*Diagnostics::Class_declaration_cannot_implement_overload_list_for_0)
+                    } else if declaration.kind() == SyntaxKind::FunctionDeclaration {
+                        Some(&*Diagnostics::Function_with_bodies_can_only_merge_with_classes_that_are_ambient)
+                    } else {
+                        None
+                    };
+                    if let Some(diagnostic) = diagnostic {
+                        add_related_info(
+                            &self.error(
+                                Some(
+                                    get_name_of_declaration(Some(&**declaration))
+                                        .unwrap_or_else(|| declaration.clone()),
+                                ),
+                                diagnostic,
+                                Some(vec![symbol_name(symbol)]),
+                            ),
+                            related_diagnostics.clone(),
+                        );
+                    }
+                    None
+                });
+            }
+        }
+
+        if let Some(last_seen_non_ambient_declaration) = last_seen_non_ambient_declaration
+            .as_ref()
+            .filter(|last_seen_non_ambient_declaration| {
+                let last_seen_non_ambient_declaration_as_function_like_declaration =
+                    last_seen_non_ambient_declaration.as_function_like_declaration();
+                last_seen_non_ambient_declaration_as_function_like_declaration
+                    .maybe_body()
+                    .is_none()
+                    && !has_syntactic_modifier(
+                        last_seen_non_ambient_declaration,
+                        ModifierFlags::Abstract,
+                    )
+                    && last_seen_non_ambient_declaration_as_function_like_declaration
+                        .maybe_question_token()
+                        .is_none()
+            })
+        {
+            self.report_implementation_expected_error(last_seen_non_ambient_declaration);
+        }
+
+        if has_overloads {
+            if let Some(declarations) = declarations.as_ref() {
+                self.check_flag_agreement_between_overloads(
+                    declarations,
+                    body_declaration.as_deref(),
+                    flags_to_check,
+                    some_node_flags,
+                    all_node_flags,
+                );
+                self.check_question_token_agreement_between_overloads(
+                    declarations,
+                    body_declaration.as_deref(),
+                    some_have_question_token,
+                    all_have_question_token,
+                );
+            }
+
+            if let Some(body_declaration) = body_declaration.as_ref() {
+                let signatures = self.get_signatures_of_symbol(Some(symbol));
+                let body_signature = self.get_signature_from_declaration_(body_declaration);
+                for signature in &signatures {
+                    if !self.is_implementation_compatible_with_overload(
+                        body_signature.clone(),
+                        signature.clone(),
+                    ) {
+                        add_related_info(
+                            &self.error(
+                                signature.declaration.as_deref(),
+                                &Diagnostics::This_overload_signature_is_not_compatible_with_its_implementation_signature,
+                                None,
+                            ),
+                            vec![
+                                Rc::new(
+                                    create_diagnostic_for_node(
+                                        body_declaration,
+                                        &Diagnostics::The_implementation_signature_is_declared_here,
+                                        None,
+                                    ).into()
+                                )
+                            ]
+                        );
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn get_canonical_overload<TImplementation: Borrow<Node>>(
+        &self,
+        overloads: &[Rc<Node /*Declaration*/>],
+        implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
+    ) -> Rc<Node /*Declaration*/> {
+        let implementation =
+            implementation.map(|implementation| implementation.borrow().node_wrapper());
+        let implementation_shares_container_with_first_overload = matches!(
+            implementation.as_ref(),
+            Some(implementation) if are_option_rcs_equal(
+                implementation.maybe_parent().as_ref(),
+                overloads[0].maybe_parent().as_ref()
+            )
+        );
+        if implementation_shares_container_with_first_overload {
+            implementation.unwrap()
+        } else {
+            overloads[0].clone()
+        }
+    }
+
+    pub(super) fn check_flag_agreement_between_overloads<TImplementation: Borrow<Node>>(
+        &self,
+        overloads: &[Rc<Node /*Declaration*/>],
+        implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
+        flags_to_check: ModifierFlags,
+        some_overload_flags: ModifierFlags,
+        all_overload_flags: ModifierFlags,
+    ) {
+        let some_but_not_all_overload_flags = some_overload_flags ^ all_overload_flags;
+        if some_but_not_all_overload_flags != ModifierFlags::None {
+            let canonical_flags = self.get_effective_declaration_flags(
+                &self.get_canonical_overload(overloads, implementation),
+                flags_to_check,
+            );
+            for_each(overloads, |o: &Rc<Node>, _| -> Option<()> {
+                let deviation =
+                    self.get_effective_declaration_flags(o, flags_to_check) ^ canonical_flags;
+                if deviation.intersects(ModifierFlags::Export) {
+                    self.error(
+                        get_name_of_declaration(Some(&**o)),
+                        &Diagnostics::Overload_signatures_must_all_be_exported_or_non_exported,
+                        None,
+                    );
+                } else if deviation.intersects(ModifierFlags::Ambient) {
+                    self.error(
+                        get_name_of_declaration(Some(&**o)),
+                        &Diagnostics::Overload_signatures_must_all_be_ambient_or_non_ambient,
+                        None,
+                    );
+                } else if deviation.intersects(ModifierFlags::Private | ModifierFlags::Protected) {
+                    self.error(
+                        Some(get_name_of_declaration(Some(&**o)).unwrap_or_else(|| o.clone())),
+                        &Diagnostics::Overload_signatures_must_all_be_public_private_or_protected,
+                        None,
+                    );
+                } else if deviation.intersects(ModifierFlags::Abstract) {
+                    self.error(
+                        get_name_of_declaration(Some(&**o)),
+                        &Diagnostics::Overload_signatures_must_all_be_abstract_or_non_abstract,
+                        None,
+                    );
+                }
+                None
+            });
+        }
+    }
+
+    pub(super) fn check_question_token_agreement_between_overloads<
+        TImplementation: Borrow<Node>,
+    >(
+        &self,
+        overloads: &[Rc<Node /*Declaration*/>],
+        implementation: Option<TImplementation /*FunctionLikeDeclaration*/>,
+        some_have_question_token: bool,
+        all_have_question_token: bool,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn report_implementation_expected_error(
+        &self,
+        node: &Node, /*SignatureDeclaration*/
+    ) {
         unimplemented!()
     }
 
