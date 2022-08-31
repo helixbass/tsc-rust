@@ -9,13 +9,14 @@ use std::rc::Rc;
 use super::{DeclarationMeaning, EmitResolverCreateResolver, UnusedKind};
 use crate::{
     get_property_name_for_property_name_node, get_source_file_of_node, get_text_of_node,
-    is_array_literal_expression, is_object_literal_expression, skip_parentheses, skip_trivia, some,
-    token_to_string, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    InterfaceOrClassLikeDeclarationInterface, NodeArray, NodeCheckFlags, NodeFlags,
-    ReadonlyTextRange, SourceFileLike, SyntaxKind, __String, bind_source_file, for_each,
-    is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
-    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
-    Type, TypeChecker,
+    has_effective_modifiers, is_array_literal_expression, is_object_literal_expression,
+    skip_parentheses, skip_trivia, some, token_to_string, Debug_, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, HasInitializerInterface, HasTypeInterface,
+    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, NodeArray, NodeCheckFlags,
+    NodeFlags, ReadonlyTextRange, SourceFileLike, SyntaxKind, TypeFlags, TypeInterface, __String,
+    bind_source_file, for_each, is_external_or_common_js_module, CancellationTokenDebuggable,
+    Diagnostic, EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol,
+    SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -332,7 +333,100 @@ impl TypeChecker {
         &self,
         node: &Node, /*SignatureDeclaration*/
     ) -> bool {
-        unimplemented!()
+        let node_as_signature_declaration = node.as_signature_declaration();
+        let parameter = node_as_signature_declaration.parameters().get(0);
+        if node_as_signature_declaration.parameters().len() != 1 {
+            if let Some(parameter) = parameter {
+                return self.grammar_error_on_node(
+                    &parameter.as_parameter_declaration().name(),
+                    &Diagnostics::An_index_signature_must_have_exactly_one_parameter,
+                    None,
+                );
+            } else {
+                return self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::An_index_signature_must_have_exactly_one_parameter,
+                    None,
+                );
+            }
+        }
+        self.check_grammar_for_disallowed_trailing_comma(
+            Some(node_as_signature_declaration.parameters()),
+            Some(&Diagnostics::An_index_signature_cannot_have_a_trailing_comma),
+        );
+        let parameter = parameter.unwrap();
+        let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+        if let Some(parameter_dot_dot_dot_token) = parameter_as_parameter_declaration
+            .dot_dot_dot_token
+            .as_ref()
+        {
+            return self.grammar_error_on_node(
+                parameter_dot_dot_dot_token,
+                &Diagnostics::An_index_signature_cannot_have_a_rest_parameter,
+                None,
+            );
+        }
+        if has_effective_modifiers(parameter) {
+            return self.grammar_error_on_node(
+                &parameter_as_parameter_declaration.name(),
+                &Diagnostics::An_index_signature_parameter_cannot_have_an_accessibility_modifier,
+                None,
+            );
+        }
+        if let Some(parameter_question_token) =
+            parameter_as_parameter_declaration.question_token.as_ref()
+        {
+            return self.grammar_error_on_node(
+                parameter_question_token,
+                &Diagnostics::An_index_signature_parameter_cannot_have_a_question_mark,
+                None,
+            );
+        }
+        if parameter_as_parameter_declaration
+            .maybe_initializer()
+            .is_some()
+        {
+            return self.grammar_error_on_node(
+                &parameter_as_parameter_declaration.name(),
+                &Diagnostics::An_index_signature_parameter_cannot_have_an_initializer,
+                None,
+            );
+        }
+        if parameter_as_parameter_declaration.maybe_type().is_none() {
+            return self.grammar_error_on_node(
+                &parameter_as_parameter_declaration.name(),
+                &Diagnostics::An_index_signature_parameter_must_have_a_type_annotation,
+                None,
+            );
+        }
+        let type_ = self
+            .get_type_from_type_node_(&parameter_as_parameter_declaration.maybe_type().unwrap());
+        if self.some_type(&type_, |t: &Type| {
+            t.flags()
+                .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
+        }) || self.is_generic_type(&type_)
+        {
+            return self.grammar_error_on_node(
+                &parameter_as_parameter_declaration.name(),
+                &Diagnostics::An_index_signature_parameter_type_cannot_be_a_literal_type_or_generic_type_Consider_using_a_mapped_object_type_instead,
+                None,
+            );
+        }
+        if !self.every_type(&type_, |type_: &Type| self.is_valid_index_key_type(type_)) {
+            return self.grammar_error_on_node(
+                &parameter_as_parameter_declaration.name(),
+                &Diagnostics::An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type,
+                None,
+            );
+        }
+        if node_as_signature_declaration.maybe_type().is_none() {
+            return self.grammar_error_on_node(
+                node,
+                &Diagnostics::An_index_signature_must_have_a_type_annotation,
+                None,
+            );
+        }
+        false
     }
 
     pub(super) fn check_grammar_index_signature(
