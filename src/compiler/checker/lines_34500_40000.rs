@@ -4,21 +4,21 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{CheckMode, IterationTypeKind, IterationUse, MappedTypeModifiers, UnusedKind};
 use crate::{
     for_each, for_each_child, get_class_extends_heritage_element,
-    get_containing_function_or_class_static_block, get_declaration_of_kind,
-    get_effective_initializer, get_effective_modifier_flags, get_emit_script_target,
-    get_function_flags, get_object_flags, has_syntactic_modifier, is_binding_element,
-    is_function_or_module_block, is_in_js_file, is_in_jsdoc,
-    is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
-    is_super_call, is_type_reference_type, map, maybe_for_each, node_is_missing, node_is_present,
-    some, try_cast, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeParametersInterface,
-    IterationTypes, IterationTypesResolver, ModifierFlags, Node, NodeArray, NodeCheckFlags,
-    NodeFlags, NodeInterface, ObjectFlags, ScriptTarget, SignatureDeclarationInterface, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper,
+    get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
+    get_declaration_of_kind, get_effective_initializer, get_effective_modifier_flags,
+    get_emit_script_target, get_function_flags, get_object_flags, has_syntactic_modifier,
+    is_assignment_target, is_binding_element, is_function_or_module_block, is_in_js_file,
+    is_in_jsdoc, is_named_tuple_member, is_private_identifier_class_element_declaration,
+    is_prologue_directive, is_static, is_super_call, is_type_reference_type, map, maybe_for_each,
+    node_is_missing, node_is_present, some, try_cast, unescape_leading_underscores, Diagnostic,
+    DiagnosticMessage, Diagnostics, ElementFlags, FunctionFlags, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
+    ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
+    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -465,6 +465,85 @@ impl TypeChecker {
         self.check_source_element(Some(&*node.as_array_type_node().element_type));
     }
 
+    pub(super) fn check_tuple_type(&self, node: &Node /*TupleTypeNode*/) {
+        let node_as_tuple_type_node = node.as_tuple_type_node();
+        let element_types = &node_as_tuple_type_node.elements;
+        let mut seen_optional_element = false;
+        let mut seen_rest_element = false;
+        let has_named_element = some(
+            Some(&**element_types),
+            Some(|element_type: &Rc<Node>| is_named_tuple_member(element_type)),
+        );
+        for e in element_types {
+            if e.kind() != SyntaxKind::NamedTupleMember && has_named_element {
+                self.grammar_error_on_node(
+                    e,
+                    &Diagnostics::Tuple_members_must_all_have_names_or_all_not_have_names,
+                    None,
+                );
+                break;
+            }
+            let flags = self.get_tuple_element_flags(e);
+            if flags.intersects(ElementFlags::Variadic) {
+                let type_ = self.get_type_from_type_node_(&e.as_has_type().maybe_type().unwrap());
+                if !self.is_array_like_type(&type_) {
+                    self.error(
+                        Some(&**e),
+                        &Diagnostics::A_rest_element_type_must_be_an_array_type,
+                        None,
+                    );
+                    break;
+                }
+                if self.is_array_type(&type_)
+                    || self.is_tuple_type(&type_)
+                        && type_
+                            .as_type_reference()
+                            .target
+                            .as_tuple_type()
+                            .combined_flags
+                            .intersects(ElementFlags::Rest)
+                {
+                    seen_rest_element = true;
+                }
+            } else if flags.intersects(ElementFlags::Rest) {
+                if seen_rest_element {
+                    self.grammar_error_on_node(
+                        e,
+                        &Diagnostics::A_rest_element_cannot_follow_another_rest_element,
+                        None,
+                    );
+                    break;
+                }
+                seen_rest_element = true;
+            } else if flags.intersects(ElementFlags::Optional) {
+                if seen_rest_element {
+                    self.grammar_error_on_node(
+                        e,
+                        &Diagnostics::An_optional_element_cannot_follow_a_rest_element,
+                        None,
+                    );
+                    break;
+                }
+                seen_optional_element = true;
+            } else if seen_optional_element {
+                self.grammar_error_on_node(
+                    e,
+                    &Diagnostics::A_required_element_cannot_follow_an_optional_element,
+                    None,
+                );
+                break;
+            }
+        }
+        for_each(
+            &node_as_tuple_type_node.elements,
+            |element: &Rc<Node>, _| -> Option<()> {
+                self.check_source_element(Some(&**element));
+                None
+            },
+        );
+        self.get_type_from_type_node_(node);
+    }
+
     pub(super) fn check_union_or_intersection_type(
         &self,
         node: &Node, /*UnionOrIntersectionTypeNode*/
@@ -484,7 +563,77 @@ impl TypeChecker {
         type_: &Type,
         access_node: &Node, /*IndexedAccessTypeNode | ElementAccessExpression*/
     ) -> Rc<Type> {
-        unimplemented!()
+        if !type_.flags().intersects(TypeFlags::IndexedAccess) {
+            return type_.type_wrapper();
+        }
+        let type_as_indexed_access_type = type_.as_indexed_access_type();
+        let object_type = &type_as_indexed_access_type.object_type;
+        let index_type = &type_as_indexed_access_type.index_type;
+        if self.is_type_assignable_to(
+            index_type,
+            &self.get_index_type(object_type, Some(false), None),
+        ) {
+            if access_node.kind() == SyntaxKind::ElementAccessExpression
+                && is_assignment_target(access_node)
+                && get_object_flags(object_type).intersects(ObjectFlags::Mapped)
+                && self
+                    .get_mapped_type_modifiers(object_type)
+                    .intersects(MappedTypeModifiers::IncludeReadonly)
+            {
+                self.error(
+                    Some(access_node),
+                    &Diagnostics::Index_signature_in_type_0_only_permits_reading,
+                    Some(vec![self.type_to_string_(
+                        object_type,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    )]),
+                );
+            }
+            return type_.type_wrapper();
+        }
+        let apparent_object_type = self.get_apparent_type(object_type);
+        if self
+            .get_index_info_of_type_(&apparent_object_type, &self.number_type())
+            .is_some()
+            && self.is_type_assignable_to_kind(index_type, TypeFlags::NumberLike, None)
+        {
+            return type_.type_wrapper();
+        }
+        if self.is_generic_object_type(object_type) {
+            let property_name = self.get_property_name_from_index(index_type, Some(access_node));
+            if let Some(property_name) = property_name.as_ref() {
+                let property_symbol = self.for_each_type(&apparent_object_type, |t: &Type| {
+                    self.get_property_of_type_(t, property_name, None)
+                });
+                if matches!(
+                    property_symbol.as_ref(),
+                    Some(property_symbol) if get_declaration_modifier_flags_from_symbol(
+                        property_symbol,
+                        None,
+                    ).intersects(ModifierFlags::NonPublicAccessibilityModifier)
+                ) {
+                    self.error(
+                        Some(access_node),
+                        &Diagnostics::Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter,
+                        Some(vec![
+                            unescape_leading_underscores(property_name)
+                        ])
+                    );
+                    return self.error_type();
+                }
+            }
+        }
+        self.error(
+            Some(access_node),
+            &Diagnostics::Type_0_cannot_be_used_to_index_type_1,
+            Some(vec![
+                self.type_to_string_(index_type, Option::<&Node>::None, None, None),
+                self.type_to_string_(object_type, Option::<&Node>::None, None, None),
+            ]),
+        );
+        self.error_type()
     }
 
     pub(super) fn is_private_within_ambient(&self, node: &Node) -> bool {
