@@ -3,14 +3,17 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::{DeclarationMeaning, EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    get_property_name_for_property_name_node, get_text_of_node, is_array_literal_expression,
-    is_object_literal_expression, skip_parentheses, Debug_, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, NodeArray, NodeCheckFlags, SyntaxKind, __String, bind_source_file,
-    for_each, is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
+    get_property_name_for_property_name_node, get_source_file_of_node, get_text_of_node,
+    is_array_literal_expression, is_object_literal_expression, skip_parentheses, skip_trivia, some,
+    token_to_string, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    InterfaceOrClassLikeDeclarationInterface, NodeArray, NodeCheckFlags, NodeFlags,
+    ReadonlyTextRange, SourceFileLike, SyntaxKind, __String, bind_source_file, for_each,
+    is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
     EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
     Type, TypeChecker,
 };
@@ -325,11 +328,47 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn check_grammar_index_signature(
+    pub(super) fn check_grammar_index_signature_parameters(
         &self,
         node: &Node, /*SignatureDeclaration*/
     ) -> bool {
         unimplemented!()
+    }
+
+    pub(super) fn check_grammar_index_signature(
+        &self,
+        node: &Node, /*SignatureDeclaration*/
+    ) -> bool {
+        self.check_grammar_decorators_and_modifiers(node)
+            || self.check_grammar_index_signature_parameters(node)
+    }
+
+    pub(super) fn check_grammar_for_at_least_one_type_argument(
+        &self,
+        node: &Node,
+        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
+    ) -> bool {
+        if let Some(type_arguments) =
+            type_arguments.filter(|type_arguments| type_arguments.is_empty())
+        {
+            let source_file = get_source_file_of_node(Some(node)).unwrap();
+            let start = type_arguments.pos() - TryInto::<isize>::try_into("<".len()).unwrap();
+            let end = skip_trivia(
+                &source_file.as_source_file().text_as_chars(),
+                type_arguments.end(),
+                None,
+                None,
+                None,
+            ) + TryInto::<isize>::try_into(">".len()).unwrap();
+            return self.grammar_error_at_pos(
+                &source_file,
+                start,
+                end - start,
+                &Diagnostics::Type_argument_list_cannot_be_empty,
+                None,
+            );
+        }
+        false
     }
 
     pub(super) fn check_grammar_type_arguments(
@@ -337,32 +376,254 @@ impl TypeChecker {
         node: &Node,
         type_arguments: Option<&NodeArray /*<TypeNode>*/>,
     ) -> bool {
-        unimplemented!()
+        self.check_grammar_for_disallowed_trailing_comma(type_arguments, None)
+            || self.check_grammar_for_at_least_one_type_argument(node, type_arguments)
     }
 
     pub(super) fn check_grammar_tagged_template_chain(
         &self,
         node: &Node, /*TaggedTemplateExpression*/
     ) -> bool {
-        unimplemented!()
+        let node_as_tagged_template_expression = node.as_tagged_template_expression();
+        if node_as_tagged_template_expression
+            .question_dot_token
+            .is_some()
+            || node.flags().intersects(NodeFlags::OptionalChain)
+        {
+            return self.grammar_error_on_node(
+                &node_as_tagged_template_expression.template,
+                &Diagnostics::Tagged_template_expressions_are_not_permitted_in_an_optional_chain,
+                None,
+            );
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_for_omitted_argument(
+        &self,
+        args: Option<&NodeArray /*<Expression>*/>,
+    ) -> bool {
+        if let Some(args) = args {
+            for arg in args {
+                if arg.kind() == SyntaxKind::OmittedExpression {
+                    return self.grammar_error_at_pos(
+                        arg,
+                        arg.pos(),
+                        0,
+                        &Diagnostics::Argument_expression_expected,
+                        None,
+                    );
+                }
+            }
+        }
+        false
     }
 
     pub(super) fn check_grammar_arguments(
         &self,
         args: Option<&NodeArray /*<Expression>*/>,
     ) -> bool {
-        unimplemented!()
+        self.check_grammar_for_omitted_argument(args)
+    }
+
+    pub(super) fn check_grammar_heritage_clause(
+        &self,
+        node: &Node, /*HeritageClause*/
+    ) -> bool {
+        let node_as_heritage_clause = node.as_heritage_clause();
+        let types = &node_as_heritage_clause.types;
+        if self.check_grammar_for_disallowed_trailing_comma(Some(types), None) {
+            return true;
+        }
+        if
+        /*types &&*/
+        types.is_empty() {
+            let list_type = token_to_string(node_as_heritage_clause.token);
+            return self.grammar_error_at_pos(
+                node,
+                types.pos(),
+                0,
+                &Diagnostics::_0_list_cannot_be_empty,
+                Some(vec![list_type.unwrap().to_owned()]),
+            );
+        }
+        some(
+            Some(&**types),
+            Some(|type_: &Rc<Node>| self.check_grammar_expression_with_type_arguments(type_)),
+        )
+    }
+
+    pub(super) fn check_grammar_expression_with_type_arguments(
+        &self,
+        node: &Node, /*ExpressionWithTypeArguments*/
+    ) -> bool {
+        self.check_grammar_type_arguments(
+            node,
+            node.as_expression_with_type_arguments()
+                .type_arguments
+                .as_ref(),
+        )
+    }
+
+    pub(super) fn check_grammar_class_declaration_heritage_clauses(
+        &self,
+        node: &Node, /*ClassLikeDeclaration*/
+    ) -> bool {
+        let mut seen_extends_clause = false;
+        let mut seen_implements_clause = false;
+
+        if !self.check_grammar_decorators_and_modifiers(node) {
+            if let Some(node_heritage_clauses) =
+                node.as_class_like_declaration().maybe_heritage_clauses()
+            {
+                for heritage_clause in node_heritage_clauses {
+                    let heritage_clause_as_heritage_clause = heritage_clause.as_heritage_clause();
+                    if heritage_clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
+                        if seen_extends_clause {
+                            return self.grammar_error_on_first_token(
+                                heritage_clause,
+                                &Diagnostics::extends_clause_already_seen,
+                                None,
+                            );
+                        }
+
+                        if seen_implements_clause {
+                            return self.grammar_error_on_first_token(
+                                heritage_clause,
+                                &Diagnostics::extends_clause_must_precede_implements_clause,
+                                None,
+                            );
+                        }
+
+                        if heritage_clause_as_heritage_clause.types.len() > 1 {
+                            return self.grammar_error_on_first_token(
+                                &heritage_clause_as_heritage_clause.types[1],
+                                &Diagnostics::Classes_can_only_extend_a_single_class,
+                                None,
+                            );
+                        }
+
+                        seen_extends_clause = true;
+                    } else {
+                        Debug_.assert(
+                            heritage_clause_as_heritage_clause.token
+                                == SyntaxKind::ImplementsKeyword,
+                            None,
+                        );
+                        if seen_implements_clause {
+                            return self.grammar_error_on_first_token(
+                                heritage_clause,
+                                &Diagnostics::implements_clause_already_seen,
+                                None,
+                            );
+                        }
+
+                        seen_implements_clause = true;
+                    }
+
+                    self.check_grammar_heritage_clause(heritage_clause);
+                }
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_interface_declaration(
+        &self,
+        node: &Node, /*InterfaceDeclaration*/
+    ) -> bool {
+        let mut seen_extends_clause = false;
+
+        if let Some(node_heritage_clauses) =
+            node.as_interface_declaration().maybe_heritage_clauses()
+        {
+            for heritage_clause in node_heritage_clauses {
+                let heritage_clause_as_heritage_clause = heritage_clause.as_heritage_clause();
+                if heritage_clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
+                    if seen_extends_clause {
+                        return self.grammar_error_on_first_token(
+                            heritage_clause,
+                            &Diagnostics::extends_clause_already_seen,
+                            None,
+                        );
+                    }
+
+                    seen_extends_clause = true;
+                } else {
+                    Debug_.assert(
+                        heritage_clause_as_heritage_clause.token == SyntaxKind::ImplementsKeyword,
+                        None,
+                    );
+                    return self.grammar_error_on_first_token(
+                        heritage_clause,
+                        &Diagnostics::Interface_declaration_cannot_have_implements_clause,
+                        None,
+                    );
+                }
+
+                self.check_grammar_heritage_clause(heritage_clause);
+            }
+        }
+        false
     }
 
     pub(super) fn check_grammar_computed_property_name(&self, node: &Node) -> bool {
-        unimplemented!()
+        if node.kind() != SyntaxKind::ComputedPropertyName {
+            return false;
+        }
+
+        let computed_property_name = node.as_computed_property_name();
+        if computed_property_name.expression.kind() == SyntaxKind::BinaryExpression
+            && computed_property_name
+                .expression
+                .as_binary_expression()
+                .operator_token
+                .kind()
+                == SyntaxKind::CommaToken
+        {
+            return self.grammar_error_on_node(
+                &computed_property_name.expression,
+                &Diagnostics::A_comma_expression_is_not_allowed_in_a_computed_property_name,
+                None,
+            );
+        }
+        false
     }
 
     pub(super) fn check_grammar_for_generator(
         &self,
         node: &Node, /*FunctionLikeDeclaration*/
     ) -> bool {
-        unimplemented!()
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        if let Some(node_asterisk_token) = node_as_function_like_declaration
+            .maybe_asterisk_token()
+            .as_ref()
+        {
+            Debug_.assert(
+                matches!(
+                    node.kind(),
+                    SyntaxKind::FunctionDeclaration
+                        | SyntaxKind::FunctionExpression
+                        | SyntaxKind::MethodDeclaration
+                ),
+                None,
+            );
+            if node.flags().intersects(NodeFlags::Ambient) {
+                return self.grammar_error_on_node(
+                    node_asterisk_token,
+                    &Diagnostics::Generators_are_not_allowed_in_an_ambient_context,
+                    None,
+                );
+            }
+            if node_as_function_like_declaration.maybe_body().is_none() {
+                return self.grammar_error_on_node(
+                    node_asterisk_token,
+                    &Diagnostics::An_overload_signature_cannot_be_declared_as_a_generator,
+                    None,
+                );
+            }
+        }
+        false
     }
 
     pub(super) fn check_grammar_for_invalid_question_mark<TQuestionToken: Borrow<Node>>(
@@ -370,7 +631,11 @@ impl TypeChecker {
         question_token: Option<TQuestionToken /*QuestionToken*/>,
         message: &DiagnosticMessage,
     ) -> bool {
-        unimplemented!()
+        if let Some(question_token) = question_token {
+            self.grammar_error_on_node(question_token.borrow(), message, None)
+        } else {
+            false
+        }
     }
 
     pub(super) fn check_grammar_for_invalid_exclamation_token<TExclamationToken: Borrow<Node>>(
@@ -378,7 +643,11 @@ impl TypeChecker {
         exclamation_token: Option<TExclamationToken /*ExclamationToken*/>,
         message: &DiagnosticMessage,
     ) -> bool {
-        unimplemented!()
+        if let Some(exclamation_token) = exclamation_token {
+            self.grammar_error_on_node(exclamation_token.borrow(), message, None)
+        } else {
+            false
+        }
     }
 
     pub(super) fn check_grammar_object_literal_expression(
