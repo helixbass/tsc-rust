@@ -7,11 +7,13 @@ use std::rc::Rc;
 use super::{CheckMode, IterationTypeKind, IterationUse, MappedTypeModifiers, UnusedKind};
 use crate::{
     find_ancestor, for_each, for_each_child, get_class_extends_heritage_element,
-    get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
-    get_declaration_of_kind, get_effective_constraint_of_type_parameter, get_effective_initializer,
+    get_combined_modifier_flags, get_containing_function_or_class_static_block,
+    get_declaration_modifier_flags_from_symbol, get_declaration_of_kind,
+    get_effective_constraint_of_type_parameter, get_effective_initializer,
     get_effective_modifier_flags, get_emit_script_target, get_function_flags, get_object_flags,
-    has_syntactic_modifier, is_assignment_target, is_binding_element, is_function_or_module_block,
-    is_in_js_file, is_in_jsdoc, is_named_tuple_member,
+    has_effective_modifier, has_syntactic_modifier, is_assignment_target, is_binding_element,
+    is_function_or_module_block, is_global_scope_augmentation, is_in_js_file, is_in_jsdoc,
+    is_module_block, is_module_declaration, is_named_tuple_member,
     is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
     is_super_call, is_type_reference_type, map, maybe_for_each, node_is_missing, node_is_present,
     some, try_cast, unescape_leading_underscores, Diagnostic, DiagnosticMessage, Diagnostics,
@@ -740,8 +742,88 @@ impl TypeChecker {
         self.register_for_unused_identifiers_check(node);
     }
 
+    pub(super) fn check_template_literal_type(&self, node: &Node /*TemplateLiteralTypeNode*/) {
+        for span in &node.as_template_literal_type_node().template_spans {
+            let span_as_template_literal_type_span = span.as_template_literal_type_span();
+            self.check_source_element(Some(&*span_as_template_literal_type_span.type_));
+            let type_ = self.get_type_from_type_node_(&span_as_template_literal_type_span.type_);
+            self.check_type_assignable_to(
+                &type_,
+                &self.template_constraint_type(),
+                Some(&*span_as_template_literal_type_span.type_),
+                None,
+                None,
+                None,
+            );
+        }
+        self.get_type_from_type_node_(node);
+    }
+
+    pub(super) fn check_import_type(&self, node: &Node /*ImportTypeNode*/) {
+        self.check_source_element(Some(&*node.as_import_type_node().argument));
+        self.get_type_from_type_node_(node);
+    }
+
+    pub(super) fn check_named_tuple_member(&self, node: &Node /*NamedTupleMember*/) {
+        let node_as_named_tuple_member = node.as_named_tuple_member();
+        if node_as_named_tuple_member.dot_dot_dot_token.is_some()
+            && node_as_named_tuple_member.question_token.is_some()
+        {
+            self.grammar_error_on_node(
+                node,
+                &Diagnostics::A_tuple_member_cannot_be_both_optional_and_rest,
+                None,
+            );
+        }
+        if node_as_named_tuple_member.type_.kind() == SyntaxKind::OptionalType {
+            self.grammar_error_on_node(
+                &node_as_named_tuple_member.type_,
+                &Diagnostics::A_labeled_tuple_element_is_declared_as_optional_with_a_question_mark_after_the_name_and_before_the_colon_rather_than_after_the_type,
+                None,
+            );
+        }
+        if node_as_named_tuple_member.type_.kind() == SyntaxKind::RestType {
+            self.grammar_error_on_node(
+                &node_as_named_tuple_member.type_,
+                &Diagnostics::A_labeled_tuple_element_is_declared_as_rest_with_a_before_the_name_rather_than_before_the_type,
+                None,
+            );
+        }
+        self.check_source_element(Some(&*node_as_named_tuple_member.type_));
+        self.get_type_from_type_node_(node);
+    }
+
     pub(super) fn is_private_within_ambient(&self, node: &Node) -> bool {
-        unimplemented!()
+        (has_effective_modifier(node, ModifierFlags::Private)
+            || is_private_identifier_class_element_declaration(node))
+            && node.flags().intersects(NodeFlags::Ambient)
+    }
+
+    pub(super) fn get_effective_declaration_flags(
+        &self,
+        n: &Node, /*Declaration*/
+        flags_to_check: ModifierFlags,
+    ) -> ModifierFlags {
+        let mut flags = get_combined_modifier_flags(n);
+
+        if !matches!(
+            n.parent().kind(),
+            SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+        ) && n.flags().intersects(NodeFlags::Ambient)
+        {
+            if !flags.intersects(ModifierFlags::Ambient)
+                && !(is_module_block(&n.parent())
+                    && is_module_declaration(&n.parent().parent())
+                    && is_global_scope_augmentation(&n.parent().parent()))
+            {
+                flags |= ModifierFlags::Export;
+            }
+            flags |= ModifierFlags::Ambient;
+        }
+
+        flags & flags_to_check
     }
 
     pub(super) fn check_function_or_constructor_symbol(&self, symbol: &Symbol) {
