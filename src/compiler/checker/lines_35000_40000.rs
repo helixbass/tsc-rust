@@ -4,28 +4,17 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, MappedTypeModifiers, UnusedKind};
+use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    add_related_info, are_option_rcs_equal, create_diagnostic_for_node, declaration_name_to_string,
-    filter, find_ancestor, for_each, for_each_child, for_each_child_returns,
-    get_class_extends_heritage_element, get_combined_modifier_flags,
-    get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
-    get_declaration_of_kind, get_effective_constraint_of_type_parameter, get_effective_initializer,
-    get_effective_modifier_flags, get_emit_script_target,
-    get_escaped_text_of_identifier_or_literal, get_function_flags, get_name_of_declaration,
-    get_object_flags, has_effective_modifier, has_question_token, has_syntactic_modifier,
-    is_assignment_target, is_binding_element, is_computed_property_name,
-    is_function_or_module_block, is_global_scope_augmentation, is_in_js_file, is_in_jsdoc,
-    is_module_block, is_module_declaration, is_named_tuple_member, is_private_identifier,
-    is_private_identifier_class_element_declaration, is_prologue_directive,
-    is_property_name_literal, is_static, is_super_call, is_type_reference_type, map,
-    maybe_for_each, node_is_missing, node_is_present, some, symbol_name, try_cast,
-    unescape_leading_underscores, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
-    Diagnostics, ElementFlags, FunctionFlags, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
-    ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
-    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    declaration_name_to_string, for_each, for_each_child_returns,
+    get_containing_function_or_class_static_block, get_effective_initializer,
+    get_escaped_text_of_identifier_or_literal, get_function_flags, has_syntactic_modifier,
+    is_binding_element, is_computed_property_name, is_function_or_module_block,
+    is_private_identifier, is_property_name_literal, is_static, node_is_missing, node_is_present,
+    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
+    IterationTypes, IterationTypesResolver, ModifierFlags, Node, NodeArray, NodeInterface,
+    ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
