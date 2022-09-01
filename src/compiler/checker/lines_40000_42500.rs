@@ -2,17 +2,19 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    has_syntactic_modifier, is_ambient_module, is_binding_pattern, is_class_like,
-    is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
-    modifier_to_flag, token_to_string, Diagnostics, ExternalEmitHelpers, ModifierFlags,
-    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, SyntaxKind, __String, bind_source_file,
-    for_each, is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
-    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
-    Type, TypeChecker,
+    get_all_accessor_declarations, has_syntactic_modifier, is_ambient_module, is_binding_pattern,
+    is_class_like, is_named_declaration, is_private_identifier_class_element_declaration,
+    is_property_declaration, modifier_to_flag, node_can_be_decorated, node_is_present,
+    token_to_string, ClassLikeDeclarationInterface, Diagnostics, ExternalEmitHelpers,
+    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
+    NodeFlags, SyntaxKind, __String, bind_source_file, for_each, is_external_or_common_js_module,
+    CancellationTokenDebuggable, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
+    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -306,6 +308,59 @@ impl TypeChecker {
     }
 
     pub(super) fn check_grammar_decorators_and_modifiers(&self, node: &Node) -> bool {
+        self.check_grammar_decorators(node) || self.check_grammar_modifiers(node)
+    }
+
+    pub(super) fn check_grammar_decorators(&self, node: &Node) -> bool {
+        let node_decorators = node.maybe_decorators();
+        if node_decorators.is_none() {
+            return false;
+        }
+        let node_decorators = node_decorators.as_ref().unwrap();
+        if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent()) {
+            if node.kind() == SyntaxKind::MethodDeclaration
+                && !node_is_present(node.as_method_declaration().maybe_body())
+            {
+                return self.grammar_error_on_first_token(
+                    node,
+                    &Diagnostics::A_decorator_can_only_decorate_a_method_implementation_not_an_overload,
+                    None,
+                );
+            } else {
+                return self.grammar_error_on_first_token(
+                    node,
+                    &Diagnostics::Decorators_are_not_valid_here,
+                    None,
+                );
+            }
+        } else if matches!(
+            node.kind(),
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+        ) {
+            let accessors = get_all_accessor_declarations(
+                node.parent().as_class_like_declaration().members(),
+                node,
+            );
+            if accessors.first_accessor.maybe_decorators().is_some()
+                && matches!(
+                    accessors.second_accessor.as_ref(),
+                    Some(accessors_second_accessor) if ptr::eq(
+                        node,
+                        &**accessors_second_accessor
+                    )
+                )
+            {
+                return self.grammar_error_on_first_token(
+                    node,
+                    &Diagnostics::Decorators_cannot_be_applied_to_multiple_get_Slashset_accessors_of_the_same_name,
+                    None,
+                );
+            }
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_modifiers(&self, node: &Node) -> bool {
         let quick_result = self.report_obvious_modifier_errors(node);
         if let Some(quick_result) = quick_result {
             return quick_result;
