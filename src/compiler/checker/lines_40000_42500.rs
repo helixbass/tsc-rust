@@ -9,16 +9,17 @@ use std::rc::Rc;
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
     add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
-    external_helpers_module_name_text, get_all_accessor_declarations, get_source_file_of_node,
-    has_syntactic_modifier, is_ambient_module, is_binding_pattern, is_class_like,
-    is_effective_external_module, is_global_scope_augmentation, is_named_declaration,
-    is_private_identifier_class_element_declaration, is_property_declaration, modifier_to_flag,
-    node_can_be_decorated, node_is_present, some, token_to_string, Debug_, Diagnostics,
-    ExternalEmitHelpers, FunctionLikeDeclarationInterface, ModifierFlags,
-    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, ObjectFlags, Signature, SymbolInterface,
-    SyntaxKind, __String, bind_source_file, for_each, is_external_or_common_js_module,
-    CancellationTokenDebuggable, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
-    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    external_helpers_module_name_text, get_all_accessor_declarations, get_declaration_of_kind,
+    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
+    is_binding_pattern, is_class_like, is_effective_external_module, is_global_scope_augmentation,
+    is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
+    is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_present, some,
+    token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
+    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
+    NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String, bind_source_file,
+    for_each, is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
+    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
+    Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -279,6 +280,27 @@ impl TypeChecker {
 
     pub(super) fn create_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
         Rc::new(EmitResolverCreateResolver::new())
+    }
+
+    pub(super) fn get_external_module_file_from_declaration(
+        &self,
+        declaration: &Node, /*AnyImportOrReExport | ModuleDeclaration | ImportTypeNode | ImportCall*/
+    ) -> Option<Rc<Node /*SourceFile*/>> {
+        let specifier = if declaration.kind() == SyntaxKind::ModuleDeclaration {
+            try_cast(
+                declaration.as_module_declaration().name(),
+                |node: &Rc<Node>| is_string_literal(node),
+            )
+        } else {
+            get_external_module_name(declaration)
+        };
+        let module_symbol = self.resolve_external_module_name_worker(
+            specifier.as_ref().unwrap(),
+            specifier.as_ref().unwrap(),
+            None,
+            None,
+        )?;
+        get_declaration_of_kind(&module_symbol, SyntaxKind::SourceFile)
     }
 
     pub(super) fn initialize_type_checker(&mut self) {
