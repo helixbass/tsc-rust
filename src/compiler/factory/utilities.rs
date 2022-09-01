@@ -26,6 +26,12 @@ fn is_use_strict_prologue(node: &Node /*ExpressionStatement*/) -> bool {
             == "use strict"
 }
 
+pub fn find_use_strict_prologue(
+    statements: &[Rc<Node /*Statement*/>],
+) -> Option<Rc<Node /*Statement*/>> {
+    unimplemented!()
+}
+
 pub fn starts_with_use_strict(statements: &[Rc<Node>]) -> bool {
     let first_statement = first_or_undefined(statements);
     if first_statement.is_none() {

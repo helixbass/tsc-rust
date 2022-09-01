@@ -8,15 +8,20 @@ use std::rc::Rc;
 
 use super::{DeclarationMeaning, EmitResolverCreateResolver, UnusedKind};
 use crate::{
+    add_related_info, create_diagnostic_for_node, file_extension_is_one_of, filter,
+    find_use_strict_prologue, get_line_and_character_of_position,
     get_property_name_for_property_name_node, get_source_file_of_node, get_text_of_node,
-    has_effective_modifiers, is_array_literal_expression, is_object_literal_expression,
-    skip_parentheses, skip_trivia, some, token_to_string, Debug_, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, HasInitializerInterface, HasTypeInterface,
-    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, NodeArray, NodeCheckFlags,
-    NodeFlags, ReadonlyTextRange, SourceFileLike, SyntaxKind, TypeFlags, TypeInterface, __String,
-    bind_source_file, for_each, is_external_or_common_js_module, CancellationTokenDebuggable,
-    Diagnostic, EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol,
-    SymbolFlags, Type, TypeChecker,
+    has_effective_modifiers, is_array_literal_expression, is_arrow_function, is_binding_pattern,
+    is_block, is_function_like_declaration, is_object_literal_expression, is_rest_parameter,
+    length, skip_parentheses, skip_trivia, some, token_to_string, Debug_, DiagnosticMessage,
+    DiagnosticRelatedInformation, Diagnostics, Extension, ExternalEmitHelpers,
+    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
+    InterfaceOrClassLikeDeclarationInterface, LineAndCharacter, NamedDeclarationInterface,
+    NodeArray, NodeCheckFlags, NodeFlags, ReadonlyTextRange, ScriptTarget, SourceFileLike,
+    SyntaxKind, TypeFlags, TypeInterface, __String, bind_source_file, for_each,
+    is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
+    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
+    Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -313,20 +318,384 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn report_obvious_modifier_errors(&self, node: &Node) -> Option<bool> {
+        if node.maybe_modifiers().is_none() {
+            Some(false)
+        } else if self.should_report_bad_modifier(node) {
+            Some(self.grammar_error_on_first_token(
+                node,
+                &Diagnostics::Modifiers_cannot_appear_here,
+                None,
+            ))
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn should_report_bad_modifier(&self, node: &Node) -> bool {
+        match node.kind() {
+            SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::Constructor
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::Parameter => false,
+            _ => {
+                if matches!(
+                    node.parent().kind(),
+                    SyntaxKind::ModuleBlock | SyntaxKind::SourceFile
+                ) {
+                    return false;
+                }
+                match node.kind() {
+                    SyntaxKind::FunctionDeclaration => {
+                        self.node_has_any_modifiers_except(node, SyntaxKind::AsyncKeyword)
+                    }
+                    SyntaxKind::ClassDeclaration | SyntaxKind::ConstructorType => {
+                        self.node_has_any_modifiers_except(node, SyntaxKind::AbstractKeyword)
+                    }
+                    SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::VariableStatement
+                    | SyntaxKind::TypeAliasDeclaration
+                    | SyntaxKind::ClassStaticBlockDeclaration => true,
+                    SyntaxKind::EnumDeclaration => {
+                        self.node_has_any_modifiers_except(node, SyntaxKind::ConstKeyword)
+                    }
+                    _ => Debug_.fail(None),
+                }
+            }
+        }
+    }
+
+    pub(super) fn node_has_any_modifiers_except(
+        &self,
+        node: &Node,
+        allowed_modifier: SyntaxKind,
+    ) -> bool {
+        let node_modifiers = node.maybe_modifiers();
+        let node_modifiers = node_modifiers.as_ref().unwrap();
+        node_modifiers.len() > 1 || node_modifiers[0].kind() != allowed_modifier
+    }
+
+    pub(super) fn check_grammar_async_modifier(&self, node: &Node, async_modifier: &Node) -> bool {
+        if matches!(
+            node.kind(),
+            SyntaxKind::MethodDeclaration
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+        ) {
+            return false;
+        }
+
+        self.grammar_error_on_node(
+            async_modifier,
+            &Diagnostics::_0_modifier_cannot_be_used_here,
+            Some(vec!["async".to_owned()]),
+        )
+    }
+
     pub(super) fn check_grammar_for_disallowed_trailing_comma(
         &self,
         list: Option<&NodeArray>,
         diag: Option<&'static DiagnosticMessage>,
     ) -> bool {
         let diag = diag.unwrap_or(&Diagnostics::Trailing_comma_not_allowed);
-        unimplemented!()
+        if let Some(list) = list.filter(|list| list.has_trailing_comma) {
+            return self.grammar_error_at_pos(
+                &list[0],
+                list.end() - TryInto::<isize>::try_into(",".len()).unwrap(),
+                TryInto::<isize>::try_into(",".len()).unwrap(),
+                diag,
+                None,
+            );
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_type_parameter_list(
+        &self,
+        type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
+        file: &Node, /*SourceFile*/
+    ) -> bool {
+        if let Some(type_parameters) =
+            type_parameters.filter(|type_parameters| type_parameters.is_empty())
+        {
+            let start = type_parameters.pos() - TryInto::<isize>::try_into("<".len()).unwrap();
+            let end = skip_trivia(
+                &file.as_source_file().text_as_chars(),
+                type_parameters.end(),
+                None,
+                None,
+                None,
+            ) + TryInto::<isize>::try_into(">".len()).unwrap();
+            return self.grammar_error_at_pos(
+                file,
+                start,
+                end - start,
+                &Diagnostics::Type_parameter_list_cannot_be_empty,
+                None,
+            );
+        }
+        false
+    }
+
+    pub(super) fn check_grammar_parameter_list(
+        &self,
+        parameters: &NodeArray, /*<ParameterDeclaration>*/
+    ) -> bool {
+        let mut seen_optional_parameter = false;
+        let parameter_count = parameters.len();
+
+        for i in 0..parameter_count {
+            let parameter = &parameters[i];
+            let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+            if let Some(parameter_dot_dot_dot_token) = parameter_as_parameter_declaration
+                .dot_dot_dot_token
+                .as_ref()
+            {
+                if i != parameter_count - 1 {
+                    return self.grammar_error_on_node(
+                        parameter_dot_dot_dot_token,
+                        &Diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
+                        None,
+                    );
+                }
+                if !parameter.flags().intersects(NodeFlags::Ambient) {
+                    self.check_grammar_for_disallowed_trailing_comma(
+                        Some(parameters),
+                        Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
+                    );
+                }
+
+                if let Some(parameter_question_token) =
+                    parameter_as_parameter_declaration.question_token.as_ref()
+                {
+                    return self.grammar_error_on_node(
+                        parameter_question_token,
+                        &Diagnostics::A_rest_parameter_cannot_be_optional,
+                        None,
+                    );
+                }
+
+                if parameter_as_parameter_declaration
+                    .maybe_initializer()
+                    .is_some()
+                {
+                    return self.grammar_error_on_node(
+                        &parameter_as_parameter_declaration.name(),
+                        &Diagnostics::A_rest_parameter_cannot_have_an_initializer,
+                        None,
+                    );
+                }
+            } else if self.is_optional_parameter_(parameter) {
+                seen_optional_parameter = true;
+                if parameter_as_parameter_declaration.question_token.is_some()
+                    && parameter_as_parameter_declaration
+                        .maybe_initializer()
+                        .is_some()
+                {
+                    return self.grammar_error_on_node(
+                        &parameter_as_parameter_declaration.name(),
+                        &Diagnostics::Parameter_cannot_have_question_mark_and_initializer,
+                        None,
+                    );
+                }
+            } else if seen_optional_parameter
+                && parameter_as_parameter_declaration
+                    .maybe_initializer()
+                    .is_none()
+            {
+                return self.grammar_error_on_node(
+                    &parameter_as_parameter_declaration.name(),
+                    &Diagnostics::A_required_parameter_cannot_follow_an_optional_parameter,
+                    None,
+                );
+            }
+        }
+        false
+    }
+
+    pub(super) fn get_non_simple_parameters(
+        &self,
+        parameters: &[Rc<Node /*ParameterDeclaration*/>],
+    ) -> Vec<Rc<Node /*ParameterDeclaration*/>> {
+        filter(parameters, |parameter: &Rc<Node>| {
+            let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+            parameter_as_parameter_declaration
+                .maybe_initializer()
+                .is_some()
+                || is_binding_pattern(parameter_as_parameter_declaration.maybe_name())
+                || is_rest_parameter(parameter)
+        })
+    }
+
+    pub(super) fn check_grammar_for_use_strict_simple_parameter_list(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration*/
+    ) -> bool {
+        if self.language_version >= ScriptTarget::ES2016 {
+            let node_as_function_like_declaration = node.as_function_like_declaration();
+            let use_strict_directive = node_as_function_like_declaration
+                .maybe_body()
+                .as_ref()
+                .filter(|node_body| is_block(node_body))
+                .and_then(|node_body| find_use_strict_prologue(&node_body.as_block().statements));
+            if let Some(use_strict_directive) = use_strict_directive.as_ref() {
+                let non_simple_parameters =
+                    self.get_non_simple_parameters(node_as_function_like_declaration.parameters());
+                if length(Some(&*non_simple_parameters)) > 0 {
+                    for_each(
+                        &non_simple_parameters,
+                        |parameter: &Rc<Node>, _| -> Option<()> {
+                            add_related_info(
+                                &self.error(
+                                    Some(&**parameter),
+                                    &Diagnostics::This_parameter_is_not_allowed_with_use_strict_directive,
+                                    None,
+                                ),
+                                vec![
+                                    Rc::new(
+                                        create_diagnostic_for_node(
+                                            use_strict_directive,
+                                            &Diagnostics::use_strict_directive_used_here,
+                                            None,
+                                        ).into()
+                                    )
+                                ]
+                            );
+                            None
+                        },
+                    );
+
+                    let diagnostics: Vec<Rc<DiagnosticRelatedInformation>> = non_simple_parameters
+                        .iter()
+                        .enumerate()
+                        .map(|(index, parameter)| {
+                            Rc::new(if index == 0 {
+                                create_diagnostic_for_node(
+                                    parameter,
+                                    &Diagnostics::Non_simple_parameter_declared_here,
+                                    None,
+                                )
+                                .into()
+                            } else {
+                                create_diagnostic_for_node(parameter, &Diagnostics::and_here, None)
+                                    .into()
+                            })
+                        })
+                        .collect();
+                    add_related_info(
+                        &self.error(
+                            Some(&**use_strict_directive),
+                            &Diagnostics::use_strict_directive_cannot_be_used_with_non_simple_parameter_list,
+                            None,
+                        ),
+                        diagnostics
+                    );
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     pub(super) fn check_grammar_function_like_declaration(
         &self,
         node: &Node, /*FunctionLikeDeclaration | MethodSignature*/
     ) -> bool {
-        unimplemented!()
+        let file = get_source_file_of_node(Some(node)).unwrap();
+        let node_as_signature_declaration = node.as_signature_declaration();
+        self.check_grammar_decorators_and_modifiers(node)
+            || self.check_grammar_type_parameter_list(
+                node_as_signature_declaration
+                    .maybe_type_parameters()
+                    .as_ref(),
+                &file,
+            )
+            || self.check_grammar_parameter_list(node_as_signature_declaration.parameters())
+            || self.check_grammar_arrow_function(node, &file)
+            || is_function_like_declaration(node)
+                && self.check_grammar_for_use_strict_simple_parameter_list(node)
+    }
+
+    pub(super) fn check_grammar_class_like_declaration(
+        &self,
+        node: &Node, /*ClassLikeDeclaration*/
+    ) -> bool {
+        let file = get_source_file_of_node(Some(node)).unwrap();
+        self.check_grammar_class_declaration_heritage_clauses(node)
+            || self.check_grammar_type_parameter_list(
+                node.as_has_type_parameters()
+                    .maybe_type_parameters()
+                    .as_ref(),
+                &file,
+            )
+    }
+
+    pub(super) fn check_grammar_arrow_function(
+        &self,
+        node: &Node,
+        file: &Node, /*SourceFile*/
+    ) -> bool {
+        if !is_arrow_function(node) {
+            return false;
+        }
+        let node_as_arrow_function = node.as_arrow_function();
+
+        if let Some(node_type_parameters) = node_as_arrow_function
+            .maybe_type_parameters()
+            .as_ref()
+            .filter(|node_type_parameters| {
+                !(node_type_parameters.len() > 1
+                    || node_type_parameters.has_trailing_comma
+                    || node_type_parameters[0]
+                        .as_type_parameter_declaration()
+                        .constraint
+                        .is_some())
+            })
+        {
+            if
+            /*file &&*/
+            file_extension_is_one_of(
+                &file.as_source_file().file_name(),
+                &[Extension::Mts.to_str(), Extension::Cts.to_str()],
+            ) {
+                self.grammar_error_on_node(
+                    &node_type_parameters[0],
+                    &Diagnostics::This_syntax_is_reserved_in_files_with_the_mts_or_cts_extension_Add_a_trailing_comma_or_explicit_constraint,
+                    None,
+                );
+            }
+        }
+
+        let equals_greater_than_token = &node_as_arrow_function.equals_greater_than_token;
+        let LineAndCharacter {
+            line: start_line, ..
+        } = get_line_and_character_of_position(
+            file.as_source_file(),
+            equals_greater_than_token.pos().try_into().unwrap(),
+        );
+        let LineAndCharacter { line: end_line, .. } = get_line_and_character_of_position(
+            file.as_source_file(),
+            equals_greater_than_token.end().try_into().unwrap(),
+        );
+        start_line != end_line
+            && self.grammar_error_on_node(
+                equals_greater_than_token,
+                &Diagnostics::Line_terminator_not_permitted_before_arrow,
+                None,
+            )
     }
 
     pub(super) fn check_grammar_index_signature_parameters(

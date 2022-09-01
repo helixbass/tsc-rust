@@ -135,10 +135,11 @@ pub use compiler::factory::parenthesizer_rules::{
 };
 use compiler::factory::utilities::get_jsdoc_type_alias_name;
 pub use compiler::factory::utilities::{
-    create_binary_expression_trampoline, get_elements_of_binding_or_assignment_pattern,
-    get_jsdoc_type_assertion_type, get_target_of_binding_or_assignment_element, is_comma_sequence,
-    is_jsdoc_type_assertion, is_local_name, is_outer_expression, skip_outer_expressions,
-    starts_with_use_strict, BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
+    create_binary_expression_trampoline, find_use_strict_prologue,
+    get_elements_of_binding_or_assignment_pattern, get_jsdoc_type_assertion_type,
+    get_target_of_binding_or_assignment_element, is_comma_sequence, is_jsdoc_type_assertion,
+    is_local_name, is_outer_expression, skip_outer_expressions, starts_with_use_strict,
+    BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
 };
 pub use compiler::factory::utilities_public::set_text_range;
 use compiler::module_name_resolver::{
