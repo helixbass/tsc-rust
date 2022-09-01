@@ -7,12 +7,14 @@ use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    get_all_accessor_declarations, has_syntactic_modifier, is_ambient_module, is_binding_pattern,
-    is_class_like, is_named_declaration, is_private_identifier_class_element_declaration,
-    is_property_declaration, modifier_to_flag, node_can_be_decorated, node_is_present,
-    token_to_string, ClassLikeDeclarationInterface, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
-    NodeFlags, SyntaxKind, __String, bind_source_file, for_each, is_external_or_common_js_module,
+    escape_leading_underscores, external_helpers_module_name_text, get_all_accessor_declarations,
+    get_source_file_of_node, has_syntactic_modifier, is_ambient_module, is_binding_pattern,
+    is_class_like, is_effective_external_module, is_named_declaration,
+    is_private_identifier_class_element_declaration, is_property_declaration, modifier_to_flag,
+    node_can_be_decorated, node_is_present, some, token_to_string, Debug_, Diagnostics,
+    ExternalEmitHelpers, FunctionLikeDeclarationInterface, ModifierFlags,
+    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, Signature, SymbolInterface, SyntaxKind,
+    __String, bind_source_file, for_each, is_external_or_common_js_module,
     CancellationTokenDebuggable, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
     NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
@@ -304,7 +306,153 @@ impl TypeChecker {
         location: &Node,
         helpers: ExternalEmitHelpers,
     ) {
-        unimplemented!()
+        if self.requested_external_emit_helpers() & helpers != helpers
+            && self.compiler_options.import_helpers == Some(true)
+        {
+            let source_file = get_source_file_of_node(Some(location)).unwrap();
+            if is_effective_external_module(&source_file, &self.compiler_options)
+                && !location.flags().intersects(NodeFlags::Ambient)
+            {
+                let helpers_module = self.resolve_helpers_module(&source_file, location);
+                if !Rc::ptr_eq(&helpers_module, &self.unknown_symbol()) {
+                    let unchecked_helpers = helpers & !self.requested_external_emit_helpers();
+                    let mut helper = ExternalEmitHelpers::FirstEmitHelper;
+                    while helper <= ExternalEmitHelpers::LastEmitHelper {
+                        if unchecked_helpers.intersects(helper) {
+                            let name = self.get_helper_name(helper);
+                            let symbol = self.get_symbol(
+                                &(*helpers_module.maybe_exports().clone().unwrap()).borrow(),
+                                &escape_leading_underscores(name),
+                                SymbolFlags::Value,
+                            );
+                            match symbol.as_ref() {
+                                None => {
+                                    self.error(
+                                        Some(location),
+                                        &Diagnostics::This_syntax_requires_an_imported_helper_named_1_which_does_not_exist_in_0_Consider_upgrading_your_version_of_0,
+                                        Some(vec![
+                                            external_helpers_module_name_text.to_owned(),
+                                            name.to_owned(),
+                                        ])
+                                    );
+                                }
+                                Some(symbol) => {
+                                    if helper.intersects(ExternalEmitHelpers::ClassPrivateFieldGet)
+                                    {
+                                        if !some(
+                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
+                                            Some(|signature: &Rc<Signature>| {
+                                                self.get_parameter_count(signature) > 3
+                                            }),
+                                        ) {
+                                            self.error(
+                                                Some(location),
+                                                &Diagnostics::This_syntax_requires_an_imported_helper_named_1_with_2_parameters_which_is_not_compatible_with_the_one_in_0_Consider_upgrading_your_version_of_0,
+                                                Some(vec![
+                                                    external_helpers_module_name_text.to_owned(),
+                                                    name.to_owned(),
+                                                    4_usize.to_string(),
+                                                ])
+                                            );
+                                        }
+                                    } else if helper
+                                        .intersects(ExternalEmitHelpers::ClassPrivateFieldSet)
+                                    {
+                                        if !some(
+                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
+                                            Some(|signature: &Rc<Signature>| {
+                                                self.get_parameter_count(signature) > 4
+                                            }),
+                                        ) {
+                                            self.error(
+                                                Some(location),
+                                                &Diagnostics::This_syntax_requires_an_imported_helper_named_1_with_2_parameters_which_is_not_compatible_with_the_one_in_0_Consider_upgrading_your_version_of_0,
+                                                Some(vec![
+                                                    external_helpers_module_name_text.to_owned(),
+                                                    name.to_owned(),
+                                                    5_usize.to_string(),
+                                                ])
+                                            );
+                                        }
+                                    } else if helper.intersects(ExternalEmitHelpers::SpreadArray) {
+                                        if !some(
+                                            Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
+                                            Some(|signature: &Rc<Signature>| {
+                                                self.get_parameter_count(signature) > 2
+                                            }),
+                                        ) {
+                                            self.error(
+                                                Some(location),
+                                                &Diagnostics::This_syntax_requires_an_imported_helper_named_1_with_2_parameters_which_is_not_compatible_with_the_one_in_0_Consider_upgrading_your_version_of_0,
+                                                Some(vec![
+                                                    external_helpers_module_name_text.to_owned(),
+                                                    name.to_owned(),
+                                                    3_usize.to_string(),
+                                                ])
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // helper <<= 1;
+                        helper = ExternalEmitHelpers::from_bits(helper.bits() << 1).unwrap();
+                    }
+                }
+                self.set_requested_external_emit_helpers(
+                    self.requested_external_emit_helpers() | helpers,
+                );
+            }
+        }
+    }
+
+    pub(super) fn get_helper_name(&self, helper: ExternalEmitHelpers) -> &'static str {
+        match helper {
+            ExternalEmitHelpers::Extends => "__extends",
+            ExternalEmitHelpers::Assign => "__assign",
+            ExternalEmitHelpers::Rest => "__rest",
+            ExternalEmitHelpers::Decorate => "__decorate",
+            ExternalEmitHelpers::Metadata => "__metadata",
+            ExternalEmitHelpers::Param => "__param",
+            ExternalEmitHelpers::Awaiter => "__awaiter",
+            ExternalEmitHelpers::Generator => "__generator",
+            ExternalEmitHelpers::Values => "__values",
+            ExternalEmitHelpers::Read => "__read",
+            ExternalEmitHelpers::SpreadArray => "__spreadArray",
+            ExternalEmitHelpers::Await => "__await",
+            ExternalEmitHelpers::AsyncGenerator => "__asyncGenerator",
+            ExternalEmitHelpers::AsyncDelegator => "__asyncDelegator",
+            ExternalEmitHelpers::AsyncValues => "__asyncValues",
+            ExternalEmitHelpers::ExportStar => "__exportStar",
+            ExternalEmitHelpers::ImportStar => "__importStar",
+            ExternalEmitHelpers::ImportDefault => "__importDefault",
+            ExternalEmitHelpers::MakeTemplateObject => "__makeTemplateObject",
+            ExternalEmitHelpers::ClassPrivateFieldGet => "__classPrivateFieldGet",
+            ExternalEmitHelpers::ClassPrivateFieldSet => "__classPrivateFieldSet",
+            ExternalEmitHelpers::ClassPrivateFieldIn => "__classPrivateFieldIn",
+            ExternalEmitHelpers::CreateBinding => "__createBinding",
+            _ => Debug_.fail(Some("Unrecognized helper")),
+        }
+    }
+
+    pub(super) fn resolve_helpers_module(
+        &self,
+        node: &Node, /*SourceFile*/
+        error_node: &Node,
+    ) -> Rc<Symbol> {
+        let mut external_helpers_module = self.maybe_external_helpers_module();
+        if external_helpers_module.is_none() {
+            *external_helpers_module = Some(
+                self.resolve_external_module(
+                    node,
+                    external_helpers_module_name_text,
+                    Some(&Diagnostics::This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found),
+                    error_node,
+                    None,
+                ).unwrap_or_else(|| self.unknown_symbol())
+            );
+        }
+        external_helpers_module.clone().unwrap()
     }
 
     pub(super) fn check_grammar_decorators_and_modifiers(&self, node: &Node) -> bool {

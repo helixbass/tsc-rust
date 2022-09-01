@@ -19,20 +19,21 @@ use crate::{
     BaseInterfaceType, CancellationTokenDebuggable, CheckBinaryExpression, CheckFlags,
     ContextFlags, Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, EmitTextWriter,
-    Extension, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo,
-    IndexKind, InternalSymbolName, IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray,
-    NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, PatternAmbientModule, PseudoBigInt, RelationComparisonResult,
-    Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
-    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId,
-    TypeInterface, TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags, __String,
-    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
-    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
-    get_module_instance_state, get_parse_tree_node, get_strict_option_value,
-    get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
-    is_export_specifier, is_expression, is_identifier, is_jsx_attribute_like,
-    is_object_literal_element_like, is_parameter, is_type_node, object_allocator, sum,
+    Extension, ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType,
+    GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, IterationTypes, JsxEmit,
+    ModuleInstanceState, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId,
+    NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, PatternAmbientModule,
+    PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags, SignatureKind,
+    StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
+    SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapperCallback, TypePredicate,
+    TypePredicateKind, VarianceFlags, __String, create_diagnostic_collection, create_symbol_table,
+    escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
+    get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
+    get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
+    is_call_like_expression, is_export_specifier, is_expression, is_identifier,
+    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node,
+    object_allocator, sum,
 };
 
 lazy_static! {
@@ -1492,6 +1493,22 @@ impl TypeChecker {
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) {
         *self.cancellation_token.borrow_mut() = cancellation_token;
+    }
+
+    pub(super) fn requested_external_emit_helpers(&self) -> ExternalEmitHelpers {
+        self.requested_external_emit_helpers.get().unwrap()
+    }
+
+    pub(super) fn set_requested_external_emit_helpers(
+        &self,
+        requested_external_emit_helpers: ExternalEmitHelpers,
+    ) {
+        self.requested_external_emit_helpers
+            .set(Some(requested_external_emit_helpers));
+    }
+
+    pub(super) fn maybe_external_helpers_module(&self) -> RefMut<Option<Rc<Symbol>>> {
+        self.external_helpers_module.borrow_mut()
     }
 
     pub(super) fn type_count(&self) -> u32 {
