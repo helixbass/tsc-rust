@@ -2893,7 +2893,7 @@ impl TypeChecker {
 
     pub(super) fn maybe_pattern_ambient_modules(
         &self,
-    ) -> RefMut<Option<Vec<PatternAmbientModule>>> {
+    ) -> RefMut<Option<Vec<Rc<PatternAmbientModule>>>> {
         self.pattern_ambient_modules.borrow_mut()
     }
 
@@ -3267,6 +3267,12 @@ impl TypeChecker {
 
     pub(super) fn enum_relation(&self) -> RefMut<HashMap<String, RelationComparisonResult>> {
         self.enum_relation.borrow_mut()
+    }
+
+    pub(super) fn builtin_globals(&self) -> Ref<SymbolTable> {
+        Ref::map(self.builtin_globals.borrow(), |builtin_globals| {
+            builtin_globals.as_ref().unwrap()
+        })
     }
 }
 

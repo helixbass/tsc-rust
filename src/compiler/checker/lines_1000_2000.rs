@@ -926,7 +926,9 @@ impl TypeChecker {
             if main_module.flags().intersects(SymbolFlags::Namespace) {
                 if some(
                     self.maybe_pattern_ambient_modules().as_deref(),
-                    Some(|module: &PatternAmbientModule| Rc::ptr_eq(&main_module, &module.symbol)),
+                    Some(|module: &Rc<PatternAmbientModule>| {
+                        Rc::ptr_eq(&main_module, &module.symbol)
+                    }),
                 ) {
                     let merged =
                         self.merge_symbol(&module_augmentation.symbol(), &main_module, Some(true));

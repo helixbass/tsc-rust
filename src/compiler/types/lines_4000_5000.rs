@@ -276,7 +276,7 @@ pub struct TypeChecker {
     pub(crate) in_infer_type_for_homomorphic_mapped_type: Cell<bool>,
     pub(crate) ambient_modules_cache: RefCell<Option<Vec<Rc<Symbol>>>>,
 
-    pub(crate) pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
+    pub(crate) pattern_ambient_modules: RefCell<Option<Vec<Rc<PatternAmbientModule>>>>,
     pub(crate) pattern_ambient_module_augmentations: RefCell<Option<HashMap<String, Rc<Symbol>>>>,
 
     pub(crate) global_object_type: Option<Rc<Type /*ObjectType*/>>,

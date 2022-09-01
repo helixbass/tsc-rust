@@ -176,7 +176,8 @@ pub struct SourceFile {
     resolved_type_reference_directive_names:
         RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
     imports: RefCell<Option<Vec<Rc<Node /*StringLiteralLike*/>>>>,
-    pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
+    module_augmentations: RefCell<Option<Vec<Rc<Node /*StringLiteral | Identifier*/>>>>,
+    pattern_ambient_modules: RefCell<Option<Vec<Rc<PatternAmbientModule>>>>,
     check_js_directive: RefCell<Option<CheckJsDirective>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
     local_jsx_namespace: RefCell<Option<__String>>,
@@ -245,6 +246,7 @@ impl SourceFile {
             resolved_modules: RefCell::new(None),
             resolved_type_reference_directive_names: RefCell::new(None),
             imports: RefCell::new(None),
+            module_augmentations: RefCell::new(None),
             pattern_ambient_modules: RefCell::new(None),
             pragmas: RefCell::new(None),
             check_js_directive: RefCell::new(None),
@@ -527,8 +529,16 @@ impl SourceFile {
         self.imports.borrow_mut()
     }
 
-    pub fn pattern_ambient_modules_mut(&self) -> RefMut<Option<Vec<PatternAmbientModule>>> {
+    pub fn maybe_module_augmentations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.module_augmentations.borrow_mut()
+    }
+
+    pub fn maybe_pattern_ambient_modules(&self) -> RefMut<Option<Vec<Rc<PatternAmbientModule>>>> {
         self.pattern_ambient_modules.borrow_mut()
+    }
+
+    pub fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>> {
+        self.check_js_directive.borrow_mut()
     }
 
     pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {
@@ -537,10 +547,6 @@ impl SourceFile {
 
     pub fn set_pragmas(&self, pragmas: ReadonlyPragmaMap) {
         *self.pragmas.borrow_mut() = Some(pragmas);
-    }
-
-    pub fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>> {
-        self.check_js_directive.borrow_mut()
     }
 
     pub fn maybe_local_jsx_namespace(&self) -> RefMut<Option<__String>> {

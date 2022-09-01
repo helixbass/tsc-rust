@@ -2,19 +2,21 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    escape_leading_underscores, external_helpers_module_name_text, get_all_accessor_declarations,
-    get_source_file_of_node, has_syntactic_modifier, is_ambient_module, is_binding_pattern,
-    is_class_like, is_effective_external_module, is_named_declaration,
+    add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
+    external_helpers_module_name_text, get_all_accessor_declarations, get_source_file_of_node,
+    has_syntactic_modifier, is_ambient_module, is_binding_pattern, is_class_like,
+    is_effective_external_module, is_global_scope_augmentation, is_named_declaration,
     is_private_identifier_class_element_declaration, is_property_declaration, modifier_to_flag,
     node_can_be_decorated, node_is_present, some, token_to_string, Debug_, Diagnostics,
     ExternalEmitHelpers, FunctionLikeDeclarationInterface, ModifierFlags,
-    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, Signature, SymbolInterface, SyntaxKind,
-    __String, bind_source_file, for_each, is_external_or_common_js_module,
+    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, ObjectFlags, Signature, SymbolInterface,
+    SyntaxKind, __String, bind_source_file, for_each, is_external_or_common_js_module,
     CancellationTokenDebuggable, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
     NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
@@ -281,24 +283,301 @@ impl TypeChecker {
 
     pub(super) fn initialize_type_checker(&mut self) {
         for file in self.host.get_source_files() {
-            bind_source_file(&*file, self.compiler_options.clone());
-            println!("post-binding: {:#?}", file);
+            bind_source_file(file, self.compiler_options.clone());
+            // println!("post-binding: {:#?}", file);
         }
 
+        *self.maybe_amalgamated_duplicates() = Some(HashMap::new());
+
+        let mut augmentations: Option<Vec<Vec<Rc<Node /*StringLiteral | Identifier*/>>>> = None;
         for file in self.host.get_source_files() {
-            if !is_external_or_common_js_module(&file) {
+            let file_as_source_file = file.as_source_file();
+            if file_as_source_file.maybe_redirect_info().is_some() {
+                continue;
+            }
+            if !is_external_or_common_js_module(file) {
+                let file_global_this_symbol = (**file.locals())
+                    .borrow()
+                    .get(&__String::new("globalThis".to_owned()))
+                    .cloned();
+                if let Some(ref file_global_this_symbol_declarations) = file_global_this_symbol
+                    .as_ref()
+                    .and_then(|file_global_this_symbol| {
+                        file_global_this_symbol.maybe_declarations().clone()
+                    })
+                {
+                    for declaration in file_global_this_symbol_declarations {
+                        self.diagnostics().add(
+                            Rc::new(
+                                create_diagnostic_for_node(
+                                    declaration,
+                                    &Diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
+                                    Some(vec![
+                                        "globalThis".to_owned()
+                                    ])
+                                ).into()
+                            )
+                        );
+                    }
+                }
                 self.merge_symbol_table(
                     &mut *self.globals_mut(),
                     &RefCell::borrow(&file.locals()),
                     None,
                 );
             }
+            if let Some(file_js_global_augmentations) =
+                file_as_source_file.maybe_js_global_augmentations().clone()
+            {
+                self.merge_symbol_table(
+                    &mut *self.globals_mut(),
+                    &(*file_js_global_augmentations).borrow(),
+                    None,
+                );
+            }
+            if let Some(file_pattern_ambient_modules) = file_as_source_file
+                .maybe_pattern_ambient_modules()
+                .as_ref()
+                .filter(|file_pattern_ambient_modules| !file_pattern_ambient_modules.is_empty())
+            {
+                let mut pattern_ambient_modules = self.maybe_pattern_ambient_modules();
+                *pattern_ambient_modules = Some(concatenate(
+                    pattern_ambient_modules.clone().unwrap_or_else(|| vec![]),
+                    file_pattern_ambient_modules.clone(),
+                ));
+            }
+            let file_module_augmentations = file_as_source_file.maybe_module_augmentations();
+            // TODO: this should end up being .unwrap()'able
+            // let file_module_augmentations = file_module_augmentations.as_ref().unwrap();
+            let file_module_augmentations =
+                file_module_augmentations.clone().unwrap_or_else(|| vec![]);
+            let file_module_augmentations = &file_module_augmentations;
+            if !file_module_augmentations.is_empty() {
+                if augmentations.is_none() {
+                    augmentations = Some(vec![]);
+                }
+                augmentations
+                    .as_mut()
+                    .unwrap()
+                    .push(file_module_augmentations.clone());
+            }
+            if let Some(file_symbol_global_exports) = file
+                .maybe_symbol()
+                .as_ref()
+                .and_then(|file_symbol| file_symbol.maybe_global_exports().clone())
+            {
+                let source = file_symbol_global_exports;
+                let mut globals = self.globals_mut();
+                for (id, source_symbol) in &*(*source).borrow() {
+                    if !globals.contains_key(id) {
+                        globals.insert(id.clone(), source_symbol.clone());
+                    }
+                }
+            }
         }
 
+        if let Some(augmentations) = augmentations.as_ref() {
+            for list in augmentations {
+                for augmentation in list {
+                    if !is_global_scope_augmentation(&augmentation.parent()) {
+                        continue;
+                    }
+                    self.merge_module_augmentation(augmentation);
+                }
+            }
+        }
+
+        self.add_to_symbol_table(
+            &mut *self.globals_mut(),
+            &self.builtin_globals(),
+            &Diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
+        );
+
+        self.get_symbol_links(&self.undefined_symbol())
+            .borrow_mut()
+            .type_ = Some(self.undefined_widening_type());
+        self.get_symbol_links(&self.arguments_symbol())
+            .borrow_mut()
+            .type_ = self.get_global_type(&__String::new("IArguments".to_owned()), 0, true);
+        self.get_symbol_links(&self.unknown_symbol())
+            .borrow_mut()
+            .type_ = Some(self.error_type());
+        self.get_symbol_links(&self.global_this_symbol())
+            .borrow_mut()
+            .type_ = Some(Rc::new(
+            self.create_object_type(ObjectFlags::Anonymous, Some(self.global_this_symbol()))
+                .into(),
+        ));
+
+        self.global_array_type = self.get_global_type(&__String::new("Array".to_owned()), 1, true);
         self.global_object_type =
             self.get_global_type(&__String::new("Object".to_owned()), 0, true);
+        self.global_function_type =
+            self.get_global_type(&__String::new("Function".to_owned()), 0, true);
+        self.global_callable_function_type = Some(
+            if self.strict_bind_call_apply {
+                self.get_global_type(&__String::new("CallableFunction".to_owned()), 0, true)
+            } else {
+                None
+            }
+            .unwrap_or_else(|| self.global_function_type()),
+        );
+        self.global_newable_function_type = Some(
+            if self.strict_bind_call_apply {
+                self.get_global_type(&__String::new("NewableFunction".to_owned()), 0, true)
+            } else {
+                None
+            }
+            .unwrap_or_else(|| self.global_function_type()),
+        );
+        self.global_string_type =
+            self.get_global_type(&__String::new("String".to_owned()), 0, true);
+        self.global_number_type =
+            self.get_global_type(&__String::new("Number".to_owned()), 0, true);
         self.global_boolean_type =
             self.get_global_type(&__String::new("Boolean".to_owned()), 0, true);
+        self.global_reg_exp_type =
+            self.get_global_type(&__String::new("RegExp".to_owned()), 0, true);
+        self.any_array_type = Some(self.create_array_type(&self.any_type(), None));
+
+        self.auto_array_type = Some(self.create_array_type(&self.auto_type(), None));
+        if Rc::ptr_eq(&self.auto_array_type(), &self.empty_object_type()) {
+            self.auto_array_type = Some(Rc::new(
+                self.create_anonymous_type(
+                    Option::<&Symbol>::None,
+                    self.empty_symbols(),
+                    vec![],
+                    vec![],
+                    vec![],
+                )
+                .into(),
+            ));
+        }
+
+        self.global_readonly_array_type = self
+            .get_global_type_or_undefined(&__String::new("ReadonlyArray".to_owned()), Some(1))
+            .or_else(|| self.global_array_type.clone());
+        self.any_readonly_array_type = Some(
+            if let Some(global_readonly_array_type) = self.global_readonly_array_type.as_ref() {
+                self.create_type_from_generic_global_type(
+                    global_readonly_array_type,
+                    vec![self.any_type()],
+                )
+            } else {
+                self.any_array_type()
+            },
+        );
+        self.global_this_type =
+            self.get_global_type_or_undefined(&__String::new("ThisType".to_owned()), Some(1));
+
+        if let Some(augmentations) = augmentations.as_ref() {
+            for list in augmentations {
+                for augmentation in list {
+                    if is_global_scope_augmentation(&augmentation.parent()) {
+                        continue;
+                    }
+                    self.merge_module_augmentation(augmentation);
+                }
+            }
+        }
+
+        for duplicate_info_for_files in self
+            .maybe_amalgamated_duplicates()
+            .as_ref()
+            .unwrap()
+            .values()
+        {
+            let first_file = &duplicate_info_for_files.first_file;
+            let second_file = &duplicate_info_for_files.second_file;
+            let conflicting_symbols = &duplicate_info_for_files.conflicting_symbols;
+            if conflicting_symbols.len() < 8 {
+                for (symbol_name, duplicate_info_for_symbol) in conflicting_symbols {
+                    let is_block_scoped = duplicate_info_for_symbol.is_block_scoped;
+                    let first_file_locations = &duplicate_info_for_symbol.first_file_locations;
+                    let second_file_locations = &duplicate_info_for_symbol.second_file_locations;
+                    let message = if is_block_scoped {
+                        &*Diagnostics::Cannot_redeclare_block_scoped_variable_0
+                    } else {
+                        &*Diagnostics::Duplicate_identifier_0
+                    };
+                    for node in first_file_locations {
+                        self.add_duplicate_declaration_error(
+                            node,
+                            message,
+                            symbol_name,
+                            Some(second_file_locations),
+                        );
+                    }
+                    for node in second_file_locations {
+                        self.add_duplicate_declaration_error(
+                            node,
+                            message,
+                            symbol_name,
+                            Some(first_file_locations),
+                        );
+                    }
+                }
+            } else {
+                let list: String = conflicting_symbols
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                self.diagnostics().add(
+                    {
+                        let diagnostic: Rc<Diagnostic> = Rc::new(
+                            create_diagnostic_for_node(
+                                first_file,
+                                &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
+                                Some(vec![
+                                    list.clone()
+                                ])
+                            ).into()
+                        );
+                        add_related_info(
+                            &diagnostic,
+                            vec![
+                                Rc::new(
+                                    create_diagnostic_for_node(
+                                        second_file,
+                                        &Diagnostics::Conflicts_are_in_this_file,
+                                        None,
+                                    ).into()
+                                )
+                            ]
+                        );
+                        diagnostic
+                    }
+                );
+                self.diagnostics().add(
+                    {
+                        let diagnostic: Rc<Diagnostic> = Rc::new(
+                            create_diagnostic_for_node(
+                                second_file,
+                                &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
+                                Some(vec![
+                                    list.clone()
+                                ])
+                            ).into()
+                        );
+                        add_related_info(
+                            &diagnostic,
+                            vec![
+                                Rc::new(
+                                    create_diagnostic_for_node(
+                                        first_file,
+                                        &Diagnostics::Conflicts_are_in_this_file,
+                                        None,
+                                    ).into()
+                                )
+                            ]
+                        );
+                        diagnostic
+                    }
+                );
+            }
+        }
+        *self.maybe_amalgamated_duplicates() = None;
     }
 
     pub(super) fn check_external_emit_helpers(

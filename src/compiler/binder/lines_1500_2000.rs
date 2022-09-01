@@ -604,7 +604,7 @@ impl BinderType {
                     .unwrap();
                 let file = self.file();
                 let mut pattern_ambient_modules =
-                    file.as_source_file().pattern_ambient_modules_mut();
+                    file.as_source_file().maybe_pattern_ambient_modules();
                 if pattern_ambient_modules.is_none() {
                     *pattern_ambient_modules = Some(vec![]);
                 }
@@ -612,7 +612,7 @@ impl BinderType {
                     pattern_ambient_modules.as_mut().unwrap(),
                     match pattern {
                         Some(StringOrPattern::Pattern(pattern)) => {
-                            Some(PatternAmbientModule::new(pattern, symbol))
+                            Some(Rc::new(PatternAmbientModule::new(pattern, symbol)))
                         }
                         _ => None,
                     },
