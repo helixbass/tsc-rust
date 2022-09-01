@@ -2,23 +2,11 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::{DeclarationMeaning, EmitResolverCreateResolver, UnusedKind};
+use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    add_related_info, create_diagnostic_for_node, file_extension_is_one_of, filter,
-    find_use_strict_prologue, get_line_and_character_of_position,
-    get_property_name_for_property_name_node, get_source_file_of_node, get_text_of_node,
-    has_effective_modifiers, is_array_literal_expression, is_arrow_function, is_binding_pattern,
-    is_block, is_function_like_declaration, is_object_literal_expression, is_rest_parameter,
-    length, skip_parentheses, skip_trivia, some, token_to_string, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformation, Diagnostics, Extension, ExternalEmitHelpers,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
-    InterfaceOrClassLikeDeclarationInterface, LineAndCharacter, NamedDeclarationInterface,
-    NodeArray, NodeCheckFlags, NodeFlags, ReadonlyTextRange, ScriptTarget, SourceFileLike,
-    SyntaxKind, TypeFlags, TypeInterface, __String, bind_source_file, for_each,
+    ExternalEmitHelpers, NodeCheckFlags, __String, bind_source_file, for_each,
     is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
     EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
     Type, TypeChecker,
