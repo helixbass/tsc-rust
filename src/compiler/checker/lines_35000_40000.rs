@@ -522,7 +522,83 @@ impl TypeChecker {
             return Some(type_.type_wrapper());
         }
 
-        unimplemented!()
+        let type_as_awaitable = type_;
+        if let Some(type_as_awaitable_awaited_type_of_type) =
+            type_as_awaitable.maybe_awaited_type_of_type().as_ref()
+        {
+            return Some(type_as_awaitable_awaited_type_of_type.clone());
+        }
+
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        if type_.flags().intersects(TypeFlags::Union) {
+            let mut mapper = |constituent_type: &Type| {
+                if error_node.is_some() {
+                    self.get_awaited_type_no_alias(
+                        constituent_type,
+                        error_node.as_deref(),
+                        diagnostic_message,
+                        args.clone(),
+                    )
+                } else {
+                    self.get_awaited_type_no_alias(
+                        constituent_type,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    )
+                }
+            };
+            let ret = self.map_type(type_, &mut mapper, None);
+            *type_as_awaitable.maybe_awaited_type_of_type() = ret.clone();
+            return ret;
+        }
+
+        let promised_type = self.get_promised_type_of_promise(type_, Option::<&Node>::None);
+        if let Some(promised_type) = promised_type.as_ref() {
+            if type_.id() == promised_type.id()
+                || self
+                    .awaited_type_stack()
+                    .iter()
+                    .rev()
+                    .position(|awaited_type_id| *awaited_type_id == promised_type.id())
+                    .is_some()
+            {
+                if error_node.is_some() {
+                    self.error(
+                        error_node.as_deref(),
+                        &Diagnostics::Type_is_referenced_directly_or_indirectly_in_the_fulfillment_callback_of_its_own_then_method,
+                        None,
+                    );
+                }
+                return None;
+            }
+
+            self.awaited_type_stack().push(type_.id());
+            let awaited_type = self.get_awaited_type_no_alias(
+                promised_type,
+                error_node.as_deref(),
+                diagnostic_message,
+                args.clone(),
+            );
+            self.awaited_type_stack().pop();
+
+            let awaited_type = awaited_type?;
+
+            *type_as_awaitable.maybe_awaited_type_of_type() = Some(awaited_type.clone());
+            return Some(awaited_type);
+        }
+
+        if self.is_thenable_type(type_) {
+            if error_node.is_some() {
+                Debug_.assert_is_defined(&diagnostic_message, None);
+                self.error(error_node.as_deref(), diagnostic_message.unwrap(), args);
+                return None;
+            }
+        }
+
+        let ret = type_.type_wrapper();
+        *type_as_awaitable.maybe_awaited_type_of_type() = Some(ret.clone());
+        Some(ret)
     }
 
     pub(super) fn check_async_function_return_type(

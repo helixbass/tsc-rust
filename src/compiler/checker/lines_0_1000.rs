@@ -3229,6 +3229,10 @@ impl TypeChecker {
         self.flow_node_post_super.borrow_mut()
     }
 
+    pub(super) fn awaited_type_stack(&self) -> RefMut<Vec<TypeId>> {
+        self.awaited_type_stack.borrow_mut()
+    }
+
     pub(super) fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
         self.diagnostics.borrow_mut()
     }
