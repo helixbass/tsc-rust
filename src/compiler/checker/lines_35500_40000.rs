@@ -6,11 +6,12 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    for_each, get_containing_function_or_class_static_block, get_effective_initializer,
-    get_function_flags, is_binding_element, is_function_or_module_block, Diagnostic,
+    entity_name_to_string, for_each, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_entity_name_from_type_node, get_first_identifier,
+    get_function_flags, id_text, is_binding_element, is_function_or_module_block, Diagnostic,
     DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes,
-    IterationTypesResolver, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    IterationTypesResolver, Node, NodeInterface, ScriptTarget, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -19,6 +20,152 @@ impl TypeChecker {
         node: &Node,             /*FunctionLikeDeclaration | MethodSignature*/
         return_type_node: &Node, /*TypeNode*/
     ) {
+        let return_type = self.get_type_from_type_node_(return_type_node);
+
+        if self.language_version >= ScriptTarget::ES2015 {
+            if self.is_error_type(&return_type) {
+                return;
+            }
+            let global_promise_type = self.get_global_promise_type(true);
+            if !Rc::ptr_eq(&global_promise_type, &self.empty_generic_type())
+                && !self.is_reference_to_type(&return_type, &global_promise_type)
+            {
+                self.error(
+                    Some(return_type_node),
+                    &Diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type_Did_you_mean_to_write_Promise_0,
+                    Some(vec![
+                        self.type_to_string_(
+                            &self.get_awaited_type_no_alias(
+                                &return_type,
+                                Option::<&Node>::None,
+                                None, None,
+                            ).unwrap_or_else(|| self.void_type()),
+                            Option::<&Node>::None,
+                            None, None,
+                        )
+                    ])
+                );
+                return;
+            }
+        } else {
+            self.mark_type_node_as_referenced(return_type_node);
+
+            if self.is_error_type(&return_type) {
+                return;
+            }
+
+            let promise_constructor_name = get_entity_name_from_type_node(return_type_node);
+            if promise_constructor_name.is_none() {
+                self.error(
+                    Some(return_type_node),
+                    &Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+                    Some(vec![
+                        self.type_to_string_(
+                            &return_type,
+                            Option::<&Node>::None,
+                            None, None
+                        )
+                    ])
+                );
+                return;
+            }
+            let promise_constructor_name = promise_constructor_name.unwrap();
+
+            let promise_constructor_symbol = self.resolve_entity_name(
+                &promise_constructor_name,
+                SymbolFlags::Value,
+                Some(true),
+                None,
+                Option::<&Node>::None,
+            );
+            let promise_constructor_type =
+                if let Some(promise_constructor_symbol) = promise_constructor_symbol.as_ref() {
+                    self.get_type_of_symbol(promise_constructor_symbol)
+                } else {
+                    self.error_type()
+                };
+            if self.is_error_type(&promise_constructor_type) {
+                if promise_constructor_name.kind() == SyntaxKind::Identifier
+                    && promise_constructor_name
+                        .as_identifier()
+                        .escaped_text
+                        .eq_str("Promise")
+                    && Rc::ptr_eq(
+                        &self.get_target_type(&return_type),
+                        &self.get_global_promise_type(false),
+                    )
+                {
+                    self.error(
+                        Some(return_type_node),
+                        &Diagnostics::An_async_function_or_method_in_ES5_SlashES3_requires_the_Promise_constructor_Make_sure_you_have_a_declaration_for_the_Promise_constructor_or_include_ES2015_in_your_lib_option,
+                        None,
+                    );
+                } else {
+                    self.error(
+                        Some(return_type_node),
+                        &Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+                        Some(vec![
+                            entity_name_to_string(&promise_constructor_name).into_owned()
+                        ])
+                    );
+                }
+                return;
+            }
+
+            let global_promise_constructor_like_type =
+                self.get_global_promise_constructor_like_type(true);
+            if Rc::ptr_eq(
+                &global_promise_constructor_like_type,
+                &self.empty_object_type(),
+            ) {
+                self.error(
+                    Some(return_type_node),
+                    &Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+                    Some(vec![
+                        entity_name_to_string(&promise_constructor_name).into_owned()
+                    ])
+                );
+                return;
+            }
+
+            if !self.check_type_assignable_to(
+                &promise_constructor_type,
+                &global_promise_constructor_like_type,
+                Some(return_type_node),
+                Some(&Diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Promise_compatible_constructor_value),
+                None, None,
+            ) {
+                return;
+            }
+
+            let root_name = /*promiseConstructorName &&*/ get_first_identifier(&promise_constructor_name);
+            let colliding_symbol = self.get_symbol(
+                &(**node.locals()).borrow(),
+                &root_name.as_identifier().escaped_text,
+                SymbolFlags::Value,
+            );
+            if let Some(colliding_symbol) = colliding_symbol.as_ref() {
+                self.error(
+                    colliding_symbol.maybe_value_declaration(),
+                    &Diagnostics::Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions,
+                    Some(vec![
+                        id_text(&root_name),
+                        entity_name_to_string(&promise_constructor_name).into_owned(),
+                    ])
+                );
+                return;
+            }
+        }
+        self.check_awaited_type(
+            &return_type,
+            false,
+            node,
+            &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
+            None,
+        );
+    }
+
+    pub(super) fn mark_type_node_as_referenced(&self, node: &Node /*TypeNode*/) {
         unimplemented!()
     }
 
