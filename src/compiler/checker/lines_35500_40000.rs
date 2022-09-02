@@ -9,15 +9,19 @@ use super::{
     CheckMode, IterationTypeKind, IterationUse, ResolveCallContainingMessageChain, UnusedKind,
 };
 use crate::{
-    chain_diagnostic_messages, entity_name_to_string, for_each,
-    get_containing_function_or_class_static_block, get_effective_initializer,
-    get_effective_type_annotation_node, get_entity_name_from_type_node, get_first_identifier,
-    get_function_flags, get_rest_parameter_element_type, id_text, is_binding_element,
-    is_entity_name, is_function_or_module_block, is_identifier, is_rest_parameter, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
-    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, Node, NodeInterface,
-    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    chain_diagnostic_messages, entity_name_to_string, find_last, for_each,
+    get_containing_function_or_class_static_block, get_declaration_of_kind,
+    get_effective_initializer, get_effective_return_type_node, get_effective_type_annotation_node,
+    get_effective_type_parameter_declarations, get_entity_name_from_type_node,
+    get_first_constructor_with_body, get_first_identifier, get_function_flags,
+    get_host_signature_from_jsdoc, get_jsdoc_tags, get_parameter_symbol_from_jsdoc,
+    get_rest_parameter_element_type, id_text, is_binding_element, is_binding_pattern,
+    is_entity_name, is_function_or_module_block, is_identifier, is_jsdoc_construct_signature,
+    is_jsdoc_parameter_tag, is_qualified_name, is_rest_parameter, node_can_be_decorated, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers,
+    FunctionFlags, HasTypeInterface, HasTypeParametersInterface, IterationTypes,
+    IterationTypesResolver, NamedDeclarationInterface, Node, NodeInterface, ScriptTarget, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -379,13 +383,235 @@ impl TypeChecker {
     }
 
     pub(super) fn check_decorators(&self, node: &Node) {
-        unimplemented!()
+        let node_decorators = node.maybe_decorators();
+        if node_decorators.is_none() {
+            return;
+        }
+        let node_decorators = node_decorators.as_ref().unwrap();
+
+        if !node_can_be_decorated(node, Some(node.parent()), node.parent().maybe_parent()) {
+            return;
+        }
+
+        if self.compiler_options.experimental_decorators != Some(true) {
+            self.error(
+                Some(node),
+                &Diagnostics::Experimental_support_for_decorators_is_a_feature_that_is_subject_to_change_in_a_future_release_Set_the_experimentalDecorators_option_in_your_tsconfig_or_jsconfig_to_remove_this_warning,
+                None,
+            );
+        }
+
+        let first_decorator = &node_decorators[0];
+        self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Decorate);
+        if node.kind() == SyntaxKind::Parameter {
+            self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Param);
+        }
+
+        if self.compiler_options.emit_decorator_metadata == Some(true) {
+            self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Metadata);
+
+            match node.kind() {
+                SyntaxKind::ClassDeclaration => {
+                    let constructor = get_first_constructor_with_body(node);
+                    if let Some(constructor) = constructor.as_ref() {
+                        for parameter in constructor.as_signature_declaration().parameters() {
+                            self.mark_decorator_medata_data_type_node_as_referenced(
+                                self.get_parameter_type_node_for_decorator_check(parameter),
+                            );
+                        }
+                    }
+                }
+
+                SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                    let other_kind = if node.kind() == SyntaxKind::GetAccessor {
+                        SyntaxKind::SetAccessor
+                    } else {
+                        SyntaxKind::GetAccessor
+                    };
+                    let other_accessor = get_declaration_of_kind(
+                        &self.get_symbol_of_node(node).unwrap(),
+                        other_kind,
+                    );
+                    self.mark_decorator_medata_data_type_node_as_referenced(
+                        self.get_annotated_accessor_type_node(Some(node))
+                            .or_else(|| {
+                                other_accessor.as_ref().and_then(|other_accessor| {
+                                    self.get_annotated_accessor_type_node(Some(&**other_accessor))
+                                })
+                            }),
+                    );
+                }
+                SyntaxKind::MethodDeclaration => {
+                    for parameter in node.as_function_like_declaration().parameters() {
+                        self.mark_decorator_medata_data_type_node_as_referenced(
+                            self.get_parameter_type_node_for_decorator_check(parameter),
+                        );
+                    }
+
+                    self.mark_decorator_medata_data_type_node_as_referenced(
+                        get_effective_return_type_node(node),
+                    );
+                }
+
+                SyntaxKind::PropertyDeclaration => {
+                    self.mark_decorator_medata_data_type_node_as_referenced(
+                        get_effective_type_annotation_node(node),
+                    );
+                }
+
+                SyntaxKind::Parameter => {
+                    self.mark_decorator_medata_data_type_node_as_referenced(
+                        self.get_parameter_type_node_for_decorator_check(node),
+                    );
+                    let containing_signature = node.parent();
+                    for parameter in containing_signature.as_signature_declaration().parameters() {
+                        self.mark_decorator_medata_data_type_node_as_referenced(
+                            self.get_parameter_type_node_for_decorator_check(parameter),
+                        );
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        for_each(node_decorators, |decorator: &Rc<Node>, _| -> Option<()> {
+            self.check_decorator(decorator);
+            None
+        });
     }
 
     pub(super) fn check_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
         if self.produce_diagnostics {
             self.check_function_or_method_declaration(node);
+            self.check_grammar_for_generator(node);
+            self.check_collisions_for_declaration_name(
+                node,
+                node.as_function_declaration().maybe_name(),
+            );
         }
+    }
+
+    pub(super) fn check_jsdoc_type_alias_tag(
+        &self,
+        node: &Node, /*JSDocTypedefTag | JSDocCallbackTag*/
+    ) {
+        let node_as_jsdoc_type_like_tag = node.as_jsdoc_type_like_tag();
+        let node_as_named_declaration = node.as_named_declaration();
+        if node_as_jsdoc_type_like_tag
+            .maybe_type_expression()
+            .is_none()
+        {
+            self.error(
+                node_as_named_declaration.maybe_name(),
+                &Diagnostics::JSDoc_typedef_tag_should_either_have_a_type_annotation_or_be_followed_by_property_or_member_tags,
+                None,
+            );
+        }
+
+        if let Some(node_name) = node_as_named_declaration.maybe_name().as_ref() {
+            self.check_type_name_is_reserved(node_name, &Diagnostics::Type_alias_name_cannot_be_0);
+        }
+        self.check_source_element(node_as_jsdoc_type_like_tag.maybe_type_expression());
+        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node)));
+    }
+
+    pub(super) fn check_jsdoc_template_tag(&self, node: &Node /*JSDocTemplateTag*/) {
+        let node_as_jsdoc_template_tag = node.as_jsdoc_template_tag();
+        self.check_source_element(node_as_jsdoc_template_tag.constraint.as_deref());
+        for tp in &node_as_jsdoc_template_tag.type_parameters {
+            self.check_source_element(Some(&**tp));
+        }
+    }
+
+    pub(super) fn check_jsdoc_type_tag(&self, node: &Node /*JSDocTypeTag*/) {
+        self.check_source_element(node.as_jsdoc_type_like_tag().maybe_type_expression());
+    }
+
+    pub(super) fn check_jsdoc_parameter_tag(&self, node: &Node /*JSDocParameterTag*/) {
+        let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
+        self.check_source_element(node_as_jsdoc_property_like_tag.type_expression.as_deref());
+        if get_parameter_symbol_from_jsdoc(node).is_none() {
+            let decl = get_host_signature_from_jsdoc(node);
+            if let Some(decl) = decl.as_ref() {
+                let i: Option<usize> = get_jsdoc_tags(decl)
+                    .iter()
+                    .filter(|jsdoc_tag| is_jsdoc_parameter_tag(jsdoc_tag))
+                    .position(|jsdoc_tag| ptr::eq(&**jsdoc_tag, node));
+                if matches!(
+                    i,
+                    Some(i) if {
+                        let decl_parameters = decl.as_signature_declaration().parameters();
+                        i < decl_parameters.len() && is_binding_pattern(decl_parameters[i].as_parameter_declaration().maybe_name())
+                    }
+                ) {
+                    return;
+                }
+                if !self.contains_arguments_reference(decl) {
+                    if is_qualified_name(&node_as_jsdoc_property_like_tag.name) {
+                        self.error(
+                            Some(&*node_as_jsdoc_property_like_tag.name),
+                            &Diagnostics::Qualified_name_0_is_not_allowed_without_a_leading_param_object_1,
+                            Some(vec![
+                                entity_name_to_string(&node_as_jsdoc_property_like_tag.name).into_owned(),
+                                entity_name_to_string(&node_as_jsdoc_property_like_tag.name.as_qualified_name().left).into_owned(),
+                            ])
+                        );
+                    } else {
+                        self.error(
+                            Some(&*node_as_jsdoc_property_like_tag.name),
+                            &Diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name,
+                            Some(vec![
+                                id_text(&node_as_jsdoc_property_like_tag.name)
+                            ])
+                        );
+                    }
+                } else if matches!(
+                    find_last(
+                        &*get_jsdoc_tags(decl),
+                        |jsdoc_tag: &Rc<Node>, _| is_jsdoc_parameter_tag(jsdoc_tag)
+                    ),
+                    Some(jsdoc_tag) if ptr::eq(&**jsdoc_tag, node)
+                ) && matches!(
+                    node_as_jsdoc_property_like_tag.type_expression.as_ref().map(|node_type_expression| {
+                        node_type_expression.as_jsdoc_type_expression().type_.clone()
+                    }).as_ref(),
+                    Some(node_type_expression_type) if !self.is_array_type(
+                        &self.get_type_from_type_node_(
+                            node_type_expression_type
+                        )
+                    )
+                ) {
+                    self.error(
+                        Some(&*node_as_jsdoc_property_like_tag.name),
+                        &Diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name_It_would_match_arguments_if_it_had_an_array_type,
+                        Some(vec![
+                            id_text(
+                                &*if node_as_jsdoc_property_like_tag.name.kind() == SyntaxKind::QualifiedName {
+                                    node_as_jsdoc_property_like_tag.name.as_qualified_name().right.clone()
+                                } else {
+                                    node_as_jsdoc_property_like_tag.name.clone()
+                                }
+                            )
+                        ])
+                    );
+                }
+            }
+        }
+    }
+
+    pub(super) fn check_jsdoc_property_tag(&self, node: &Node /*JSDocPropertyTag*/) {
+        let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
+        self.check_source_element(node_as_jsdoc_property_like_tag.type_expression.as_deref());
+    }
+
+    pub(super) fn check_jsdoc_function_type(&self, node: &Node /*JSDocFunctionType*/) {
+        if self.produce_diagnostics
+            && node.as_jsdoc_function_type().maybe_type().is_none()
+            && !is_jsdoc_construct_signature(node)
+        {
+            self.report_implicit_any(node, &self.any_type(), None);
+        }
+        self.check_signature_declaration(node);
     }
 
     pub(super) fn check_function_or_method_declaration(
