@@ -11,9 +11,10 @@ use super::{
 use crate::{
     chain_diagnostic_messages, entity_name_to_string, for_each,
     get_containing_function_or_class_static_block, get_effective_initializer,
-    get_entity_name_from_type_node, get_first_identifier, get_function_flags, id_text,
-    is_binding_element, is_entity_name, is_function_or_module_block, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    get_effective_type_annotation_node, get_entity_name_from_type_node, get_first_identifier,
+    get_function_flags, get_rest_parameter_element_type, id_text, is_binding_element,
+    is_entity_name, is_function_or_module_block, is_identifier, is_rest_parameter, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
     HasTypeParametersInterface, IterationTypes, IterationTypesResolver, Node, NodeInterface,
     ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,
@@ -299,7 +300,82 @@ impl TypeChecker {
         &self,
         node: Option<TNode /*TypeNode*/>,
     ) -> Option<Rc<Node /*EntityName*/>> {
-        unimplemented!()
+        let node = node?;
+        let node: &Node = node.borrow();
+        match node.kind() {
+            SyntaxKind::IntersectionType | SyntaxKind::UnionType => self
+                .get_entity_name_for_decorator_metadata_from_type_list(
+                    node.as_union_or_intersection_type_node().types(),
+                ),
+
+            SyntaxKind::ConditionalType => {
+                let node_as_conditional_type_node = node.as_conditional_type_node();
+                self.get_entity_name_for_decorator_metadata_from_type_list(&[
+                    node_as_conditional_type_node.true_type.clone(),
+                    node_as_conditional_type_node.false_type.clone(),
+                ])
+            }
+
+            SyntaxKind::ParenthesizedType | SyntaxKind::NamedTupleMember => {
+                self.get_entity_name_for_decorator_metadata(node.as_has_type().maybe_type())
+            }
+
+            SyntaxKind::TypeReference => Some(node.as_type_reference_node().type_name.clone()),
+            _ => None,
+        }
+    }
+
+    pub(super) fn get_entity_name_for_decorator_metadata_from_type_list(
+        &self,
+        types: &[Rc<Node /*TypeNode*/>],
+    ) -> Option<Rc<Node /*EntityName*/>> {
+        let mut common_entity_name: Option<Rc<Node /*EntityName*/>> = None;
+        for type_node in types {
+            let mut type_node = type_node.clone();
+            while matches!(
+                type_node.kind(),
+                SyntaxKind::ParenthesizedType | SyntaxKind::NamedTupleMember
+            ) {
+                type_node = type_node.as_has_type().maybe_type().unwrap();
+            }
+            if type_node.kind() == SyntaxKind::NeverKeyword {
+                continue;
+            }
+            if !self.strict_null_checks
+                && (type_node.kind() == SyntaxKind::LiteralType
+                    && type_node.as_literal_type_node().literal.kind() == SyntaxKind::NullKeyword
+                    || type_node.kind() == SyntaxKind::UndefinedKeyword)
+            {
+                continue;
+            }
+            let individual_entity_name =
+                self.get_entity_name_for_decorator_metadata(Some(&*type_node))?;
+
+            if let Some(common_entity_name) = common_entity_name.as_ref() {
+                if !is_identifier(common_entity_name)
+                    || !is_identifier(&individual_entity_name)
+                    || common_entity_name.as_identifier().escaped_text
+                        != individual_entity_name.as_identifier().escaped_text
+                {
+                    return None;
+                }
+            } else {
+                common_entity_name = Some(individual_entity_name);
+            }
+        }
+        common_entity_name
+    }
+
+    pub(super) fn get_parameter_type_node_for_decorator_check(
+        &self,
+        node: &Node, /*ParameterDeclaration*/
+    ) -> Option<Rc<Node /*TypeNode*/>> {
+        let type_node = get_effective_type_annotation_node(node);
+        if is_rest_parameter(node) {
+            get_rest_parameter_element_type(type_node)
+        } else {
+            type_node
+        }
     }
 
     pub(super) fn check_decorators(&self, node: &Node) {
