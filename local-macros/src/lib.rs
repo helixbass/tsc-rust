@@ -1258,6 +1258,18 @@ fn get_type_struct_interface_impl(
                     fn maybe_default_only_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
                         self.#first_field_name.maybe_default_only_type()
                     }
+
+                    fn maybe_promise_type_of_promise_constructor(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.maybe_promise_type_of_promise_constructor()
+                    }
+
+                    fn maybe_promised_type_of_promise(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.maybe_promised_type_of_promise()
+                    }
+
+                    fn maybe_awaited_type_of_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.maybe_awaited_type_of_type()
+                    }
                 }
             }
         }
@@ -1708,6 +1720,24 @@ fn get_type_enum_interface_impl(
                     fn maybe_default_only_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_default_only_type()),*
+                        }
+                    }
+
+                    fn maybe_promise_type_of_promise_constructor(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_promise_type_of_promise_constructor()),*
+                        }
+                    }
+
+                    fn maybe_promised_type_of_promise(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_promised_type_of_promise()),*
+                        }
+                    }
+
+                    fn maybe_awaited_type_of_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_awaited_type_of_type()),*
                         }
                     }
                 }

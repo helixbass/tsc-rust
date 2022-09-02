@@ -649,12 +649,21 @@ impl TypeChecker {
             })
     }
 
-    pub(super) fn get_global_awaited_symbol(&self) -> Option<Rc<Symbol>> {
+    pub(super) fn get_global_awaited_symbol(&self, report_errors: bool) -> Option<Rc<Symbol>> {
         if self.maybe_deferred_global_awaited_symbol().is_none() {
-            *self.maybe_deferred_global_awaited_symbol() = Some(
-                self.get_global_type_alias_symbol(&__String::new("Awaited".to_owned()), 1, true)
-                    .unwrap_or_else(|| self.unknown_symbol()),
-            );
+            *self.maybe_deferred_global_awaited_symbol() = self
+                .get_global_type_alias_symbol(
+                    &__String::new("Awaited".to_owned()),
+                    1,
+                    report_errors,
+                )
+                .or_else(|| {
+                    if report_errors {
+                        Some(self.unknown_symbol())
+                    } else {
+                        None
+                    }
+                });
         }
         self.maybe_deferred_global_awaited_symbol()
             .as_ref()

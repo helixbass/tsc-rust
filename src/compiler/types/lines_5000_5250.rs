@@ -602,6 +602,10 @@ pub trait TypeInterface {
     // SyntheticDefaultModuleType fields
     fn maybe_synthetic_type(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_default_only_type(&self) -> RefMut<Option<Rc<Type>>>;
+    // PromiseOrAwaitableType fields
+    fn maybe_promise_type_of_promise_constructor(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_promised_type_of_promise(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Rc<Type>>>;
 }
 
 #[derive(Clone, Debug)]
@@ -625,6 +629,10 @@ pub struct BaseType {
     // SyntheticDefaultModuleType fields
     synthetic_type: RefCell<Option<Rc<Type>>>,
     default_only_type: RefCell<Option<Rc<Type>>>,
+    // PromiseOrAwaitableType fields
+    promise_type_of_promise_constructor: RefCell<Option<Rc<Type>>>,
+    promised_type_of_promise: RefCell<Option<Rc<Type>>>,
+    awaited_type_of_type: RefCell<Option<Rc<Type>>>,
 }
 
 impl BaseType {
@@ -647,6 +655,9 @@ impl BaseType {
             resolved_string_index_type: RefCell::new(None),
             synthetic_type: RefCell::new(None),
             default_only_type: RefCell::new(None),
+            promise_type_of_promise_constructor: RefCell::new(None),
+            promised_type_of_promise: RefCell::new(None),
+            awaited_type_of_type: RefCell::new(None),
         }
     }
 }
@@ -747,6 +758,18 @@ impl TypeInterface for BaseType {
 
     fn maybe_default_only_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.default_only_type.borrow_mut()
+    }
+
+    fn maybe_promise_type_of_promise_constructor(&self) -> RefMut<Option<Rc<Type>>> {
+        self.promise_type_of_promise_constructor.borrow_mut()
+    }
+
+    fn maybe_promised_type_of_promise(&self) -> RefMut<Option<Rc<Type>>> {
+        self.promised_type_of_promise.borrow_mut()
+    }
+
+    fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.awaited_type_of_type.borrow_mut()
     }
 }
 
