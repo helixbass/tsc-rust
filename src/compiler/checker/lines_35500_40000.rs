@@ -12,10 +12,11 @@ use crate::{
     chain_diagnostic_messages, entity_name_to_string, for_each,
     get_containing_function_or_class_static_block, get_effective_initializer,
     get_entity_name_from_type_node, get_first_identifier, get_function_flags, id_text,
-    is_binding_element, is_function_or_module_block, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes,
-    IterationTypesResolver, Node, NodeInterface, ScriptTarget, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_binding_element, is_entity_name, is_function_or_module_block, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, FunctionFlags,
+    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, Node, NodeInterface,
+    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -279,6 +280,26 @@ impl TypeChecker {
         }) {
             self.mark_alias_symbol_as_referenced(root_symbol);
         }
+    }
+
+    pub(super) fn mark_decorator_medata_data_type_node_as_referenced<TNode: Borrow<Node>>(
+        &self,
+        node: Option<TNode /*TypeNode*/>,
+    ) {
+        let entity_name = self.get_entity_name_for_decorator_metadata(node);
+        if let Some(entity_name) = entity_name
+            .as_ref()
+            .filter(|entity_name| is_entity_name(entity_name))
+        {
+            self.mark_entity_name_or_entity_expression_as_reference(Some(&**entity_name));
+        }
+    }
+
+    pub(super) fn get_entity_name_for_decorator_metadata<TNode: Borrow<Node>>(
+        &self,
+        node: Option<TNode /*TypeNode*/>,
+    ) -> Option<Rc<Node /*EntityName*/>> {
+        unimplemented!()
     }
 
     pub(super) fn check_decorators(&self, node: &Node) {
