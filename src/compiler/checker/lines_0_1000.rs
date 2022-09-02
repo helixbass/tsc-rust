@@ -22,7 +22,7 @@ use crate::{
     Extension, ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType,
     GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, IterationTypes, JsxEmit,
     ModuleInstanceState, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId,
-    NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, PatternAmbientModule,
+    NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Path, PatternAmbientModule,
     PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags, SignatureKind,
     StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
     SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
@@ -3101,6 +3101,12 @@ impl TypeChecker {
 
     pub(super) fn maybe_deferred_global_big_int_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.deferred_global_big_int_type.borrow_mut()
+    }
+
+    pub(super) fn all_potentially_unused_identifiers(
+        &self,
+    ) -> RefMut<HashMap<Path, Vec<Rc<Node /*PotentiallyUnusedIdentifier*/>>>> {
+        self.all_potentially_unused_identifiers.borrow_mut()
     }
 
     pub(crate) fn flow_loop_start(&self) -> usize {

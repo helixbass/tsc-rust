@@ -7,13 +7,14 @@ use std::rc::Rc;
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
     for_each, get_class_extends_heritage_element, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_effective_jsdoc_host, get_function_flags, get_jsdoc_host,
-    get_jsdoc_tags, id_text, is_binding_element, is_class_declaration, is_class_expression,
-    is_function_or_module_block, is_jsdoc_augments_tag,
-    is_private_identifier_class_element_declaration, Debug_, Diagnostic, DiagnosticMessage,
-    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
-    JSDocTagInterface, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    get_effective_initializer, get_effective_jsdoc_host, get_effective_return_type_node,
+    get_function_flags, get_jsdoc_host, get_jsdoc_tags, get_jsdoc_type_tag,
+    get_source_file_of_node, id_text, is_binding_element, is_class_declaration,
+    is_class_expression, is_function_or_module_block, is_in_js_file, is_jsdoc_augments_tag,
+    is_private_identifier_class_element_declaration, node_is_missing, node_is_present, Debug_,
+    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
+    IterationTypes, IterationTypesResolver, JSDocTagInterface, Node, NodeFlags, NodeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -128,15 +129,107 @@ impl TypeChecker {
         &self,
         node: &Node, /*FunctionDeclaration | MethodDeclaration | MethodSignature*/
     ) {
-        // self.check_decorators(node);
-        // self.check_signature_declaration(node);
+        self.check_decorators(node);
+        self.check_signature_declaration(node);
+        let function_flags = get_function_flags(Some(node));
+
+        let node_as_signature_declaration = node.as_signature_declaration();
+        if let Some(node_name) = node_as_signature_declaration
+            .maybe_name()
+            .as_ref()
+            .filter(|node_name| node_name.kind() == SyntaxKind::ComputedPropertyName)
+        {
+            self.check_computed_property_name(node_name);
+        }
+
+        if self.has_bindable_name(node) {
+            let symbol = self.get_symbol_of_node(node).unwrap();
+            let local_symbol = node.maybe_local_symbol().unwrap_or_else(|| symbol.clone());
+
+            let first_declaration =
+                local_symbol
+                    .maybe_declarations()
+                    .as_ref()
+                    .and_then(|local_symbol_declarations| {
+                        local_symbol_declarations
+                            .iter()
+                            .find(|declaration| {
+                                declaration.kind() == node.kind()
+                                    && !declaration.flags().intersects(NodeFlags::JavaScriptFile)
+                            })
+                            .cloned()
+                    });
+
+            if matches!(
+                first_declaration.as_ref(),
+                Some(first_declaration) if ptr::eq(node, &**first_declaration)
+            ) {
+                self.check_function_or_constructor_symbol(&local_symbol);
+            }
+
+            if symbol.maybe_parent().is_some() {
+                self.check_function_or_constructor_symbol(&symbol);
+            }
+        }
+
+        let body = if node.kind() == SyntaxKind::MethodSignature {
+            None
+        } else {
+            node.as_function_like_declaration().maybe_body()
+        };
+        self.check_source_element(body.as_deref());
+        self.check_all_code_paths_in_non_void_function_return_or_throw(
+            node,
+            self.get_return_type_from_annotation(node),
+        );
+
+        if self.produce_diagnostics && get_effective_return_type_node(node).is_none() {
+            if node_is_missing(body.as_deref()) && !self.is_private_within_ambient(node) {
+                self.report_implicit_any(node, &self.any_type(), None);
+            }
+
+            if function_flags.intersects(FunctionFlags::Generator)
+                && node_is_present(body.as_deref())
+            {
+                self.get_return_type_of_signature(self.get_signature_from_declaration_(node));
+            }
+        }
+
+        if is_in_js_file(Some(node)) {
+            let type_tag = get_jsdoc_type_tag(node);
+            if let Some(type_tag_type_expression) = type_tag
+                .as_ref()
+                .and_then(|type_tag| type_tag.as_jsdoc_type_like_tag().maybe_type_expression())
+                .as_ref()
+                .filter(|type_tag_type_expression| {
+                    self.get_contextual_call_signature(
+                        &self.get_type_from_type_node_(type_tag_type_expression),
+                        node,
+                    )
+                    .is_none()
+                })
+            {
+                self.error(
+                    Some(&*type_tag_type_expression.as_jsdoc_type_expression().type_),
+                    &Diagnostics::The_type_of_a_function_declaration_must_match_the_function_s_signature,
+                    None,
+                );
+            }
+        }
     }
 
     pub(super) fn register_for_unused_identifiers_check(
         &self,
         node: &Node, /*PotentiallyUnusedIdentifier*/
     ) {
-        unimplemented!()
+        if self.produce_diagnostics {
+            let source_file = get_source_file_of_node(Some(node)).unwrap();
+            let mut all_potentially_unused_identifiers = self.all_potentially_unused_identifiers();
+            let potentially_unused_identifiers = all_potentially_unused_identifiers
+                .entry(source_file.as_source_file().path().clone())
+                .or_insert_with(|| vec![]);
+            potentially_unused_identifiers.push(node.node_wrapper());
+        }
     }
 
     pub(super) fn check_unused_identifiers<
