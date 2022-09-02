@@ -4,18 +4,16 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, DeclarationSpaces, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
+use super::{DeclarationSpaces, TypeFacts};
 use crate::{
-    map, Signature, SignatureKind, UnionReduction, __String, declaration_name_to_string, for_each,
-    for_each_child_returns, get_containing_function_or_class_static_block, get_declaration_of_kind,
-    get_effective_initializer, get_escaped_text_of_identifier_or_literal, get_function_flags,
+    map, Signature, SignatureKind, UnionReduction, __String, declaration_name_to_string,
+    for_each_child_returns, get_declaration_of_kind, get_escaped_text_of_identifier_or_literal,
     get_module_instance_state, get_name_of_declaration, has_syntactic_modifier, is_ambient_module,
-    is_binding_element, is_computed_property_name, is_entity_name_expression, is_export_assignment,
-    is_function_or_module_block, is_private_identifier, is_property_name_literal, is_static,
-    maybe_for_each, node_is_missing, node_is_present, Debug_, Diagnostic, DiagnosticMessage,
-    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
-    ModifierFlags, ModuleInstanceState, Node, NodeArray, NodeInterface, ReadonlyTextRange, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    is_computed_property_name, is_entity_name_expression, is_export_assignment,
+    is_private_identifier, is_property_name_literal, is_static, maybe_for_each, node_is_missing,
+    node_is_present, Debug_, DiagnosticMessage, Diagnostics, ModifierFlags, ModuleInstanceState,
+    Node, NodeArray, NodeInterface, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
