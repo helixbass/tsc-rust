@@ -1,15 +1,19 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{
+    CheckMode, IterationTypeKind, IterationUse, ResolveCallContainingMessageChain, UnusedKind,
+};
 use crate::{
-    entity_name_to_string, for_each, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_entity_name_from_type_node, get_first_identifier,
-    get_function_flags, id_text, is_binding_element, is_function_or_module_block, Diagnostic,
-    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes,
+    chain_diagnostic_messages, entity_name_to_string, for_each,
+    get_containing_function_or_class_static_block, get_effective_initializer,
+    get_entity_name_from_type_node, get_first_identifier, get_function_flags, id_text,
+    is_binding_element, is_function_or_module_block, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes,
     IterationTypesResolver, Node, NodeInterface, ScriptTarget, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
@@ -165,8 +169,116 @@ impl TypeChecker {
         );
     }
 
+    pub(super) fn check_decorator(&self, node: &Node /*Decorator*/) {
+        let signature = self.get_resolved_signature_(node, None, None);
+        self.check_deprecated_signature(&signature, node);
+        let return_type = self.get_return_type_of_signature(signature.clone());
+        if return_type.flags().intersects(TypeFlags::Any) {
+            return;
+        }
+
+        let expected_return_type: Rc<Type>;
+        let head_message = self.get_diagnostic_head_message_for_decorator_resolution(node);
+        let mut error_info: Option<Rc<RefCell<DiagnosticMessageChain>>> = None;
+        match node.parent().kind() {
+            SyntaxKind::ClassDeclaration => {
+                let class_symbol = self.get_symbol_of_node(&node.parent()).unwrap();
+                let class_constructor_type = self.get_type_of_symbol(&class_symbol);
+                expected_return_type = self.get_union_type(
+                    vec![class_constructor_type, self.void_type()],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                );
+            }
+
+            SyntaxKind::Parameter => {
+                expected_return_type = self.void_type();
+                error_info = Some(Rc::new(RefCell::new(
+                    chain_diagnostic_messages(
+                        None,
+                        &Diagnostics::The_return_type_of_a_parameter_decorator_function_must_be_either_void_or_any,
+                        None,
+                    )
+                )));
+            }
+
+            SyntaxKind::PropertyDeclaration => {
+                expected_return_type = self.void_type();
+                error_info = Some(Rc::new(RefCell::new(
+                    chain_diagnostic_messages(
+                        None,
+                        &Diagnostics::The_return_type_of_a_property_decorator_function_must_be_either_void_or_any,
+                        None,
+                    )
+                )));
+            }
+
+            SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                let method_type = self.get_type_of_node(&node.parent());
+                let descriptor_type = self.create_typed_property_descriptor_type(&method_type);
+                expected_return_type = self.get_union_type(
+                    vec![descriptor_type, self.void_type()],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                );
+            }
+
+            _ => Debug_.fail(None),
+        }
+
+        self.check_type_assignable_to(
+            &return_type,
+            &expected_return_type,
+            Some(node),
+            Some(head_message),
+            Some(Rc::new(ResolveCallContainingMessageChain::new(error_info))),
+            None,
+        );
+    }
+
     pub(super) fn mark_type_node_as_referenced(&self, node: &Node /*TypeNode*/) {
-        unimplemented!()
+        self.mark_entity_name_or_entity_expression_as_reference(
+            /*node &&*/ get_entity_name_from_type_node(node),
+        );
+    }
+
+    pub(super) fn mark_entity_name_or_entity_expression_as_reference<TTypeName: Borrow<Node>>(
+        &self,
+        type_name: Option<TTypeName /*EntityNameOrEntityNameExpression*/>,
+    ) {
+        if type_name.is_none() {
+            return;
+        }
+        let type_name = type_name.unwrap();
+        let type_name = type_name.borrow();
+
+        let root_name = get_first_identifier(type_name);
+        let meaning = if type_name.kind() == SyntaxKind::Identifier {
+            SymbolFlags::Type
+        } else {
+            SymbolFlags::Namespace
+        } | SymbolFlags::Alias;
+        let root_symbol = self.resolve_name_(
+            Some(&*root_name),
+            &root_name.as_identifier().escaped_text,
+            meaning,
+            None,
+            Option::<Rc<Node>>::None,
+            true,
+            None,
+        );
+        if let Some(root_symbol) = root_symbol.as_ref().filter(|root_symbol| {
+            root_symbol.flags().intersects(SymbolFlags::Alias)
+                && self.symbol_is_value(root_symbol)
+                && !self.is_const_enum_or_const_enum_only_module(&self.resolve_alias(root_symbol))
+                && self.get_type_only_alias_declaration(root_symbol).is_none()
+        }) {
+            self.mark_alias_symbol_as_referenced(root_symbol);
+        }
     }
 
     pub(super) fn check_decorators(&self, node: &Node) {

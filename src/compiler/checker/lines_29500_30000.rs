@@ -1313,7 +1313,7 @@ pub(super) struct GetDiagnosticSpanForCallNodeReturn {
     pub source_file: Rc<Node /*SourceFile*/>,
 }
 
-struct ResolveCallContainingMessageChain {
+pub(super) struct ResolveCallContainingMessageChain {
     chain: Option<Rc<RefCell<DiagnosticMessageChain>>>,
 }
 
