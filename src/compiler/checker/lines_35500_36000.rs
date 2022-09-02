@@ -5,23 +5,18 @@ use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    CheckMode, IterationTypeKind, IterationUse, ResolveCallContainingMessageChain, UnusedKind,
-};
+use super::ResolveCallContainingMessageChain;
 use crate::{
-    chain_diagnostic_messages, entity_name_to_string, find_last, for_each,
-    get_containing_function_or_class_static_block, get_declaration_of_kind,
-    get_effective_initializer, get_effective_return_type_node, get_effective_type_annotation_node,
+    chain_diagnostic_messages, entity_name_to_string, find_last, for_each, get_declaration_of_kind,
+    get_effective_return_type_node, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, get_entity_name_from_type_node,
-    get_first_constructor_with_body, get_first_identifier, get_function_flags,
-    get_host_signature_from_jsdoc, get_jsdoc_tags, get_parameter_symbol_from_jsdoc,
-    get_rest_parameter_element_type, id_text, is_binding_element, is_binding_pattern,
-    is_entity_name, is_function_or_module_block, is_identifier, is_jsdoc_construct_signature,
+    get_first_constructor_with_body, get_first_identifier, get_host_signature_from_jsdoc,
+    get_jsdoc_tags, get_parameter_symbol_from_jsdoc, get_rest_parameter_element_type, id_text,
+    is_binding_pattern, is_entity_name, is_identifier, is_jsdoc_construct_signature,
     is_jsdoc_parameter_tag, is_qualified_name, is_rest_parameter, node_can_be_decorated, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers,
-    FunctionFlags, HasTypeInterface, HasTypeParametersInterface, IterationTypes,
-    IterationTypesResolver, NamedDeclarationInterface, Node, NodeInterface, ScriptTarget, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, HasTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, ScriptTarget, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
