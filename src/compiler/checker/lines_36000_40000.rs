@@ -6,14 +6,124 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    for_each, get_containing_function_or_class_static_block, get_effective_initializer,
-    get_function_flags, is_binding_element, is_function_or_module_block, Diagnostic,
-    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes,
-    IterationTypesResolver, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    for_each, get_class_extends_heritage_element, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_effective_jsdoc_host, get_function_flags, get_jsdoc_host,
+    get_jsdoc_tags, id_text, is_binding_element, is_class_declaration, is_class_expression,
+    is_function_or_module_block, is_jsdoc_augments_tag,
+    is_private_identifier_class_element_declaration, Debug_, Diagnostic, DiagnosticMessage,
+    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
+    JSDocTagInterface, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn check_jsdoc_implements_tag(&self, node: &Node /*JSDocImplementsTag*/) {
+        let node_as_jsdoc_implements_tag = node.as_jsdoc_implements_tag();
+        let class_like = get_effective_jsdoc_host(node);
+        if match class_like.as_ref() {
+            None => true,
+            Some(class_like) => {
+                !is_class_declaration(class_like) && !is_class_expression(class_like)
+            }
+        } {
+            self.error(
+                class_like,
+                &Diagnostics::JSDoc_0_is_not_attached_to_a_class,
+                Some(vec![id_text(&node_as_jsdoc_implements_tag.tag_name())]),
+            );
+        }
+    }
+
+    pub(super) fn check_jsdoc_augments_tag(&self, node: &Node /*JSDocAugmentsTag*/) {
+        let node_as_jsdoc_augments_tag = node.as_jsdoc_augments_tag();
+        let class_like = get_effective_jsdoc_host(node);
+        if match class_like.as_ref() {
+            None => true,
+            Some(class_like) => {
+                !is_class_declaration(class_like) && !is_class_expression(class_like)
+            }
+        } {
+            self.error(
+                class_like,
+                &Diagnostics::JSDoc_0_is_not_attached_to_a_class,
+                Some(vec![id_text(&node_as_jsdoc_augments_tag.tag_name())]),
+            );
+            return;
+        }
+        let class_like = class_like.unwrap();
+
+        let augments_tags = get_jsdoc_tags(&class_like)
+            .into_iter()
+            .filter(|jsdoc_tag| is_jsdoc_augments_tag(jsdoc_tag))
+            .collect::<Vec<_>>();
+        Debug_.assert(!augments_tags.is_empty(), None);
+        if augments_tags.len() > 1 {
+            self.error(
+                Some(&*augments_tags[1]),
+                &Diagnostics::Class_declarations_cannot_have_more_than_one_augments_or_extends_tag,
+                None,
+            );
+        }
+
+        let name = self
+            .get_identifier_from_entity_name_expression(
+                &node_as_jsdoc_augments_tag
+                    .class
+                    .as_expression_with_type_arguments()
+                    .expression,
+            )
+            .unwrap();
+        let extend = get_class_extends_heritage_element(&class_like);
+        if let Some(extend) = extend.as_ref() {
+            let class_name = self.get_identifier_from_entity_name_expression(
+                &extend.as_expression_with_type_arguments().expression,
+            );
+            if let Some(class_name) = class_name.as_ref().filter(|class_name| {
+                name.as_member_name().escaped_text() != class_name.as_member_name().escaped_text()
+            }) {
+                self.error(
+                    Some(&*name),
+                    &Diagnostics::JSDoc_0_1_does_not_match_the_extends_2_clause,
+                    Some(vec![
+                        id_text(&node_as_jsdoc_augments_tag.tag_name()),
+                        id_text(&name),
+                        id_text(class_name),
+                    ]),
+                );
+            }
+        }
+    }
+
+    pub(super) fn check_jsdoc_accessibility_modifiers(
+        &self,
+        node: &Node, /*JSDocPublicTag | JSDocProtectedTag | JSDocPrivateTag*/
+    ) {
+        let host = get_jsdoc_host(node);
+        if matches!(
+            host.as_ref(),
+            Some(host) if is_private_identifier_class_element_declaration(host)
+        ) {
+            self.error(
+                Some(node),
+                &Diagnostics::An_accessibility_modifier_cannot_be_used_with_a_private_identifier,
+                None,
+            );
+        }
+    }
+
+    pub(super) fn get_identifier_from_entity_name_expression(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> Option<Rc<Node /*Identifier | PrivateIdentifier*/>> {
+        match node.kind() {
+            SyntaxKind::Identifier => Some(node.node_wrapper()),
+            SyntaxKind::PropertyAccessExpression => {
+                Some(node.as_property_access_expression().name.clone())
+            }
+            _ => None,
+        }
+    }
+
     pub(super) fn check_function_or_method_declaration(
         &self,
         node: &Node, /*FunctionDeclaration | MethodDeclaration | MethodSignature*/
