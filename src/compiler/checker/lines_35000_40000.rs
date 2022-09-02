@@ -4,9 +4,9 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, DeclarationSpaces, IterationTypeKind, IterationUse, UnusedKind};
+use super::{CheckMode, DeclarationSpaces, IterationTypeKind, IterationUse, TypeFacts, UnusedKind};
 use crate::{
-    declaration_name_to_string, for_each, for_each_child_returns,
+    SignatureKind, __String, declaration_name_to_string, for_each, for_each_child_returns,
     get_containing_function_or_class_static_block, get_declaration_of_kind,
     get_effective_initializer, get_escaped_text_of_identifier_or_literal, get_function_flags,
     get_module_instance_state, get_name_of_declaration, has_syntactic_modifier, is_ambient_module,
@@ -315,7 +315,28 @@ impl TypeChecker {
         diagnostic_message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let awaited_type = if with_alias {
+            self.get_awaited_type_(type_, Some(error_node), Some(diagnostic_message), args)
+        } else {
+            self.get_awaited_type_no_alias(type_, Some(error_node), Some(diagnostic_message), args)
+        };
+        awaited_type.unwrap_or_else(|| self.error_type())
+    }
+
+    pub(super) fn is_thenable_type(&self, type_: &Type) -> bool {
+        if self.all_types_assignable_to_kind(type_, TypeFlags::Primitive | TypeFlags::Never, None) {
+            return false;
+        }
+
+        let then_function =
+            self.get_type_of_property_of_type_(type_, &__String::new("then".to_owned()));
+        matches!(
+            then_function.as_ref(),
+            Some(then_function) if !self.get_signatures_of_type(
+                &self.get_type_with_facts(then_function, TypeFacts::NEUndefinedOrNull),
+                SignatureKind::Call
+            ).is_empty()
+        )
     }
 
     pub(super) fn is_awaited_type_instantiation(&self, type_: &Type) -> bool {
