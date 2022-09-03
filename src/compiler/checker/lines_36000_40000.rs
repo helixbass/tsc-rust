@@ -237,7 +237,91 @@ impl TypeChecker {
     >(
         &self,
         potentially_unused_identifiers: &[Rc<Node /*PotentiallyUnusedIdentifier*/>],
-        add_diagnostic: TAddDiagnostic, /*AddUnusedDiagnostic*/
+        mut add_diagnostic: TAddDiagnostic, /*AddUnusedDiagnostic*/
+    ) {
+        for node in potentially_unused_identifiers {
+            match node.kind() {
+                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
+                    self.check_unused_class_members(node, &mut add_diagnostic);
+                    self.check_unused_type_parameters(node, &mut add_diagnostic);
+                }
+                SyntaxKind::SourceFile
+                | SyntaxKind::ModuleDeclaration
+                | SyntaxKind::Block
+                | SyntaxKind::CaseBlock
+                | SyntaxKind::ForStatement
+                | SyntaxKind::ForInStatement
+                | SyntaxKind::ForOfStatement => {
+                    self.check_unused_locals_and_parameters(node, &mut add_diagnostic);
+                }
+                SyntaxKind::Constructor
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor => {
+                    if node.as_function_like_declaration().maybe_body().is_some() {
+                        self.check_unused_locals_and_parameters(node, &mut add_diagnostic);
+                    }
+                    self.check_unused_type_parameters(node, &mut add_diagnostic);
+                }
+                SyntaxKind::MethodSignature
+                | SyntaxKind::CallSignature
+                | SyntaxKind::ConstructSignature
+                | SyntaxKind::FunctionType
+                | SyntaxKind::ConstructorType
+                | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::InterfaceDeclaration => {
+                    self.check_unused_type_parameters(node, &mut add_diagnostic);
+                }
+                SyntaxKind::InferType => {
+                    self.check_unused_infer_type_parameter(node, &mut add_diagnostic);
+                }
+                _ => Debug_.assert_never(
+                    node,
+                    Some("Node should not have been registered for unused identifiers check"),
+                ),
+            }
+        }
+    }
+
+    pub(super) fn check_unused_class_members<
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+    >(
+        &self,
+        node: &Node, /*ClassDeclaration | ClassExpression*/
+        add_diagnostic: &mut TAddDiagnostic,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn check_unused_infer_type_parameter<
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+    >(
+        &self,
+        node: &Node, /*InferTypeNode*/
+        add_diagnostic: &mut TAddDiagnostic,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn check_unused_type_parameters<
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+    >(
+        &self,
+        node: &Node, /*ClassLikeDeclaration | SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration*/
+        add_diagnostic: &mut TAddDiagnostic,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn check_unused_locals_and_parameters<
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+    >(
+        &self,
+        node_with_locals: &Node,
+        add_diagnostic: &mut TAddDiagnostic,
     ) {
         unimplemented!()
     }
