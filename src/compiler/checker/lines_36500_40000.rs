@@ -6,23 +6,387 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    for_each, get_containing_function_or_class_static_block, get_effective_initializer,
-    get_function_flags, is_binding_element, DiagnosticMessage, Diagnostics, FunctionFlags,
-    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, Node, NodeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    declaration_name_to_string, find_ancestor, for_each, get_ancestor, get_combined_node_flags,
+    get_containing_function_or_class_static_block, get_effective_initializer,
+    get_enclosing_block_scope_container, get_function_flags, get_module_instance_state,
+    get_name_of_declaration, get_source_file_of_node, is_binding_element, is_class_expression,
+    is_class_like, is_enum_declaration, is_external_or_common_js_module, is_function_expression,
+    is_function_like, is_identifier, is_module_declaration, is_named_declaration,
+    is_parameter_declaration, ClassLikeDeclarationInterface, Debug_, DiagnosticMessage,
+    Diagnostics, FunctionFlags, HasInitializerInterface, HasTypeParametersInterface,
+    IterationTypes, IterationTypesResolver, ModuleInstanceState, ModuleKind, Node, NodeCheckFlags,
+    NodeFlags, NodeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn check_if_this_is_captured_in_enclosing_scope(&self, node: &Node) {
+        find_ancestor(Some(node), |current: &Node| {
+            if self
+                .get_node_check_flags(current)
+                .intersects(NodeCheckFlags::CaptureThis)
+            {
+                let is_declaration = node.kind() != SyntaxKind::Identifier;
+                if is_declaration {
+                    self.error(
+                            get_name_of_declaration(Some(node)),
+                            &Diagnostics::Duplicate_identifier_this_Compiler_uses_variable_declaration_this_to_capture_this_reference,
+                            None,
+                        );
+                } else {
+                    self.error(
+                            Some(node),
+                            &Diagnostics::Expression_resolves_to_variable_declaration_this_that_compiler_uses_to_capture_this_reference,
+                            None,
+                        );
+                }
+                return true;
+            }
+            false
+        });
+    }
+
+    pub(super) fn check_if_new_target_is_captured_in_enclosing_scope(&self, node: &Node) {
+        find_ancestor(Some(node), |current: &Node| {
+            if self
+                .get_node_check_flags(current)
+                .intersects(NodeCheckFlags::CaptureNewTarget)
+            {
+                let is_declaration = node.kind() != SyntaxKind::Identifier;
+                if is_declaration {
+                    self.error(
+                            get_name_of_declaration(Some(node)),
+                            &Diagnostics::Duplicate_identifier_newTarget_Compiler_uses_variable_declaration_newTarget_to_capture_new_target_meta_property_reference,
+                            None,
+                        );
+                } else {
+                    self.error(
+                            Some(node),
+                            &Diagnostics::Expression_resolves_to_variable_declaration_newTarget_that_compiler_uses_to_capture_new_target_meta_property_reference,
+                            None,
+                        );
+                }
+                return true;
+            }
+            false
+        });
+    }
+
+    pub(super) fn check_collision_with_require_exports_in_generated_code<TName: Borrow<Node>>(
+        &self,
+        node: &Node,
+        name: Option<TName /*Identifier*/>,
+    ) {
+        if self.module_kind >= ModuleKind::ES2015
+            && !(self.module_kind >= ModuleKind::Node12
+                && get_source_file_of_node(Some(node))
+                    .unwrap()
+                    .as_source_file()
+                    .maybe_implied_node_format()
+                    == Some(ModuleKind::CommonJS))
+        {
+            return;
+        }
+
+        if name.is_none() {
+            return;
+        }
+        let name = name.unwrap();
+        let name: &Node = name.borrow();
+        if !self.need_collision_check_for_identifier(node, Some(name), "require")
+            && !self.need_collision_check_for_identifier(node, Some(name), "exports")
+        {
+            return;
+        }
+
+        if is_module_declaration(node)
+            && get_module_instance_state(node, None) != ModuleInstanceState::Instantiated
+        {
+            return;
+        }
+
+        let parent = self.get_declaration_container(node);
+        if parent.kind() == SyntaxKind::SourceFile && is_external_or_common_js_module(&parent) {
+            self.error_skipped_on(
+                "noEmit".to_owned(),
+                Some(name),
+                &Diagnostics::Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module,
+                Some(vec![
+                    declaration_name_to_string(Some(name)).into_owned(),
+                    declaration_name_to_string(Some(name)).into_owned(),
+                ])
+            );
+        }
+    }
+
+    pub(super) fn check_collision_with_global_promise_in_generated_code<TName: Borrow<Node>>(
+        &self,
+        node: &Node,
+        name: Option<TName /*Identifier*/>,
+    ) {
+        if name.is_none() {
+            return;
+        }
+        let name = name.unwrap();
+        let name: &Node = name.borrow();
+        if self.language_version >= ScriptTarget::ES2017
+            || !self.need_collision_check_for_identifier(node, Some(name), "Promise")
+        {
+            return;
+        }
+
+        if is_module_declaration(node)
+            && get_module_instance_state(node, None) != ModuleInstanceState::Instantiated
+        {
+            return;
+        }
+
+        let parent = self.get_declaration_container(node);
+        if parent.kind() == SyntaxKind::SourceFile
+            && is_external_or_common_js_module(&parent)
+            && parent.flags().intersects(NodeFlags::HasAsyncFunctions)
+        {
+            self.error_skipped_on(
+                "noEmit".to_owned(),
+                Some(name),
+                &Diagnostics::Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module_containing_async_functions,
+                Some(vec![
+                    declaration_name_to_string(Some(name)).into_owned(),
+                    declaration_name_to_string(Some(name)).into_owned(),
+                ])
+            );
+        }
+    }
+
+    pub(super) fn record_potential_collision_with_weak_map_set_in_generated_code(
+        &self,
+        node: &Node,
+        name: &Node, /*Identifier*/
+    ) {
+        if self.language_version <= ScriptTarget::ES2021
+            && (self.need_collision_check_for_identifier(node, Some(name), "WeakMap")
+                || self.need_collision_check_for_identifier(node, Some(name), "WeakSet"))
+        {
+            self.potential_weak_map_set_collisions()
+                .push(node.node_wrapper());
+        }
+    }
+
+    pub(super) fn check_weak_map_set_collision(&self, node: &Node) {
+        let enclosing_block_scope = get_enclosing_block_scope_container(node).unwrap();
+        if self
+            .get_node_check_flags(&enclosing_block_scope)
+            .intersects(NodeCheckFlags::ContainsClassWithPrivateIdentifiers)
+        {
+            Debug_.assert(
+                is_named_declaration(node) &&
+                is_identifier(&node.as_named_declaration().name()) /*&& typeof node.name.escapedText === "string"*/,
+                Some("The target of a WeakMap/WeakSet collision check should be an identifier")
+            );
+            self.error_skipped_on(
+                "noEmit".to_owned(),
+                Some(node),
+                &Diagnostics::Compiler_reserves_name_0_when_emitting_private_identifier_downlevel,
+                Some(vec![node
+                    .as_named_declaration()
+                    .name()
+                    .as_identifier()
+                    .escaped_text
+                    .clone()
+                    .into_string()]),
+            );
+        }
+    }
+
+    pub(super) fn record_potential_collision_with_reflect_in_generated_code<TName: Borrow<Node>>(
+        &self,
+        node: &Node,
+        name: Option<TName /*Identifier*/>,
+    ) {
+        if name.is_none() {
+            return;
+        }
+        let name = name.unwrap();
+        let name: &Node = name.borrow();
+        if self.language_version >= ScriptTarget::ES2015
+            && self.language_version <= ScriptTarget::ES2021
+            && self.need_collision_check_for_identifier(node, Some(name), "Reflect")
+        {
+            self.potential_reflect_collisions()
+                .push(node.node_wrapper());
+        }
+    }
+
+    pub(super) fn check_reflect_collision(&self, node: &Node) {
+        let mut has_collision = false;
+        if is_class_expression(node) {
+            for member in node.as_class_expression().members() {
+                if self
+                    .get_node_check_flags(member)
+                    .intersects(NodeCheckFlags::ContainsSuperPropertyInStaticInitializer)
+                {
+                    has_collision = true;
+                    break;
+                }
+            }
+        } else if is_function_expression(node) {
+            if self
+                .get_node_check_flags(node)
+                .intersects(NodeCheckFlags::ContainsSuperPropertyInStaticInitializer)
+            {
+                has_collision = true;
+            }
+        } else {
+            let container = get_enclosing_block_scope_container(node);
+            if matches!(
+                container.as_ref(),
+                Some(container) if self.get_node_check_flags(container).intersects(NodeCheckFlags::ContainsSuperPropertyInStaticInitializer)
+            ) {
+                has_collision = true;
+            }
+        }
+        if has_collision {
+            Debug_.assert(
+                is_named_declaration(node) && is_identifier(&node.as_named_declaration().name()),
+                Some("The target of a Reflect collision check should be an identifier"),
+            );
+            self.error_skipped_on(
+                "noEmit".to_owned(),
+                Some(node),
+                &Diagnostics::Duplicate_identifier_0_Compiler_reserves_name_1_when_emitting_super_references_in_static_initializers,
+                Some(vec![
+                    declaration_name_to_string(node.as_named_declaration().maybe_name()).into_owned(),
+                    "Reflect".to_owned()
+                ])
+            );
+        }
+    }
+
     pub(super) fn check_collisions_for_declaration_name<TName: Borrow<Node>>(
         &self,
         node: &Node,
         name: Option<TName /*Identifier*/>,
     ) {
-        unimplemented!()
+        if name.is_none() {
+            return;
+        }
+        let name = name.unwrap();
+        let name: &Node = name.borrow();
+        self.check_collision_with_require_exports_in_generated_code(node, Some(name));
+        self.check_collision_with_global_promise_in_generated_code(node, Some(name));
+        self.record_potential_collision_with_weak_map_set_in_generated_code(node, name);
+        self.record_potential_collision_with_reflect_in_generated_code(node, Some(name));
+        if is_class_like(node) {
+            self.check_type_name_is_reserved(name, &Diagnostics::Class_name_cannot_be_0);
+            if !node.flags().intersects(NodeFlags::Ambient) {
+                self.check_class_name_collision_with_object(name);
+            }
+        } else if is_enum_declaration(node) {
+            self.check_type_name_is_reserved(name, &Diagnostics::Enum_name_cannot_be_0);
+        }
+    }
+
+    pub(super) fn check_var_declared_names_not_shadowed(
+        &self,
+        node: &Node, /*VariableDeclaration | BindingElement*/
+    ) {
+        if get_combined_node_flags(node).intersects(NodeFlags::BlockScoped)
+            || is_parameter_declaration(node)
+        {
+            return;
+        }
+
+        if node.kind() == SyntaxKind::VariableDeclaration
+            && node.as_variable_declaration().maybe_initializer().is_none()
+        {
+            return;
+        }
+
+        let symbol = self.get_symbol_of_node(node).unwrap();
+        if symbol
+            .flags()
+            .intersects(SymbolFlags::FunctionScopedVariable)
+        {
+            let node_name = node.as_named_declaration().name();
+            if !is_identifier(&node_name) {
+                Debug_.fail(None);
+            }
+            let local_declaration_symbol = self.resolve_name_(
+                Some(node),
+                &node_name.as_identifier().escaped_text,
+                SymbolFlags::Variable,
+                None,
+                Option::<Rc<Node>>::None,
+                false,
+                None,
+            );
+            if let Some(local_declaration_symbol) =
+                local_declaration_symbol
+                    .as_ref()
+                    .filter(|local_declaration_symbol| {
+                        !Rc::ptr_eq(local_declaration_symbol, &symbol)
+                            && local_declaration_symbol
+                                .flags()
+                                .intersects(SymbolFlags::BlockScopedVariable)
+                    })
+            {
+                if self
+                    .get_declaration_node_flags_from_symbol(local_declaration_symbol)
+                    .intersects(NodeFlags::BlockScoped)
+                {
+                    let var_decl_list = get_ancestor(
+                        local_declaration_symbol.maybe_value_declaration(),
+                        SyntaxKind::VariableDeclarationList,
+                    )
+                    .unwrap();
+                    let container =
+                        if var_decl_list.parent().kind() == SyntaxKind::VariableStatement {
+                            var_decl_list.parent().maybe_parent()
+                        } else {
+                            None
+                        };
+
+                    let names_share_scope = matches!(
+                        container.as_ref(),
+                        Some(container) if container.kind() == SyntaxKind::Block && is_function_like(container.maybe_parent()) ||
+                            matches!(
+                                container.kind(),
+                                SyntaxKind::ModuleBlock |
+                                SyntaxKind::ModuleDeclaration |
+                                SyntaxKind::SourceFile
+                            )
+                    );
+
+                    if !names_share_scope {
+                        let name = self.symbol_to_string_(
+                            local_declaration_symbol,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        );
+                        self.error(
+                            Some(node),
+                            &Diagnostics::Cannot_initialize_outer_scoped_variable_0_in_the_same_scope_as_block_scoped_declaration_1,
+                            Some(vec![
+                                name.clone(),
+                                name,
+                            ])
+                        );
+                    }
+                }
+            }
+        }
     }
 
     pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Rc<Type> {
-        type_.type_wrapper()
+        if ptr::eq(type_, &*self.auto_type()) {
+            self.any_type()
+        } else if ptr::eq(type_, &*self.auto_array_type()) {
+            self.any_array_type()
+        } else {
+            type_.type_wrapper()
+        }
     }
 
     pub(super) fn check_variable_like_declaration(&self, node: &Node) {
@@ -290,6 +654,10 @@ impl TypeChecker {
         name: &Node, /*Identifier*/
         message: &'static DiagnosticMessage,
     ) {
+        unimplemented!()
+    }
+
+    pub(super) fn check_class_name_collision_with_object(&self, name: &Node /*Identifier*/) {
         unimplemented!()
     }
 
