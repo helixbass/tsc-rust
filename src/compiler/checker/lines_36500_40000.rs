@@ -7,15 +7,18 @@ use std::rc::Rc;
 use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
     declaration_name_to_string, find_ancestor, for_each, get_ancestor, get_combined_node_flags,
-    get_containing_function_or_class_static_block, get_effective_initializer,
-    get_enclosing_block_scope_container, get_function_flags, get_module_instance_state,
-    get_name_of_declaration, get_source_file_of_node, is_binding_element, is_class_expression,
+    get_containing_function, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_enclosing_block_scope_container, get_function_flags,
+    get_module_instance_state, get_name_of_declaration, get_source_file_of_node,
+    is_array_binding_pattern, is_binding_element, is_binding_pattern, is_class_expression,
     is_class_like, is_enum_declaration, is_external_or_common_js_module, is_function_expression,
-    is_function_like, is_identifier, is_module_declaration, is_named_declaration,
-    is_parameter_declaration, ClassLikeDeclarationInterface, Debug_, DiagnosticMessage,
-    Diagnostics, FunctionFlags, HasInitializerInterface, HasTypeParametersInterface,
-    IterationTypes, IterationTypesResolver, ModuleInstanceState, ModuleKind, Node, NodeCheckFlags,
-    NodeFlags, NodeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    is_function_like, is_identifier, is_in_js_file, is_module_declaration, is_named_declaration,
+    is_object_binding_pattern, is_object_literal_expression, is_parameter_declaration,
+    is_prototype_access, is_require_variable_declaration, is_variable_like, node_is_missing, some,
+    ClassLikeDeclarationInterface, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    FunctionFlags, HasInitializerInterface, HasTypeParametersInterface, IterationTypes,
+    IterationTypesResolver, ModuleInstanceState, ModuleKind, Node, NodeCheckFlags, NodeFlags,
+    NodeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface,
 };
 
@@ -389,33 +392,283 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_variable_like_declaration(&self, node: &Node) {
+    pub(super) fn check_variable_like_declaration(
+        &self,
+        node: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement*/
+    ) {
+        self.check_decorators(node);
         let node_as_variable_like_declaration = node.as_variable_like_declaration();
         if !is_binding_element(node) {
             self.check_source_element(node_as_variable_like_declaration.maybe_type());
         }
 
-        let symbol = self.get_symbol_of_node(node).unwrap();
+        let node_name = node_as_variable_like_declaration.maybe_name();
+        if node_name.is_none() {
+            return;
+        }
+        let node_name = node_name.unwrap();
 
-        let type_ = self.convert_auto_to_any(&self.get_type_of_symbol(&*symbol));
-        let value_declaration = symbol.maybe_value_declaration();
-        if value_declaration.is_some() && ptr::eq(node, &*value_declaration.unwrap()) {
+        if node_name.kind() == SyntaxKind::ComputedPropertyName {
+            self.check_computed_property_name(&node_name);
+            if let Some(node_initializer) = node_as_variable_like_declaration
+                .maybe_initializer()
+                .as_ref()
+            {
+                self.check_expression_cached(node_initializer, None);
+            }
+        }
+
+        if is_binding_element(node) {
+            let node_as_binding_element = node.as_binding_element();
+            if is_object_binding_pattern(&node.parent())
+                && node_as_binding_element.dot_dot_dot_token.is_some()
+                && self.language_version <= ScriptTarget::ES2018
+            {
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Rest);
+            }
+            if let Some(node_property_name) =
+                node_as_binding_element
+                    .property_name
+                    .as_ref()
+                    .filter(|node_property_name| {
+                        node_property_name.kind() == SyntaxKind::ComputedPropertyName
+                    })
+            {
+                self.check_computed_property_name(node_property_name);
+            }
+
+            let parent = node.parent().parent();
+            let parent_type = self.get_type_for_binding_element_parent(&parent);
+            let name = node_as_binding_element
+                .property_name
+                .clone()
+                .unwrap_or_else(|| node_name.clone());
+            if let Some(parent_type) = parent_type.as_ref() {
+                if !is_binding_pattern(Some(&*name)) {
+                    let expr_type = self.get_literal_type_from_property_name(&name);
+                    if self.is_type_usable_as_property_name(&expr_type) {
+                        let name_text = self.get_property_name_from_type(&expr_type);
+                        let property = self.get_property_of_type_(parent_type, &name_text, None);
+                        if let Some(property) = property.as_ref() {
+                            self.mark_property_as_referenced(
+                                property,
+                                Option::<&Node>::None,
+                                false,
+                            );
+                            self.check_property_accessibility(
+                                node,
+                                matches!(
+                                    parent.as_has_initializer().maybe_initializer().as_ref(),
+                                    Some(parent_initializer) if parent_initializer.kind() == SyntaxKind::SuperKeyword
+                                ),
+                                false,
+                                parent_type,
+                                property,
+                                None,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        if is_binding_pattern(Some(&*node_name)) {
+            if node_name.kind() == SyntaxKind::ArrayBindingPattern
+                && self.language_version < ScriptTarget::ES2015
+                && self.compiler_options.downlevel_iteration == Some(true)
+            {
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::Read);
+            }
+
+            for_each(
+                node_name.as_has_elements().elements(),
+                |element: &Rc<Node>, _| -> Option<()> {
+                    self.check_source_element(Some(&**element));
+                    None
+                },
+            );
+        }
+        if node_as_variable_like_declaration
+            .maybe_initializer()
+            .is_some()
+            && is_parameter_declaration(node)
+            && node_is_missing(
+                get_containing_function(node)
+                    .unwrap()
+                    .as_function_like_declaration()
+                    .maybe_body(),
+            )
+        {
+            self.error(
+                Some(node),
+                &Diagnostics::A_parameter_initializer_is_only_allowed_in_a_function_or_constructor_implementation,
+                None,
+            );
+            return;
+        }
+        if is_binding_pattern(Some(&*node_name)) {
+            let need_check_initializer = node_as_variable_like_declaration
+                .maybe_initializer()
+                .is_some()
+                && node.parent().parent().kind() != SyntaxKind::ForInStatement;
+            let need_check_widened_type = node_name.as_has_elements().elements().is_empty();
+            if need_check_initializer || need_check_widened_type {
+                let widened_type = self.get_widened_type_for_variable_like_declaration(node, None);
+                if need_check_initializer {
+                    let initializer_type = self.check_expression_cached(
+                        &node_as_variable_like_declaration
+                            .maybe_initializer()
+                            .unwrap(),
+                        None,
+                    );
+                    if self.strict_null_checks && need_check_widened_type {
+                        self.check_non_null_non_void_type(&initializer_type, node);
+                    } else {
+                        self.check_type_assignable_to_and_optionally_elaborate(
+                            &initializer_type,
+                            &self.get_widened_type_for_variable_like_declaration(node, None),
+                            Some(node),
+                            node_as_variable_like_declaration.maybe_initializer(),
+                            None,
+                            None,
+                        );
+                    }
+                }
+                if need_check_widened_type {
+                    if is_array_binding_pattern(&node_name) {
+                        self.check_iterated_type_or_element_type(
+                            IterationUse::Destructuring,
+                            &widened_type,
+                            &self.undefined_type(),
+                            Some(node),
+                        );
+                    } else if self.strict_null_checks {
+                        self.check_non_null_non_void_type(&widened_type, node);
+                    }
+                }
+            }
+            return;
+        }
+        let symbol = self.get_symbol_of_node(node).unwrap();
+        if symbol.flags().intersects(SymbolFlags::Alias) && is_require_variable_declaration(node) {
+            self.check_alias_symbol(node);
+            return;
+        }
+
+        let type_ = self.convert_auto_to_any(&self.get_type_of_symbol(&symbol));
+        if matches!(
+            symbol.maybe_value_declaration().as_ref(),
+            Some(symbol_value_declaration) if ptr::eq(
+                node,
+                &**symbol_value_declaration
+            )
+        ) {
             let initializer = get_effective_initializer(node);
-            if let Some(initializer) = initializer {
-                if true {
-                    let initializer_type = self.check_expression_cached(&initializer, None);
+            if let Some(initializer) = initializer.as_ref() {
+                let is_js_object_literal_initializer = is_in_js_file(Some(node))
+                    && is_object_literal_expression(initializer)
+                    && (initializer
+                        .as_object_literal_expression()
+                        .properties
+                        .is_empty()
+                        || is_prototype_access(&node_name))
+                    && matches!(
+                        symbol.maybe_exports().as_ref(),
+                        Some(symbol_exports) if !(**symbol_exports).borrow().is_empty()
+                    );
+                if !is_js_object_literal_initializer
+                    && node.parent().parent().kind() != SyntaxKind::ForInStatement
+                {
                     self.check_type_assignable_to_and_optionally_elaborate(
-                        &initializer_type,
+                        &self.check_expression_cached(initializer, None),
                         &type_,
                         Some(node),
-                        Some(&*initializer),
+                        Some(&**initializer),
                         None,
                         None,
                     );
                 }
             }
+            if let Some(symbol_declarations) = symbol
+                .maybe_declarations()
+                .as_ref()
+                .filter(|symbol_declarations| symbol_declarations.len() > 1)
+            {
+                if some(
+                    Some(symbol_declarations),
+                    Some(|d: &Rc<Node>| {
+                        !ptr::eq(&**d, node)
+                            && is_variable_like(d)
+                            && !self.are_declaration_flags_identical(d, node)
+                    }),
+                ) {
+                    self.error(
+                        Some(&*node_name),
+                        &Diagnostics::All_declarations_of_0_must_have_identical_modifiers,
+                        Some(vec![
+                            declaration_name_to_string(Some(&*node_name)).into_owned()
+                        ]),
+                    );
+                }
+            }
         } else {
-            unimplemented!()
+            let declaration_type = self.convert_auto_to_any(
+                &self.get_widened_type_for_variable_like_declaration(node, None),
+            );
+
+            if !self.is_error_type(&type_)
+                && !self.is_error_type(&declaration_type)
+                && !self.is_type_identical_to(&type_, &declaration_type)
+                && !symbol.flags().intersects(SymbolFlags::Assignment)
+            {
+                self.error_next_variable_or_property_declaration_must_have_same_type(
+                    symbol.maybe_value_declaration(),
+                    &type_,
+                    node,
+                    &declaration_type,
+                );
+            }
+            if let Some(node_initializer) = node_as_variable_like_declaration
+                .maybe_initializer()
+                .as_ref()
+            {
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    &self.check_expression_cached(node_initializer, None),
+                    &declaration_type,
+                    Some(node),
+                    Some(&**node_initializer),
+                    None,
+                    None,
+                );
+            }
+            if matches!(
+                symbol.maybe_value_declaration().as_ref(),
+                Some(symbol_value_declaration) if !self.are_declaration_flags_identical(
+                    node,
+                    symbol_value_declaration
+                )
+            ) {
+                self.error(
+                    Some(&*node_name),
+                    &Diagnostics::All_declarations_of_0_must_have_identical_modifiers,
+                    Some(vec![
+                        declaration_name_to_string(Some(&*node_name)).into_owned()
+                    ]),
+                );
+            }
+        }
+        if !matches!(
+            node.kind(),
+            SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature
+        ) {
+            self.check_exports_on_merged_declarations(node);
+            if matches!(
+                node.kind(),
+                SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
+            ) {
+                self.check_var_declared_names_not_shadowed(node);
+            }
+            self.check_collisions_for_declaration_name(node, Some(&*node_name));
         }
     }
 
@@ -428,6 +681,14 @@ impl TypeChecker {
         next_declaration: &Node, /*Declaration*/
         next_type: &Type,
     ) {
+        unimplemented!()
+    }
+
+    pub(super) fn are_declaration_flags_identical(
+        &self,
+        left: &Node,  /*Declaration*/
+        right: &Node, /*Declaration*/
+    ) -> bool {
         unimplemented!()
     }
 
@@ -720,5 +981,12 @@ impl TypeChecker {
         } else {
             self.check_source_element(Some(&*node_as_type_alias_declaration.type_));
         }
+    }
+
+    pub(super) fn check_alias_symbol(
+        &self,
+        node: &Node, /*ImportEqualsDeclaration | VariableDeclaration | ImportClause | NamespaceImport | ImportSpecifier | ExportSpecifier | NamespaceExport*/
+    ) {
+        unimplemented!()
     }
 }
