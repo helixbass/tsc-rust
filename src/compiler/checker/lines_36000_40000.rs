@@ -6,15 +6,19 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    for_each, get_class_extends_heritage_element, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_effective_jsdoc_host, get_effective_return_type_node,
-    get_function_flags, get_jsdoc_host, get_jsdoc_tags, get_jsdoc_type_tag,
-    get_source_file_of_node, id_text, is_binding_element, is_class_declaration,
-    is_class_expression, is_function_or_module_block, is_in_js_file, is_jsdoc_augments_tag,
-    is_private_identifier_class_element_declaration, node_is_missing, node_is_present, Debug_,
-    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
-    IterationTypes, IterationTypesResolver, JSDocTagInterface, Node, NodeFlags, NodeInterface,
-    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    create_diagnostic_for_node, for_each, get_class_extends_heritage_element,
+    get_containing_function_or_class_static_block, get_effective_initializer,
+    get_effective_jsdoc_host, get_effective_return_type_node, get_function_flags, get_jsdoc_host,
+    get_jsdoc_tags, get_jsdoc_type_tag, get_name_of_declaration, get_source_file_of_node,
+    has_effective_modifier, has_syntactic_modifier, id_text, is_binding_element,
+    is_class_declaration, is_class_expression, is_function_or_module_block, is_identifier,
+    is_in_js_file, is_jsdoc_augments_tag, is_named_declaration, is_private_identifier,
+    is_private_identifier_class_element_declaration, node_is_missing, node_is_present, symbol_name,
+    CharacterCodes, Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
+    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, JSDocTagInterface,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -286,6 +290,30 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn error_unused_local<TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>)>(
+        &self,
+        declaration: &Node, /*Declaration*/
+        name: &str,
+        add_diagnostic: &mut TAddDiagnostic,
+    ) {
+        let node = get_name_of_declaration(Some(declaration))
+            .unwrap_or_else(|| declaration.node_wrapper());
+        let message = if self.is_type_declaration(declaration) {
+            &*Diagnostics::_0_is_declared_but_never_used
+        } else {
+            &*Diagnostics::_0_is_declared_but_its_value_is_never_read
+        };
+        add_diagnostic(
+            declaration,
+            UnusedKind::Local,
+            Rc::new(create_diagnostic_for_node(&node, message, Some(vec![name.to_owned()])).into()),
+        );
+    }
+
+    pub(super) fn is_identifier_that_starts_with_underscore(&self, node: &Node) -> bool {
+        is_identifier(node) && id_text(node).chars().next() == Some(CharacterCodes::underscore)
+    }
+
     pub(super) fn check_unused_class_members<
         TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
     >(
@@ -293,7 +321,76 @@ impl TypeChecker {
         node: &Node, /*ClassDeclaration | ClassExpression*/
         add_diagnostic: &mut TAddDiagnostic,
     ) {
-        unimplemented!()
+        for member in node.as_class_like_declaration().members() {
+            match member.kind() {
+                SyntaxKind::MethodDeclaration
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor => {
+                    if !(member.kind() == SyntaxKind::SetAccessor
+                        && member.symbol().flags().intersects(SymbolFlags::GetAccessor))
+                    {
+                        let symbol = self.get_symbol_of_node(member).unwrap();
+                        if match symbol.maybe_is_referenced() {
+                            None => true,
+                            Some(symbol_is_referenced) => symbol_is_referenced == SymbolFlags::None,
+                        } && (has_effective_modifier(member, ModifierFlags::Private)
+                            || is_named_declaration(member)
+                                && is_private_identifier(&member.as_named_declaration().name()))
+                            && !member.flags().intersects(NodeFlags::Ambient)
+                        {
+                            add_diagnostic(
+                                member,
+                                UnusedKind::Local,
+                                Rc::new(
+                                    create_diagnostic_for_node(
+                                        &member.as_named_declaration().name(),
+                                        &Diagnostics::_0_is_declared_but_its_value_is_never_read,
+                                        Some(vec![self.symbol_to_string_(
+                                            &symbol,
+                                            Option::<&Node>::None,
+                                            None,
+                                            None,
+                                            None,
+                                        )]),
+                                    )
+                                    .into(),
+                                ),
+                            );
+                        }
+                    }
+                }
+                SyntaxKind::Constructor => {
+                    for parameter in member.as_constructor_declaration().parameters() {
+                        if match parameter.symbol().maybe_is_referenced() {
+                            None => true,
+                            Some(parameter_symbol_is_referenced) => {
+                                parameter_symbol_is_referenced == SymbolFlags::None
+                            }
+                        } && has_syntactic_modifier(parameter, ModifierFlags::Private)
+                        {
+                            add_diagnostic(
+                                parameter,
+                                UnusedKind::Local,
+                                Rc::new(
+                                    create_diagnostic_for_node(
+                                        &parameter.as_parameter_declaration().name(),
+                                        &Diagnostics::Property_0_is_declared_but_its_value_is_never_read,
+                                        Some(vec![
+                                            symbol_name(&parameter.symbol())
+                                        ])
+                                    ).into()
+                                )
+                            );
+                        }
+                    }
+                }
+                SyntaxKind::IndexSignature
+                | SyntaxKind::SemicolonClassElement
+                | SyntaxKind::ClassStaticBlockDeclaration => (),
+                _ => Debug_.fail(Some("Unexpected class member")),
+            }
+        }
     }
 
     pub(super) fn check_unused_infer_type_parameter<
