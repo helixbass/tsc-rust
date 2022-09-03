@@ -6,20 +6,21 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    declaration_name_to_string, find_ancestor, for_each, get_ancestor, get_combined_node_flags,
-    get_containing_function, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_enclosing_block_scope_container, get_function_flags,
-    get_module_instance_state, get_name_of_declaration, get_source_file_of_node,
-    is_array_binding_pattern, is_binding_element, is_binding_pattern, is_class_expression,
-    is_class_like, is_enum_declaration, is_external_or_common_js_module, is_function_expression,
-    is_function_like, is_identifier, is_in_js_file, is_module_declaration, is_named_declaration,
-    is_object_binding_pattern, is_object_literal_expression, is_parameter_declaration,
-    is_prototype_access, is_require_variable_declaration, is_variable_like, node_is_missing, some,
-    ClassLikeDeclarationInterface, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    FunctionFlags, HasInitializerInterface, HasTypeParametersInterface, IterationTypes,
-    IterationTypesResolver, ModuleInstanceState, ModuleKind, Node, NodeCheckFlags, NodeFlags,
-    NodeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    add_related_info, create_diagnostic_for_node, declaration_name_to_string, find_ancestor,
+    for_each, get_ancestor, get_combined_node_flags, get_containing_function,
+    get_containing_function_or_class_static_block, get_effective_initializer,
+    get_enclosing_block_scope_container, get_function_flags, get_module_instance_state,
+    get_name_of_declaration, get_selected_effective_modifier_flags, get_source_file_of_node,
+    has_question_token, is_array_binding_pattern, is_binding_element, is_binding_pattern,
+    is_class_expression, is_class_like, is_enum_declaration, is_external_or_common_js_module,
+    is_function_expression, is_function_like, is_identifier, is_in_js_file, is_module_declaration,
+    is_named_declaration, is_object_binding_pattern, is_object_literal_expression,
+    is_parameter_declaration, is_prototype_access, is_require_variable_declaration,
+    is_variable_like, node_is_missing, some, ClassLikeDeclarationInterface, Debug_,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasInitializerInterface,
+    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, ModifierFlags,
+    ModuleInstanceState, ModuleKind, Node, NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -681,7 +682,39 @@ impl TypeChecker {
         next_declaration: &Node, /*Declaration*/
         next_type: &Type,
     ) {
-        unimplemented!()
+        let next_declaration_name = get_name_of_declaration(Some(next_declaration));
+        let message = if matches!(
+            next_declaration.kind(),
+            SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature
+        ) {
+            &*Diagnostics::Subsequent_property_declarations_must_have_the_same_type_Property_0_must_be_of_type_1_but_here_has_type_2
+        } else {
+            &*Diagnostics::Subsequent_variable_declarations_must_have_the_same_type_Variable_0_must_be_of_type_1_but_here_has_type_2
+        };
+        let decl_name = declaration_name_to_string(next_declaration_name.as_deref()).into_owned();
+        let err = self.error(
+            next_declaration_name.as_deref(),
+            message,
+            Some(vec![
+                decl_name.clone(),
+                self.type_to_string_(first_type, Option::<&Node>::None, None, None),
+                self.type_to_string_(next_type, Option::<&Node>::None, None, None),
+            ]),
+        );
+        if let Some(first_declaration) = first_declaration {
+            let first_declaration: &Node = first_declaration.borrow();
+            add_related_info(
+                &err,
+                vec![Rc::new(
+                    create_diagnostic_for_node(
+                        first_declaration,
+                        &Diagnostics::_0_was_also_declared_here,
+                        Some(vec![decl_name]),
+                    )
+                    .into(),
+                )],
+            );
+        }
     }
 
     pub(super) fn are_declaration_flags_identical(
@@ -689,17 +722,51 @@ impl TypeChecker {
         left: &Node,  /*Declaration*/
         right: &Node, /*Declaration*/
     ) -> bool {
-        unimplemented!()
+        if left.kind() == SyntaxKind::Parameter && right.kind() == SyntaxKind::VariableDeclaration
+            || left.kind() == SyntaxKind::VariableDeclaration
+                && right.kind() == SyntaxKind::Parameter
+        {
+            return true;
+        }
+
+        if has_question_token(left) != has_question_token(right) {
+            return false;
+        }
+
+        let interesting_flags = ModifierFlags::Private
+            | ModifierFlags::Protected
+            | ModifierFlags::Async
+            | ModifierFlags::Abstract
+            | ModifierFlags::Readonly
+            | ModifierFlags::Static;
+
+        get_selected_effective_modifier_flags(left, interesting_flags)
+            == get_selected_effective_modifier_flags(right, interesting_flags)
     }
 
     pub(super) fn check_variable_declaration(&self, node: &Node /*VariableDeclaration*/) {
+        // tracing?.push(tracing.Phase.Check, "checkVariableDeclaration", { kind: node.kind, pos: node.pos, end: node.end });
+        self.check_grammar_variable_declaration(node);
+        self.check_variable_like_declaration(node);
+        // tracing?.pop();
+    }
+
+    pub(super) fn check_binding_element(&self, node: &Node /*BindingElement*/) {
+        self.check_grammar_binding_element(node);
         self.check_variable_like_declaration(node);
     }
 
     pub(super) fn check_variable_statement(&self, node: &Node /*VariableStatement*/) {
+        let node_as_variable_statement = node.as_variable_statement();
+        if !self.check_grammar_decorators_and_modifiers(node)
+            && !self.check_grammar_variable_declaration_list(
+                &node_as_variable_statement.declaration_list,
+            )
+        {
+            self.check_grammar_for_disallowed_let_or_const_statement(node);
+        }
         for_each(
-            &node
-                .as_variable_statement()
+            &node_as_variable_statement
                 .declaration_list
                 .as_variable_declaration_list()
                 .declarations,
@@ -708,13 +775,20 @@ impl TypeChecker {
     }
 
     pub(super) fn check_expression_statement(&self, node: &Node /*ExpressionStatement*/) {
-        let expression = &node.as_expression_statement().expression;
-        self.check_expression(expression, None, None);
+        self.check_grammar_statement_in_ambient_context(node);
+
+        self.check_expression(&node.as_expression_statement().expression, None, None);
     }
 
     pub(super) fn check_if_statement(&self, node: &Node /*IfStatement*/) {
+        self.check_grammar_statement_in_ambient_context(node);
         let node_as_if_statement = node.as_if_statement();
         let type_ = self.check_truthiness_expression(&node_as_if_statement.expression, None);
+        self.check_testing_known_truthy_callable_or_awaitable_type(
+            &node_as_if_statement.expression,
+            &type_,
+            Some(&*node_as_if_statement.then_statement),
+        );
         self.check_source_element(Some(&*node_as_if_statement.then_statement));
 
         if node_as_if_statement.then_statement.kind() == SyntaxKind::EmptyStatement {
@@ -725,7 +799,7 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(node_as_if_statement.else_statement.clone());
+        self.check_source_element(node_as_if_statement.else_statement.as_deref());
     }
 
     pub(super) fn check_testing_known_truthy_callable_or_awaitable_type<TBody: Borrow<Node>>(
