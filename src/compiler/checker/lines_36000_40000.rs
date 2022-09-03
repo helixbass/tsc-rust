@@ -12,19 +12,20 @@ use crate::{
     get_effective_initializer, get_effective_jsdoc_host, get_effective_return_type_node,
     get_effective_type_parameter_declarations, get_function_flags, get_jsdoc_host, get_jsdoc_tags,
     get_jsdoc_type_tag, get_name_of_declaration, get_root_declaration, get_source_file_of_node,
-    has_effective_modifier, has_syntactic_modifier, id_text, is_ambient_module,
-    is_array_binding_pattern, is_binding_element, is_class_declaration, is_class_expression,
-    is_for_in_or_of_statement, is_function_or_module_block, is_identifier, is_in_js_file,
+    has_effective_modifier, has_rest_parameter, has_syntactic_modifier, id_text, is_ambient_module,
+    is_array_binding_pattern, is_binding_element, is_binding_pattern, is_class_declaration,
+    is_class_expression, is_for_in_or_of_statement, is_function_or_module_block, is_identifier,
+    is_import_clause, is_import_equals_declaration, is_import_specifier, is_in_js_file,
     is_jsdoc_augments_tag, is_jsdoc_template_tag, is_named_declaration, is_object_binding_pattern,
     is_parameter, is_parameter_property_declaration, is_private_identifier,
-    is_private_identifier_class_element_declaration, is_variable_declaration, last,
-    node_is_missing, node_is_present, parameter_is_this_keyword, range_of_node,
-    range_of_type_parameters, symbol_name, try_add_to_set, try_cast, CharacterCodes, Debug_,
-    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
+    is_private_identifier_class_element_declaration, is_type_only_import_or_export_declaration,
+    is_variable_declaration, last, node_is_missing, node_is_present, parameter_is_this_keyword,
+    range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, CharacterCodes,
+    Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
     IterationTypes, IterationTypesResolver, JSDocTagInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, SignatureDeclarationInterface,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TextRange, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ScriptTarget,
+    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TextRange,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -909,17 +910,25 @@ impl TypeChecker {
     }
 
     pub(super) fn check_block(&self, node: &Node /*Block*/) {
+        if node.kind() == SyntaxKind::Block {
+            self.check_grammar_statement_in_ambient_context(node);
+        }
         let node_as_block = node.as_block();
         if is_function_or_module_block(node) {
+            let save_flow_analysis_disabled = self.flow_analysis_disabled();
             for_each(&node_as_block.statements, |statement, _| {
-                self.check_source_element(Some(statement.clone()));
+                self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
+            self.set_flow_analysis_disabled(save_flow_analysis_disabled);
         } else {
             for_each(&node_as_block.statements, |statement, _| {
-                self.check_source_element(Some(statement.clone()));
+                self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
+        }
+        if node.maybe_locals().is_some() {
+            self.register_for_unused_identifiers_check(node);
         }
     }
 
@@ -927,7 +936,84 @@ impl TypeChecker {
         &self,
         node: &Node, /*SignatureDeclaration*/
     ) {
-        unimplemented!()
+        if self.language_version >= ScriptTarget::ES2015
+            || !has_rest_parameter(node)
+            || node.flags().intersects(NodeFlags::Ambient)
+            || node_is_missing(
+                node.maybe_as_function_like_declaration()
+                    .and_then(|node| node.maybe_body()),
+            )
+        {
+            return;
+        }
+
+        for_each(
+            node.as_signature_declaration().parameters(),
+            |p: &Rc<Node>, _| -> Option<()> {
+                if matches!(
+                    p.as_parameter_declaration().maybe_name().as_ref(),
+                    Some(p_name) if !is_binding_pattern(Some(&**p_name)) &&
+                        &p_name.as_identifier().escaped_text == self.arguments_symbol().escaped_name()
+                ) {
+                    self.error_skipped_on(
+                        "noEmit".to_owned(),
+                        Some(&**p),
+                        &Diagnostics::Duplicate_identifier_arguments_Compiler_uses_arguments_to_initialize_rest_parameters,
+                        None,
+                    );
+                }
+                None
+            },
+        );
+    }
+
+    pub(super) fn need_collision_check_for_identifier<TIdentifier: Borrow<Node>>(
+        &self,
+        node: &Node,
+        identifier: Option<TIdentifier /*Identifier*/>,
+        name: &str,
+    ) -> bool {
+        if identifier.is_none() {
+            return false;
+        }
+        let identifier = identifier.unwrap();
+        let identifier: &Node = identifier.borrow();
+        if !identifier.as_identifier().escaped_text.eq_str(name) {
+            return false;
+        }
+
+        if matches!(
+            node.kind(),
+            SyntaxKind::PropertyDeclaration
+                | SyntaxKind::PropertySignature
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::MethodSignature
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::PropertyAssignment
+        ) {
+            return false;
+        }
+
+        if node.flags().intersects(NodeFlags::Ambient) {
+            return false;
+        }
+
+        if is_import_clause(node) || is_import_equals_declaration(node) || is_import_specifier(node)
+        {
+            if is_type_only_import_or_export_declaration(node) {
+                return false;
+            }
+        }
+
+        let root = get_root_declaration(node);
+        if is_parameter(&root)
+            && node_is_missing(root.parent().as_function_like_declaration().maybe_body())
+        {
+            return false;
+        }
+
+        true
     }
 
     pub(super) fn check_collisions_for_declaration_name<TName: Borrow<Node>>(
