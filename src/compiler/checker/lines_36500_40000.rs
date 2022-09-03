@@ -1,31 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
 use std::ptr;
 use std::rc::Rc;
 
-use super::{get_node_id, CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    cast_present, create_diagnostic_for_node, create_file_diagnostic, first, for_each,
-    get_class_extends_heritage_element, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_effective_jsdoc_host, get_effective_return_type_node,
-    get_effective_type_parameter_declarations, get_function_flags, get_jsdoc_host, get_jsdoc_tags,
-    get_jsdoc_type_tag, get_name_of_declaration, get_root_declaration, get_source_file_of_node,
-    has_effective_modifier, has_rest_parameter, has_syntactic_modifier, id_text, is_ambient_module,
-    is_array_binding_pattern, is_binding_element, is_binding_pattern, is_class_declaration,
-    is_class_expression, is_for_in_or_of_statement, is_function_or_module_block, is_identifier,
-    is_import_clause, is_import_equals_declaration, is_import_specifier, is_in_js_file,
-    is_jsdoc_augments_tag, is_jsdoc_template_tag, is_named_declaration, is_object_binding_pattern,
-    is_parameter, is_parameter_property_declaration, is_private_identifier,
-    is_private_identifier_class_element_declaration, is_type_only_import_or_export_declaration,
-    is_variable_declaration, last, node_is_missing, node_is_present, parameter_is_this_keyword,
-    range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, CharacterCodes,
-    Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
-    IterationTypes, IterationTypesResolver, JSDocTagInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TextRange,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    for_each, get_containing_function_or_class_static_block, get_effective_initializer,
+    get_function_flags, is_binding_element, DiagnosticMessage, Diagnostics, FunctionFlags,
+    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, Node, NodeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {

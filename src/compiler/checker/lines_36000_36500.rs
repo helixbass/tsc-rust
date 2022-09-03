@@ -5,11 +5,10 @@ use std::collections::{HashMap, HashSet};
 use std::ptr;
 use std::rc::Rc;
 
-use super::{get_node_id, CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{get_node_id, UnusedKind};
 use crate::{
     cast_present, create_diagnostic_for_node, create_file_diagnostic, first, for_each,
-    get_class_extends_heritage_element, get_containing_function_or_class_static_block,
-    get_effective_initializer, get_effective_jsdoc_host, get_effective_return_type_node,
+    get_class_extends_heritage_element, get_effective_jsdoc_host, get_effective_return_type_node,
     get_effective_type_parameter_declarations, get_function_flags, get_jsdoc_host, get_jsdoc_tags,
     get_jsdoc_type_tag, get_name_of_declaration, get_root_declaration, get_source_file_of_node,
     has_effective_modifier, has_rest_parameter, has_syntactic_modifier, id_text, is_ambient_module,
@@ -21,11 +20,10 @@ use crate::{
     is_private_identifier_class_element_declaration, is_type_only_import_or_export_declaration,
     is_variable_declaration, last, node_is_missing, node_is_present, parameter_is_this_keyword,
     range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, try_cast, CharacterCodes,
-    Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
-    IterationTypes, IterationTypesResolver, JSDocTagInterface, ModifierFlags,
+    Debug_, Diagnostic, Diagnostics, FunctionFlags, JSDocTagInterface, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TextRange,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    SignatureDeclarationInterface, SymbolFlags, SymbolInterface, SyntaxKind, TextRange,
+    TypeChecker,
 };
 
 impl TypeChecker {
