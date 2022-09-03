@@ -10,12 +10,12 @@ use std::rc::Rc;
 use crate::{
     combine_paths, compare_strings_case_sensitive, compare_strings_case_sensitive_maybe,
     compare_values, flatten, for_each, format_string_from_args, get_locale_specific_message,
-    index_of, normalize_path, CommandLineOption, CommandLineOptionInterface,
+    index_of, normalize_path, BaseTextRange, CommandLineOption, CommandLineOptionInterface,
     CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison, CompilerOptions,
     CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
-    MapLike, ModuleKind, ModuleResolutionKind, Node, Pattern, PluginImport, ScriptKind,
+    MapLike, ModuleKind, ModuleResolutionKind, Node, NodeArray, Pattern, PluginImport, ScriptKind,
     ScriptTarget, TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
@@ -928,4 +928,15 @@ pub fn min_and_max<TItem, TGetValue: FnMut(&TItem) -> usize>(
 pub struct MinAndMax {
     pub min: usize,
     pub max: usize,
+}
+
+pub fn range_of_node(node: &Node) -> BaseTextRange {
+    unimplemented!()
+}
+
+pub fn range_of_type_parameters(
+    source_file: &Node,          /*SourceFile*/
+    type_parameters: &NodeArray, /*<TypeParameterDeclaration>*/
+) -> BaseTextRange {
+    unimplemented!()
 }

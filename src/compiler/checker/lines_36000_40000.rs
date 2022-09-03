@@ -1,24 +1,27 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    create_diagnostic_for_node, for_each, get_class_extends_heritage_element,
-    get_containing_function_or_class_static_block, get_effective_initializer,
-    get_effective_jsdoc_host, get_effective_return_type_node, get_function_flags, get_jsdoc_host,
-    get_jsdoc_tags, get_jsdoc_type_tag, get_name_of_declaration, get_source_file_of_node,
-    has_effective_modifier, has_syntactic_modifier, id_text, is_binding_element,
-    is_class_declaration, is_class_expression, is_function_or_module_block, is_identifier,
-    is_in_js_file, is_jsdoc_augments_tag, is_named_declaration, is_private_identifier,
-    is_private_identifier_class_element_declaration, node_is_missing, node_is_present, symbol_name,
-    CharacterCodes, Debug_, Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags,
-    HasTypeParametersInterface, IterationTypes, IterationTypesResolver, JSDocTagInterface,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
-    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    create_diagnostic_for_node, create_file_diagnostic, for_each,
+    get_class_extends_heritage_element, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_effective_jsdoc_host, get_effective_return_type_node,
+    get_effective_type_parameter_declarations, get_function_flags, get_jsdoc_host, get_jsdoc_tags,
+    get_jsdoc_type_tag, get_name_of_declaration, get_source_file_of_node, has_effective_modifier,
+    has_syntactic_modifier, id_text, is_binding_element, is_class_declaration, is_class_expression,
+    is_function_or_module_block, is_identifier, is_in_js_file, is_jsdoc_augments_tag,
+    is_jsdoc_template_tag, is_named_declaration, is_private_identifier,
+    is_private_identifier_class_element_declaration, last, node_is_missing, node_is_present,
+    range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, CharacterCodes, Debug_,
+    Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
+    IterationTypes, IterationTypesResolver, JSDocTagInterface, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, SignatureDeclarationInterface,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TextRange, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -400,7 +403,23 @@ impl TypeChecker {
         node: &Node, /*InferTypeNode*/
         add_diagnostic: &mut TAddDiagnostic,
     ) {
-        unimplemented!()
+        let type_parameter = &node.as_infer_type_node().type_parameter;
+        if self.is_type_parameter_unused(type_parameter) {
+            add_diagnostic(
+                node,
+                UnusedKind::Parameter,
+                Rc::new(
+                    create_diagnostic_for_node(
+                        node,
+                        &Diagnostics::_0_is_declared_but_its_value_is_never_read,
+                        Some(vec![id_text(
+                            &type_parameter.as_type_parameter_declaration().name(),
+                        )]),
+                    )
+                    .into(),
+                ),
+            );
+        }
     }
 
     pub(super) fn check_unused_type_parameters<
@@ -410,6 +429,97 @@ impl TypeChecker {
         node: &Node, /*ClassLikeDeclaration | SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration*/
         add_diagnostic: &mut TAddDiagnostic,
     ) {
+        let symbol = self.get_symbol_of_node(node).unwrap();
+        let declarations = symbol.maybe_declarations();
+        if match declarations.as_ref() {
+            None => true,
+            Some(declarations) => !ptr::eq(&**last(declarations), node),
+        } {
+            return;
+        }
+
+        let type_parameters = get_effective_type_parameter_declarations(node);
+        let mut seen_parents_with_every_unused: HashSet<*const Node> = HashSet::new();
+
+        for type_parameter in &type_parameters {
+            if !self.is_type_parameter_unused(type_parameter) {
+                continue;
+            }
+
+            let name = id_text(&type_parameter.as_type_parameter_declaration().name());
+            let parent = type_parameter.parent();
+            if parent.kind() != SyntaxKind::InferType
+                && parent
+                    .as_has_type_parameters()
+                    .maybe_type_parameters()
+                    .as_ref()
+                    .unwrap()
+                    .into_iter()
+                    .all(|type_parameter| self.is_type_parameter_unused(type_parameter))
+            {
+                if try_add_to_set(&mut seen_parents_with_every_unused, Rc::as_ptr(&parent)) {
+                    let source_file = get_source_file_of_node(Some(&*parent)).unwrap();
+                    let range = if is_jsdoc_template_tag(&parent) {
+                        range_of_node(&parent)
+                    } else {
+                        range_of_type_parameters(
+                            &source_file,
+                            parent
+                                .as_has_type_parameters()
+                                .maybe_type_parameters()
+                                .as_ref()
+                                .unwrap(),
+                        )
+                    };
+                    let only = parent
+                        .as_has_type_parameters()
+                        .maybe_type_parameters()
+                        .as_ref()
+                        .unwrap()
+                        .len()
+                        == 1;
+                    let message = if only {
+                        &*Diagnostics::_0_is_declared_but_its_value_is_never_read
+                    } else {
+                        &*Diagnostics::All_type_parameters_are_unused
+                    };
+                    let args = if only { Some(vec![name]) } else { None };
+                    add_diagnostic(
+                        type_parameter,
+                        UnusedKind::Parameter,
+                        Rc::new(
+                            create_file_diagnostic(
+                                &source_file,
+                                range.pos(),
+                                range.end() - range.pos(),
+                                message,
+                                args,
+                            )
+                            .into(),
+                        ),
+                    );
+                }
+            } else {
+                add_diagnostic(
+                    type_parameter,
+                    UnusedKind::Parameter,
+                    Rc::new(
+                        create_diagnostic_for_node(
+                            type_parameter,
+                            &Diagnostics::_0_is_declared_but_its_value_is_never_read,
+                            Some(vec![name]),
+                        )
+                        .into(),
+                    ),
+                );
+            }
+        }
+    }
+
+    pub(super) fn is_type_parameter_unused(
+        &self,
+        type_parameter: &Node, /*TypeParameterDeclaration*/
+    ) -> bool {
         unimplemented!()
     }
 

@@ -18,7 +18,7 @@ use crate::{
     is_computed_property_name, is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
     map, maybe_for_each, parse_base_node_factory, parse_node_factory, push_if_unique_rc,
-    set_parent, set_text_range, starts_with, symbol_name, synthetic_factory, try_to_add_to_set,
+    set_parent, set_text_range, starts_with, symbol_name, synthetic_factory, try_add_to_set,
     walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
     InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
@@ -522,7 +522,7 @@ impl TypeChecker {
                 if let Some(import_symbol) = import_symbol
                 /*&& visited*/
                 {
-                    if try_to_add_to_set(visited, get_symbol_id(&import_symbol)) {
+                    if try_add_to_set(visited, get_symbol_id(&import_symbol)) {
                         self.build_visible_node_list(
                             set_visibility,
                             result,

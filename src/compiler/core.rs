@@ -354,7 +354,7 @@ pub fn get_or_update<TKey: Eq + Hash, TValue, TCallback: FnOnce() -> TValue>(
     map.entry(key).or_insert_with(callback)
 }
 
-pub fn try_to_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) -> bool {
+pub fn try_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) -> bool {
     if !set.contains(&value) {
         set.insert(value);
         return true;
