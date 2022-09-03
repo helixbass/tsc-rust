@@ -1049,6 +1049,14 @@ pub fn cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: Option<TIn>, test: TTest) -
     Debug_.fail(Some("Invalid cast. The supplied value {:?} did not pass the test." /*'${Debug.getFunctionName(test)'*/));
 }
 
+pub fn cast_present<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> TIn {
+    if test(&value) {
+        return value;
+    }
+
+    Debug_.fail(Some("Invalid cast. The supplied value {:?} did not pass the test." /*'${Debug.getFunctionName(test)'*/));
+}
+
 fn identity<TValue>(x: TValue) -> TValue {
     x
 }

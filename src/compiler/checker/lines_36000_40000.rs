@@ -1,22 +1,25 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse, UnusedKind};
+use super::{get_node_id, CheckMode, IterationTypeKind, IterationUse, UnusedKind};
 use crate::{
-    create_diagnostic_for_node, create_file_diagnostic, for_each,
+    cast_present, create_diagnostic_for_node, create_file_diagnostic, first, for_each,
     get_class_extends_heritage_element, get_containing_function_or_class_static_block,
     get_effective_initializer, get_effective_jsdoc_host, get_effective_return_type_node,
     get_effective_type_parameter_declarations, get_function_flags, get_jsdoc_host, get_jsdoc_tags,
-    get_jsdoc_type_tag, get_name_of_declaration, get_source_file_of_node, has_effective_modifier,
-    has_syntactic_modifier, id_text, is_binding_element, is_class_declaration, is_class_expression,
-    is_function_or_module_block, is_identifier, is_in_js_file, is_jsdoc_augments_tag,
-    is_jsdoc_template_tag, is_named_declaration, is_private_identifier,
-    is_private_identifier_class_element_declaration, last, node_is_missing, node_is_present,
-    range_of_node, range_of_type_parameters, symbol_name, try_add_to_set, CharacterCodes, Debug_,
+    get_jsdoc_type_tag, get_name_of_declaration, get_root_declaration, get_source_file_of_node,
+    has_effective_modifier, has_syntactic_modifier, id_text, is_ambient_module,
+    is_array_binding_pattern, is_binding_element, is_class_declaration, is_class_expression,
+    is_for_in_or_of_statement, is_function_or_module_block, is_identifier, is_in_js_file,
+    is_jsdoc_augments_tag, is_jsdoc_template_tag, is_named_declaration, is_object_binding_pattern,
+    is_parameter, is_parameter_property_declaration, is_private_identifier,
+    is_private_identifier_class_element_declaration, is_variable_declaration, last,
+    node_is_missing, node_is_present, parameter_is_this_keyword, range_of_node,
+    range_of_type_parameters, symbol_name, try_add_to_set, try_cast, CharacterCodes, Debug_,
     Diagnostic, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
     IterationTypes, IterationTypesResolver, JSDocTagInterface, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, SignatureDeclarationInterface,
@@ -520,7 +523,57 @@ impl TypeChecker {
         &self,
         type_parameter: &Node, /*TypeParameterDeclaration*/
     ) -> bool {
-        unimplemented!()
+        !matches!(
+            self.get_merged_symbol(type_parameter.maybe_symbol()).unwrap().maybe_is_referenced(),
+            Some(type_parameter_symbol_is_referenced) if type_parameter_symbol_is_referenced.intersects(SymbolFlags::TypeParameter)
+        ) && !self.is_identifier_that_starts_with_underscore(
+            &type_parameter.as_type_parameter_declaration().name(),
+        )
+    }
+
+    pub(super) fn add_to_group<TKey, TValue, TGetKey: FnMut(&TKey) -> String>(
+        &self,
+        map: &mut HashMap<String, (TKey, Vec<TValue>)>,
+        key: TKey,
+        value: TValue,
+        mut get_key: TGetKey,
+    ) {
+        let key_string = get_key(&key);
+        let group = map.entry(key_string).or_insert_with(|| (key, vec![]));
+        group.1.push(value);
+    }
+
+    pub(super) fn try_get_root_parameter_declaration(
+        &self,
+        node: &Node,
+    ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+        try_cast(get_root_declaration(node), |root_declaration: &Rc<Node>| {
+            is_parameter(root_declaration)
+        })
+    }
+
+    pub(super) fn is_valid_unused_local_declaration(
+        &self,
+        declaration: &Node, /*Declaration*/
+    ) -> bool {
+        if is_binding_element(declaration) {
+            let declaration_as_binding_element = declaration.as_binding_element();
+            if is_object_binding_pattern(&declaration.parent()) {
+                return declaration_as_binding_element.property_name.is_some()
+                    && self.is_identifier_that_starts_with_underscore(
+                        &declaration_as_binding_element.name(),
+                    );
+            }
+            return self
+                .is_identifier_that_starts_with_underscore(&declaration_as_binding_element.name());
+        }
+        is_ambient_module(declaration)
+            || (is_variable_declaration(declaration)
+                && is_for_in_or_of_statement(&declaration.parent().parent())
+                || self.is_imported_declaration(declaration))
+                && self.is_identifier_that_starts_with_underscore(
+                    &declaration.as_named_declaration().name(),
+                )
     }
 
     pub(super) fn check_unused_locals_and_parameters<
@@ -530,7 +583,329 @@ impl TypeChecker {
         node_with_locals: &Node,
         add_diagnostic: &mut TAddDiagnostic,
     ) {
-        unimplemented!()
+        let mut unused_imports: HashMap<
+            String,
+            (
+                Rc<Node /*ImportClause*/>,
+                Vec<Rc<Node /*ImportedDeclaration*/>>,
+            ),
+        > = HashMap::new();
+        let mut unused_destructures: HashMap<
+            String,
+            (
+                Rc<Node /*BindingPattern*/>,
+                Vec<Rc<Node /*BindingElement*/>>,
+            ),
+        > = HashMap::new();
+        let mut unused_variables: HashMap<
+            String,
+            (
+                Rc<Node /*VariableDeclarationList*/>,
+                Vec<Rc<Node /*VariableDeclaration*/>>,
+            ),
+        > = HashMap::new();
+        for local in (**node_with_locals.locals()).borrow().values() {
+            if if local.flags().intersects(SymbolFlags::TypeParameter) {
+                !(local.flags().intersects(SymbolFlags::Variable)
+                    && !matches!(
+                        local.maybe_is_referenced(),
+                        Some(local_is_referenced) if local_is_referenced.intersects(SymbolFlags::Variable)
+                    ))
+            } else {
+                (match local.maybe_is_referenced() {
+                    None => false,
+                    Some(local_is_referenced) => local_is_referenced != SymbolFlags::None,
+                }) || local.maybe_export_symbol().is_some()
+            } {
+                return;
+            }
+
+            if let Some(local_declarations) = local.maybe_declarations().as_ref() {
+                for declaration in local_declarations {
+                    if self.is_valid_unused_local_declaration(declaration) {
+                        continue;
+                    }
+
+                    if self.is_imported_declaration(declaration) {
+                        self.add_to_group(
+                            &mut unused_imports,
+                            self.import_clause_from_imported(declaration),
+                            declaration.clone(),
+                            |key: &Rc<Node>| get_node_id(key).to_string(),
+                        );
+                    } else if is_binding_element(declaration)
+                        && is_object_binding_pattern(&declaration.parent())
+                    {
+                        let declaration_parent = declaration.parent();
+                        let last_element =
+                            last(&declaration_parent.as_object_binding_pattern().elements);
+                        if Rc::ptr_eq(declaration, last_element)
+                            || last(&declaration_parent.as_object_binding_pattern().elements)
+                                .as_binding_element()
+                                .dot_dot_dot_token
+                                .is_none()
+                        {
+                            self.add_to_group(
+                                &mut unused_destructures,
+                                declaration_parent.clone(),
+                                declaration.clone(),
+                                |key: &Rc<Node>| get_node_id(key).to_string(),
+                            );
+                        }
+                    } else if is_variable_declaration(declaration) {
+                        self.add_to_group(
+                            &mut unused_variables,
+                            declaration.parent(),
+                            declaration.clone(),
+                            |key: &Rc<Node>| get_node_id(key).to_string(),
+                        );
+                    } else {
+                        let parameter = local.maybe_value_declaration().as_ref().and_then(
+                            |local_value_declaration| {
+                                self.try_get_root_parameter_declaration(local_value_declaration)
+                            },
+                        );
+                        let name = local.maybe_value_declaration().as_ref().and_then(
+                            |local_value_declaration| {
+                                get_name_of_declaration(Some(&**local_value_declaration))
+                            },
+                        );
+                        if let (Some(parameter), Some(name)) = (parameter.as_ref(), name.as_ref()) {
+                            if !is_parameter_property_declaration(parameter, &parameter.parent())
+                                && !parameter_is_this_keyword(parameter)
+                                && !self.is_identifier_that_starts_with_underscore(name)
+                            {
+                                if is_binding_element(declaration)
+                                    && is_array_binding_pattern(&declaration.parent())
+                                {
+                                    self.add_to_group(
+                                        &mut unused_destructures,
+                                        declaration.parent(),
+                                        declaration.clone(),
+                                        |key: &Rc<Node>| get_node_id(key).to_string(),
+                                    );
+                                } else {
+                                    add_diagnostic(
+                                        parameter,
+                                        UnusedKind::Parameter,
+                                        Rc::new(
+                                            create_diagnostic_for_node(
+                                                name,
+                                                &Diagnostics::_0_is_declared_but_its_value_is_never_read,
+                                                Some(vec![
+                                                    symbol_name(local)
+                                                ])
+                                            ).into()
+                                        )
+                                    );
+                                }
+                            }
+                        } else {
+                            self.error_unused_local(
+                                declaration,
+                                &symbol_name(local),
+                                add_diagnostic,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        for (import_clause, unuseds) in unused_imports.values() {
+            let import_decl = import_clause.parent();
+            let import_clause_as_import_clause = import_clause.as_import_clause();
+            let n_declarations = if import_clause_as_import_clause.name.is_some() {
+                1
+            } else {
+                0
+            } + if let Some(import_clause_named_bindings) =
+                import_clause_as_import_clause.named_bindings.as_ref()
+            {
+                if import_clause_named_bindings.kind() == SyntaxKind::NamespaceImport {
+                    1
+                } else {
+                    import_clause_named_bindings
+                        .as_named_imports()
+                        .elements
+                        .len()
+                }
+            } else {
+                0
+            };
+            if n_declarations == unuseds.len() {
+                add_diagnostic(
+                    &import_decl,
+                    UnusedKind::Local,
+                    Rc::new(if unuseds.len() == 1 {
+                        create_diagnostic_for_node(
+                            &import_decl,
+                            &Diagnostics::_0_is_declared_but_its_value_is_never_read,
+                            Some(vec![id_text(&first(unuseds).as_named_declaration().name())]),
+                        )
+                        .into()
+                    } else {
+                        create_diagnostic_for_node(
+                            &import_decl,
+                            &Diagnostics::All_imports_in_import_declaration_are_unused,
+                            None,
+                        )
+                        .into()
+                    }),
+                );
+            } else {
+                for unused in unuseds {
+                    self.error_unused_local(
+                        unused,
+                        &id_text(&unused.as_named_declaration().name()),
+                        add_diagnostic,
+                    );
+                }
+            }
+        }
+        for (binding_pattern, binding_elements) in unused_destructures.values() {
+            let kind = if self
+                .try_get_root_parameter_declaration(&binding_pattern.parent())
+                .is_some()
+            {
+                UnusedKind::Parameter
+            } else {
+                UnusedKind::Local
+            };
+            if binding_pattern.as_has_elements().elements().len() == binding_elements.len() {
+                if binding_elements.len() == 1
+                    && binding_pattern.parent().kind() == SyntaxKind::VariableDeclaration
+                    && binding_pattern.parent().parent().kind()
+                        == SyntaxKind::VariableDeclarationList
+                {
+                    self.add_to_group(
+                        &mut unused_variables,
+                        binding_pattern.parent().parent(),
+                        binding_pattern.parent(),
+                        |key: &Rc<Node>| get_node_id(key).to_string(),
+                    );
+                } else {
+                    add_diagnostic(
+                        binding_pattern,
+                        kind,
+                        Rc::new(if binding_elements.len() == 1 {
+                            create_diagnostic_for_node(
+                                binding_pattern,
+                                &Diagnostics::_0_is_declared_but_its_value_is_never_read,
+                                Some(vec![self.binding_name_text(
+                                    &first(binding_elements).as_binding_element().name(),
+                                )]),
+                            )
+                            .into()
+                        } else {
+                            create_diagnostic_for_node(
+                                binding_pattern,
+                                &Diagnostics::All_destructured_elements_are_unused,
+                                None,
+                            )
+                            .into()
+                        }),
+                    );
+                }
+            } else {
+                for e in binding_elements {
+                    add_diagnostic(
+                        e,
+                        kind,
+                        Rc::new(
+                            create_diagnostic_for_node(
+                                e,
+                                &Diagnostics::_0_is_declared_but_its_value_is_never_read,
+                                Some(vec![self.binding_name_text(&e.as_binding_element().name())]),
+                            )
+                            .into(),
+                        ),
+                    );
+                }
+            }
+        }
+        for (declaration_list, declarations) in unused_variables.values() {
+            if declaration_list
+                .as_variable_declaration_list()
+                .declarations
+                .len()
+                == declarations.len()
+            {
+                add_diagnostic(
+                    declaration_list,
+                    UnusedKind::Local,
+                    Rc::new(if declarations.len() == 1 {
+                        create_diagnostic_for_node(
+                            &first(declarations).as_variable_declaration().name(),
+                            &Diagnostics::_0_is_declared_but_its_value_is_never_read,
+                            Some(vec![self.binding_name_text(
+                                &first(declarations).as_variable_declaration().name(),
+                            )]),
+                        )
+                        .into()
+                    } else {
+                        create_diagnostic_for_node(
+                            &*if declaration_list.parent().kind() == SyntaxKind::VariableStatement {
+                                declaration_list.parent()
+                            } else {
+                                declaration_list.clone()
+                            },
+                            &Diagnostics::All_variables_are_unused,
+                            None,
+                        )
+                        .into()
+                    }),
+                );
+            } else {
+                for decl in declarations {
+                    add_diagnostic(
+                        decl,
+                        UnusedKind::Local,
+                        Rc::new(
+                            create_diagnostic_for_node(
+                                decl,
+                                &Diagnostics::_0_is_declared_but_its_value_is_never_read,
+                                Some(vec![
+                                    self.binding_name_text(&decl.as_variable_declaration().name())
+                                ]),
+                            )
+                            .into(),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
+    pub(super) fn binding_name_text(&self, name: &Node /*BindingName*/) -> String {
+        match name.kind() {
+            SyntaxKind::Identifier => id_text(name),
+            SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => self
+                .binding_name_text(&**cast_present(
+                    first(&**name.as_has_elements().elements()),
+                    |element: &&Rc<Node>| is_binding_element(element),
+                )),
+            _ => Debug_.assert_never(name, None),
+        }
+    }
+
+    pub(super) fn is_imported_declaration(&self, node: &Node) -> bool {
+        matches!(
+            node.kind(),
+            SyntaxKind::ImportClause | SyntaxKind::ImportSpecifier | SyntaxKind::NamespaceImport
+        )
+    }
+
+    pub(super) fn import_clause_from_imported(
+        &self,
+        decl: &Node, /*ImportedDeclaration*/
+    ) -> Rc<Node /*ImportClause*/> {
+        if decl.kind() == SyntaxKind::ImportClause {
+            decl.node_wrapper()
+        } else if decl.kind() == SyntaxKind::NamespaceImport {
+            decl.parent()
+        } else {
+            decl.parent().parent()
+        }
     }
 
     pub(super) fn check_block(&self, node: &Node /*Block*/) {
