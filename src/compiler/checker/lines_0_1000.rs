@@ -20,20 +20,20 @@ use crate::{
     ContextFlags, Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, EmitTextWriter,
     Extension, ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType,
-    GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, IterationTypes, JsxEmit,
-    ModuleInstanceState, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId,
-    NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Path, PatternAmbientModule,
-    PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags, SignatureKind,
-    StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapperCallback, TypePredicate,
-    TypePredicateKind, VarianceFlags, __String, create_diagnostic_collection, create_symbol_table,
-    escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
-    get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
-    get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
-    is_call_like_expression, is_export_specifier, is_expression, is_identifier,
-    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node,
-    object_allocator, sum,
+    GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, IterationTypeCacheKey,
+    IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags,
+    NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
+    ObjectFlagsTypeInterface, Path, PatternAmbientModule, PseudoBigInt, RelationComparisonResult,
+    Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
+    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId,
+    TypeInterface, TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags, __String,
+    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
+    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
+    get_module_instance_state, get_parse_tree_node, get_strict_option_value,
+    get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
+    is_export_specifier, is_expression, is_identifier, is_jsx_attribute_like,
+    is_object_literal_element_like, is_parameter, is_type_node, object_allocator, sum,
 };
 
 lazy_static! {
@@ -135,9 +135,9 @@ pub(super) enum IterationTypeKind {
 }
 
 pub(crate) struct IterationTypesResolver {
-    pub iterable_cache_key: &'static str, /*"iterationTypesOfAsyncIterable" | "iterationTypesOfIterable"*/
-    pub iterator_cache_key: &'static str, /*"iterationTypesOfAsyncIterator" | "iterationTypesOfIterator"*/
-    pub iterator_symbol_name: &'static str, /*"asyncIterator" | "iterator"*/
+    pub iterable_cache_key: IterationTypeCacheKey, /*"iterationTypesOfAsyncIterable" | "iterationTypesOfIterable"*/
+    pub iterator_cache_key: IterationTypeCacheKey, /*"iterationTypesOfAsyncIterator" | "iterationTypesOfIterator"*/
+    pub iterator_symbol_name: &'static str,        /*"asyncIterator" | "iterator"*/
     pub get_global_iterator_type: fn(&TypeChecker, report_errors: bool) -> Rc<Type /*GenericType*/>,
     pub get_global_iterable_type: fn(&TypeChecker, report_errors: bool) -> Rc<Type /*GenericType*/>,
     pub get_global_iterable_iterator_type:
@@ -677,8 +677,8 @@ pub fn create_type_checker(
 
         async_iteration_types_resolver:
             IterationTypesResolver {
-                iterable_cache_key: "iterationTypesOfAsyncIterable",
-                iterator_cache_key: "iterationTypesOfAsyncIterator",
+                iterable_cache_key: IterationTypeCacheKey::IterationTypesOfAsyncIterable,
+                iterator_cache_key: IterationTypeCacheKey::IterationTypesOfAsyncIterator,
                 iterator_symbol_name: "asyncIterator",
                 get_global_iterator_type: TypeChecker::get_global_async_iterator_type,
                 get_global_iterable_type: TypeChecker::get_global_async_iterable_type,
@@ -692,8 +692,8 @@ pub fn create_type_checker(
 
         sync_iteration_types_resolver:
             IterationTypesResolver {
-                iterable_cache_key: "iterationTypesOfIterable",
-                iterator_cache_key: "iterationTypesOfIterator",
+                iterable_cache_key: IterationTypeCacheKey::IterationTypesOfIterable,
+                iterator_cache_key: IterationTypeCacheKey::IterationTypesOfIterator,
                 iterator_symbol_name: "iterator",
                 get_global_iterator_type: TypeChecker::get_global_iterator_type,
                 get_global_iterable_type: TypeChecker::get_global_iterable_type,
@@ -2878,6 +2878,10 @@ impl TypeChecker {
 
     pub(super) fn any_iteration_types(&self) -> Rc<IterationTypes> {
         self.any_iteration_types.clone().unwrap()
+    }
+
+    pub(super) fn default_iteration_types(&self) -> Rc<IterationTypes> {
+        self.default_iteration_types.clone().unwrap()
     }
 
     pub(super) fn maybe_amalgamated_duplicates(

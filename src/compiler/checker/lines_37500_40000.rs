@@ -139,7 +139,7 @@ impl TypeChecker {
         type_: &Type,
         resolver: &IterationTypesResolver,
     ) -> Option<Rc<IterationTypes>> {
-        unimplemented!()
+        self.get_cached_iteration_types(type_, resolver.iterable_cache_key)
     }
 
     pub(super) fn get_iteration_types_of_global_iterable_type(
@@ -147,7 +147,20 @@ impl TypeChecker {
         global_type: &Type,
         resolver: &IterationTypesResolver,
     ) -> Rc<IterationTypes> {
-        unimplemented!()
+        let global_iteration_types = self
+            .get_iteration_types_of_iterable_cached(global_type, resolver)
+            .unwrap_or_else(|| {
+                self.get_iteration_types_of_iterable_slow(
+                    global_type,
+                    resolver,
+                    Option::<&Node>::None,
+                )
+            });
+        if Rc::ptr_eq(&global_iteration_types, &self.no_iteration_types()) {
+            self.default_iteration_types()
+        } else {
+            global_iteration_types
+        }
     }
 
     pub(super) fn get_iteration_types_of_iterable_fast(
