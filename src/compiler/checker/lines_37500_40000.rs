@@ -6,10 +6,10 @@ use std::rc::Rc;
 
 use super::{IterationTypeKind, IterationUse};
 use crate::{
-    for_each, get_containing_function_or_class_static_block, get_function_flags, DiagnosticMessage,
-    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypeCacheKey, IterationTypes,
-    IterationTypesResolver, Node, NodeInterface, Symbol, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    filter_iter, for_each, get_containing_function_or_class_static_block, get_function_flags,
+    DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
+    IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node, NodeInterface, Symbol,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -168,7 +168,64 @@ impl TypeChecker {
         type_: &Type,
         resolver: &IterationTypesResolver,
     ) -> Option<Rc<IterationTypes>> {
-        unimplemented!()
+        let mut global_type: Rc<Type>;
+        if self.is_reference_to_type(type_, &*{
+            let type_ = (resolver.get_global_iterable_type)(self, false);
+            global_type = type_.clone();
+            type_
+        }) || self.is_reference_to_type(type_, &*{
+            let type_ = (resolver.get_global_iterable_iterator_type)(self, false);
+            global_type = type_.clone();
+            type_
+        }) {
+            let yield_type = self.get_type_arguments(type_)[0].clone();
+            let iteration_types =
+                self.get_iteration_types_of_global_iterable_type(&global_type, resolver);
+            let return_type = &iteration_types.return_type();
+            let next_type = &iteration_types.next_type();
+            return Some(
+                self.set_cached_iteration_types(
+                    type_,
+                    resolver.iterable_cache_key,
+                    self.create_iteration_types(
+                        Some(
+                            (resolver.resolve_iteration_type)(self, &yield_type, None)
+                                .unwrap_or_else(|| yield_type),
+                        ),
+                        Some(
+                            (resolver.resolve_iteration_type)(self, return_type, None)
+                                .unwrap_or_else(|| return_type.clone()),
+                        ),
+                        Some(next_type.clone()),
+                    ),
+                ),
+            );
+        }
+
+        if self.is_reference_to_type(type_, &*(resolver.get_global_generator_type)(self, false)) {
+            let type_arguments = self.get_type_arguments(type_);
+            let yield_type = &type_arguments[0];
+            let return_type = &type_arguments[1];
+            let next_type = &type_arguments[2];
+            return Some(
+                self.set_cached_iteration_types(
+                    type_,
+                    resolver.iterable_cache_key,
+                    self.create_iteration_types(
+                        Some(
+                            (resolver.resolve_iteration_type)(self, yield_type, None)
+                                .unwrap_or_else(|| yield_type.clone()),
+                        ),
+                        Some(
+                            (resolver.resolve_iteration_type)(self, return_type, None)
+                                .unwrap_or_else(|| return_type.clone()),
+                        ),
+                        Some(next_type.clone()),
+                    ),
+                ),
+            );
+        }
+        None
     }
 
     pub(super) fn get_iteration_types_of_iterable_slow<TErrorNode: Borrow<Node>>(

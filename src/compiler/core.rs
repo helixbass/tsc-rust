@@ -211,6 +211,13 @@ pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
         .collect()
 }
 
+pub fn filter_iter<TItem, TArray: IntoIterator<Item = TItem>, TCallback: FnMut(&TItem) -> bool>(
+    array: TArray,
+    predicate: TCallback,
+) -> impl Iterator<Item = TItem> {
+    array.into_iter().filter(predicate)
+}
+
 pub fn maybe_filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
     array: Option<&[TItem]>,
     predicate: TCallback,
