@@ -435,6 +435,80 @@ impl TypeChecker {
         self.is_iterator_result(type_, IterationTypeKind::Return)
     }
 
+    pub(super) fn get_iteration_types_of_iterator_result(
+        &self,
+        type_: &Type,
+    ) -> Rc<IterationTypes> {
+        if self.is_type_any(Some(type_)) {
+            return self.any_iteration_types();
+        }
+
+        let cached_types = self.get_cached_iteration_types(
+            type_,
+            IterationTypeCacheKey::IterationTypesOfIteratorResult,
+        );
+        if let Some(cached_types) = cached_types {
+            return cached_types;
+        }
+
+        if self.is_reference_to_type(type_, &self.get_global_iterator_yield_result_type(false)) {
+            let yield_type = self.get_type_arguments(type_)[0].clone();
+            return self.set_cached_iteration_types(
+                type_,
+                IterationTypeCacheKey::IterationTypesOfIteratorResult,
+                self.create_iteration_types(Some(yield_type), None, None),
+            );
+        }
+        if self.is_reference_to_type(type_, &self.get_global_iterator_return_result_type(false)) {
+            let return_type = self.get_type_arguments(type_)[0].clone();
+            return self.set_cached_iteration_types(
+                type_,
+                IterationTypeCacheKey::IterationTypesOfIteratorResult,
+                self.create_iteration_types(None, Some(return_type), None),
+            );
+        }
+
+        let yield_iterator_result =
+            self.filter_type(type_, |type_| self.is_yield_iterator_result(type_));
+        let yield_type = if !Rc::ptr_eq(&yield_iterator_result, &self.never_type()) {
+            self.get_type_of_property_of_type_(
+                &yield_iterator_result,
+                &__String::new("value".to_owned()),
+            )
+        } else {
+            None
+        };
+
+        let return_iterator_result =
+            self.filter_type(type_, |type_| self.is_return_iterator_result(type_));
+        let return_type = if !Rc::ptr_eq(&return_iterator_result, &self.never_type()) {
+            self.get_type_of_property_of_type_(
+                &return_iterator_result,
+                &__String::new("value".to_owned()),
+            )
+        } else {
+            None
+        };
+
+        if yield_type.is_none() && return_type.is_none() {
+            return self.set_cached_iteration_types(
+                type_,
+                IterationTypeCacheKey::IterationTypesOfIteratorResult,
+                self.no_iteration_types(),
+            );
+        }
+
+        self.set_cached_iteration_types(
+            type_,
+            IterationTypeCacheKey::IterationTypesOfIteratorResult,
+            self.create_iteration_types(
+                yield_type,
+                Some(return_type.unwrap_or_else(|| self.void_type())),
+                None,
+            ),
+        )
+    }
+
     pub(super) fn get_iteration_types_of_iterator_slow<TErrorNode: Borrow<Node>>(
         &self,
         type_: &Type,
