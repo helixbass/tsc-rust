@@ -1,22 +1,144 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{IterationTypeKind, IterationUse};
 use crate::{
     for_each, get_containing_function_or_class_static_block, get_function_flags, DiagnosticMessage,
-    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypes, IterationTypesResolver,
-    Node, NodeInterface, Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
+    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypeCacheKey, IterationTypes,
+    IterationTypesResolver, Node, NodeInterface, Symbol, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn get_async_from_sync_iteration_types<TErrorNode: Borrow<Node>>(
+        &self,
+        iteration_types: &IterationTypes,
+        error_node: Option<TErrorNode>,
+    ) -> Rc<IterationTypes> {
+        if ptr::eq(iteration_types, &*self.no_iteration_types()) {
+            return self.no_iteration_types();
+        }
+        if ptr::eq(iteration_types, &*self.any_iteration_types()) {
+            return self.any_iteration_types();
+        }
+        let yield_type = &iteration_types.yield_type();
+        let return_type = &iteration_types.return_type();
+        let next_type = &iteration_types.next_type();
+        if error_node.is_some() {
+            self.get_global_awaited_symbol(true);
+        }
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        self.create_iteration_types(
+            Some(
+                self.get_awaited_type_(yield_type, error_node.as_deref(), None, None)
+                    .unwrap_or_else(|| self.any_type()),
+            ),
+            Some(
+                self.get_awaited_type_(return_type, error_node.as_deref(), None, None)
+                    .unwrap_or_else(|| self.any_type()),
+            ),
+            Some(next_type.clone()),
+        )
+    }
+
     pub(super) fn get_iteration_types_of_iterable_worker<TErrorNode: Borrow<Node>>(
         &self,
         type_: &Type,
         use_: IterationUse,
         error_node: Option<TErrorNode>,
     ) -> Rc<IterationTypes> {
+        if self.is_type_any(Some(type_)) {
+            return self.any_iteration_types();
+        }
+
+        if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
+            let iteration_types = self
+                .get_iteration_types_of_iterable_cached(type_, &self.async_iteration_types_resolver)
+                .or_else(|| {
+                    self.get_iteration_types_of_iterable_fast(
+                        type_,
+                        &self.async_iteration_types_resolver,
+                    )
+                });
+            if let Some(iteration_types) = iteration_types.as_ref() {
+                return if use_.intersects(IterationUse::ForOfFlag) {
+                    self.get_async_from_sync_iteration_types(iteration_types, error_node)
+                } else {
+                    iteration_types.clone()
+                };
+            }
+        }
+
+        if use_.intersects(IterationUse::AllowsSyncIterablesFlag) {
+            let iteration_types = self
+                .get_iteration_types_of_iterable_cached(type_, &self.sync_iteration_types_resolver)
+                .or_else(|| {
+                    self.get_iteration_types_of_iterable_fast(
+                        type_,
+                        &self.sync_iteration_types_resolver,
+                    )
+                });
+            if let Some(iteration_types) = iteration_types.as_ref() {
+                if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
+                    if !Rc::ptr_eq(iteration_types, &self.no_iteration_types()) {
+                        return self.set_cached_iteration_types(
+                            type_,
+                            IterationTypeCacheKey::IterationTypesOfAsyncIterable,
+                            self.get_async_from_sync_iteration_types(iteration_types, error_node),
+                        );
+                    }
+                } else {
+                    return iteration_types.clone();
+                }
+            }
+        }
+
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
+            let iteration_types = self.get_iteration_types_of_iterable_slow(
+                type_,
+                &self.async_iteration_types_resolver,
+                error_node.as_deref(),
+            );
+            if !Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+                return iteration_types;
+            }
+        }
+
+        if use_.intersects(IterationUse::AllowsSyncIterablesFlag) {
+            let iteration_types = self.get_iteration_types_of_iterable_slow(
+                type_,
+                &self.sync_iteration_types_resolver,
+                error_node.as_deref(),
+            );
+            if !Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+                if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
+                    return self.set_cached_iteration_types(
+                        type_,
+                        IterationTypeCacheKey::IterationTypesOfAsyncIterable,
+                        // iterationTypes ?
+                        self.get_async_from_sync_iteration_types(
+                            &iteration_types,
+                            error_node.as_deref(),
+                        ), // : noIterationTypes
+                    );
+                } else {
+                    return iteration_types;
+                }
+            }
+        }
+
+        self.no_iteration_types()
+    }
+
+    pub(super) fn get_iteration_types_of_iterable_cached(
+        &self,
+        type_: &Type,
+        resolver: &IterationTypesResolver,
+    ) -> Option<Rc<IterationTypes>> {
         unimplemented!()
     }
 
@@ -24,6 +146,23 @@ impl TypeChecker {
         &self,
         global_type: &Type,
         resolver: &IterationTypesResolver,
+    ) -> Rc<IterationTypes> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_iteration_types_of_iterable_fast(
+        &self,
+        type_: &Type,
+        resolver: &IterationTypesResolver,
+    ) -> Option<Rc<IterationTypes>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_iteration_types_of_iterable_slow<TErrorNode: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        resolver: &IterationTypesResolver,
+        error_node: Option<TErrorNode>,
     ) -> Rc<IterationTypes> {
         unimplemented!()
     }
