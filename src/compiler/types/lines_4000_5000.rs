@@ -260,7 +260,7 @@ pub struct TypeChecker {
 
     pub(crate) enum_number_index_info: Option<Rc<IndexInfo>>,
 
-    pub(crate) iteration_types_cache: RefCell<HashMap<String, IterationTypes>>,
+    pub(crate) iteration_types_cache: RefCell<HashMap<String, Rc<IterationTypes>>>,
     pub(crate) no_iteration_types: Rc<IterationTypes>,
 
     pub(crate) any_iteration_types: Option<Rc<IterationTypes>>,

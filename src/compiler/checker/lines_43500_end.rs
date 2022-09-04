@@ -3,7 +3,7 @@
 use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::ambient_module_symbol_regex;
+use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{
     are_option_rcs_equal, create_diagnostic_for_node, create_file_diagnostic, filter, find,
     first_or_undefined, for_each_bool, get_effective_return_type_node,
@@ -15,12 +15,13 @@ use crate::{
     is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
     is_var_const, length, skip_trivia, text_span_end, token_to_string, AllAccessorDeclarations,
     DiagnosticMessage, Diagnostics, EmitResolver, EmitResolverDebuggable, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, LiteralLikeNodeInterface, ModifierFlags,
-    ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
-    SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
+    HasTypeInterface, HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface,
+    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags,
+    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
+    SignatureFlags, SignatureKind, SourceFileLike, StringOrNumber, Symbol,
+    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult,
+    SyntaxKind, Ternary, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -1241,6 +1242,16 @@ pub(super) mod JsxNames {
     lazy_static! {
         pub static ref LibraryManagedAttributes: __String =
             __String::new("LibraryManagedAttributes".to_owned());
+    }
+}
+
+pub(super) fn get_iteration_types_key_from_iteration_type_kind(
+    type_kind: IterationTypeKind,
+) -> IterationTypesKey {
+    match type_kind {
+        IterationTypeKind::Yield => IterationTypesKey::YieldType,
+        IterationTypeKind::Return => IterationTypesKey::ReturnType,
+        IterationTypeKind::Next => IterationTypesKey::NextType,
     }
 }
 

@@ -4,9 +4,11 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, IterationTypeKind, IterationUse};
+use super::{
+    get_iteration_types_key_from_iteration_type_kind, CheckMode, IterationTypeKind, IterationUse,
+};
 use crate::{
-    SymbolInterface, __String, filter, for_each, for_each_child_bool,
+    append, SymbolInterface, __String, filter, for_each, for_each_child_bool,
     get_containing_function_or_class_static_block, get_function_flags, is_binary_expression,
     is_binding_pattern, is_class_static_block_declaration, is_identifier, DiagnosticMessage,
     Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
@@ -590,7 +592,17 @@ impl TypeChecker {
     }
 
     pub(super) fn is_es2015_or_later_iterable(&self, n: Option<__String>) -> bool {
-        unimplemented!()
+        if let Some(n) = n {
+            match &*n {
+                "Float32Array" | "Float64Array" | "Int16Array" | "Int32Array" | "Int8Array"
+                | "NodeList" | "Uint16Array" | "Uint32Array" | "Uint8Array"
+                | "Uint8ClampedArray" => {
+                    return true;
+                }
+                _ => (),
+            }
+        }
+        false
     }
 
     pub(super) fn get_iteration_type_of_iterable<TErrorNode: Borrow<Node>>(
@@ -600,7 +612,14 @@ impl TypeChecker {
         input_type: &Type,
         error_node: Option<TErrorNode>,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if self.is_type_any(Some(input_type)) {
+            return None;
+        }
+
+        let iteration_types = self.get_iteration_types_of_iterable(input_type, use_, error_node);
+        iteration_types.as_ref().map(|iteration_types| {
+            iteration_types.get_by_key(get_iteration_types_key_from_iteration_type_kind(type_kind))
+        })
     }
 
     pub(super) fn create_iteration_types(
@@ -608,11 +627,106 @@ impl TypeChecker {
         yield_type: Option<Rc<Type>>,
         return_type: Option<Rc<Type>>,
         next_type: Option<Rc<Type>>,
-    ) -> IterationTypes {
+    ) -> Rc<IterationTypes> {
         let yield_type = yield_type.unwrap_or_else(|| self.never_type());
         let return_type = return_type.unwrap_or_else(|| self.never_type());
         let next_type = next_type.unwrap_or_else(|| self.unknown_type());
-        IterationTypes::new(yield_type, return_type, next_type)
+        if yield_type.flags().intersects(TypeFlags::Intrinsic)
+            && return_type.flags().intersects(
+                TypeFlags::Any
+                    | TypeFlags::Never
+                    | TypeFlags::Unknown
+                    | TypeFlags::Void
+                    | TypeFlags::Undefined,
+            )
+            && next_type.flags().intersects(
+                TypeFlags::Any
+                    | TypeFlags::Never
+                    | TypeFlags::Unknown
+                    | TypeFlags::Void
+                    | TypeFlags::Undefined,
+            )
+        {
+            let id = self.get_type_list_id(Some(&[
+                yield_type.clone(),
+                return_type.clone(),
+                next_type.clone(),
+            ]));
+            let mut iteration_types_cache = self.iteration_types_cache();
+            let iteration_types = iteration_types_cache.entry(id).or_insert_with(|| {
+                Rc::new(IterationTypes::new(yield_type, return_type, next_type))
+            });
+            return iteration_types.clone();
+        }
+        Rc::new(IterationTypes::new(yield_type, return_type, next_type))
+    }
+
+    pub(super) fn combine_iteration_types(
+        &self,
+        array: &[Option<Rc<IterationTypes>>],
+    ) -> Rc<IterationTypes> {
+        let mut yield_types: Option<Vec<Rc<Type>>> = None;
+        let mut return_types: Option<Vec<Rc<Type>>> = None;
+        let mut next_types: Option<Vec<Rc<Type>>> = None;
+        for iteration_types in array {
+            if iteration_types.is_none() {
+                continue;
+            }
+            let iteration_types = iteration_types.clone().unwrap();
+            if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+                continue;
+            }
+            if Rc::ptr_eq(&iteration_types, &self.any_iteration_types()) {
+                return self.any_iteration_types();
+            }
+            if yield_types.is_none() {
+                yield_types = Some(vec![]);
+            }
+            append(
+                yield_types.as_mut().unwrap(),
+                Some(iteration_types.yield_type()),
+            );
+            if return_types.is_none() {
+                return_types = Some(vec![]);
+            }
+            append(
+                return_types.as_mut().unwrap(),
+                Some(iteration_types.return_type()),
+            );
+            if next_types.is_none() {
+                next_types = Some(vec![]);
+            }
+            append(
+                next_types.as_mut().unwrap(),
+                Some(iteration_types.next_type()),
+            );
+        }
+        if yield_types.is_some() || return_types.is_some() || next_types.is_some() {
+            return self.create_iteration_types(
+                yield_types.map(|yield_types| {
+                    self.get_union_type(
+                        yield_types,
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                }),
+                return_types.map(|return_types| {
+                    self.get_union_type(
+                        return_types,
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                }),
+                next_types.map(|next_types| {
+                    self.get_intersection_type(&next_types, Option::<&Symbol>::None, None)
+                }),
+            );
+        }
+        self.no_iteration_types()
     }
 
     pub(super) fn get_iteration_types_of_iterable<TErrorNode: Borrow<Node>>(

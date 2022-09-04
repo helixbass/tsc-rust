@@ -182,6 +182,13 @@ pub trait FreshObjectLiteralTypeInterface: ResolvedTypeInterface {
     fn maybe_regular_type(&self) -> RefMut<Option<Rc<Type /*ResolvedType*/>>>;
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub(crate) enum IterationTypesKey {
+    YieldType,
+    ReturnType,
+    NextType,
+}
+
 #[derive(Debug)]
 pub(crate) struct IterationTypes {
     yield_type: Option<Rc<Type>>,
@@ -228,6 +235,14 @@ impl IterationTypes {
             Debug_.fail(Some("Not supported"));
         }
         cloned.unwrap()
+    }
+
+    pub fn get_by_key(&self, key: IterationTypesKey) -> Rc<Type> {
+        match key {
+            IterationTypesKey::YieldType => self.yield_type(),
+            IterationTypesKey::ReturnType => self.return_type(),
+            IterationTypesKey::NextType => self.next_type(),
+        }
     }
 }
 

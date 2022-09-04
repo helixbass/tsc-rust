@@ -1330,22 +1330,21 @@ pub fn create_type_checker(
         None,
     )));
 
-    type_checker.any_iteration_types = Some(Rc::new(type_checker.create_iteration_types(
+    type_checker.any_iteration_types = Some(type_checker.create_iteration_types(
         Some(type_checker.any_type()),
         Some(type_checker.any_type()),
         Some(type_checker.any_type()),
-    )));
-    type_checker.any_iteration_types_except_next =
-        Some(Rc::new(type_checker.create_iteration_types(
-            Some(type_checker.any_type()),
-            Some(type_checker.any_type()),
-            Some(type_checker.unknown_type()),
-        )));
-    type_checker.default_iteration_types = Some(Rc::new(type_checker.create_iteration_types(
+    ));
+    type_checker.any_iteration_types_except_next = Some(type_checker.create_iteration_types(
+        Some(type_checker.any_type()),
+        Some(type_checker.any_type()),
+        Some(type_checker.unknown_type()),
+    ));
+    type_checker.default_iteration_types = Some(type_checker.create_iteration_types(
         Some(type_checker.never_type()),
         Some(type_checker.any_type()),
         Some(type_checker.undefined_type()),
-    )));
+    ));
 
     type_checker.empty_string_type = Some(type_checker.get_string_literal_type(""));
     type_checker.zero_type = Some(type_checker.get_number_literal_type(Number::new(0.0)));
@@ -2867,6 +2866,18 @@ impl TypeChecker {
 
     pub(super) fn enum_number_index_info(&self) -> Rc<IndexInfo> {
         self.enum_number_index_info.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn iteration_types_cache(&self) -> RefMut<HashMap<String, Rc<IterationTypes>>> {
+        self.iteration_types_cache.borrow_mut()
+    }
+
+    pub(super) fn no_iteration_types(&self) -> Rc<IterationTypes> {
+        self.no_iteration_types.clone()
+    }
+
+    pub(super) fn any_iteration_types(&self) -> Rc<IterationTypes> {
+        self.any_iteration_types.clone().unwrap()
     }
 
     pub(super) fn maybe_amalgamated_duplicates(
