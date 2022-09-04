@@ -396,13 +396,13 @@ impl TypeChecker {
             self.map_type(
                 array_contextual_type,
                 &mut |t: &Type| {
-                    Some(self.get_iterated_type_or_element_type(
+                    self.get_iterated_type_or_element_type(
                         IterationUse::Element,
                         t,
                         &self.undefined_type(),
                         Option::<&Node>::None,
                         false,
-                    ))
+                    )
                 },
                 Some(true),
             )

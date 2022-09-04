@@ -605,7 +605,7 @@ impl TypeChecker {
                 } else if in_destructuring_pattern {
                     let rest_element_type = self
                         .get_index_type_of_type_(&spread_type, &self.number_type())
-                        .unwrap_or_else(|| {
+                        .or_else(|| {
                             self.get_iterated_type_or_element_type(
                                 IterationUse::Destructuring,
                                 &spread_type,
@@ -613,7 +613,8 @@ impl TypeChecker {
                                 Option::<&Node>::None,
                                 false,
                             )
-                        }); /*|| unknownType*/
+                        })
+                        .unwrap_or_else(|| self.unknown_type());
                     element_types.push(rest_element_type);
                     element_flags.push(ElementFlags::Rest);
                 } else {
