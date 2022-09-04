@@ -6,21 +6,23 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    add_related_info, create_diagnostic_for_node, declaration_name_to_string, find_ancestor,
-    for_each, get_ancestor, get_combined_node_flags, get_containing_function,
-    get_containing_function_or_class_static_block, get_effective_initializer,
-    get_enclosing_block_scope_container, get_function_flags, get_module_instance_state,
-    get_name_of_declaration, get_selected_effective_modifier_flags, get_source_file_of_node,
-    has_question_token, is_array_binding_pattern, is_binding_element, is_binding_pattern,
-    is_class_expression, is_class_like, is_enum_declaration, is_external_or_common_js_module,
-    is_function_expression, is_function_like, is_identifier, is_in_js_file, is_module_declaration,
-    is_named_declaration, is_object_binding_pattern, is_object_literal_expression,
-    is_parameter_declaration, is_prototype_access, is_require_variable_declaration,
+    add_related_info, are_option_rcs_equal, create_diagnostic_for_node, declaration_name_to_string,
+    find_ancestor, for_each, for_each_child_bool, get_ancestor, get_combined_node_flags,
+    get_containing_function, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_enclosing_block_scope_container, get_function_flags,
+    get_module_instance_state, get_name_of_declaration, get_selected_effective_modifier_flags,
+    get_source_file_of_node, has_question_token, is_array_binding_pattern, is_binary_expression,
+    is_binding_element, is_binding_pattern, is_call_expression, is_class_expression, is_class_like,
+    is_enum_declaration, is_external_or_common_js_module, is_function_expression, is_function_like,
+    is_identifier, is_in_js_file, is_module_declaration, is_named_declaration,
+    is_object_binding_pattern, is_object_literal_expression, is_parameter_declaration,
+    is_property_access_expression, is_prototype_access, is_require_variable_declaration,
     is_variable_like, node_is_missing, some, ClassLikeDeclarationInterface, Debug_,
     DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasInitializerInterface,
     HasTypeParametersInterface, IterationTypes, IterationTypesResolver, ModifierFlags,
-    ModuleInstanceState, ModuleKind, Node, NodeCheckFlags, NodeFlags, NodeInterface, ScriptTarget,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    ModuleInstanceState, ModuleKind, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
+    ScriptTarget, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -808,6 +810,209 @@ impl TypeChecker {
         type_: &Type,
         body: Option<TBody /*Statement | Expression*/>,
     ) {
+        if !self.strict_null_checks {
+            return;
+        }
+        if self.get_falsy_flags(type_) == TypeFlags::None {
+            return;
+        }
+
+        let location = if is_binary_expression(cond_expr) {
+            &*cond_expr.as_binary_expression().right
+        } else {
+            cond_expr
+        };
+        if is_property_access_expression(location)
+            && self.is_type_assertion(&location.as_property_access_expression().expression)
+        {
+            return;
+        }
+
+        let tested_node = if is_identifier(location) {
+            Some(location.node_wrapper())
+        } else if is_property_access_expression(location) {
+            Some(location.as_property_access_expression().name.clone())
+        } else if is_binary_expression(location)
+            && is_identifier(&location.as_binary_expression().right)
+        {
+            Some(location.as_binary_expression().right.clone())
+        } else {
+            None
+        };
+
+        let call_signatures = self.get_signatures_of_type(type_, SignatureKind::Call);
+        let is_promise = self
+            .get_awaited_type_of_promise(type_, Option::<&Node>::None, None, None)
+            .is_some();
+        if call_signatures.is_empty() && !is_promise {
+            return;
+        }
+
+        let tested_symbol = tested_node
+            .as_ref()
+            .and_then(|tested_node| self.get_symbol_at_location_(tested_node, None));
+        if tested_symbol.is_none() && !is_promise {
+            return;
+        }
+
+        let body = body.map(|body| body.borrow().node_wrapper());
+        let is_used = matches!(
+            tested_symbol.as_ref(),
+            Some(tested_symbol) if is_binary_expression(&cond_expr.parent()) &&
+                self.is_symbol_used_in_binary_expression_chain(&cond_expr.parent(), tested_symbol)
+        ) || matches!(
+            (tested_symbol.as_ref(), body.as_ref()),
+            (Some(tested_symbol), Some(body)) if self.is_symbol_used_in_condition_body(
+                cond_expr,
+                body,
+                tested_node.as_ref().unwrap(),
+                tested_symbol,
+            )
+        );
+        if !is_used {
+            if is_promise {
+                self.error_and_maybe_suggest_await(
+                    location,
+                    true,
+                    &Diagnostics::This_condition_will_always_return_true_since_this_0_is_always_defined,
+                    Some(vec![
+                        self.get_type_name_for_error_display(type_)
+                    ])
+                );
+            } else {
+                self.error(
+                    Some(location),
+                    &Diagnostics::This_condition_will_always_return_true_since_this_function_is_always_defined_Did_you_mean_to_call_it_instead,
+                    None,
+                );
+            }
+        }
+    }
+
+    pub(super) fn is_symbol_used_in_condition_body(
+        &self,
+        expr: &Node, /*Expression*/
+        body: &Node, /*Statement | Expression*/
+        tested_node: &Node,
+        tested_symbol: &Symbol,
+    ) -> bool {
+        for_each_child_bool(
+            body,
+            |child_node| {
+                self.is_symbol_used_in_condition_body_check(
+                    expr,
+                    tested_node,
+                    tested_symbol,
+                    child_node,
+                )
+            },
+            Option::<fn(&NodeArray) -> bool>::None,
+        )
+    }
+
+    pub(super) fn is_symbol_used_in_condition_body_check(
+        &self,
+        expr: &Node,
+        tested_node: &Node,
+        tested_symbol: &Symbol,
+        child_node: &Node,
+    ) -> bool {
+        if is_identifier(child_node) {
+            let child_symbol = self.get_symbol_at_location_(child_node, None);
+            if matches!(
+                child_symbol.as_ref(),
+                Some(child_symbol) if ptr::eq(&**child_symbol, tested_symbol)
+            ) {
+                if is_identifier(expr) {
+                    return true;
+                }
+                let mut tested_expression = tested_node.maybe_parent();
+                let mut child_expression = child_node.maybe_parent();
+                while let (Some(tested_expression_present), Some(child_expression_present)) =
+                    (tested_expression.as_ref(), child_expression.as_ref())
+                {
+                    if is_identifier(tested_expression_present)
+                        && is_identifier(child_expression_present)
+                        || tested_expression_present.kind() == SyntaxKind::ThisKeyword
+                            && child_expression_present.kind() == SyntaxKind::ThisKeyword
+                    {
+                        return are_option_rcs_equal(
+                            self.get_symbol_at_location_(tested_expression_present, None)
+                                .as_ref(),
+                            self.get_symbol_at_location_(child_expression_present, None)
+                                .as_ref(),
+                        );
+                    } else if is_property_access_expression(tested_expression_present)
+                        && is_property_access_expression(child_expression_present)
+                    {
+                        let tested_expression_present_as_property_access_expression =
+                            tested_expression_present.as_property_access_expression();
+                        let child_expression_present_as_property_access_expression =
+                            child_expression_present.as_property_access_expression();
+                        if !are_option_rcs_equal(
+                            self.get_symbol_at_location_(
+                                &tested_expression_present_as_property_access_expression.name,
+                                None,
+                            )
+                            .as_ref(),
+                            self.get_symbol_at_location_(
+                                &child_expression_present_as_property_access_expression.name,
+                                None,
+                            )
+                            .as_ref(),
+                        ) {
+                            return false;
+                        }
+                        child_expression = Some(
+                            child_expression_present_as_property_access_expression
+                                .expression
+                                .clone(),
+                        );
+                        tested_expression = Some(
+                            tested_expression_present_as_property_access_expression
+                                .expression
+                                .clone(),
+                        );
+                    } else if is_call_expression(tested_expression_present)
+                        && is_call_expression(child_expression_present)
+                    {
+                        child_expression = Some(
+                            child_expression_present
+                                .as_call_expression()
+                                .expression
+                                .clone(),
+                        );
+                        tested_expression = Some(
+                            tested_expression_present
+                                .as_call_expression()
+                                .expression
+                                .clone(),
+                        );
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+        for_each_child_bool(
+            child_node,
+            |child_node| {
+                self.is_symbol_used_in_condition_body_check(
+                    expr,
+                    tested_node,
+                    tested_symbol,
+                    child_node,
+                )
+            },
+            Option::<fn(&NodeArray) -> bool>::None,
+        )
+    }
+
+    pub(super) fn is_symbol_used_in_binary_expression_chain(
+        &self,
+        node: &Node,
+        tested_symbol: &Symbol,
+    ) -> bool {
         unimplemented!()
     }
 
