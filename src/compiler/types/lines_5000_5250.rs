@@ -16,7 +16,8 @@ use super::{
 };
 use crate::{
     BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
-    InterfaceTypeInterface, JsxFlags, Node, ObjectFlags, Pattern, WeakSelf,
+    InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, ObjectFlags,
+    Pattern, WeakSelf,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -606,6 +607,25 @@ pub trait TypeInterface {
     fn maybe_promise_type_of_promise_constructor(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_promised_type_of_promise(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Rc<Type>>>;
+    // IterableOrIteratorType fields
+    fn maybe_iteration_types_of_generator_return_type(&self) -> RefMut<Option<Rc<IterationTypes>>>;
+    fn maybe_iteration_types_of_async_generator_return_type(
+        &self,
+    ) -> RefMut<Option<Rc<IterationTypes>>>;
+    fn maybe_iteration_types_of_iterable(&self) -> RefMut<Option<Rc<IterationTypes>>>;
+    fn maybe_iteration_types_of_iterator(&self) -> RefMut<Option<Rc<IterationTypes>>>;
+    fn maybe_iteration_types_of_async_iterable(&self) -> RefMut<Option<Rc<IterationTypes>>>;
+    fn maybe_iteration_types_of_async_iterator(&self) -> RefMut<Option<Rc<IterationTypes>>>;
+    fn maybe_iteration_types_of_iterator_result(&self) -> RefMut<Option<Rc<IterationTypes>>>;
+    fn get_by_iteration_type_cache_key(
+        &self,
+        key: IterationTypeCacheKey,
+    ) -> Option<Rc<IterationTypes>>;
+    fn set_by_iteration_type_cache_key(
+        &self,
+        key: IterationTypeCacheKey,
+        value: Option<Rc<IterationTypes>>,
+    );
 }
 
 #[derive(Clone, Debug)]
@@ -633,6 +653,14 @@ pub struct BaseType {
     promise_type_of_promise_constructor: RefCell<Option<Rc<Type>>>,
     promised_type_of_promise: RefCell<Option<Rc<Type>>>,
     awaited_type_of_type: RefCell<Option<Rc<Type>>>,
+    // IterableOrIteratorType fields
+    iteration_types_of_generator_return_type: RefCell<Option<Rc<IterationTypes>>>,
+    iteration_types_of_async_generator_return_type: RefCell<Option<Rc<IterationTypes>>>,
+    iteration_types_of_iterable: RefCell<Option<Rc<IterationTypes>>>,
+    iteration_types_of_iterator: RefCell<Option<Rc<IterationTypes>>>,
+    iteration_types_of_async_iterable: RefCell<Option<Rc<IterationTypes>>>,
+    iteration_types_of_async_iterator: RefCell<Option<Rc<IterationTypes>>>,
+    iteration_types_of_iterator_result: RefCell<Option<Rc<IterationTypes>>>,
 }
 
 impl BaseType {
@@ -658,6 +686,13 @@ impl BaseType {
             promise_type_of_promise_constructor: RefCell::new(None),
             promised_type_of_promise: RefCell::new(None),
             awaited_type_of_type: RefCell::new(None),
+            iteration_types_of_generator_return_type: RefCell::new(None),
+            iteration_types_of_async_generator_return_type: RefCell::new(None),
+            iteration_types_of_iterable: RefCell::new(None),
+            iteration_types_of_iterator: RefCell::new(None),
+            iteration_types_of_async_iterable: RefCell::new(None),
+            iteration_types_of_async_iterator: RefCell::new(None),
+            iteration_types_of_iterator_result: RefCell::new(None),
         }
     }
 }
@@ -770,6 +805,96 @@ impl TypeInterface for BaseType {
 
     fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.awaited_type_of_type.borrow_mut()
+    }
+
+    fn maybe_iteration_types_of_generator_return_type(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+        self.iteration_types_of_generator_return_type.borrow_mut()
+    }
+
+    fn maybe_iteration_types_of_async_generator_return_type(
+        &self,
+    ) -> RefMut<Option<Rc<IterationTypes>>> {
+        self.iteration_types_of_async_generator_return_type
+            .borrow_mut()
+    }
+
+    fn maybe_iteration_types_of_iterable(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+        self.iteration_types_of_iterable.borrow_mut()
+    }
+
+    fn maybe_iteration_types_of_iterator(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+        self.iteration_types_of_iterator.borrow_mut()
+    }
+
+    fn maybe_iteration_types_of_async_iterable(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+        self.iteration_types_of_async_iterable.borrow_mut()
+    }
+
+    fn maybe_iteration_types_of_async_iterator(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+        self.iteration_types_of_async_iterator.borrow_mut()
+    }
+
+    fn maybe_iteration_types_of_iterator_result(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+        self.iteration_types_of_iterator_result.borrow_mut()
+    }
+
+    fn get_by_iteration_type_cache_key(
+        &self,
+        key: IterationTypeCacheKey,
+    ) -> Option<Rc<IterationTypes>> {
+        match key {
+            IterationTypeCacheKey::IterationTypesOfGeneratorReturnType => self
+                .maybe_iteration_types_of_generator_return_type()
+                .clone(),
+            IterationTypeCacheKey::IterationTypesOfAsyncGeneratorReturnType => self
+                .maybe_iteration_types_of_async_generator_return_type()
+                .clone(),
+            IterationTypeCacheKey::IterationTypesOfIterable => {
+                self.maybe_iteration_types_of_iterable().clone()
+            }
+            IterationTypeCacheKey::IterationTypesOfIterator => {
+                self.maybe_iteration_types_of_iterator().clone()
+            }
+            IterationTypeCacheKey::IterationTypesOfAsyncIterable => {
+                self.maybe_iteration_types_of_async_iterable().clone()
+            }
+            IterationTypeCacheKey::IterationTypesOfAsyncIterator => {
+                self.maybe_iteration_types_of_async_iterator().clone()
+            }
+            IterationTypeCacheKey::IterationTypesOfIteratorResult => {
+                self.maybe_iteration_types_of_iterator_result().clone()
+            }
+        }
+    }
+
+    fn set_by_iteration_type_cache_key(
+        &self,
+        key: IterationTypeCacheKey,
+        value: Option<Rc<IterationTypes>>,
+    ) {
+        match key {
+            IterationTypeCacheKey::IterationTypesOfGeneratorReturnType => {
+                *self.maybe_iteration_types_of_generator_return_type() = value;
+            }
+            IterationTypeCacheKey::IterationTypesOfAsyncGeneratorReturnType => {
+                *self.maybe_iteration_types_of_async_generator_return_type() = value;
+            }
+            IterationTypeCacheKey::IterationTypesOfIterable => {
+                *self.maybe_iteration_types_of_iterable() = value;
+            }
+            IterationTypeCacheKey::IterationTypesOfIterator => {
+                *self.maybe_iteration_types_of_iterator() = value;
+            }
+            IterationTypeCacheKey::IterationTypesOfAsyncIterable => {
+                *self.maybe_iteration_types_of_async_iterable() = value;
+            }
+            IterationTypeCacheKey::IterationTypesOfAsyncIterator => {
+                *self.maybe_iteration_types_of_async_iterator() = value;
+            }
+            IterationTypeCacheKey::IterationTypesOfIteratorResult => {
+                *self.maybe_iteration_types_of_iterator_result() = value
+            }
+        }
     }
 }
 

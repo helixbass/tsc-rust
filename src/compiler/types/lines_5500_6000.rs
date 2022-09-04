@@ -183,14 +183,14 @@ pub trait FreshObjectLiteralTypeInterface: ResolvedTypeInterface {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(crate) enum IterationTypesKey {
+pub enum IterationTypesKey {
     YieldType,
     ReturnType,
     NextType,
 }
 
 #[derive(Debug)]
-pub(crate) struct IterationTypes {
+pub struct IterationTypes {
     yield_type: Option<Rc<Type>>,
     return_type: Option<Rc<Type>>,
     next_type: Option<Rc<Type>>,
@@ -244,6 +244,17 @@ impl IterationTypes {
             IterationTypesKey::NextType => self.next_type(),
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum IterationTypeCacheKey {
+    IterationTypesOfGeneratorReturnType,
+    IterationTypesOfAsyncGeneratorReturnType,
+    IterationTypesOfIterable,
+    IterationTypesOfIterator,
+    IterationTypesOfAsyncIterable,
+    IterationTypesOfAsyncIterator,
+    IterationTypesOfIteratorResult,
 }
 
 #[derive(Clone, Debug)]

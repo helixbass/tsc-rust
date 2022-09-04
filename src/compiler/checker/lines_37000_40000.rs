@@ -8,12 +8,12 @@ use super::{
     get_iteration_types_key_from_iteration_type_kind, CheckMode, IterationTypeKind, IterationUse,
 };
 use crate::{
-    append, SymbolInterface, __String, filter, for_each, for_each_child_bool,
-    get_containing_function_or_class_static_block, get_function_flags, is_binary_expression,
-    is_binding_pattern, is_class_static_block_declaration, is_identifier, DiagnosticMessage,
-    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
-    IterationTypesResolver, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    ScriptTarget, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    append, IterationTypeCacheKey, SymbolInterface, __String, filter, for_each,
+    for_each_child_bool, get_containing_function_or_class_static_block, get_function_flags,
+    is_binary_expression, is_binding_pattern, is_class_static_block_declaration, is_identifier,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface,
+    IterationTypes, IterationTypesResolver, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, ScriptTarget, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
@@ -727,6 +727,24 @@ impl TypeChecker {
             );
         }
         self.no_iteration_types()
+    }
+
+    pub(super) fn get_cached_iteration_types(
+        &self,
+        type_: &Type,
+        cache_key: IterationTypeCacheKey,
+    ) -> Option<Rc<IterationTypes>> {
+        type_.get_by_iteration_type_cache_key(cache_key)
+    }
+
+    pub(super) fn set_cached_iteration_types(
+        &self,
+        type_: &Type,
+        cache_key: IterationTypeCacheKey,
+        cached_types: Rc<IterationTypes>,
+    ) -> Rc<IterationTypes> {
+        type_.set_by_iteration_type_cache_key(cache_key, Some(cached_types.clone()));
+        cached_types
     }
 
     pub(super) fn get_iteration_types_of_iterable<TErrorNode: Borrow<Node>>(
