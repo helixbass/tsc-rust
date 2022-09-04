@@ -752,7 +752,91 @@ impl TypeChecker {
         type_: &Type,
         use_: IterationUse,
         error_node: Option<TErrorNode>,
-    ) -> Option<IterationTypes> {
+    ) -> Option<Rc<IterationTypes>> {
+        if self.is_type_any(Some(type_)) {
+            return Some(self.any_iteration_types());
+        }
+
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        if !type_.flags().intersects(TypeFlags::Union) {
+            let iteration_types =
+                self.get_iteration_types_of_iterable_worker(type_, use_, error_node.as_deref());
+            if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+                if let Some(error_node) = error_node.as_ref() {
+                    self.report_type_not_iterable_error(
+                        error_node,
+                        type_,
+                        use_.intersects(IterationUse::AllowsAsyncIterablesFlag),
+                    );
+                }
+                return None;
+            }
+            return Some(iteration_types);
+        }
+
+        let cache_key = if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
+            IterationTypeCacheKey::IterationTypesOfAsyncIterable
+        } else {
+            IterationTypeCacheKey::IterationTypesOfIterable
+        };
+        let cached_types = self.get_cached_iteration_types(type_, cache_key);
+        if let Some(cached_types) = cached_types.as_ref() {
+            return if Rc::ptr_eq(cached_types, &self.no_iteration_types()) {
+                None
+            } else {
+                Some(cached_types.clone())
+            };
+        }
+
+        let mut all_iteration_types: Option<Vec<Rc<IterationTypes>>> = None;
+        for constituent in type_.as_union_type().types() {
+            let iteration_types = self.get_iteration_types_of_iterable_worker(
+                constituent,
+                use_,
+                error_node.as_deref(),
+            );
+            if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+                if let Some(error_node) = error_node.as_ref() {
+                    self.report_type_not_iterable_error(
+                        error_node,
+                        type_,
+                        use_.intersects(IterationUse::AllowsAsyncIterablesFlag),
+                    );
+                }
+                self.set_cached_iteration_types(type_, cache_key, self.no_iteration_types());
+                return None;
+            } else {
+                if all_iteration_types.is_none() {
+                    all_iteration_types = Some(vec![]);
+                }
+                append(all_iteration_types.as_mut().unwrap(), Some(iteration_types));
+            }
+        }
+
+        let iteration_types = if let Some(all_iteration_types) = all_iteration_types {
+            self.combine_iteration_types(
+                &all_iteration_types
+                    .into_iter()
+                    .map(Option::Some)
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            self.no_iteration_types()
+        };
+        self.set_cached_iteration_types(type_, cache_key, iteration_types.clone());
+        if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            None
+        } else {
+            Some(iteration_types)
+        }
+    }
+
+    pub(super) fn get_iteration_types_of_iterable_worker<TErrorNode: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        use_: IterationUse,
+        error_node: Option<TErrorNode>,
+    ) -> Rc<IterationTypes> {
         unimplemented!()
     }
 
@@ -760,7 +844,7 @@ impl TypeChecker {
         &self,
         global_type: &Type,
         resolver: &IterationTypesResolver,
-    ) -> IterationTypes {
+    ) -> Rc<IterationTypes> {
         unimplemented!()
     }
 
@@ -786,7 +870,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         is_async_generator: bool,
-    ) -> Option<IterationTypes> {
+    ) -> Option<Rc<IterationTypes>> {
         unimplemented!()
     }
 
