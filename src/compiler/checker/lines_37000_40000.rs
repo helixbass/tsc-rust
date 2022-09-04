@@ -6,12 +6,13 @@ use std::rc::Rc;
 
 use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    for_each, for_each_child_bool, get_containing_function_or_class_static_block,
-    get_function_flags, is_binary_expression, is_binding_pattern,
-    is_class_static_block_declaration, is_identifier, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
+    SymbolInterface, __String, filter, for_each, for_each_child_bool,
+    get_containing_function_or_class_static_block, get_function_flags, is_binary_expression,
+    is_binding_pattern, is_class_static_block_declaration, is_identifier, DiagnosticMessage,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasTypeParametersInterface, IterationTypes,
     IterationTypesResolver, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
     ScriptTarget, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -343,6 +344,252 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         check_assignability: bool,
     ) -> Option<Rc<Type>> {
+        let allow_async_iterables = use_.intersects(IterationUse::AllowsAsyncIterablesFlag);
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        if ptr::eq(input_type, &*self.never_type()) {
+            self.report_type_not_iterable_error(
+                error_node.as_ref().unwrap(),
+                input_type,
+                allow_async_iterables,
+            );
+            return None;
+        }
+
+        let uplevel_iteration = self.language_version >= ScriptTarget::ES2015;
+        let downlevel_iteration = if uplevel_iteration {
+            Some(true)
+        } else {
+            self.compiler_options.downlevel_iteration
+        };
+        let possible_out_of_bounds = self.compiler_options.no_unchecked_indexed_access
+            == Some(true)
+            && use_.intersects(IterationUse::PossiblyOutOfBounds);
+
+        if uplevel_iteration || downlevel_iteration == Some(true) || allow_async_iterables {
+            let iteration_types = self.get_iteration_types_of_iterable(
+                input_type,
+                use_,
+                if uplevel_iteration {
+                    error_node.as_deref()
+                } else {
+                    None
+                },
+            );
+            if check_assignability {
+                if let Some(iteration_types) = iteration_types.as_ref() {
+                    let diagnostic = if use_.intersects(IterationUse::ForOfFlag) {
+                        Some(&*Diagnostics::Cannot_iterate_value_because_the_next_method_of_its_iterator_expects_type_1_but_for_of_will_always_send_0)
+                    } else if use_.intersects(IterationUse::SpreadFlag) {
+                        Some(&*Diagnostics::Cannot_iterate_value_because_the_next_method_of_its_iterator_expects_type_1_but_array_spread_will_always_send_0)
+                    } else if use_.intersects(IterationUse::DestructuringFlag) {
+                        Some(&*Diagnostics::Cannot_iterate_value_because_the_next_method_of_its_iterator_expects_type_1_but_array_destructuring_will_always_send_0)
+                    } else if use_.intersects(IterationUse::YieldStarFlag) {
+                        Some(&*Diagnostics::Cannot_delegate_iteration_to_value_because_the_next_method_of_its_iterator_expects_type_1_but_the_containing_generator_will_always_send_0)
+                    } else {
+                        None
+                    };
+                    if let Some(diagnostic) = diagnostic {
+                        self.check_type_assignable_to(
+                            sent_type,
+                            &iteration_types.next_type(),
+                            error_node.as_deref(),
+                            Some(diagnostic),
+                            None,
+                            None,
+                        );
+                    }
+                }
+            }
+            if iteration_types.is_some() || uplevel_iteration {
+                return if possible_out_of_bounds {
+                    self.include_undefined_in_index_signature(
+                        iteration_types
+                            .as_ref()
+                            .map(|iteration_types| iteration_types.yield_type()),
+                    )
+                } else {
+                    iteration_types
+                        .as_ref()
+                        .map(|iteration_types| iteration_types.yield_type())
+                };
+            }
+        }
+
+        let mut array_type = input_type.type_wrapper();
+        let mut reported_error = false;
+        let mut has_string_constituent = false;
+
+        if use_.intersects(IterationUse::AllowsStringInputFlag) {
+            if array_type.flags().intersects(TypeFlags::Union) {
+                let array_types = input_type.as_union_type().types();
+                let filtered_types = filter(array_types, |t: &Rc<Type>| {
+                    !t.flags().intersects(TypeFlags::StringLike)
+                });
+                if filtered_types.len() != array_types.len() {
+                    array_type = self.get_union_type(
+                        filtered_types,
+                        Some(UnionReduction::Subtype),
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    );
+                }
+            } else if array_type.flags().intersects(TypeFlags::StringLike) {
+                array_type = self.never_type();
+            }
+
+            has_string_constituent = !ptr::eq(&*array_type, input_type);
+            if has_string_constituent {
+                if self.language_version < ScriptTarget::ES5 {
+                    if error_node.is_some() {
+                        self.error(
+                            error_node.as_deref(),
+                            &Diagnostics::Using_a_string_in_a_for_of_statement_is_only_supported_in_ECMAScript_5_and_higher,
+                            None,
+                        );
+                        reported_error = true;
+                    }
+                }
+
+                if array_type.flags().intersects(TypeFlags::Never) {
+                    return if possible_out_of_bounds {
+                        self.include_undefined_in_index_signature(Some(self.string_type()))
+                    } else {
+                        Some(self.string_type())
+                    };
+                }
+            }
+        }
+
+        if !self.is_array_like_type(&array_type) {
+            if let Some(error_node) = error_node.as_ref() {
+                if !reported_error {
+                    let allows_strings = use_.intersects(IterationUse::AllowsStringInputFlag)
+                        && !has_string_constituent;
+                    let (default_diagnostic, maybe_missing_await) = self
+                        .get_iteration_diagnostic_details(
+                            use_,
+                            input_type,
+                            allows_strings,
+                            downlevel_iteration,
+                        );
+                    self.error_and_maybe_suggest_await(
+                        error_node,
+                        maybe_missing_await
+                            && self
+                                .get_awaited_type_of_promise(
+                                    &array_type,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                )
+                                .is_some(),
+                        default_diagnostic,
+                        Some(vec![self.type_to_string_(
+                            &array_type,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        )]),
+                    );
+                }
+            }
+            return if has_string_constituent {
+                if possible_out_of_bounds {
+                    self.include_undefined_in_index_signature(Some(self.string_type()))
+                } else {
+                    Some(self.string_type())
+                }
+            } else {
+                None
+            };
+        }
+
+        let array_element_type = self.get_index_type_of_type_(&array_type, &self.number_type());
+        if has_string_constituent {
+            if let Some(array_element_type) = array_element_type.as_ref() {
+                if array_element_type.flags().intersects(TypeFlags::StringLike)
+                    && self.compiler_options.no_unchecked_indexed_access != Some(true)
+                {
+                    return Some(self.string_type());
+                }
+
+                return Some(self.get_union_type(
+                    if possible_out_of_bounds {
+                        vec![
+                            array_element_type.clone(),
+                            self.string_type(),
+                            self.undefined_type(),
+                        ]
+                    } else {
+                        vec![array_element_type.clone(), self.string_type()]
+                    },
+                    Some(UnionReduction::Subtype),
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ));
+            }
+        }
+
+        if use_.intersects(IterationUse::PossiblyOutOfBounds) {
+            self.include_undefined_in_index_signature(array_element_type)
+        } else {
+            array_element_type
+        }
+    }
+
+    pub(super) fn get_iteration_diagnostic_details(
+        &self,
+        use_: IterationUse,
+        input_type: &Type,
+        allows_strings: bool,
+        downlevel_iteration: Option<bool>,
+    ) -> (&'static DiagnosticMessage, bool) {
+        if downlevel_iteration == Some(true) {
+            return if allows_strings {
+                (&Diagnostics::Type_0_is_not_an_array_type_or_a_string_type_or_does_not_have_a_Symbol_iterator_method_that_returns_an_iterator, true)
+            } else {
+                (&Diagnostics::Type_0_is_not_an_array_type_or_does_not_have_a_Symbol_iterator_method_that_returns_an_iterator, true)
+            };
+        }
+
+        let yield_type = self.get_iteration_type_of_iterable(
+            use_,
+            IterationTypeKind::Yield,
+            input_type,
+            Option::<&Node>::None,
+        );
+
+        if yield_type.is_some() {
+            return (
+                &Diagnostics::Type_0_is_not_an_array_type_or_a_string_type_Use_compiler_option_downlevelIteration_to_allow_iterating_of_iterators,
+                false
+            );
+        }
+
+        if self.is_es2015_or_later_iterable(
+            input_type
+                .maybe_symbol()
+                .map(|input_type_symbol| input_type_symbol.escaped_name().clone()),
+        ) {
+            return (
+                &Diagnostics::Type_0_can_only_be_iterated_through_when_using_the_downlevelIteration_flag_or_with_a_target_of_es2015_or_higher,
+                true,
+            );
+        }
+
+        if allows_strings {
+            (
+                &Diagnostics::Type_0_is_not_an_array_type_or_a_string_type,
+                true,
+            )
+        } else {
+            (&Diagnostics::Type_0_is_not_an_array_type, true)
+        }
+    }
+
+    pub(super) fn is_es2015_or_later_iterable(&self, n: Option<__String>) -> bool {
         unimplemented!()
     }
 
@@ -382,6 +629,15 @@ impl TypeChecker {
         global_type: &Type,
         resolver: &IterationTypesResolver,
     ) -> IterationTypes {
+        unimplemented!()
+    }
+
+    pub(super) fn report_type_not_iterable_error(
+        &self,
+        error_node: &Node,
+        type_: &Type,
+        allow_async_iterables: bool,
+    ) {
         unimplemented!()
     }
 
