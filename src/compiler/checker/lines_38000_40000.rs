@@ -5,15 +5,15 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    are_option_rcs_equal, find_ancestor, for_each, get_declaration_of_kind,
-    get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    are_option_rcs_equal, declaration_name_to_string, find_ancestor, for_each,
+    get_declaration_of_kind, get_name_of_declaration, get_object_flags, get_source_file_of_node,
     get_span_of_token_at_position, get_text_of_node, is_class_like, is_function_like,
     is_identifier, is_private_identifier, is_static, some, DiagnosticMessage, Diagnostics,
-    FindAncestorCallbackReturn, HasTypeParametersInterface, IndexInfo, ModuleKind, Node, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, __String, for_each_key,
-    get_effective_type_annotation_node, get_root_declaration, HasInitializerInterface, TypeFlags,
-    TypeInterface,
+    FindAncestorCallbackReturn, HasTypeParametersInterface, IndexInfo, ModuleKind,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange,
+    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, __String,
+    for_each_key, get_effective_type_annotation_node, get_root_declaration,
+    HasInitializerInterface, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -500,10 +500,55 @@ impl TypeChecker {
         type_parameter_declarations: Option<&[Rc<Node /*TypeParameterDeclaration*/>]>,
     ) {
         if let Some(type_parameter_declarations) = type_parameter_declarations {
-            for node in type_parameter_declarations {
+            let mut seen_default = false;
+            for i in 0..type_parameter_declarations.len() {
+                let node = &type_parameter_declarations[i];
                 self.check_type_parameter(&node);
+
+                if self.produce_diagnostics {
+                    let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
+                    if let Some(node_default) = node_as_type_parameter_declaration.default.as_ref()
+                    {
+                        seen_default = true;
+                        self.check_type_parameters_not_referenced(
+                            node_default,
+                            type_parameter_declarations,
+                            i,
+                        );
+                    } else if seen_default {
+                        self.error(
+                            Some(&**node),
+                            &Diagnostics::Required_type_parameters_may_not_follow_optional_type_parameters,
+                            None,
+                        );
+                    }
+                    for j in 0..i {
+                        if are_option_rcs_equal(
+                            type_parameter_declarations[j].maybe_symbol().as_ref(),
+                            node.maybe_symbol().as_ref(),
+                        ) {
+                            self.error(
+                                node_as_type_parameter_declaration.maybe_name(),
+                                &Diagnostics::Duplicate_identifier_0,
+                                Some(vec![declaration_name_to_string(
+                                    node_as_type_parameter_declaration.maybe_name(),
+                                )
+                                .into_owned()]),
+                            );
+                        }
+                    }
+                }
             }
         }
+    }
+
+    pub(super) fn check_type_parameters_not_referenced(
+        &self,
+        root: &Node, /*TypeNode*/
+        type_parameters: &[Rc<Node /*TypeParameterDeclaration*/>],
+        index: usize,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn check_class_expression(&self, node: &Node /*ClassExpression*/) -> Rc<Type> {
