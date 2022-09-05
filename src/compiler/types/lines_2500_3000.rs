@@ -856,12 +856,28 @@ impl CaseClause {
     }
 }
 
+impl HasStatementsInterface for CaseClause {
+    fn statements(&self) -> &NodeArray {
+        &self.statements
+    }
+}
+
+pub trait CaseOrDefaultClauseInterface: HasStatementsInterface {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>>;
+}
+
+impl CaseOrDefaultClauseInterface for CaseClause {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>> {
+        self.fallthrough_flow_node.borrow().clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct DefaultClause {
     _node: BaseNode,
     pub statements: NodeArray, /*<Statement>*/
-    pub(crate) fallthrough_flow_node: Option<FlowNode>,
+    pub(crate) fallthrough_flow_node: Option<Rc<FlowNode>>,
 }
 
 impl DefaultClause {
@@ -871,6 +887,18 @@ impl DefaultClause {
             statements,
             fallthrough_flow_node: None,
         }
+    }
+}
+
+impl HasStatementsInterface for DefaultClause {
+    fn statements(&self) -> &NodeArray {
+        &self.statements
+    }
+}
+
+impl CaseOrDefaultClauseInterface for DefaultClause {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>> {
+        self.fallthrough_flow_node.clone()
     }
 }
 

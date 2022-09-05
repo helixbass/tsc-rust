@@ -5,8 +5,9 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
 use crate::{
-    HasArgumentsInterface, HasChildrenInterface, HasDotDotDotTokenInterface, HasMembersInterface,
-    HasTagNameInterface, InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
+    CaseOrDefaultClauseInterface, HasArgumentsInterface, HasChildrenInterface,
+    HasDotDotDotTokenInterface, HasMembersInterface, HasTagNameInterface, InferenceContext,
+    JsxOpeningLikeElementInterface, SyntheticExpression,
 };
 
 use super::{
@@ -641,6 +642,8 @@ impl Node {
             Node::Block(node) => node,
             Node::ModuleBlock(node) => node,
             Node::SourceFile(node) => node,
+            Node::CaseClause(node) => node,
+            Node::DefaultClause(node) => node,
             _ => panic!("Expected has statements"),
         }
     }
@@ -764,6 +767,14 @@ impl Node {
             Node::TypeLiteralNode(node) => node,
             Node::InterfaceDeclaration(node) => node,
             _ => panic!("Expected has members"),
+        }
+    }
+
+    pub fn as_case_or_default_clause(&self) -> &dyn CaseOrDefaultClauseInterface {
+        match self {
+            Node::CaseClause(node) => node,
+            Node::DefaultClause(node) => node,
+            _ => panic!("Expected case or default clause"),
         }
     }
 
