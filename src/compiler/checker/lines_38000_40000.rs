@@ -5,14 +5,16 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    are_option_rcs_equal, declaration_name_to_string, find_ancestor, for_each,
-    get_declaration_of_kind, get_name_of_declaration, get_object_flags, get_source_file_of_node,
-    get_span_of_token_at_position, get_text_of_node, is_class_like, is_function_like,
-    is_identifier, is_private_identifier, is_static, some, DiagnosticMessage, Diagnostics,
-    FindAncestorCallbackReturn, HasTypeParametersInterface, IndexInfo, ModuleKind,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange,
-    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, __String,
-    for_each_key, get_effective_type_annotation_node, get_root_declaration,
+    are_option_rcs_equal, declaration_name_to_string, find_ancestor, for_each, for_each_child,
+    get_declaration_of_kind, get_effective_constraint_of_type_parameter,
+    get_effective_type_parameter_declarations, get_name_of_declaration, get_object_flags,
+    get_source_file_of_node, get_span_of_token_at_position, get_text_of_node, is_class_like,
+    is_function_like, is_identifier, is_private_identifier, is_static, length, some,
+    ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
+    HasTypeParametersInterface, IndexInfo, InterfaceTypeInterface, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
+    ReadonlyTextRange, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, __String, for_each_key, get_effective_type_annotation_node, get_root_declaration,
     HasInitializerInterface, TypeFlags, TypeInterface,
 };
 
@@ -548,14 +550,173 @@ impl TypeChecker {
         type_parameters: &[Rc<Node /*TypeParameterDeclaration*/>],
         index: usize,
     ) {
-        unimplemented!()
+        self.check_type_parameters_not_referenced_visit(index, type_parameters, root);
+    }
+
+    pub(super) fn check_type_parameters_not_referenced_visit(
+        &self,
+        index: usize,
+        type_parameters: &[Rc<Node /*TypeParameterDeclaration*/>],
+        node: &Node,
+    ) {
+        if node.kind() == SyntaxKind::TypeReference {
+            let type_ = self.get_type_from_type_reference(node);
+            if type_.flags().intersects(TypeFlags::TypeParameter) {
+                for i in index..type_parameters.len() {
+                    if are_option_rcs_equal(
+                        type_.maybe_symbol().as_ref(),
+                        self.get_symbol_of_node(&type_parameters[i]).as_ref(),
+                    ) {
+                        self.error(
+                            Some(node),
+                            &Diagnostics::Type_parameter_defaults_can_only_reference_previously_declared_type_parameters,
+                            None,
+                        );
+                    }
+                }
+            }
+        }
+        for_each_child(
+            node,
+            |child| self.check_type_parameters_not_referenced_visit(index, type_parameters, child),
+            Option::<fn(&NodeArray)>::None,
+        );
+    }
+
+    pub(super) fn check_type_parameter_lists_identical(&self, symbol: &Symbol) {
+        if matches!(
+            symbol.maybe_declarations().as_ref(),
+            Some(symbol_declarations) if symbol_declarations.len() == 1
+        ) {
+            return;
+        }
+
+        let links = self.get_symbol_links(symbol);
+        if (*links).borrow().type_parameters_checked != Some(true) {
+            links.borrow_mut().type_parameters_checked = Some(true);
+            let declarations = self.get_class_or_interface_declarations_of_symbol(symbol);
+            if match declarations.as_ref() {
+                None => true,
+                Some(declarations) => declarations.len() <= 1,
+            } {
+                return;
+            }
+            let declarations = declarations.unwrap();
+
+            let type_ = self.get_declared_type_of_symbol(symbol);
+            if !self.are_type_parameters_identical(
+                &declarations,
+                type_
+                    .as_interface_type()
+                    .maybe_local_type_parameters()
+                    .unwrap(),
+            ) {
+                let name = self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None);
+                for declaration in &declarations {
+                    self.error(
+                        declaration.as_named_declaration().maybe_name(),
+                        &Diagnostics::All_declarations_of_0_must_have_identical_type_parameters,
+                        Some(vec![name.clone()]),
+                    );
+                }
+            }
+        }
+    }
+
+    pub(super) fn are_type_parameters_identical(
+        &self,
+        declarations: &[Rc<Node /*ClassDeclaration | InterfaceDeclaration*/>],
+        target_parameters: &[Rc<Type /*TypeParameter*/>],
+    ) -> bool {
+        let max_type_argument_count = length(Some(target_parameters));
+        let min_type_argument_count = self.get_min_type_argument_count(Some(target_parameters));
+
+        for declaration in declarations {
+            let source_parameters = get_effective_type_parameter_declarations(declaration);
+            let num_type_parameters = source_parameters.len();
+            if num_type_parameters < min_type_argument_count
+                || num_type_parameters > max_type_argument_count
+            {
+                return false;
+            }
+
+            for i in 0..num_type_parameters {
+                let source = &source_parameters[i];
+                let target = &target_parameters[i];
+
+                let source_as_type_parameter_declaration = source.as_type_parameter_declaration();
+                if &source_as_type_parameter_declaration
+                    .name()
+                    .as_identifier()
+                    .escaped_text
+                    != target.symbol().escaped_name()
+                {
+                    return false;
+                }
+
+                let constraint = get_effective_constraint_of_type_parameter(source);
+                let source_constraint = constraint
+                    .as_ref()
+                    .map(|constraint| self.get_type_from_type_node_(constraint));
+                let target_constraint = self.get_constraint_of_type_parameter(target);
+                if matches!(
+                    (source_constraint.as_ref(), target_constraint.as_ref()),
+                    (Some(source_constraint), Some(target_constraint)) if !self.is_type_identical_to(
+                        source_constraint,
+                        target_constraint
+                    )
+                ) {
+                    return false;
+                }
+
+                let source_default = source_as_type_parameter_declaration
+                    .default
+                    .as_ref()
+                    .map(|source_default| self.get_type_from_type_node_(source_default));
+                let target_default = self.get_default_from_type_parameter_(target);
+                if matches!(
+                    (source_default.as_ref(), target_default.as_ref()),
+                    (Some(source_default), Some(target_default)) if !self.is_type_identical_to(
+                        source_default, target_default
+                    )
+                ) {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 
     pub(super) fn check_class_expression(&self, node: &Node /*ClassExpression*/) -> Rc<Type> {
+        self.check_class_like_declaration(node);
+        self.check_node_deferred(node);
+        self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap())
+    }
+
+    pub(super) fn check_class_expression_deferred(&self, node: &Node /*ClassExpression*/) {
+        for_each(
+            node.as_class_expression().members(),
+            |member: &Rc<Node>, _| -> Option<()> {
+                self.check_source_element(Some(&**member));
+                None
+            },
+        );
+        self.register_for_unused_identifiers_check(node);
+    }
+
+    pub(super) fn check_class_like_declaration(&self, node: &Node /*ClassLikeDeclaration*/) {
         unimplemented!()
     }
 
     pub(super) fn get_target_symbol(&self, s: &Symbol) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_class_or_interface_declarations_of_symbol(
+        &self,
+        s: &Symbol,
+    ) -> Option<Vec<Rc<Node>>> {
         unimplemented!()
     }
 
