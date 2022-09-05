@@ -1,15 +1,18 @@
 #![allow(non_upper_case_globals)]
 
 use std::convert::TryInto;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find_ancestor, for_each, get_source_file_of_node, get_span_of_token_at_position,
-    get_text_of_node, is_function_like, is_identifier, DiagnosticMessage, Diagnostics,
-    FindAncestorCallbackReturn, HasTypeParametersInterface, Node, NodeFlags, NodeInterface,
-    ReadonlyTextRange, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    __String, for_each_key, get_effective_type_annotation_node, get_root_declaration,
-    HasInitializerInterface, TypeFlags, TypeInterface,
+    are_option_rcs_equal, find_ancestor, for_each, get_declaration_of_kind,
+    get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    get_span_of_token_at_position, get_text_of_node, is_class_like, is_function_like,
+    is_identifier, is_private_identifier, is_static, some, DiagnosticMessage, Diagnostics,
+    FindAncestorCallbackReturn, HasTypeParametersInterface, IndexInfo, Node, NodeFlags,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, __String, for_each_key, get_effective_type_annotation_node,
+    get_root_declaration, HasInitializerInterface, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -262,7 +265,196 @@ impl TypeChecker {
         symbol: &Symbol,
         is_static_index: Option<bool>,
     ) {
-        unimplemented!()
+        let index_infos = self.get_index_infos_of_type(type_);
+        if index_infos.is_empty() {
+            return;
+        }
+        for prop in &self.get_properties_of_object_type(type_) {
+            if !(is_static_index == Some(true) && prop.flags().intersects(SymbolFlags::Prototype)) {
+                self.check_index_constraint_for_property(
+                    type_,
+                    prop,
+                    &self.get_literal_type_from_property(
+                        prop,
+                        TypeFlags::StringOrNumberLiteralOrUnique,
+                        Some(true),
+                    ),
+                    &self.get_non_missing_type_of_symbol(prop),
+                );
+            }
+        }
+        let type_declaration = symbol.maybe_value_declaration();
+        if let Some(type_declaration) = type_declaration
+            .as_ref()
+            .filter(|type_declaration| is_class_like(type_declaration))
+        {
+            for member in type_declaration.as_class_like_declaration().members() {
+                if !is_static(member) && !self.has_bindable_name(member) {
+                    let symbol = self.get_symbol_of_node(member).unwrap();
+                    self.check_index_constraint_for_property(
+                        type_,
+                        &symbol,
+                        &self.get_type_of_expression(
+                            &member
+                                .as_named_declaration()
+                                .name()
+                                .as_computed_property_name()
+                                .expression,
+                        ),
+                        &self.get_non_missing_type_of_symbol(&symbol),
+                    );
+                }
+            }
+        }
+        if index_infos.len() > 1 {
+            for info in &index_infos {
+                self.check_index_constraint_for_index_signature(type_, info);
+            }
+        }
+    }
+
+    pub(super) fn check_index_constraint_for_property(
+        &self,
+        type_: &Type,
+        prop: &Symbol,
+        prop_name_type: &Type,
+        prop_type: &Type,
+    ) {
+        let declaration = prop.maybe_value_declaration();
+        let name = get_name_of_declaration(declaration.as_deref());
+        if matches!(
+            name.as_ref(),
+            Some(name) if is_private_identifier(name)
+        ) {
+            return;
+        }
+        let index_infos = self.get_applicable_index_infos(type_, prop_name_type);
+        let interface_declaration = if get_object_flags(type_).intersects(ObjectFlags::Interface) {
+            get_declaration_of_kind(&type_.symbol(), SyntaxKind::InterfaceDeclaration)
+        } else {
+            None
+        };
+        let local_prop_declaration = if matches!(
+            declaration.as_ref(),
+            Some(declaration) if declaration.kind() == SyntaxKind::BinaryExpression
+        ) || matches!(
+            name.as_ref(),
+            Some(name) if name.kind() == SyntaxKind::ComputedPropertyName
+        ) || are_option_rcs_equal(
+            self.get_parent_of_symbol(prop).as_ref(),
+            type_.maybe_symbol().as_ref(),
+        ) {
+            declaration
+        } else {
+            None
+        };
+        for info in &index_infos {
+            let local_index_declaration = info.declaration.clone().filter(|info_declaration| {
+                are_option_rcs_equal(
+                    self.get_parent_of_symbol(&self.get_symbol_of_node(info_declaration).unwrap())
+                        .as_ref(),
+                    type_.maybe_symbol().as_ref(),
+                )
+            });
+            let error_node = local_prop_declaration
+                .clone()
+                .or_else(|| local_index_declaration.clone())
+                .or_else(|| {
+                    interface_declaration.clone().filter(|_| {
+                        !some(
+                            Some(&self.get_base_types(type_)),
+                            Some(|base: &Rc<Type>| {
+                                self.get_property_of_object_type(base, prop.escaped_name())
+                                    .is_some()
+                                    && self.get_index_type_of_type_(base, &info.key_type).is_some()
+                            }),
+                        )
+                    })
+                });
+            if error_node.is_some() && !self.is_type_assignable_to(prop_type, &info.type_) {
+                self.error(
+                    error_node,
+                    &Diagnostics::Property_0_of_type_1_is_not_assignable_to_2_index_type_3,
+                    Some(vec![
+                        self.symbol_to_string_(prop, Option::<&Node>::None, None, None, None),
+                        self.type_to_string_(prop_type, Option::<&Node>::None, None, None),
+                        self.type_to_string_(&info.key_type, Option::<&Node>::None, None, None),
+                        self.type_to_string_(&info.type_, Option::<&Node>::None, None, None),
+                    ]),
+                );
+            }
+        }
+    }
+
+    pub(super) fn check_index_constraint_for_index_signature(
+        &self,
+        type_: &Type,
+        check_info: &IndexInfo,
+    ) {
+        let declaration = check_info.declaration.as_ref();
+        let index_infos = self.get_applicable_index_infos(type_, &check_info.key_type);
+        let interface_declaration = if get_object_flags(type_).intersects(ObjectFlags::Interface) {
+            get_declaration_of_kind(&type_.symbol(), SyntaxKind::InterfaceDeclaration)
+        } else {
+            None
+        };
+        let local_check_declaration = declaration
+            .filter(|declaration| {
+                are_option_rcs_equal(
+                    self.get_parent_of_symbol(&self.get_symbol_of_node(declaration).unwrap())
+                        .as_ref(),
+                    type_.maybe_symbol().as_ref(),
+                )
+            })
+            .cloned();
+        for info in &index_infos {
+            if ptr::eq(&**info, check_info) {
+                continue;
+            }
+            let local_index_declaration = info.declaration.clone().filter(|info_declaration| {
+                are_option_rcs_equal(
+                    self.get_parent_of_symbol(&self.get_symbol_of_node(info_declaration).unwrap())
+                        .as_ref(),
+                    type_.maybe_symbol().as_ref(),
+                )
+            });
+            let error_node = local_check_declaration
+                .clone()
+                .or_else(|| local_index_declaration.clone())
+                .or_else(|| {
+                    interface_declaration
+                        .clone()
+                        .filter(|interface_declaration| {
+                            !some(
+                                Some(&self.get_base_types(type_)),
+                                Some(|base: &Rc<Type>| {
+                                    self.get_index_info_of_type_(base, &check_info.key_type)
+                                        .is_some()
+                                        && self
+                                            .get_index_type_of_type_(base, &info.key_type)
+                                            .is_some()
+                                }),
+                            )
+                        })
+                });
+            if error_node.is_some() && !self.is_type_assignable_to(&check_info.type_, &info.type_) {
+                self.error(
+                    error_node,
+                    &Diagnostics::_0_index_type_1_is_not_assignable_to_2_index_type_3,
+                    Some(vec![
+                        self.type_to_string_(
+                            &check_info.key_type,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                        ),
+                        self.type_to_string_(&check_info.type_, Option::<&Node>::None, None, None),
+                        self.type_to_string_(&info.key_type, Option::<&Node>::None, None, None),
+                        self.type_to_string_(&info.type_, Option::<&Node>::None, None, None),
+                    ]),
+                );
+            }
+        }
     }
 
     pub(super) fn check_type_name_is_reserved(
