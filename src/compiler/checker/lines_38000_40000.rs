@@ -9,10 +9,11 @@ use crate::{
     get_name_of_declaration, get_object_flags, get_source_file_of_node,
     get_span_of_token_at_position, get_text_of_node, is_class_like, is_function_like,
     is_identifier, is_private_identifier, is_static, some, DiagnosticMessage, Diagnostics,
-    FindAncestorCallbackReturn, HasTypeParametersInterface, IndexInfo, Node, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, __String, for_each_key, get_effective_type_annotation_node,
-    get_root_declaration, HasInitializerInterface, TypeFlags, TypeInterface,
+    FindAncestorCallbackReturn, HasTypeParametersInterface, IndexInfo, ModuleKind, Node, NodeFlags,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, __String, for_each_key,
+    get_effective_type_annotation_node, get_root_declaration, HasInitializerInterface, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -462,11 +463,36 @@ impl TypeChecker {
         name: &Node, /*Identifier*/
         message: &'static DiagnosticMessage,
     ) {
-        unimplemented!()
+        let name_as_identifier = name.as_identifier();
+        match &*name_as_identifier.escaped_text {
+            "any" | "unknown" | "never" | "number" | "bigint" | "boolean" | "string" | "symbol"
+            | "void" | "object" => {
+                self.error(
+                    Some(name),
+                    message,
+                    Some(vec![name_as_identifier.escaped_text.clone().into_string()]),
+                );
+            }
+            _ => (),
+        }
     }
 
     pub(super) fn check_class_name_collision_with_object(&self, name: &Node /*Identifier*/) {
-        unimplemented!()
+        if self.language_version >= ScriptTarget::ES5
+            && name.as_identifier().escaped_text.eq_str("Object")
+            && (self.module_kind <= ModuleKind::ES2015
+                || get_source_file_of_node(Some(name))
+                    .unwrap()
+                    .as_source_file()
+                    .maybe_implied_node_format()
+                    == Some(ModuleKind::CommonJS))
+        {
+            self.error(
+                Some(name),
+                &Diagnostics::Class_name_cannot_be_Object_when_targeting_ES5_with_module_0,
+                Some(vec![format!("{:?}", self.module_kind)]),
+            );
+        }
     }
 
     pub(super) fn check_type_parameters(
