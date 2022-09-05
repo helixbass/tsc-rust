@@ -4,13 +4,16 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{IterationTypeKind, IterationUse, TypeFacts};
+use super::{
+    get_iteration_types_key_from_iteration_type_kind, IterationTypeKind, IterationUse, TypeFacts,
+};
 use crate::{
-    append, map, some, ObjectTypeInterface, Signature, SignatureKind, SymbolFlags, SymbolInterface,
-    __String, escape_leading_underscores, for_each, get_containing_function_or_class_static_block,
-    get_function_flags, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
-    IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node, NodeInterface, Symbol,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    append, is_class_static_block_declaration, map, some, ObjectTypeInterface, Signature,
+    SignatureKind, SymbolFlags, SymbolInterface, SyntaxKind, __String, escape_leading_underscores,
+    for_each, get_containing_function_or_class_static_block, get_function_flags, DiagnosticMessage,
+    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypeCacheKey, IterationTypes,
+    IterationTypesResolver, Node, NodeInterface, Symbol, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -762,7 +765,13 @@ impl TypeChecker {
         resolver: &IterationTypesResolver,
         error_node: Option<TErrorNode>,
     ) -> Rc<IterationTypes> {
-        unimplemented!()
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        let iteration_types = self.combine_iteration_types(&[
+            self.get_iteration_types_of_method(type_, resolver, "next", error_node.as_deref()),
+            self.get_iteration_types_of_method(type_, resolver, "return", error_node.as_deref()),
+            self.get_iteration_types_of_method(type_, resolver, "throw", error_node.as_deref()),
+        ]);
+        self.set_cached_iteration_types(type_, resolver.iterator_cache_key, iteration_types)
     }
 
     pub(super) fn get_iteration_type_of_generator_function_return_type(
@@ -771,7 +780,15 @@ impl TypeChecker {
         return_type: &Type,
         is_async_generator: bool,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if self.is_type_any(Some(return_type)) {
+            return None;
+        }
+
+        let iteration_types = self
+            .get_iteration_types_of_generator_function_return_type(return_type, is_async_generator);
+        iteration_types.map(|iteration_types| {
+            iteration_types.get_by_key(get_iteration_types_key_from_iteration_type_kind(kind))
+        })
     }
 
     pub(super) fn get_iteration_types_of_generator_function_return_type(
@@ -779,7 +796,33 @@ impl TypeChecker {
         type_: &Type,
         is_async_generator: bool,
     ) -> Option<Rc<IterationTypes>> {
-        unimplemented!()
+        if self.is_type_any(Some(type_)) {
+            return Some(self.any_iteration_types());
+        }
+
+        let use_ = if is_async_generator {
+            IterationUse::AsyncGeneratorReturnType
+        } else {
+            IterationUse::GeneratorReturnType
+        };
+        let resolver = if is_async_generator {
+            &self.async_iteration_types_resolver
+        } else {
+            &self.sync_iteration_types_resolver
+        };
+        self.get_iteration_types_of_iterable(type_, use_, Option::<&Node>::None)
+            .or_else(|| {
+                self.get_iteration_types_of_iterator(type_, resolver, Option::<&Node>::None)
+            })
+    }
+
+    pub(super) fn check_break_or_continue_statement(
+        &self,
+        node: &Node, /*BreakOrContinueStatement*/
+    ) {
+        if !self.check_grammar_statement_in_ambient_context(node) {
+            self.check_grammar_break_or_continue_statement(node);
+        }
     }
 
     pub(super) fn unwrap_return_type(
@@ -787,7 +830,21 @@ impl TypeChecker {
         return_type: &Type,
         function_flags: FunctionFlags,
     ) -> Rc<Type> {
-        unimplemented!()
+        let is_generator = function_flags.intersects(FunctionFlags::Generator);
+        let is_async = function_flags.intersects(FunctionFlags::Async);
+        if is_generator {
+            self.get_iteration_type_of_generator_function_return_type(
+                IterationTypeKind::Return,
+                return_type,
+                is_async,
+            )
+            .unwrap_or_else(|| self.error_type())
+        } else if is_async {
+            self.get_awaited_type_no_alias(return_type, Option::<&Node>::None, None, None)
+                .unwrap_or_else(|| self.error_type())
+        } else {
+            return_type.type_wrapper()
+        }
     }
 
     pub(super) fn is_unwrapped_return_type_void_or_any(
@@ -795,14 +852,40 @@ impl TypeChecker {
         func: &Node, /*SignatureDeclaration*/
         return_type: &Type,
     ) -> bool {
-        unimplemented!()
+        let unwrapped_return_type =
+            self.unwrap_return_type(return_type, get_function_flags(Some(func)));
+        /* !!unwrappedReturnType &&*/
+        self.maybe_type_of_kind(
+            &unwrapped_return_type,
+            TypeFlags::Void | TypeFlags::AnyOrUnknown,
+        )
     }
 
     pub(super) fn check_return_statement(&self, node: &Node /*ReturnStatement*/) {
+        if self.check_grammar_statement_in_ambient_context(node) {
+            return;
+        }
+
         let container = get_containing_function_or_class_static_block(node);
+        if matches!(
+            container.as_ref(),
+            Some(container) if is_class_static_block_declaration(container)
+        ) {
+            self.grammar_error_on_first_token(
+                node,
+                &Diagnostics::A_return_statement_cannot_be_used_inside_a_class_static_block,
+                None,
+            );
+            return;
+        }
 
         if container.is_none() {
-            unimplemented!()
+            self.grammar_error_on_first_token(
+                node,
+                &Diagnostics::A_return_statement_can_only_be_used_within_a_function_body,
+                None,
+            );
+            return;
         }
         let container = container.unwrap();
 
@@ -818,13 +901,42 @@ impl TypeChecker {
                 Some(expression) => self.check_expression_cached(&expression, None),
                 None => self.undefined_type(),
             };
-            if false {
-                unimplemented!()
+            if container.kind() == SyntaxKind::SetAccessor {
+                if node_as_return_statement.expression.is_some() {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Setters_cannot_return_a_value,
+                        None,
+                    );
+                }
+            } else if container.kind() == SyntaxKind::Constructor {
+                if matches!(
+                    node_as_return_statement.expression.as_ref(),
+                    Some(node_expression) if !self.check_type_assignable_to_and_optionally_elaborate(
+                        &expr_type,
+                        &return_type,
+                        Some(node),
+                        Some(&**node_expression),
+                        None, None,
+                    )
+                ) {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Return_type_of_constructor_signature_must_be_assignable_to_the_instance_type_of_the_class,
+                        None,
+                    );
+                }
             } else if self.get_return_type_from_annotation(&container).is_some() {
                 let unwrapped_return_type = self
-                    .unwrap_return_type(&return_type, function_flags)/*.unwrap_or(return_type)*/;
+                    .unwrap_return_type(&return_type, function_flags)/*?? returnType*/;
                 let unwrapped_expr_type = if function_flags.intersects(FunctionFlags::Async) {
-                    self.check_awaited_type(&expr_type, false, node, &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member, None)
+                    self.check_awaited_type(
+                        &expr_type,
+                        false,
+                        node,
+                        &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
+                        None,
+                    )
                 } else {
                     expr_type
                 };
@@ -833,12 +945,21 @@ impl TypeChecker {
                     &unwrapped_expr_type,
                     &unwrapped_return_type,
                     Some(node),
-                    node_as_return_statement.expression.clone(),
+                    node_as_return_statement.expression.as_deref(),
                     None,
                     None,
                 );
                 // }
             }
+        } else if container.kind() != SyntaxKind::Constructor
+            && self.compiler_options.no_implicit_returns == Some(true)
+            && !self.is_unwrapped_return_type_void_or_any(&container, &return_type)
+        {
+            self.error(
+                Some(node),
+                &Diagnostics::Not_all_code_paths_return_a_value,
+                None,
+            );
         }
     }
 
