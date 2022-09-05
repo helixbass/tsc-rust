@@ -5,15 +5,19 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    are_option_rcs_equal, declaration_name_to_string, find_ancestor, for_each, for_each_child,
-    get_declaration_of_kind, get_effective_constraint_of_type_parameter,
-    get_effective_type_parameter_declarations, get_name_of_declaration, get_object_flags,
-    get_source_file_of_node, get_span_of_token_at_position, get_text_of_node, is_class_like,
-    is_function_like, is_identifier, is_private_identifier, is_static, length, some,
-    ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
-    HasTypeParametersInterface, IndexInfo, InterfaceTypeInterface, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
-    ReadonlyTextRange, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    are_option_rcs_equal, declaration_name_to_string, find_ancestor, for_each, for_each_bool,
+    for_each_child, get_class_extends_heritage_element, get_declaration_of_kind,
+    get_effective_base_type_node, get_effective_constraint_of_type_parameter,
+    get_effective_implements_type_nodes, get_effective_type_parameter_declarations,
+    get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    get_span_of_token_at_position, get_text_of_node, has_static_modifier, has_syntactic_modifier,
+    is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
+    is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
+    maybe_for_each, some, ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, HasTypeParametersInterface, IndexInfo,
+    InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
     TypeChecker, __String, for_each_key, get_effective_type_annotation_node, get_root_declaration,
     HasInitializerInterface, TypeFlags, TypeInterface,
 };
@@ -705,67 +709,295 @@ impl TypeChecker {
         self.register_for_unused_identifiers_check(node);
     }
 
-    pub(super) fn check_class_like_declaration(&self, node: &Node /*ClassLikeDeclaration*/) {
-        unimplemented!()
-    }
-
-    pub(super) fn get_target_symbol(&self, s: &Symbol) -> Rc<Symbol> {
-        unimplemented!()
-    }
-
-    pub(super) fn get_class_or_interface_declarations_of_symbol(
-        &self,
-        s: &Symbol,
-    ) -> Option<Vec<Rc<Node>>> {
-        unimplemented!()
-    }
-
-    pub(super) fn is_property_without_initializer(&self, node: &Node) -> bool {
-        unimplemented!()
-    }
-
-    pub(super) fn is_property_initialized_in_static_blocks(
-        &self,
-        prop_name: &Node, /*Identifier | PrivateIdentifier*/
-        prop_type: &Type,
-        static_blocks: &[Rc<Node /*ClassStaticBlockDeclaration*/>],
-        start_pos: isize,
-        end_pos: isize,
-    ) -> bool {
-        unimplemented!()
-    }
-
-    pub(super) fn check_interface_declaration(&self, node: &Node /*InterfaceDeclaration*/) {
-        let node_as_interface_declaration = node.as_interface_declaration();
-        self.check_type_parameters(
-            node_as_interface_declaration
-                .maybe_type_parameters()
-                .as_deref(),
-        );
-        for_each(&node_as_interface_declaration.members, |member, _| {
-            self.check_source_element(Some(&**member));
-            Option::<()>::None
-        });
-    }
-
-    pub(super) fn check_type_alias_declaration(&self, node: &Node /*TypeAliasDeclaration*/) {
-        let node_as_type_alias_declaration = node.as_type_alias_declaration();
-        self.check_type_parameters(
-            node_as_type_alias_declaration
-                .maybe_type_parameters()
-                .as_deref(),
-        );
-        if false {
-            unimplemented!()
-        } else {
-            self.check_source_element(Some(&*node_as_type_alias_declaration.type_));
+    pub(super) fn check_class_declaration(&self, node: &Node /*ClassDeclaration*/) {
+        let node_as_class_declaration = node.as_class_declaration();
+        if some(
+            node.maybe_decorators().as_deref(),
+            Option::<fn(&Rc<Node>) -> bool>::None,
+        ) && some(
+            Some(node_as_class_declaration.members()),
+            Some(|p: &Rc<Node>| {
+                has_static_modifier(p) && is_private_identifier_class_element_declaration(p)
+            }),
+        ) {
+            self.grammar_error_on_node(
+                &node.maybe_decorators().as_ref().unwrap()[0],
+                &Diagnostics::Class_decorators_can_t_be_used_with_static_private_identifier_Consider_removing_the_experimental_decorator,
+                None,
+            );
         }
+        if node_as_class_declaration.maybe_name().is_none()
+            && !has_syntactic_modifier(node, ModifierFlags::Default)
+        {
+            self.grammar_error_on_first_token(
+                node,
+                &Diagnostics::A_class_declaration_without_the_default_modifier_must_have_a_name,
+                None,
+            );
+        }
+        self.check_class_like_declaration(node);
+        for_each(
+            node_as_class_declaration.members(),
+            |member: &Rc<Node>, _| -> Option<()> {
+                self.check_source_element(Some(&**member));
+                None
+            },
+        );
+
+        self.register_for_unused_identifiers_check(node);
     }
 
-    pub(super) fn check_alias_symbol(
-        &self,
-        node: &Node, /*ImportEqualsDeclaration | VariableDeclaration | ImportClause | NamespaceImport | ImportSpecifier | ExportSpecifier | NamespaceExport*/
-    ) {
-        unimplemented!()
+    pub(super) fn check_class_like_declaration(&self, node: &Node /*ClassLikeDeclaration*/) {
+        self.check_grammar_class_like_declaration(node);
+        self.check_decorators(node);
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        self.check_collisions_for_declaration_name(
+            node,
+            node_as_class_like_declaration.maybe_name(),
+        );
+        self.check_type_parameters(Some(&get_effective_type_parameter_declarations(node)));
+        self.check_exports_on_merged_declarations(node);
+        let symbol = self.get_symbol_of_node(node).unwrap();
+        let type_ = self.get_declared_type_of_symbol(&symbol);
+        let type_with_this = self.get_type_with_this_argument(&type_, Option::<&Type>::None, None);
+        let static_type = self.get_type_of_symbol(&symbol);
+        self.check_type_parameter_lists_identical(&symbol);
+        self.check_function_or_constructor_symbol(&symbol);
+        self.check_class_for_duplicate_declarations(node);
+
+        let node_in_ambient_context = node.flags().intersects(NodeFlags::Ambient);
+        if !node_in_ambient_context {
+            self.check_class_for_static_property_name_conflicts(node);
+        }
+
+        let base_type_node = get_effective_base_type_node(node);
+        let type_as_interface_type = type_.as_interface_type();
+        if let Some(base_type_node) = base_type_node.as_ref() {
+            let base_type_node_as_expression_with_type_arguments =
+                base_type_node.as_expression_with_type_arguments();
+            maybe_for_each(
+                base_type_node_as_expression_with_type_arguments
+                    .type_arguments
+                    .as_ref(),
+                |type_argument: &Rc<Node>, _| -> Option<()> {
+                    self.check_source_element(Some(&**type_argument));
+                    None
+                },
+            );
+            if self.language_version < ScriptTarget::ES2015 {
+                self.check_external_emit_helpers(
+                    &base_type_node.parent(),
+                    ExternalEmitHelpers::Extends,
+                );
+            }
+            let extends_node = get_class_extends_heritage_element(node);
+            if let Some(extends_node) = extends_node
+                .as_ref()
+                .filter(|extends_node| !Rc::ptr_eq(*extends_node, base_type_node))
+            {
+                self.check_expression(
+                    &extends_node.as_expression_with_type_arguments().expression,
+                    None,
+                    None,
+                );
+            }
+
+            let base_types = self.get_base_types(&type_);
+            if !base_types.is_empty() && self.produce_diagnostics {
+                let base_type = &base_types[0];
+                let base_constructor_type = self.get_base_constructor_type_of_class(&type_);
+                let static_base_type = self.get_apparent_type(&base_constructor_type);
+                self.check_base_type_accessibility(&static_base_type, base_type_node);
+                self.check_source_element(Some(
+                    &*base_type_node_as_expression_with_type_arguments.expression,
+                ));
+                if some(
+                    base_type_node_as_expression_with_type_arguments
+                        .type_arguments
+                        .as_deref(),
+                    Option::<fn(&Rc<Node>) -> bool>::None,
+                ) {
+                    maybe_for_each(
+                        base_type_node_as_expression_with_type_arguments
+                            .type_arguments
+                            .as_ref(),
+                        |type_argument: &Rc<Node>, _| -> Option<()> {
+                            self.check_source_element(Some(&**type_argument));
+                            None
+                        },
+                    );
+                    for constructor in &self.get_constructors_for_type_arguments(
+                        &static_base_type,
+                        base_type_node_as_expression_with_type_arguments
+                            .type_arguments
+                            .as_deref(),
+                        base_type_node,
+                    ) {
+                        if !self.check_type_argument_constraints(
+                            base_type_node,
+                            constructor.maybe_type_parameters().as_ref().unwrap(),
+                        ) {
+                            break;
+                        }
+                    }
+                }
+                let base_with_this = self.get_type_with_this_argument(
+                    base_type,
+                    type_as_interface_type.maybe_this_type(),
+                    None,
+                );
+                if !self.check_type_assignable_to(
+                    &type_with_this,
+                    &base_with_this,
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                    None,
+                ) {
+                    self.issue_member_specific_error(
+                        node,
+                        &type_with_this,
+                        &base_with_this,
+                        &Diagnostics::Class_0_incorrectly_extends_base_class_1,
+                    );
+                } else {
+                    self.check_type_assignable_to(
+                        &static_type,
+                        &self.get_type_without_signatures(&static_base_type),
+                        Some(node_as_class_like_declaration.maybe_name().unwrap_or_else(|| node.node_wrapper())),
+                        Some(&Diagnostics::Class_static_side_0_incorrectly_extends_base_class_static_side_1),
+                        None, None,
+                    );
+                }
+                if base_constructor_type
+                    .flags()
+                    .intersects(TypeFlags::TypeVariable)
+                {
+                    if !self.is_mixin_constructor_type(&static_type) {
+                        self.error(
+                            Some(node_as_class_like_declaration.maybe_name().unwrap_or_else(|| node.node_wrapper())),
+                            &Diagnostics::A_mixin_class_must_have_a_constructor_with_a_single_rest_parameter_of_type_any,
+                            None,
+                        );
+                    } else {
+                        let construct_signatures = self.get_signatures_of_type(
+                            &base_constructor_type,
+                            SignatureKind::Construct,
+                        );
+                        if construct_signatures
+                            .iter()
+                            .any(|signature| signature.flags.intersects(SignatureFlags::Abstract))
+                            && !has_syntactic_modifier(node, ModifierFlags::Abstract)
+                        {
+                            self.error(
+                                Some(node_as_class_like_declaration.maybe_name().unwrap_or_else(|| node.node_wrapper())),
+                                &Diagnostics::A_mixin_class_that_extends_from_a_type_variable_containing_an_abstract_construct_signature_must_also_be_declared_abstract,
+                                None,
+                            );
+                        }
+                    }
+                }
+
+                if !matches!(
+                    static_base_type.maybe_symbol().as_ref(),
+                    Some(static_base_type_symbol) if static_base_type_symbol.flags().intersects(SymbolFlags::Class)
+                ) && !base_constructor_type
+                    .flags()
+                    .intersects(TypeFlags::TypeVariable)
+                {
+                    let constructors = self.get_instantiated_constructors_for_type_arguments(
+                        &static_base_type,
+                        base_type_node_as_expression_with_type_arguments
+                            .type_arguments
+                            .as_deref(),
+                        base_type_node,
+                    );
+                    if for_each_bool(&constructors, |sig: &Rc<Signature>, _| {
+                        !self.is_js_constructor(sig.declaration.as_deref())
+                            && !self.is_type_identical_to(
+                                &self.get_return_type_of_signature(sig.clone()),
+                                base_type,
+                            )
+                    }) {
+                        self.error(
+                            Some(&*base_type_node_as_expression_with_type_arguments.expression),
+                            &Diagnostics::Base_constructors_must_all_have_the_same_return_type,
+                            None,
+                        );
+                    }
+                }
+                self.check_kinds_of_property_member_overrides(&type_, base_type);
+            }
+        }
+
+        self.check_members_for_override_modifier(node, &type_, &type_with_this, &static_type);
+
+        let implemented_type_nodes = get_effective_implements_type_nodes(node);
+        if let Some(implemented_type_nodes) = implemented_type_nodes.as_ref() {
+            for type_ref_node in implemented_type_nodes {
+                let type_ref_node_as_expression_with_type_arguments =
+                    type_ref_node.as_expression_with_type_arguments();
+                if !is_entity_name_expression(
+                    &type_ref_node_as_expression_with_type_arguments.expression,
+                ) || is_optional_chain(
+                    &type_ref_node_as_expression_with_type_arguments.expression,
+                ) {
+                    self.error(
+                        Some(&*type_ref_node_as_expression_with_type_arguments.expression),
+                        &Diagnostics::A_class_can_only_implement_an_identifier_Slashqualified_name_with_optional_type_arguments,
+                        None,
+                    );
+                }
+                self.check_type_reference_node(type_ref_node);
+                if self.produce_diagnostics {
+                    let t = self.get_reduced_type(&self.get_type_from_type_node_(type_ref_node));
+                    if !self.is_error_type(&t) {
+                        if self.is_valid_base_type(&t) {
+                            let generic_diag = if matches!(
+                                t.maybe_symbol().as_ref(),
+                                Some(t_symbol) if t_symbol.flags().intersects(SymbolFlags::Class)
+                            ) {
+                                &*Diagnostics::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass
+                            } else {
+                                &*Diagnostics::Class_0_incorrectly_implements_interface_1
+                            };
+                            let base_with_this = self.get_type_with_this_argument(
+                                &t,
+                                type_as_interface_type.maybe_this_type(),
+                                None,
+                            );
+                            if !self.check_type_assignable_to(
+                                &type_with_this,
+                                &base_with_this,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            ) {
+                                self.issue_member_specific_error(
+                                    node,
+                                    &type_with_this,
+                                    &base_with_this,
+                                    generic_diag,
+                                );
+                            }
+                        } else {
+                            self.error(
+                                Some(&**type_ref_node),
+                                &Diagnostics::A_class_can_only_implement_an_object_type_or_intersection_of_object_types_with_statically_known_members,
+                                None,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        if self.produce_diagnostics {
+            self.check_index_constraints(&type_, &symbol, None);
+            self.check_index_constraints(&static_type, &symbol, Some(true));
+            self.check_type_for_duplicate_index_signatures(node);
+            self.check_property_initialization(node);
+        }
     }
 }
