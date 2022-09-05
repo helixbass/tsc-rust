@@ -10,10 +10,9 @@ use super::{
 use crate::{
     append, is_class_static_block_declaration, map, some, ObjectTypeInterface, Signature,
     SignatureKind, SymbolFlags, SymbolInterface, SyntaxKind, __String, escape_leading_underscores,
-    for_each, get_containing_function_or_class_static_block, get_function_flags, DiagnosticMessage,
-    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypeCacheKey, IterationTypes,
-    IterationTypesResolver, Node, NodeInterface, Symbol, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    get_containing_function_or_class_static_block, get_function_flags, Diagnostics, FunctionFlags,
+    IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node, NodeInterface, Symbol,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {

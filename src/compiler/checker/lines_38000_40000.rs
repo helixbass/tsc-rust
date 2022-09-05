@@ -1,19 +1,9 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    get_iteration_types_key_from_iteration_type_kind, IterationTypeKind, IterationUse, TypeFacts,
-};
 use crate::{
-    append, is_class_static_block_declaration, map, some, ObjectTypeInterface, Signature,
-    SignatureKind, SymbolFlags, SymbolInterface, SyntaxKind, __String, escape_leading_underscores,
-    for_each, get_containing_function_or_class_static_block, get_function_flags, DiagnosticMessage,
-    Diagnostics, FunctionFlags, HasTypeParametersInterface, IterationTypeCacheKey, IterationTypes,
-    IterationTypesResolver, Node, NodeInterface, Symbol, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    for_each, DiagnosticMessage, HasTypeParametersInterface, Node, Symbol, Type, TypeChecker,
 };
 
 impl TypeChecker {
