@@ -4,10 +4,10 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{IterationTypeKind, IterationUse};
+use super::{IterationTypeKind, IterationUse, TypeFacts};
 use crate::{
-    map, some, Signature, SignatureKind, SymbolFlags, SymbolInterface, __String,
-    escape_leading_underscores, for_each, get_containing_function_or_class_static_block,
+    append, map, some, ObjectTypeInterface, Signature, SignatureKind, SymbolFlags, SymbolInterface,
+    __String, escape_leading_underscores, for_each, get_containing_function_or_class_static_block,
     get_function_flags, DiagnosticMessage, Diagnostics, FunctionFlags, HasTypeParametersInterface,
     IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node, NodeInterface, Symbol,
     SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -507,6 +507,253 @@ impl TypeChecker {
                 None,
             ),
         )
+    }
+
+    pub(super) fn get_iteration_types_of_method<TErrorNode: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        resolver: &IterationTypesResolver,
+        method_name: &str, /*"next" | "return" | "throw"*/
+        error_node: Option<TErrorNode>,
+    ) -> Option<Rc<IterationTypes>> {
+        let method =
+            self.get_property_of_type_(type_, &__String::new(method_name.to_owned()), None);
+
+        if method.is_none() && method_name != "next" {
+            return None;
+        }
+
+        let method_type = method
+            .as_ref()
+            .filter(|method| {
+                !(method_name == "next" && method.flags().intersects(SymbolFlags::Optional))
+            })
+            .map(|method| {
+                if method_name == "next" {
+                    self.get_type_of_symbol(method)
+                } else {
+                    self.get_type_with_facts(
+                        &self.get_type_of_symbol(method),
+                        TypeFacts::NEUndefinedOrNull,
+                    )
+                }
+            });
+
+        if self.is_type_any(method_type.as_deref()) {
+            return Some(if method_name == "next" {
+                self.any_iteration_types()
+            } else {
+                self.any_iteration_types_except_next()
+            });
+        }
+
+        let method_signatures = if let Some(method_type) = method_type.as_ref() {
+            self.get_signatures_of_type(method_type, SignatureKind::Call)
+        } else {
+            vec![]
+        };
+        if method_signatures.is_empty() {
+            if error_node.is_some() {
+                let diagnostic = if method_name == "next" {
+                    resolver.must_have_a_next_method_diagnostic
+                } else {
+                    resolver.must_be_a_method_diagnostic
+                };
+                self.error(error_node, diagnostic, Some(vec![method_name.to_owned()]));
+            }
+            return if method_name == "next" {
+                Some(self.any_iteration_types())
+            } else {
+                None
+            };
+        }
+
+        if let Some(method_type_symbol) = method_type
+            .as_ref()
+            .and_then(|method_type| method_type.maybe_symbol())
+            .as_ref()
+        {
+            if method_signatures.len() == 1 {
+                let global_generator_type = (resolver.get_global_generator_type)(self, false);
+                let global_iterator_type = (resolver.get_global_iterator_type)(self, false);
+                let is_generator_method = matches!(
+                    global_generator_type.maybe_symbol().and_then(|global_generator_type_symbol| {
+                        global_generator_type_symbol.maybe_members().clone()
+                    }).and_then(|global_generator_type_symbol_members| {
+                        (*global_generator_type_symbol_members).borrow().get(&__String::new(method_name.to_owned())).cloned()
+                    }).as_ref(),
+                    Some(global_generator_type_symbol_member) if Rc::ptr_eq(
+                        global_generator_type_symbol_member,
+                        method_type_symbol
+                    )
+                );
+                let is_iterator_method = !is_generator_method
+                    && matches!(
+                        global_iterator_type.maybe_symbol().and_then(|global_iterator_type_symbol| {
+                            global_iterator_type_symbol.maybe_members().clone()
+                        }).and_then(|global_iterator_type_symbol_members| {
+                            (*global_iterator_type_symbol_members).borrow().get(&__String::new(method_name.to_owned())).cloned()
+                        }).as_ref(),
+                        Some(global_iterator_type_symbol_member) if Rc::ptr_eq(
+                            global_iterator_type_symbol_member,
+                            method_type_symbol
+                        )
+                    );
+                if is_generator_method || is_iterator_method {
+                    let global_type = if is_generator_method {
+                        &global_generator_type
+                    } else {
+                        &global_iterator_type
+                    };
+                    let method_type = method_type.as_ref().unwrap();
+                    let mapper = method_type.as_object_type().maybe_mapper();
+                    return Some(
+                        self.create_iteration_types(
+                            Some(
+                                self.get_mapped_type(
+                                    &global_type
+                                        .as_generic_type()
+                                        .maybe_type_parameters()
+                                        .unwrap()[0],
+                                    mapper.unwrap(),
+                                ),
+                            ),
+                            Some(
+                                self.get_mapped_type(
+                                    &global_type
+                                        .as_generic_type()
+                                        .maybe_type_parameters()
+                                        .unwrap()[1],
+                                    mapper.unwrap(),
+                                ),
+                            ),
+                            if method_name == "next" {
+                                Some(
+                                    self.get_mapped_type(
+                                        &global_type
+                                            .as_generic_type()
+                                            .maybe_type_parameters()
+                                            .unwrap()[2],
+                                        mapper.unwrap(),
+                                    ),
+                                )
+                            } else {
+                                None
+                            },
+                        ),
+                    );
+                }
+            }
+        }
+
+        let mut method_parameter_types: Option<Vec<Rc<Type>>> = None;
+        let mut method_return_types: Option<Vec<Rc<Type>>> = None;
+        for signature in &method_signatures {
+            if method_name != "throw"
+                && some(
+                    Some(signature.parameters()),
+                    Option::<fn(&Rc<Symbol>) -> bool>::None,
+                )
+            {
+                if method_parameter_types.is_none() {
+                    method_parameter_types = Some(vec![]);
+                }
+                append(
+                    method_parameter_types.as_mut().unwrap(),
+                    Some(self.get_type_at_position(signature, 0)),
+                );
+            }
+            if method_return_types.is_none() {
+                method_return_types = Some(vec![]);
+            }
+            append(
+                method_return_types.as_mut().unwrap(),
+                Some(self.get_return_type_of_signature(signature.clone())),
+            );
+        }
+
+        let mut return_types: Option<Vec<Rc<Type>>> = None;
+        let mut next_type: Option<Rc<Type>> = None;
+        let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
+        if method_name != "throw" {
+            let method_parameter_type = if let Some(method_parameter_types) = method_parameter_types
+            {
+                self.get_union_type(
+                    method_parameter_types,
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                )
+            } else {
+                self.unknown_type()
+            };
+            if method_name == "next" {
+                next_type = Some(method_parameter_type.clone());
+            } else if method_name == "return" {
+                let resolved_method_parameter_type = (resolver.resolve_iteration_type)(
+                    self,
+                    &method_parameter_type,
+                    error_node.clone(),
+                );
+                if return_types.is_none() && resolved_method_parameter_type.is_some() {
+                    return_types = Some(vec![]);
+                }
+                if resolved_method_parameter_type.is_some() {
+                    append(
+                        return_types.as_mut().unwrap(),
+                        resolved_method_parameter_type,
+                    );
+                }
+            }
+        }
+
+        let yield_type: Rc<Type>;
+        let method_return_type = if let Some(method_return_types) = method_return_types.as_ref() {
+            self.get_intersection_type(method_return_types, Option::<&Symbol>::None, None)
+        } else {
+            self.never_type()
+        };
+        let resolved_method_return_type =
+            (resolver.resolve_iteration_type)(self, &method_return_type, error_node.clone())
+                .unwrap_or_else(|| self.any_type());
+        let iteration_types =
+            self.get_iteration_types_of_iterator_result(&resolved_method_return_type);
+        if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if error_node.is_some() {
+                self.error(
+                    error_node.as_deref(),
+                    resolver.must_have_a_value_diagnostic,
+                    Some(vec![method_name.to_owned()]),
+                );
+            }
+            yield_type = self.any_type();
+            if return_types.is_none() {
+                return_types = Some(vec![]);
+            }
+            append(return_types.as_mut().unwrap(), Some(self.any_type()));
+        } else {
+            yield_type = iteration_types.yield_type();
+            if return_types.is_none() {
+                return_types = Some(vec![]);
+            }
+            append(
+                return_types.as_mut().unwrap(),
+                Some(iteration_types.return_type()),
+            );
+        }
+
+        Some(self.create_iteration_types(
+            Some(yield_type),
+            Some(self.get_union_type(
+                return_types.unwrap(),
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )),
+            next_type,
+        ))
     }
 
     pub(super) fn get_iteration_types_of_iterator_slow<TErrorNode: Borrow<Node>>(

@@ -2880,6 +2880,10 @@ impl TypeChecker {
         self.any_iteration_types.clone().unwrap()
     }
 
+    pub(super) fn any_iteration_types_except_next(&self) -> Rc<IterationTypes> {
+        self.any_iteration_types_except_next.clone().unwrap()
+    }
+
     pub(super) fn default_iteration_types(&self) -> Rc<IterationTypes> {
         self.default_iteration_types.clone().unwrap()
     }
