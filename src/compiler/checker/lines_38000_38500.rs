@@ -14,11 +14,11 @@ use crate::{
     is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
     is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
     maybe_for_each, some, ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, HasTypeParametersInterface, IndexInfo,
-    InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, __String, for_each_key, get_effective_type_annotation_node, get_root_declaration,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, IndexInfo, InterfaceTypeInterface,
+    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, __String,
+    for_each_key, get_effective_type_annotation_node, get_root_declaration,
     HasInitializerInterface, TypeFlags, TypeInterface,
 };
 
