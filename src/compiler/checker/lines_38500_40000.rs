@@ -2,19 +2,23 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::CheckTypeContainingMessageChain;
 use crate::{
-    chain_diagnostic_messages, escape_leading_underscores, first, for_each,
-    get_class_like_declaration_of_symbol, get_effective_base_type_node, get_text_of_property_name,
+    chain_diagnostic_messages, escape_leading_underscores, first, for_each, get_check_flags,
+    get_class_like_declaration_of_symbol, get_declaration_modifier_flags_from_symbol,
+    get_effective_base_type_node, get_name_of_declaration, get_text_of_property_name,
     has_abstract_modifier, has_ambient_modifier, has_effective_modifier, has_override_modifier,
-    has_syntactic_modifier, is_constructor_declaration, is_in_js_file,
-    is_parameter_property_declaration, is_static, some, symbol_name, unescape_leading_underscores,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasTypeParametersInterface,
-    InterfaceTypeInterface, MemberOverrideStatus, ModifierFlags, Node, NodeFlags, NodeInterface,
-    SignatureDeclarationInterface, SignatureKind, Symbol, SymbolInterface, Type, TypeChecker,
-    TypeInterface,
+    has_syntactic_modifier, is_binary_expression, is_constructor_declaration, is_identifier,
+    is_in_js_file, is_parameter_property_declaration, is_property_declaration, is_static,
+    maybe_filter, some, symbol_name, unescape_leading_underscores, CheckFlags, Debug_,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasInitializerInterface,
+    HasTypeParametersInterface, InterfaceTypeInterface, MemberOverrideStatus, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, SignatureDeclarationInterface,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -392,14 +396,27 @@ impl TypeChecker {
     }
 
     pub(super) fn get_target_symbol(&self, s: &Symbol) -> Rc<Symbol> {
-        unimplemented!()
+        if get_check_flags(s).intersects(CheckFlags::Instantiated) {
+            (*s.as_transient_symbol().symbol_links())
+                .borrow()
+                .target
+                .clone()
+                .unwrap()
+        } else {
+            s.symbol_wrapper()
+        }
     }
 
     pub(super) fn get_class_or_interface_declarations_of_symbol(
         &self,
-        s: &Symbol,
+        symbol: &Symbol,
     ) -> Option<Vec<Rc<Node>>> {
-        unimplemented!()
+        maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>| {
+            matches!(
+                d.kind(),
+                SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
+            )
+        })
     }
 
     pub(super) fn check_kinds_of_property_member_overrides(
@@ -407,7 +424,241 @@ impl TypeChecker {
         type_: &Type,     /*InterfaceType*/
         base_type: &Type, /*BaseType*/
     ) {
-        unimplemented!()
+        let base_properties = self.get_properties_of_type(base_type);
+        'base_property_check: for base_property in &base_properties {
+            let base = self.get_target_symbol(base_property);
+
+            if base.flags().intersects(SymbolFlags::Prototype) {
+                continue;
+            }
+            let base_symbol = self.get_property_of_object_type(type_, base.escaped_name());
+            if base_symbol.is_none() {
+                continue;
+            }
+            let base_symbol = base_symbol.unwrap();
+            let derived = self.get_target_symbol(&base_symbol);
+            let base_declaration_flags = get_declaration_modifier_flags_from_symbol(&base, None);
+
+            // Debug.assert(!!derived, "derived should point at something, even if it is the base class' declaration.");
+
+            if Rc::ptr_eq(&derived, &base) {
+                let derived_class_decl =
+                    get_class_like_declaration_of_symbol(&type_.symbol()).unwrap();
+
+                if base_declaration_flags.intersects(ModifierFlags::Abstract) && /* !derivedClassDecl ||*/ !has_syntactic_modifier(&derived_class_decl, ModifierFlags::Abstract)
+                {
+                    for other_base_type in &self.get_base_types(type_) {
+                        if ptr::eq(&**other_base_type, base_type) {
+                            continue;
+                        }
+                        let base_symbol =
+                            self.get_property_of_object_type(other_base_type, base.escaped_name());
+                        let derived_elsewhere = base_symbol
+                            .as_ref()
+                            .map(|base_symbol| self.get_target_symbol(base_symbol));
+                        if matches!(
+                            derived_elsewhere.as_ref(),
+                            Some(derived_elsewhere) if !Rc::ptr_eq(derived_elsewhere, &base)
+                        ) {
+                            continue 'base_property_check;
+                        }
+                    }
+
+                    if derived_class_decl.kind() == SyntaxKind::ClassExpression {
+                        self.error(
+                            Some(&*derived_class_decl),
+                            &Diagnostics::Non_abstract_class_expression_does_not_implement_inherited_abstract_member_0_from_class_1,
+                            Some(vec![
+                                self.symbol_to_string_(
+                                    base_property,
+                                    Option::<&Node>::None,
+                                    None, None, None
+                                ),
+                                self.type_to_string_(
+                                    base_type,
+                                    Option::<&Node>::None,
+                                    None, None,
+                                ),
+                            ])
+                        );
+                    } else {
+                        self.error(
+                            Some(&*derived_class_decl),
+                            &Diagnostics::Non_abstract_class_0_does_not_implement_inherited_abstract_member_1_from_class_2,
+                            Some(vec![
+                                self.type_to_string_(
+                                    type_,
+                                    Option::<&Node>::None,
+                                    None, None,
+                                ),
+                                self.symbol_to_string_(
+                                    base_property,
+                                    Option::<&Node>::None,
+                                    None, None, None
+                                ),
+                                self.type_to_string_(
+                                    base_type,
+                                    Option::<&Node>::None,
+                                    None, None,
+                                ),
+                            ])
+                        );
+                    }
+                }
+            } else {
+                let derived_declaration_flags =
+                    get_declaration_modifier_flags_from_symbol(&derived, None);
+                if base_declaration_flags.intersects(ModifierFlags::Private)
+                    || derived_declaration_flags.intersects(ModifierFlags::Private)
+                {
+                    continue;
+                }
+
+                let error_message: &DiagnosticMessage;
+                let base_property_flags = base.flags() & SymbolFlags::PropertyOrAccessor;
+                let derived_property_flags = derived.flags() & SymbolFlags::PropertyOrAccessor;
+                if base_property_flags != SymbolFlags::None
+                    && derived_property_flags != SymbolFlags::None
+                {
+                    if base_declaration_flags.intersects(ModifierFlags::Abstract)
+                        && !matches!(
+                            base.maybe_value_declaration().as_ref(),
+                            Some(base_value_declaration) if is_property_declaration(base_value_declaration) &&
+                                base_value_declaration.as_property_declaration().maybe_initializer().is_some()
+                        )
+                        || matches!(
+                            base.maybe_value_declaration().as_ref(),
+                            Some(base_value_declaration) if base_value_declaration.parent().kind() == SyntaxKind::InterfaceDeclaration
+                        )
+                        || matches!(
+                            derived.maybe_value_declaration().as_ref(),
+                            Some(derived_value_declaration) if is_binary_expression(derived_value_declaration)
+                        )
+                    {
+                        continue;
+                    }
+
+                    let overridden_instance_property = base_property_flags != SymbolFlags::Property
+                        && derived_property_flags == SymbolFlags::Property;
+                    let overridden_instance_accessor = base_property_flags == SymbolFlags::Property
+                        && derived_property_flags != SymbolFlags::Property;
+                    if overridden_instance_property || overridden_instance_accessor {
+                        let error_message = if overridden_instance_property {
+                            &*Diagnostics::_0_is_defined_as_an_accessor_in_class_1_but_is_overridden_here_in_2_as_an_instance_property
+                        } else {
+                            &*Diagnostics::_0_is_defined_as_a_property_in_class_1_but_is_overridden_here_in_2_as_an_accessor
+                        };
+                        self.error(
+                            get_name_of_declaration(derived.maybe_value_declaration())
+                                .or_else(|| derived.maybe_value_declaration()),
+                            error_message,
+                            Some(vec![
+                                self.symbol_to_string_(
+                                    &base,
+                                    Option::<&Node>::None,
+                                    None,
+                                    None,
+                                    None,
+                                ),
+                                self.type_to_string_(base_type, Option::<&Node>::None, None, None),
+                                self.type_to_string_(type_, Option::<&Node>::None, None, None),
+                            ]),
+                        );
+                    } else if self.use_define_for_class_fields {
+                        let uninitialized = derived.maybe_declarations().as_ref().and_then(
+                            |derived_declarations| {
+                                derived_declarations
+                                    .into_iter()
+                                    .find(|d| {
+                                        d.kind() == SyntaxKind::PropertyDeclaration
+                                            && d.as_property_declaration()
+                                                .maybe_initializer()
+                                                .is_none()
+                                    })
+                                    .cloned()
+                            },
+                        );
+                        if let Some(uninitialized) = uninitialized.as_ref() {
+                            if !derived.flags().intersects(SymbolFlags::Transient)
+                                && !base_declaration_flags.intersects(ModifierFlags::Abstract)
+                                && !derived_declaration_flags.intersects(ModifierFlags::Abstract)
+                                && !matches!(
+                                    derived.maybe_declarations().as_ref(),
+                                    Some(derived_declarations) if derived_declarations.into_iter().any(|d| d.flags().intersects(NodeFlags::Ambient))
+                                )
+                            {
+                                let constructor = self.find_constructor_declaration(
+                                    &get_class_like_declaration_of_symbol(&type_.symbol()).unwrap(),
+                                );
+                                let uninitialized_as_property_declaration =
+                                    uninitialized.as_property_declaration();
+                                let prop_name = uninitialized_as_property_declaration.name();
+                                if uninitialized_as_property_declaration
+                                    .exclamation_token
+                                    .is_some()
+                                    || constructor.is_none()
+                                    || !is_identifier(&prop_name)
+                                    || !self.strict_null_checks
+                                    || !self.is_property_initialized_in_constructor(
+                                        &prop_name,
+                                        type_,
+                                        constructor.as_ref().unwrap(),
+                                    )
+                                {
+                                    let error_message = &Diagnostics::Property_0_will_overwrite_the_base_property_in_1_If_this_is_intentional_add_an_initializer_Otherwise_add_a_declare_modifier_or_remove_the_redundant_declaration;
+                                    self.error(
+                                        get_name_of_declaration(derived.maybe_value_declaration())
+                                            .or_else(|| derived.maybe_value_declaration()),
+                                        error_message,
+                                        Some(vec![
+                                            self.symbol_to_string_(
+                                                &base,
+                                                Option::<&Node>::None,
+                                                None,
+                                                None,
+                                                None,
+                                            ),
+                                            self.type_to_string_(
+                                                &base_type,
+                                                Option::<&Node>::None,
+                                                None,
+                                                None,
+                                            ),
+                                        ]),
+                                    );
+                                }
+                            }
+                        }
+                    }
+
+                    continue;
+                } else if self.is_prototype_property(&base) {
+                    if self.is_prototype_property(&derived)
+                        || derived.flags().intersects(SymbolFlags::Property)
+                    {
+                        continue;
+                    } else {
+                        Debug_.assert(derived.flags().intersects(SymbolFlags::Accessor), None);
+                        error_message = &Diagnostics::Class_0_defines_instance_member_function_1_but_extended_class_2_defines_it_as_instance_member_accessor;
+                    }
+                } else if base.flags().intersects(SymbolFlags::Accessor) {
+                    error_message = &Diagnostics::Class_0_defines_instance_member_accessor_1_but_extended_class_2_defines_it_as_instance_member_function;
+                } else {
+                    error_message = &Diagnostics::Class_0_defines_instance_member_property_1_but_extended_class_2_defines_it_as_instance_member_function;
+                }
+
+                self.error(
+                    get_name_of_declaration(derived.maybe_value_declaration())
+                        .or_else(|| derived.maybe_value_declaration()),
+                    error_message,
+                    Some(vec![
+                        self.type_to_string_(base_type, Option::<&Node>::None, None, None),
+                        self.symbol_to_string_(&base, Option::<&Node>::None, None, None, None),
+                        self.type_to_string_(type_, Option::<&Node>::None, None, None),
+                    ]),
+                );
+            }
+        }
     }
 
     pub(super) fn check_property_initialization(&self, node: &Node /*ClassLikeDeclaration*/) {
@@ -425,6 +676,15 @@ impl TypeChecker {
         static_blocks: &[Rc<Node /*ClassStaticBlockDeclaration*/>],
         start_pos: isize,
         end_pos: isize,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_property_initialized_in_constructor(
+        &self,
+        prop_name: &Node, /*Identifier | PrivateIdentifier*/
+        prop_type: &Type,
+        constructor: &Node, /*ConstructorDeclaration*/
     ) -> bool {
         unimplemented!()
     }
