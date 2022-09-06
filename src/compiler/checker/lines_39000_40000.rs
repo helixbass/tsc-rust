@@ -6,11 +6,12 @@ use std::rc::Rc;
 use super::intrinsic_type_kinds;
 use crate::{
     cast_present, declaration_name_to_string, factory, for_each, get_declaration_of_kind,
-    get_effective_modifier_flags, get_interface_base_type_nodes, get_text_of_property_name,
-    has_abstract_modifier, is_computed_non_literal_name, is_entity_name_expression, is_enum_const,
-    is_finite, is_identifier, is_infinity_or_nan_string, is_literal_expression, is_nan,
-    is_optional_chain, is_private_identifier, is_static, is_string_literal_like, length,
-    maybe_for_each, node_is_missing, set_parent, synthetic_factory, Diagnostics, EnumKind,
+    get_effective_modifier_flags, get_interface_base_type_nodes, get_name_of_declaration,
+    get_text_of_property_name, has_abstract_modifier, is_computed_non_literal_name,
+    is_entity_name_expression, is_enum_const, is_enum_declaration, is_finite, is_identifier,
+    is_infinity_or_nan_string, is_literal_expression, is_nan, is_optional_chain,
+    is_private_identifier, is_static, is_string_literal_like, length, maybe_for_each,
+    node_is_missing, set_parent, synthetic_factory, Diagnostics, EnumKind,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeParametersInterface,
     InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeCheckFlags,
     NodeFlags, NodeInterface, Number, ReadonlyTextRange, StringOrNumber, Symbol, SymbolFlags,
@@ -618,6 +619,94 @@ impl TypeChecker {
             || node.kind() == SyntaxKind::ElementAccessExpression
                 && self.is_constant_member_access(&node.as_element_access_expression().expression)
                 && is_string_literal_like(&node.as_element_access_expression().argument_expression)
+    }
+
+    pub(super) fn check_enum_declaration(&self, node: &Node /*EnumDeclaration*/) {
+        if !self.produce_diagnostics {
+            return;
+        }
+
+        self.check_grammar_decorators_and_modifiers(node);
+
+        let node_as_enum_declaration = node.as_enum_declaration();
+        self.check_collisions_for_declaration_name(node, node_as_enum_declaration.maybe_name());
+        self.check_exports_on_merged_declarations(node);
+        for member in &node_as_enum_declaration.members {
+            self.check_enum_member(member);
+        }
+
+        self.compute_enum_member_values(node);
+
+        let enum_symbol = self.get_symbol_of_node(node).unwrap();
+        let first_declaration = get_declaration_of_kind(&enum_symbol, node.kind());
+        if matches!(
+            first_declaration.as_ref(),
+            Some(first_declaration) if ptr::eq(
+                node,
+                &**first_declaration
+            )
+        ) {
+            if let Some(enum_symbol_declarations) = enum_symbol
+                .maybe_declarations()
+                .as_ref()
+                .filter(|enum_symbol_declarations| enum_symbol_declarations.len() > 1)
+            {
+                let enum_is_const = is_enum_const(node);
+                for_each(
+                    enum_symbol_declarations,
+                    |decl: &Rc<Node>, _| -> Option<()> {
+                        if is_enum_declaration(decl) && is_enum_const(decl) != enum_is_const {
+                            self.error(
+                                get_name_of_declaration(Some(&**decl)),
+                                &Diagnostics::Enum_declarations_must_all_be_const_or_non_const,
+                                None,
+                            );
+                        }
+                        None
+                    },
+                );
+            }
+
+            let mut seen_enum_missing_initial_initializer = false;
+            maybe_for_each(
+                enum_symbol.maybe_declarations().as_ref(),
+                |declaration: &Rc<Node>, _| -> Option<()> {
+                    if declaration.kind() != SyntaxKind::EnumDeclaration {
+                        return None;
+                    }
+
+                    let enum_declaration = declaration.as_enum_declaration();
+                    if enum_declaration.members.is_empty() {
+                        return None;
+                    }
+
+                    let first_enum_member = &enum_declaration.members[0];
+                    let first_enum_member_as_enum_member = first_enum_member.as_enum_member();
+                    if first_enum_member_as_enum_member.initializer.is_none() {
+                        if seen_enum_missing_initial_initializer {
+                            self.error(
+                                Some(&*first_enum_member_as_enum_member.name),
+                                &Diagnostics::In_an_enum_with_multiple_declarations_only_one_declaration_can_omit_an_initializer_for_its_first_enum_element,
+                                None,
+                            );
+                        } else {
+                            seen_enum_missing_initial_initializer = true;
+                        }
+                    }
+                    None
+                },
+            );
+        }
+    }
+
+    pub(super) fn check_enum_member(&self, node: &Node /*EnumMember*/) {
+        if is_private_identifier(&node.as_enum_member().name) {
+            self.error(
+                Some(node),
+                &Diagnostics::An_enum_member_cannot_be_named_with_a_private_identifier,
+                None,
+            );
+        }
     }
 
     pub(super) fn check_alias_symbol(
