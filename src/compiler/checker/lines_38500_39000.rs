@@ -17,10 +17,9 @@ use crate::{
     is_in_js_file, is_parameter_property_declaration, is_property_declaration, is_static, length,
     maybe_filter, maybe_for_each, some, symbol_name, unescape_leading_underscores, CheckFlags,
     Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasInitializerInterface,
-    HasTypeParametersInterface, InterfaceTypeInterface, MemberOverrideStatus, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, SignatureDeclarationInterface,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    Type, TypeChecker, TypeInterface,
+    InterfaceTypeInterface, MemberOverrideStatus, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
