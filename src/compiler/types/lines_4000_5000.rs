@@ -389,7 +389,14 @@ pub struct TypeChecker {
     pub(crate) suggested_extensions: Vec<(&'static str, &'static str)>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum MemberOverrideStatus {
+    Ok,
+    NeedsOverride,
+    HasInvalidOverride,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnionReduction {
     None,
     Literal,
