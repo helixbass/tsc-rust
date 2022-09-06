@@ -417,7 +417,7 @@ pub use compiler::utilities::{
     is_function_block, is_function_expression_or_arrow_function, is_function_symbol,
     is_global_scope_augmentation, is_identifier_name, is_identifier_type_predicate,
     is_implicit_glob, is_import_call, is_in_js_file, is_in_jsdoc, is_in_json_file,
-    is_in_top_level_context, is_incremental_compilation,
+    is_in_top_level_context, is_incremental_compilation, is_infinity_or_nan_string,
     is_internal_module_import_equals_declaration, is_intrinsic_jsx_name,
     is_jsdoc_construct_signature, is_jsdoc_index_signature, is_jsdoc_type_alias,
     is_json_source_file, is_keyword, is_known_symbol, is_late_visibility_painted_statement, is_let,
@@ -540,7 +540,7 @@ pub use compiler::watch_public::{
     WatchCompilerHost, WatchCompilerHostOfConfigFile, WatchHost, WatchStatusReporter,
 };
 pub use execute_command_line::execute_command_line::execute_command_line;
-pub use rust_helpers::number::Number;
+pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_option_rcs_equal, are_rc_slices_equal, capitalize, index_of, index_of_rc, is_same_variant,

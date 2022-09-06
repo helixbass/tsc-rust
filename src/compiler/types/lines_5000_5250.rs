@@ -17,7 +17,7 @@ use super::{
 use crate::{
     BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
     InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, ObjectFlags,
-    Pattern, WeakSelf,
+    Pattern, StringOrNumber, WeakSelf,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -240,6 +240,7 @@ pub struct NodeLinks {
     pub resolved_signature: Option<Rc<Signature>>,
     pub resolved_symbol: Option<Rc<Symbol>>,
     pub effects_signature: Option<Rc<Signature>>,
+    pub enum_member_value: Option<StringOrNumber>,
     pub is_visible: Option<bool>,
     pub contains_arguments_reference: Option<bool>,
     pub has_reported_statement_in_ambient_context: Option<bool>,
@@ -266,6 +267,7 @@ impl NodeLinks {
             resolved_enum_type: None,
             resolved_symbol: None,
             resolved_signature: None,
+            enum_member_value: None,
             is_visible: None,
             effects_signature: None,
             contains_arguments_reference: None,

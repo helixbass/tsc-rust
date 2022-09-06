@@ -104,6 +104,10 @@ pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/)
     unimplemented!()
 }
 
+pub fn is_infinity_or_nan_string(name: &str) -> bool {
+    unimplemented!()
+}
+
 pub fn is_parameter_or_catch_clause_variable(symbol: &Symbol) -> bool {
     unimplemented!()
 }
