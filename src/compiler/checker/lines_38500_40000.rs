@@ -2,19 +2,21 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::CheckTypeContainingMessageChain;
 use crate::{
-    chain_diagnostic_messages, escape_leading_underscores, first, for_each, get_check_flags,
+    __String, chain_diagnostic_messages, create_diagnostic_for_node_from_message_chain,
+    escape_leading_underscores, first, for_each, get_check_flags,
     get_class_like_declaration_of_symbol, get_declaration_modifier_flags_from_symbol,
     get_effective_base_type_node, get_name_of_declaration, get_text_of_property_name,
     has_abstract_modifier, has_ambient_modifier, has_effective_modifier, has_override_modifier,
     has_syntactic_modifier, is_binary_expression, is_constructor_declaration, is_identifier,
-    is_in_js_file, is_parameter_property_declaration, is_property_declaration, is_static,
-    maybe_filter, some, symbol_name, unescape_leading_underscores, CheckFlags, Debug_,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasInitializerInterface,
+    is_in_js_file, is_parameter_property_declaration, is_property_declaration, is_static, length,
+    maybe_filter, maybe_for_each, some, symbol_name, unescape_leading_underscores, CheckFlags,
+    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasInitializerInterface,
     HasTypeParametersInterface, InterfaceTypeInterface, MemberOverrideStatus, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, SignatureDeclarationInterface,
     SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
@@ -661,6 +663,152 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_non_interhited_properties(
+        &self,
+        type_: &Type, /*InterfaceType*/
+        base_types: &[Rc<Type /*BaseType*/>],
+        properties: &[Rc<Symbol>],
+    ) -> Vec<Rc<Symbol>> {
+        if length(Some(base_types)) == 0 {
+            return properties.to_owned();
+        }
+        let mut seen: HashMap<__String, Rc<Symbol>> = HashMap::new();
+        for_each(properties, |p: &Rc<Symbol>, _| -> Option<()> {
+            seen.insert(p.escaped_name().clone(), p.clone());
+            None
+        });
+
+        let type_as_interface_type = type_.as_interface_type();
+        for base in base_types {
+            let properties = self.get_properties_of_type(&self.get_type_with_this_argument(
+                base,
+                type_as_interface_type.maybe_this_type(),
+                None,
+            ));
+            for prop in &properties {
+                let existing = seen.get(prop.escaped_name());
+                if matches!(
+                    existing,
+                    Some(existing) if !self.is_property_identical_to(
+                        existing,
+                        prop
+                    )
+                ) {
+                    seen.remove(prop.escaped_name());
+                }
+            }
+        }
+
+        seen.into_values().collect()
+    }
+
+    pub(super) fn check_inherited_properties_are_identical(
+        &self,
+        type_: &Type, /*InterfaceType*/
+        type_node: &Node,
+    ) -> bool {
+        let base_types = self.get_base_types(type_);
+        if base_types.len() < 2 {
+            return true;
+        }
+
+        let mut seen: HashMap<__String, InheritanceInfoMap> = HashMap::new();
+        maybe_for_each(
+            self.resolve_declared_members(type_)
+                .as_interface_type_with_declared_members()
+                .maybe_declared_properties()
+                .as_ref(),
+            |p: &Rc<Symbol>, _| -> Option<()> {
+                seen.insert(
+                    p.escaped_name().clone(),
+                    InheritanceInfoMap {
+                        prop: p.clone(),
+                        containing_type: type_.type_wrapper(),
+                    },
+                );
+                None
+            },
+        );
+        let mut ok = true;
+
+        let type_as_interface_type = type_.as_interface_type();
+        for base in &base_types {
+            let properties = self.get_properties_of_type(&self.get_type_with_this_argument(
+                base,
+                type_as_interface_type.maybe_this_type(),
+                None,
+            ));
+            for prop in &properties {
+                let existing = seen.get(prop.escaped_name());
+                match existing {
+                    None => {
+                        seen.insert(
+                            prop.escaped_name().clone(),
+                            InheritanceInfoMap {
+                                prop: prop.clone(),
+                                containing_type: base.clone(),
+                            },
+                        );
+                    }
+                    Some(existing) => {
+                        let is_inherited_property = !ptr::eq(&*existing.containing_type, type_);
+                        if is_inherited_property
+                            && !self.is_property_identical_to(&existing.prop, prop)
+                        {
+                            ok = false;
+
+                            let type_name1 = self.type_to_string_(
+                                &existing.containing_type,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            );
+                            let type_name2 =
+                                self.type_to_string_(base, Option::<&Node>::None, None, None);
+
+                            let mut error_info = chain_diagnostic_messages(
+                                None,
+                                &Diagnostics::Named_property_0_of_types_1_and_2_are_not_identical,
+                                Some(vec![
+                                    self.symbol_to_string_(
+                                        prop,
+                                        Option::<&Node>::None,
+                                        None,
+                                        None,
+                                        None,
+                                    ),
+                                    type_name1.clone(),
+                                    type_name2.clone(),
+                                ]),
+                            );
+                            error_info = chain_diagnostic_messages(
+                                Some(error_info),
+                                &Diagnostics::Interface_0_cannot_simultaneously_extend_types_1_and_2,
+                                Some(vec![
+                                    self.type_to_string_(
+                                        type_,
+                                        Option::<&Node>::None,
+                                        None, None,
+                                    ),
+                                    type_name1,
+                                    type_name2,
+                                ])
+                            );
+                            self.diagnostics().add(Rc::new(
+                                create_diagnostic_for_node_from_message_chain(
+                                    type_node, error_info, None,
+                                )
+                                .into(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        ok
+    }
+
     pub(super) fn check_property_initialization(&self, node: &Node /*ClassLikeDeclaration*/) {
         unimplemented!()
     }
@@ -773,4 +921,9 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
             )
         )))
     }
+}
+
+struct InheritanceInfoMap {
+    pub prop: Rc<Symbol>,
+    pub containing_type: Rc<Type>,
 }
