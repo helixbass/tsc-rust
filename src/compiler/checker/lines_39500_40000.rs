@@ -8,10 +8,11 @@ use crate::{
     has_effective_modifiers, has_syntactic_modifier, id_text, is_ambient_module,
     is_external_module_name_relative, is_import_declaration, is_import_specifier,
     is_internal_module_import_equals_declaration, is_module_exports_access_expression,
-    is_private_identifier, is_string_literal, is_type_only_import_or_export_declaration,
-    node_is_missing, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
-    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, SymbolFlags, SymbolInterface, SyntaxKind, TypeChecker,
+    is_named_exports, is_namespace_export, is_private_identifier, is_string_literal,
+    is_type_only_import_or_export_declaration, length, node_is_missing, Debug_, DiagnosticMessage,
+    Diagnostics, ExternalEmitHelpers, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ScriptTarget, SymbolFlags,
+    SymbolInterface, SyntaxKind, TypeChecker,
 };
 
 impl TypeChecker {
@@ -450,11 +451,132 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn check_export_declaration(&self, node: &Node /*ExportDeclaration*/) {
+        if self.check_grammar_module_element_context(
+            node,
+            &Diagnostics::An_export_declaration_can_only_be_used_in_a_module,
+        ) {
+            return;
+        }
+
+        if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node) {
+            self.grammar_error_on_first_token(
+                node,
+                &Diagnostics::An_export_declaration_cannot_have_modifiers,
+                None,
+            );
+        }
+
+        let node_as_export_declaration = node.as_export_declaration();
+        if node_as_export_declaration.module_specifier.is_some()
+            && matches!(
+                node_as_export_declaration.export_clause.as_ref(),
+                Some(node_export_clause) if is_named_exports(node_export_clause) &&
+                    length(Some(&node_export_clause.as_named_exports().elements)) > 0
+            )
+            && self.language_version == ScriptTarget::ES3
+        {
+            self.check_external_emit_helpers(node, ExternalEmitHelpers::CreateBinding);
+        }
+
+        self.check_grammar_export_declaration(node);
+        if node_as_export_declaration.module_specifier.is_none()
+            || self.check_external_import_or_export_declaration(node)
+        {
+            if let Some(node_export_clause) = node_as_export_declaration
+                .export_clause
+                .as_ref()
+                .filter(|node_export_clause| !is_namespace_export(node_export_clause))
+            {
+                for_each(
+                    &node_export_clause.as_named_exports().elements,
+                    |element: &Rc<Node>, _| -> Option<()> {
+                        self.check_export_specifier(element);
+                        None
+                    },
+                );
+                let in_ambient_external_module = node.parent().kind() == SyntaxKind::ModuleBlock
+                    && is_ambient_module(&node.parent().parent());
+                let in_ambient_namespace_declaration = !in_ambient_external_module
+                    && node.parent().kind() == SyntaxKind::ModuleBlock
+                    && node_as_export_declaration.module_specifier.is_none()
+                    && node.flags().intersects(NodeFlags::Ambient);
+                if node.parent().kind() != SyntaxKind::SourceFile
+                    && !in_ambient_external_module
+                    && !in_ambient_namespace_declaration
+                {
+                    self.error(
+                        Some(node),
+                        &Diagnostics::Export_declarations_are_not_permitted_in_a_namespace,
+                        None,
+                    );
+                }
+            } else {
+                let module_symbol = self.resolve_external_module_name_(
+                    node,
+                    node_as_export_declaration
+                        .module_specifier
+                        .as_ref()
+                        .unwrap(),
+                    None,
+                );
+                if let Some(module_symbol) = module_symbol
+                    .as_ref()
+                    .filter(|module_symbol| self.has_export_assignment_symbol(module_symbol))
+                {
+                    self.error(
+                        node_as_export_declaration.module_specifier.as_deref(),
+                        &Diagnostics::Module_0_uses_export_and_cannot_be_used_with_export_Asterisk,
+                        Some(vec![self.symbol_to_string_(
+                            module_symbol,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        )]),
+                    );
+                } else if let Some(node_export_clause) =
+                    node_as_export_declaration.export_clause.as_ref()
+                {
+                    self.check_alias_symbol(node_export_clause);
+                }
+                if self.module_kind != ModuleKind::System
+                    && (self.module_kind < ModuleKind::ES2015
+                        || get_source_file_of_node(Some(node))
+                            .unwrap()
+                            .as_source_file()
+                            .maybe_implied_node_format()
+                            == Some(ModuleKind::CommonJS))
+                {
+                    if node_as_export_declaration.export_clause.is_some() {
+                        if get_es_module_interop(&self.compiler_options) == Some(true) {
+                            self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportStar);
+                        }
+                    } else {
+                        self.check_external_emit_helpers(node, ExternalEmitHelpers::ExportStar);
+                    }
+                }
+            }
+        }
+        self.check_assert_clause(node);
+    }
+
+    pub(super) fn check_grammar_export_declaration(
+        &self,
+        node: &Node, /*ExportDeclaration*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_module_element_context(
         &self,
         node: &Node, /*Statement*/
         error_message: &DiagnosticMessage,
     ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_export_specifier(&self, node: &Node /*ExportSpecifier*/) {
         unimplemented!()
     }
 }
