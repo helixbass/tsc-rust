@@ -2,20 +2,23 @@
 
 use std::rc::Rc;
 
+use super::{is_not_overload, is_not_overload_and_not_accessor};
 use crate::{
-    are_option_rcs_equal, declaration_name_to_string, for_each,
+    __String, are_option_rcs_equal, count_where, create_diagnostic_for_node,
+    declaration_name_to_string, for_each, for_each_entry_bool,
     for_each_import_clause_declaration_bool, get_combined_node_flags,
     get_effective_type_annotation_node, get_emit_declarations, get_es_module_interop,
     get_external_module_name, get_first_identifier, get_source_file_of_node,
     has_effective_modifiers, has_syntactic_modifier, id_text, is_ambient_module,
     is_entity_name_expression, is_external_module_name_relative, is_external_module_reference,
-    is_import_declaration, is_import_equals_declaration, is_import_specifier,
+    is_import_declaration, is_import_equals_declaration, is_import_specifier, is_in_js_file,
     is_internal_module_import_equals_declaration, is_module_exports_access_expression,
     is_named_exports, is_namespace_export, is_private_identifier, is_string_literal,
-    is_type_only_import_or_export_declaration, length, node_is_missing, Debug_, DiagnosticMessage,
-    Diagnostics, ExternalEmitHelpers, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ScriptTarget, SymbolFlags,
-    SymbolInterface, SyntaxKind, TypeChecker,
+    is_type_only_import_or_export_declaration, length, node_is_missing,
+    unescape_leading_underscores, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TypeChecker,
 };
 
 impl TypeChecker {
@@ -903,10 +906,80 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn has_exported_members(&self, module_symbol: &Symbol) -> bool {
+        for_each_entry_bool(&(*module_symbol.exports()).borrow(), |_, id| {
+            !id.eq_str("export=")
+        })
+    }
+
     pub(super) fn check_external_module_exports(
         &self,
         node: &Node, /*SourceFile | ModuleDeclaration*/
     ) {
-        unimplemented!()
+        let ref module_symbol = self.get_symbol_of_node(node).unwrap();
+        let links = self.get_symbol_links(module_symbol);
+        if (*links).borrow().exports_checked != Some(true) {
+            let export_equals_symbol = (*module_symbol.exports())
+                .borrow()
+                .get(&__String::new("export=".to_owned()))
+                .cloned();
+            if let Some(export_equals_symbol) = export_equals_symbol.as_ref() {
+                if self.has_exported_members(module_symbol) {
+                    let declaration = self
+                        .get_declaration_of_alias_symbol(export_equals_symbol)
+                        .or_else(|| export_equals_symbol.maybe_value_declaration());
+                    if let Some(declaration) = declaration.as_ref().filter(|declaration| {
+                        !self.is_top_level_in_external_module_augmentation(declaration)
+                            && !is_in_js_file(Some(&***declaration))
+                    }) {
+                        self.error(
+                            Some(&**declaration),
+                            &Diagnostics::An_export_assignment_cannot_be_used_in_a_module_with_other_exported_elements,
+                            None,
+                        );
+                    }
+                }
+            }
+            let exports = self.get_exports_of_module_(module_symbol);
+            // if (exports) {
+            let exports = (*exports).borrow();
+            for (id, symbol) in &*exports {
+                let declarations = symbol.maybe_declarations();
+                let flags = symbol.flags();
+                if id.eq_str("__export") {
+                    continue;
+                }
+                if flags
+                    .intersects(SymbolFlags::Namespace | SymbolFlags::Interface | SymbolFlags::Enum)
+                {
+                    continue;
+                }
+                let exported_declarations_count =
+                    count_where(declarations.as_deref(), |declaration: &Rc<Node>, _| {
+                        is_not_overload_and_not_accessor(declaration)
+                    });
+                if flags.intersects(SymbolFlags::TypeAlias) && exported_declarations_count <= 2 {
+                    continue;
+                }
+                if exported_declarations_count > 1 {
+                    if !self.is_duplicated_common_js_export(declarations.as_deref()) {
+                        for declaration in declarations.as_ref().unwrap() {
+                            if is_not_overload(declaration) {
+                                self.diagnostics().add(Rc::new(
+                                    create_diagnostic_for_node(
+                                        declaration,
+                                        &Diagnostics::Cannot_redeclare_exported_variable_0,
+                                        Some(vec![unescape_leading_underscores(id)]),
+                                    )
+                                    .into(),
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            // }
+            links.borrow_mut().exports_checked = Some(true);
+        }
     }
 }

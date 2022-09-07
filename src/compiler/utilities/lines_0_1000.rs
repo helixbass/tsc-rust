@@ -343,6 +343,19 @@ pub fn for_each_entry<
     None
 }
 
+pub fn for_each_entry_bool<TKey, TValue, TCallback: FnMut(&TValue, &TKey) -> bool>(
+    map: &HashMap<TKey, TValue>, /*ReadonlyESMap*/
+    mut callback: TCallback,
+) -> bool {
+    for (key, value) in map {
+        let result = callback(value, key);
+        if result {
+            return result;
+        }
+    }
+    false
+}
+
 pub fn for_each_key<
     TKey,
     TReturn,

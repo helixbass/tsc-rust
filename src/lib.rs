@@ -353,7 +353,7 @@ pub use compiler::utilities::{
     default_maximum_truncation_length, ensure_script_kind, entity_name_to_string,
     escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
     export_assignment_is_alias, expression_result_is_unused, external_helpers_module_name_text,
-    for_each_enclosing_block_scope_container, for_each_entry,
+    for_each_enclosing_block_scope_container, for_each_entry, for_each_entry_bool,
     for_each_import_clause_declaration_bool, for_each_key, for_each_return_statement,
     for_each_yield_expression, format_message, format_string_from_args,
     full_triple_slash_amd_reference_path_reg_ex, full_triple_slash_reference_path_reg_ex,
