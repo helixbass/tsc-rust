@@ -59,6 +59,12 @@ impl ImportDeclaration {
     }
 }
 
+impl HasAssertClauseInterface for ImportDeclaration {
+    fn maybe_assert_clause(&self) -> Option<Rc<Node>> {
+        self.assert_clause.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ImportClause {
@@ -186,6 +192,10 @@ impl NamespaceExportDeclaration {
     }
 }
 
+pub trait HasAssertClauseInterface {
+    fn maybe_assert_clause(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ExportDeclaration {
@@ -217,6 +227,12 @@ impl ExportDeclaration {
 impl HasIsTypeOnlyInterface for ExportDeclaration {
     fn is_type_only(&self) -> bool {
         self.is_type_only
+    }
+}
+
+impl HasAssertClauseInterface for ExportDeclaration {
+    fn maybe_assert_clause(&self) -> Option<Rc<Node>> {
+        self.assert_clause.clone()
     }
 }
 

@@ -3,12 +3,15 @@
 use std::rc::Rc;
 
 use crate::{
-    are_option_rcs_equal, get_combined_node_flags, get_es_module_interop, get_external_module_name,
-    get_source_file_of_node, id_text, is_ambient_module, is_external_module_name_relative,
-    is_import_specifier, is_module_exports_access_expression, is_private_identifier,
-    is_string_literal, is_type_only_import_or_export_declaration, node_is_missing, Debug_,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, LiteralLikeNodeInterface, ModuleKind,
-    Node, NodeFlags, NodeInterface, SymbolFlags, SymbolInterface, SyntaxKind, TypeChecker,
+    are_option_rcs_equal, declaration_name_to_string, for_each, get_combined_node_flags,
+    get_es_module_interop, get_external_module_name, get_first_identifier, get_source_file_of_node,
+    has_effective_modifiers, has_syntactic_modifier, id_text, is_ambient_module,
+    is_external_module_name_relative, is_import_declaration, is_import_specifier,
+    is_internal_module_import_equals_declaration, is_module_exports_access_expression,
+    is_private_identifier, is_string_literal, is_type_only_import_or_export_declaration,
+    node_is_missing, Debug_, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, SymbolFlags, SymbolInterface, SyntaxKind, TypeChecker,
 };
 
 impl TypeChecker {
@@ -262,6 +265,188 @@ impl TypeChecker {
                         == Some(ModuleKind::CommonJS))
         } {
             self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportDefault);
+        }
+    }
+
+    pub(super) fn check_assert_clause(
+        &self,
+        declaration: &Node, /*ImportDeclaration | ExportDeclaration*/
+    ) {
+        if let Some(declaration_assert_clause) = declaration
+            .as_has_assert_clause()
+            .maybe_assert_clause()
+            .as_ref()
+        {
+            if self.module_kind != ModuleKind::ESNext {
+                self.grammar_error_on_node(
+                    declaration_assert_clause,
+                    &Diagnostics::Import_assertions_are_only_supported_when_the_module_option_is_set_to_esnext,
+                    None,
+                );
+                return;
+            }
+
+            if if is_import_declaration(declaration) {
+                matches!(
+                    declaration.as_import_declaration().import_clause.as_ref(),
+                    Some(declaration_import_clause) if declaration_import_clause.as_import_clause().is_type_only
+                )
+            } else {
+                declaration.as_export_declaration().is_type_only
+            } {
+                self.grammar_error_on_node(
+                    declaration_assert_clause,
+                    &Diagnostics::Import_assertions_cannot_be_used_with_type_only_imports_or_exports,
+                    None,
+                );
+                return;
+            }
+        }
+    }
+
+    pub(super) fn check_import_declaration(&self, node: &Node /*ImportDeclaration*/) {
+        if self.check_grammar_module_element_context(
+            node,
+            &Diagnostics::An_import_declaration_can_only_be_used_in_a_namespace_or_module,
+        ) {
+            return;
+        }
+        if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node) {
+            self.grammar_error_on_first_token(
+                node,
+                &Diagnostics::An_import_declaration_cannot_have_modifiers,
+                None,
+            );
+        }
+        if self.check_external_import_or_export_declaration(node) {
+            let node_as_import_declaration = node.as_import_declaration();
+            let import_clause = node_as_import_declaration.import_clause.as_ref();
+            if let Some(import_clause) = import_clause
+                .filter(|import_clause| !self.check_grammar_import_clause(import_clause))
+            {
+                let import_clause_as_import_clause = import_clause.as_import_clause();
+                if import_clause_as_import_clause.name.is_some() {
+                    self.check_import_binding(import_clause);
+                }
+                if let Some(import_clause_named_bindings) =
+                    import_clause_as_import_clause.named_bindings.as_ref()
+                {
+                    if import_clause_named_bindings.kind() == SyntaxKind::NamespaceImport {
+                        self.check_import_binding(import_clause_named_bindings);
+                        if self.module_kind != ModuleKind::System
+                            && (self.module_kind < ModuleKind::ES2015
+                                || get_source_file_of_node(Some(node))
+                                    .unwrap()
+                                    .as_source_file()
+                                    .maybe_implied_node_format()
+                                    == Some(ModuleKind::CommonJS))
+                            && get_es_module_interop(&self.compiler_options) == Some(true)
+                        {
+                            self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportStar);
+                        }
+                    } else {
+                        let module_existed = self.resolve_external_module_name_(
+                            node,
+                            &node_as_import_declaration.module_specifier,
+                            None,
+                        );
+                        if module_existed.is_some() {
+                            for_each(
+                                &import_clause_named_bindings.as_named_imports().elements,
+                                |element: &Rc<Node>, _| -> Option<()> {
+                                    self.check_import_binding(element);
+                                    None
+                                },
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        self.check_assert_clause(node);
+    }
+
+    pub(super) fn check_import_equals_declaration(
+        &self,
+        node: &Node, /*ImportEqualsDeclaration*/
+    ) {
+        if self.check_grammar_module_element_context(
+            node,
+            &Diagnostics::An_import_declaration_can_only_be_used_in_a_namespace_or_module,
+        ) {
+            return;
+        }
+
+        self.check_grammar_decorators_and_modifiers(node);
+        if is_internal_module_import_equals_declaration(node)
+            || self.check_external_import_or_export_declaration(node)
+        {
+            self.check_import_binding(node);
+            if has_syntactic_modifier(node, ModifierFlags::Export) {
+                self.mark_export_as_referenced(node);
+            }
+            let node_as_import_equals_declaration = node.as_import_equals_declaration();
+            if node_as_import_equals_declaration.module_reference.kind()
+                != SyntaxKind::ExternalModuleReference
+            {
+                let target = self.resolve_alias(&self.get_symbol_of_node(node).unwrap());
+                if !Rc::ptr_eq(&target, &self.unknown_symbol()) {
+                    if target.flags().intersects(SymbolFlags::Value) {
+                        let module_name = get_first_identifier(
+                            &node_as_import_equals_declaration.module_reference,
+                        );
+                        if !self
+                            .resolve_entity_name(
+                                &module_name,
+                                SymbolFlags::Value | SymbolFlags::Namespace,
+                                None,
+                                None,
+                                Option::<&Node>::None,
+                            )
+                            .unwrap()
+                            .flags()
+                            .intersects(SymbolFlags::Namespace)
+                        {
+                            self.error(
+                                Some(&*module_name),
+                                &Diagnostics::Module_0_is_hidden_by_a_local_declaration_with_the_same_name,
+                                Some(vec![
+                                    declaration_name_to_string(Some(&*module_name)).into_owned()
+                                ])
+                            );
+                        }
+                    }
+                    if target.flags().intersects(SymbolFlags::Type) {
+                        self.check_type_name_is_reserved(
+                            &node_as_import_equals_declaration.name(),
+                            &Diagnostics::Import_name_cannot_be_0,
+                        );
+                    }
+                }
+                if node_as_import_equals_declaration.is_type_only {
+                    self.grammar_error_on_node(
+                        node,
+                        &Diagnostics::An_import_alias_cannot_use_import_type,
+                        None,
+                    );
+                }
+            } else {
+                if self.module_kind >= ModuleKind::ES2015
+                    && get_source_file_of_node(Some(node))
+                        .unwrap()
+                        .as_source_file()
+                        .maybe_implied_node_format()
+                        .is_none()
+                    && !node_as_import_equals_declaration.is_type_only
+                    && !node.flags().intersects(NodeFlags::Ambient)
+                {
+                    self.grammar_error_on_node(
+                        node,
+                        &Diagnostics::Import_assignment_cannot_be_used_when_targeting_ECMAScript_modules_Consider_using_import_Asterisk_as_ns_from_mod_import_a_from_mod_import_d_from_mod_or_another_module_format_instead,
+                        None,
+                    );
+                }
+            }
         }
     }
 

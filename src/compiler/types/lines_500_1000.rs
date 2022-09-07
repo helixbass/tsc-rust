@@ -5,9 +5,9 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
 use crate::{
-    CaseOrDefaultClauseInterface, HasArgumentsInterface, HasChildrenInterface,
-    HasDotDotDotTokenInterface, HasMembersInterface, HasTagNameInterface, InferenceContext,
-    JsxOpeningLikeElementInterface, SyntheticExpression,
+    CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
+    HasChildrenInterface, HasDotDotDotTokenInterface, HasMembersInterface, HasTagNameInterface,
+    InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
 };
 
 use super::{
@@ -775,6 +775,14 @@ impl Node {
             Node::CaseClause(node) => node,
             Node::DefaultClause(node) => node,
             _ => panic!("Expected case or default clause"),
+        }
+    }
+
+    pub fn as_has_assert_clause(&self) -> &dyn HasAssertClauseInterface {
+        match self {
+            Node::ImportDeclaration(node) => node,
+            Node::ExportDeclaration(node) => node,
+            _ => panic!("Expected has assert clause"),
         }
     }
 
