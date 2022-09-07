@@ -4,11 +4,12 @@ use std::rc::Rc;
 
 use crate::{
     are_option_rcs_equal, declaration_name_to_string, for_each,
-    for_each_import_clause_declaration_bool, get_combined_node_flags, get_emit_declarations,
-    get_es_module_interop, get_external_module_name, get_first_identifier, get_source_file_of_node,
+    for_each_import_clause_declaration_bool, get_combined_node_flags,
+    get_effective_type_annotation_node, get_emit_declarations, get_es_module_interop,
+    get_external_module_name, get_first_identifier, get_source_file_of_node,
     has_effective_modifiers, has_syntactic_modifier, id_text, is_ambient_module,
-    is_external_module_name_relative, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_import_specifier,
+    is_entity_name_expression, is_external_module_name_relative, is_external_module_reference,
+    is_import_declaration, is_import_equals_declaration, is_import_specifier,
     is_internal_module_import_equals_declaration, is_module_exports_access_expression,
     is_named_exports, is_namespace_export, is_private_identifier, is_string_literal,
     is_type_only_import_or_export_declaration, length, node_is_missing, Debug_, DiagnosticMessage,
@@ -783,5 +784,129 @@ impl TypeChecker {
                 self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportDefault);
             }
         }
+    }
+
+    pub(super) fn check_export_assignment(&self, node: &Node /*ExportAssignment*/) {
+        let node_as_export_assignment = node.as_export_assignment();
+        let illegal_context_message = if node_as_export_assignment.is_export_equals == Some(true) {
+            &*Diagnostics::An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration
+        } else {
+            &*Diagnostics::A_default_export_must_be_at_the_top_level_of_a_file_or_module_declaration
+        };
+        if self.check_grammar_module_element_context(node, illegal_context_message) {
+            return;
+        }
+
+        let ref container = if node.parent().kind() == SyntaxKind::SourceFile {
+            node.parent()
+        } else {
+            node.parent().parent()
+        };
+        if container.kind() == SyntaxKind::ModuleDeclaration && !is_ambient_module(container) {
+            if node_as_export_assignment.is_export_equals == Some(true) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::An_export_assignment_cannot_be_used_in_a_namespace,
+                    None,
+                );
+            } else {
+                self.error(
+                    Some(node),
+                    &Diagnostics::A_default_export_can_only_be_used_in_an_ECMAScript_style_module,
+                    None,
+                );
+            }
+
+            return;
+        }
+        if !self.check_grammar_decorators_and_modifiers(node) && has_effective_modifiers(node) {
+            self.grammar_error_on_first_token(
+                node,
+                &Diagnostics::An_export_assignment_cannot_have_modifiers,
+                None,
+            );
+        }
+
+        let type_annotation_node = get_effective_type_annotation_node(node);
+        if let Some(type_annotation_node) = type_annotation_node.as_ref() {
+            self.check_type_assignable_to(
+                &self.check_expression_cached(&node_as_export_assignment.expression, None),
+                &self.get_type_from_type_node_(type_annotation_node),
+                Some(&*node_as_export_assignment.expression),
+                None,
+                None,
+                None,
+            );
+        }
+
+        if node_as_export_assignment.expression.kind() == SyntaxKind::Identifier {
+            let id = &node_as_export_assignment.expression;
+            let sym =
+                self.resolve_entity_name(id, SymbolFlags::All, Some(true), Some(true), Some(node));
+            if let Some(sym) = sym.as_ref() {
+                self.mark_alias_referenced(sym, id);
+                let target = if sym.flags().intersects(SymbolFlags::Alias) {
+                    self.resolve_alias(sym)
+                } else {
+                    sym.clone()
+                };
+                if Rc::ptr_eq(&target, &self.unknown_symbol())
+                    || target.flags().intersects(SymbolFlags::Value)
+                {
+                    self.check_expression_cached(&node_as_export_assignment.expression, None);
+                }
+            } else {
+                self.check_expression_cached(&node_as_export_assignment.expression, None);
+            }
+
+            if get_emit_declarations(&self.compiler_options) {
+                self.collect_linked_aliases(&node_as_export_assignment.expression, Some(true));
+            }
+        } else {
+            self.check_expression_cached(&node_as_export_assignment.expression, None);
+        }
+
+        self.check_external_module_exports(container);
+
+        if node.flags().intersects(NodeFlags::Ambient)
+            && !is_entity_name_expression(&node_as_export_assignment.expression)
+        {
+            self.grammar_error_on_node(
+                &node_as_export_assignment.expression,
+                &Diagnostics::The_expression_of_an_export_assignment_must_be_an_identifier_or_qualified_name_in_an_ambient_context,
+                None,
+            );
+        }
+
+        if node_as_export_assignment.is_export_equals == Some(true)
+            && !node.flags().intersects(NodeFlags::Ambient)
+        {
+            if self.module_kind >= ModuleKind::ES2015
+                && get_source_file_of_node(Some(node))
+                    .unwrap()
+                    .as_source_file()
+                    .maybe_implied_node_format()
+                    != Some(ModuleKind::CommonJS)
+            {
+                self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::Export_assignment_cannot_be_used_when_targeting_ECMAScript_modules_Consider_using_export_default_or_another_module_format_instead,
+                    None,
+                );
+            } else if self.module_kind == ModuleKind::System {
+                self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::Export_assignment_is_not_supported_when_module_flag_is_system,
+                    None,
+                );
+            }
+        }
+    }
+
+    pub(super) fn check_external_module_exports(
+        &self,
+        node: &Node, /*SourceFile | ModuleDeclaration*/
+    ) {
+        unimplemented!()
     }
 }
