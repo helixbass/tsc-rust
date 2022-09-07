@@ -223,6 +223,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_referenced_alias_declaration(
+        &self,
+        node: &Node,
+        check_children: Option<bool>,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_implementation_of_overload_(
         &self,
         node: &Node, /*SignatureDeclaration*/

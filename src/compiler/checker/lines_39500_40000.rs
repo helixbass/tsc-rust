@@ -3,10 +3,12 @@
 use std::rc::Rc;
 
 use crate::{
-    are_option_rcs_equal, declaration_name_to_string, for_each, get_combined_node_flags,
+    are_option_rcs_equal, declaration_name_to_string, for_each,
+    for_each_import_clause_declaration_bool, get_combined_node_flags, get_emit_declarations,
     get_es_module_interop, get_external_module_name, get_first_identifier, get_source_file_of_node,
     has_effective_modifiers, has_syntactic_modifier, id_text, is_ambient_module,
-    is_external_module_name_relative, is_import_declaration, is_import_specifier,
+    is_external_module_name_relative, is_external_module_reference, is_import_declaration,
+    is_import_equals_declaration, is_import_specifier,
     is_internal_module_import_equals_declaration, is_module_exports_access_expression,
     is_named_exports, is_namespace_export, is_private_identifier, is_string_literal,
     is_type_only_import_or_export_declaration, length, node_is_missing, Debug_, DiagnosticMessage,
@@ -565,7 +567,23 @@ impl TypeChecker {
         &self,
         node: &Node, /*ExportDeclaration*/
     ) -> bool {
-        unimplemented!()
+        let node_as_export_declaration = node.as_export_declaration();
+        if node_as_export_declaration.is_type_only {
+            if let Some(node_export_clause) = node_as_export_declaration
+                .export_clause
+                .as_ref()
+                .filter(|node_export_clause| node_export_clause.kind() == SyntaxKind::NamedExports)
+            {
+                return self.check_grammar_named_imports_or_exports(node_export_clause);
+            } else {
+                return self.grammar_error_on_node(
+                    node,
+                    &Diagnostics::Only_named_exports_may_use_export_type,
+                    None,
+                );
+            }
+        }
+        false
     }
 
     pub(super) fn check_grammar_module_element_context(
@@ -573,10 +591,197 @@ impl TypeChecker {
         node: &Node, /*Statement*/
         error_message: &DiagnosticMessage,
     ) -> bool {
-        unimplemented!()
+        let is_in_appropriate_context = matches!(
+            node.parent().kind(),
+            SyntaxKind::SourceFile | SyntaxKind::ModuleBlock | SyntaxKind::ModuleDeclaration
+        );
+        if !is_in_appropriate_context {
+            self.grammar_error_on_first_token(node, error_message, None);
+        }
+        !is_in_appropriate_context
+    }
+
+    pub(super) fn import_clause_contains_referenced_import(
+        &self,
+        import_clause: &Node, /*ImportClause*/
+    ) -> bool {
+        for_each_import_clause_declaration_bool(import_clause, |declaration| {
+            match self
+                .get_symbol_of_node(declaration)
+                .unwrap()
+                .maybe_is_referenced()
+            {
+                None => false,
+                Some(is_referenced) => is_referenced != SymbolFlags::None,
+            }
+        })
+    }
+
+    pub(super) fn import_clause_contains_const_enum_used_as_value(
+        &self,
+        import_clause: &Node, /*ImportClause*/
+    ) -> bool {
+        for_each_import_clause_declaration_bool(import_clause, |declaration| {
+            (*self.get_symbol_links(&self.get_symbol_of_node(declaration).unwrap()))
+                .borrow()
+                .const_enum_referenced
+                == Some(true)
+        })
+    }
+
+    pub(super) fn can_convert_import_declaration_to_type_only(
+        &self,
+        statement: &Node, /*Statement*/
+    ) -> bool {
+        is_import_declaration(statement)
+            && matches!(
+                statement.as_import_declaration().import_clause.as_ref(),
+                Some(statement_import_clause) if !statement_import_clause.as_import_clause().is_type_only &&
+                    self.import_clause_contains_referenced_import(statement_import_clause) &&
+                    !self.is_referenced_alias_declaration(statement_import_clause, Some(true)) &&
+                    !self.import_clause_contains_const_enum_used_as_value(statement_import_clause)
+            )
+    }
+
+    pub(super) fn can_convert_import_equals_declaration_to_type_only(
+        &self,
+        statement: &Node, /*Statement*/
+    ) -> bool {
+        is_import_equals_declaration(statement) && {
+            let statement_as_import_equals_declaration = statement.as_import_equals_declaration();
+            is_external_module_reference(&statement_as_import_equals_declaration.module_reference)
+                && !statement_as_import_equals_declaration.is_type_only
+                && matches!(
+                    self.get_symbol_of_node(statement).unwrap().maybe_is_referenced(),
+                    Some(is_referenced) if is_referenced != SymbolFlags::None
+                )
+                && !self.is_referenced_alias_declaration(statement, Some(false))
+                && (*self.get_symbol_links(&self.get_symbol_of_node(statement).unwrap()))
+                    .borrow()
+                    .const_enum_referenced
+                    != Some(true)
+        }
+    }
+
+    pub(super) fn check_imports_for_type_only_conversion(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) {
+        for statement in &source_file.as_source_file().statements {
+            if self.can_convert_import_declaration_to_type_only(statement)
+                || self.can_convert_import_equals_declaration_to_type_only(statement)
+            {
+                self.error(
+                    Some(&**statement),
+                    &Diagnostics::This_import_is_never_used_as_a_value_and_must_use_import_type_because_importsNotUsedAsValues_is_set_to_error,
+                    None,
+                );
+            }
+        }
     }
 
     pub(super) fn check_export_specifier(&self, node: &Node /*ExportSpecifier*/) {
-        unimplemented!()
+        self.check_alias_symbol(node);
+        let node_as_export_specifier = node.as_export_specifier();
+        if get_emit_declarations(&self.compiler_options) {
+            self.collect_linked_aliases(
+                node_as_export_specifier
+                    .property_name
+                    .as_ref()
+                    .unwrap_or(&node_as_export_specifier.name),
+                Some(true),
+            );
+        }
+        if node
+            .parent()
+            .parent()
+            .as_export_declaration()
+            .module_specifier
+            .is_none()
+        {
+            let exported_name = node_as_export_specifier
+                .property_name
+                .as_ref()
+                .unwrap_or(&node_as_export_specifier.name);
+            let symbol = self.resolve_name_(
+                Some(&**exported_name),
+                &exported_name.as_identifier().escaped_text,
+                SymbolFlags::Value
+                    | SymbolFlags::Type
+                    | SymbolFlags::Namespace
+                    | SymbolFlags::Alias,
+                None,
+                Option::<Rc<Node>>::None,
+                true,
+                None,
+            );
+            if matches!(
+                symbol.as_ref(),
+                Some(symbol) if Rc::ptr_eq(
+                    symbol,
+                    &self.undefined_symbol()
+                ) || Rc::ptr_eq(
+                    symbol,
+                    &self.global_this_symbol()
+                ) || matches!(
+                    symbol.maybe_declarations().as_ref(),
+                    Some(symbol_declarations) if self.is_global_source_file(
+                        &self.get_declaration_container(
+                            &symbol_declarations[0]
+                        )
+                    )
+                )
+            ) {
+                self.error(
+                    Some(&**exported_name),
+                    &Diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
+                    Some(vec![
+                        id_text(exported_name)
+                    ])
+                );
+            } else {
+                self.mark_export_as_referenced(node);
+                let target = symbol.as_ref().map(|symbol| {
+                    if symbol.flags().intersects(SymbolFlags::Alias) {
+                        self.resolve_alias(symbol)
+                    } else {
+                        symbol.clone()
+                    }
+                });
+                if match target.as_ref() {
+                    None => true,
+                    Some(target) => {
+                        Rc::ptr_eq(target, &self.unknown_symbol())
+                            || target.flags().intersects(SymbolFlags::Value)
+                    }
+                } {
+                    self.check_expression_cached(
+                        node_as_export_specifier
+                            .property_name
+                            .as_ref()
+                            .unwrap_or(&node_as_export_specifier.name),
+                        None,
+                    );
+                }
+            }
+        } else {
+            if get_es_module_interop(&self.compiler_options) == Some(true)
+                && self.module_kind != ModuleKind::System
+                && (self.module_kind < ModuleKind::ES2015
+                    || get_source_file_of_node(Some(node))
+                        .unwrap()
+                        .as_source_file()
+                        .maybe_implied_node_format()
+                        == Some(ModuleKind::CommonJS))
+                && id_text(
+                    node_as_export_specifier
+                        .property_name
+                        .as_ref()
+                        .unwrap_or(&node_as_export_specifier.name),
+                ) == "default"
+            {
+                self.check_external_emit_helpers(node, ExternalEmitHelpers::ImportDefault);
+            }
+        }
     }
 }

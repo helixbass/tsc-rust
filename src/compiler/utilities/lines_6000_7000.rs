@@ -618,6 +618,10 @@ pub fn get_allow_synthetic_default_imports(compiler_options: &CompilerOptions) -
     }
 }
 
+pub fn get_emit_declarations(compiler_options: &CompilerOptions) -> bool {
+    unimplemented!()
+}
+
 pub fn should_preserve_const_enums(compiler_options: &CompilerOptions) -> bool {
     matches!(compiler_options.preserve_const_enums, Some(true))
         || matches!(compiler_options.isolated_modules, Some(true))
