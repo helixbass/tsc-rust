@@ -9,49 +9,327 @@ use std::rc::Rc;
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
     add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
-    external_helpers_module_name_text, get_all_accessor_declarations, get_declaration_of_kind,
-    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
-    is_binding_pattern, is_class_like, is_effective_external_module, is_global_scope_augmentation,
+    external_helpers_module_name_text, for_each_child, get_all_accessor_declarations,
+    get_declaration_of_kind, get_external_module_name, get_source_file_of_node,
+    has_syntactic_modifier, is_access_expression, is_ambient_module, is_binding_pattern,
+    is_class_like, is_effective_external_module, is_exports_identifier,
+    is_global_scope_augmentation, is_in_js_file, is_module_exports_access_expression,
     is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
-    is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_present, some,
-    token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
-    NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String, bind_source_file,
-    for_each, is_external_or_common_js_module, CancellationTokenDebuggable, Diagnostic,
-    EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
-    Type, TypeChecker,
+    is_string_literal, maybe_for_each, modifier_to_flag, node_can_be_decorated, node_is_present,
+    some, token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
+    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeArray,
+    NodeCheckFlags, NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String,
+    bind_source_file, for_each, is_external_or_common_js_module, CancellationTokenDebuggable,
+    Diagnostic, EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol,
+    SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
     pub(super) fn is_duplicated_common_js_export(&self, declarations: Option<&[Rc<Node>]>) -> bool {
-        unimplemented!()
+        matches!(
+            declarations,
+            Some(declarations) if declarations.len() > 1 &&
+                declarations.into_iter().all(|d| is_in_js_file(Some(&**d)) &&
+                    is_access_expression(d) && {
+                        let d_as_has_expression = d.as_has_expression();
+                        is_exports_identifier(&d_as_has_expression.expression()) ||
+                        is_module_exports_access_expression(&d_as_has_expression.expression())
+                    }
+                )
+        )
     }
 
-    pub(super) fn check_source_element<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
+    pub(super) fn check_source_element<TNode: Borrow<Node>>(&self, node: Option<TNode>) {
         if let Some(node) = node {
             let node = node.borrow();
+            let save_current_node = self.maybe_current_node();
+            self.set_current_node(Some(node.node_wrapper()));
+            self.set_instantiation_count(0);
             self.check_source_element_worker(node);
+            self.set_current_node(save_current_node);
         }
     }
 
     pub(super) fn check_source_element_worker(&self, node: &Node) {
-        match node {
-            Node::PropertySignature(_) => self.check_property_signature(node),
-            Node::TypeReferenceNode(_) => self.check_type_reference_node(node),
-            Node::KeywordTypeNode(_) | Node::LiteralTypeNode(_) => (),
-            Node::ArrayTypeNode(_) => self.check_array_type(node),
-            Node::UnionTypeNode(_) => self.check_union_or_intersection_type(node),
-            Node::FunctionDeclaration(_) => self.check_function_declaration(node),
-            Node::Block(_) => self.check_block(node),
-            Node::VariableStatement(_) => self.check_variable_statement(node),
-            Node::ExpressionStatement(_) => self.check_expression_statement(node),
-            Node::IfStatement(_) => self.check_if_statement(node),
-            Node::ReturnStatement(_) => self.check_return_statement(node),
-            Node::VariableDeclaration(_) => self.check_variable_declaration(node),
-            Node::InterfaceDeclaration(_) => self.check_interface_declaration(node),
-            Node::TypeAliasDeclaration(_) => self.check_type_alias_declaration(node),
-            _ => unimplemented!("{:?}", node.kind()),
-        };
+        if is_in_js_file(Some(node)) {
+            maybe_for_each(
+                node.maybe_js_doc().as_ref(),
+                |jsdoc: &Rc<Node>, _| -> Option<()> {
+                    let tags = jsdoc.as_jsdoc().tags.as_ref();
+                    maybe_for_each(tags, |tag: &Rc<Node>, _| -> Option<()> {
+                        self.check_source_element(Some(&**tag));
+                        None
+                    });
+                    None
+                },
+            );
+        }
+
+        let kind = node.kind();
+        if let Some(cancellation_token) = self.maybe_cancellation_token() {
+            if matches!(
+                kind,
+                SyntaxKind::ModuleDeclaration
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::FunctionDeclaration
+            ) {
+                cancellation_token.throw_if_cancellation_requested();
+            }
+        }
+        if kind >= SyntaxKind::FirstStatement
+            && kind <= SyntaxKind::LastStatement
+            && matches!(
+                node.maybe_flow_node().as_ref(),
+                Some(node_flow_node) if !self.is_reachable_flow_node(node_flow_node.clone())
+            )
+        {
+            self.error_or_suggestion(
+                self.compiler_options.allow_unreachable_code == Some(false),
+                node,
+                Diagnostics::Unreachable_code_detected.clone().into(),
+                None,
+            );
+        }
+
+        match kind {
+            SyntaxKind::TypeParameter => {
+                self.check_type_parameter(node);
+            }
+            SyntaxKind::Parameter => {
+                self.check_parameter(node);
+            }
+            SyntaxKind::PropertyDeclaration => {
+                self.check_property_declaration(node);
+            }
+            SyntaxKind::PropertySignature => {
+                self.check_property_signature(node);
+            }
+            SyntaxKind::ConstructorType
+            | SyntaxKind::FunctionType
+            | SyntaxKind::CallSignature
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::IndexSignature => {
+                self.check_signature_declaration(node);
+            }
+            SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
+                self.check_method_declaration(node);
+            }
+            SyntaxKind::ClassStaticBlockDeclaration => {
+                self.check_class_static_block_declaration(node);
+            }
+            SyntaxKind::Constructor => {
+                self.check_constructor_declaration(node);
+            }
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                self.check_accessor_declaration(node);
+            }
+            SyntaxKind::TypeReference => {
+                self.check_type_reference_node(node);
+            }
+            SyntaxKind::TypePredicate => {
+                self.check_type_predicate(node);
+            }
+            SyntaxKind::TypeQuery => {
+                self.check_type_query(node);
+            }
+            SyntaxKind::TypeLiteral => {
+                self.check_type_literal(node);
+            }
+            SyntaxKind::ArrayType => {
+                self.check_array_type(node);
+            }
+            SyntaxKind::TupleType => {
+                self.check_tuple_type(node);
+            }
+            SyntaxKind::UnionType | SyntaxKind::IntersectionType => {
+                self.check_union_or_intersection_type(node);
+            }
+            SyntaxKind::ParenthesizedType | SyntaxKind::OptionalType | SyntaxKind::RestType => {
+                self.check_source_element(node.as_has_type().maybe_type());
+            }
+            SyntaxKind::ThisType => {
+                self.check_this_type(node);
+            }
+            SyntaxKind::TypeOperator => {
+                self.check_type_operator(node);
+            }
+            SyntaxKind::ConditionalType => {
+                self.check_conditional_type(node);
+            }
+            SyntaxKind::InferType => {
+                self.check_infer_type(node);
+            }
+            SyntaxKind::TemplateLiteralType => {
+                self.check_template_literal_type(node);
+            }
+            SyntaxKind::ImportType => {
+                self.check_import_type(node);
+            }
+            SyntaxKind::NamedTupleMember => {
+                self.check_named_tuple_member(node);
+            }
+            SyntaxKind::JSDocAugmentsTag => {
+                self.check_jsdoc_augments_tag(node);
+            }
+            SyntaxKind::JSDocImplementsTag => {
+                self.check_jsdoc_implements_tag(node);
+            }
+            SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocEnumTag => {
+                self.check_jsdoc_type_alias_tag(node);
+            }
+            SyntaxKind::JSDocTemplateTag => {
+                self.check_jsdoc_template_tag(node);
+            }
+            SyntaxKind::JSDocTypeTag => {
+                self.check_jsdoc_type_tag(node);
+            }
+            SyntaxKind::JSDocParameterTag => {
+                self.check_jsdoc_parameter_tag(node);
+            }
+            SyntaxKind::JSDocPropertyTag => {
+                self.check_jsdoc_property_tag(node);
+            }
+            SyntaxKind::JSDocFunctionType => {
+                self.check_jsdoc_function_type(node);
+                self.check_jsdoc_type_is_in_js_file(node);
+                for_each_child(
+                    node,
+                    |child| self.check_source_element(Some(child)),
+                    Option::<fn(&NodeArray)>::None,
+                );
+            }
+            SyntaxKind::JSDocNonNullableType
+            | SyntaxKind::JSDocNullableType
+            | SyntaxKind::JSDocAllType
+            | SyntaxKind::JSDocUnknownType
+            | SyntaxKind::JSDocTypeLiteral => {
+                self.check_jsdoc_type_is_in_js_file(node);
+                for_each_child(
+                    node,
+                    |child| self.check_source_element(Some(child)),
+                    Option::<fn(&NodeArray)>::None,
+                );
+            }
+            SyntaxKind::JSDocVariadicType => {
+                self.check_jsdoc_variadic_type(node);
+            }
+            SyntaxKind::JSDocTypeExpression => {
+                self.check_source_element(Some(&*node.as_jsdoc_type_expression().type_));
+            }
+            SyntaxKind::JSDocPublicTag
+            | SyntaxKind::JSDocProtectedTag
+            | SyntaxKind::JSDocPrivateTag => {
+                self.check_jsdoc_accessibility_modifiers(node);
+            }
+            SyntaxKind::IndexedAccessType => {
+                self.check_indexed_access_type(node);
+            }
+            SyntaxKind::MappedType => {
+                self.check_mapped_type(node);
+            }
+            SyntaxKind::FunctionDeclaration => {
+                self.check_function_declaration(node);
+            }
+            SyntaxKind::Block | SyntaxKind::ModuleBlock => {
+                self.check_block(node);
+            }
+            SyntaxKind::VariableStatement => {
+                self.check_variable_statement(node);
+            }
+            SyntaxKind::ExpressionStatement => {
+                self.check_expression_statement(node);
+            }
+            SyntaxKind::IfStatement => {
+                self.check_if_statement(node);
+            }
+            SyntaxKind::DoStatement => {
+                self.check_do_statement(node);
+            }
+            SyntaxKind::WhileStatement => {
+                self.check_while_statement(node);
+            }
+            SyntaxKind::ForStatement => {
+                self.check_for_statement(node);
+            }
+            SyntaxKind::ForInStatement => {
+                self.check_for_in_statement(node);
+            }
+            SyntaxKind::ForOfStatement => {
+                self.check_for_of_statement(node);
+            }
+            SyntaxKind::ContinueStatement | SyntaxKind::BreakStatement => {
+                self.check_break_or_continue_statement(node);
+            }
+            SyntaxKind::ReturnStatement => {
+                self.check_return_statement(node);
+            }
+            SyntaxKind::WithStatement => {
+                self.check_with_statement(node);
+            }
+            SyntaxKind::SwitchStatement => {
+                self.check_switch_statement(node);
+            }
+            SyntaxKind::LabeledStatement => {
+                self.check_labeled_statement(node);
+            }
+            SyntaxKind::ThrowStatement => {
+                self.check_throw_statement(node);
+            }
+            SyntaxKind::TryStatement => {
+                self.check_try_statement(node);
+            }
+            SyntaxKind::VariableDeclaration => {
+                self.check_variable_declaration(node);
+            }
+            SyntaxKind::BindingElement => {
+                self.check_binding_element(node);
+            }
+            SyntaxKind::ClassDeclaration => {
+                self.check_class_declaration(node);
+            }
+            SyntaxKind::InterfaceDeclaration => {
+                self.check_interface_declaration(node);
+            }
+            SyntaxKind::TypeAliasDeclaration => {
+                self.check_type_alias_declaration(node);
+            }
+            SyntaxKind::EnumDeclaration => {
+                self.check_enum_declaration(node);
+            }
+            SyntaxKind::ModuleDeclaration => {
+                self.check_module_declaration(node);
+            }
+            SyntaxKind::ImportDeclaration => {
+                self.check_import_declaration(node);
+            }
+            SyntaxKind::ImportEqualsDeclaration => {
+                self.check_import_equals_declaration(node);
+            }
+            SyntaxKind::ExportDeclaration => {
+                self.check_export_declaration(node);
+            }
+            SyntaxKind::ExportAssignment => {
+                self.check_export_assignment(node);
+            }
+            SyntaxKind::EmptyStatement | SyntaxKind::DebuggerStatement => {
+                self.check_grammar_statement_in_ambient_context(node);
+            }
+            SyntaxKind::MissingDeclaration => {
+                self.check_missing_declaration(node);
+            }
+            _ => (),
+        }
+    }
+
+    pub(super) fn check_jsdoc_type_is_in_js_file(&self, node: &Node) {
+        unimplemented!()
+    }
+
+    pub(super) fn check_jsdoc_variadic_type(&self, node: &Node /*JSDocVariadicType*/) {
+        unimplemented!()
     }
 
     pub(super) fn get_type_from_jsdoc_variadic_type(
