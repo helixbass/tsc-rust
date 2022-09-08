@@ -7,8 +7,9 @@ use std::rc::Rc;
 
 use super::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
-    ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
+    HasInitializerInterface, HasLeftAndRightInterface, HasTypeInterface,
+    HasTypeParametersInterface, Node, NodeInterface, ReadonlyTextRange, SyntaxKind, TransformFlags,
+    __String,
 };
 use local_macros::ast_type;
 
@@ -282,6 +283,16 @@ impl HasJSDocDotPosInterface for QualifiedName {
 
     fn set_jsdoc_dot_pos(&self, jsdoc_dot_pos: Option<isize>) {
         self.jsdoc_dot_pos.set(jsdoc_dot_pos);
+    }
+}
+
+impl HasLeftAndRightInterface for QualifiedName {
+    fn left(&self) -> Rc<Node> {
+        self.left.clone()
+    }
+
+    fn right(&self) -> Rc<Node> {
+        self.right.clone()
     }
 }
 

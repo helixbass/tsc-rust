@@ -31,7 +31,7 @@ use crate::{
     DiagnosticRelatedInformationInterface,
 };
 
-pub fn is_literal_computed_property_name_declaration_name(node: &Node) -> bool {
+pub fn is_literal_computed_property_declaration_name(node: &Node) -> bool {
     is_string_or_numeric_literal_like(node)
         && node.parent().kind() == SyntaxKind::ComputedPropertyName
         && is_declaration(&node.parent().parent())

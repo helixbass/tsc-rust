@@ -45,6 +45,21 @@ impl BinaryExpression {
     }
 }
 
+pub trait HasLeftAndRightInterface {
+    fn left(&self) -> Rc<Node>;
+    fn right(&self) -> Rc<Node>;
+}
+
+impl HasLeftAndRightInterface for BinaryExpression {
+    fn left(&self) -> Rc<Node> {
+        self.left.clone()
+    }
+
+    fn right(&self) -> Rc<Node> {
+        self.right.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ConditionalExpression {

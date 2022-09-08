@@ -6,30 +6,36 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, EmitResolverCreateResolver};
+use super::{is_declaration_name_or_import_property_name, CheckMode, EmitResolverCreateResolver};
 use crate::{
     add_related_info, concatenate, create_diagnostic_for_node, create_symbol_table,
     escape_leading_underscores, external_helpers_module_name_text, find_ancestor,
     get_all_accessor_declarations, get_ancestor, get_assignment_declaration_kind,
     get_combined_local_and_export_symbol_flags, get_containing_class, get_declaration_of_kind,
-    get_external_module_name, get_host_signature_from_jsdoc, get_name_of_declaration,
-    get_parameter_symbol_from_jsdoc, get_source_file_of_node, get_type_parameter_from_js_doc,
+    get_external_module_import_equals_declaration_expression, get_external_module_name,
+    get_host_signature_from_jsdoc, get_name_of_declaration, get_parameter_symbol_from_jsdoc,
+    get_source_file_of_node, get_this_container, get_type_parameter_from_js_doc,
     has_syntactic_modifier, introduces_arguments_exotic_object, is_ambient_module,
-    is_binding_pattern, is_class_like, is_constructor_declaration, is_declaration_name,
-    is_effective_external_module, is_entity_name, is_entity_name_expression, is_expression_node,
-    is_expression_with_type_arguments_in_class_extends_clause, is_external_module,
-    is_function_like_declaration, is_global_scope_augmentation, is_in_js_file,
-    is_interface_declaration, is_jsdoc_link_like, is_jsdoc_member_name, is_jsdoc_name_reference,
-    is_jsx_tag_name, is_named_declaration, is_private_identifier,
+    is_bindable_object_define_property_call, is_binding_pattern, is_call_expression, is_class_like,
+    is_constructor_declaration, is_declaration_name, is_effective_external_module,
+    is_element_access_expression, is_entity_name, is_entity_name_expression, is_export_assignment,
+    is_expression_node, is_expression_with_type_arguments_in_class_extends_clause,
+    is_external_module, is_external_module_import_equals_declaration, is_function_like,
+    is_function_like_declaration, is_global_scope_augmentation, is_identifier, is_import_call,
+    is_import_or_export_specifier, is_in_expression_context, is_in_js_file,
+    is_indexed_access_type_node, is_interface_declaration, is_jsdoc_link_like,
+    is_jsdoc_member_name, is_jsdoc_name_reference, is_jsx_tag_name,
+    is_literal_computed_property_declaration_name, is_literal_import_type_node,
+    is_literal_type_node, is_meta_property, is_named_declaration, is_private_identifier,
     is_private_identifier_class_element_declaration, is_property_declaration, is_qualified_name,
-    is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_static,
-    is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_missing, node_is_present,
-    some, token_to_string, try_cast, AssignmentDeclarationKind, Debug_, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, FunctionLikeDeclarationInterface,
+    is_require_call, is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name,
+    is_static, is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_missing,
+    node_is_present, some, token_to_string, try_cast, AssignmentDeclarationKind, Debug_,
+    Diagnostics, ExternalEmitHelpers, FindAncestorCallbackReturn, FunctionLikeDeclarationInterface,
     InternalSymbolName, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags, NodeFlags,
-    ObjectFlags, Signature, SymbolInterface, SymbolTable, SyntaxKind, __String, bind_source_file,
-    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
-    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    ObjectFlags, Signature, SymbolInterface, SymbolTable, SyntaxKind, TypeInterface, __String,
+    bind_source_file, is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable,
+    IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -624,7 +630,64 @@ impl TypeChecker {
         name: &Node, /*EntityName | JSDocMemberName*/
         container: Option<TContainer>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let container = container.map(|container| container.borrow().symbol_wrapper());
+        if is_entity_name(name) {
+            let meaning = SymbolFlags::Type | SymbolFlags::Namespace | SymbolFlags::Value;
+            let mut symbol = self.resolve_entity_name(
+                name,
+                meaning,
+                Some(false),
+                Some(true),
+                get_host_signature_from_jsdoc(name),
+            );
+            if symbol.is_none() && is_identifier(name) {
+                if let Some(container) = container.as_ref() {
+                    symbol = self.get_merged_symbol(self.get_symbol(
+                        &(*self.get_exports_of_symbol(container)).borrow(),
+                        &name.as_identifier().escaped_text,
+                        meaning,
+                    ));
+                }
+            }
+            if symbol.is_some() {
+                return symbol;
+            }
+        }
+        let left = if is_identifier(name) {
+            container.clone()
+        } else {
+            self.resolve_jsdoc_member_name(
+                &name.as_has_left_and_right().left(),
+                Option::<&Symbol>::None,
+            )
+        };
+        let right = if is_identifier(name) {
+            name.as_identifier().escaped_text.clone()
+        } else {
+            name.as_has_left_and_right()
+                .right()
+                .as_identifier()
+                .escaped_text
+                .clone()
+        };
+        if let Some(left) = left.as_ref() {
+            let proto = if left.flags().intersects(SymbolFlags::Value) {
+                self.get_property_of_type_(
+                    &self.get_type_of_symbol(left),
+                    &__String::new("prototype".to_owned()),
+                    None,
+                )
+            } else {
+                None
+            };
+            let t = if let Some(proto) = proto.as_ref() {
+                self.get_type_of_symbol(proto)
+            } else {
+                self.get_declared_type_of_symbol(left)
+            };
+            return self.get_property_of_type_(&t, &right, None);
+        }
+        None
     }
 
     pub(super) fn get_symbol_at_location_(
@@ -632,7 +695,252 @@ impl TypeChecker {
         node: &Node,
         ignore_errors: Option<bool>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if node.kind() == SyntaxKind::SourceFile {
+            return if is_external_module(node) {
+                self.get_merged_symbol(node.maybe_symbol())
+            } else {
+                None
+            };
+        }
+        let ref parent = node.parent();
+        let ref grand_parent = parent.parent();
+
+        if node.flags().intersects(NodeFlags::InWithStatement) {
+            return None;
+        }
+
+        if is_declaration_name_or_import_property_name(node) {
+            let parent_symbol = self.get_symbol_of_node(parent);
+            return if is_import_or_export_specifier(&node.parent())
+                && matches!(
+                    node.parent().as_has_property_name().maybe_property_name().as_ref(),
+                    Some(node_parent_property_name) if ptr::eq(
+                        &**node_parent_property_name,
+                        node
+                    )
+                ) {
+                self.get_immediate_aliased_symbol(&parent_symbol.unwrap())
+            } else {
+                parent_symbol
+            };
+        } else if is_literal_computed_property_declaration_name(node) {
+            return self.get_symbol_of_node(&parent.parent());
+        }
+
+        if node.kind() == SyntaxKind::Identifier {
+            if self.is_in_right_side_of_import_or_export_assignment(node) {
+                return self.get_symbol_of_name_or_property_access_expression(node);
+            } else if parent.kind() == SyntaxKind::BindingElement
+                && grand_parent.kind() == SyntaxKind::ObjectBindingPattern
+                && matches!(
+                    parent.as_binding_element().property_name.as_ref(),
+                    Some(parent_property_name) if ptr::eq(
+                        node,
+                        &**parent_property_name
+                    )
+                )
+            {
+                let ref type_of_pattern = self.get_type_of_node(grand_parent);
+                let property_declaration = self.get_property_of_type_(
+                    type_of_pattern,
+                    &node.as_identifier().escaped_text,
+                    None,
+                );
+
+                if property_declaration.is_some() {
+                    return property_declaration;
+                }
+            } else if is_meta_property(parent) {
+                let ref parent_type = self.get_type_of_node(parent);
+                let property_declaration = self.get_property_of_type_(
+                    parent_type,
+                    &node.as_identifier().escaped_text,
+                    None,
+                );
+                if property_declaration.is_some() {
+                    return property_declaration;
+                }
+                if parent.as_meta_property().keyword_token == SyntaxKind::NewKeyword {
+                    return self.check_new_target_meta_property(parent).maybe_symbol();
+                }
+            }
+        }
+
+        match node.kind() {
+            SyntaxKind::Identifier
+            | SyntaxKind::PrivateIdentifier
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::QualifiedName => {
+                self.get_symbol_of_name_or_property_access_expression(node)
+            }
+            SyntaxKind::ThisKeyword => {
+                let ref container = get_this_container(node, false);
+                if is_function_like(Some(&**container)) {
+                    let sig = self.get_signature_from_declaration_(container);
+                    let sig_this_parameter = sig.maybe_this_parameter().clone();
+                    if sig_this_parameter.is_some() {
+                        return sig_this_parameter;
+                    }
+                }
+                if is_in_expression_context(node) {
+                    return self.check_expression(node, None, None).maybe_symbol();
+                }
+
+                self.get_type_from_this_type_node(node).maybe_symbol()
+            }
+
+            SyntaxKind::ThisType => self.get_type_from_this_type_node(node).maybe_symbol(),
+
+            SyntaxKind::SuperKeyword => self.check_expression(node, None, None).maybe_symbol(),
+
+            SyntaxKind::ConstructorKeyword => {
+                let constructor_declaration = node.maybe_parent();
+                if let Some(constructor_declaration) =
+                    constructor_declaration
+                        .as_ref()
+                        .filter(|constructor_declaration| {
+                            constructor_declaration.kind() == SyntaxKind::Constructor
+                        })
+                {
+                    return constructor_declaration.parent().maybe_symbol();
+                }
+                None
+            }
+
+            SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => {
+                if is_external_module_import_equals_declaration(&node.parent().parent())
+                    && ptr::eq(
+                        &*get_external_module_import_equals_declaration_expression(
+                            &node.parent().parent(),
+                        ),
+                        node,
+                    )
+                    || matches!(
+                        node.parent().kind(),
+                        SyntaxKind::ImportDeclaration | SyntaxKind::ExportDeclaration
+                    ) && matches!(
+                        node.parent().as_has_module_specifier().maybe_module_specifier().as_ref(),
+                        Some(node_parent_module_specifier) if ptr::eq(
+                            &**node_parent_module_specifier,
+                            node,
+                        )
+                    )
+                    || (is_in_js_file(Some(node)) && is_require_call(&node.parent(), false)
+                        || is_import_call(&node.parent()))
+                    || is_literal_type_node(&node.parent())
+                        && is_literal_import_type_node(&node.parent().parent())
+                        && Rc::ptr_eq(
+                            &node.parent().parent().as_import_type_node().argument,
+                            &node.parent(),
+                        )
+                {
+                    return self.resolve_external_module_name_(node, node, ignore_errors);
+                }
+                if is_call_expression(parent)
+                    && is_bindable_object_define_property_call(parent)
+                    && ptr::eq(&*parent.as_call_expression().arguments[1], node)
+                {
+                    return self.get_symbol_of_node(parent);
+                }
+
+                let object_type = if is_element_access_expression(parent) {
+                    let parent_as_element_access_expression = parent.as_element_access_expression();
+                    if ptr::eq(
+                        &*parent_as_element_access_expression.argument_expression,
+                        node,
+                    ) {
+                        Some(self.get_type_of_expression(
+                            &parent_as_element_access_expression.expression,
+                        ))
+                    } else {
+                        None
+                    }
+                } else if is_literal_type_node(parent) && is_indexed_access_type_node(grand_parent)
+                {
+                    Some(self.get_type_from_type_node_(
+                        &grand_parent.as_indexed_access_type_node().object_type,
+                    ))
+                } else {
+                    None
+                };
+                object_type.as_ref().and_then(|object_type| {
+                    self.get_property_of_type_(
+                        object_type,
+                        &escape_leading_underscores(&node.as_literal_like_node().text()),
+                        None,
+                    )
+                })
+            }
+
+            SyntaxKind::NumericLiteral => {
+                let object_type = if is_element_access_expression(parent) {
+                    let parent_as_element_access_expression = parent.as_element_access_expression();
+                    if ptr::eq(
+                        &*parent_as_element_access_expression.argument_expression,
+                        node,
+                    ) {
+                        Some(self.get_type_of_expression(
+                            &parent_as_element_access_expression.expression,
+                        ))
+                    } else {
+                        None
+                    }
+                } else if is_literal_type_node(parent) && is_indexed_access_type_node(grand_parent)
+                {
+                    Some(self.get_type_from_type_node_(
+                        &grand_parent.as_indexed_access_type_node().object_type,
+                    ))
+                } else {
+                    None
+                };
+                object_type.as_ref().and_then(|object_type| {
+                    self.get_property_of_type_(
+                        object_type,
+                        &escape_leading_underscores(&node.as_literal_like_node().text()),
+                        None,
+                    )
+                })
+            }
+
+            SyntaxKind::DefaultKeyword
+            | SyntaxKind::FunctionKeyword
+            | SyntaxKind::EqualsGreaterThanToken
+            | SyntaxKind::ClassKeyword => self.get_symbol_of_node(&node.parent()),
+            SyntaxKind::ImportType => {
+                if is_literal_import_type_node(node) {
+                    self.get_symbol_at_location_(
+                        &node
+                            .as_import_type_node()
+                            .argument
+                            .as_literal_type_node()
+                            .literal,
+                        None,
+                    )
+                } else {
+                    None
+                }
+            }
+
+            SyntaxKind::ExportKeyword => {
+                if is_export_assignment(&node.parent()) {
+                    Some(Debug_.check_defined(node.parent().maybe_symbol(), None))
+                } else {
+                    None
+                }
+            }
+
+            SyntaxKind::ImportKeyword | SyntaxKind::NewKeyword => {
+                if is_meta_property(&node.parent()) {
+                    self.check_meta_property_keyword(&node.parent())
+                        .maybe_symbol()
+                } else {
+                    None
+                }
+            }
+            SyntaxKind::MetaProperty => self.check_expression(node, None, None).maybe_symbol(),
+
+            _ => None,
+        }
     }
 
     pub(super) fn get_index_infos_at_location_(&self, node: &Node) -> Option<Vec<Rc<IndexInfo>>> {

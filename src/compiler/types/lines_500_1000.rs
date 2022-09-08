@@ -6,8 +6,9 @@ use std::rc::{Rc, Weak};
 
 use crate::{
     CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
-    HasChildrenInterface, HasDotDotDotTokenInterface, HasMembersInterface, HasTagNameInterface,
-    InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
+    HasChildrenInterface, HasDotDotDotTokenInterface, HasLeftAndRightInterface,
+    HasMembersInterface, HasModuleSpecifierInterface, HasTagNameInterface, InferenceContext,
+    JsxOpeningLikeElementInterface, SyntheticExpression,
 };
 
 use super::{
@@ -783,6 +784,23 @@ impl Node {
             Node::ImportDeclaration(node) => node,
             Node::ExportDeclaration(node) => node,
             _ => panic!("Expected has assert clause"),
+        }
+    }
+
+    pub fn as_has_left_and_right(&self) -> &dyn HasLeftAndRightInterface {
+        match self {
+            Node::BinaryExpression(node) => node,
+            Node::QualifiedName(node) => node,
+            Node::JSDocMemberName(node) => node,
+            _ => panic!("Expected has left and right"),
+        }
+    }
+
+    pub fn as_has_module_specifier(&self) -> &dyn HasModuleSpecifierInterface {
+        match self {
+            Node::ExportDeclaration(node) => node,
+            Node::ImportDeclaration(node) => node,
+            _ => panic!("Expected has module specifier"),
         }
     }
 

@@ -10,18 +10,18 @@ use crate::{
     get_jsdoc_type_parameter_declarations, get_object_flags, get_source_file_of_node,
     get_span_of_token_at_position, has_abstract_modifier, has_syntactic_modifier, id_text,
     is_accessor, is_binary_expression, is_child_of_node_with_kind, is_class_like,
-    is_computed_property_name, is_declaration, is_function_like, is_in_js_file, is_let,
-    is_literal_type_node, is_omitted_expression, is_prefix_unary_expression, is_private_identifier,
-    is_property_declaration, is_spread_element, is_static, is_string_literal, is_type_literal_node,
-    is_var_const, length, skip_trivia, text_span_end, token_to_string, AllAccessorDeclarations,
-    DiagnosticMessage, Diagnostics, EmitResolver, EmitResolverDebuggable, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface,
-    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags,
-    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, SourceFileLike, StringOrNumber, Symbol,
-    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult,
-    SyntaxKind, Ternary, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReferenceSerializationKind,
+    is_computed_property_name, is_declaration, is_declaration_name, is_function_like,
+    is_identifier, is_in_js_file, is_let, is_literal_type_node, is_omitted_expression,
+    is_prefix_unary_expression, is_private_identifier, is_property_declaration, is_spread_element,
+    is_static, is_string_literal, is_type_literal_node, is_var_const, length, skip_trivia,
+    text_span_end, token_to_string, AllAccessorDeclarations, DiagnosticMessage, Diagnostics,
+    EmitResolver, EmitResolverDebuggable, HasInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface, ModifierFlags,
+    ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
+    SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -1198,6 +1198,13 @@ pub(super) fn is_not_overload(declaration: &Node /*Declaration*/) -> bool {
         .as_function_like_declaration()
         .maybe_body()
         .is_some()
+}
+
+pub(super) fn is_declaration_name_or_import_property_name(name: &Node) -> bool {
+    match name.parent().kind() {
+        SyntaxKind::ImportSpecifier | SyntaxKind::ExportSpecifier => is_identifier(name),
+        _ => is_declaration_name(name),
+    }
 }
 
 pub(super) mod JsxNames {

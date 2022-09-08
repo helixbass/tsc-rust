@@ -6,9 +6,9 @@ use std::rc::Rc;
 
 use super::{
     BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasElementsInterface,
-    HasExpressionInterface, HasIsTypeOnlyInterface, HasTypeInterface, HasTypeParametersInterface,
-    NamedDeclarationInterface, Node, NodeArray, SignatureDeclarationInterface, SyntaxKind,
-    TextRange,
+    HasExpressionInterface, HasIsTypeOnlyInterface, HasLeftAndRightInterface, HasTypeInterface,
+    HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeArray,
+    SignatureDeclarationInterface, SyntaxKind, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -62,6 +62,16 @@ impl ImportDeclaration {
 impl HasAssertClauseInterface for ImportDeclaration {
     fn maybe_assert_clause(&self) -> Option<Rc<Node>> {
         self.assert_clause.clone()
+    }
+}
+
+pub trait HasModuleSpecifierInterface {
+    fn maybe_module_specifier(&self) -> Option<Rc<Node>>;
+}
+
+impl HasModuleSpecifierInterface for ImportDeclaration {
+    fn maybe_module_specifier(&self) -> Option<Rc<Node>> {
+        Some(self.module_specifier.clone())
     }
 }
 
@@ -233,6 +243,12 @@ impl HasIsTypeOnlyInterface for ExportDeclaration {
 impl HasAssertClauseInterface for ExportDeclaration {
     fn maybe_assert_clause(&self) -> Option<Rc<Node>> {
         self.assert_clause.clone()
+    }
+}
+
+impl HasModuleSpecifierInterface for ExportDeclaration {
+    fn maybe_module_specifier(&self) -> Option<Rc<Node>> {
+        self.module_specifier.clone()
     }
 }
 
@@ -597,6 +613,16 @@ impl JSDocMemberName {
             left,
             right,
         }
+    }
+}
+
+impl HasLeftAndRightInterface for JSDocMemberName {
+    fn left(&self) -> Rc<Node> {
+        self.left.clone()
+    }
+
+    fn right(&self) -> Rc<Node> {
+        self.right.clone()
     }
 }
 
