@@ -22,8 +22,15 @@ use crate::{
 };
 
 impl TypeChecker {
+    pub(super) fn get_global_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+        self.throw_if_non_diagnostics_producing();
+        self.diagnostics().get_global_diagnostics()
+    }
+
     pub(super) fn throw_if_non_diagnostics_producing(&self) {
-        unimplemented!()
+        if !self.produce_diagnostics {
+            unimplemented!()
+        }
     }
 
     pub(super) fn get_symbols_in_scope_(
