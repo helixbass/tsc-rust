@@ -691,9 +691,9 @@ impl TypeChecker {
         }
     }
 
-    pub fn get_diagnostics(
+    pub fn get_diagnostics<TSourceFile: Borrow<Node>>(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Option<TSourceFile /*SourceFile*/>,
         ct: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic>> {
         // try {
@@ -706,17 +706,47 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_diagnostics_worker(
+    pub(super) fn get_diagnostics_worker<TSourceFile: Borrow<Node>>(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Option<TSourceFile /*SourceFile*/>,
     ) -> Vec<Rc<Diagnostic>> {
-        self.check_source_file(source_file);
+        self.throw_if_non_diagnostics_producing();
+        if let Some(source_file) = source_file {
+            let source_file = source_file.borrow();
+            let previous_global_diagnostics = self.diagnostics().get_global_diagnostics();
+            let previous_global_diagnostics_size = previous_global_diagnostics.len();
 
-        let semantic_diagnostics = self
-            .diagnostics()
-            .get_diagnostics(Some(&source_file.as_source_file().file_name()));
+            self.check_source_file(source_file);
 
-        semantic_diagnostics
+            let semantic_diagnostics = self
+                .diagnostics()
+                .get_diagnostics(Some(&source_file.as_source_file().file_name()));
+            let current_global_diagnostics = self.diagnostics().get_global_diagnostics();
+            if current_global_diagnostics.len() != previous_global_diagnostics.len() {
+                // const deferredGlobalDiagnostics = relativeComplement(previousGlobalDiagnostics, currentGlobalDiagnostics, compareDiagnostics);
+                // this looks to me (vs the Typescript version above) like we only append to these global diagnostics so should just be the slice at the end?
+                let deferred_global_diagnostics =
+                    current_global_diagnostics[previous_global_diagnostics.len()..].to_owned();
+                return concatenate(deferred_global_diagnostics, semantic_diagnostics);
+            }
+            // else if previousGlobalDiagnosticsSize === 0 && currentGlobalDiagnostics.length > 0 {
+            //     return concatenate(currentGlobalDiagnostics, semanticDiagnostics);
+            // }
+            return semantic_diagnostics;
+        }
+
+        for_each(
+            self.host.get_source_files(),
+            |source_file: &Rc<Node>, _| -> Option<()> {
+                self.check_source_file(source_file);
+                None
+            },
+        );
+        self.diagnostics().get_diagnostics(None)
+    }
+
+    pub(super) fn throw_if_non_diagnostics_producing(&self) {
+        unimplemented!()
     }
 
     pub(super) fn get_symbols_in_scope_(

@@ -760,7 +760,7 @@ impl Program {
 
         let include_bind_and_check_diagnostics = true;
         let check_diagnostics = if include_bind_and_check_diagnostics {
-            type_checker.get_diagnostics(source_file, cancellation_token)
+            type_checker.get_diagnostics(Some(source_file), cancellation_token)
         } else {
             vec![]
         };

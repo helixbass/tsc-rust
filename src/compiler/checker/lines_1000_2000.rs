@@ -246,7 +246,7 @@ impl TypeChecker {
         source_file: &Node, /*SourceFile*/
         cancellation_token: Rc<dyn CancellationTokenDebuggable>,
     ) -> Rc<dyn EmitResolverDebuggable> {
-        self.get_diagnostics(source_file, Some(cancellation_token));
+        self.get_diagnostics(Some(source_file), Some(cancellation_token));
         self.emit_resolver()
     }
 
