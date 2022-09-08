@@ -6,36 +6,19 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{is_declaration_name_or_import_property_name, CheckMode, EmitResolverCreateResolver};
+use super::EmitResolverCreateResolver;
 use crate::{
-    add_related_info, concatenate, create_diagnostic_for_node, create_symbol_table,
-    escape_leading_underscores, external_helpers_module_name_text, find_ancestor,
-    get_all_accessor_declarations, get_ancestor, get_assignment_declaration_kind,
-    get_combined_local_and_export_symbol_flags, get_containing_class, get_declaration_of_kind,
-    get_external_module_import_equals_declaration_expression, get_external_module_name,
-    get_host_signature_from_jsdoc, get_name_of_declaration, get_parameter_symbol_from_jsdoc,
-    get_source_file_of_node, get_this_container, get_type_parameter_from_js_doc,
-    has_syntactic_modifier, introduces_arguments_exotic_object, is_ambient_module,
-    is_bindable_object_define_property_call, is_binding_pattern, is_call_expression, is_class_like,
-    is_constructor_declaration, is_declaration_name, is_effective_external_module,
-    is_element_access_expression, is_entity_name, is_entity_name_expression, is_export_assignment,
-    is_expression_node, is_expression_with_type_arguments_in_class_extends_clause,
-    is_external_module, is_external_module_import_equals_declaration, is_function_like,
-    is_function_like_declaration, is_global_scope_augmentation, is_identifier, is_import_call,
-    is_import_or_export_specifier, is_in_expression_context, is_in_js_file,
-    is_indexed_access_type_node, is_interface_declaration, is_jsdoc_link_like,
-    is_jsdoc_member_name, is_jsdoc_name_reference, is_jsx_tag_name,
-    is_literal_computed_property_declaration_name, is_literal_import_type_node,
-    is_literal_type_node, is_meta_property, is_named_declaration, is_private_identifier,
-    is_private_identifier_class_element_declaration, is_property_declaration, is_qualified_name,
-    is_require_call, is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name,
-    is_static, is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_missing,
-    node_is_present, some, token_to_string, try_cast, AssignmentDeclarationKind, Debug_,
-    Diagnostics, ExternalEmitHelpers, FindAncestorCallbackReturn, FunctionLikeDeclarationInterface,
-    InternalSymbolName, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags, NodeFlags,
-    ObjectFlags, Signature, SymbolInterface, SymbolTable, SyntaxKind, TypeInterface, __String,
-    bind_source_file, is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable,
-    IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
+    external_helpers_module_name_text, get_all_accessor_declarations, get_declaration_of_kind,
+    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
+    is_binding_pattern, is_class_like, is_effective_external_module, is_global_scope_augmentation,
+    is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
+    is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_present, some,
+    token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
+    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
+    NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String, bind_source_file,
+    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
+    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
