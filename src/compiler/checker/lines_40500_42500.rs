@@ -6,25 +6,18 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{EmitResolverCreateResolver, UnusedKind};
+use super::EmitResolverCreateResolver;
 use crate::{
-    add_related_info, clear, concatenate, contains_parse_error, create_diagnostic_for_node,
-    escape_leading_underscores, external_helpers_module_name_text, for_each_child,
-    get_all_accessor_declarations, get_declaration_of_kind, get_external_module_name,
-    get_host_signature_from_jsdoc, get_node_id, get_parameter_symbol_from_jsdoc,
-    get_source_file_of_node, has_syntactic_modifier, is_access_expression, is_ambient_module,
-    is_binding_pattern, is_class_like, is_effective_external_module, is_exports_identifier,
-    is_external_module, is_global_scope_augmentation, is_in_js_file, is_jsdoc_callback_tag,
-    is_jsdoc_function_type, is_jsdoc_parameter_tag, is_jsdoc_type_expression,
-    is_module_exports_access_expression, is_named_declaration, is_parameter,
-    is_private_identifier_class_element_declaration, is_property_declaration, is_rest_parameter,
-    is_string_literal, last, last_or_undefined, maybe_for_each, modifier_to_flag,
-    node_can_be_decorated, node_is_present, skip_type_checking, some, token_to_string, try_cast,
-    Debug_, Diagnostics, ExternalEmitHelpers, FunctionLikeDeclarationInterface,
-    ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface, NodeArray, NodeCheckFlags,
-    NodeFlags, ObjectFlags, Signature, SignatureDeclarationInterface, SymbolInterface, SyntaxKind,
-    __String, bind_source_file, for_each, is_external_or_common_js_module,
-    CancellationTokenDebuggable, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
+    add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
+    external_helpers_module_name_text, get_all_accessor_declarations, get_declaration_of_kind,
+    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
+    is_binding_pattern, is_class_like, is_effective_external_module, is_global_scope_augmentation,
+    is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
+    is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_present, some,
+    token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
+    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
+    NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String, bind_source_file,
+    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
     NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
