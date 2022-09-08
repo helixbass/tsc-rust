@@ -221,6 +221,10 @@ pub fn get_declaration_modifier_flags_from_symbol(
     unimplemented!()
 }
 
+pub fn get_combined_local_and_export_symbol_flags(symbol: &Symbol) -> SymbolFlags {
+    unimplemented!()
+}
+
 pub fn is_write_only_access(node: &Node) -> bool {
     access_kind(node) == AccessKind::Write
 }

@@ -8,15 +8,20 @@ use std::rc::Rc;
 
 use super::EmitResolverCreateResolver;
 use crate::{
-    add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
-    external_helpers_module_name_text, get_all_accessor_declarations, get_declaration_of_kind,
-    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
-    is_binding_pattern, is_class_like, is_effective_external_module, is_global_scope_augmentation,
-    is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
+    add_related_info, concatenate, create_diagnostic_for_node, create_symbol_table,
+    escape_leading_underscores, external_helpers_module_name_text, find_ancestor,
+    get_all_accessor_declarations, get_combined_local_and_export_symbol_flags,
+    get_containing_class, get_declaration_of_kind, get_external_module_name,
+    get_name_of_declaration, get_source_file_of_node, has_syntactic_modifier,
+    introduces_arguments_exotic_object, is_ambient_module, is_binding_pattern, is_class_like,
+    is_constructor_declaration, is_effective_external_module, is_external_module,
+    is_function_like_declaration, is_global_scope_augmentation, is_named_declaration,
+    is_private_identifier_class_element_declaration, is_property_declaration, is_static,
     is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_present, some,
     token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
-    NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String, bind_source_file,
+    FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, InternalSymbolName,
+    ModifierFlags, NamedDeclarationInterface, NodeCheckFlags, NodeFlags, ObjectFlags, Signature,
+    SymbolInterface, SymbolTable, SyntaxKind, __String, bind_source_file,
     is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
     NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
@@ -35,30 +40,263 @@ impl TypeChecker {
 
     pub(super) fn get_symbols_in_scope_(
         &self,
-        location_in: &Node,
+        location: &Node,
         meaning: SymbolFlags,
     ) -> Vec<Rc<Symbol>> {
-        unimplemented!()
+        if location.flags().intersects(NodeFlags::InWithStatement) {
+            return vec![];
+        }
+
+        let mut symbols = create_symbol_table(None);
+        let mut is_static_symbol = false;
+
+        let mut location = Some(location.node_wrapper());
+        self.populate_symbols(&mut location, meaning, &mut symbols, &mut is_static_symbol);
+
+        symbols.remove(&InternalSymbolName::This());
+        self.symbols_to_array(&symbols)
+    }
+
+    pub(super) fn populate_symbols(
+        &self,
+        location: &mut Option<Rc<Node>>,
+        meaning: SymbolFlags,
+        symbols: &mut SymbolTable,
+        is_static_symbol: &mut bool,
+    ) {
+        while let Some(location_present) = location.as_ref() {
+            if let Some(location_locals) = location_present.maybe_locals().clone() {
+                if !self.is_global_source_file(location_present) {
+                    self.copy_symbols(symbols, &(*location_locals).borrow(), meaning);
+                }
+            }
+
+            match location_present.kind() {
+                SyntaxKind::SourceFile => {
+                    if is_external_module(location_present) {
+                        self.copy_locally_visible_export_symbols(
+                            symbols,
+                            &(*self.get_symbol_of_node(location_present).unwrap().exports())
+                                .borrow(),
+                            meaning & SymbolFlags::ModuleMember,
+                        );
+                    }
+                }
+                SyntaxKind::ModuleDeclaration => {
+                    self.copy_locally_visible_export_symbols(
+                        symbols,
+                        &(*self.get_symbol_of_node(location_present).unwrap().exports()).borrow(),
+                        meaning & SymbolFlags::ModuleMember,
+                    );
+                }
+                SyntaxKind::EnumDeclaration => {
+                    self.copy_symbols(
+                        symbols,
+                        &(*self.get_symbol_of_node(location_present).unwrap().exports()).borrow(),
+                        meaning & SymbolFlags::EnumMember,
+                    );
+                }
+                SyntaxKind::ClassExpression => {
+                    let class_name = location_present.as_class_expression().maybe_name();
+                    if let Some(class_name) = class_name.as_ref() {
+                        self.copy_symbol(symbols, &location_present.symbol(), meaning);
+                    }
+
+                    if !*is_static_symbol {
+                        self.copy_symbols(
+                            symbols,
+                            &(*self.get_members_of_symbol(
+                                &self.get_symbol_of_node(location_present).unwrap(),
+                            ))
+                            .borrow(),
+                            meaning & SymbolFlags::Type,
+                        );
+                    }
+                }
+                SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration => {
+                    if !*is_static_symbol {
+                        self.copy_symbols(
+                            symbols,
+                            &(*self.get_members_of_symbol(
+                                &self.get_symbol_of_node(location_present).unwrap(),
+                            ))
+                            .borrow(),
+                            meaning & SymbolFlags::Type,
+                        );
+                    }
+                }
+                SyntaxKind::FunctionExpression => {
+                    let func_name = location_present.as_function_expression().maybe_name();
+                    if func_name.is_some() {
+                        self.copy_symbol(symbols, &location_present.symbol(), meaning);
+                    }
+                }
+                _ => (),
+            }
+
+            if introduces_arguments_exotic_object(location_present) {
+                self.copy_symbol(symbols, &self.arguments_symbol(), meaning);
+            }
+
+            *is_static_symbol = is_static(location_present);
+            *location = location_present.maybe_parent();
+        }
+
+        self.copy_symbols(symbols, &self.globals(), meaning);
+    }
+
+    pub(super) fn copy_symbol(
+        &self,
+        symbols: &mut SymbolTable,
+        symbol: &Symbol,
+        meaning: SymbolFlags,
+    ) {
+        if get_combined_local_and_export_symbol_flags(symbol).intersects(meaning) {
+            let id = symbol.escaped_name();
+            if !symbols.contains_key(id) {
+                symbols.insert(id.clone(), symbol.symbol_wrapper());
+            }
+        }
+    }
+
+    pub(super) fn copy_symbols(
+        &self,
+        symbols: &mut SymbolTable,
+        source: &SymbolTable,
+        meaning: SymbolFlags,
+    ) {
+        if meaning != SymbolFlags::None {
+            for symbol in source.values() {
+                self.copy_symbol(symbols, symbol, meaning);
+            }
+        }
+    }
+
+    pub(super) fn copy_locally_visible_export_symbols(
+        &self,
+        symbols: &mut SymbolTable,
+        source: &SymbolTable,
+        meaning: SymbolFlags,
+    ) {
+        if meaning != SymbolFlags::None {
+            for symbol in source.values() {
+                if get_declaration_of_kind(symbol, SyntaxKind::ExportSpecifier).is_none()
+                    && get_declaration_of_kind(symbol, SyntaxKind::NamespaceExport).is_none()
+                {
+                    self.copy_symbol(symbols, symbol, meaning);
+                }
+            }
+        }
+    }
+
+    pub(super) fn is_type_declaration_name(&self, name: &Node) -> bool {
+        name.kind() == SyntaxKind::Identifier
+            && self.is_type_declaration(&name.parent())
+            && matches!(
+                get_name_of_declaration(name.maybe_parent()).as_ref(),
+                Some(name_of_declaration) if ptr::eq(
+                    &**name_of_declaration,
+                    name
+                )
+            )
     }
 
     pub(super) fn is_type_declaration(&self, node: &Node) -> bool {
-        unimplemented!()
+        match node.kind() {
+            SyntaxKind::TypeParameter
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocEnumTag => true,
+            SyntaxKind::ImportClause => node.as_import_clause().is_type_only,
+            SyntaxKind::ImportSpecifier | SyntaxKind::ExportSpecifier => {
+                node.parent().parent().as_has_is_type_only().is_type_only()
+            }
+            _ => false,
+        }
     }
 
     pub(super) fn is_type_reference_identifier(&self, node: &Node /*EntityName*/) -> bool {
-        unimplemented!()
+        let mut node = node.node_wrapper();
+        while node.parent().kind() == SyntaxKind::QualifiedName {
+            node = node.parent();
+        }
+
+        node.parent().kind() == SyntaxKind::TypeReference
+    }
+
+    pub(super) fn is_heritage_clause_element_identifier(&self, node: &Node) -> bool {
+        let mut node = node.node_wrapper();
+        while node.parent().kind() == SyntaxKind::PropertyAccessExpression {
+            node = node.parent();
+        }
+
+        node.parent().kind() == SyntaxKind::ExpressionWithTypeArguments
     }
 
     pub(super) fn for_each_enclosing_class<TReturn, TCallback: FnMut(&Node) -> Option<TReturn>>(
         &self,
         node: &Node,
-        callback: TCallback,
+        mut callback: TCallback,
     ) -> Option<TReturn> {
-        unimplemented!()
+        let mut result: Option<TReturn> = None;
+
+        let mut node = Some(node.node_wrapper());
+        loop {
+            node = get_containing_class(&node.as_ref().unwrap());
+            if node.is_none() {
+                break;
+            }
+            let node = node.as_ref().unwrap();
+            result = callback(node);
+            if result.is_some() {
+                break;
+            }
+        }
+
+        result
+    }
+
+    pub(super) fn for_each_enclosing_class_bool<TCallback: FnMut(&Node) -> bool>(
+        &self,
+        node: &Node,
+        mut callback: TCallback,
+    ) -> bool {
+        let mut result = false;
+
+        let mut node = Some(node.node_wrapper());
+        loop {
+            node = get_containing_class(&node.as_ref().unwrap());
+            if node.is_none() {
+                break;
+            }
+            let node = node.as_ref().unwrap();
+            result = callback(node);
+            if result {
+                break;
+            }
+        }
+
+        result
     }
 
     pub(super) fn is_node_used_during_class_initialization(&self, node: &Node) -> bool {
-        unimplemented!()
+        find_ancestor(Some(node), |element| {
+            if is_constructor_declaration(element)
+                && node_is_present(element.as_constructor_declaration().maybe_body())
+                || is_property_declaration(element)
+            {
+                return true.into();
+            } else if is_class_like(element) || is_function_like_declaration(element) {
+                return FindAncestorCallbackReturn::Quit;
+            }
+
+            false.into()
+        })
+        .is_some()
     }
 
     pub(super) fn is_node_within_class(
@@ -66,7 +304,7 @@ impl TypeChecker {
         node: &Node,
         class_declaration: &Node, /*ClassLikeDeclaration*/
     ) -> bool {
-        unimplemented!()
+        self.for_each_enclosing_class_bool(node, |n| ptr::eq(n, class_declaration))
     }
 
     pub(super) fn is_in_right_side_of_import_or_export_assignment(
