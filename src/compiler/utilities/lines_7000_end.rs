@@ -13,7 +13,8 @@ pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>
     options: &CompilerOptions,
     is_source_of_project_reference_redirect: TIsSourceOfProjectReferenceRedirect,
 ) -> bool {
-    unimplemented!()
+    // unimplemented!()
+    false
 }
 
 pub fn parse_pseudo_big_int(string_value: &str) -> String {

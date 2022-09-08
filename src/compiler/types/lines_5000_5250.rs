@@ -16,8 +16,8 @@ use super::{
 };
 use crate::{
     BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
-    InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, ObjectFlags,
-    Pattern, StringOrNumber, WeakSelf,
+    InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, NodeId,
+    ObjectFlags, Pattern, StringOrNumber, WeakSelf,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -251,6 +251,7 @@ pub struct NodeLinks {
     pub jsx_namespace: Option<Option<Rc<Symbol>>>,
     pub jsx_implicit_import_container: Option<Option<Rc<Symbol>>>,
     pub context_free_type: Option<Rc<Type>>,
+    pub deferred_nodes: Option<HashMap<NodeId, Rc<Node>>>,
     pub captured_block_scope_bindings: Option<Vec<Rc<Symbol>>>,
     pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub is_exhaustive: Option<bool>,
@@ -279,6 +280,7 @@ impl NodeLinks {
             jsx_namespace: None,
             jsx_implicit_import_container: None,
             context_free_type: None,
+            deferred_nodes: None,
             captured_block_scope_bindings: None,
             outer_type_parameters: None,
             is_exhaustive: None,

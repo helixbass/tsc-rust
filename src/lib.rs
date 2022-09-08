@@ -32,7 +32,7 @@ pub use compiler::command_line_parser::{
 };
 pub use compiler::core::{
     add_range, append, append_if_unique_rc, array_of, array_to_map, arrays_equal, binary_search,
-    binary_search_copy_key, cartesian_product, cast, cast_present,
+    binary_search_copy_key, cartesian_product, cast, cast_present, clear,
     compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, contains_rc,
     count_where, create_get_canonical_file_name, create_multi_map, deduplicate_rc, ends_with,

@@ -1357,6 +1357,10 @@ impl Node {
     pub fn as_big_int_literal(&self) -> &BigIntLiteral {
         enum_unwrapped!(self, [Node, BigIntLiteral])
     }
+
+    pub fn as_jsdoc_callback_tag(&self) -> &JSDocCallbackTag {
+        enum_unwrapped!(self, [Node, JSDocCallbackTag])
+    }
 }
 
 #[derive(Debug)]

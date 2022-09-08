@@ -3254,6 +3254,14 @@ impl TypeChecker {
         self.flow_node_post_super.borrow_mut()
     }
 
+    pub(super) fn potential_this_collisions(&self) -> RefMut<Vec<Rc<Node>>> {
+        self.potential_this_collisions.borrow_mut()
+    }
+
+    pub(super) fn potential_new_target_collisions(&self) -> RefMut<Vec<Rc<Node>>> {
+        self.potential_new_target_collisions.borrow_mut()
+    }
+
     pub(super) fn potential_weak_map_set_collisions(&self) -> RefMut<Vec<Rc<Node>>> {
         self.potential_weak_map_set_collisions.borrow_mut()
     }

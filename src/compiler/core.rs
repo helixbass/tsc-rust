@@ -243,6 +243,10 @@ pub fn filter_mutate<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
         .collect();
 }
 
+pub fn clear<TItem>(array: &mut Vec<TItem>) {
+    array.clear();
+}
+
 pub fn map<
     TCollection: IntoIterator,
     TReturn,

@@ -8,20 +8,24 @@ use std::rc::Rc;
 
 use super::{EmitResolverCreateResolver, UnusedKind};
 use crate::{
-    add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
-    external_helpers_module_name_text, for_each_child, get_all_accessor_declarations,
-    get_declaration_of_kind, get_external_module_name, get_source_file_of_node,
-    has_syntactic_modifier, is_access_expression, is_ambient_module, is_binding_pattern,
-    is_class_like, is_effective_external_module, is_exports_identifier,
-    is_global_scope_augmentation, is_in_js_file, is_module_exports_access_expression,
-    is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
-    is_string_literal, maybe_for_each, modifier_to_flag, node_can_be_decorated, node_is_present,
-    some, token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeArray,
-    NodeCheckFlags, NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String,
-    bind_source_file, for_each, is_external_or_common_js_module, CancellationTokenDebuggable,
-    Diagnostic, EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol,
-    SymbolFlags, Type, TypeChecker,
+    add_related_info, clear, concatenate, contains_parse_error, create_diagnostic_for_node,
+    escape_leading_underscores, external_helpers_module_name_text, for_each_child,
+    get_all_accessor_declarations, get_declaration_of_kind, get_external_module_name,
+    get_host_signature_from_jsdoc, get_node_id, get_parameter_symbol_from_jsdoc,
+    get_source_file_of_node, has_syntactic_modifier, is_access_expression, is_ambient_module,
+    is_binding_pattern, is_class_like, is_effective_external_module, is_exports_identifier,
+    is_external_module, is_global_scope_augmentation, is_in_js_file, is_jsdoc_callback_tag,
+    is_jsdoc_function_type, is_jsdoc_parameter_tag, is_jsdoc_type_expression,
+    is_module_exports_access_expression, is_named_declaration, is_parameter,
+    is_private_identifier_class_element_declaration, is_property_declaration, is_rest_parameter,
+    is_string_literal, last, last_or_undefined, maybe_for_each, modifier_to_flag,
+    node_can_be_decorated, node_is_present, skip_type_checking, some, token_to_string, try_cast,
+    Debug_, Diagnostics, ExternalEmitHelpers, FunctionLikeDeclarationInterface,
+    ImportsNotUsedAsValues, ModifierFlags, NamedDeclarationInterface, NodeArray, NodeCheckFlags,
+    NodeFlags, ObjectFlags, Signature, SignatureDeclarationInterface, SymbolInterface, SyntaxKind,
+    __String, bind_source_file, for_each, is_external_or_common_js_module,
+    CancellationTokenDebuggable, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
+    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -325,45 +329,365 @@ impl TypeChecker {
     }
 
     pub(super) fn check_jsdoc_type_is_in_js_file(&self, node: &Node) {
-        unimplemented!()
+        if !is_in_js_file(Some(node)) {
+            self.grammar_error_on_node(
+                node,
+                &Diagnostics::JSDoc_types_can_only_be_used_inside_documentation_comments,
+                None,
+            );
+        }
     }
 
     pub(super) fn check_jsdoc_variadic_type(&self, node: &Node /*JSDocVariadicType*/) {
-        unimplemented!()
+        self.check_jsdoc_type_is_in_js_file(node);
+        let node_as_base_jsdoc_unary_type = node.as_base_jsdoc_unary_type();
+        self.check_source_element(node_as_base_jsdoc_unary_type.type_.as_deref());
+
+        let ref parent = node.parent();
+        if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
+            if !Rc::ptr_eq(
+                last(parent.parent().as_jsdoc_function_type().parameters()),
+                parent,
+            ) {
+                self.error(
+                    Some(node),
+                    &Diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
+                    None,
+                );
+            }
+            return;
+        }
+
+        if !is_jsdoc_type_expression(parent) {
+            self.error(
+                Some(node),
+                &Diagnostics::JSDoc_may_only_appear_in_the_last_parameter_of_a_signature,
+                None,
+            );
+        }
+
+        let ref param_tag = node.parent().parent();
+        if !is_jsdoc_parameter_tag(param_tag) {
+            self.error(
+                Some(node),
+                &Diagnostics::JSDoc_may_only_appear_in_the_last_parameter_of_a_signature,
+                None,
+            );
+            return;
+        }
+
+        let param = get_parameter_symbol_from_jsdoc(param_tag);
+        if param.is_none() {
+            return;
+        }
+        let param = param.as_ref().unwrap();
+
+        let host = get_host_signature_from_jsdoc(param_tag);
+        if match host.as_ref() {
+            None => true,
+            Some(host) => !matches!(
+                last(host.as_signature_declaration().parameters()).maybe_symbol().as_ref(),
+                Some(symbol) if Rc::ptr_eq(
+                    symbol,
+                    param
+                )
+            ),
+        } {
+            self.error(
+                Some(node),
+                &Diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
+                None,
+            );
+        }
     }
 
     pub(super) fn get_type_from_jsdoc_variadic_type(
         &self,
         node: &Node, /*JSDocVariadicType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let ref type_ =
+            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap());
+        let ref parent = node.parent();
+        let ref param_tag = node.parent().parent();
+        if is_jsdoc_type_expression(&node.parent()) && is_jsdoc_parameter_tag(param_tag) {
+            let host = get_host_signature_from_jsdoc(param_tag);
+            let is_callback_tag = is_jsdoc_callback_tag(&param_tag.parent().parent());
+            if host.is_some() || is_callback_tag {
+                let last_param_declaration = if is_callback_tag {
+                    last_or_undefined(
+                        &*param_tag
+                            .parent()
+                            .parent()
+                            .as_jsdoc_callback_tag()
+                            .type_expression
+                            .as_jsdoc_signature()
+                            .parameters,
+                    )
+                    .cloned()
+                } else {
+                    last_or_undefined(
+                        &**host
+                            .as_ref()
+                            .unwrap()
+                            .as_signature_declaration()
+                            .parameters(),
+                    )
+                    .cloned()
+                };
+                let symbol = get_parameter_symbol_from_jsdoc(param_tag);
+                if match last_param_declaration.as_ref() {
+                    None => true,
+                    Some(last_param_declaration) => {
+                        matches!(
+                            symbol.as_ref(),
+                            Some(symbol) if matches!(
+                                last_param_declaration.maybe_symbol().as_ref(),
+                                Some(last_param_declaration_symbol) if Rc::ptr_eq(
+                                    last_param_declaration_symbol,
+                                    symbol
+                                )
+                            )
+                        ) && is_rest_parameter(last_param_declaration)
+                    }
+                } {
+                    return self.create_array_type(type_, None);
+                }
+            }
+        }
+        if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
+            return self.create_array_type(type_, None);
+        }
+        self.add_optionality(type_, None, None)
     }
 
     pub(super) fn check_node_deferred(&self, node: &Node) {
-        unimplemented!()
+        let ref enclosing_file = get_source_file_of_node(Some(node)).unwrap();
+        let links = self.get_node_links(enclosing_file);
+        if !(*links)
+            .borrow()
+            .flags
+            .intersects(NodeCheckFlags::TypeChecked)
+        {
+            let mut links = links.borrow_mut();
+            if links.deferred_nodes.is_none() {
+                links.deferred_nodes = Some(HashMap::new());
+            }
+            let id = get_node_id(node);
+            links
+                .deferred_nodes
+                .as_mut()
+                .unwrap()
+                .insert(id, node.node_wrapper());
+        }
     }
 
-    pub(super) fn check_source_file(&self, source_file: &Node /*SourceFile*/) {
-        self.check_source_file_worker(source_file)
+    pub(super) fn check_deferred_nodes(&self, context: &Node /*SourceFile*/) {
+        let links = self.get_node_links(context);
+        let links_deferred_nodes = (*links)
+            .borrow()
+            .deferred_nodes
+            .as_ref()
+            .map(|links_deferred_nodes| links_deferred_nodes.values().cloned().collect::<Vec<_>>());
+        if let Some(links_deferred_nodes) = links_deferred_nodes.as_ref() {
+            for links_deferred_node in links_deferred_nodes {
+                self.check_deferred_node(links_deferred_node);
+            }
+        }
+    }
+
+    pub(super) fn check_deferred_node(&self, node: &Node) {
+        // tracing?.push(tracing.Phase.Check, "checkDeferredNode", { kind: node.kind, pos: node.pos, end: node.end });
+        let save_current_node = self.maybe_current_node();
+        self.set_current_node(Some(node.node_wrapper()));
+        self.set_instantiation_count(0);
+        match node.kind() {
+            SyntaxKind::CallExpression
+            | SyntaxKind::NewExpression
+            | SyntaxKind::TaggedTemplateExpression
+            | SyntaxKind::Decorator
+            | SyntaxKind::JsxOpeningElement => {
+                self.resolve_untyped_call(node);
+            }
+            SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature => {
+                self.check_function_expression_or_object_literal_method_deferred(node);
+            }
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                self.check_accessor_declaration(node);
+            }
+            SyntaxKind::ClassExpression => {
+                self.check_class_expression_deferred(node);
+            }
+            SyntaxKind::JsxSelfClosingElement => {
+                self.check_jsx_self_closing_element_deferred(node);
+            }
+            SyntaxKind::JsxElement => {
+                self.check_jsx_element_deferred(node);
+            }
+            _ => (),
+        }
+        self.set_current_node(save_current_node);
+        // tracing?.pop();
+    }
+
+    pub(super) fn check_source_file(&self, node: &Node /*SourceFile*/) {
+        // tracing?.push(tracing.Phase.Check, "checkSourceFile", { path: node.path }, /*separateBeginAndEnd*/ true);
+        // performance.mark("beforeCheck");
+        self.check_source_file_worker(node);
+        // performance.mark("afterCheck");
+        // performance.measure("Check", "beforeCheck", "afterCheck");
+        // tracing?.pop();
     }
 
     pub(super) fn unused_is_error(&self, kind: UnusedKind, is_ambient: bool) -> bool {
-        unimplemented!()
+        if is_ambient {
+            return false;
+        }
+        match kind {
+            UnusedKind::Local => self.compiler_options.no_unused_locals == Some(true),
+            UnusedKind::Parameter => self.compiler_options.no_unused_parameters == Some(true),
+            _ => Debug_.assert_never(kind, None),
+        }
     }
 
     pub(super) fn get_potentially_unused_identifiers(
         &self,
         source_file: &Node, /*SourceFile*/
     ) -> Vec<Rc<Node /*PotentiallyUnusedIdentifier*/>> {
-        unimplemented!()
+        self.all_potentially_unused_identifiers()
+            .get(&source_file.as_source_file().path())
+            .cloned()
+            .unwrap_or_else(|| vec![])
     }
 
     pub(super) fn check_source_file_worker(&self, node: &Node /*SourceFile*/) {
-        if true {
-            for_each(&node.as_source_file().statements, |statement, _index| {
+        let links = self.get_node_links(node);
+        if !(*links)
+            .borrow()
+            .flags
+            .intersects(NodeCheckFlags::TypeChecked)
+        {
+            if skip_type_checking(node, &self.compiler_options, |file_name| {
+                self.host.is_source_of_project_reference_redirect(file_name)
+            }) {
+                return;
+            }
+
+            self.check_grammar_source_file(node);
+
+            clear(&mut self.potential_this_collisions());
+            clear(&mut self.potential_new_target_collisions());
+            clear(&mut self.potential_weak_map_set_collisions());
+            clear(&mut self.potential_reflect_collisions());
+
+            let node_as_source_file = node.as_source_file();
+            for_each(&node_as_source_file.statements, |statement, _| {
                 self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
+            self.check_source_element(Some(&*node_as_source_file.end_of_file_token));
+
+            self.check_deferred_nodes(node);
+
+            if is_external_or_common_js_module(node) {
+                self.register_for_unused_identifiers_check(node);
+            }
+
+            if !node_as_source_file.is_declaration_file()
+                && (self.compiler_options.no_unused_locals == Some(true)
+                    || self.compiler_options.no_unused_parameters == Some(true))
+            {
+                self.check_unused_identifiers(
+                    &self.get_potentially_unused_identifiers(node),
+                    |containing_node, kind, diag| {
+                        if !contains_parse_error(containing_node)
+                            && self.unused_is_error(
+                                kind,
+                                containing_node.flags().intersects(NodeFlags::Ambient),
+                            )
+                        {
+                            self.diagnostics().add(diag);
+                        }
+                    },
+                );
+            }
+
+            if self.compiler_options.imports_not_used_as_values
+                == Some(ImportsNotUsedAsValues::Error)
+                && !node_as_source_file.is_declaration_file()
+                && is_external_module(node)
+            {
+                self.check_imports_for_type_only_conversion(node);
+            }
+
+            if is_external_or_common_js_module(node) {
+                self.check_external_module_exports(node);
+            }
+
+            {
+                let mut potential_this_collisions = self.potential_this_collisions();
+                if !potential_this_collisions.is_empty() {
+                    for_each(
+                        &*potential_this_collisions,
+                        |potential_this_collision: &Rc<Node>, _| -> Option<()> {
+                            self.check_if_this_is_captured_in_enclosing_scope(
+                                potential_this_collision,
+                            );
+                            None
+                        },
+                    );
+                    clear(&mut potential_this_collisions);
+                }
+            }
+
+            {
+                let mut potential_new_target_collisions = self.potential_new_target_collisions();
+                if !potential_new_target_collisions.is_empty() {
+                    for_each(
+                        &*potential_new_target_collisions,
+                        |potential_new_target_collision: &Rc<Node>, _| -> Option<()> {
+                            self.check_if_new_target_is_captured_in_enclosing_scope(
+                                potential_new_target_collision,
+                            );
+                            None
+                        },
+                    );
+                    clear(&mut potential_new_target_collisions);
+                }
+            }
+
+            {
+                let mut potential_weak_map_set_collisions =
+                    self.potential_weak_map_set_collisions();
+                if !potential_weak_map_set_collisions.is_empty() {
+                    for_each(
+                        &*potential_weak_map_set_collisions,
+                        |potential_weak_map_set_collision: &Rc<Node>, _| -> Option<()> {
+                            self.check_weak_map_set_collision(potential_weak_map_set_collision);
+                            None
+                        },
+                    );
+                    clear(&mut potential_weak_map_set_collisions);
+                }
+            }
+
+            {
+                let mut potential_reflect_collisions = self.potential_reflect_collisions();
+                if !potential_reflect_collisions.is_empty() {
+                    for_each(
+                        &*potential_reflect_collisions,
+                        |potential_reflect_collision: &Rc<Node>, _| -> Option<()> {
+                            self.check_reflect_collision(potential_reflect_collision);
+                            None
+                        },
+                    );
+                    clear(&mut potential_reflect_collisions);
+                }
+            }
+
+            links.borrow_mut().flags |= NodeCheckFlags::TypeChecked;
         }
     }
 
@@ -372,7 +696,14 @@ impl TypeChecker {
         source_file: &Node, /*SourceFile*/
         ct: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic>> {
-        self.get_diagnostics_worker(source_file)
+        // try {
+        self.set_cancellation_token(ct);
+        let ret = self.get_diagnostics_worker(source_file);
+        // }
+        // finally {
+        self.set_cancellation_token(None);
+        // }
+        ret
     }
 
     pub(super) fn get_diagnostics_worker(
