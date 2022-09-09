@@ -6,42 +6,212 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::EmitResolverCreateResolver;
+use super::{is_declaration_name_or_import_property_name, EmitResolverCreateResolver};
 use crate::{
     add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
-    external_helpers_module_name_text, get_all_accessor_declarations, get_declaration_of_kind,
-    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
-    is_binding_pattern, is_class_like, is_effective_external_module, is_global_scope_augmentation,
-    is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
-    is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_present, some,
-    token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
-    NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String, bind_source_file,
-    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
-    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    external_helpers_module_name_text, filter, first_or_undefined, flat_map,
+    get_all_accessor_declarations, get_declaration_of_kind, get_external_module_name,
+    get_source_file_of_node, has_syntactic_modifier, is_ambient_module, is_binding_pattern,
+    is_class_like, is_declaration, is_effective_external_module, is_export_specifier,
+    is_expression_node, is_external_module, is_global_scope_augmentation, is_identifier,
+    is_meta_property, is_named_declaration, is_part_of_type_node,
+    is_private_identifier_class_element_declaration, is_property_access_expression,
+    is_property_declaration, is_source_file, is_string_literal, modifier_to_flag,
+    node_can_be_decorated, node_is_present, some, token_to_string, try_cast,
+    try_get_class_implementing_or_extending_expression_with_type_arguments, Debug_, Diagnostics,
+    ExternalEmitHelpers, FunctionLikeDeclarationInterface, InterfaceTypeInterface, ModifierFlags,
+    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, ObjectFlags, Signature, SymbolInterface,
+    SyntaxKind, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, __String,
+    bind_source_file, is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable,
+    IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
     pub(super) fn get_index_infos_at_location_(&self, node: &Node) -> Option<Vec<Rc<IndexInfo>>> {
-        unimplemented!()
+        if is_identifier(node)
+            && is_property_access_expression(&node.parent())
+            && ptr::eq(&*node.parent().as_property_access_expression().name, node)
+        {
+            let ref key_type = self.get_literal_type_from_property_name(node);
+            let ref object_type = self
+                .get_type_of_expression(&node.parent().as_property_access_expression().expression);
+            let object_types = if object_type.flags().intersects(TypeFlags::Union) {
+                object_type.as_union_type().types().to_owned()
+            } else {
+                vec![object_type.clone()]
+            };
+            return Some(flat_map(Some(&object_types), |t: &Rc<Type>, _| {
+                filter(&self.get_index_infos_of_type(t), |info: &Rc<IndexInfo>| {
+                    self.is_applicable_index_type(key_type, &info.key_type)
+                })
+            }));
+        }
+        None
     }
 
-    pub(super) fn get_shorthand_assignment_value_symbol_<TNode: Borrow<Node>>(
+    pub(super) fn get_shorthand_assignment_value_symbol_<TLocation: Borrow<Node>>(
         &self,
-        location: Option<TNode>,
+        location: Option<TLocation>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if let Some(location) = location {
+            let location: &Node = location.borrow();
+            if location.kind() == SyntaxKind::ShorthandPropertyAssignment {
+                return self.resolve_entity_name(
+                    &location.as_shorthand_property_assignment().name(),
+                    SymbolFlags::Value | SymbolFlags::Alias,
+                    None,
+                    None,
+                    Option::<&Node>::None,
+                );
+            }
+        }
+        None
     }
 
     pub(super) fn get_export_specifier_local_target_symbol_(
         &self,
         node: &Node, /*Identifier | ExportSpecifier*/
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if is_export_specifier(node) {
+            let node_as_export_specifier = node.as_export_specifier();
+            if node
+                .parent()
+                .parent()
+                .as_export_declaration()
+                .module_specifier
+                .is_some()
+            {
+                self.get_external_module_member(&node.parent().parent(), node, None)
+            } else {
+                self.resolve_entity_name(
+                    node_as_export_specifier
+                        .property_name
+                        .as_deref()
+                        .unwrap_or(&*node_as_export_specifier.name),
+                    SymbolFlags::Value
+                        | SymbolFlags::Type
+                        | SymbolFlags::Namespace
+                        | SymbolFlags::Alias,
+                    None,
+                    None,
+                    Option::<&Node>::None,
+                )
+            }
+        } else {
+            self.resolve_entity_name(
+                node,
+                SymbolFlags::Value
+                    | SymbolFlags::Type
+                    | SymbolFlags::Namespace
+                    | SymbolFlags::Alias,
+                None,
+                None,
+                Option::<&Node>::None,
+            )
+        }
     }
 
     pub(super) fn get_type_of_node(&self, node: &Node) -> Rc<Type> {
-        unimplemented!()
+        if is_source_file(node) && !is_external_module(node) {
+            return self.error_type();
+        }
+
+        if node.flags().intersects(NodeFlags::InWithStatement) {
+            return self.error_type();
+        }
+
+        let class_decl =
+            try_get_class_implementing_or_extending_expression_with_type_arguments(node);
+        let class_type = class_decl.as_ref().map(|class_decl| {
+            self.get_declared_type_of_class_or_interface(
+                &self.get_symbol_of_node(&class_decl.class).unwrap(),
+            )
+        });
+        if is_part_of_type_node(node) {
+            let ref type_from_type_node = self.get_type_from_type_node_(node);
+            return if let Some(class_type) = class_type.as_ref() {
+                self.get_type_with_this_argument(
+                    type_from_type_node,
+                    class_type.as_interface_type().maybe_this_type(),
+                    None,
+                )
+            } else {
+                type_from_type_node.clone()
+            };
+        }
+
+        if is_expression_node(node) {
+            return self.get_regular_type_of_expression(node);
+        }
+
+        if let Some(class_type) = class_type.as_ref() {
+            if !class_decl.as_ref().unwrap().is_implements {
+                let base_types = self.get_base_types(class_type);
+                let base_type = first_or_undefined(&base_types);
+                return if let Some(base_type) = base_type {
+                    self.get_type_with_this_argument(
+                        base_type,
+                        class_type.as_interface_type().maybe_this_type(),
+                        None,
+                    )
+                } else {
+                    self.error_type()
+                };
+            }
+        }
+
+        if self.is_type_declaration(node) {
+            let ref symbol = self.get_symbol_of_node(node).unwrap();
+            return self.get_declared_type_of_symbol(symbol);
+        }
+
+        if self.is_type_declaration_name(node) {
+            let symbol = self.get_symbol_at_location_(node, None);
+            return if let Some(symbol) = symbol.as_ref() {
+                self.get_declared_type_of_symbol(symbol)
+            } else {
+                self.error_type()
+            };
+        }
+
+        if is_declaration(node) {
+            let ref symbol = self.get_symbol_of_node(node).unwrap();
+            return self.get_type_of_symbol(symbol);
+        }
+
+        if is_declaration_name_or_import_property_name(node) {
+            let symbol = self.get_symbol_at_location_(node, None);
+            if let Some(symbol) = symbol.as_ref() {
+                return self.get_type_of_symbol(symbol);
+            }
+            return self.error_type();
+        }
+
+        if is_binding_pattern(Some(node)) {
+            return self
+                .get_type_for_variable_like_declaration(&node.parent(), true)
+                .unwrap_or_else(|| self.error_type());
+        }
+
+        if self.is_in_right_side_of_import_or_export_assignment(node) {
+            let symbol = self.get_symbol_at_location_(node, None);
+            if let Some(symbol) = symbol.as_ref() {
+                let ref declared_type = self.get_declared_type_of_symbol(symbol);
+                return if !self.is_error_type(declared_type) {
+                    declared_type.clone()
+                } else {
+                    self.get_type_of_symbol(symbol)
+                };
+            }
+        }
+
+        if is_meta_property(&node.parent())
+            && node.parent().as_meta_property().keyword_token == node.kind()
+        {
+            return self.check_meta_property_keyword(&node.parent());
+        }
+
+        self.error_type()
     }
 
     pub(super) fn get_type_of_assignment_pattern_(
@@ -55,6 +225,13 @@ impl TypeChecker {
         &self,
         location: &Node, /*Identifier*/
     ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_regular_type_of_expression(
+        &self,
+        expr: &Node, /*Expression*/
+    ) -> Rc<Type> {
         unimplemented!()
     }
 
