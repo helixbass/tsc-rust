@@ -20,7 +20,8 @@ use crate::{
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, MapLike, ModifierFlags,
     NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, Signature,
     SignatureFlags, SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransformFlags, TransientSymbolInterface, Type, TypeFlags, TypeInterface, __String,
+    TransformFlags, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    __String,
 };
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
@@ -294,6 +295,10 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
     } else {
         ObjectFlags::None
     }
+}
+
+pub fn type_has_call_or_construct_signatures(type_: &Type, checker: &TypeChecker) -> bool {
+    unimplemented!()
 }
 
 pub fn is_umd_export_symbol<TSymbol: Borrow<Symbol>>(symbol: Option<TSymbol>) -> bool {

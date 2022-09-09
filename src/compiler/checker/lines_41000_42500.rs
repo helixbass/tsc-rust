@@ -3,27 +3,35 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{is_declaration_name_or_import_property_name, EmitResolverCreateResolver};
+use super::{
+    is_declaration_name_or_import_property_name, EmitResolverCreateResolver, IterationUse,
+};
 use crate::{
-    add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
-    external_helpers_module_name_text, filter, first_or_undefined, flat_map,
-    get_all_accessor_declarations, get_declaration_of_kind, get_external_module_name,
-    get_source_file_of_node, has_syntactic_modifier, is_ambient_module, is_binding_pattern,
-    is_class_like, is_declaration, is_effective_external_module, is_export_specifier,
-    is_expression_node, is_external_module, is_global_scope_augmentation, is_identifier,
-    is_meta_property, is_named_declaration, is_part_of_type_node,
-    is_private_identifier_class_element_declaration, is_property_access_expression,
-    is_property_declaration, is_source_file, is_string_literal, modifier_to_flag,
-    node_can_be_decorated, node_is_present, some, token_to_string, try_cast,
-    try_get_class_implementing_or_extending_expression_with_type_arguments, Debug_, Diagnostics,
-    ExternalEmitHelpers, FunctionLikeDeclarationInterface, InterfaceTypeInterface, ModifierFlags,
-    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, ObjectFlags, Signature, SymbolInterface,
-    SyntaxKind, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, __String,
-    bind_source_file, is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable,
-    IndexInfo, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    add_related_info, cast_present, concatenate, create_diagnostic_for_node, create_symbol_table,
+    escape_leading_underscores, external_helpers_module_name_text, filter, first_or_undefined,
+    flat_map, for_each, get_all_accessor_declarations, get_check_flags, get_declaration_of_kind,
+    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, id_text,
+    index_of_node, is_ambient_module, is_array_literal_expression, is_assignment_pattern,
+    is_binding_pattern, is_class_like, is_declaration, is_effective_external_module,
+    is_export_specifier, is_expression_node, is_external_module, is_global_scope_augmentation,
+    is_identifier, is_meta_property, is_named_declaration, is_object_literal_expression,
+    is_part_of_type_node, is_private_identifier_class_element_declaration,
+    is_property_access_expression, is_property_declaration,
+    is_right_side_of_qualified_name_or_property_access, is_source_file, is_static,
+    is_string_literal, map_defined, modifier_to_flag, node_can_be_decorated, node_is_present,
+    single_element_array, some, token_to_string, try_cast,
+    try_get_class_implementing_or_extending_expression_with_type_arguments,
+    type_has_call_or_construct_signatures, CheckFlags, Debug_, Diagnostics, ExternalEmitHelpers,
+    FunctionLikeDeclarationInterface, InterfaceTypeInterface, ModifierFlags,
+    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, ObjectFlags, Signature, SignatureKind,
+    SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, __String, bind_source_file, is_external_or_common_js_module,
+    Diagnostic, EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol,
+    SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -218,42 +226,227 @@ impl TypeChecker {
         &self,
         expr: &Node, /*AssignmentPattern*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        Debug_.assert(
+            matches!(
+                expr.kind(),
+                SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
+            ),
+            None,
+        );
+        if expr.parent().kind() == SyntaxKind::ForOfStatement {
+            let ref iterated_type = self.check_right_hand_side_of_for_of(&expr.parent());
+            return Some(self.check_destructuring_assignment(
+                expr,
+                iterated_type, /*|| errorType*/
+                None,
+                None,
+            ));
+        }
+        if expr.parent().kind() == SyntaxKind::BinaryExpression {
+            let ref iterated_type =
+                self.get_type_of_expression(&expr.parent().as_binary_expression().right);
+            return Some(self.check_destructuring_assignment(
+                expr,
+                &iterated_type, /*|| errorType*/
+                None,
+                None,
+            ));
+        }
+        if expr.parent().kind() == SyntaxKind::PropertyAssignment {
+            let ref node = cast_present(expr.parent().parent(), |node: &Rc<Node>| {
+                is_object_literal_expression(node)
+            });
+            let ref type_of_parent_object_literal = self
+                .get_type_of_assignment_pattern_(node)
+                .unwrap_or_else(|| self.error_type());
+            let property_index = index_of_node(
+                &node.as_object_literal_expression().properties,
+                &expr.parent(),
+            );
+            return self.check_object_literal_destructuring_property_assignment(
+                node,
+                type_of_parent_object_literal,
+                property_index.try_into().unwrap(),
+                None,
+                None,
+            );
+        }
+        let node = cast_present(expr.parent(), |node: &Rc<Node>| {
+            is_array_literal_expression(node)
+        });
+        let ref type_of_array_literal = self
+            .get_type_of_assignment_pattern_(&node)
+            .unwrap_or_else(|| self.error_type());
+        let ref element_type = self.check_iterated_type_or_element_type(
+            IterationUse::Destructuring,
+            type_of_array_literal,
+            &self.undefined_type(),
+            expr.maybe_parent()
+        ) /*|| errorType*/;
+        self.check_array_literal_destructuring_element_assignment(
+            &node,
+            type_of_array_literal,
+            {
+                let ret = node
+                    .as_array_literal_expression()
+                    .elements
+                    .iter()
+                    .position(|element| ptr::eq(&**element, expr))
+                    .unwrap();
+                ret
+            },
+            element_type,
+            None,
+        )
     }
 
     pub(super) fn get_property_symbol_of_destructuring_assignment_(
         &self,
         location: &Node, /*Identifier*/
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let type_of_object_literal = self.get_type_of_assignment_pattern_(&*cast_present(
+            location.parent().parent(),
+            |node: &Rc<Node>| is_assignment_pattern(node),
+        ));
+        type_of_object_literal
+            .as_ref()
+            .and_then(|type_of_object_literal| {
+                self.get_property_of_type_(
+                    type_of_object_literal,
+                    &location.as_identifier().escaped_text,
+                    None,
+                )
+            })
     }
 
     pub(super) fn get_regular_type_of_expression(
         &self,
         expr: &Node, /*Expression*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let mut expr = expr.node_wrapper();
+        if is_right_side_of_qualified_name_or_property_access(&expr) {
+            expr = expr.parent();
+        }
+        self.get_regular_type_of_literal_type(&self.get_type_of_expression(&expr))
     }
 
     pub(super) fn get_parent_type_of_class_element(
         &self,
         node: &Node, /*ClassElement*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let ref class_symbol = self.get_symbol_of_node(&node.parent()).unwrap();
+        if is_static(node) {
+            self.get_type_of_symbol(class_symbol)
+        } else {
+            self.get_declared_type_of_symbol(class_symbol)
+        }
     }
 
     pub(super) fn get_class_element_property_key_type(
         &self,
         element: &Node, /*ClassElement*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let ref name = element.as_named_declaration().name();
+        match name.kind() {
+            SyntaxKind::Identifier => self.get_string_literal_type(&id_text(name)),
+            SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
+                self.get_string_literal_type(&name.as_literal_like_node().text())
+            }
+            SyntaxKind::ComputedPropertyName => {
+                let ref name_type = self.check_computed_property_name(name);
+                if self.is_type_assignable_to_kind(name_type, TypeFlags::ESSymbolLike, None) {
+                    name_type.clone()
+                } else {
+                    self.string_type()
+                }
+            }
+            _ => Debug_.fail(Some("Unsupported property name.")),
+        }
     }
 
     pub(super) fn get_augmented_properties_of_type(&self, type_: &Type) -> Vec<Rc<Symbol>> {
-        unimplemented!()
+        let ref type_ = self.get_apparent_type(type_);
+        let mut props_by_name = create_symbol_table(Some(&self.get_properties_of_type(type_)));
+        let function_type = if !self
+            .get_signatures_of_type(type_, SignatureKind::Call)
+            .is_empty()
+        {
+            Some(self.global_callable_function_type())
+        } else if !self
+            .get_signatures_of_type(type_, SignatureKind::Construct)
+            .is_empty()
+        {
+            Some(self.global_newable_function_type())
+        } else {
+            None
+        };
+        if let Some(function_type) = function_type.as_ref() {
+            for_each(
+                &self.get_properties_of_type(function_type),
+                |p: &Rc<Symbol>, _| -> Option<()> {
+                    if !props_by_name.contains_key(p.escaped_name()) {
+                        props_by_name.insert(p.escaped_name().clone(), p.clone());
+                    }
+                    None
+                },
+            );
+        }
+        self.get_named_members(&props_by_name)
     }
 
     pub(super) fn type_has_call_or_construct_signatures(&self, type_: &Type) -> bool {
+        type_has_call_or_construct_signatures(type_, self)
+    }
+
+    pub(super) fn get_root_symbols(&self, symbol: &Symbol) -> Vec<Rc<Symbol>> {
+        let roots = self.get_immediate_root_symbols(symbol);
+        if let Some(roots) = roots.as_ref() {
+            flat_map(Some(roots), |root: &Rc<Symbol>, _| {
+                self.get_root_symbols(root)
+            })
+        } else {
+            vec![symbol.symbol_wrapper()]
+        }
+    }
+
+    pub(super) fn get_immediate_root_symbols(&self, symbol: &Symbol) -> Option<Vec<Rc<Symbol>>> {
+        if get_check_flags(symbol).intersects(CheckFlags::Synthetic) {
+            return Some(map_defined(
+                Some(
+                    (*self.get_symbol_links(symbol))
+                        .borrow()
+                        .containing_type
+                        .as_ref()
+                        .unwrap()
+                        .as_union_or_intersection_type_interface()
+                        .types(),
+                ),
+                |type_: &Rc<Type>, _| {
+                    self.get_property_of_type_(type_, symbol.escaped_name(), None)
+                },
+            ));
+        } else if symbol.flags().intersects(SymbolFlags::Transient) {
+            let (left_spread, right_spread, synthetic_origin) = {
+                let symbol_links = symbol.as_transient_symbol().symbol_links();
+                let symbol_links = (*symbol_links).borrow();
+                (
+                    symbol_links.left_spread.clone(),
+                    symbol_links.right_spread.clone(),
+                    symbol_links.synthetic_origin.clone(),
+                )
+            };
+            return if let Some(left_spread) = left_spread {
+                Some(vec![left_spread, right_spread.unwrap()])
+            } else if let Some(synthetic_origin) = synthetic_origin {
+                Some(vec![synthetic_origin])
+            } else {
+                single_element_array(self.try_get_alias_target(symbol))
+            };
+        }
+        None
+    }
+
+    pub(super) fn try_get_alias_target(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
 
