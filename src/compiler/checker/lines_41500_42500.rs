@@ -13,14 +13,15 @@ use crate::{
     get_all_accessor_declarations, get_declaration_of_kind, get_effective_modifier_flags,
     get_external_module_name, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
     is_ambient_module, is_binding_pattern, is_class_like, is_effective_external_module,
-    is_function_declaration, is_get_accessor, is_global_scope_augmentation, is_jsdoc_parameter_tag,
-    is_named_declaration, is_private_identifier_class_element_declaration,
+    is_enum_const, is_function_declaration, is_get_accessor, is_global_scope_augmentation,
+    is_jsdoc_parameter_tag, is_named_declaration, is_private_identifier_class_element_declaration,
     is_property_access_expression, is_property_declaration, is_set_accessor, is_string_literal,
     modifier_to_flag, node_can_be_decorated, node_is_present, should_preserve_const_enums, some,
     token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
     FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags,
     NamedDeclarationInterface, NodeArray, NodeCheckFlags, NodeFlags, ObjectFlags, Signature,
-    SymbolInterface, SyntaxKind, __String, bind_source_file, is_external_or_common_js_module,
+    SignatureKind, SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
     Diagnostic, EmitResolverDebuggable, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
     Type, TypeChecker,
 };
@@ -216,21 +217,60 @@ impl TypeChecker {
         &self,
         node: &Node, /*EnumMember*/
     ) -> Option<StringOrNumber> {
-        unimplemented!()
+        self.compute_enum_member_values(&node.parent());
+        let ret = (*self.get_node_links(node))
+            .borrow()
+            .enum_member_value
+            .clone();
+        ret
     }
 
     pub(super) fn can_have_constant_value(&self, node: &Node) -> bool {
-        unimplemented!()
+        matches!(
+            node.kind(),
+            SyntaxKind::EnumMember
+                | SyntaxKind::PropertyAccessExpression
+                | SyntaxKind::ElementAccessExpression
+        )
     }
 
     pub(super) fn get_constant_value_(
         &self,
         node: &Node, /*EnumMember | AccessExpression*/
     ) -> Option<StringOrNumber> {
-        unimplemented!()
+        if node.kind() == SyntaxKind::EnumMember {
+            return self.get_enum_member_value(node);
+        }
+
+        let symbol = (*self.get_node_links(node))
+            .borrow()
+            .resolved_symbol
+            .clone();
+        if let Some(symbol) = symbol
+            .as_ref()
+            .filter(|symbol| symbol.flags().intersects(SymbolFlags::EnumMember))
+        {
+            let ref member = symbol.maybe_value_declaration().unwrap();
+            if is_enum_const(&member.parent()) {
+                return self.get_enum_member_value(member);
+            }
+        }
+
+        None
     }
 
     pub(super) fn is_function_type(&self, type_: &Type) -> bool {
+        type_.flags().intersects(TypeFlags::Object)
+            && !self
+                .get_signatures_of_type(type_, SignatureKind::Call)
+                .is_empty()
+    }
+
+    pub(super) fn get_type_reference_serialization_kind<TLocation: Borrow<Node>>(
+        &self,
+        type_name_in: &Node, /*EntityName*/
+        location: Option<TLocation>,
+    ) -> TypeReferenceSerializationKind {
         unimplemented!()
     }
 
