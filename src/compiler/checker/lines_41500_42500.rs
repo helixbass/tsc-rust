@@ -3,40 +3,22 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    is_declaration_name_or_import_property_name, EmitResolverCreateResolver, IterationUse,
-};
+use super::EmitResolverCreateResolver;
 use crate::{
-    add_related_info, cast_present, concatenate, create_diagnostic_for_node, create_symbol_table,
-    escape_leading_underscores, external_helpers_module_name_text, filter, find_ancestor,
-    first_or_undefined, flat_map, for_each, for_each_entry_bool, get_all_accessor_declarations,
-    get_check_flags, get_declaration_of_kind, get_enclosing_block_scope_container,
-    get_external_module_name, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
-    id_text, index_of_node, is_ambient_module, is_array_literal_expression, is_assignment_pattern,
-    is_binding_element, is_binding_pattern, is_block_scoped_container_top_level, is_class_like,
-    is_declaration, is_effective_external_module, is_export_specifier, is_expression_node,
-    is_external_module, is_generated_identifier, is_global_scope_augmentation, is_identifier,
-    is_import_equals_declaration, is_internal_module_import_equals_declaration,
-    is_iteration_statement, is_meta_property, is_module_or_enum_declaration, is_named_declaration,
-    is_namespace_export, is_object_literal_expression, is_part_of_type_node,
-    is_private_identifier_class_element_declaration, is_property_access_expression,
-    is_property_assignment, is_property_declaration,
-    is_right_side_of_qualified_name_or_property_access, is_shorthand_ambient_module_symbol,
-    is_source_file, is_statement_with_locals, is_static, is_string_literal, map_defined,
-    modifier_to_flag, node_can_be_decorated, node_is_missing, node_is_present,
-    single_element_array, some, token_to_string, try_cast,
-    try_get_class_implementing_or_extending_expression_with_type_arguments,
-    type_has_call_or_construct_signatures, walk_up_binding_elements_and_patterns, CheckFlags,
-    Debug_, Diagnostics, ExternalEmitHelpers, FunctionLikeDeclarationInterface,
-    InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags, NodeFlags,
-    ObjectFlags, Signature, SignatureKind, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, __String, bind_source_file,
-    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
-    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
+    external_helpers_module_name_text, get_all_accessor_declarations, get_declaration_of_kind,
+    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
+    is_binding_pattern, is_class_like, is_effective_external_module, is_global_scope_augmentation,
+    is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
+    is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_present, some,
+    token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
+    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
+    NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String, bind_source_file,
+    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, Node, NodeInterface,
+    StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
