@@ -9,16 +9,20 @@ use std::rc::Rc;
 use super::EmitResolverCreateResolver;
 use crate::{
     add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
-    external_helpers_module_name_text, get_all_accessor_declarations, get_declaration_of_kind,
-    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
-    is_binding_pattern, is_class_like, is_effective_external_module, is_global_scope_augmentation,
-    is_named_declaration, is_private_identifier_class_element_declaration, is_property_declaration,
-    is_string_literal, modifier_to_flag, node_can_be_decorated, node_is_present, some,
+    external_helpers_module_name_text, for_each_child_bool, for_each_entry_bool,
+    get_all_accessor_declarations, get_declaration_of_kind, get_effective_modifier_flags,
+    get_external_module_name, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
+    is_ambient_module, is_binding_pattern, is_class_like, is_effective_external_module,
+    is_function_declaration, is_get_accessor, is_global_scope_augmentation, is_jsdoc_parameter_tag,
+    is_named_declaration, is_private_identifier_class_element_declaration,
+    is_property_access_expression, is_property_declaration, is_set_accessor, is_string_literal,
+    modifier_to_flag, node_can_be_decorated, node_is_present, should_preserve_const_enums, some,
     token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags,
-    NodeFlags, ObjectFlags, Signature, SymbolInterface, SyntaxKind, __String, bind_source_file,
-    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, Node, NodeInterface,
-    StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags,
+    NamedDeclarationInterface, NodeArray, NodeCheckFlags, NodeFlags, ObjectFlags, Signature,
+    SymbolInterface, SyntaxKind, __String, bind_source_file, is_external_or_common_js_module,
+    Diagnostic, EmitResolverDebuggable, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
+    Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -26,11 +30,22 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
     ) -> bool {
-        unimplemented!()
+        if symbol.is_none() {
+            return false;
+        }
+        let symbol = symbol.unwrap();
+        let symbol = symbol.borrow();
+        let ref target = self.resolve_alias(symbol);
+        if Rc::ptr_eq(target, &self.unknown_symbol()) {
+            return true;
+        }
+        target.flags().intersects(SymbolFlags::Value)
+            && (should_preserve_const_enums(&self.compiler_options)
+                || !self.is_const_enum_or_const_enum_only_module(target))
     }
 
     pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: &Symbol) -> bool {
-        unimplemented!()
+        self.is_const_enum_symbol(s) || s.maybe_const_enum_only_module() == Some(true)
     }
 
     pub(super) fn is_referenced_alias_declaration(
@@ -38,18 +53,163 @@ impl TypeChecker {
         node: &Node,
         check_children: Option<bool>,
     ) -> bool {
-        unimplemented!()
+        if self.is_alias_symbol_declaration(node) {
+            let symbol = self.get_symbol_of_node(node);
+            let links = symbol.as_ref().map(|symbol| self.get_symbol_links(symbol));
+            if matches!(
+                links.as_ref(),
+                Some(links) if (**links).borrow().referenced == Some(true)
+            ) {
+                return true;
+            }
+            let target = (*self.get_symbol_links(symbol.as_ref().unwrap()))
+                .borrow()
+                .target
+                .clone();
+            if matches!(
+                target.as_ref(),
+                Some(target) if get_effective_modifier_flags(node).intersects(ModifierFlags::Export) &&
+                    target.flags().intersects(SymbolFlags::Value) && (
+                        should_preserve_const_enums(&self.compiler_options) ||
+                        !self.is_const_enum_or_const_enum_only_module(target)
+                    )
+            ) {
+                return true;
+            }
+        }
+
+        if check_children == Some(true) {
+            return for_each_child_bool(
+                node,
+                |node| self.is_referenced_alias_declaration(node, check_children),
+                Option::<fn(&NodeArray) -> bool>::None,
+            );
+        }
+        false
     }
 
     pub(super) fn is_implementation_of_overload_(
         &self,
         node: &Node, /*SignatureDeclaration*/
     ) -> bool {
-        unimplemented!()
+        if node_is_present(
+            node.maybe_as_function_like_declaration()
+                .and_then(|node| node.maybe_body()),
+        ) {
+            if is_get_accessor(node) || is_set_accessor(node) {
+                return false;
+            }
+            let symbol = self.get_symbol_of_node(node);
+            let signatures_of_symbol = self.get_signatures_of_symbol(symbol.as_deref());
+            return signatures_of_symbol.len() > 1
+                || signatures_of_symbol.len() == 1
+                    && !matches!(
+                        signatures_of_symbol[0].declaration.as_ref(),
+                        Some(declaration) if ptr::eq(
+                            &**declaration,
+                            node,
+                        )
+                    );
+        }
+        false
+    }
+
+    pub(super) fn is_required_initialized_parameter(
+        &self,
+        parameter: &Node, /*ParameterDeclaration | JSDocParameterTag*/
+    ) -> bool {
+        self.strict_null_checks
+            && !self.is_optional_parameter_(parameter)
+            && !is_jsdoc_parameter_tag(parameter)
+            && parameter
+                .as_parameter_declaration()
+                .maybe_initializer()
+                .is_some()
+            && !has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier)
+    }
+
+    pub(super) fn is_optional_uninitialized_parameter_property(
+        &self,
+        parameter: &Node, /*ParameterDeclaration*/
+    ) -> bool {
+        self.strict_null_checks
+            && self.is_optional_parameter_(parameter)
+            && parameter
+                .as_parameter_declaration()
+                .maybe_initializer()
+                .is_none()
+            && has_syntactic_modifier(parameter, ModifierFlags::ParameterPropertyModifier)
+    }
+
+    pub(super) fn is_optional_uninitialized_parameter_(
+        &self,
+        parameter: &Node, /*ParameterDeclaration*/
+    ) -> bool {
+        self.strict_null_checks
+            && self.is_optional_parameter_(parameter)
+            && parameter
+                .as_parameter_declaration()
+                .maybe_initializer()
+                .is_none()
+    }
+
+    pub(super) fn is_expando_function_declaration(&self, node: &Node /*Declaration*/) -> bool {
+        let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
+        if declaration.is_none() {
+            return false;
+        }
+        let declaration = declaration.as_ref().unwrap();
+        let symbol = self.get_symbol_of_node(declaration);
+        if symbol.is_none() {
+            return false;
+        }
+        let symbol = symbol.as_ref().unwrap();
+        if !symbol.flags().intersects(SymbolFlags::Function) {
+            return false;
+        }
+        for_each_entry_bool(
+            &(*self.get_exports_of_symbol(symbol)).borrow(),
+            |p: &Rc<Symbol>, _| {
+                p.flags().intersects(SymbolFlags::Value)
+                    && matches!(
+                        p.maybe_value_declaration().as_ref(),
+                        Some(p_value_declaration) if is_property_access_expression(p_value_declaration)
+                    )
+            },
+        )
+    }
+
+    pub(super) fn get_properties_of_container_function(
+        &self,
+        node: &Node, /*Declaration*/
+    ) -> Vec<Rc<Symbol>> {
+        let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
+        if declaration.is_none() {
+            return vec![];
+        }
+        let declaration = declaration.as_ref().unwrap();
+        let symbol = self.get_symbol_of_node(declaration);
+        if let Some(symbol) = symbol.as_ref() {
+            Some(self.get_properties_of_type(&self.get_type_of_symbol(symbol)))
+        } else {
+            None
+        }
+        .unwrap_or_else(|| vec![])
     }
 
     pub(super) fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags {
-        unimplemented!()
+        let node_id = node.maybe_id().unwrap_or(0);
+        if
+        /*nodeId < 0 ||*/
+        node_id >= self.node_links().len() {
+            return NodeCheckFlags::None;
+        }
+        self.node_links()
+            .get(&node_id)
+            .cloned()
+            .map_or(NodeCheckFlags::None, |node_links| {
+                (*node_links).borrow().flags
+            })
     }
 
     pub(super) fn get_enum_member_value(

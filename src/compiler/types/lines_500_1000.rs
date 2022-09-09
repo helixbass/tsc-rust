@@ -164,7 +164,7 @@ bitflags! {
     }
 }
 
-pub type NodeId = u32;
+pub type NodeId = usize;
 
 pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Rc<Node>;

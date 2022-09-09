@@ -22,7 +22,7 @@ use crate::{
     Extension, ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType,
     GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, IterationTypeCacheKey,
     IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags,
-    NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
+    NodeCheckFlags, NodeFlags, NodeId, NodeInterface, NodeLinks, Number, ObjectFlags,
     ObjectFlagsTypeInterface, Path, PatternAmbientModule, PseudoBigInt, RelationComparisonResult,
     Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
     SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
@@ -3218,6 +3218,10 @@ impl TypeChecker {
 
     pub(super) fn merged_symbols(&self) -> RefMut<HashMap<u32, Rc<Symbol>>> {
         self.merged_symbols.borrow_mut()
+    }
+
+    pub(super) fn node_links(&self) -> RefMut<HashMap<NodeId, Rc<RefCell<NodeLinks>>>> {
+        self.node_links.borrow_mut()
     }
 
     pub(super) fn flow_loop_caches(
