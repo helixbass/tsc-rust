@@ -12,28 +12,31 @@ use super::{
 };
 use crate::{
     add_related_info, cast_present, concatenate, create_diagnostic_for_node, create_symbol_table,
-    escape_leading_underscores, external_helpers_module_name_text, filter, first_or_undefined,
-    flat_map, for_each, for_each_entry_bool, get_all_accessor_declarations, get_check_flags,
-    get_declaration_of_kind, get_external_module_name, get_parse_tree_node,
-    get_source_file_of_node, has_syntactic_modifier, id_text, index_of_node, is_ambient_module,
-    is_array_literal_expression, is_assignment_pattern, is_binding_pattern, is_class_like,
+    escape_leading_underscores, external_helpers_module_name_text, filter, find_ancestor,
+    first_or_undefined, flat_map, for_each, for_each_entry_bool, get_all_accessor_declarations,
+    get_check_flags, get_declaration_of_kind, get_enclosing_block_scope_container,
+    get_external_module_name, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
+    id_text, index_of_node, is_ambient_module, is_array_literal_expression, is_assignment_pattern,
+    is_binding_element, is_binding_pattern, is_block_scoped_container_top_level, is_class_like,
     is_declaration, is_effective_external_module, is_export_specifier, is_expression_node,
     is_external_module, is_generated_identifier, is_global_scope_augmentation, is_identifier,
-    is_meta_property, is_module_or_enum_declaration, is_named_declaration,
-    is_object_literal_expression, is_part_of_type_node,
+    is_import_equals_declaration, is_internal_module_import_equals_declaration,
+    is_iteration_statement, is_meta_property, is_module_or_enum_declaration, is_named_declaration,
+    is_namespace_export, is_object_literal_expression, is_part_of_type_node,
     is_private_identifier_class_element_declaration, is_property_access_expression,
     is_property_assignment, is_property_declaration,
     is_right_side_of_qualified_name_or_property_access, is_shorthand_ambient_module_symbol,
-    is_source_file, is_static, is_string_literal, map_defined, modifier_to_flag,
-    node_can_be_decorated, node_is_present, single_element_array, some, token_to_string, try_cast,
+    is_source_file, is_statement_with_locals, is_static, is_string_literal, map_defined,
+    modifier_to_flag, node_can_be_decorated, node_is_missing, node_is_present,
+    single_element_array, some, token_to_string, try_cast,
     try_get_class_implementing_or_extending_expression_with_type_arguments,
-    type_has_call_or_construct_signatures, CheckFlags, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, InterfaceTypeInterface, ModifierFlags,
-    NamedDeclarationInterface, NodeCheckFlags, NodeFlags, ObjectFlags, Signature, SignatureKind,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, __String, bind_source_file, is_external_or_common_js_module,
-    Diagnostic, EmitResolverDebuggable, IndexInfo, Node, NodeInterface, StringOrNumber, Symbol,
-    SymbolFlags, Type, TypeChecker,
+    type_has_call_or_construct_signatures, walk_up_binding_elements_and_patterns, CheckFlags,
+    Debug_, Diagnostics, ExternalEmitHelpers, FunctionLikeDeclarationInterface,
+    InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, NodeCheckFlags, NodeFlags,
+    ObjectFlags, Signature, SignatureKind, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, __String, bind_source_file,
+    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, IndexInfo, Node,
+    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -544,6 +547,275 @@ impl TypeChecker {
     ) -> bool {
         is_module_or_enum_declaration(&node.parent())
             && ptr::eq(node, &*node.parent().as_named_declaration().name())
+    }
+
+    pub(super) fn get_referenced_export_container(
+        &self,
+        node_in: &Node, /*Identifier*/
+        prefix_locals: Option<bool>,
+    ) -> Option<Rc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>> {
+        let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
+        if let Some(node) = node.as_ref() {
+            let symbol = self.get_referenced_value_symbol(
+                node,
+                Some(self.is_name_of_module_or_enum_declaration(node)),
+            );
+            if let Some(mut symbol) = symbol {
+                if symbol.flags().intersects(SymbolFlags::ExportValue) {
+                    let ref export_symbol = self
+                        .get_merged_symbol(symbol.maybe_export_symbol())
+                        .unwrap();
+                    if prefix_locals != Some(true)
+                        && export_symbol
+                            .flags()
+                            .intersects(SymbolFlags::ExportHasLocal)
+                        && !export_symbol.flags().intersects(SymbolFlags::Variable)
+                    {
+                        return None;
+                    }
+                    symbol = export_symbol.clone();
+                }
+                let parent_symbol = self.get_parent_of_symbol(&symbol);
+                if let Some(parent_symbol) = parent_symbol.as_ref() {
+                    if parent_symbol.flags().intersects(SymbolFlags::ValueModule) {
+                        if let Some(parent_symbol_value_declaration) = parent_symbol
+                            .maybe_value_declaration()
+                            .as_ref()
+                            .filter(|parent_symbol_value_declaration| {
+                                parent_symbol_value_declaration.kind() == SyntaxKind::SourceFile
+                            })
+                        {
+                            let symbol_file = parent_symbol_value_declaration;
+                            let ref reference_file =
+                                get_source_file_of_node(Some(&**node)).unwrap();
+                            let symbol_is_umd_export = !Rc::ptr_eq(symbol_file, reference_file);
+                            return if symbol_is_umd_export {
+                                None
+                            } else {
+                                Some(symbol_file.clone())
+                            };
+                        }
+                    }
+                    return find_ancestor(node.maybe_parent(), |n| {
+                        is_module_or_enum_declaration(n)
+                            && matches!(
+                                self.get_symbol_of_node(n).as_ref(),
+                                Some(symbol) if Rc::ptr_eq(
+                                    symbol,
+                                    parent_symbol
+                                )
+                            )
+                    });
+                }
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_referenced_import_declaration(
+        &self,
+        node_in: &Node, /*Identifier*/
+    ) -> Option<Rc<Node /*Declaration*/>> {
+        if let Some(node_in_generated_import_reference) = node_in
+            .as_identifier()
+            .maybe_generated_import_reference()
+            .clone()
+        {
+            return Some(node_in_generated_import_reference);
+        }
+        let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
+        if let Some(node) = node.as_ref() {
+            let symbol = self.get_referenced_value_symbol(node, None);
+            if self.is_non_local_alias(symbol.as_deref(), Some(SymbolFlags::Value))
+                && self
+                    .get_type_only_alias_declaration(symbol.as_ref().unwrap())
+                    .is_none()
+            {
+                return self.get_declaration_of_alias_symbol(symbol.as_ref().unwrap());
+            }
+        }
+
+        None
+    }
+
+    pub(super) fn is_symbol_of_destructured_element_of_catch_binding(
+        &self,
+        symbol: &Symbol,
+    ) -> bool {
+        matches!(
+            symbol.maybe_value_declaration().as_ref(),
+            Some(symbol_value_declaration) if is_binding_element(symbol_value_declaration) &&
+                walk_up_binding_elements_and_patterns(symbol_value_declaration).parent().kind() == SyntaxKind::CatchClause
+        )
+    }
+
+    pub(super) fn is_symbol_of_declaration_with_colliding_name(&self, symbol: &Symbol) -> bool {
+        if symbol.flags().intersects(SymbolFlags::BlockScoped) {
+            if let Some(symbol_value_declaration) = symbol
+                .maybe_value_declaration()
+                .as_ref()
+                .filter(|symbol_value_declaration| !is_source_file(symbol_value_declaration))
+            {
+                let links = self.get_symbol_links(symbol);
+                if (*links)
+                    .borrow()
+                    .is_declaration_with_colliding_name
+                    .is_none()
+                {
+                    let ref container =
+                        get_enclosing_block_scope_container(symbol_value_declaration).unwrap();
+                    if is_statement_with_locals(container)
+                        || self.is_symbol_of_destructured_element_of_catch_binding(symbol)
+                    {
+                        let node_links = self.get_node_links(symbol_value_declaration);
+                        if self
+                            .resolve_name_(
+                                container.maybe_parent(),
+                                symbol.escaped_name(),
+                                SymbolFlags::Value,
+                                None,
+                                Option::<Rc<Node>>::None,
+                                false,
+                                None,
+                            )
+                            .is_some()
+                        {
+                            links.borrow_mut().is_declaration_with_colliding_name = Some(true);
+                        } else if (*node_links)
+                            .borrow()
+                            .flags
+                            .intersects(NodeCheckFlags::CapturedBlockScopedBinding)
+                        {
+                            let is_declared_in_loop = (*node_links)
+                                .borrow()
+                                .flags
+                                .intersects(NodeCheckFlags::BlockScopedBindingInLoop);
+                            let in_loop_initializer = is_iteration_statement(container, false);
+                            let in_loop_body_block = container.kind() == SyntaxKind::Block
+                                && is_iteration_statement(&container.parent(), false);
+
+                            links.borrow_mut().is_declaration_with_colliding_name = Some(
+                                !is_block_scoped_container_top_level(container)
+                                    && (!is_declared_in_loop
+                                        || !in_loop_initializer && !in_loop_body_block),
+                            );
+                        } else {
+                            links.borrow_mut().is_declaration_with_colliding_name = Some(false);
+                        }
+                    }
+                }
+                return (*links)
+                    .borrow()
+                    .is_declaration_with_colliding_name
+                    .unwrap();
+            }
+        }
+        false
+    }
+
+    pub(super) fn get_referenced_declaration_with_colliding_name(
+        &self,
+        node_in: &Node, /*Identifier*/
+    ) -> Option<Rc<Node /*Declaration*/>> {
+        if !is_generated_identifier(node_in) {
+            let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
+            if let Some(node) = node.as_ref() {
+                let symbol = self.get_referenced_value_symbol(node, None);
+                if let Some(symbol) = symbol
+                    .as_ref()
+                    .filter(|symbol| self.is_symbol_of_declaration_with_colliding_name(symbol))
+                {
+                    return symbol.maybe_value_declaration();
+                }
+            }
+        }
+
+        None
+    }
+
+    pub(super) fn is_declaration_with_colliding_name(
+        &self,
+        node_in: &Node, /*Declaration*/
+    ) -> bool {
+        let node = get_parse_tree_node(Some(node_in), Some(is_declaration));
+        if let Some(node) = node.as_ref() {
+            let symbol = self.get_symbol_of_node(node);
+            if let Some(symbol) = symbol.as_ref() {
+                return self.is_symbol_of_declaration_with_colliding_name(symbol);
+            }
+        }
+
+        false
+    }
+
+    pub(super) fn is_value_alias_declaration(&self, node: &Node) -> bool {
+        match node.kind() {
+            SyntaxKind::ImportEqualsDeclaration => {
+                self.is_alias_resolved_to_value(self.get_symbol_of_node(node))
+            }
+            SyntaxKind::ImportClause
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::ExportSpecifier => {
+                let symbol = self.get_symbol_of_node(node);
+                matches!(
+                    symbol.as_ref(),
+                    Some(symbol) if self.is_alias_resolved_to_value(Some(&**symbol)) &&
+                        self.get_type_only_alias_declaration(
+                            symbol
+                        ).is_none()
+                )
+            }
+            SyntaxKind::ExportDeclaration => {
+                let export_clause = node.as_export_declaration().export_clause.as_ref();
+                matches!(
+                    export_clause,
+                    Some(export_clause) if is_namespace_export(export_clause) ||
+                        some(
+                            Some(&*export_clause.as_named_exports().elements),
+                            Some(|element: &Rc<Node>| self.is_value_alias_declaration(element))
+                        )
+                )
+            }
+            SyntaxKind::ExportAssignment => {
+                if
+                /*(node as ExportAssignment).expression &&*/
+                node.as_export_assignment().expression.kind() == SyntaxKind::Identifier {
+                    self.is_alias_resolved_to_value(self.get_symbol_of_node(node))
+                } else {
+                    true
+                }
+            }
+            _ => false,
+        }
+    }
+
+    pub(super) fn is_top_level_value_import_equals_with_entity_name(
+        &self,
+        node_in: &Node, /*ImportEqualsDeclaration*/
+    ) -> bool {
+        let node = get_parse_tree_node(Some(node_in), Some(is_import_equals_declaration));
+        if match node.as_ref() {
+            None => true,
+            Some(node) => {
+                node.parent().kind() != SyntaxKind::SourceFile
+                    || !is_internal_module_import_equals_declaration(node)
+            }
+        } {
+            return false;
+        }
+        let node = node.as_ref().unwrap();
+
+        let is_value = self.is_alias_resolved_to_value(self.get_symbol_of_node(node));
+        is_value && /*node.moduleReference &&*/
+            !node_is_missing(Some(&*node.as_import_equals_declaration().module_reference))
+    }
+
+    pub(super) fn is_alias_resolved_to_value<TSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: Option<TSymbol>,
+    ) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: &Symbol) -> bool {
