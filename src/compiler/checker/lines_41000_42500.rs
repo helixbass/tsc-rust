@@ -13,17 +13,19 @@ use super::{
 use crate::{
     add_related_info, cast_present, concatenate, create_diagnostic_for_node, create_symbol_table,
     escape_leading_underscores, external_helpers_module_name_text, filter, first_or_undefined,
-    flat_map, for_each, get_all_accessor_declarations, get_check_flags, get_declaration_of_kind,
-    get_external_module_name, get_source_file_of_node, has_syntactic_modifier, id_text,
-    index_of_node, is_ambient_module, is_array_literal_expression, is_assignment_pattern,
-    is_binding_pattern, is_class_like, is_declaration, is_effective_external_module,
-    is_export_specifier, is_expression_node, is_external_module, is_global_scope_augmentation,
-    is_identifier, is_meta_property, is_named_declaration, is_object_literal_expression,
-    is_part_of_type_node, is_private_identifier_class_element_declaration,
-    is_property_access_expression, is_property_declaration,
-    is_right_side_of_qualified_name_or_property_access, is_source_file, is_static,
-    is_string_literal, map_defined, modifier_to_flag, node_can_be_decorated, node_is_present,
-    single_element_array, some, token_to_string, try_cast,
+    flat_map, for_each, for_each_entry_bool, get_all_accessor_declarations, get_check_flags,
+    get_declaration_of_kind, get_external_module_name, get_parse_tree_node,
+    get_source_file_of_node, has_syntactic_modifier, id_text, index_of_node, is_ambient_module,
+    is_array_literal_expression, is_assignment_pattern, is_binding_pattern, is_class_like,
+    is_declaration, is_effective_external_module, is_export_specifier, is_expression_node,
+    is_external_module, is_generated_identifier, is_global_scope_augmentation, is_identifier,
+    is_meta_property, is_module_or_enum_declaration, is_named_declaration,
+    is_object_literal_expression, is_part_of_type_node,
+    is_private_identifier_class_element_declaration, is_property_access_expression,
+    is_property_assignment, is_property_declaration,
+    is_right_side_of_qualified_name_or_property_access, is_shorthand_ambient_module_symbol,
+    is_source_file, is_static, is_string_literal, map_defined, modifier_to_flag,
+    node_can_be_decorated, node_is_present, single_element_array, some, token_to_string, try_cast,
     try_get_class_implementing_or_extending_expression_with_type_arguments,
     type_has_call_or_construct_signatures, CheckFlags, Debug_, Diagnostics, ExternalEmitHelpers,
     FunctionLikeDeclarationInterface, InterfaceTypeInterface, ModifierFlags,
@@ -447,7 +449,101 @@ impl TypeChecker {
     }
 
     pub(super) fn try_get_alias_target(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let mut target: Option<Rc<Symbol>> = None;
+        let mut next: Option<Rc<Symbol>> = Some(symbol.symbol_wrapper());
+        while {
+            next = (*self.get_symbol_links(next.as_ref().unwrap()))
+                .borrow()
+                .target
+                .clone();
+            next.is_some()
+        } {
+            target = next.clone();
+        }
+        target
+    }
+
+    pub(super) fn is_arguments_local_binding(&self, node_in: &Node /*Identifier*/) -> bool {
+        if is_generated_identifier(node_in) {
+            return false;
+        }
+        let node = get_parse_tree_node(Some(node_in), Some(is_identifier));
+        if node.is_none() {
+            return false;
+        }
+        let ref node = node.unwrap();
+        let parent = node.maybe_parent();
+        if parent.is_none() {
+            return false;
+        }
+        let ref parent = parent.unwrap();
+        let is_property_name = (is_property_access_expression(parent)
+            || is_property_assignment(parent))
+            && Rc::ptr_eq(&parent.as_named_declaration().name(), node);
+        !is_property_name
+            && matches!(
+                self.get_referenced_value_symbol(
+                    node,
+                    None,
+                ).as_ref(),
+                Some(referenced_value_symbol) if Rc::ptr_eq(
+                    referenced_value_symbol,
+                    &self.arguments_symbol()
+                )
+            )
+    }
+
+    pub(super) fn module_exports_some_value(
+        &self,
+        module_reference_expression: &Node, /*Expression*/
+    ) -> bool {
+        let module_symbol = self.resolve_external_module_name_(
+            &module_reference_expression.parent(),
+            module_reference_expression,
+            None,
+        );
+        if match module_symbol.as_ref() {
+            None => true,
+            Some(module_symbol) => is_shorthand_ambient_module_symbol(module_symbol),
+        } {
+            return true;
+        }
+        let module_symbol = module_symbol.as_ref().unwrap();
+
+        let has_export_assignment = self.has_export_assignment_symbol(module_symbol);
+        let ref module_symbol = self
+            .resolve_external_module_symbol(Some(&**module_symbol), None)
+            .unwrap();
+
+        let symbol_links = self.get_symbol_links(module_symbol);
+        if (*symbol_links).borrow().exports_some_value.is_none() {
+            symbol_links.borrow_mut().exports_some_value = Some(if has_export_assignment {
+                module_symbol.flags().intersects(SymbolFlags::Value)
+            } else {
+                for_each_entry_bool(
+                    &(*self.get_exports_of_module_(module_symbol)).borrow(),
+                    |s: &Rc<Symbol>, _| self.is_value(s),
+                )
+            });
+        }
+        let ret = (*symbol_links).borrow().exports_some_value.unwrap();
+        ret
+    }
+
+    pub(super) fn is_value(&self, s: &Symbol) -> bool {
+        let s = self.resolve_symbol(Some(s), None);
+        matches!(
+            s.as_ref(),
+            Some(s) if s.flags().intersects(SymbolFlags::Value)
+        )
+    }
+
+    pub(super) fn is_name_of_module_or_enum_declaration(
+        &self,
+        node: &Node, /*Identifier*/
+    ) -> bool {
+        is_module_or_enum_declaration(&node.parent())
+            && ptr::eq(node, &*node.parent().as_named_declaration().name())
     }
 
     pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: &Symbol) -> bool {
