@@ -11,16 +11,17 @@ use crate::{
     add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
     external_helpers_module_name_text, for_each_child_bool, for_each_entry_bool,
     get_all_accessor_declarations, get_declaration_of_kind, get_effective_modifier_flags,
-    get_external_module_name, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
-    is_ambient_module, is_binding_pattern, is_class_like, is_effective_external_module,
-    is_enum_const, is_function_declaration, is_get_accessor, is_global_scope_augmentation,
-    is_jsdoc_parameter_tag, is_named_declaration, is_private_identifier_class_element_declaration,
-    is_property_access_expression, is_property_declaration, is_set_accessor, is_string_literal,
-    modifier_to_flag, node_can_be_decorated, node_is_present, should_preserve_const_enums, some,
-    token_to_string, try_cast, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags,
-    NamedDeclarationInterface, NodeArray, NodeCheckFlags, NodeFlags, ObjectFlags, Signature,
-    SignatureKind, SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
+    get_external_module_name, get_first_identifier, get_parse_tree_node, get_source_file_of_node,
+    has_syntactic_modifier, is_ambient_module, is_binding_pattern, is_class_like,
+    is_effective_external_module, is_entity_name, is_enum_const, is_function_declaration,
+    is_get_accessor, is_global_scope_augmentation, is_jsdoc_parameter_tag, is_named_declaration,
+    is_private_identifier_class_element_declaration, is_property_access_expression,
+    is_property_declaration, is_qualified_name, is_set_accessor, is_string_literal,
+    is_type_only_import_or_export_declaration, modifier_to_flag, node_can_be_decorated,
+    node_is_present, should_preserve_const_enums, some, token_to_string, try_cast, Debug_,
+    Diagnostics, ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeCheckFlags, NodeFlags, ObjectFlags,
+    Signature, SignatureKind, SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
     TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
     Diagnostic, EmitResolverDebuggable, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
     Type, TypeChecker,
@@ -271,7 +272,146 @@ impl TypeChecker {
         type_name_in: &Node, /*EntityName*/
         location: Option<TLocation>,
     ) -> TypeReferenceSerializationKind {
-        unimplemented!()
+        let type_name = get_parse_tree_node(Some(type_name_in), Some(is_entity_name));
+        if type_name.is_none() {
+            return TypeReferenceSerializationKind::Unknown;
+        }
+        let type_name = type_name.as_ref().unwrap();
+
+        let mut location = location.map(|location| location.borrow().node_wrapper());
+        if let Some(location_present) = location.as_ref() {
+            location = get_parse_tree_node(location.as_deref(), Option::<fn(&Node) -> bool>::None);
+            if location.is_none() {
+                return TypeReferenceSerializationKind::Unknown;
+            }
+        }
+
+        let mut is_type_only = false;
+        if is_qualified_name(type_name) {
+            let root_value_symbol = self.resolve_entity_name(
+                &get_first_identifier(type_name),
+                SymbolFlags::Value,
+                Some(true),
+                Some(true),
+                location.as_deref(),
+            );
+            is_type_only = matches!(
+                root_value_symbol.as_ref(),
+                Some(root_value_symbol) if matches!(
+                    root_value_symbol.maybe_declarations().as_ref(),
+                    Some(root_value_symbol_declarations) if root_value_symbol_declarations.into_iter().all(
+                        |declaration| is_type_only_import_or_export_declaration(declaration)
+                    )
+                )
+            );
+        }
+        let value_symbol = self.resolve_entity_name(
+            type_name,
+            SymbolFlags::Value,
+            Some(true),
+            Some(true),
+            location.as_deref(),
+        );
+        let resolved_symbol = if let Some(value_symbol) = value_symbol
+            .as_ref()
+            .filter(|value_symbol| value_symbol.flags().intersects(SymbolFlags::Alias))
+        {
+            Some(self.resolve_alias(value_symbol))
+        } else {
+            value_symbol.clone()
+        };
+        is_type_only = is_type_only
+            || matches!(
+                value_symbol.as_ref(),
+                Some(value_symbol) if matches!(
+                    value_symbol.maybe_declarations().as_ref(),
+                    Some(value_symbol_declarations) if value_symbol_declarations.into_iter().all(
+                        |declaration| is_type_only_import_or_export_declaration(declaration)
+                    )
+                )
+            );
+
+        let type_symbol = self.resolve_entity_name(
+            type_name,
+            SymbolFlags::Type,
+            Some(true),
+            Some(false),
+            location.as_deref(),
+        );
+        if let Some(resolved_symbol) = resolved_symbol.as_ref().filter(|resolved_symbol| {
+            matches!(
+                type_symbol.as_ref(),
+                Some(type_symbol) if Rc::ptr_eq(
+                    *resolved_symbol,
+                    type_symbol
+                )
+            )
+        }) {
+            let global_promise_symbol = self.get_global_promise_constructor_symbol(false);
+            if matches!(
+                global_promise_symbol.as_ref(),
+                Some(global_promise_symbol) if Rc::ptr_eq(
+                    resolved_symbol,
+                    global_promise_symbol
+                )
+            ) {
+                return TypeReferenceSerializationKind::Promise;
+            }
+
+            let ref constructor_type = self.get_type_of_symbol(resolved_symbol);
+            if
+            /*constructorType &&*/
+            self.is_constructor_type(constructor_type) {
+                return if is_type_only {
+                    TypeReferenceSerializationKind::TypeWithCallSignature
+                } else {
+                    TypeReferenceSerializationKind::TypeWithConstructSignatureAndValue
+                };
+            }
+        }
+
+        if type_symbol.is_none() {
+            return if is_type_only {
+                TypeReferenceSerializationKind::ObjectType
+            } else {
+                TypeReferenceSerializationKind::Unknown
+            };
+        }
+        let type_symbol = type_symbol.as_ref().unwrap();
+        let ref type_ = self.get_declared_type_of_symbol(type_symbol);
+        if self.is_error_type(type_) {
+            if is_type_only {
+                TypeReferenceSerializationKind::ObjectType
+            } else {
+                TypeReferenceSerializationKind::Unknown
+            }
+        } else if type_.flags().intersects(TypeFlags::AnyOrUnknown) {
+            TypeReferenceSerializationKind::ObjectType
+        } else if self.is_type_assignable_to_kind(
+            type_,
+            TypeFlags::Void | TypeFlags::Nullable | TypeFlags::Never,
+            None,
+        ) {
+            TypeReferenceSerializationKind::VoidNullableOrNeverType
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::BooleanLike, None) {
+            TypeReferenceSerializationKind::BooleanType
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::NumberLike, None) {
+            TypeReferenceSerializationKind::NumberLikeType
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::BigIntLike, None) {
+            TypeReferenceSerializationKind::BigIntLikeType
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::StringLike, None) {
+            TypeReferenceSerializationKind::StringLikeType
+        } else if self.is_tuple_type(type_) {
+            TypeReferenceSerializationKind::ArrayLikeType
+        } else if self.is_type_assignable_to_kind(type_, TypeFlags::ESSymbolLike, None) {
+            TypeReferenceSerializationKind::ESSymbolType
+        } else if self.is_function_type(type_) {
+            TypeReferenceSerializationKind::TypeWithCallSignature
+        } else if self.is_array_type(type_) {
+            TypeReferenceSerializationKind::ArrayLikeType
+        } else {
+            TypeReferenceSerializationKind::ObjectType
+        }
     }
 
     pub(super) fn get_referenced_value_symbol(
