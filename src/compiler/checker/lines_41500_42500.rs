@@ -20,11 +20,11 @@ use crate::{
     is_type_only_import_or_export_declaration, modifier_to_flag, node_can_be_decorated,
     node_is_present, should_preserve_const_enums, some, token_to_string, try_cast, Debug_,
     Diagnostics, ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeCheckFlags, NodeFlags, ObjectFlags,
-    Signature, SignatureKind, SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
-    TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
-    Diagnostic, EmitResolverDebuggable, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
-    Type, TypeChecker,
+    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags,
+    NodeFlags, ObjectFlags, Signature, SignatureKind, SymbolInterface, SyntaxKind, TypeFlags,
+    TypeInterface, TypeReferenceSerializationKind, __String, bind_source_file,
+    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, Node, NodeInterface,
+    StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -413,6 +413,13 @@ impl TypeChecker {
             TypeReferenceSerializationKind::ObjectType
         }
     }
+
+    // pub(super) fn create_type_of_declaration(
+    //     &self,
+    //     declaration_in: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
+    //     enclosing_declaration: &Node,
+    //     flags: NodeBuilderFlags,
+    // ) -> Option<Rc<Symbol>> {
 
     pub(super) fn get_referenced_value_symbol(
         &self,

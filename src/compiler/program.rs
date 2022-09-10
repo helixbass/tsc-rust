@@ -32,7 +32,7 @@ pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
 ) -> Option<String> {
     let config_name = config_name.unwrap_or("tsconfig.json");
     for_each_ancestor_directory_str(search_path, |ancestor| {
-        let file_name = combine_paths(ancestor, &vec![Some(config_name)]);
+        let file_name = combine_paths(ancestor, &[Some(config_name)]);
         if file_exists(&file_name) {
             Some(file_name)
         } else {
@@ -46,7 +46,7 @@ pub fn resolve_tripleslash_reference(module_name: &str, containing_file: &str) -
     let referenced_file_name = if is_rooted_disk_path(module_name) {
         module_name.to_owned()
     } else {
-        combine_paths(&base_path, &vec![Some(module_name)])
+        combine_paths(&base_path, &[Some(module_name)])
     };
     normalize_path(&referenced_file_name)
 }
@@ -196,11 +196,11 @@ impl CompilerHostConcrete {
         if let Some(mtime_before) = mtime_before {
             let fingerprint = output_fingerprints.get(file_name);
             if matches!(
-            fingerprint,
-            Some(fingerprint) if fingerprint.byte_order_mark == write_byte_order_mark &&
-            fingerprint.hash == hash &&
-            fingerprint.mtime.duration_since(time::UNIX_EPOCH).unwrap().as_millis() ==
-                mtime_before.duration_since(time::UNIX_EPOCH).unwrap().as_millis()
+                fingerprint,
+                Some(fingerprint) if fingerprint.byte_order_mark == write_byte_order_mark &&
+                fingerprint.hash == hash &&
+                fingerprint.mtime.duration_since(time::UNIX_EPOCH).unwrap().as_millis() ==
+                    mtime_before.duration_since(time::UNIX_EPOCH).unwrap().as_millis()
             ) {
                 return Ok(());
             }
@@ -296,7 +296,7 @@ impl CompilerHost for CompilerHostConcrete {
     fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
         combine_paths(
             &self.get_default_lib_location().unwrap(),
-            &vec![Some(get_default_lib_file_name(options))],
+            &[Some(get_default_lib_file_name(options))],
         )
     }
 
