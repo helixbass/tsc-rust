@@ -10,7 +10,7 @@ use super::{
     command_options_without_build, create_diagnostic_for_invalid_custom_type,
     create_unknown_option_error, default_init_compiler_options, get_default_value_for_option,
     get_options_name_map, get_watch_options_name_map, hash_map_to_compiler_options,
-    option_declarations,
+    option_declarations, tsconfig_root_options_dummy_name,
 };
 use crate::{
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, create_multi_map,
@@ -470,7 +470,11 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                     object_literal_expression,
                     element_options,
                     extra_key_diagnostics,
-                    Some(option_name),
+                    if option_name == tsconfig_root_options_dummy_name {
+                        None
+                    } else {
+                        Some(option_name)
+                    },
                 );
                 return validate_value(
                     invalid_reported,

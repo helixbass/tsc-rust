@@ -1329,8 +1329,8 @@ impl ParserType {
         ) {
             let node = self.parse_literal_node();
             let node_as_literal_like_node = node.as_literal_like_node();
-            node_as_literal_like_node
-                .set_text(self.intern_identifier(&*node_as_literal_like_node.text()));
+            let text = self.intern_identifier(&*node_as_literal_like_node.text());
+            node_as_literal_like_node.set_text(text);
             return node;
         }
         if allow_computed_property_names && self.token() == SyntaxKind::OpenBracketToken {

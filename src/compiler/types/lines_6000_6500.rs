@@ -5,6 +5,7 @@ use derive_builder::Builder;
 use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::rc::{Rc, Weak};
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
@@ -2230,7 +2231,29 @@ impl CommandLineOption {
     }
 
     pub fn to_compiler_options_value(&self, value: &serde_json::Value) -> CompilerOptionsValue {
-        unimplemented!()
+        match self {
+            Self::CommandLineOptionOfCustomType(_) => unimplemented!(),
+            Self::CommandLineOptionOfStringType(_) => {
+                CompilerOptionsValue::String(Some(match value {
+                    serde_json::Value::String(value) => value.clone(),
+                    _ => panic!("Expected string"),
+                }))
+            }
+            Self::CommandLineOptionOfNumberType(_) => {
+                CompilerOptionsValue::Usize(Some(match value {
+                    serde_json::Value::Number(value) => value.as_u64().unwrap().try_into().unwrap(),
+                    _ => panic!("Expected number"),
+                }))
+            }
+            Self::CommandLineOptionOfBooleanType(_) => {
+                CompilerOptionsValue::Bool(Some(match value {
+                    serde_json::Value::Bool(value) => *value,
+                    _ => panic!("Expected number"),
+                }))
+            }
+            Self::TsConfigOnlyOption(_) => unimplemented!(),
+            Self::CommandLineOptionOfListType(list_type) => unimplemented!(),
+        }
     }
 }
 

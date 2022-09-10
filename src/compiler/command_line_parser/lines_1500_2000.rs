@@ -824,6 +824,7 @@ pub(super) fn get_command_line_type_acquisition_map() -> Rc<HashMap<String, Rc<C
     })
 }
 
+pub(super) const tsconfig_root_options_dummy_name: &str = "TSCONFIG ROOT OPTIONS";
 thread_local! {
     static _tsconfig_root_options: RefCell<Option<Rc<CommandLineOption>>> = RefCell::new(None);
 }
@@ -835,7 +836,7 @@ pub(super) fn get_tsconfig_root_options_map() -> Rc<CommandLineOption> {
                 TsConfigOnlyOption::new(
                     CommandLineOptionBase {
                         _command_line_option_wrapper: RefCell::new(None),
-                        name: "TSCONFIG ROOT OPTIONS".to_string(),
+                        name: tsconfig_root_options_dummy_name.to_owned(),
                         type_: CommandLineOptionType::Object,
                         is_file_path: None,
                         short_name: None,

@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::mem;
 use std::rc::Rc;
 
@@ -30,10 +30,10 @@ pub fn index_of<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
     item: &TItem,
     mut comparer: TComparer,
 ) -> isize {
-    let mut index = 0;
-    while index <= slice.len() - 1 {
-        if comparer(&slice[index], item) {
-            return index.try_into().unwrap();
+    let mut index: isize = 0;
+    while index <= isize::try_from(slice.len()).unwrap() - 1 {
+        if comparer(&slice[usize::try_from(index).unwrap()], item) {
+            return index;
         }
         index += 1;
     }
