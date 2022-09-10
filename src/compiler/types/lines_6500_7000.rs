@@ -135,6 +135,12 @@ impl Extension {
     }
 }
 
+impl AsRef<str> for Extension {
+    fn as_ref(&self) -> &str {
+        self.to_str()
+    }
+}
+
 pub struct ResolvedModuleWithFailedLookupLocations {
     pub resolved_module: Option<ResolvedModuleFull>,
     pub failed_lookup_locations: Vec<String>,

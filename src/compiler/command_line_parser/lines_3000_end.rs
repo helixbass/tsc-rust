@@ -686,7 +686,7 @@ pub(crate) fn get_file_names_from_config_specs<THost: ParseConfigHost>(
                 &base_path,
                 &flatten(&supported_extensions_with_json_if_resolve_json_module)
                     .iter()
-                    .map(|string| &**string)
+                    .map(|string| string.to_str())
                     .collect::<Vec<_>>(),
                 validated_exclude_specs,
                 validated_include_specs,
@@ -1044,7 +1044,7 @@ pub(super) fn has_file_with_higher_priority_extension(
     file: &str,
     literal_files: &HashMap<String, String>,
     wildcard_files: &HashMap<String, String>,
-    extensions: &[Vec<String>],
+    extensions: &[Vec<Extension>],
     key_mapper: fn(&str) -> String,
 ) -> bool {
     let extension_group = for_each(extensions, |group, _| {
@@ -1059,14 +1059,14 @@ pub(super) fn has_file_with_higher_priority_extension(
     }
     let extension_group = extension_group.unwrap();
     for ext in extension_group {
-        if file_extension_is(file, ext) {
+        if file_extension_is(file, ext.to_str()) {
             return false;
         }
-        let higher_priority_path = key_mapper(&change_extension(file, ext));
+        let higher_priority_path = key_mapper(&change_extension(file, ext.to_str()));
         if literal_files.contains_key(&higher_priority_path)
             || wildcard_files.contains_key(&higher_priority_path)
         {
-            if ext == Extension::Dts.to_str()
+            if *ext == Extension::Dts
                 && (file_extension_is(file, Extension::Js.to_str())
                     || file_extension_is(file, Extension::Jsx.to_str()))
             {
@@ -1082,7 +1082,7 @@ pub(super) fn has_file_with_higher_priority_extension(
 pub(super) fn remove_wildcard_files_with_lower_priority_extension(
     file: &str,
     wildcard_files: &mut HashMap<String, String>,
-    extensions: &[Vec<String>],
+    extensions: &[Vec<Extension>],
     key_mapper: fn(&str) -> String,
 ) {
     let extension_group = for_each(extensions, |group, _| {
@@ -1097,10 +1097,10 @@ pub(super) fn remove_wildcard_files_with_lower_priority_extension(
     }
     let extension_group = extension_group.unwrap();
     for ext in extension_group.iter().rev() {
-        if file_extension_is(file, ext) {
+        if file_extension_is(file, ext.to_str()) {
             return;
         }
-        let lower_priority_path = key_mapper(&change_extension(file, ext));
+        let lower_priority_path = key_mapper(&change_extension(file, ext.to_str()));
         wildcard_files.remove(&lower_priority_path);
     }
 }

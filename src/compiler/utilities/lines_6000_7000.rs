@@ -10,10 +10,10 @@ use std::rc::Rc;
 use crate::{
     combine_paths, compare_strings_case_sensitive, compare_strings_case_sensitive_maybe,
     compare_values, flatten, for_each, format_string_from_args, get_locale_specific_message,
-    index_of, normalize_path, BaseTextRange, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison, CompilerOptions,
-    CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    index_of, map_defined, normalize_path, BaseTextRange, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
+    CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
     MapLike, ModuleKind, ModuleResolutionKind, Node, NodeArray, Pattern, PluginImport, ScriptKind,
     ScriptTarget, TypeAcquisition, WatchOptions,
@@ -816,19 +816,105 @@ lazy_static! {
 lazy_static! {
     pub static ref supported_js_extensions_flat: Vec<Extension> = flatten(&supported_js_extensions);
 }
+lazy_static! {
+    pub static ref all_supported_extensions: Vec<Vec<Extension>> = vec![
+        vec![
+            Extension::Ts,
+            Extension::Tsx,
+            Extension::Dts,
+            Extension::Js,
+            Extension::Jsx
+        ],
+        vec![Extension::Cts, Extension::Dcts, Extension::Cjs],
+        vec![Extension::Mts, Extension::Dmts, Extension::Mjs]
+    ];
+}
+lazy_static! {
+    pub static ref all_supported_extensions_with_json: Vec<Vec<Extension>> = vec![
+        vec![
+            Extension::Ts,
+            Extension::Tsx,
+            Extension::Dts,
+            Extension::Js,
+            Extension::Jsx
+        ],
+        vec![Extension::Cts, Extension::Dcts, Extension::Cjs],
+        vec![Extension::Mts, Extension::Dmts, Extension::Mjs],
+        vec![Extension::Json],
+    ];
+}
 
 pub fn get_supported_extensions(
     options: Option<&CompilerOptions>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
-) -> Vec<Vec<String>> {
-    unimplemented!()
+) -> Vec<Vec<Extension>> {
+    let need_js_extensions = matches!(
+        options,
+        Some(options) if get_allow_js_compiler_option(options)
+    );
+
+    if match extra_file_extensions {
+        None => true,
+        Some(extra_file_extensions) => extra_file_extensions.is_empty(),
+    } {
+        return if need_js_extensions {
+            all_supported_extensions.clone()
+        } else {
+            supported_ts_extensions.clone()
+        };
+    }
+
+    let builtins = if need_js_extensions {
+        all_supported_extensions.clone()
+    } else {
+        supported_ts_extensions.clone()
+    };
+    let flat_builtins = flatten(&builtins);
+    let mut extensions = builtins;
+    extensions.append(&mut map_defined(
+        extra_file_extensions,
+        |x: &FileExtensionInfo, _| {
+            if x.script_kind == Some(ScriptKind::Deferred)
+                || need_js_extensions
+                    && is_js_like(x.script_kind)
+                    && flat_builtins
+                        .iter()
+                        .position(|flat_builtin| flat_builtin.to_str() == &x.extension)
+                        .is_none()
+            {
+                Some(vec![Extension::maybe_from_str(&x.extension).unwrap()])
+            } else {
+                None
+            }
+        },
+    ));
+
+    extensions
 }
 
 pub fn get_supported_extensions_with_json_if_resolve_json_module(
     options: Option<&CompilerOptions>,
-    supported_extensions: &[Vec<String>],
-) -> Vec<Vec<String>> {
-    unimplemented!()
+    supported_extensions: &[Vec<Extension>],
+) -> Vec<Vec<Extension>> {
+    if match options {
+        None => true,
+        Some(options) => options.resolve_json_module != Some(true),
+    } {
+        return supported_extensions.to_owned();
+    }
+    if supported_extensions == &**all_supported_extensions {
+        return all_supported_extensions_with_json.clone();
+    }
+    if supported_extensions == &**supported_ts_extensions {
+        return supported_ts_extensions_with_json.clone();
+    }
+    let mut ret = supported_extensions.to_owned();
+    ret.push(vec![Extension::Json]);
+    ret
+}
+
+pub fn is_js_like(script_kind: Option<ScriptKind>) -> bool {
+    matches!(script_kind, Some(ScriptKind::JS) | Some(ScriptKind::JSX))
 }
 
 pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
