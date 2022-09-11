@@ -9,14 +9,15 @@ use std::rc::Rc;
 
 use crate::{
     combine_paths, compare_strings_case_sensitive, compare_strings_case_sensitive_maybe,
-    compare_values, flatten, for_each, format_string_from_args, get_locale_specific_message,
-    index_of, map_defined, normalize_path, BaseTextRange, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
-    CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
-    MapLike, ModuleKind, ModuleResolutionKind, Node, NodeArray, Pattern, PluginImport, ScriptKind,
-    ScriptTarget, TypeAcquisition, WatchOptions,
+    compare_values, create_get_canonical_file_name, file_extension_is_one_of, find_index, flatten,
+    for_each, format_string_from_args, get_locale_specific_message, index_of, map_defined,
+    normalize_path, sort, BaseTextRange, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison, CompilerOptions,
+    CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, GetCanonicalFileName,
+    JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind, Node, NodeArray, Pattern,
+    PluginImport, ScriptKind, ScriptTarget, TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -716,6 +717,11 @@ pub fn get_pattern_from_spec(
     unimplemented!()
 }
 
+pub struct FileSystemEntries {
+    pub files: Vec<String>,
+    pub directories: Vec<String>,
+}
+
 pub struct FileMatcherPatterns {
     pub include_file_patterns: Option<Vec<String>>,
     pub include_file_pattern: Option<String>,
@@ -724,10 +730,10 @@ pub struct FileMatcherPatterns {
     pub base_paths: Vec<String>,
 }
 
-pub fn get_file_matcher_patterns(
+pub fn get_file_matcher_patterns<TExclude: AsRef<str>, TInclude: AsRef<str>>(
     path: &str,
-    excludes: Option<&[String]>,
-    includes: Option<&[String]>,
+    excludes: Option<&[TExclude]>,
+    includes: Option<&[TInclude]>,
     use_case_sensitive_file_names: bool,
     current_directory: &str,
 ) -> FileMatcherPatterns {
@@ -748,6 +754,181 @@ pub fn get_regex_from_pattern(pattern: &str, use_case_sensitive_file_names: bool
         format!("(?i){}", pattern)
     })
     .unwrap()
+}
+
+pub fn match_files<
+    TExtension: AsRef<str>,
+    TExclude: AsRef<str>,
+    TInclude: AsRef<str>,
+    TGetFileSystemEntries: FnMut(&str) -> FileSystemEntries,
+    TRealpath: FnMut(&str) -> String,
+>(
+    path: &str,
+    extensions: Option<&[TExtension]>,
+    excludes: Option<&[TExclude]>,
+    includes: Option<&[TInclude]>,
+    use_case_sensitive_file_names: bool,
+    current_directory: &str,
+    mut depth: Option<usize>,
+    mut get_file_system_entries: TGetFileSystemEntries,
+    mut realpath: TRealpath,
+) -> Vec<String> {
+    let path = normalize_path(path);
+    let current_directory = normalize_path(current_directory);
+
+    let patterns = get_file_matcher_patterns(
+        &path,
+        excludes,
+        includes,
+        use_case_sensitive_file_names,
+        &current_directory,
+    );
+
+    let include_file_regexes =
+        patterns
+            .include_file_patterns
+            .as_ref()
+            .map(|patterns_include_file_patterns| {
+                patterns_include_file_patterns
+                    .into_iter()
+                    .map(|pattern| get_regex_from_pattern(pattern, use_case_sensitive_file_names))
+                    .collect::<Vec<_>>()
+            });
+    let include_directory_regex =
+        patterns
+            .include_directory_pattern
+            .as_ref()
+            .map(|patterns_include_directory_pattern| {
+                get_regex_from_pattern(
+                    patterns_include_directory_pattern,
+                    use_case_sensitive_file_names,
+                )
+            });
+    let exclude_regex = patterns
+        .exclude_pattern
+        .as_ref()
+        .map(|patterns_exclude_pattern| {
+            get_regex_from_pattern(patterns_exclude_pattern, use_case_sensitive_file_names)
+        });
+
+    let mut results: Vec<Vec<String>> =
+        if let Some(include_file_regexes) = include_file_regexes.as_ref() {
+            include_file_regexes.into_iter().map(|_| vec![]).collect()
+        } else {
+            vec![vec![]]
+        };
+    let mut visited: HashMap<String, bool /*true*/> = HashMap::new();
+    let to_canonical = create_get_canonical_file_name(use_case_sensitive_file_names);
+    for base_path in &patterns.base_paths {
+        visit_directory(
+            to_canonical,
+            &mut realpath,
+            &mut visited,
+            &mut get_file_system_entries,
+            extensions,
+            exclude_regex.as_ref(),
+            include_file_regexes.as_deref(),
+            &mut results,
+            include_directory_regex.as_ref(),
+            base_path,
+            &combine_paths(&current_directory, &[Some(base_path)]),
+            &mut depth,
+        );
+    }
+
+    flatten(&results)
+}
+
+fn visit_directory<
+    TRealpath: FnMut(&str) -> String,
+    TGetFileSystemEntries: FnMut(&str) -> FileSystemEntries,
+    TExtension: AsRef<str>,
+>(
+    to_canonical: GetCanonicalFileName,
+    realpath: &mut TRealpath,
+    visited: &mut HashMap<String, bool>,
+    get_file_system_entries: &mut TGetFileSystemEntries,
+    extensions: Option<&[TExtension]>,
+    exclude_regex: Option<&Regex>,
+    include_file_regexes: Option<&[Regex]>,
+    results: &mut Vec<Vec<String>>,
+    include_directory_regex: Option<&Regex>,
+    path: &str,
+    absolute_path: &str,
+    depth: &mut Option<usize>,
+) {
+    let canonical_path = to_canonical(&realpath(absolute_path));
+    if visited.contains_key(&canonical_path) {
+        return;
+    }
+    visited.insert(canonical_path.clone(), true);
+    let FileSystemEntries { files, directories } = get_file_system_entries(path);
+
+    for current in &*sort(&files, |a, b| compare_strings_case_sensitive(a, b)) {
+        let name = combine_paths(path, &[Some(current)]);
+        let absolute_name = combine_paths(absolute_path, &[Some(current)]);
+        if matches!(
+            extensions,
+            Some(extensions) if !file_extension_is_one_of(&name, extensions)
+        ) {
+            continue;
+        }
+        if matches!(
+            exclude_regex,
+            Some(exclude_regex) if exclude_regex.is_match(&absolute_name)
+        ) {
+            continue;
+        }
+        match include_file_regexes {
+            None => {
+                results[0].push(name);
+            }
+            Some(include_file_regexes) => {
+                let include_index = find_index(
+                    include_file_regexes,
+                    |re: &Regex, _| re.is_match(&absolute_name),
+                    None,
+                );
+                if let Some(include_index) = include_index {
+                    results[include_index].push(name);
+                }
+            }
+        }
+    }
+
+    if depth.is_some() {
+        *depth = Some(depth.unwrap() - 1);
+        if depth.unwrap() == 0 {
+            return;
+        }
+    }
+
+    for current in &*sort(&directories, |a, b| compare_strings_case_sensitive(a, b)) {
+        let name = combine_paths(path, &[Some(current)]);
+        let absolute_name = combine_paths(absolute_path, &[Some(current)]);
+        if match include_directory_regex {
+            None => true,
+            Some(include_directory_regex) => include_directory_regex.is_match(&absolute_name),
+        } && match exclude_regex {
+            None => true,
+            Some(exclude_regex) => !exclude_regex.is_match(&absolute_name),
+        } {
+            visit_directory(
+                to_canonical,
+                realpath,
+                visited,
+                get_file_system_entries,
+                extensions,
+                exclude_regex,
+                include_file_regexes,
+                results,
+                include_directory_regex,
+                &name,
+                &absolute_name,
+                depth,
+            );
+        }
+    }
 }
 
 pub fn ensure_script_kind(file_name: &str, script_kind: Option<ScriptKind>) -> ScriptKind {
