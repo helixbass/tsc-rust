@@ -7,7 +7,10 @@ use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 
-use crate::{ConvertToTSConfigHost, ExitStatus, RequireResult, WatchFileKind, WatchOptions};
+use crate::{
+    is_windows, match_files, process_cwd, ConvertToTSConfigHost, ExitStatus, FileSystemEntries,
+    RequireResult, WatchFileKind, WatchOptions,
+};
 
 pub(crate) fn generate_djb2_hash(data: &str) -> String {
     unimplemented!()
@@ -163,11 +166,15 @@ pub trait FileWatcher {
 
 struct SystemConcrete {
     args: Vec<String>,
+    use_case_sensitive_file_names: bool,
 }
 
 impl SystemConcrete {
-    pub fn new(args: Vec<String>) -> Self {
-        Self { args }
+    pub fn new(args: Vec<String>, use_case_sensitive_file_names: bool) -> Self {
+        Self {
+            args,
+            use_case_sensitive_file_names,
+        }
     }
 
     fn stat_sync(&self, path: &str) -> Option<Stats> {
@@ -176,6 +183,10 @@ impl SystemConcrete {
 
     fn read_file_worker(&self, file_name: &str) -> io::Result<String> {
         fs::read_to_string(file_name)
+    }
+
+    fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
+        unimplemented!()
     }
 
     fn file_system_entry_exists(&self, path: &str, entry_kind: FileSystemEntryKind) -> bool {
@@ -253,7 +264,17 @@ impl System for SystemConcrete {
         includes: Option<&[String]>,
         depth: Option<usize>,
     ) -> Vec<String> {
-        unimplemented!()
+        match_files(
+            path,
+            extensions,
+            excludes,
+            includes,
+            self.use_case_sensitive_file_names,
+            &process_cwd(),
+            depth,
+            |path| self.get_accessible_file_system_entries(path),
+            |path| self.realpath(path).unwrap(),
+        )
     }
 
     fn is_get_modified_time_supported(&self) -> bool {
@@ -342,11 +363,20 @@ impl System for SystemConcrete {
 }
 
 thread_local! {
-    static SYS: Rc<dyn System> = Rc::new(SystemConcrete::new(env::args().skip(1).collect(),));
+    static SYS: Rc<dyn System> = Rc::new(SystemConcrete::new(
+        env::args().skip(1).collect(),
+        is_file_system_case_sensitive(),
+    ));
 }
 
 pub fn get_sys() -> Rc<dyn System> {
     SYS.with(|sys| sys.clone())
+}
+
+/*const*/
+fn is_file_system_case_sensitive() -> bool {
+    !is_windows()
+    // return !fileExists(swapCase(__filename));
 }
 
 #[cfg(windows)]

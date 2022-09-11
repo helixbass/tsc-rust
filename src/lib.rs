@@ -447,16 +447,16 @@ pub use compiler::utilities::{
     is_type_alias, is_type_node_kind, is_umd_export_symbol, is_valid_es_symbol_declaration,
     is_valid_type_only_alias_use_site, is_value_signature_declaration, is_var_const,
     is_variable_declaration_in_variable_statement, is_variable_like, is_watch_set, is_write_access,
-    is_write_only_access, maybe_set_parent, min_and_max, modifier_to_flag, modifiers_to_flags,
-    no_truncation_maximum_truncation_length, node_can_be_decorated, node_is_decorated,
-    node_is_missing, node_is_present, node_is_synthesized, node_starts_new_lexical_environment,
-    object_allocator, out_file, package_id_to_string, parameter_is_this_keyword,
-    parse_pseudo_big_int, position_is_synthesized, pseudo_big_int_to_string, range_of_node,
-    range_of_type_parameters, remove_extension, remove_file_extension,
-    resolution_extension_is_ts_or_json, resolving_empty_array, set_node_flags, set_parent,
-    set_parent_recursive, set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width,
-    set_value_declaration, should_preserve_const_enums, skip_parentheses, skip_type_checking,
-    slice_after, supported_js_extensions_flat, supported_ts_extensions_flat,
+    is_write_only_access, match_files, maybe_set_parent, min_and_max, modifier_to_flag,
+    modifiers_to_flags, no_truncation_maximum_truncation_length, node_can_be_decorated,
+    node_is_decorated, node_is_missing, node_is_present, node_is_synthesized,
+    node_starts_new_lexical_environment, object_allocator, out_file, package_id_to_string,
+    parameter_is_this_keyword, parse_pseudo_big_int, position_is_synthesized,
+    pseudo_big_int_to_string, range_of_node, range_of_type_parameters, remove_extension,
+    remove_file_extension, resolution_extension_is_ts_or_json, resolving_empty_array,
+    set_node_flags, set_parent, set_parent_recursive, set_text_range_pos, set_text_range_pos_end,
+    set_text_range_pos_width, set_value_declaration, should_preserve_const_enums, skip_parentheses,
+    skip_type_checking, slice_after, supported_js_extensions_flat, supported_ts_extensions_flat,
     try_extract_ts_extension,
     try_get_class_implementing_or_extending_expression_with_type_arguments,
     try_get_import_from_module_specifier, try_get_property_access_or_identifier_to_string,
@@ -464,8 +464,9 @@ pub use compiler::utilities::{
     unused_label_is_error, using_single_line_string_writer, walk_up_parenthesized_expressions,
     walk_up_parenthesized_types, walk_up_parenthesized_types_and_get_parent_and_child,
     write_file_ensuring_directories, AssignmentKind, Associativity,
-    ClassImplementingOrExtendingExpressionWithTypeArguments, FileMatcherPatterns, FunctionFlags,
-    GetLiteralTextFlags, MinAndMax, OperatorPrecedence, StringOrPattern, SymlinkCache,
+    ClassImplementingOrExtendingExpressionWithTypeArguments, FileMatcherPatterns,
+    FileSystemEntries, FunctionFlags, GetLiteralTextFlags, MinAndMax, OperatorPrecedence,
+    StringOrPattern, SymlinkCache,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,
@@ -551,6 +552,7 @@ pub use compiler::watch_public::{
 };
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
+pub use rust_helpers::sys::{is_windows, process_cwd};
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_option_rcs_equal, are_rc_slices_equal, capitalize, index_of, index_of_rc, is_same_variant,
