@@ -177,6 +177,10 @@ impl SystemConcrete {
         }
     }
 
+    fn realpath_sync(&self, path: &str) -> io::Result<String> {
+        fs::canonicalize(path).map(|path_buf| path_buf.into_os_string().into_string().unwrap())
+    }
+
     fn stat_sync(&self, path: &str) -> Option<Stats> {
         Some(Stats::new(fs::metadata(Path::new(path)).ok()?))
     }
@@ -295,6 +299,10 @@ impl System for SystemConcrete {
 
     fn directory_exists(&self, path: &str) -> bool {
         self.file_system_entry_exists(path, FileSystemEntryKind::Directory)
+    }
+
+    fn realpath(&self, path: &str) -> Option<String> {
+        Some(self.realpath_sync(path).unwrap_or_else(|_| path.to_owned()))
     }
 
     fn exit(&self, exit_code: Option<ExitStatus>) -> ! {
