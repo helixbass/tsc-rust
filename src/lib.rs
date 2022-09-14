@@ -352,8 +352,8 @@ pub use compiler::utilities::{
     create_diagnostic_for_node, create_diagnostic_for_node_array,
     create_diagnostic_for_node_from_message_chain, create_diagnostic_for_node_in_source_file,
     create_file_diagnostic, create_symbol_table, create_text_writer, declaration_name_to_string,
-    default_maximum_truncation_length, ensure_script_kind, entity_name_to_string,
-    escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
+    default_maximum_truncation_length, empty_file_system_entries, ensure_script_kind,
+    entity_name_to_string, escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
     export_assignment_is_alias, expression_result_is_unused, external_helpers_module_name_text,
     for_each_enclosing_block_scope_container, for_each_entry, for_each_entry_bool,
     for_each_import_clause_declaration_bool, for_each_key, for_each_return_statement,
@@ -553,7 +553,9 @@ pub use compiler::watch_public::{
 };
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
-pub use rust_helpers::sys::{is_windows, process_cwd};
+pub use rust_helpers::sys::{
+    fs_readdir_sync_with_file_types, fs_stat_sync, is_windows, process_cwd, StatLike, Stats,
+};
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_option_rcs_equal, are_rc_slices_equal, capitalize, index_of, index_of_rc, is_same_variant,

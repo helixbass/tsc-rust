@@ -935,6 +935,7 @@ pub fn replace_wildcard_character(match_: &str, single_asterisk_regex_fragment: 
     }
 }
 
+#[derive(Clone)]
 pub struct FileSystemEntries {
     pub files: Vec<String>,
     pub directories: Vec<String>,
@@ -1437,6 +1438,13 @@ pub fn is_check_js_enabled_for_file(
     compiler_options: &CompilerOptions,
 ) -> bool {
     unimplemented!()
+}
+
+lazy_static! {
+    pub static ref empty_file_system_entries: FileSystemEntries = FileSystemEntries {
+        files: vec![],
+        directories: vec![],
+    };
 }
 
 pub fn slice_after<'arr, TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(

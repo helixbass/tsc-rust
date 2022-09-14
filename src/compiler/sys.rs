@@ -8,8 +8,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 
 use crate::{
+    combine_paths, empty_file_system_entries, fs_readdir_sync_with_file_types, fs_stat_sync,
     is_windows, match_files, process_cwd, ConvertToTSConfigHost, ExitStatus, FileSystemEntries,
-    RequireResult, WatchFileKind, WatchOptions,
+    RequireResult, StatLike, Stats, WatchFileKind, WatchOptions,
 };
 
 pub(crate) fn generate_djb2_hash(data: &str) -> String {
@@ -182,7 +183,7 @@ impl SystemConcrete {
     }
 
     fn stat_sync(&self, path: &str) -> Option<Stats> {
-        Some(Stats::new(fs::metadata(Path::new(path)).ok()?))
+        fs_stat_sync(path)
     }
 
     fn read_file_worker(&self, file_name: &str) -> io::Result<String> {
@@ -190,7 +191,44 @@ impl SystemConcrete {
     }
 
     fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
-        unimplemented!()
+        // perfLogger.logEvent("ReadDir: " + (path || "."));
+        let entries = fs_readdir_sync_with_file_types(if path.is_empty() { "." } else { path });
+        if entries.is_err() {
+            return empty_file_system_entries.clone();
+        }
+        let entries = entries.unwrap();
+        let mut files: Vec<String> = vec![];
+        let mut directories: Vec<String> = vec![];
+        for dirent in &entries {
+            let entry = dirent.name();
+
+            if matches!(&*entry, "." | "..") {
+                continue;
+            }
+
+            let stat: &dyn StatLike;
+            let mut maybe_stats: Option<Stats> = None;
+            if dirent.is_symbolic_link() {
+                let name = combine_paths(path, &[Some(&entry)]);
+
+                maybe_stats = self.stat_sync(&name);
+                if maybe_stats.is_none() {
+                    continue;
+                }
+                stat = maybe_stats.as_ref().unwrap();
+            } else {
+                stat = dirent;
+            }
+
+            if stat.is_file() {
+                files.push(entry);
+            } else if stat.is_directory() {
+                directories.push(entry);
+            }
+        }
+        files.sort();
+        directories.sort();
+        FileSystemEntries { files, directories }
     }
 
     fn file_system_entry_exists(&self, path: &str, entry_kind: FileSystemEntryKind) -> bool {
@@ -391,21 +429,3 @@ fn is_file_system_case_sensitive() -> bool {
 const LINE_ENDING: &'static str = "\r\n";
 #[cfg(not(windows))]
 const LINE_ENDING: &'static str = "\n";
-
-pub struct Stats {
-    metadata: Metadata,
-}
-
-impl Stats {
-    pub fn new(metadata: Metadata) -> Self {
-        Self { metadata }
-    }
-
-    pub fn is_file(&self) -> bool {
-        self.metadata.is_file()
-    }
-
-    pub fn is_directory(&self) -> bool {
-        self.metadata.is_dir()
-    }
-}
