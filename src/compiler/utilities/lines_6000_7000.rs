@@ -1,20 +1,24 @@
 #![allow(non_upper_case_globals)]
 
-use regex::Regex;
+use regex::{Captures, Regex};
 use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
     combine_paths, compare_strings_case_sensitive, compare_strings_case_sensitive_maybe,
-    compare_values, create_get_canonical_file_name, file_extension_is_one_of, find_index, flatten,
-    for_each, format_string_from_args, get_locale_specific_message, index_of, map_defined,
-    normalize_path, sort, BaseTextRange, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison, CompilerOptions,
-    CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    compare_values, comparison_to_ordering, contains_path, create_get_canonical_file_name,
+    directory_separator, every, file_extension_is_one_of, find_index, flat_map, flatten, for_each,
+    format_string_from_args, get_directory_path, get_locale_specific_message,
+    get_normalized_path_components, get_string_comparer, has_extension, index_of,
+    index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map, normalize_path,
+    remove_trailing_directory_separator, sort, BaseTextRange, CharacterCodes, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
+    CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, GetCanonicalFileName,
     JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind, Node, NodeArray, Pattern,
     PluginImport, ScriptKind, ScriptTarget, TypeAcquisition, WatchOptions,
@@ -689,12 +693,97 @@ pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
 
 pub struct SymlinkCache {}
 
-pub fn get_regular_expression_for_wildcard(
-    specs: Option<&[String]>,
+lazy_static! {
+    static ref reserved_character_pattern: Regex = Regex::new(r"[^\w\s/]").unwrap();
+}
+
+lazy_static! {
+    pub static ref common_package_folders: Vec<&'static str> =
+        vec!["node_modules", "bower_components", "jspm_packages",];
+}
+
+lazy_static! {
+    static ref wildcard_char_codes: Vec<char> =
+        vec![CharacterCodes::asterisk, CharacterCodes::question];
+    static ref implicit_exclude_path_regex_pattern: String =
+        format!("(?!({})(/|$))", common_package_folders.join("|"));
+}
+
+#[derive(Clone)]
+pub struct WildcardMatcher {
+    pub single_asterisk_regex_fragment: String,
+    pub double_asterisk_regex_fragment: String,
+    pub replace_wildcard_character: fn(&str) -> String,
+}
+
+lazy_static! {
+    static ref files_matcher: WildcardMatcher = WildcardMatcher {
+        single_asterisk_regex_fragment: "([^./]|(\\.(?!min\\.js$))?)*".to_owned(),
+        double_asterisk_regex_fragment: format!(
+            "(/{}[^/.][^/]*)*?",
+            &*implicit_exclude_path_regex_pattern
+        ),
+        replace_wildcard_character: files_matcher_replace_wildcard_character
+    };
+}
+
+fn files_matcher_replace_wildcard_character(match_: &str) -> String {
+    replace_wildcard_character(match_, &files_matcher.single_asterisk_regex_fragment)
+}
+
+lazy_static! {
+    static ref directories_matcher: WildcardMatcher = WildcardMatcher {
+        single_asterisk_regex_fragment: "[^/]*".to_owned(),
+        double_asterisk_regex_fragment: format!(
+            "(/{}[^/.][^/]*)*?",
+            &*implicit_exclude_path_regex_pattern
+        ),
+        replace_wildcard_character: directories_matcher_replace_wildcard_character
+    };
+}
+
+fn directories_matcher_replace_wildcard_character(match_: &str) -> String {
+    replace_wildcard_character(match_, &directories_matcher.single_asterisk_regex_fragment)
+}
+
+lazy_static! {
+    static ref exclude_matcher: WildcardMatcher = WildcardMatcher {
+        single_asterisk_regex_fragment: "[^/]*".to_owned(),
+        double_asterisk_regex_fragment: "(/.+?)?".to_owned(),
+        replace_wildcard_character: exclude_matcher_replace_wildcard_character
+    };
+}
+
+fn exclude_matcher_replace_wildcard_character(match_: &str) -> String {
+    replace_wildcard_character(match_, &exclude_matcher.single_asterisk_regex_fragment)
+}
+
+lazy_static! {
+    static ref wildcard_matchers: HashMap<&'static str, WildcardMatcher> =
+        HashMap::from_iter(IntoIterator::into_iter([
+            ("files", files_matcher.clone()),
+            ("directories", directories_matcher.clone()),
+            ("exclude", exclude_matcher.clone()),
+        ]));
+}
+
+pub fn get_regular_expression_for_wildcard<TSpec: AsRef<str>>(
+    specs: Option<&[TSpec]>,
     base_path: &str,
     usage: &str, /*"files" | "directories" | "exclude"*/
 ) -> Option<String> {
-    unimplemented!()
+    let patterns = get_regular_expressions_for_wildcards(specs, base_path, usage)?;
+    if patterns.is_empty() {
+        return None;
+    }
+
+    let pattern = patterns
+        .iter()
+        .map(|pattern| format!("({})", pattern))
+        .collect::<Vec<_>>()
+        .join("|");
+    let terminator = if usage == "exclude" { "($|/)" } else { "$" };
+    Some(format!("^({}){}", pattern, terminator))
 }
 
 pub fn get_regular_expressions_for_wildcards<TSpec: AsRef<str>>(
@@ -702,11 +791,32 @@ pub fn get_regular_expressions_for_wildcards<TSpec: AsRef<str>>(
     base_path: &str,
     usage: &str, /*"files" | "directories" | "exclude"*/
 ) -> Option<Vec<String>> {
-    unimplemented!()
+    let specs = specs?;
+    if specs.is_empty() {
+        return None;
+    }
+
+    Some(flat_map(Some(specs), |spec, _| {
+        let spec = spec.as_ref();
+        if !spec.is_empty() {
+            get_sub_pattern_from_spec(
+                spec,
+                base_path,
+                usage,
+                wildcard_matchers.get(usage).unwrap(),
+            )
+        } else {
+            None
+        }
+        .map_or_else(|| vec![], |sub_pattern| vec![sub_pattern])
+    }))
 }
 
 pub fn is_implicit_glob(last_path_component: &str) -> bool {
-    unimplemented!()
+    lazy_static! {
+        static ref regex: Regex = Regex::new("[.*?]").unwrap();
+    }
+    regex.is_match(last_path_component)
 }
 
 pub fn get_pattern_from_spec(
@@ -714,7 +824,115 @@ pub fn get_pattern_from_spec(
     base_path: &str,
     usage: &str, /*"files" | "directories" | "exclude"*/
 ) -> Option<String> {
-    unimplemented!()
+    let pattern = if !spec.is_empty() {
+        get_sub_pattern_from_spec(
+            spec,
+            base_path,
+            usage,
+            wildcard_matchers.get(usage).unwrap(),
+        )
+    } else {
+        None
+    };
+    pattern.map(|pattern| {
+        format!(
+            "^({}){}",
+            pattern,
+            if usage == "exclude" { "($|/)" } else { "$" }
+        )
+    })
+}
+
+pub fn get_sub_pattern_from_spec(
+    spec: &str,
+    base_path: &str,
+    usage: &str, /*"files" | "directories" | "exclude"*/
+    wildcard_matcher: &WildcardMatcher,
+) -> Option<String> {
+    let single_asterisk_regex_fragment = &wildcard_matcher.single_asterisk_regex_fragment;
+    let double_asterisk_regex_fragment = &wildcard_matcher.double_asterisk_regex_fragment;
+    let replace_wildcard_character = wildcard_matcher.replace_wildcard_character;
+    let mut subpattern = "".to_owned();
+    let mut has_written_component = false;
+    let mut components = get_normalized_path_components(spec, Some(base_path));
+    let last_component = last(&components).clone();
+    if usage != "exclude" && last_component == "**" {
+        return None;
+    }
+
+    components[0] = remove_trailing_directory_separator(&components[0]);
+
+    if is_implicit_glob(&last_component) {
+        components.push("**".to_owned());
+        components.push("*".to_owned());
+    }
+
+    let mut optional_count = 0;
+    for component in &components {
+        let mut component = component.clone();
+        if component == "**" {
+            subpattern.push_str(double_asterisk_regex_fragment);
+        } else {
+            if usage == "directories" {
+                subpattern.push_str("(");
+                optional_count += 1;
+            }
+
+            if has_written_component {
+                subpattern.push(directory_separator);
+            }
+
+            if usage != "exclude" {
+                let mut component_pattern = "".to_owned();
+                let component_char_code_at_0 = component.chars().next();
+                if component_char_code_at_0 == Some(CharacterCodes::asterisk) {
+                    component_pattern
+                        .push_str(&format!("([^./]{})?", single_asterisk_regex_fragment));
+                    component = component[1..].to_owned();
+                } else if component_char_code_at_0 == Some(CharacterCodes::question) {
+                    component_pattern.push_str("[^./]");
+                    component = component[1..].to_owned();
+                }
+
+                component_pattern.push_str(
+                    &reserved_character_pattern.replace_all(&component, |captures: &Captures| {
+                        replace_wildcard_character(&captures[0])
+                    }),
+                );
+
+                if component_pattern != component {
+                    subpattern.push_str(&implicit_exclude_path_regex_pattern);
+                }
+
+                subpattern.push_str(&component_pattern);
+            } else {
+                subpattern.push_str(
+                    &reserved_character_pattern.replace_all(&component, |captures: &Captures| {
+                        replace_wildcard_character(&captures[0])
+                    }),
+                );
+            }
+        }
+
+        has_written_component = true;
+    }
+
+    while optional_count > 0 {
+        subpattern.push_str(")?");
+        optional_count -= 1;
+    }
+
+    Some(subpattern)
+}
+
+pub fn replace_wildcard_character(match_: &str, single_asterisk_regex_fragment: &str) -> String {
+    if match_ == "*" {
+        single_asterisk_regex_fragment.to_owned()
+    } else if match_ == "?" {
+        "[^/]".to_owned()
+    } else {
+        format!("\\{}", match_)
+    }
 }
 
 pub struct FileSystemEntries {
@@ -741,10 +959,24 @@ pub fn get_file_matcher_patterns<TExclude: AsRef<str>, TInclude: AsRef<str>>(
     let current_directory = normalize_path(current_directory);
     let absolute_path = combine_paths(&current_directory, &*vec![Some(&*path)]);
 
-    unimplemented!()
-    // FileMatcherPatterns {
-
-    // }
+    FileMatcherPatterns {
+        include_file_patterns: maybe_map(
+            get_regular_expressions_for_wildcards(includes, &absolute_path, "files").as_ref(),
+            |pattern: &String, _| format!("^{}$", pattern),
+        ),
+        include_file_pattern: get_regular_expression_for_wildcard(
+            includes,
+            &absolute_path,
+            "files",
+        ),
+        include_directory_pattern: get_regular_expression_for_wildcard(
+            includes,
+            &absolute_path,
+            "directories",
+        ),
+        exclude_pattern: get_regular_expression_for_wildcard(excludes, &absolute_path, "exclude"),
+        base_paths: get_base_paths(&path, includes, use_case_sensitive_file_names),
+    }
 }
 
 pub fn get_regex_from_pattern(pattern: &str, use_case_sensitive_file_names: bool) -> Regex {
@@ -929,6 +1161,65 @@ fn visit_directory<
             );
         }
     }
+}
+
+fn get_base_paths<TInclude: AsRef<str>>(
+    path: &str,
+    includes: Option<&[TInclude]>,
+    use_case_sensitive_file_names: bool,
+) -> Vec<String> {
+    let mut base_paths: Vec<String> = vec![path.to_owned()];
+
+    if let Some(includes) = includes {
+        let mut include_base_paths: Vec<String> = vec![];
+        for include in includes {
+            let include = include.as_ref();
+            let absolute = if is_rooted_disk_path(include) {
+                include.to_owned()
+            } else {
+                normalize_path(&combine_paths(path, &[Some(include)]))
+            };
+            include_base_paths.push(get_include_base_path(&absolute));
+        }
+
+        let string_comparer = get_string_comparer(Some(!use_case_sensitive_file_names));
+        include_base_paths.sort_by(|a, b| comparison_to_ordering(string_comparer(a, b)));
+
+        for include_base_path in include_base_paths {
+            if every(&base_paths, |base_path: &String, _| {
+                !contains_path(
+                    base_path,
+                    &include_base_path,
+                    Some(path.to_owned()),
+                    Some(!use_case_sensitive_file_names),
+                )
+            }) {
+                base_paths.push(include_base_path);
+            }
+        }
+    }
+
+    base_paths
+}
+
+fn get_include_base_path(absolute: &str) -> String {
+    let wildcard_offset = index_of_any_char_code(
+        &absolute.chars().collect::<Vec<_>>(),
+        &wildcard_char_codes,
+        None,
+    );
+    if wildcard_offset.is_none() {
+        return if !has_extension(absolute) {
+            absolute.to_owned()
+        } else {
+            remove_trailing_directory_separator(&get_directory_path(absolute))
+        };
+    }
+    let wildcard_offset = wildcard_offset.unwrap();
+    absolute[0..absolute[0..wildcard_offset]
+        .rfind(directory_separator)
+        .unwrap_or(0)]
+        .to_owned()
 }
 
 pub fn ensure_script_kind(file_name: &str, script_kind: Option<ScriptKind>) -> ScriptKind {

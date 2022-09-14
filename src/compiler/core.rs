@@ -185,6 +185,21 @@ pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
     a.len() == b.len() && every(a, |item_a, i| *item_a == b[i])
 }
 
+pub fn index_of_any_char_code(
+    text: &SourceTextAsChars,
+    char_codes: &[char],
+    start: Option<usize>,
+) -> Option<usize> {
+    let mut i = start.unwrap_or(0);
+    while i < text.len() {
+        if contains(Some(char_codes), &text_char_at_index(text, i)) {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
 pub fn count_where<TItem, TPredicate: FnMut(&TItem, usize) -> bool>(
     array: Option<&[TItem]>,
     mut predicate: TPredicate,
@@ -635,7 +650,7 @@ pub fn maybe_append_if_unique_rc<TItem>(
     }
 }
 
-fn comparison_to_ordering(comparison: Comparison) -> Ordering {
+pub fn comparison_to_ordering(comparison: Comparison) -> Ordering {
     match comparison {
         Comparison::EqualTo => Ordering::Equal,
         Comparison::LessThan => Ordering::Less,
