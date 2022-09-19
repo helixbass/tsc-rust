@@ -415,7 +415,8 @@ pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
         {
             return source_file_resolved_modules
                 .get(module_name_text, mode)
-                .map(Clone::clone);
+                .cloned()
+                .flatten();
         }
     }
     None
@@ -432,10 +433,11 @@ pub fn set_resolved_module(
         *source_file_resolved_modules = Some(create_mode_aware_cache());
     }
 
-    source_file_resolved_modules
-        .as_ref()
-        .unwrap()
-        .set(module_name_text, mode, resolved_module);
+    source_file_resolved_modules.as_ref().unwrap().set(
+        module_name_text,
+        mode,
+        Some(resolved_module),
+    );
 }
 
 pub fn set_resolved_type_reference_directive(

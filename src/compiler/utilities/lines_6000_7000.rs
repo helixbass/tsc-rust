@@ -2,7 +2,7 @@
 
 use regex::{Captures, Regex};
 use std::borrow::{Borrow, Cow};
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -24,8 +24,8 @@ use crate::{
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
     FileExtensionInfo, JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind,
-    MultiMap, Node, NodeArray, Path, Pattern, PluginImport, ScriptKind, ScriptTarget,
-    TypeAcquisition, WatchOptions,
+    MultiMap, Node, NodeArray, Path, Pattern, PluginImport, ResolvedModuleFull,
+    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -707,6 +707,7 @@ pub struct SymlinkCache {
     symlinked_files: RefCell<Option<HashMap<Path, String>>>,
     symlinked_directories: RefCell<Option<HashMap<Path, Option<SymlinkedDirectory>>>>,
     symlinked_directories_by_realpath: RefCell<Option<MultiMap<Path, String>>>,
+    has_processed_resolutions: Cell<bool>,
 }
 
 impl fmt::Debug for SymlinkCache {
@@ -723,11 +724,17 @@ impl SymlinkCache {
             symlinked_files: RefCell::new(None),
             symlinked_directories: RefCell::new(None),
             symlinked_directories_by_realpath: RefCell::new(None),
+            has_processed_resolutions: Cell::new(false),
         }
     }
 
     fn symlinked_files(&self) -> RefMut<Option<HashMap<Path, String>>> {
         self.symlinked_files.borrow_mut()
+    }
+
+    fn set_has_processed_resolutions(&self, has_processed_resolutions: bool) {
+        self.has_processed_resolutions
+            .set(has_processed_resolutions);
     }
 
     pub fn get_symlinked_files(&self) -> Ref<Option<HashMap<Path, String>>> {
@@ -807,6 +814,110 @@ impl SymlinkCache {
                 );
             }
         }
+    }
+
+    pub fn set_symlinks_from_resolutions(
+        &self,
+        files: &[Rc<Node /*SourceFile*/>],
+        type_reference_directives: Option<
+            &HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>,
+        >,
+    ) {
+        Debug_.assert(!self.has_processed_resolutions(), None);
+        self.set_has_processed_resolutions(true);
+        for file in files {
+            if let Some(file_resolved_modules) =
+                file.as_source_file().maybe_resolved_modules().as_ref()
+            {
+                file_resolved_modules.for_each(|resolution, _, _| {
+                    self.process_resolution(resolution.clone().map(Into::into))
+                });
+            }
+        }
+        if let Some(type_reference_directives) = type_reference_directives {
+            for resolution in type_reference_directives.values() {
+                self.process_resolution(resolution.clone().map(Into::into));
+            }
+        }
+    }
+
+    pub fn has_processed_resolutions(&self) -> bool {
+        self.has_processed_resolutions.get()
+    }
+
+    fn process_resolution(
+        &self,
+        resolution: Option<ResolvedModuleFullOrResolvedTypeReferenceDirective>,
+    ) {
+        if resolution.is_none() {
+            return;
+        }
+        let resolution = resolution.unwrap();
+        if resolution.maybe_original_path().is_none()
+            || resolution.maybe_resolved_file_name().is_none()
+        {
+            return;
+        }
+        let resolved_file_name = resolution.maybe_resolved_file_name().unwrap();
+        let original_path = resolution.maybe_original_path().unwrap();
+        self.set_symlinked_file(
+            &to_path(original_path, Some(&self.cwd), |file_name| {
+                (self.get_canonical_file_name)(file_name)
+            }),
+            resolved_file_name,
+        );
+        let guessed =
+            guess_directory_symlink(resolved_file_name, original_path, &self.cwd, |file_name| {
+                (self.get_canonical_file_name)(file_name)
+            });
+        if let Some((common_resolved, common_original)) = guessed {
+            if !common_resolved.is_empty() && !common_original.is_empty() {
+                self.set_symlinked_directory(
+                    &common_original,
+                    Some(SymlinkedDirectory {
+                        real: common_resolved.clone(),
+                        real_path: to_path(&common_resolved, Some(&self.cwd), |file_name| {
+                            (self.get_canonical_file_name)(file_name)
+                        }),
+                    }),
+                );
+            }
+        }
+    }
+}
+
+enum ResolvedModuleFullOrResolvedTypeReferenceDirective {
+    ResolvedModuleFull(Rc<ResolvedModuleFull>),
+    ResolvedTypeReferenceDirective(Rc<ResolvedTypeReferenceDirective>),
+}
+
+impl ResolvedModuleFullOrResolvedTypeReferenceDirective {
+    pub fn maybe_original_path(&self) -> Option<&String> {
+        match self {
+            Self::ResolvedModuleFull(value) => value.original_path.as_ref(),
+            Self::ResolvedTypeReferenceDirective(value) => value.original_path.as_ref(),
+        }
+    }
+
+    pub fn maybe_resolved_file_name(&self) -> Option<&String> {
+        match self {
+            Self::ResolvedModuleFull(value) => Some(&value.resolved_file_name),
+            Self::ResolvedTypeReferenceDirective(value) => value.resolved_file_name.as_ref(),
+        }
+    }
+}
+
+impl From<Rc<ResolvedModuleFull>> for ResolvedModuleFullOrResolvedTypeReferenceDirective {
+    fn from(value: Rc<ResolvedModuleFull>) -> Self {
+        Self::ResolvedModuleFull(value)
+    }
+}
+
+impl From<Rc<ResolvedTypeReferenceDirective>>
+    for ResolvedModuleFullOrResolvedTypeReferenceDirective
+{
+    fn from(value: Rc<ResolvedTypeReferenceDirective>) -> Self {
+        Self::ResolvedTypeReferenceDirective(value)
     }
 }
 

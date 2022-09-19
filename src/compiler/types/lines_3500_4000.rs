@@ -172,7 +172,8 @@ pub struct SourceFile {
     line_map: RefCell<Option<Vec<usize>>>,
     classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
     comment_directives: RefCell<Option<Vec<CommentDirective>>>,
-    resolved_modules: RefCell<Option<ModeAwareCache<Rc<ResolvedModuleFull /*| undefined*/>>>>,
+    resolved_modules:
+        RefCell<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
         RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
     imports: RefCell<Option<Vec<Rc<Node /*StringLiteralLike*/>>>>,
@@ -515,7 +516,9 @@ impl SourceFile {
         *self.comment_directives.borrow_mut() = comment_directives;
     }
 
-    pub fn maybe_resolved_modules(&self) -> RefMut<Option<ModeAwareCache<Rc<ResolvedModuleFull>>>> {
+    pub fn maybe_resolved_modules(
+        &self,
+    ) -> RefMut<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull>>>>> {
         self.resolved_modules.borrow_mut()
     }
 
