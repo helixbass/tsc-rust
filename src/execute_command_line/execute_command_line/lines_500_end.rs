@@ -327,7 +327,11 @@ pub(super) fn perform_compilation<
         create_get_canonical_file_name(host.use_case_sensitive_file_names());
     change_compiler_host_like_to_use_cache(
         &host,
-        |file_name| to_path(file_name, Some(&current_directory), get_canonical_file_name),
+        |file_name| {
+            to_path(file_name, Some(&current_directory), |file_name| {
+                get_canonical_file_name(file_name)
+            })
+        },
         Option::<
             fn(&str, ScriptTarget, Option<&mut dyn FnMut(&str)>, Option<bool>) -> Option<Rc<Node>>,
         >::None,

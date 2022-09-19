@@ -2,26 +2,30 @@
 
 use regex::{Captures, Regex};
 use std::borrow::{Borrow, Cow};
+use std::cell::{Ref, RefCell, RefMut};
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fmt;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
     combine_paths, compare_strings_case_sensitive, compare_strings_case_sensitive_maybe,
-    compare_values, comparison_to_ordering, contains_path, create_get_canonical_file_name,
-    directory_separator, every, file_extension_is_one_of, find_index, flat_map, flatten, for_each,
-    format_string_from_args, get_directory_path, get_locale_specific_message,
+    compare_values, comparison_to_ordering, contains_ignored_path, contains_path,
+    create_get_canonical_file_name, create_multi_map, directory_separator,
+    ensure_trailing_directory_separator, every, file_extension_is_one_of, find_index, flat_map,
+    flatten, for_each, format_string_from_args, get_directory_path, get_locale_specific_message,
     get_normalized_path_components, get_string_comparer, has_extension, index_of,
     index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map, normalize_path,
-    remove_trailing_directory_separator, sort, BaseTextRange, CharacterCodes, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
-    CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, GetCanonicalFileName,
-    JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind, Node, NodeArray, Pattern,
-    PluginImport, ScriptKind, ScriptTarget, TypeAcquisition, WatchOptions,
+    remove_trailing_directory_separator, sort, to_path, BaseTextRange, CharacterCodes,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
+    FileExtensionInfo, JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind,
+    MultiMap, Node, NodeArray, Path, Pattern, PluginImport, ScriptKind, ScriptTarget,
+    TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -691,7 +695,136 @@ pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
     )
 }
 
-pub struct SymlinkCache {}
+#[derive(Debug)]
+pub struct SymlinkedDirectory {
+    pub real: String,
+    pub real_path: Path,
+}
+
+pub struct SymlinkCache {
+    cwd: String,
+    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    symlinked_files: RefCell<Option<HashMap<Path, String>>>,
+    symlinked_directories: RefCell<Option<HashMap<Path, Option<SymlinkedDirectory>>>>,
+    symlinked_directories_by_realpath: RefCell<Option<MultiMap<Path, String>>>,
+}
+
+impl fmt::Debug for SymlinkCache {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SymlinkCache").finish()
+    }
+}
+
+impl SymlinkCache {
+    pub fn new(cwd: &str, get_canonical_file_name: Rc<dyn Fn(&str) -> String>) -> Self {
+        Self {
+            cwd: cwd.to_owned(),
+            get_canonical_file_name,
+            symlinked_files: RefCell::new(None),
+            symlinked_directories: RefCell::new(None),
+            symlinked_directories_by_realpath: RefCell::new(None),
+        }
+    }
+
+    fn symlinked_files(&self) -> RefMut<Option<HashMap<Path, String>>> {
+        self.symlinked_files.borrow_mut()
+    }
+
+    pub fn get_symlinked_files(&self) -> Ref<Option<HashMap<Path, String>>> {
+        self.symlinked_files.borrow()
+    }
+
+    pub fn get_symlinked_directories(
+        &self,
+    ) -> Ref<Option<HashMap<Path, Option<SymlinkedDirectory>>>> {
+        self.symlinked_directories.borrow()
+    }
+
+    pub fn get_symlinked_directories_by_realpath(&self) -> Ref<Option<MultiMap<Path, String>>> {
+        self.symlinked_directories_by_realpath.borrow()
+    }
+
+    pub fn set_symlinked_file(&self, path: &Path, real: &str) {
+        let mut symlinked_files = self.symlinked_files();
+        if symlinked_files.is_none() {
+            *symlinked_files = Some(HashMap::new());
+        }
+        symlinked_files
+            .as_mut()
+            .unwrap()
+            .insert(path.clone(), real.to_owned());
+    }
+
+    pub fn set_symlinked_directory(&self, symlink: &str, real: Option<SymlinkedDirectory>) {
+        let mut symlink_path = to_path(symlink, Some(&self.cwd), |file_name| {
+            (self.get_canonical_file_name)(file_name)
+        });
+        if !contains_ignored_path(&symlink_path) {
+            symlink_path = ensure_trailing_directory_separator(&symlink_path).into();
+            if let Some(real) = real.as_ref() {
+                if !matches!(
+                    &*self.symlinked_directories.borrow(),
+                    Some(symlinked_directories) if symlinked_directories.contains_key(&symlink_path)
+                ) {
+                    let mut symlinked_directories_by_realpath =
+                        self.symlinked_directories_by_realpath.borrow_mut();
+                    if symlinked_directories_by_realpath.is_none() {
+                        *symlinked_directories_by_realpath = Some(create_multi_map());
+                    }
+                    symlinked_directories_by_realpath.as_mut().unwrap().add(
+                        ensure_trailing_directory_separator(&real.real_path).into(),
+                        symlink.to_owned(),
+                    );
+                }
+            }
+            self.symlinked_directories
+                .borrow_mut()
+                .get_or_insert_with(|| HashMap::new())
+                .insert(symlink_path, real);
+        }
+    }
+
+    pub fn set_symlinked_directory_from_symlinked_file(&self, symlink: &str, real: &str) {
+        self.set_symlinked_file(
+            &to_path(symlink, Some(&self.cwd), |file_name| {
+                (self.get_canonical_file_name)(file_name)
+            }),
+            real,
+        );
+        let guessed = guess_directory_symlink(real, symlink, &self.cwd, |file_name| {
+            (self.get_canonical_file_name)(file_name)
+        });
+        if let Some((common_resolved, common_original)) = guessed {
+            if !common_resolved.is_empty() && !common_original.is_empty() {
+                self.set_symlinked_directory(
+                    &common_original,
+                    Some(SymlinkedDirectory {
+                        real: common_resolved.clone(),
+                        real_path: to_path(&common_resolved, Some(&self.cwd), |file_name| {
+                            (self.get_canonical_file_name)(file_name)
+                        }),
+                    }),
+                );
+            }
+        }
+    }
+}
+
+pub fn create_symlink_cache(
+    cwd: &str,
+    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+) -> SymlinkCache {
+    SymlinkCache::new(cwd, get_canonical_file_name)
+}
+
+fn guess_directory_symlink<TGetCanonicalFileName: Fn(&str) -> String>(
+    a: &str,
+    b: &str,
+    cwd: &str,
+    get_canonical_file_name: TGetCanonicalFileName,
+) -> Option<(String, String)> {
+    unimplemented!()
+}
 
 lazy_static! {
     static ref reserved_character_pattern: Regex = Regex::new(r"[^\w\s/]").unwrap();
@@ -1054,7 +1187,7 @@ pub fn match_files<
     let to_canonical = create_get_canonical_file_name(use_case_sensitive_file_names);
     for base_path in &patterns.base_paths {
         visit_directory(
-            to_canonical,
+            &to_canonical,
             &mut realpath,
             &mut visited,
             &mut get_file_system_entries,
@@ -1076,8 +1209,9 @@ fn visit_directory<
     TRealpath: FnMut(&str) -> String,
     TGetFileSystemEntries: FnMut(&str) -> FileSystemEntries,
     TExtension: AsRef<str>,
+    TToCanonical: Fn(&str) -> String,
 >(
-    to_canonical: GetCanonicalFileName,
+    to_canonical: &TToCanonical,
     realpath: &mut TRealpath,
     visited: &mut HashMap<String, bool>,
     get_file_system_entries: &mut TGetFileSystemEntries,

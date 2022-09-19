@@ -13,8 +13,8 @@ use super::{
     SymbolTable, TypeChecker,
 };
 use crate::{
-    CheckJsDirective, ConfigFileSpecs, ModeAwareCache, ModuleKind, PackageId, PragmaContext, Type,
-    TypeFlags, TypeInterface, __String,
+    CheckJsDirective, CompilerHost, ConfigFileSpecs, ModeAwareCache, ModuleKind, PackageId,
+    PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -925,11 +925,18 @@ pub enum FileIncludeReason {
     AutomaticTypeDirectiveFile(AutomaticTypeDirectiveFile),
 }
 
-#[derive(Debug)]
 pub struct Program {
     pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
     pub(crate) options: Rc<CompilerOptions>,
     pub(crate) files: Vec<Rc</*SourceFile*/ Node>>,
     pub(crate) current_directory: String,
+    pub(crate) host: Rc<dyn CompilerHost>,
+    pub(crate) symlinks: RefCell<Option<Rc<SymlinkCache>>>,
     pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
+}
+
+impl fmt::Debug for Program {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Program").finish()
+    }
 }

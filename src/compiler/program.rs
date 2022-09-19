@@ -1,7 +1,8 @@
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fmt;
 use std::io;
 use std::rc::Rc;
 use std::time;
@@ -9,8 +10,8 @@ use std::time::SystemTime;
 
 use crate::{
     combine_paths, concatenate, convert_to_relative_path, create_get_canonical_file_name,
-    create_source_file, create_type_checker, diagnostic_category_name, for_each,
-    for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
+    create_source_file, create_symlink_cache, create_type_checker, diagnostic_category_name,
+    for_each, for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
     get_default_lib_file_name, get_directory_path, get_emit_script_target,
     get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
     get_path_from_path_components, get_strict_option_value, get_sys, is_rooted_disk_path,
@@ -18,10 +19,10 @@ use crate::{
     write_file_ensuring_directories, CancellationTokenDebuggable, CompilerHost, CompilerOptions,
     CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResult, Extension, FileIncludeReason,
-    GetCanonicalFileName, LineAndCharacter, ModuleKind, ModuleResolutionHost,
-    ModuleSpecifierResolutionHost, MultiMap, Node, PackageId, ParsedCommandLine, Path, Program,
-    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ScriptReferenceHost,
-    ScriptTarget, SortedArray, SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    LineAndCharacter, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
+    Node, PackageId, ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull,
+    ResolvedProjectReference, ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile,
+    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
     TypeCheckerHostDebuggable, WriteFileCallback,
 };
 
@@ -104,6 +105,7 @@ pub(crate) fn compute_common_source_directory_of_filenames<
     get_path_from_path_components(&common_path_components)
 }
 
+#[derive(Debug)]
 struct OutputFingerprint {
     pub hash: String,
     pub byte_order_mark: bool,
@@ -148,7 +150,7 @@ struct CompilerHostConcrete {
     options: Rc<CompilerOptions>,
     new_line: String,
     current_directory: RefCell<Option<String>>,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: fn(&str) -> String,
 }
 
 impl CompilerHostConcrete {
@@ -579,13 +581,16 @@ impl Program {
         options: Rc<CompilerOptions>,
         files: Vec<Rc<Node>>,
         current_directory: String,
+        host: Rc<dyn CompilerHost>,
     ) -> Rc<Self> {
         let rc = Rc::new(Program {
             _rc_wrapper: RefCell::new(None),
             options,
             files,
             current_directory,
+            host,
             diagnostics_producing_type_checker: RefCell::new(None),
+            symlinks: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -597,6 +602,10 @@ impl Program {
 
     pub fn rc_wrapper(&self) -> Rc<Program> {
         self._rc_wrapper.borrow().clone().unwrap()
+    }
+
+    pub(super) fn symlinks(&self) -> RefMut<Option<Rc<SymlinkCache>>> {
+        self.symlinks.borrow_mut()
     }
 
     pub fn get_root_file_names(&self) -> &[String] {
@@ -800,6 +809,22 @@ impl Program {
     pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
         vec![]
     }
+
+    pub fn get_symlink_cache(&self) -> Rc<SymlinkCache> {
+        let host_symlink_cache = self.host.get_symlink_cache();
+        if let Some(host_symlink_cache) = host_symlink_cache {
+            return host_symlink_cache;
+        }
+        if self.symlinks().is_none() {
+            let host_clone = self.host.clone();
+            *self.symlinks() = Some(Rc::new(create_symlink_cache(
+                &self.current_directory,
+                Rc::new(move |file_name: &str| host_clone.get_canonical_file_name(file_name)),
+            )));
+        }
+        // if let Some(files) = self.files.as_ref() {}
+        unimplemented!()
+    }
 }
 
 impl ScriptReferenceHost for Program {
@@ -861,15 +886,19 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
     let CreateProgramOptions {
         root_names,
         options,
-        ..
+        config_file_parsing_diagnostics,
+        project_references,
+        mut old_program,
+        host,
     } = root_names_or_options;
 
-    let mut processing_other_files: Option<Vec<Rc<Node>>> = None;
-    let mut files: Vec<Rc<Node>> = vec![];
+    let mut processing_default_lib_files: Option<Vec<Rc<Node /*SourceFile*/>>> = None;
+    let mut processing_other_files: Option<Vec<Rc<Node /*SourceFile*/>>> = None;
+    let mut files: Option<Vec<Rc<Node /*SourceFile*/>>> = None;
 
-    let host = create_compiler_host(options.clone(), None);
+    let host = host.unwrap_or_else(|| Rc::new(create_compiler_host(options.clone(), None)));
 
-    let current_directory = CompilerHost::get_current_directory(&host);
+    let current_directory = CompilerHost::get_current_directory(&*host);
 
     let structure_is_reused = StructureIsReused::Not;
     if structure_is_reused != StructureIsReused::Completely {
@@ -877,7 +906,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
         let mut processing_other_files_present = processing_other_files.unwrap();
         let mut helper_context = CreateProgramHelperContext {
             processing_other_files: &mut processing_other_files_present,
-            host: &host,
+            host: &*host,
             current_directory: &current_directory,
             options: options.clone(),
         };
@@ -886,12 +915,17 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
             Option::<()>::None
         });
 
-        files = processing_other_files_present;
+        files = Some(processing_other_files_present);
         println!("files: {:#?}", files);
         processing_other_files = None;
     }
 
-    Program::new(options, files, current_directory)
+    let program = Program::new(options, files.unwrap(), current_directory, host);
+    // performance.mark("afterProgram");
+    // performance.measure("Program", "beforeProgram", "afterProgram");
+    // tracing?.pop();
+
+    program
 }
 
 fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {
@@ -953,10 +987,7 @@ fn to_path(helper_context: &mut CreateProgramHelperContext, file_name: &str) -> 
     )
 }
 
-fn get_canonical_file_name<'file_name>(
-    helper_context: &mut CreateProgramHelperContext,
-    file_name: &'file_name str,
-) -> String {
+fn get_canonical_file_name(helper_context: &CreateProgramHelperContext, file_name: &str) -> String {
     helper_context.host.get_canonical_file_name(file_name)
 }
 

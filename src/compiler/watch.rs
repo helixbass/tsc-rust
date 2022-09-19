@@ -404,11 +404,9 @@ pub fn explain_files<TWrite: FnMut(&str)>(program: &Program, mut write: TWrite) 
     let get_canonical_file_name =
         create_get_canonical_file_name(program.use_case_sensitive_file_names());
     let relative_file_name = |file_name: &str| {
-        convert_to_relative_path(
-            file_name,
-            &program.get_current_directory(),
-            get_canonical_file_name,
-        )
+        convert_to_relative_path(file_name, &program.get_current_directory(), |file_name| {
+            get_canonical_file_name(file_name)
+        })
     };
     for file in program.get_source_files() {
         write(&to_file_name(file.clone(), Some(&relative_file_name)));

@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::fmt;
 use std::io;
 use std::rc::Rc;
 
@@ -189,7 +190,7 @@ pub trait CompilerHost: ModuleResolutionHost {
         source_files: Option<&[Rc<Node /*SourceFile*/>]>,
     );
     fn get_current_directory(&self) -> String;
-    fn get_canonical_file_name<'file_name>(&self, file_name: &'file_name str) -> String;
+    fn get_canonical_file_name(&self, file_name: &str) -> String;
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_new_line(&self) -> String;
     fn read_directory(
@@ -260,7 +261,7 @@ pub trait CompilerHost: ModuleResolutionHost {
     }
 
     fn create_directory(&self, directory: &str) {}
-    fn get_symlink_cache(&self) -> Option<SymlinkCache> {
+    fn get_symlink_cache(&self) -> Option<Rc<SymlinkCache>> {
         None
     }
 

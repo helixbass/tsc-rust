@@ -9,7 +9,7 @@ use crate::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, compare_values, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, get_string_comparer,
     identity_str_to_owned, last_or_undefined, some, starts_with, string_contains, CharacterCodes,
-    Comparison, Debug_, GetCanonicalFileName, Path,
+    Comparison, Debug_, Path,
 };
 
 pub const directory_separator: char = '/';
@@ -477,10 +477,10 @@ pub fn get_normalized_absolute_path_without_root(
     ))
 }
 
-pub fn to_path<TGetCanonicalFileName: FnMut(&str) -> String>(
+pub fn to_path<TGetCanonicalFileName: Fn(&str) -> String>(
     file_name: &str,
     base_path: Option<&str>,
-    mut get_canonical_file_name: TGetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> Path {
     let non_canonicalized_path = if is_rooted_disk_path(file_name) {
         normalize_path(file_name)
@@ -686,10 +686,10 @@ pub fn contains_path<TCurrentDirectory: Into<StringOrBool>>(
     true
 }
 
-pub fn starts_with_directory(
+pub fn starts_with_directory<TGetCanonicalFileName: Fn(&str) -> String>(
     file_name: &str,
     directory_name: &str,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> bool {
     let canonical_file_name = get_canonical_file_name(file_name);
     let canonical_directory_name = get_canonical_file_name(directory_name);
@@ -742,51 +742,24 @@ pub fn get_path_components_relative_to<TGetCanonicalFileName: Fn(&str) -> String
     ret
 }
 
-pub enum GetCanonicalFileNameOrBool {
-    GetCanonicalFileName(GetCanonicalFileName),
-    Bool(bool),
-}
-
-impl From<GetCanonicalFileName> for GetCanonicalFileNameOrBool {
-    fn from(value: GetCanonicalFileName) -> Self {
-        Self::GetCanonicalFileName(value)
-    }
-}
-
-impl From<bool> for GetCanonicalFileNameOrBool {
-    fn from(value: bool) -> Self {
-        Self::Bool(value)
-    }
-}
-
-pub fn get_relative_path_from_directory<
-    TGetCanonicalFileNameOrIgnoreCase: Into<GetCanonicalFileNameOrBool>,
->(
+pub fn get_relative_path_from_directory<TGetCanonicalFileName: Fn(&str) -> String>(
     from_directory: &str,
     to: &str,
-    get_canonical_file_name_or_ignore_case: TGetCanonicalFileNameOrIgnoreCase,
+    get_canonical_file_name: Option<TGetCanonicalFileName>,
+    ignore_case: Option<bool>,
 ) -> String {
-    let get_canonical_file_name_or_ignore_case = get_canonical_file_name_or_ignore_case.into();
     Debug_.assert(
         (get_root_length(from_directory) > 0) == (get_root_length(to) > 0),
         Some("Paths must either both be absolute or both be relative"),
     );
-    let get_canonical_file_name = match get_canonical_file_name_or_ignore_case {
-        GetCanonicalFileNameOrBool::GetCanonicalFileName(
-            get_canonical_file_name_or_ignore_case,
-        ) => get_canonical_file_name_or_ignore_case,
-        _ =>
-        /*identity*/
-        {
-            identity_str_to_owned
+    let get_canonical_file_name = |file_name: &str| {
+        if let Some(get_canonical_file_name) = get_canonical_file_name.as_ref() {
+            get_canonical_file_name(file_name)
+        } else {
+            identity_str_to_owned(file_name)
         }
     };
-    let ignore_case = match get_canonical_file_name_or_ignore_case {
-        GetCanonicalFileNameOrBool::Bool(get_canonical_file_name_or_ignore_case) => {
-            get_canonical_file_name_or_ignore_case
-        }
-        _ => false,
-    };
+    let ignore_case = ignore_case.unwrap_or(false);
     let path_components = get_path_components_relative_to(
         from_directory,
         to,
@@ -818,15 +791,16 @@ pub fn convert_to_relative_path<TGetCanonicalFileName: Fn(&str) -> String>(
     }
 }
 
-pub fn get_relative_path_from_file(
+pub fn get_relative_path_from_file<TGetCanonicalFileName: Fn(&str) -> String>(
     from: &str,
     to: &str,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> String {
     ensure_path_is_non_module_name(&get_relative_path_from_directory(
         &get_directory_path(from),
         to,
-        get_canonical_file_name,
+        Some(get_canonical_file_name),
+        None,
     ))
 }
 

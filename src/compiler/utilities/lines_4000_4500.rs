@@ -18,10 +18,10 @@ use crate::{
     path_is_relative, remove_file_extension, str_to_source_text_as_chars, string_contains, to_path,
     AllAccessorDeclarations, CharacterCodes, CompilerOptions, Debug_, DiagnosticCollection,
     Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
-    FunctionLikeDeclarationInterface, GetCanonicalFileName, HasTypeInterface, ModuleKind,
-    NamedDeclarationInterface, Node, NodeInterface, ScriptReferenceHost,
-    SignatureDeclarationInterface, SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker,
-    SymbolWriter, SyntaxKind, WriteFileCallback,
+    FunctionLikeDeclarationInterface, HasTypeInterface, ModuleKind, NamedDeclarationInterface,
+    Node, NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface,
+    SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
+    WriteFileCallback,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -441,7 +441,7 @@ pub fn host_uses_case_sensitive_file_names<TGetUseCaseSensitiveFileNames: Fn() -
 
 pub fn host_get_canonical_file_name<TGetUseCaseSensitiveFileNames: Fn() -> Option<bool>>(
     get_use_case_sensitive_file_names: TGetUseCaseSensitiveFileNames,
-) -> GetCanonicalFileName {
+) -> fn(&str) -> String {
     create_get_canonical_file_name(host_uses_case_sensitive_file_names(
         get_use_case_sensitive_file_names,
     ))

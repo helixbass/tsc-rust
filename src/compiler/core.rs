@@ -1018,6 +1018,7 @@ pub fn array_to_map<
 }
 
 // TODO: make the nested hash map private and implement iteration on the wrapper
+#[derive(Debug)]
 pub struct MultiMap<TKey, TValue>(pub HashMap<TKey, Vec<TValue>>);
 
 impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
@@ -1368,8 +1369,7 @@ pub fn unordered_remove_first_item_where<TItem: Clone, TPredicate: Fn(&TItem) ->
     false
 }
 
-pub type GetCanonicalFileName = fn(&str) -> String;
-pub fn create_get_canonical_file_name(use_case_sensitive_file_names: bool) -> GetCanonicalFileName {
+pub fn create_get_canonical_file_name(use_case_sensitive_file_names: bool) -> fn(&str) -> String {
     if use_case_sensitive_file_names {
         identity_str_to_owned
     } else {
