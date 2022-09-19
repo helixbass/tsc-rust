@@ -591,6 +591,7 @@ impl Program {
             host,
             diagnostics_producing_type_checker: RefCell::new(None),
             symlinks: RefCell::new(None),
+            resolved_type_reference_directives: HashMap::new(),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -822,8 +823,16 @@ impl Program {
                 Rc::new(move |file_name: &str| host_clone.get_canonical_file_name(file_name)),
             )));
         }
-        // if let Some(files) = self.files.as_ref() {}
-        unimplemented!()
+        let symlinks = self.symlinks().clone().unwrap();
+        if
+        /*files && resolvedTypeReferenceDirectives &&*/
+        !symlinks.has_processed_resolutions() {
+            symlinks.set_symlinks_from_resolutions(
+                &self.files,
+                Some(&self.resolved_type_reference_directives),
+            );
+        }
+        symlinks
     }
 }
 

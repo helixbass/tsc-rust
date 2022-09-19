@@ -936,6 +936,9 @@ pub struct Program {
     pub(crate) host: Rc<dyn CompilerHost>,
     pub(crate) symlinks: RefCell<Option<Rc<SymlinkCache>>>,
     pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
+
+    pub(crate) resolved_type_reference_directives:
+        HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>,
 }
 
 impl fmt::Debug for Program {
