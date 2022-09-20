@@ -2,22 +2,23 @@ use std::cell::{RefCell, RefMut};
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::fmt;
 use std::io;
 use std::rc::Rc;
 use std::time;
 use std::time::SystemTime;
 
 use crate::{
-    combine_paths, concatenate, convert_to_relative_path, create_get_canonical_file_name,
-    create_source_file, create_symlink_cache, create_type_checker, diagnostic_category_name,
-    for_each, for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
+    combine_paths, compare_paths, concatenate, contains_path, convert_to_relative_path,
+    create_get_canonical_file_name, create_source_file, create_symlink_cache, create_type_checker,
+    diagnostic_category_name, file_extension_is, file_extension_is_one_of, for_each,
+    for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
     get_default_lib_file_name, get_directory_path, get_emit_script_target,
     get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
     get_path_from_path_components, get_strict_option_value, get_sys, is_rooted_disk_path,
-    is_watch_set, missing_file_modified_time, normalize_path, to_path as to_path_helper,
-    write_file_ensuring_directories, CancellationTokenDebuggable, CompilerHost, CompilerOptions,
-    CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticMessage, DiagnosticMessageText,
+    is_watch_set, missing_file_modified_time, normalize_path, out_file, remove_file_extension,
+    supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CreateProgramOptions,
+    CustomTransformers, Diagnostic, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResult, Extension, FileIncludeReason,
     LineAndCharacter, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
     Node, PackageId, ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull,
@@ -669,6 +670,10 @@ impl Program {
         self.current_directory.clone()
     }
 
+    pub fn to_path(&self, file_name: &str) -> Path {
+        unimplemented!()
+    }
+
     pub fn get_resolved_project_references(&self) -> Option<&[Option<ResolvedProjectReference>]> {
         unimplemented!()
     }
@@ -809,6 +814,77 @@ impl Program {
 
     pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
         vec![]
+    }
+
+    pub fn is_emitted_file(&self, file: &str) -> bool {
+        if self.options.no_emit == Some(true) {
+            return false;
+        }
+
+        let file_path = self.to_path(file);
+        if self.get_source_file_by_path(&file_path).is_some() {
+            return false;
+        }
+
+        let out = out_file(&self.options);
+        if let Some(out) = out {
+            return self.is_same_file(&*file_path, out)
+                || self.is_same_file(
+                    &*file_path,
+                    &format!("{}{}", remove_file_extension(out), Extension::Dts.to_str()),
+                );
+        }
+
+        if matches!(
+            self.options.declaration_dir.as_ref(),
+            Some(options_declaration_dir) if contains_path(
+                options_declaration_dir,
+                &*file_path,
+                Some(self.current_directory.clone()),
+                Some(!CompilerHost::use_case_sensitive_file_names(&*self.host))
+            )
+        ) {
+            return true;
+        }
+
+        if let Some(options_out_dir) = self.options.out_dir.as_ref() {
+            return contains_path(
+                options_out_dir,
+                &*file_path,
+                Some(self.current_directory.clone()),
+                Some(CompilerHost::use_case_sensitive_file_names(&*self.host)),
+            );
+        }
+
+        if file_extension_is_one_of(&*file_path, &supported_js_extensions_flat)
+            || file_extension_is(&*file_path, Extension::Dts.to_str())
+        {
+            let file_path_without_extension = remove_file_extension(&*file_path);
+            return self
+                .get_source_file_by_path(&Path::new(format!(
+                    "{}{}",
+                    file_path_without_extension,
+                    Extension::Ts.to_str()
+                )))
+                .is_some()
+                || self
+                    .get_source_file_by_path(&Path::new(format!(
+                        "{}{}",
+                        file_path_without_extension,
+                        Extension::Tsx.to_str()
+                    )))
+                    .is_some();
+        }
+        false
+    }
+
+    pub fn is_same_file(&self, file1: &str, file2: &str) -> bool {
+        compare_paths(
+            file1,
+            file2,
+            Some(self.current_directory.clone()),
+            Some(!CompilerHost::use_case_sensitive_file_names(&*self.host)),
+        ) == Comparison::EqualTo
     }
 
     pub fn get_symlink_cache(&self) -> Rc<SymlinkCache> {
