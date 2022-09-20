@@ -9,22 +9,22 @@ use std::time::SystemTime;
 
 use crate::{
     combine_paths, compare_paths, concatenate, contains_path, convert_to_relative_path,
-    create_get_canonical_file_name, create_source_file, create_symlink_cache, create_type_checker,
-    diagnostic_category_name, file_extension_is, file_extension_is_one_of, for_each,
-    for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
-    get_default_lib_file_name, get_directory_path, get_emit_script_target,
-    get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
-    get_path_from_path_components, get_strict_option_value, get_sys, is_rooted_disk_path,
-    is_watch_set, missing_file_modified_time, normalize_path, out_file, remove_file_extension,
-    supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CreateProgramOptions,
-    CustomTransformers, Diagnostic, DiagnosticMessage, DiagnosticMessageText,
-    DiagnosticRelatedInformationInterface, Diagnostics, EmitResult, Extension, FileIncludeReason,
-    LineAndCharacter, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
-    Node, PackageId, ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull,
-    ResolvedProjectReference, ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile,
-    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable, WriteFileCallback,
+    create_diagnostic_collection, create_get_canonical_file_name, create_source_file,
+    create_symlink_cache, create_type_checker, diagnostic_category_name, file_extension_is,
+    file_extension_is_one_of, for_each, for_each_ancestor_directory_str, generate_djb2_hash,
+    get_allow_js_compiler_option, get_default_lib_file_name, get_directory_path,
+    get_emit_script_target, get_line_and_character_of_position, get_new_line_character,
+    get_normalized_path_components, get_path_from_path_components, get_strict_option_value,
+    get_sys, is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path,
+    out_file, remove_file_extension, supported_js_extensions_flat, to_path as to_path_helper,
+    write_file_ensuring_directories, CancellationTokenDebuggable, Comparison, CompilerHost,
+    CompilerOptions, CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticCollection,
+    DiagnosticMessage, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
+    EmitResult, Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionHost,
+    ModuleSpecifierResolutionHost, MultiMap, Node, PackageId, ParsedCommandLine, Path, Program,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ScriptReferenceHost,
+    ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache, System, TypeChecker,
+    TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -593,6 +593,8 @@ impl Program {
             diagnostics_producing_type_checker: RefCell::new(None),
             symlinks: RefCell::new(None),
             resolved_type_reference_directives: HashMap::new(),
+            program_diagnostics: RefCell::new(create_diagnostic_collection()),
+            has_emit_blocking_diagnostics: RefCell::new(HashMap::new()),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -608,6 +610,14 @@ impl Program {
 
     pub(super) fn symlinks(&self) -> RefMut<Option<Rc<SymlinkCache>>> {
         self.symlinks.borrow_mut()
+    }
+
+    pub(super) fn program_diagnostics(&self) -> RefMut<DiagnosticCollection> {
+        self.program_diagnostics.borrow_mut()
+    }
+
+    pub(super) fn has_emit_blocking_diagnostics(&self) -> RefMut<HashMap<Path, bool>> {
+        self.has_emit_blocking_diagnostics.borrow_mut()
     }
 
     pub fn get_root_file_names(&self) -> &[String] {
@@ -814,6 +824,12 @@ impl Program {
 
     pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
         vec![]
+    }
+
+    pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Rc<Diagnostic>) {
+        self.has_emit_blocking_diagnostics()
+            .insert(self.to_path(emit_file_name), true);
+        self.program_diagnostics().add(diag);
     }
 
     pub fn is_emitted_file(&self, file: &str) -> bool {

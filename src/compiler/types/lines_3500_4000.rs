@@ -13,8 +13,8 @@ use super::{
     SymbolTable, TypeChecker,
 };
 use crate::{
-    CheckJsDirective, CompilerHost, ConfigFileSpecs, ModeAwareCache, ModuleKind, PackageId,
-    PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface, __String,
+    CheckJsDirective, CompilerHost, ConfigFileSpecs, DiagnosticCollection, ModeAwareCache,
+    ModuleKind, PackageId, PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -939,6 +939,10 @@ pub struct Program {
 
     pub(crate) resolved_type_reference_directives:
         HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>,
+
+    pub(crate) program_diagnostics: RefCell<DiagnosticCollection>,
+
+    pub(crate) has_emit_blocking_diagnostics: RefCell<HashMap<Path, bool>>,
 }
 
 impl fmt::Debug for Program {
