@@ -390,7 +390,7 @@ pub use compiler::utilities::{
     get_name_or_argument, get_namespace_declaration_node, get_new_line_character,
     get_new_target_container, get_object_flags, get_operator_associativity,
     get_operator_precedence, get_parameter_symbol_from_jsdoc, get_pattern_from_spec,
-    get_property_name_for_property_name_node, get_regex_from_pattern,
+    get_property_assignment, get_property_name_for_property_name_node, get_regex_from_pattern,
     get_regular_expression_for_wildcard, get_regular_expressions_for_wildcards,
     get_resolved_module, get_rest_parameter_element_type, get_right_most_assigned_expression,
     get_root_declaration, get_script_target_features, get_selected_effective_modifier_flags,

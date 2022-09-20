@@ -9,22 +9,23 @@ use std::time::SystemTime;
 
 use crate::{
     combine_paths, compare_paths, concatenate, contains_path, convert_to_relative_path,
-    create_diagnostic_collection, create_get_canonical_file_name, create_source_file,
-    create_symlink_cache, create_type_checker, diagnostic_category_name, file_extension_is,
-    file_extension_is_one_of, for_each, for_each_ancestor_directory_str, generate_djb2_hash,
-    get_allow_js_compiler_option, get_default_lib_file_name, get_directory_path,
-    get_emit_script_target, get_line_and_character_of_position, get_new_line_character,
-    get_normalized_path_components, get_path_from_path_components, get_strict_option_value,
-    get_sys, is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path,
-    out_file, remove_file_extension, supported_js_extensions_flat, to_path as to_path_helper,
+    create_diagnostic_collection, create_diagnostic_for_node_in_source_file,
+    create_get_canonical_file_name, create_source_file, create_symlink_cache, create_type_checker,
+    diagnostic_category_name, file_extension_is, file_extension_is_one_of, for_each,
+    for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
+    get_default_lib_file_name, get_directory_path, get_emit_script_target,
+    get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
+    get_path_from_path_components, get_property_assignment, get_strict_option_value, get_sys,
+    is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path, out_file,
+    remove_file_extension, supported_js_extensions_flat, to_path as to_path_helper,
     write_file_ensuring_directories, CancellationTokenDebuggable, Comparison, CompilerHost,
     CompilerOptions, CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticCollection,
     DiagnosticMessage, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
     EmitResult, Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionHost,
-    ModuleSpecifierResolutionHost, MultiMap, Node, PackageId, ParsedCommandLine, Path, Program,
-    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ScriptReferenceHost,
-    ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache, System, TypeChecker,
-    TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
+    ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, PackageId,
+    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache,
+    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -824,6 +825,34 @@ impl Program {
 
     pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
         vec![]
+    }
+
+    pub fn create_option_diagnostic_in_object_literal_syntax(
+        &self,
+        object_literal: &Node, /*ObjectLiteralExpression*/
+        on_key: bool,
+        key1: &str,
+        key2: Option<&str>,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) -> bool {
+        let props = get_property_assignment(object_literal, key1, key2);
+        for prop in &props {
+            self.program_diagnostics().add(Rc::new(
+                create_diagnostic_for_node_in_source_file(
+                    self.options.config_file.as_ref().unwrap(),
+                    &*if on_key {
+                        prop.as_property_assignment().name()
+                    } else {
+                        prop.as_property_assignment().initializer.clone()
+                    },
+                    message,
+                    args.clone(),
+                )
+                .into(),
+            ));
+        }
+        !props.is_empty()
     }
 
     pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Rc<Diagnostic>) {
