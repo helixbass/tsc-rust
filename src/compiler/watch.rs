@@ -354,10 +354,10 @@ impl ProgramOrBuilderProgram {
         }
     }
 
-    fn get_source_files(&self) -> &[Rc<Node>] {
+    fn get_source_files(&self) -> Vec<Rc<Node>> {
         match self {
-            Self::Program(program) => program.get_source_files(),
-            Self::BuilderProgram(program) => program.get_source_files(),
+            Self::Program(program) => program.get_source_files().clone(),
+            Self::BuilderProgram(program) => program.get_source_files().to_owned(),
         }
     }
 }
@@ -408,7 +408,7 @@ pub fn explain_files<TWrite: FnMut(&str)>(program: &Program, mut write: TWrite) 
             get_canonical_file_name(file_name)
         })
     };
-    for file in program.get_source_files() {
+    for file in &*program.get_source_files() {
         write(&to_file_name(file.clone(), Some(&relative_file_name)));
         reasons.get(&file.as_source_file().path()).map(|reasons| {
             reasons.iter().for_each(|reason| {

@@ -725,7 +725,7 @@ impl TypeChecker {
         }
 
         for_each(
-            self.host.get_source_files(),
+            &*self.host.get_source_files(),
             |source_file: &Rc<Node>, _| -> Option<()> {
                 self.check_source_file(source_file);
                 None

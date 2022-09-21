@@ -1122,8 +1122,8 @@ impl TypeChecker {
                 return true;
             }
             let source_files = self.host.get_source_files();
-            return index_of_rc(source_files, &declaration_file)
-                <= index_of_rc(source_files, &use_file);
+            return index_of_rc(&*source_files, &declaration_file)
+                <= index_of_rc(&*source_files, &use_file);
         }
 
         if declaration.pos() <= usage.pos()

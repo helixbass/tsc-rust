@@ -215,6 +215,7 @@ pub trait CompilerHost: ModuleResolutionHost {
     ) -> Option<Vec<Option<ResolvedModuleFull>>> {
         None
     }
+    fn is_resolve_module_names_supported(&self) -> bool;
     fn get_module_resolution_cache(&self) -> Option<&dyn ModuleResolutionCache> {
         None
     }

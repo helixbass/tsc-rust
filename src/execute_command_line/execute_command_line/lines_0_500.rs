@@ -29,7 +29,7 @@ pub(super) struct Statistic {
 
 pub(super) fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
     let mut counts = get_counts_map();
-    for_each(program.get_source_files(), |file, _| {
+    for_each(&*program.get_source_files(), |file, _| {
         let key = get_count_key(program, file);
         let line_count = get_line_starts(file.as_source_file()).len();
         counts.insert(key, *counts.get(key).unwrap() + line_count);
@@ -40,7 +40,7 @@ pub(super) fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
 
 pub(super) fn count_nodes(program: &Program) -> HashMap<&'static str, usize> {
     let mut counts = get_counts_map();
-    for_each(program.get_source_files(), |file, _| {
+    for_each(&*program.get_source_files(), |file, _| {
         let key = get_count_key(program, file);
         let file_as_source_file = file.as_source_file();
         let line_count = get_line_starts(file_as_source_file).len();

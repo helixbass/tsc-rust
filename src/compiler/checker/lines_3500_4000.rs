@@ -697,7 +697,7 @@ impl TypeChecker {
             return links_extended_containers.clone();
         }
         let other_files = self.host.get_source_files();
-        for file in other_files {
+        for file in &*other_files {
             if !is_external_module(file) {
                 continue;
             }

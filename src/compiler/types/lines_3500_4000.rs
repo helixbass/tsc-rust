@@ -13,8 +13,9 @@ use super::{
     SymbolTable, TypeChecker,
 };
 use crate::{
-    CheckJsDirective, CompilerHost, ConfigFileSpecs, DiagnosticCollection, ModeAwareCache,
-    ModuleKind, PackageId, PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface, __String,
+    CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCollection,
+    ModeAwareCache, ModuleKind, PackageId, PragmaContext, SymlinkCache, Type, TypeFlags,
+    TypeInterface, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -930,10 +931,12 @@ pub enum FileIncludeReason {
 
 pub struct Program {
     pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
+    pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
     pub(crate) options: Rc<CompilerOptions>,
-    pub(crate) files: Vec<Rc</*SourceFile*/ Node>>,
-    pub(crate) current_directory: String,
-    pub(crate) host: Rc<dyn CompilerHost>,
+    pub(crate) processing_other_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
+    pub(crate) files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
+    pub(crate) current_directory: RefCell<Option<String>>,
+    pub(crate) host: RefCell<Option<Rc<dyn CompilerHost>>>,
     pub(crate) symlinks: RefCell<Option<Rc<SymlinkCache>>>,
     pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
 

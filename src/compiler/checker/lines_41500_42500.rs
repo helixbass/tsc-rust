@@ -469,7 +469,7 @@ impl TypeChecker {
     }
 
     pub(super) fn initialize_type_checker(&mut self) {
-        for file in self.host.get_source_files() {
+        for file in &*self.host.get_source_files() {
             bind_source_file(file, self.compiler_options.clone());
             // println!("post-binding: {:#?}", file);
         }
@@ -477,7 +477,7 @@ impl TypeChecker {
         *self.maybe_amalgamated_duplicates() = Some(HashMap::new());
 
         let mut augmentations: Option<Vec<Vec<Rc<Node /*StringLiteral | Identifier*/>>>> = None;
-        for file in self.host.get_source_files() {
+        for file in &*self.host.get_source_files() {
             let file_as_source_file = file.as_source_file();
             if file_as_source_file.maybe_redirect_info().is_some() {
                 continue;

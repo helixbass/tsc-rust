@@ -1628,19 +1628,19 @@ impl TypeChecker {
     }
 
     pub fn get_node_count(&self) -> usize {
-        sum(self.host.get_source_files(), |source_file| {
+        sum(&*self.host.get_source_files(), |source_file| {
             source_file.as_source_file().node_count()
         })
     }
 
     pub fn get_identifier_count(&self) -> usize {
-        sum(self.host.get_source_files(), |source_file| {
+        sum(&*self.host.get_source_files(), |source_file| {
             source_file.as_source_file().identifier_count()
         })
     }
 
     pub fn get_symbol_count(&self) -> usize {
-        sum(self.host.get_source_files(), |source_file| {
+        sum(&*self.host.get_source_files(), |source_file| {
             source_file.as_source_file().symbol_count()
         }) + self.symbol_count()
     }
