@@ -231,11 +231,12 @@ pub trait CompilerHost: ModuleResolutionHost {
     fn get_module_resolution_cache(&self) -> Option<Rc<ModuleResolutionCache>> {
         None
     }
+    fn is_resolve_type_reference_directives_supported(&self) -> bool;
     fn resolve_type_reference_directives(
         &self,
-        type_reference_directive_names: &[&str],
+        type_reference_directive_names: &[String],
         containing_file: &str,
-        redirected_reference: Option<ResolvedProjectReference>,
+        redirected_reference: Option<&ResolvedProjectReference>,
         options: &CompilerOptions,
     ) -> Option<Vec<Option<Rc<ResolvedTypeReferenceDirective>>>> {
         None

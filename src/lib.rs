@@ -190,7 +190,8 @@ use compiler::program::{
 pub use compiler::program::{
     create_program, find_config_file, flatten_diagnostic_message_text, format_diagnostic,
     format_diagnostics_with_color_and_context, get_config_file_parsing_diagnostics,
-    get_resolution_diagnostic, ActualResolveModuleNamesWorker, FormatDiagnosticsHost,
+    get_resolution_diagnostic, ActualResolveModuleNamesWorker,
+    ActualResolveTypeReferenceDirectiveNamesWorker, FormatDiagnosticsHost,
 };
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position, compute_line_starts,

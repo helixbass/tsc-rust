@@ -337,6 +337,10 @@ impl CompilerHost for CompilerHostConcrete {
         false
     }
 
+    fn is_resolve_type_reference_directives_supported(&self) -> bool {
+        false
+    }
+
     fn write_file(
         &self,
         file_name: &str,
@@ -724,6 +728,7 @@ impl Program {
             module_resolution_cache: RefCell::new(None),
             type_reference_directive_resolution_cache: RefCell::new(None),
             actual_resolve_module_names_worker: RefCell::new(None),
+            actual_resolve_type_reference_directive_names_worker: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -792,6 +797,18 @@ impl Program {
             *self.actual_resolve_module_names_worker.borrow_mut() = Some(Rc::new(
                 ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(Rc::new(loader)),
             ));
+        }
+
+        if self.host().is_resolve_type_reference_directives_supported() {
+            *self
+                .actual_resolve_type_reference_directive_names_worker
+                .borrow_mut() = Some(Rc::new(
+                ActualResolveTypeReferenceDirectiveNamesWorkerHost::new(
+                    self.host(),
+                    self.options.clone(),
+                ),
+            ));
+        } else {
         }
 
         let structure_is_reused: StructureIsReused;
@@ -925,6 +942,15 @@ impl Program {
         &self,
     ) -> Rc<dyn ActualResolveModuleNamesWorker> {
         self.actual_resolve_module_names_worker
+            .borrow_mut()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn actual_resolve_type_reference_directive_names_worker(
+        &self,
+    ) -> Rc<dyn ActualResolveTypeReferenceDirectiveNamesWorker> {
+        self.actual_resolve_type_reference_directive_names_worker
             .borrow_mut()
             .clone()
             .unwrap()
@@ -1416,6 +1442,46 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
         .into_iter()
         .map(Some)
         .collect()
+    }
+}
+
+pub trait ActualResolveTypeReferenceDirectiveNamesWorker {
+    fn call(
+        &self,
+        type_directive_names: &[String],
+        containing_file: &str,
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>>;
+}
+
+struct ActualResolveTypeReferenceDirectiveNamesWorkerHost {
+    host: Rc<dyn CompilerHost>,
+    options: Rc<CompilerOptions>,
+}
+
+impl ActualResolveTypeReferenceDirectiveNamesWorkerHost {
+    pub fn new(host: Rc<dyn CompilerHost>, options: Rc<CompilerOptions>) -> Self {
+        Self { host, options }
+    }
+}
+
+impl ActualResolveTypeReferenceDirectiveNamesWorker
+    for ActualResolveTypeReferenceDirectiveNamesWorkerHost
+{
+    fn call(
+        &self,
+        type_directive_names: &[String],
+        containing_file: &str,
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
+        self.host
+            .resolve_type_reference_directives(
+                /*Debug.checkEachDefined(*/ type_directive_names, /*)*/
+                containing_file,
+                redirected_reference,
+                &self.options,
+            )
+            .unwrap()
     }
 }
 
