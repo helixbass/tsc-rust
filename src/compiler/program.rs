@@ -587,7 +587,7 @@ pub(crate) fn load_with_mode_aware_cache<TValue>(
     containing_file: &Node, /*SourceFile*/
     containing_file_name: &str,
     redirected_reference: Option<&ResolvedProjectReference>,
-    loader: Rc<dyn LoadWithModeAwareCacheLoader<TValue>>,
+    loader: &dyn LoadWithModeAwareCacheLoader<TValue>,
 ) -> Vec<TValue> {
     unimplemented!()
 }
@@ -789,9 +789,9 @@ impl Program {
                 self.host(),
                 self.maybe_module_resolution_cache().clone(),
             );
-            // *self.actual_resolve_module_names_worker.borrow_mut() = Some(Rc::new(
-            //     ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(loader),
-            // ));
+            *self.actual_resolve_module_names_worker.borrow_mut() = Some(Rc::new(
+                ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(Rc::new(loader)),
+            ));
         }
 
         let structure_is_reused: StructureIsReused;
@@ -1384,6 +1384,38 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
                 Some(Rc::new(with_extension))
             })
             .collect()
+    }
+}
+
+struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
+    loader: Rc<dyn LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>>,
+}
+
+impl ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
+    pub fn new(loader: Rc<dyn LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>>) -> Self {
+        Self { loader }
+    }
+}
+
+impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
+    fn call(
+        &self,
+        module_names: &[String],
+        containing_file: &Node, /*SourceFile*/
+        containing_file_name: &str,
+        reused_names: Option<&[String]>,
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
+        load_with_mode_aware_cache(
+            /*Debug.checkEachDefined(*/ module_names, /*)*/
+            containing_file,
+            containing_file_name,
+            redirected_reference,
+            &*self.loader,
+        )
+        .into_iter()
+        .map(Some)
+        .collect()
     }
 }
 
