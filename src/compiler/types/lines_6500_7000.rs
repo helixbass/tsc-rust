@@ -148,7 +148,7 @@ impl AsRef<str> for Extension {
 }
 
 pub struct ResolvedModuleWithFailedLookupLocations {
-    pub resolved_module: Option<ResolvedModuleFull>,
+    pub resolved_module: Option<Rc<ResolvedModuleFull>>,
     pub failed_lookup_locations: Vec<String>,
 }
 
@@ -167,6 +167,7 @@ pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
 }
 
 pub trait CompilerHost: ModuleResolutionHost {
+    fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
     fn get_source_file(
         &self,
         file_name: &str,
@@ -227,7 +228,7 @@ pub trait CompilerHost: ModuleResolutionHost {
         None
     }
     fn is_resolve_module_names_supported(&self) -> bool;
-    fn get_module_resolution_cache(&self) -> Option<Rc<dyn ModuleResolutionCache>> {
+    fn get_module_resolution_cache(&self) -> Option<Rc<ModuleResolutionCache>> {
         None
     }
     fn resolve_type_reference_directives(

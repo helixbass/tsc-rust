@@ -49,13 +49,7 @@ pub trait PerDirectoryResolutionCache<TValue> {
     fn update(&self, options: &CompilerOptions);
 }
 
-pub trait ModuleResolutionCache:
-    PerDirectoryResolutionCache<ResolvedModuleWithFailedLookupLocations>
-    + NonRelativeModuleNameResolutionCache
-    + PackageJsonInfoCache
-{
-    fn get_package_json_info_cache(&self) -> Rc<dyn PackageJsonInfoCache>;
-}
+pub struct ModuleResolutionCache {}
 
 pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
     fn get_or_create_cache_for_module_name(
@@ -91,20 +85,18 @@ pub fn create_module_resolution_cache(
         Rc<CacheWithRedirects<ModeAwareCache<ResolvedModuleWithFailedLookupLocations>>>,
     >,
     module_name_to_directory_map: Option<Rc<CacheWithRedirects<PerModuleNameCache>>>,
-) -> ModuleResolutionCacheConcrete {
-    unimplemented!()
+) -> ModuleResolutionCache {
+    ModuleResolutionCache {}
 }
 
-pub struct ModuleResolutionCacheConcrete {}
-
-impl ModuleResolutionCache for ModuleResolutionCacheConcrete {
+impl ModuleResolutionCache {
     fn get_package_json_info_cache(&self) -> Rc<dyn PackageJsonInfoCache> {
         unimplemented!()
     }
 }
 
 impl PerDirectoryResolutionCache<ResolvedModuleWithFailedLookupLocations>
-    for ModuleResolutionCacheConcrete
+    for ModuleResolutionCache
 {
     fn get_or_create_cache_for_directory(
         &self,
@@ -123,7 +115,7 @@ impl PerDirectoryResolutionCache<ResolvedModuleWithFailedLookupLocations>
     }
 }
 
-impl NonRelativeModuleNameResolutionCache for ModuleResolutionCacheConcrete {
+impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
     fn get_or_create_cache_for_module_name(
         &self,
         non_relative_module_name: &str,
@@ -134,7 +126,7 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCacheConcrete {
     }
 }
 
-impl PackageJsonInfoCache for ModuleResolutionCacheConcrete {
+impl PackageJsonInfoCache for ModuleResolutionCache {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool> {
         unimplemented!()
     }
@@ -152,12 +144,24 @@ impl PackageJsonInfoCache for ModuleResolutionCacheConcrete {
     }
 }
 
+pub fn resolve_module_name(
+    module_name: &str,
+    containing_file: &str,
+    compiler_options: &CompilerOptions,
+    host: &dyn ModuleResolutionHost,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+    resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
+) -> ResolvedModuleWithFailedLookupLocations {
+    unimplemented!()
+}
+
 pub fn node_module_name_resolver<THost: ModuleResolutionHost>(
     module_name: &str,
     containing_file: &str,
     compiler_options: &CompilerOptions,
     host: &THost,
-    cache: Option<&dyn ModuleResolutionCache>,
+    cache: Option<&ModuleResolutionCache>,
     redirected_reference: Option<ResolvedProjectReference>,
     lookup_config: Option<bool>,
 ) -> ResolvedModuleWithFailedLookupLocations {

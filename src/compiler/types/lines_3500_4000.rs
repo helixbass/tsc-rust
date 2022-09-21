@@ -1000,7 +1000,7 @@ pub struct Program {
     pub(crate) has_emit_blocking_diagnostics: RefCell<Option<HashMap<Path, bool>>>,
     pub(crate) _compiler_options_object_literal_syntax:
         RefCell<Option<Option<Rc<Node /*ObjectLiteralExpression*/>>>>,
-    pub(crate) module_resolution_cache: RefCell<Option<Rc<dyn ModuleResolutionCache>>>,
+    pub(crate) module_resolution_cache: RefCell<Option<Rc<ModuleResolutionCache>>>,
     pub(crate) type_reference_directive_resolution_cache:
         RefCell<Option<Rc<dyn TypeReferenceDirectiveResolutionCache>>>,
     pub(crate) actual_resolve_module_names_worker:

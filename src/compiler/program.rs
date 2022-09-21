@@ -19,18 +19,18 @@ use crate::{
     get_path_from_path_components, get_property_assignment, get_strict_option_value,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
     is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path, out_file,
-    remove_file_extension, supported_js_extensions_flat, to_path as to_path_helper,
-    write_file_ensuring_directories, CancellationTokenDebuggable, Comparison, CompilerHost,
-    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
-    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
-    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
-    Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionCache,
-    ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
-    PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program,
-    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache,
-    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeReferenceDirectiveResolutionCache, WriteFileCallback,
+    remove_file_extension, resolve_module_name, supported_js_extensions_flat,
+    to_path as to_path_helper, write_file_ensuring_directories, CancellationTokenDebuggable,
+    Comparison, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions,
+    CustomTransformers, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
+    DirectoryStructureHost, EmitResult, Extension, FileIncludeReason, LineAndCharacter, ModuleKind,
+    ModuleResolutionCache, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
+    NamedDeclarationInterface, Node, PackageId, ParseConfigFileHost, ParseConfigHost,
+    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile,
+    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -263,6 +263,10 @@ impl ModuleResolutionHost for CompilerHostConcrete {
 }
 
 impl CompilerHost for CompilerHostConcrete {
+    fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+        self
+    }
+
     fn get_source_file(
         &self,
         file_name: &str,
@@ -524,6 +528,70 @@ pub(crate) fn get_mode_for_usage_location(
     unimplemented!()
 }
 
+pub trait LoadWithModeAwareCacheLoader<TValue> {
+    fn call(
+        &self,
+        name: &str,
+        resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
+        containing_file_name: &str,
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> TValue;
+}
+
+pub struct LoadWithModeAwareCacheLoaderResolveModuleName {
+    options: Rc<CompilerOptions>,
+    host: Rc<dyn CompilerHost>,
+    module_resolution_cache: Option<Rc<ModuleResolutionCache>>,
+}
+
+impl LoadWithModeAwareCacheLoaderResolveModuleName {
+    pub fn new(
+        options: Rc<CompilerOptions>,
+        host: Rc<dyn CompilerHost>,
+        module_resolution_cache: Option<Rc<ModuleResolutionCache>>,
+    ) -> Self {
+        Self {
+            options,
+            host,
+            module_resolution_cache,
+        }
+    }
+}
+
+impl LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>
+    for LoadWithModeAwareCacheLoaderResolveModuleName
+{
+    fn call(
+        &self,
+        module_name: &str,
+        resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
+        containing_file_name: &str,
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> Rc<ResolvedModuleFull> {
+        resolve_module_name(
+            module_name,
+            containing_file_name,
+            &self.options,
+            self.host.as_dyn_module_resolution_host(),
+            self.module_resolution_cache.as_deref(),
+            redirected_reference,
+            resolver_mode,
+        )
+        .resolved_module
+        .unwrap()
+    }
+}
+
+pub(crate) fn load_with_mode_aware_cache<TValue>(
+    names: &[String],
+    containing_file: &Node, /*SourceFile*/
+    containing_file_name: &str,
+    redirected_reference: Option<&ResolvedProjectReference>,
+    loader: Rc<dyn LoadWithModeAwareCacheLoader<TValue>>,
+) -> Vec<TValue> {
+    unimplemented!()
+}
+
 pub(crate) struct DiagnosticCache {
     pub per_file: Option<HashMap<Path, Vec<Rc<Diagnostic>>>>,
     pub all_diagnostics: Option<Vec<Rc<Diagnostic>>>,
@@ -716,6 +784,14 @@ impl Program {
                     None,
                     None,
                 )));
+            let loader = LoadWithModeAwareCacheLoaderResolveModuleName::new(
+                self.options.clone(),
+                self.host(),
+                self.maybe_module_resolution_cache().clone(),
+            );
+            // *self.actual_resolve_module_names_worker.borrow_mut() = Some(Rc::new(
+            //     ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(loader),
+            // ));
         }
 
         let structure_is_reused: StructureIsReused;
@@ -835,7 +911,7 @@ impl Program {
 
     pub(super) fn maybe_module_resolution_cache(
         &self,
-    ) -> RefMut<Option<Rc<dyn ModuleResolutionCache>>> {
+    ) -> RefMut<Option<Rc<ModuleResolutionCache>>> {
         self.module_resolution_cache.borrow_mut()
     }
 
