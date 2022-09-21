@@ -203,6 +203,7 @@ pub trait CompilerHost: ModuleResolutionHost {
     ) -> Option<Vec<String>> {
         None
     }
+    fn is_read_directory_implemented(&self) -> bool;
 
     fn resolve_module_names(
         &self,

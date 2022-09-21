@@ -551,6 +551,7 @@ pub use compiler::watch_public::{
     create_incremental_compiler_host, create_watch_program, CreateProgram, ProgramHost,
     WatchCompilerHost, WatchCompilerHostOfConfigFile, WatchHost, WatchStatusReporter,
 };
+pub use compiler::watch_utilities::DirectoryStructureHost;
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::sys::{

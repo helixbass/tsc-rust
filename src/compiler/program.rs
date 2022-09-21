@@ -19,14 +19,15 @@ use crate::{
     is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path, out_file,
     remove_file_extension, supported_js_extensions_flat, to_path as to_path_helper,
     write_file_ensuring_directories, CancellationTokenDebuggable, Comparison, CompilerHost,
-    CompilerOptions, CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
-    EmitResult, Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionHost,
+    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
+    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
+    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
+    Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionHost,
     ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, PackageId,
-    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile,
-    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable, WriteFileCallback,
+    ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ReferencedFile,
+    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache,
+    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -377,6 +378,9 @@ impl CompilerHost for CompilerHostConcrete {
                 .read_directory(path, Some(extensions), excludes, Some(includes), depth),
         )
     }
+    fn is_read_directory_implemented(&self) -> bool {
+        true
+    }
 
     fn create_directory(&self, d: &str) {
         self.system.create_directory(d)
@@ -636,6 +640,7 @@ impl Program {
 
             current_directory: RefCell::new(None),
             host: RefCell::new(None),
+            config_parsing_host: RefCell::new(None),
             program_diagnostics: RefCell::new(create_diagnostic_collection()),
             has_emit_blocking_diagnostics: RefCell::new(HashMap::new()),
         });
@@ -658,6 +663,11 @@ impl Program {
 
         *self.host.borrow_mut() =
             Some(host.unwrap_or_else(|| Rc::new(create_compiler_host(self.options.clone(), None))));
+        *self.config_parsing_host.borrow_mut() =
+            Some(Rc::new(parse_config_host_from_compiler_host_like(
+                Rc::new(CompilerHostLikeRcDynCompilerHost::new(self.host())),
+                None,
+            )));
 
         *self.current_directory.borrow_mut() =
             Some(CompilerHost::get_current_directory(&*self.host()));
@@ -1172,6 +1182,265 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
 
 fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {
     diagnostic
+}
+
+pub trait CompilerHostLike {
+    fn use_case_sensitive_file_names(&self) -> bool;
+    fn get_current_directory(&self) -> String;
+    fn file_exists(&self, file_name: &str) -> bool;
+    fn read_file(&self, file_name: &str) -> io::Result<String>;
+    fn read_directory(
+        &self,
+        root_dir: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: &[String],
+        depth: Option<usize>,
+    ) -> Option<Vec<String>> {
+        None
+    }
+    fn trace(&self, s: &str) {}
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {}
+
+    // These exist to allow "forwarding" CompilerHost -> CompilerHostLike -> DirectoryStructureHost
+    fn is_read_directory_implemented(&self) -> bool;
+    fn realpath(&self, path: &str) -> Option<String>;
+    fn create_directory(&self, path: &str);
+    fn write_file(&self, path: &str, data: &str, write_byte_order_mark: Option<bool>);
+    fn directory_exists(&self, path: &str) -> Option<bool>;
+    fn get_directories(&self, path: &str) -> Option<Vec<String>>;
+}
+
+// impl<TCompilerHost> CompilerHostLike for TCompilerHost where TCompilerHost: CompilerHost {
+//     fn use_case_sensitive_file_names(&self) -> bool {
+//         self.use_case_sensitive_file_names()
+//     }
+
+//     fn get_current_directory(&self) -> String {
+//         self.get_current_directory()
+//     }
+
+//     fn file_exists(&self, file_name: &str) -> bool {
+//         self.file_exists(file_name)
+//     }
+
+//     fn read_file(&self, file_name: &str) -> io::Result<String> {
+//         self.read_file(file_name)
+//     }
+
+//     fn read_directory(
+//         &self,
+//         root_dir: &str,
+//         extensions: &[&str],
+//         excludes: Option<&[String]>,
+//         includes: &[String],
+//         depth: Option<usize>,
+//     ) -> Option<Vec<String>> {
+//         self.read_directory(root_dir, extensions, excludes, includes, depth)
+//     }
+
+//     fn trace(&self, s: &str) {
+//         self.trace(s)
+//     }
+
+//     // fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {}
+// }
+
+pub struct CompilerHostLikeRcDynCompilerHost {
+    host: Rc<dyn CompilerHost>,
+}
+
+impl CompilerHostLikeRcDynCompilerHost {
+    pub fn new(host: Rc<dyn CompilerHost>) -> Self {
+        Self { host }
+    }
+}
+
+impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
+    fn use_case_sensitive_file_names(&self) -> bool {
+        CompilerHost::use_case_sensitive_file_names(&*self.host)
+    }
+
+    fn get_current_directory(&self) -> String {
+        CompilerHost::get_current_directory(&*self.host)
+    }
+
+    fn file_exists(&self, file_name: &str) -> bool {
+        self.host.file_exists(file_name)
+    }
+
+    fn read_file(&self, file_name: &str) -> io::Result<String> {
+        self.host.read_file(file_name)
+    }
+
+    fn read_directory(
+        &self,
+        root_dir: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: &[String],
+        depth: Option<usize>,
+    ) -> Option<Vec<String>> {
+        self.host
+            .read_directory(root_dir, extensions, excludes, includes, depth)
+    }
+
+    fn trace(&self, s: &str) {
+        self.host.trace(s)
+    }
+
+    // fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {}
+    fn is_read_directory_implemented(&self) -> bool {
+        self.host.is_read_directory_implemented()
+    }
+
+    fn realpath(&self, path: &str) -> Option<String> {
+        self.host.realpath(path)
+    }
+
+    fn create_directory(&self, path: &str) {
+        self.host.create_directory(path)
+    }
+
+    fn write_file(&self, path: &str, data: &str, write_byte_order_mark: Option<bool>) {
+        self.host
+            .write_file(path, data, write_byte_order_mark.unwrap(), None, None)
+    }
+
+    fn directory_exists(&self, path: &str) -> Option<bool> {
+        self.host.directory_exists(path)
+    }
+
+    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+        self.host.get_directories(path)
+    }
+}
+
+pub struct DirectoryStructureHostRcDynCompilerHostLike {
+    host: Rc<dyn CompilerHostLike>,
+}
+
+impl DirectoryStructureHostRcDynCompilerHostLike {
+    pub fn new(host: Rc<dyn CompilerHostLike>) -> Self {
+        Self { host }
+    }
+}
+
+impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
+    fn file_exists(&self, path: &str) -> bool {
+        self.host.file_exists(path)
+    }
+
+    fn read_file(&self, path: &str, encoding: Option<&str>) -> io::Result<String> {
+        self.host.read_file(path)
+    }
+
+    fn directory_exists(&self, path: &str) -> Option<bool> {
+        self.host.directory_exists(path)
+    }
+    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+        self.host.get_directories(path)
+    }
+    fn read_directory(
+        &self,
+        path: &str,
+        extensions: &[&str],
+        exclude: Option<&[String]>,
+        include: Option<&[String]>,
+        depth: Option<usize>,
+    ) -> Option<Vec<String>> {
+        self.host
+            .read_directory(path, extensions, exclude, include.unwrap(), depth)
+    }
+    fn is_read_directory_implemented(&self) -> bool {
+        self.host.is_read_directory_implemented()
+    }
+
+    fn realpath(&self, path: &str) -> Option<String> {
+        self.host.realpath(path)
+    }
+
+    fn create_directory(&self, path: &str) {
+        self.host.create_directory(path)
+    }
+
+    fn write_file(&self, path: &str, data: &str, write_byte_order_mark: Option<bool>) {
+        self.host.write_file(path, data, write_byte_order_mark)
+    }
+}
+
+pub(crate) fn parse_config_host_from_compiler_host_like(
+    host: Rc<dyn CompilerHostLike>,
+    directory_structure_host: Option<Rc<dyn DirectoryStructureHost>>,
+) -> ParseConfigHostFromCompilerHostLike {
+    let directory_structure_host = directory_structure_host.unwrap_or_else(|| {
+        Rc::new(DirectoryStructureHostRcDynCompilerHostLike::new(
+            host.clone(),
+        ))
+    });
+    ParseConfigHostFromCompilerHostLike::new(host, directory_structure_host)
+}
+
+pub struct ParseConfigHostFromCompilerHostLike {
+    host: Rc<dyn CompilerHostLike>,
+    directory_structure_host: Rc<dyn DirectoryStructureHost>,
+}
+
+impl ParseConfigHostFromCompilerHostLike {
+    pub fn new(
+        host: Rc<dyn CompilerHostLike>,
+        directory_structure_host: Rc<dyn DirectoryStructureHost>,
+    ) -> Self {
+        Self {
+            host,
+            directory_structure_host,
+        }
+    }
+}
+
+impl ParseConfigFileHost for ParseConfigHostFromCompilerHostLike {
+    fn get_current_directory(&self) -> String {
+        self.host.get_current_directory()
+    }
+}
+
+impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.host.use_case_sensitive_file_names()
+    }
+
+    fn read_directory(
+        &self,
+        root: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: &[String],
+        depth: Option<usize>,
+    ) -> Vec<String> {
+        Debug_.assert(self.directory_structure_host.is_read_directory_implemented(), Some("'CompilerHost.readDirectory' must be implemented to correctly process 'projectReferences'"));
+        self.directory_structure_host
+            .read_directory(root, extensions, excludes, Some(includes), depth)
+            .unwrap()
+    }
+
+    fn file_exists(&self, path: &str) -> bool {
+        self.directory_structure_host.file_exists(path)
+    }
+
+    fn read_file(&self, path: &str) -> io::Result<String> {
+        self.directory_structure_host.read_file(path, None)
+    }
+
+    fn trace(&self, s: &str) {
+        self.host.trace(s)
+    }
+}
+
+impl ConfigFileDiagnosticsReporter for ParseConfigHostFromCompilerHostLike {
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {
+        self.host
+            .on_un_recoverable_config_file_diagnostic(diagnostic)
+    }
 }
 
 pub fn get_resolution_diagnostic(

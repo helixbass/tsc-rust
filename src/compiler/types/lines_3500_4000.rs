@@ -15,7 +15,7 @@ use super::{
 use crate::{
     CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
     DiagnosticCollection, DiagnosticMessage, ModeAwareCache, ModuleKind, MultiMap, PackageId,
-    PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface, __String,
+    ParseConfigFileHost, PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -963,7 +963,6 @@ pub struct Program {
     pub(crate) processing_other_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
     pub(crate) files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
     pub(crate) current_directory: RefCell<Option<String>>,
-    pub(crate) host: RefCell<Option<Rc<dyn CompilerHost>>>,
     pub(crate) symlinks: RefCell<Option<Rc<SymlinkCache>>>,
     pub(crate) common_source_directory: RefCell<Option<String>>,
     pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
@@ -984,6 +983,9 @@ pub struct Program {
     pub(crate) modules_with_elided_imports: RefCell<HashMap<String, bool>>,
 
     pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
+
+    pub(crate) host: RefCell<Option<Rc<dyn CompilerHost>>>,
+    pub(crate) config_parsing_host: RefCell<Option<Rc<dyn ParseConfigFileHost>>>,
 
     pub(crate) program_diagnostics: RefCell<DiagnosticCollection>,
 
