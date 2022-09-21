@@ -32,7 +32,7 @@ pub use compiler::command_line_parser::{
 };
 pub use compiler::core::{
     add_range, append, append_if_unique_rc, array_of, array_to_map, arrays_equal, binary_search,
-    binary_search_copy_key, cartesian_product, cast, cast_present, clear,
+    binary_search_copy_key, cartesian_product, cast, cast_present, clear, clone,
     compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, comparison_to_ordering, concatenate,
     contains, contains_rc, count_where, create_get_canonical_file_name, create_multi_map,
@@ -49,7 +49,8 @@ pub use compiler::core::{
     reduce_left_no_initial_value, reduce_left_no_initial_value_optional, remove_prefix,
     replace_element, same_map, set_ui_locale, single_element_array, single_or_undefined, some,
     sort, sort_and_deduplicate, starts_with, string_contains, sum, to_file_name_lower_case,
-    trim_string, trim_string_start, try_add_to_set, try_cast, AssertionLevel, MultiMap, Pattern,
+    trim_string, trim_string_start, try_add_to_set, try_cast, AssertionLevel, Cloneable, MultiMap,
+    Pattern,
 };
 pub use compiler::core_public::{
     version, Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
@@ -356,10 +357,10 @@ pub use compiler::utilities::{
     create_symlink_cache, create_text_writer, declaration_name_to_string,
     default_maximum_truncation_length, empty_file_system_entries, ensure_script_kind,
     entity_name_to_string, escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
-    export_assignment_is_alias, expression_result_is_unused, external_helpers_module_name_text,
-    for_each_enclosing_block_scope_container, for_each_entry, for_each_entry_bool,
-    for_each_import_clause_declaration_bool, for_each_key, for_each_return_statement,
-    for_each_yield_expression, format_message, format_string_from_args,
+    export_assignment_is_alias, expression_result_is_unused, extension_from_path,
+    external_helpers_module_name_text, for_each_enclosing_block_scope_container, for_each_entry,
+    for_each_entry_bool, for_each_import_clause_declaration_bool, for_each_key,
+    for_each_return_statement, for_each_yield_expression, format_message, format_string_from_args,
     full_triple_slash_amd_reference_path_reg_ex, full_triple_slash_reference_path_reg_ex,
     get_alias_declaration_from_name, get_all_accessor_declarations, get_allow_js_compiler_option,
     get_allow_synthetic_default_imports, get_ancestor, get_assigned_expando_initializer,

@@ -1017,6 +1017,14 @@ pub fn array_to_map<
     result
 }
 
+pub trait Cloneable {
+    fn cloned(&self) -> Self;
+}
+
+pub fn clone<TValue: Cloneable>(object: &TValue) -> TValue {
+    object.cloned()
+}
+
 // TODO: make the nested hash map private and implement iteration on the wrapper
 #[derive(Debug)]
 pub struct MultiMap<TKey, TValue>(pub HashMap<TKey, Vec<TValue>>);

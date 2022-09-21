@@ -3,7 +3,6 @@
 use bitflags::bitflags;
 use std::cell::Cell;
 use std::collections::HashMap;
-use std::fmt;
 use std::io;
 use std::rc::Rc;
 
@@ -13,7 +12,7 @@ use super::{
     SynthesizedComment, TextRange,
 };
 use crate::{
-    CancellationToken, ModuleResolutionCache, ParseConfigHost, ParsedCommandLine, Path,
+    CancellationToken, Cloneable, ModuleResolutionCache, ParseConfigHost, ParsedCommandLine, Path,
     ProgramBuildInfo, SymlinkCache,
 };
 
@@ -56,7 +55,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ResolvedModuleFull {
     pub resolved_file_name: String,
     pub is_external_library_import: Option<bool>,
@@ -68,6 +67,12 @@ pub struct ResolvedModuleFull {
 impl ResolvedModuleFull {
     pub fn extension(&self) -> Extension {
         self.extension.unwrap()
+    }
+}
+
+impl Cloneable for ResolvedModuleFull {
+    fn cloned(&self) -> Self {
+        self.clone()
     }
 }
 
@@ -212,12 +217,12 @@ pub trait CompilerHost: ModuleResolutionHost {
 
     fn resolve_module_names(
         &self,
-        module_names: &[&str],
+        module_names: &[String],
         containing_file: &str,
-        reused_names: Option<&[&str]>,
-        redirected_reference: Option<ResolvedProjectReference>,
+        reused_names: Option<&[String]>,
+        redirected_reference: Option<&ResolvedProjectReference>,
         options: &CompilerOptions,
-        containing_source_file: Option<Rc<Node /*SourceFile*/>>,
+        containing_source_file: Option<&Node /*SourceFile*/>,
     ) -> Option<Vec<Option<ResolvedModuleFull>>> {
         None
     }

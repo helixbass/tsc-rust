@@ -1678,6 +1678,10 @@ pub fn resolution_extension_is_ts_or_json(ext: Extension) -> bool {
     extension_is_ts(ext) || ext == Extension::Json
 }
 
+pub fn extension_from_path(path: &str) -> Extension {
+    unimplemented!()
+}
+
 pub fn is_check_js_enabled_for_file(
     source_file: &Node, /*SourceFile*/
     compiler_options: &CompilerOptions,

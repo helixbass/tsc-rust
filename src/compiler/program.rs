@@ -8,20 +8,21 @@ use std::time;
 use std::time::SystemTime;
 
 use crate::{
-    combine_paths, compare_paths, concatenate, contains_path, convert_to_relative_path,
+    clone, combine_paths, compare_paths, concatenate, contains_path, convert_to_relative_path,
     create_diagnostic_collection, create_diagnostic_for_node_in_source_file,
     create_get_canonical_file_name, create_multi_map, create_source_file, create_symlink_cache,
-    create_type_checker, diagnostic_category_name, file_extension_is, file_extension_is_one_of,
-    for_each, for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
-    get_default_lib_file_name, get_directory_path, get_emit_script_target,
-    get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
-    get_path_from_path_components, get_property_assignment, get_strict_option_value,
-    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
-    is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path, out_file,
-    remove_file_extension, supported_js_extensions_flat, to_path as to_path_helper,
-    write_file_ensuring_directories, CancellationTokenDebuggable, Comparison, CompilerHost,
-    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
-    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
+    create_type_checker, diagnostic_category_name, extension_from_path, file_extension_is,
+    file_extension_is_one_of, for_each, for_each_ancestor_directory_str, generate_djb2_hash,
+    get_allow_js_compiler_option, get_default_lib_file_name, get_directory_path,
+    get_emit_script_target, get_line_and_character_of_position, get_new_line_character,
+    get_normalized_path_components, get_path_from_path_components, get_property_assignment,
+    get_strict_option_value, get_supported_extensions,
+    get_supported_extensions_with_json_if_resolve_json_module, get_sys, is_rooted_disk_path,
+    is_watch_set, missing_file_modified_time, normalize_path, out_file, remove_file_extension,
+    supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
     Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionCache,
     ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
@@ -701,10 +702,12 @@ impl Program {
 
         *self.has_emit_blocking_diagnostics.borrow_mut() = Some(HashMap::new());
 
-        // if host.is_resolve_module_names_supported() {
-        //     actual_resolve_module_names_worker
-        // } else {
-        // }
+        if self.host().is_resolve_module_names_supported() {
+            *self.actual_resolve_module_names_worker.borrow_mut() = Some(Rc::new(
+                ActualResolveModuleNamesWorkerHost::new(self.host(), self.options.clone()),
+            ));
+        } else {
+        }
 
         let structure_is_reused: StructureIsReused;
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});
@@ -1243,8 +1246,55 @@ pub trait ActualResolveModuleNamesWorker {
         containing_file: &Node, /*SourceFile*/
         containing_file_name: &str,
         reused_names: Option<&[String]>,
-        redirected_reference: Option<ResolvedProjectReference>,
-    ) -> Vec<Rc<ResolvedModuleFull>>;
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> Vec<Option<Rc<ResolvedModuleFull>>>;
+}
+
+struct ActualResolveModuleNamesWorkerHost {
+    host: Rc<dyn CompilerHost>,
+    options: Rc<CompilerOptions>,
+}
+
+impl ActualResolveModuleNamesWorkerHost {
+    pub fn new(host: Rc<dyn CompilerHost>, options: Rc<CompilerOptions>) -> Self {
+        Self { host, options }
+    }
+}
+
+impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
+    fn call(
+        &self,
+        module_names: &[String],
+        containing_file: &Node, /*SourceFile*/
+        containing_file_name: &str,
+        reused_names: Option<&[String]>,
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
+        self.host
+            .resolve_module_names(
+                /*Debug.checkEachDefined(*/ module_names, /*)*/
+                containing_file_name,
+                reused_names,
+                redirected_reference,
+                &self.options,
+                Some(containing_file),
+            )
+            .unwrap()
+            .into_iter()
+            .map(|resolved| {
+                if match resolved.as_ref() {
+                    None => true,
+                    Some(resolved) => resolved.extension.is_some(),
+                } {
+                    return resolved.map(Rc::new);
+                }
+                let resolved = resolved.unwrap();
+                let mut with_extension = clone(&resolved);
+                with_extension.extension = Some(extension_from_path(&resolved.resolved_file_name));
+                Some(Rc::new(with_extension))
+            })
+            .collect()
+    }
 }
 
 impl ScriptReferenceHost for Program {
