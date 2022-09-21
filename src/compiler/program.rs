@@ -641,6 +641,8 @@ impl Program {
             current_directory: RefCell::new(None),
             host: RefCell::new(None),
             config_parsing_host: RefCell::new(None),
+
+            skip_default_lib: Cell::new(None),
             program_diagnostics: RefCell::new(create_diagnostic_collection()),
             has_emit_blocking_diagnostics: RefCell::new(HashMap::new()),
         });
@@ -668,6 +670,8 @@ impl Program {
                 Rc::new(CompilerHostLikeRcDynCompilerHost::new(self.host())),
                 None,
             )));
+
+        self.skip_default_lib.set(self.options.no_lib);
 
         *self.current_directory.borrow_mut() =
             Some(CompilerHost::get_current_directory(&*self.host()));

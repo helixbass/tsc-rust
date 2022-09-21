@@ -987,6 +987,8 @@ pub struct Program {
     pub(crate) host: RefCell<Option<Rc<dyn CompilerHost>>>,
     pub(crate) config_parsing_host: RefCell<Option<Rc<dyn ParseConfigFileHost>>>,
 
+    pub(crate) skip_default_lib: Cell<Option<bool>>,
+
     pub(crate) program_diagnostics: RefCell<DiagnosticCollection>,
 
     pub(crate) has_emit_blocking_diagnostics: RefCell<HashMap<Path, bool>>,
