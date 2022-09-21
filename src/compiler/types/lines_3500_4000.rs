@@ -13,9 +13,9 @@ use super::{
     SymbolTable, TypeChecker,
 };
 use crate::{
-    CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCollection,
-    ModeAwareCache, ModuleKind, PackageId, PragmaContext, SymlinkCache, Type, TypeFlags,
-    TypeInterface, __String,
+    CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
+    DiagnosticCollection, DiagnosticMessage, ModeAwareCache, ModuleKind, MultiMap, PackageId,
+    PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -929,19 +929,61 @@ pub enum FileIncludeReason {
     AutomaticTypeDirectiveFile(AutomaticTypeDirectiveFile),
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum FilePreprocessingDiagnosticsKind {
+    FilePreprocessingReferencedDiagnostic,
+    FilePreprocessingFileExplainingDiagnostic,
+}
+
+pub struct FilePreprocessingReferencedDiagnostic {
+    pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic*/
+    pub reason: ReferencedFile,
+    pub diagnostic: &'static DiagnosticMessage,
+    pub args: Option<Vec<String>>,
+}
+
+pub struct FilePreprocessingFileExplainingDiagnostic {
+    pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic*/
+    pub file: Option<Path>,
+    pub file_processing_reason: FileIncludeReason,
+    pub diagnostic: &'static DiagnosticMessage,
+    pub args: Option<Vec<String>>,
+}
+
+pub enum FilePreprocessingDiagnostics {
+    FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic),
+    FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic),
+}
+
 pub struct Program {
     pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
     pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
     pub(crate) options: Rc<CompilerOptions>,
+    pub(crate) processing_default_lib_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
     pub(crate) processing_other_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
     pub(crate) files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
     pub(crate) current_directory: RefCell<Option<String>>,
     pub(crate) host: RefCell<Option<Rc<dyn CompilerHost>>>,
     pub(crate) symlinks: RefCell<Option<Rc<SymlinkCache>>>,
+    pub(crate) common_source_directory: RefCell<Option<String>>,
     pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
+    pub(crate) no_diagnostics_type_checker: RefCell<Option<Rc<TypeChecker>>>,
+    pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
+    pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
+    pub(crate) file_reasons: RefCell<MultiMap<Path, FileIncludeReason>>,
+    pub(crate) cached_bind_and_check_diagnostics_for_file: RefCell<DiagnosticCache>,
+    pub(crate) cached_declaration_diagnostics_for_file: RefCell<DiagnosticCache>,
 
     pub(crate) resolved_type_reference_directives:
-        HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>,
+        RefCell<HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>>,
+    pub(crate) file_preprocessing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
+
+    pub(crate) max_node_module_js_depth: usize,
+    pub(crate) current_node_modules_depth: Cell<usize>,
+
+    pub(crate) modules_with_elided_imports: RefCell<HashMap<String, bool>>,
+
+    pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
 
     pub(crate) program_diagnostics: RefCell<DiagnosticCollection>,
 

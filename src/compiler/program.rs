@@ -1,4 +1,4 @@
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -10,9 +10,9 @@ use std::time::SystemTime;
 use crate::{
     combine_paths, compare_paths, concatenate, contains_path, convert_to_relative_path,
     create_diagnostic_collection, create_diagnostic_for_node_in_source_file,
-    create_get_canonical_file_name, create_source_file, create_symlink_cache, create_type_checker,
-    diagnostic_category_name, file_extension_is, file_extension_is_one_of, for_each,
-    for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
+    create_get_canonical_file_name, create_multi_map, create_source_file, create_symlink_cache,
+    create_type_checker, diagnostic_category_name, file_extension_is, file_extension_is_one_of,
+    for_each, for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
     get_default_lib_file_name, get_directory_path, get_emit_script_target,
     get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
     get_path_from_path_components, get_property_assignment, get_strict_option_value, get_sys,
@@ -24,8 +24,9 @@ use crate::{
     EmitResult, Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionHost,
     ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, PackageId,
     ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache,
-    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
+    ResolvedTypeReferenceDirective, ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile,
+    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -516,6 +517,20 @@ pub(crate) fn get_mode_for_usage_location(
     unimplemented!()
 }
 
+pub(crate) struct DiagnosticCache {
+    pub per_file: Option<HashMap<Path, Vec<Rc<Diagnostic>>>>,
+    pub all_diagnostics: Option<Vec<Rc<Diagnostic>>>,
+}
+
+impl Default for DiagnosticCache {
+    fn default() -> Self {
+        Self {
+            per_file: None,
+            all_diagnostics: None,
+        }
+    }
+}
+
 pub(crate) fn is_referenced_file(reason: Option<&FileIncludeReason>) -> bool {
     matches!(reason, Some(FileIncludeReason::ReferencedFile(_)))
 }
@@ -591,17 +606,36 @@ impl Program {
         // host: Rc<dyn CompilerHost>,
     ) -> Rc<Self> {
         let options = create_program_options.options.clone();
+        let max_node_module_js_depth = options.max_node_module_js_depth.unwrap_or(0);
         let rc = Rc::new(Program {
             _rc_wrapper: RefCell::new(None),
             create_program_options: RefCell::new(Some(create_program_options)),
             options,
+            processing_default_lib_files: RefCell::new(None),
             processing_other_files: RefCell::new(None),
             files: RefCell::new(None),
+            symlinks: RefCell::new(None),
+            common_source_directory: RefCell::new(None),
+            diagnostics_producing_type_checker: RefCell::new(None),
+            no_diagnostics_type_checker: RefCell::new(None),
+            classifiable_names: RefCell::new(None),
+            ambient_module_name_to_unmodified_file_name: RefCell::new(HashMap::new()),
+            file_reasons: RefCell::new(create_multi_map()),
+            cached_bind_and_check_diagnostics_for_file: RefCell::new(Default::default()),
+            cached_declaration_diagnostics_for_file: RefCell::new(Default::default()),
+
+            resolved_type_reference_directives: RefCell::new(HashMap::new()),
+            file_preprocessing_diagnostics: RefCell::new(None),
+
+            max_node_module_js_depth,
+            current_node_modules_depth: Cell::new(0),
+
+            modules_with_elided_imports: RefCell::new(HashMap::new()),
+
+            source_files_found_searching_node_modules: RefCell::new(HashMap::new()),
+
             current_directory: RefCell::new(None),
             host: RefCell::new(None),
-            diagnostics_producing_type_checker: RefCell::new(None),
-            symlinks: RefCell::new(None),
-            resolved_type_reference_directives: HashMap::new(),
             program_diagnostics: RefCell::new(create_diagnostic_collection()),
             has_emit_blocking_diagnostics: RefCell::new(HashMap::new()),
         });
@@ -618,9 +652,6 @@ impl Program {
             host,
             ..
         } = self.create_program_options.borrow_mut().take().unwrap();
-
-        let mut processing_default_lib_files: Option<Vec<Rc<Node /*SourceFile*/>>> = None;
-        let mut processing_other_files: Option<Vec<Rc<Node /*SourceFile*/>>> = None;
 
         // tracing?.push(tracing.Phase.Program, "createProgram", { configFilePath: options.configFilePath, rootDir: options.rootDir }, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeProgram");
@@ -680,6 +711,12 @@ impl Program {
 
     pub(super) fn symlinks(&self) -> RefMut<Option<Rc<SymlinkCache>>> {
         self.symlinks.borrow_mut()
+    }
+
+    pub(super) fn resolved_type_reference_directives(
+        &self,
+    ) -> RefMut<HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>> {
+        self.resolved_type_reference_directives.borrow_mut()
     }
 
     pub(super) fn program_diagnostics(&self) -> RefMut<DiagnosticCollection> {
@@ -1071,7 +1108,7 @@ impl Program {
         !symlinks.has_processed_resolutions() {
             symlinks.set_symlinks_from_resolutions(
                 &self.files(),
-                Some(&self.resolved_type_reference_directives),
+                Some(&self.resolved_type_reference_directives()),
             );
         }
         symlinks

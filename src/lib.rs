@@ -181,9 +181,9 @@ pub use compiler::path::{
 use compiler::program::{
     change_compiler_host_like_to_use_cache, create_compiler_host_worker, format_color_and_reset,
     get_mode_for_resolution_at_index, get_mode_for_usage_location, get_referenced_file_location,
-    is_reference_file_location, is_referenced_file, ForegroundColorEscapeSequences,
-    ReferenceFileLocation, ReferenceFileLocationOrSyntheticReferenceFileLocation,
-    SyntheticReferenceFileLocation,
+    is_reference_file_location, is_referenced_file, DiagnosticCache,
+    ForegroundColorEscapeSequences, ReferenceFileLocation,
+    ReferenceFileLocationOrSyntheticReferenceFileLocation, SyntheticReferenceFileLocation,
 };
 pub use compiler::program::{
     create_program, find_config_file, flatten_diagnostic_message_text, format_diagnostic,
