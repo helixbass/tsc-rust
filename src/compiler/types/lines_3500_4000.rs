@@ -13,10 +13,11 @@ use super::{
     SymbolTable, TypeChecker,
 };
 use crate::{
-    CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
-    DiagnosticCollection, DiagnosticMessage, Extension, ModeAwareCache, ModuleKind,
-    ModuleResolutionCache, MultiMap, PackageId, ParseConfigFileHost, PragmaContext, SymlinkCache,
-    Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    ActualResolveModuleNamesWorker, CheckJsDirective, CompilerHost, ConfigFileSpecs,
+    CreateProgramOptions, DiagnosticCache, DiagnosticCollection, DiagnosticMessage, Extension,
+    ModeAwareCache, ModuleKind, ModuleResolutionCache, MultiMap, PackageId, ParseConfigFileHost,
+    PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface,
+    TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1002,6 +1003,8 @@ pub struct Program {
     pub(crate) module_resolution_cache: RefCell<Option<Rc<dyn ModuleResolutionCache>>>,
     pub(crate) type_reference_directive_resolution_cache:
         RefCell<Option<Rc<dyn TypeReferenceDirectiveResolutionCache>>>,
+    pub(crate) actual_resolve_module_names_worker:
+        RefCell<Option<Rc<dyn ActualResolveModuleNamesWorker>>>,
 }
 
 impl fmt::Debug for Program {

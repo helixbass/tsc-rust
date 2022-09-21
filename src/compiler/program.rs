@@ -654,6 +654,7 @@ impl Program {
             _compiler_options_object_literal_syntax: RefCell::new(None),
             module_resolution_cache: RefCell::new(None),
             type_reference_directive_resolution_cache: RefCell::new(None),
+            actual_resolve_module_names_worker: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -830,6 +831,21 @@ impl Program {
         &self,
     ) -> RefMut<Option<Rc<dyn TypeReferenceDirectiveResolutionCache>>> {
         self.type_reference_directive_resolution_cache.borrow_mut()
+    }
+
+    pub(super) fn actual_resolve_module_names_worker(
+        &self,
+    ) -> Rc<dyn ActualResolveModuleNamesWorker> {
+        self.actual_resolve_module_names_worker
+            .borrow_mut()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
+        self.host()
+            .has_invalidated_resolution(source_file)
+            .unwrap_or(false)
     }
 
     pub fn get_root_file_names(&self) -> &[String] {
@@ -1218,6 +1234,17 @@ impl Program {
         }
         symlinks
     }
+}
+
+pub trait ActualResolveModuleNamesWorker {
+    fn call(
+        &self,
+        module_names: &[String],
+        containing_file: &Node, /*SourceFile*/
+        containing_file_name: &str,
+        reused_names: Option<&[String]>,
+        redirected_reference: Option<ResolvedProjectReference>,
+    ) -> Vec<Rc<ResolvedModuleFull>>;
 }
 
 impl ScriptReferenceHost for Program {
