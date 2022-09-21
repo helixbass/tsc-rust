@@ -23,10 +23,10 @@ use crate::{
     CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
     Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
-    Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionHost,
-    ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, PackageId,
-    ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ReferencedFile,
-    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionCache,
+    ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
+    PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
     ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache,
     System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
 };
@@ -649,7 +649,9 @@ impl Program {
             current_directory: RefCell::new(None),
             supported_extensions: RefCell::new(None),
             supported_extensions_with_json_if_resolve_json_module: RefCell::new(None),
-            has_emit_blocking_diagnostics: RefCell::new(HashMap::new()),
+            has_emit_blocking_diagnostics: RefCell::new(None),
+            _compiler_options_object_literal_syntax: RefCell::new(None),
+            module_resolution_cache: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -693,6 +695,8 @@ impl Program {
             Some(&self.options),
             &self.supported_extensions(),
         ));
+
+        *self.has_emit_blocking_diagnostics.borrow_mut() = Some(HashMap::new());
 
         // if host.is_resolve_module_names_supported() {
         //     actual_resolve_module_names_worker
@@ -802,7 +806,22 @@ impl Program {
     }
 
     pub(super) fn has_emit_blocking_diagnostics(&self) -> RefMut<HashMap<Path, bool>> {
-        self.has_emit_blocking_diagnostics.borrow_mut()
+        RefMut::map(
+            self.has_emit_blocking_diagnostics.borrow_mut(),
+            |has_emit_blocking_diagnostics| has_emit_blocking_diagnostics.as_mut().unwrap(),
+        )
+    }
+
+    pub(super) fn maybe_compiler_options_object_literal_syntax(
+        &self,
+    ) -> RefMut<Option<Option<Rc<Node>>>> {
+        self._compiler_options_object_literal_syntax.borrow_mut()
+    }
+
+    pub(super) fn maybe_module_resolution_cache(
+        &self,
+    ) -> RefMut<Option<Rc<dyn ModuleResolutionCache>>> {
+        self.module_resolution_cache.borrow_mut()
     }
 
     pub fn get_root_file_names(&self) -> &[String] {

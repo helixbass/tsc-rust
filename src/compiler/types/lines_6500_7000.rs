@@ -217,7 +217,7 @@ pub trait CompilerHost: ModuleResolutionHost {
         None
     }
     fn is_resolve_module_names_supported(&self) -> bool;
-    fn get_module_resolution_cache(&self) -> Option<&dyn ModuleResolutionCache> {
+    fn get_module_resolution_cache(&self) -> Option<Rc<dyn ModuleResolutionCache>> {
         None
     }
     fn resolve_type_reference_directives(

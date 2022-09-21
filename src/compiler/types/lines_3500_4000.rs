@@ -14,9 +14,9 @@ use super::{
 };
 use crate::{
     CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
-    DiagnosticCollection, DiagnosticMessage, Extension, ModeAwareCache, ModuleKind, MultiMap,
-    PackageId, ParseConfigFileHost, PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface,
-    __String,
+    DiagnosticCollection, DiagnosticMessage, Extension, ModeAwareCache, ModuleKind,
+    ModuleResolutionCache, MultiMap, PackageId, ParseConfigFileHost, PragmaContext, SymlinkCache,
+    Type, TypeFlags, TypeInterface, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -996,7 +996,10 @@ pub struct Program {
     pub(crate) supported_extensions_with_json_if_resolve_json_module:
         RefCell<Option<Vec<Vec<Extension>>>>,
 
-    pub(crate) has_emit_blocking_diagnostics: RefCell<HashMap<Path, bool>>,
+    pub(crate) has_emit_blocking_diagnostics: RefCell<Option<HashMap<Path, bool>>>,
+    pub(crate) _compiler_options_object_literal_syntax:
+        RefCell<Option<Option<Rc<Node /*ObjectLiteralExpression*/>>>>,
+    pub(crate) module_resolution_cache: RefCell<Option<Rc<dyn ModuleResolutionCache>>>,
 }
 
 impl fmt::Debug for Program {
