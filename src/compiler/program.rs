@@ -28,7 +28,8 @@ use crate::{
     PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program,
     ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
     ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache,
-    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
+    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
+    TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -652,6 +653,7 @@ impl Program {
             has_emit_blocking_diagnostics: RefCell::new(None),
             _compiler_options_object_literal_syntax: RefCell::new(None),
             module_resolution_cache: RefCell::new(None),
+            type_reference_directive_resolution_cache: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -822,6 +824,12 @@ impl Program {
         &self,
     ) -> RefMut<Option<Rc<dyn ModuleResolutionCache>>> {
         self.module_resolution_cache.borrow_mut()
+    }
+
+    pub(super) fn maybe_type_reference_directive_resolution_cache(
+        &self,
+    ) -> RefMut<Option<Rc<dyn TypeReferenceDirectiveResolutionCache>>> {
+        self.type_reference_directive_resolution_cache.borrow_mut()
     }
 
     pub fn get_root_file_names(&self) -> &[String] {

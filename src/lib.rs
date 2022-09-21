@@ -148,6 +148,7 @@ use compiler::module_name_resolver::{
 };
 pub use compiler::module_name_resolver::{
     node_module_name_resolver, ModeAwareCache, ModuleResolutionCache,
+    TypeReferenceDirectiveResolutionCache,
 };
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively_bool,
@@ -312,7 +313,8 @@ pub use compiler::types::{
     PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange, RedirectTargetsMap,
     RegularExpressionLiteral, RelationComparisonResult, RequireResult, ResolvableTypeInterface,
     ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeInterface, ResolvedTypeReferenceDirective, RestTypeNode, ReturnStatement,
+    ResolvedTypeInterface, ResolvedTypeReferenceDirective,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, RestTypeNode, ReturnStatement,
     ReverseMappedSymbol, ReverseMappedType, ScriptKind, ScriptReferenceHost, ScriptTarget,
     SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment, Signature,
     SignatureDeclarationBase, SignatureDeclarationInterface, SignatureFlags, SignatureKind,

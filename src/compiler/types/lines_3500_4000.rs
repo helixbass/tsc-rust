@@ -16,7 +16,7 @@ use crate::{
     CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
     DiagnosticCollection, DiagnosticMessage, Extension, ModeAwareCache, ModuleKind,
     ModuleResolutionCache, MultiMap, PackageId, ParseConfigFileHost, PragmaContext, SymlinkCache,
-    Type, TypeFlags, TypeInterface, __String,
+    Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1000,6 +1000,8 @@ pub struct Program {
     pub(crate) _compiler_options_object_literal_syntax:
         RefCell<Option<Option<Rc<Node /*ObjectLiteralExpression*/>>>>,
     pub(crate) module_resolution_cache: RefCell<Option<Rc<dyn ModuleResolutionCache>>>,
+    pub(crate) type_reference_directive_resolution_cache:
+        RefCell<Option<Rc<dyn TypeReferenceDirectiveResolutionCache>>>,
 }
 
 impl fmt::Debug for Program {

@@ -156,6 +156,11 @@ pub struct ResolvedTypeReferenceDirective {
     pub is_external_library_import: Option<bool>,
 }
 
+pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
+    pub resolved_type_reference_directive: Option<ResolvedTypeReferenceDirective>,
+    pub failed_lookup_locations: Vec<String>,
+}
+
 pub trait CompilerHost: ModuleResolutionHost {
     fn get_source_file(
         &self,

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
     CompilerOptions, MapLike, ModuleKind, ModuleResolutionHost, Path,
     ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
 };
 
 pub struct PackageJsonPathFields {}
@@ -10,6 +11,12 @@ pub struct PackageJsonPathFields {}
 pub struct VersionPaths {
     pub version: String,
     pub paths: MapLike<Vec<String>>,
+}
+
+pub trait TypeReferenceDirectiveResolutionCache:
+    PerDirectoryResolutionCache<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>
+    + PackageJsonInfoCache
+{
 }
 
 #[derive(Debug)]
