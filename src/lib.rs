@@ -148,8 +148,8 @@ use compiler::module_name_resolver::{
     create_mode_aware_cache, get_types_package_name, mangle_scoped_package_name,
 };
 pub use compiler::module_name_resolver::{
-    node_module_name_resolver, ModeAwareCache, ModuleResolutionCache,
-    TypeReferenceDirectiveResolutionCache,
+    create_module_resolution_cache, node_module_name_resolver, ModeAwareCache,
+    ModuleResolutionCache, TypeReferenceDirectiveResolutionCache,
 };
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively_bool,

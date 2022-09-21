@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::{
     CompilerOptions, MapLike, ModuleKind, ModuleResolutionHost, Path,
@@ -53,7 +54,7 @@ pub trait ModuleResolutionCache:
     + NonRelativeModuleNameResolutionCache
     + PackageJsonInfoCache
 {
-    fn get_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache;
+    fn get_package_json_info_cache(&self) -> Rc<dyn PackageJsonInfoCache>;
 }
 
 pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
@@ -74,8 +75,81 @@ pub trait PackageJsonInfoCache {
 
 pub struct PerModuleNameCache {}
 
+pub struct CacheWithRedirects<TValue> {
+    own_map: HashMap<String, TValue>,
+}
+
 pub(crate) fn create_mode_aware_cache<TValue>() -> ModeAwareCache<TValue> {
     unimplemented!()
+}
+
+pub fn create_module_resolution_cache(
+    current_directory: &str,
+    get_canonical_file_name: Box<dyn Fn(&str) -> String>,
+    options: Option<Rc<CompilerOptions>>,
+    directory_to_module_name_map: Option<
+        Rc<CacheWithRedirects<ModeAwareCache<ResolvedModuleWithFailedLookupLocations>>>,
+    >,
+    module_name_to_directory_map: Option<Rc<CacheWithRedirects<PerModuleNameCache>>>,
+) -> ModuleResolutionCacheConcrete {
+    unimplemented!()
+}
+
+pub struct ModuleResolutionCacheConcrete {}
+
+impl ModuleResolutionCache for ModuleResolutionCacheConcrete {
+    fn get_package_json_info_cache(&self) -> Rc<dyn PackageJsonInfoCache> {
+        unimplemented!()
+    }
+}
+
+impl PerDirectoryResolutionCache<ResolvedModuleWithFailedLookupLocations>
+    for ModuleResolutionCacheConcrete
+{
+    fn get_or_create_cache_for_directory(
+        &self,
+        directory_name: &str,
+        redirected_reference: Option<ResolvedProjectReference>,
+    ) -> &ModeAwareCache<ResolvedModuleWithFailedLookupLocations> {
+        unimplemented!()
+    }
+
+    fn clear(&self) {
+        unimplemented!()
+    }
+
+    fn update(&self, options: &CompilerOptions) {
+        unimplemented!()
+    }
+}
+
+impl NonRelativeModuleNameResolutionCache for ModuleResolutionCacheConcrete {
+    fn get_or_create_cache_for_module_name(
+        &self,
+        non_relative_module_name: &str,
+        mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
+        redirected_reference: Option<ResolvedProjectReference>,
+    ) -> &PerModuleNameCache {
+        unimplemented!()
+    }
+}
+
+impl PackageJsonInfoCache for ModuleResolutionCacheConcrete {
+    fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool> {
+        unimplemented!()
+    }
+
+    fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
+        unimplemented!()
+    }
+
+    fn entries(&self) -> &[(&Path, &PackageJsonInfoOrBool)] {
+        unimplemented!()
+    }
+
+    fn clear(&self) {
+        unimplemented!()
+    }
 }
 
 pub fn node_module_name_resolver<THost: ModuleResolutionHost>(
