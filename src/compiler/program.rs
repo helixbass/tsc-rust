@@ -15,7 +15,8 @@ use crate::{
     for_each, for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
     get_default_lib_file_name, get_directory_path, get_emit_script_target,
     get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
-    get_path_from_path_components, get_property_assignment, get_strict_option_value, get_sys,
+    get_path_from_path_components, get_property_assignment, get_strict_option_value,
+    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
     is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path, out_file,
     remove_file_extension, supported_js_extensions_flat, to_path as to_path_helper,
     write_file_ensuring_directories, CancellationTokenDebuggable, Comparison, CompilerHost,
@@ -638,12 +639,16 @@ impl Program {
 
             source_files_found_searching_node_modules: RefCell::new(HashMap::new()),
 
-            current_directory: RefCell::new(None),
             host: RefCell::new(None),
             config_parsing_host: RefCell::new(None),
 
             skip_default_lib: Cell::new(None),
-            program_diagnostics: RefCell::new(create_diagnostic_collection()),
+            get_default_library_file_name_memoized: RefCell::new(None),
+            default_library_path: RefCell::new(None),
+            program_diagnostics: RefCell::new(None),
+            current_directory: RefCell::new(None),
+            supported_extensions: RefCell::new(None),
+            supported_extensions_with_json_if_resolve_json_module: RefCell::new(None),
             has_emit_blocking_diagnostics: RefCell::new(HashMap::new()),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
@@ -672,9 +677,22 @@ impl Program {
             )));
 
         self.skip_default_lib.set(self.options.no_lib);
-
+        *self.default_library_path.borrow_mut() = Some(
+            self.host()
+                .get_default_lib_location()
+                .unwrap_or_else(|| get_directory_path(&self.get_default_library_file_name())),
+        );
+        *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection());
         *self.current_directory.borrow_mut() =
             Some(CompilerHost::get_current_directory(&*self.host()));
+        *self.supported_extensions.borrow_mut() =
+            Some(get_supported_extensions(Some(&self.options), None));
+        *self
+            .supported_extensions_with_json_if_resolve_json_module
+            .borrow_mut() = Some(get_supported_extensions_with_json_if_resolve_json_module(
+            Some(&self.options),
+            &self.supported_extensions(),
+        ));
 
         // if host.is_resolve_module_names_supported() {
         //     actual_resolve_module_names_worker
@@ -713,9 +731,26 @@ impl Program {
         Ref::map(self.files.borrow(), |files| files.as_ref().unwrap())
     }
 
-    pub(super) fn current_directory(&self) -> Ref<String> {
-        Ref::map(self.current_directory.borrow(), |current_directory| {
-            current_directory.as_ref().unwrap()
+    pub(super) fn get_default_library_file_name(&self) -> Ref<String> {
+        if self
+            .get_default_library_file_name_memoized
+            .borrow()
+            .is_none()
+        {
+            *self.get_default_library_file_name_memoized.borrow_mut() =
+                Some(self.host().get_default_lib_file_name(&self.options));
+        }
+        Ref::map(
+            self.get_default_library_file_name_memoized.borrow(),
+            |default_library_file_name_memoized| {
+                default_library_file_name_memoized.as_ref().unwrap()
+            },
+        )
+    }
+
+    pub(super) fn default_library_path(&self) -> Ref<String> {
+        Ref::map(self.default_library_path.borrow(), |default_library_path| {
+            default_library_path.as_ref().unwrap()
         })
     }
 
@@ -734,7 +769,36 @@ impl Program {
     }
 
     pub(super) fn program_diagnostics(&self) -> RefMut<DiagnosticCollection> {
-        self.program_diagnostics.borrow_mut()
+        RefMut::map(
+            self.program_diagnostics.borrow_mut(),
+            |program_diagnostics| program_diagnostics.as_mut().unwrap(),
+        )
+    }
+
+    pub(super) fn current_directory(&self) -> Ref<String> {
+        Ref::map(self.current_directory.borrow(), |current_directory| {
+            current_directory.as_ref().unwrap()
+        })
+    }
+
+    pub(super) fn supported_extensions(&self) -> Ref<Vec<Vec<Extension>>> {
+        Ref::map(self.supported_extensions.borrow(), |supported_extensions| {
+            supported_extensions.as_ref().unwrap()
+        })
+    }
+
+    pub(super) fn supported_extensions_with_json_if_resolve_json_module(
+        &self,
+    ) -> Ref<Vec<Vec<Extension>>> {
+        Ref::map(
+            self.supported_extensions_with_json_if_resolve_json_module
+                .borrow(),
+            |supported_extensions_with_json_if_resolve_json_module| {
+                supported_extensions_with_json_if_resolve_json_module
+                    .as_ref()
+                    .unwrap()
+            },
+        )
     }
 
     pub(super) fn has_emit_blocking_diagnostics(&self) -> RefMut<HashMap<Path, bool>> {

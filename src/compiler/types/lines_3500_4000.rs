@@ -14,8 +14,9 @@ use super::{
 };
 use crate::{
     CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
-    DiagnosticCollection, DiagnosticMessage, ModeAwareCache, ModuleKind, MultiMap, PackageId,
-    ParseConfigFileHost, PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface, __String,
+    DiagnosticCollection, DiagnosticMessage, Extension, ModeAwareCache, ModuleKind, MultiMap,
+    PackageId, ParseConfigFileHost, PragmaContext, SymlinkCache, Type, TypeFlags, TypeInterface,
+    __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -962,7 +963,6 @@ pub struct Program {
     pub(crate) processing_default_lib_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
     pub(crate) processing_other_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
     pub(crate) files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
-    pub(crate) current_directory: RefCell<Option<String>>,
     pub(crate) symlinks: RefCell<Option<Rc<SymlinkCache>>>,
     pub(crate) common_source_directory: RefCell<Option<String>>,
     pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
@@ -988,8 +988,13 @@ pub struct Program {
     pub(crate) config_parsing_host: RefCell<Option<Rc<dyn ParseConfigFileHost>>>,
 
     pub(crate) skip_default_lib: Cell<Option<bool>>,
-
-    pub(crate) program_diagnostics: RefCell<DiagnosticCollection>,
+    pub(crate) get_default_library_file_name_memoized: RefCell<Option<String>>,
+    pub(crate) default_library_path: RefCell<Option<String>>,
+    pub(crate) program_diagnostics: RefCell<Option<DiagnosticCollection>>,
+    pub(crate) current_directory: RefCell<Option<String>>,
+    pub(crate) supported_extensions: RefCell<Option<Vec<Vec<Extension>>>>,
+    pub(crate) supported_extensions_with_json_if_resolve_json_module:
+        RefCell<Option<Vec<Vec<Extension>>>>,
 
     pub(crate) has_emit_blocking_diagnostics: RefCell<HashMap<Path, bool>>,
 }
