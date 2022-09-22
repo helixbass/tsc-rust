@@ -15,9 +15,10 @@ use super::{
 use crate::{
     ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
     CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
-    DiagnosticCollection, DiagnosticMessage, Extension, ModeAwareCache, ModuleKind,
-    ModuleResolutionCache, MultiMap, PackageId, ParseConfigFileHost, PragmaContext, SymlinkCache,
-    Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue, ModeAwareCache,
+    ModuleKind, ModuleResolutionCache, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
+    ResolvedProjectReference, SymlinkCache, Type, TypeFlags, TypeInterface,
+    TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1010,6 +1011,18 @@ pub struct Program {
 
     pub(crate) package_id_to_source_file: RefCell<Option<HashMap<String, Rc<Node /*SourceFile*/>>>>,
     pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
+    pub(crate) redirect_targets_map: RefCell<Option<MultiMap<Path, String>>>,
+    pub(crate) uses_uri_style_node_core_modules: Cell<Option<bool>>,
+
+    pub(crate) files_by_name: RefCell<Option<HashMap<String, FilesByNameValue>>>,
+    pub(crate) missing_file_paths: RefCell<Option<Vec<Path>>>,
+    pub(crate) files_by_name_ignore_case: RefCell<Option<HashMap<String, Rc<Node /*SourceFile*/>>>>,
+
+    pub(crate) resolved_project_references:
+        RefCell<Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+    pub(crate) project_reference_redirects:
+        RefCell<Option<HashMap<Path, Option<Rc<ResolvedProjectReference>>>>>,
+    pub(crate) map_from_file_to_project_reference_redirects: RefCell<Option<HashMap<Path, Path>>>,
 }
 
 impl fmt::Debug for Program {

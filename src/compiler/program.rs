@@ -797,6 +797,14 @@ impl Program {
             actual_resolve_type_reference_directive_names_worker: RefCell::new(None),
             package_id_to_source_file: RefCell::new(None),
             source_file_to_package_name: RefCell::new(None),
+            redirect_targets_map: RefCell::new(None),
+            uses_uri_style_node_core_modules: Cell::new(None),
+            files_by_name: RefCell::new(None),
+            missing_file_paths: RefCell::new(None),
+            files_by_name_ignore_case: RefCell::new(None),
+            resolved_project_references: RefCell::new(None),
+            project_reference_redirects: RefCell::new(None),
+            map_from_file_to_project_reference_redirects: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -906,6 +914,16 @@ impl Program {
 
         *self.package_id_to_source_file.borrow_mut() = Some(HashMap::new());
         *self.source_file_to_package_name.borrow_mut() = Some(HashMap::new());
+        *self.redirect_targets_map.borrow_mut() = Some(create_multi_map());
+        self.uses_uri_style_node_core_modules.set(Some(false));
+
+        *self.files_by_name.borrow_mut() = Some(HashMap::new());
+        *self.files_by_name_ignore_case.borrow_mut() =
+            if CompilerHost::use_case_sensitive_file_names(&*self.host()) {
+                Some(HashMap::new())
+            } else {
+                None
+            };
 
         let structure_is_reused: StructureIsReused;
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});
@@ -1066,6 +1084,53 @@ impl Program {
             self.source_file_to_package_name.borrow_mut(),
             |source_file_to_package_name| source_file_to_package_name.as_mut().unwrap(),
         )
+    }
+
+    pub(super) fn redirect_targets_map(&self) -> RefMut<MultiMap<Path, String>> {
+        RefMut::map(
+            self.redirect_targets_map.borrow_mut(),
+            |redirect_targets_map| redirect_targets_map.as_mut().unwrap(),
+        )
+    }
+
+    pub(super) fn uses_uri_style_node_core_modules(&self) -> bool {
+        self.uses_uri_style_node_core_modules.get().unwrap()
+    }
+
+    pub(super) fn files_by_name(&self) -> RefMut<HashMap<String, FilesByNameValue>> {
+        RefMut::map(self.files_by_name.borrow_mut(), |files_by_name| {
+            files_by_name.as_mut().unwrap()
+        })
+    }
+
+    pub(super) fn maybe_missing_file_paths(&self) -> RefMut<Option<Vec<Path>>> {
+        self.missing_file_paths.borrow_mut()
+    }
+
+    pub(super) fn files_by_name_ignore_case(&self) -> RefMut<HashMap<String, Rc<Node>>> {
+        RefMut::map(
+            self.files_by_name_ignore_case.borrow_mut(),
+            |files_by_name_ignore_case| files_by_name_ignore_case.as_mut().unwrap(),
+        )
+    }
+
+    pub(super) fn maybe_resolved_project_references(
+        &self,
+    ) -> RefMut<Option<Vec<Option<Rc<ResolvedProjectReference>>>>> {
+        self.resolved_project_references.borrow_mut()
+    }
+
+    pub(super) fn maybe_project_reference_redirects(
+        &self,
+    ) -> RefMut<Option<HashMap<Path, Option<Rc<ResolvedProjectReference>>>>> {
+        self.project_reference_redirects.borrow_mut()
+    }
+
+    pub(super) fn maybe_map_from_file_to_project_reference_redirects(
+        &self,
+    ) -> RefMut<Option<HashMap<Path, Path>>> {
+        self.map_from_file_to_project_reference_redirects
+            .borrow_mut()
     }
 
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
@@ -1465,6 +1530,12 @@ impl Program {
         }
         symlinks
     }
+}
+
+pub enum FilesByNameValue {
+    SourceFile(Rc<Node /*SourceFile*/>),
+    False,
+    Undefined,
 }
 
 pub trait ActualResolveModuleNamesWorker {
