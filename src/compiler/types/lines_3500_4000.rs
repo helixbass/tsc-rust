@@ -1007,6 +1007,9 @@ pub struct Program {
         RefCell<Option<Rc<dyn ActualResolveModuleNamesWorker>>>,
     pub(crate) actual_resolve_type_reference_directive_names_worker:
         RefCell<Option<Rc<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>,
+
+    pub(crate) package_id_to_source_file: RefCell<Option<HashMap<String, Rc<Node /*SourceFile*/>>>>,
+    pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
 }
 
 impl fmt::Debug for Program {

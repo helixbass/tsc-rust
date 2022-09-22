@@ -795,6 +795,8 @@ impl Program {
             type_reference_directive_resolution_cache: RefCell::new(None),
             actual_resolve_module_names_worker: RefCell::new(None),
             actual_resolve_type_reference_directive_names_worker: RefCell::new(None),
+            package_id_to_source_file: RefCell::new(None),
+            source_file_to_package_name: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -901,6 +903,9 @@ impl Program {
                 )),
             ));
         }
+
+        *self.package_id_to_source_file.borrow_mut() = Some(HashMap::new());
+        *self.source_file_to_package_name.borrow_mut() = Some(HashMap::new());
 
         let structure_is_reused: StructureIsReused;
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});
@@ -1045,6 +1050,22 @@ impl Program {
             .borrow_mut()
             .clone()
             .unwrap()
+    }
+
+    pub(super) fn package_id_to_source_file(
+        &self,
+    ) -> RefMut<HashMap<String, Rc<Node /*SourceFile*/>>> {
+        RefMut::map(
+            self.package_id_to_source_file.borrow_mut(),
+            |package_id_to_source_file| package_id_to_source_file.as_mut().unwrap(),
+        )
+    }
+
+    pub(super) fn source_file_to_package_name(&self) -> RefMut<HashMap<Path, String>> {
+        RefMut::map(
+            self.source_file_to_package_name.borrow_mut(),
+            |source_file_to_package_name| source_file_to_package_name.as_mut().unwrap(),
+        )
     }
 
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
