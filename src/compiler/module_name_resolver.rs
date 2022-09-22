@@ -14,11 +14,7 @@ pub struct VersionPaths {
     pub paths: MapLike<Vec<String>>,
 }
 
-pub trait TypeReferenceDirectiveResolutionCache:
-    PerDirectoryResolutionCache<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>
-    + PackageJsonInfoCache
-{
-}
+pub struct TypeReferenceDirectiveResolutionCache {}
 
 #[derive(Debug)]
 pub struct ModeAwareCache<TValue> {
@@ -49,7 +45,9 @@ pub trait PerDirectoryResolutionCache<TValue> {
     fn update(&self, options: &CompilerOptions);
 }
 
-pub struct ModuleResolutionCache {}
+pub struct ModuleResolutionCache {
+    package_json_info_cache: Rc<dyn PackageJsonInfoCache>,
+}
 
 pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
     fn get_or_create_cache_for_module_name(
@@ -73,25 +71,58 @@ pub struct CacheWithRedirects<TValue> {
     own_map: HashMap<String, TValue>,
 }
 
+pub fn create_package_json_info_cache(
+    current_directory: &str,
+    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+) -> PackageJsonInfoCacheConcrete {
+    PackageJsonInfoCacheConcrete {}
+}
+
+pub struct PackageJsonInfoCacheConcrete {}
+
+impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
+    fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool> {
+        unimplemented!()
+    }
+
+    fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
+        unimplemented!()
+    }
+
+    fn entries(&self) -> &[(&Path, &PackageJsonInfoOrBool)] {
+        unimplemented!()
+    }
+
+    fn clear(&self) {
+        unimplemented!()
+    }
+}
+
 pub(crate) fn create_mode_aware_cache<TValue>() -> ModeAwareCache<TValue> {
     unimplemented!()
 }
 
 pub fn create_module_resolution_cache(
     current_directory: &str,
-    get_canonical_file_name: Box<dyn Fn(&str) -> String>,
+    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
     options: Option<Rc<CompilerOptions>>,
     directory_to_module_name_map: Option<
         Rc<CacheWithRedirects<ModeAwareCache<ResolvedModuleWithFailedLookupLocations>>>,
     >,
     module_name_to_directory_map: Option<Rc<CacheWithRedirects<PerModuleNameCache>>>,
 ) -> ModuleResolutionCache {
-    ModuleResolutionCache {}
+    let package_json_info_cache: Rc<dyn PackageJsonInfoCache> = Rc::new(
+        create_package_json_info_cache(current_directory, get_canonical_file_name),
+    );
+
+    ModuleResolutionCache {
+        package_json_info_cache,
+    }
 }
 
 impl ModuleResolutionCache {
-    fn get_package_json_info_cache(&self) -> Rc<dyn PackageJsonInfoCache> {
-        unimplemented!()
+    pub fn get_package_json_info_cache(&self) -> Rc<dyn PackageJsonInfoCache> {
+        self.package_json_info_cache.clone()
     }
 }
 
@@ -127,6 +158,60 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
 }
 
 impl PackageJsonInfoCache for ModuleResolutionCache {
+    fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool> {
+        unimplemented!()
+    }
+
+    fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
+        unimplemented!()
+    }
+
+    fn entries(&self) -> &[(&Path, &PackageJsonInfoOrBool)] {
+        unimplemented!()
+    }
+
+    fn clear(&self) {
+        unimplemented!()
+    }
+}
+
+pub fn create_type_reference_directive_resolution_cache(
+    current_directory: &str,
+    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    options: Option<Rc<CompilerOptions>>,
+    package_json_info_cache: Option<Rc<dyn PackageJsonInfoCache>>,
+    directory_to_module_name_map: Option<
+        Rc<
+            CacheWithRedirects<
+                ModeAwareCache<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
+            >,
+        >,
+    >,
+) -> TypeReferenceDirectiveResolutionCache {
+    TypeReferenceDirectiveResolutionCache {}
+}
+
+impl PerDirectoryResolutionCache<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>
+    for TypeReferenceDirectiveResolutionCache
+{
+    fn get_or_create_cache_for_directory(
+        &self,
+        directory_name: &str,
+        redirected_reference: Option<ResolvedProjectReference>,
+    ) -> &ModeAwareCache<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+        unimplemented!()
+    }
+
+    fn clear(&self) {
+        unimplemented!()
+    }
+
+    fn update(&self, options: &CompilerOptions) {
+        unimplemented!()
+    }
+}
+
+impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool> {
         unimplemented!()
     }

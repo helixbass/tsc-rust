@@ -11,7 +11,8 @@ use crate::{
     clone, combine_paths, compare_paths, concatenate, contains_path, convert_to_relative_path,
     create_diagnostic_collection, create_diagnostic_for_node_in_source_file,
     create_get_canonical_file_name, create_module_resolution_cache, create_multi_map,
-    create_source_file, create_symlink_cache, create_type_checker, diagnostic_category_name,
+    create_source_file, create_symlink_cache, create_type_checker,
+    create_type_reference_directive_resolution_cache, diagnostic_category_name,
     extension_from_path, file_extension_is, file_extension_is_one_of, for_each,
     for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
     get_default_lib_file_name, get_directory_path, get_emit_script_target,
@@ -784,7 +785,7 @@ impl Program {
             *self.module_resolution_cache.borrow_mut() =
                 Some(Rc::new(create_module_resolution_cache(
                     &self.current_directory(),
-                    self.get_canonical_file_name_boxed(),
+                    self.get_canonical_file_name_rc(),
                     Some(self.options.clone()),
                     None,
                     None,
@@ -809,6 +810,18 @@ impl Program {
                 ),
             ));
         } else {
+            *self.type_reference_directive_resolution_cache.borrow_mut() =
+                Some(Rc::new(create_type_reference_directive_resolution_cache(
+                    &self.current_directory(),
+                    self.get_canonical_file_name_rc(),
+                    None,
+                    self.maybe_module_resolution_cache()
+                        .as_ref()
+                        .map(|module_resolution_cache| {
+                            module_resolution_cache.get_package_json_info_cache()
+                        }),
+                    None,
+                )));
         }
 
         let structure_is_reused: StructureIsReused;
@@ -934,7 +947,7 @@ impl Program {
 
     pub(super) fn maybe_type_reference_directive_resolution_cache(
         &self,
-    ) -> RefMut<Option<Rc<dyn TypeReferenceDirectiveResolutionCache>>> {
+    ) -> RefMut<Option<Rc<TypeReferenceDirectiveResolutionCache>>> {
         self.type_reference_directive_resolution_cache.borrow_mut()
     }
 
@@ -1220,9 +1233,9 @@ impl Program {
         self.host().get_canonical_file_name(file_name)
     }
 
-    pub fn get_canonical_file_name_boxed(&self) -> Box<dyn Fn(&str) -> String> {
+    pub fn get_canonical_file_name_rc(&self) -> Rc<dyn Fn(&str) -> String> {
         let host = self.host();
-        Box::new(move |file_name| host.get_canonical_file_name(file_name))
+        Rc::new(move |file_name| host.get_canonical_file_name(file_name))
     }
 
     pub fn create_option_diagnostic_in_object_literal_syntax(
