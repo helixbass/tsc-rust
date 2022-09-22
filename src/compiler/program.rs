@@ -19,20 +19,21 @@ use crate::{
     get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
     get_path_from_path_components, get_property_assignment, get_strict_option_value,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
-    is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path, out_file,
-    remove_file_extension, resolve_module_name, resolve_type_reference_directive,
-    supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
+    is_declaration_file_name, is_rooted_disk_path, is_watch_set, missing_file_modified_time,
+    normalize_path, out_file, remove_file_extension, resolve_module_name,
+    resolve_type_reference_directive, supported_js_extensions_flat, to_path as to_path_helper,
+    write_file_ensuring_directories, CancellationTokenDebuggable, Comparison, CompilerHost,
+    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
+    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
     Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionCache,
-    ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
-    PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program,
-    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceOfProjectReferenceRedirect,
-    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleSpecifierResolutionHost, MultiMap,
+    NamedDeclarationInterface, Node, PackageId, ParseConfigFileHost, ParseConfigHost,
+    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile,
+    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, System, TypeChecker,
+    TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -806,6 +807,7 @@ impl Program {
             project_reference_redirects: RefCell::new(None),
             map_from_file_to_project_reference_redirects: RefCell::new(None),
             map_from_to_project_reference_redirect_source: RefCell::new(None),
+            use_source_of_project_reference_redirect: Cell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -925,6 +927,20 @@ impl Program {
             } else {
                 None
             };
+
+        self.use_source_of_project_reference_redirect.set(Some(
+            self.host().use_source_of_project_reference_redirect() == Some(true)
+                && self.options.disable_source_of_project_reference_redirect != Some(true),
+        ));
+        update_host_for_use_source_of_project_reference_redirect(
+            HostForUseSourceOfProjectReferenceRedirect {
+                compiler_host: self.host(),
+                get_resolved_project_references: {
+                    let self_clone = self.rc_wrapper();
+                    Rc::new(move || self_clone.get_resolved_project_references().clone())
+                },
+            },
+        );
 
         let structure_is_reused: StructureIsReused;
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});
@@ -1141,6 +1157,10 @@ impl Program {
             .borrow_mut()
     }
 
+    pub(super) fn use_source_of_project_reference_redirect(&self) -> bool {
+        self.use_source_of_project_reference_redirect.get().unwrap()
+    }
+
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
         self.host()
             .has_invalidated_resolution(source_file)
@@ -1213,8 +1233,10 @@ impl Program {
         })
     }
 
-    pub fn get_resolved_project_references(&self) -> Option<&[Option<ResolvedProjectReference>]> {
-        unimplemented!()
+    pub fn get_resolved_project_references(
+        &self,
+    ) -> Ref<Option<Vec<Option<Rc<ResolvedProjectReference>>>>> {
+        self.resolved_project_references.borrow()
     }
 
     pub fn is_source_file_default_library(&self, file: &Node /*SourceFile*/) -> bool {
@@ -1764,6 +1786,83 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
     program
 }
 
+struct HostForUseSourceOfProjectReferenceRedirect {
+    compiler_host: Rc<dyn CompilerHost>,
+    get_resolved_project_references:
+        Rc<dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+}
+
+fn update_host_for_use_source_of_project_reference_redirect(
+    host: HostForUseSourceOfProjectReferenceRedirect,
+) -> UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
+    let overrider: Rc<dyn ModuleResolutionHostOverrider> = Rc::new(
+        UpdateHostForUseSourceOfProjectReferenceRedirectOverrider::new(
+            host.compiler_host.clone(),
+            host.get_resolved_project_references.clone(),
+        ),
+    );
+    host.compiler_host
+        .set_overriding_file_exists(Some(overrider.clone()));
+    UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
+        on_program_create_complete: {
+            let host_compiler_host_clone = host.compiler_host.clone();
+            Rc::new(move || {
+                host_compiler_host_clone.set_overriding_file_exists(None);
+                host_compiler_host_clone.set_overriding_directory_exists(None);
+                host_compiler_host_clone.set_overriding_get_directories(None);
+            })
+        },
+    }
+}
+
+struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
+    pub on_program_create_complete: Rc<dyn FnMut()>,
+}
+
+struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
+    pub host_compiler_host: Rc<dyn CompilerHost>,
+    pub host_get_resolved_project_references:
+        Rc<dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+}
+
+impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
+    pub fn new(
+        host_compiler_host: Rc<dyn CompilerHost>,
+        host_get_resolved_project_references: Rc<
+            dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
+        >,
+    ) -> Self {
+        Self {
+            host_compiler_host,
+            host_get_resolved_project_references,
+        }
+    }
+
+    fn file_or_directory_exists_using_source(
+        &self,
+        file_or_directory: &str,
+        is_file: bool,
+    ) -> bool {
+        unimplemented!()
+    }
+}
+
+impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
+    fn file_exists(&self, file: &str) -> bool {
+        if self.host_compiler_host.file_exists_non_overridden(file) {
+            return true;
+        }
+        if (self.host_get_resolved_project_references)().is_none() {
+            return false;
+        }
+        if !is_declaration_file_name(file) {
+            return false;
+        }
+
+        self.file_or_directory_exists_using_source(file, true)
+    }
+}
+
 fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {
     diagnostic
 }
@@ -1794,41 +1893,6 @@ pub trait CompilerHostLike {
     fn directory_exists(&self, path: &str) -> Option<bool>;
     fn get_directories(&self, path: &str) -> Option<Vec<String>>;
 }
-
-// impl<TCompilerHost> CompilerHostLike for TCompilerHost where TCompilerHost: CompilerHost {
-//     fn use_case_sensitive_file_names(&self) -> bool {
-//         self.use_case_sensitive_file_names()
-//     }
-
-//     fn get_current_directory(&self) -> String {
-//         self.get_current_directory()
-//     }
-
-//     fn file_exists(&self, file_name: &str) -> bool {
-//         self.file_exists(file_name)
-//     }
-
-//     fn read_file(&self, file_name: &str) -> io::Result<String> {
-//         self.read_file(file_name)
-//     }
-
-//     fn read_directory(
-//         &self,
-//         root_dir: &str,
-//         extensions: &[&str],
-//         excludes: Option<&[String]>,
-//         includes: &[String],
-//         depth: Option<usize>,
-//     ) -> Option<Vec<String>> {
-//         self.read_directory(root_dir, extensions, excludes, includes, depth)
-//     }
-
-//     fn trace(&self, s: &str) {
-//         self.trace(s)
-//     }
-
-//     // fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {}
-// }
 
 pub struct CompilerHostLikeRcDynCompilerHost {
     host: Rc<dyn CompilerHost>,

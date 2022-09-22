@@ -675,13 +675,13 @@ pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String
         }
         FileIncludeReason::ProjectReferenceFile(reason) => {
             let is_output = reason.kind == FileIncludeKind::OutputFromProjectReference;
-            let referenced_resolved_ref: &ResolvedProjectReference = Debug_.check_defined(
+            let referenced_resolved_ref: Rc<ResolvedProjectReference> = Debug_.check_defined(
                 program
                     .get_resolved_project_references()
                     .and_then(|resolved_project_references| {
                         resolved_project_references
                             .get(reason.index)
-                            .map(|option| option.as_ref().unwrap())
+                            .map(|option| option.clone().unwrap())
                     }),
                 None,
             );

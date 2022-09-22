@@ -1025,6 +1025,7 @@ pub struct Program {
     pub(crate) map_from_file_to_project_reference_redirects: RefCell<Option<HashMap<Path, Path>>>,
     pub(crate) map_from_to_project_reference_redirect_source:
         RefCell<Option<HashMap<Path, SourceOfProjectReferenceRedirect>>>,
+    pub(crate) use_source_of_project_reference_redirect: Cell<Option<bool>>,
 }
 
 impl fmt::Debug for Program {

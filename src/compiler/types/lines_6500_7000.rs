@@ -18,6 +18,11 @@ use crate::{
 
 pub trait ModuleResolutionHost {
     fn file_exists(&self, file_name: &str) -> bool;
+    fn file_exists_non_overridden(&self, file_name: &str) -> bool;
+    fn set_overriding_file_exists(
+        &self,
+        overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
     fn read_file(&self, file_name: &str) -> io::Result<String>;
     fn trace(&self, s: &str) {}
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
@@ -53,6 +58,10 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
     fn use_case_sensitive_file_names(&self) -> Option<bool> {
         Some(ParseConfigHost::use_case_sensitive_file_names(self))
     }
+}
+
+pub trait ModuleResolutionHostOverrider {
+    fn file_exists(&self, file_name: &str) -> bool;
 }
 
 #[derive(Clone, Debug)]
