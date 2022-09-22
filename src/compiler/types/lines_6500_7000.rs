@@ -284,6 +284,11 @@ pub trait CompilerHost: ModuleResolutionHost {
     }
 }
 
+pub(crate) enum SourceOfProjectReferenceRedirect {
+    String(String),
+    True,
+}
+
 bitflags! {
     pub struct TransformFlags: u32 {
         const None = 0;

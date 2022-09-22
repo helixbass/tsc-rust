@@ -17,8 +17,8 @@ use crate::{
     CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
     DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue, ModeAwareCache,
     ModuleKind, ModuleResolutionCache, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
-    ResolvedProjectReference, SymlinkCache, Type, TypeFlags, TypeInterface,
-    TypeReferenceDirectiveResolutionCache, __String,
+    ResolvedProjectReference, SourceOfProjectReferenceRedirect, SymlinkCache, Type, TypeFlags,
+    TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1023,6 +1023,8 @@ pub struct Program {
     pub(crate) project_reference_redirects:
         RefCell<Option<HashMap<Path, Option<Rc<ResolvedProjectReference>>>>>,
     pub(crate) map_from_file_to_project_reference_redirects: RefCell<Option<HashMap<Path, Path>>>,
+    pub(crate) map_from_to_project_reference_redirect_source:
+        RefCell<Option<HashMap<Path, SourceOfProjectReferenceRedirect>>>,
 }
 
 impl fmt::Debug for Program {

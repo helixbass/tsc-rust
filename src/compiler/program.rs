@@ -30,9 +30,9 @@ use crate::{
     ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
     PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program,
     ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache,
-    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeReferenceDirectiveResolutionCache, WriteFileCallback,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceOfProjectReferenceRedirect,
+    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -805,6 +805,7 @@ impl Program {
             resolved_project_references: RefCell::new(None),
             project_reference_redirects: RefCell::new(None),
             map_from_file_to_project_reference_redirects: RefCell::new(None),
+            map_from_to_project_reference_redirect_source: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -1130,6 +1131,13 @@ impl Program {
         &self,
     ) -> RefMut<Option<HashMap<Path, Path>>> {
         self.map_from_file_to_project_reference_redirects
+            .borrow_mut()
+    }
+
+    pub(super) fn maybe_map_from_to_project_reference_redirect_source(
+        &self,
+    ) -> RefMut<Option<HashMap<Path, SourceOfProjectReferenceRedirect>>> {
+        self.map_from_to_project_reference_redirect_source
             .borrow_mut()
     }
 
