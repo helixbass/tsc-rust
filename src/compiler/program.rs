@@ -893,6 +893,13 @@ impl Program {
                 self.maybe_type_reference_directive_resolution_cache()
                     .clone(),
             );
+            *self
+                .actual_resolve_type_reference_directive_names_worker
+                .borrow_mut() = Some(Rc::new(
+                ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(Rc::new(
+                    loader,
+                )),
+            ));
         }
 
         let structure_is_reused: StructureIsReused;
@@ -1566,6 +1573,39 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
                 &self.options,
             )
             .unwrap()
+    }
+}
+
+struct ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
+    loader: Rc<dyn LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>>,
+}
+
+impl ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
+    pub fn new(
+        loader: Rc<dyn LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>>,
+    ) -> Self {
+        Self { loader }
+    }
+}
+
+impl ActualResolveTypeReferenceDirectiveNamesWorker
+    for ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache
+{
+    fn call(
+        &self,
+        type_reference_directive_names: &[String],
+        containing_file: &str,
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
+        load_with_local_cache(
+            /*Debug.checkEachDefined(*/ type_reference_directive_names, /*)*/
+            containing_file,
+            redirected_reference,
+            &*self.loader,
+        )
+        .into_iter()
+        .map(Some)
+        .collect()
     }
 }
 
