@@ -20,18 +20,19 @@ use crate::{
     get_path_from_path_components, get_property_assignment, get_strict_option_value,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
     is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path, out_file,
-    remove_file_extension, resolve_module_name, supported_js_extensions_flat,
-    to_path as to_path_helper, write_file_ensuring_directories, CancellationTokenDebuggable,
-    Comparison, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions,
-    CustomTransformers, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
-    DirectoryStructureHost, EmitResult, Extension, FileIncludeReason, LineAndCharacter, ModuleKind,
-    ModuleResolutionCache, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
-    NamedDeclarationInterface, Node, PackageId, ParseConfigFileHost, ParseConfigHost,
-    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile,
-    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
+    remove_file_extension, resolve_module_name, resolve_type_reference_directive,
+    supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
+    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
+    Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionCache,
+    ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
+    PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache,
+    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
+    TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -515,6 +516,70 @@ pub fn flatten_diagnostic_message_text(
     }
 }
 
+pub trait LoadWithLocalCacheLoader<TValue> {
+    fn call(
+        &self,
+        name: &str,
+        containing_file: &str,
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> TValue;
+}
+
+pub struct LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
+    options: Rc<CompilerOptions>,
+    host: Rc<dyn CompilerHost>,
+    type_reference_directive_resolution_cache: Option<Rc<TypeReferenceDirectiveResolutionCache>>,
+}
+
+impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
+    pub fn new(
+        options: Rc<CompilerOptions>,
+        host: Rc<dyn CompilerHost>,
+        type_reference_directive_resolution_cache: Option<
+            Rc<TypeReferenceDirectiveResolutionCache>,
+        >,
+    ) -> Self {
+        Self {
+            options,
+            host,
+            type_reference_directive_resolution_cache,
+        }
+    }
+}
+
+impl LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>
+    for LoadWithLocalCacheLoaderResolveTypeReferenceDirective
+{
+    fn call(
+        &self,
+        types_ref: &str,
+        containing_file: &str,
+        redirected_reference: Option<&ResolvedProjectReference>,
+    ) -> Rc<ResolvedTypeReferenceDirective> {
+        Rc::new(
+            resolve_type_reference_directive(
+                types_ref,
+                Some(containing_file),
+                &self.options,
+                self.host.as_dyn_module_resolution_host(),
+                redirected_reference,
+                self.type_reference_directive_resolution_cache.as_deref(),
+            )
+            .resolved_type_reference_directive
+            .unwrap(),
+        )
+    }
+}
+
+pub(crate) fn load_with_local_cache<TValue>(
+    names: &[String],
+    containing_file: &str,
+    redirected_reference: Option<&ResolvedProjectReference>,
+    loader: &dyn LoadWithLocalCacheLoader<TValue>,
+) -> Vec<TValue> {
+    unimplemented!()
+}
+
 pub(crate) trait SourceFileImportsList {}
 
 impl SourceFileImportsList for SourceFile {}
@@ -822,6 +887,12 @@ impl Program {
                         }),
                     None,
                 )));
+            let loader = LoadWithLocalCacheLoaderResolveTypeReferenceDirective::new(
+                self.options.clone(),
+                self.host(),
+                self.maybe_type_reference_directive_resolution_cache()
+                    .clone(),
+            );
         }
 
         let structure_is_reused: StructureIsReused;

@@ -14,6 +14,17 @@ pub struct VersionPaths {
     pub paths: MapLike<Vec<String>>,
 }
 
+pub fn resolve_type_reference_directive(
+    type_reference_directive_name: &str,
+    containing_file: Option<&str>,
+    options: &CompilerOptions,
+    host: &dyn ModuleResolutionHost,
+    redirected_reference: Option<&ResolvedProjectReference>,
+    cache: Option<&TypeReferenceDirectiveResolutionCache>,
+) -> ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
+    unimplemented!()
+}
+
 pub struct TypeReferenceDirectiveResolutionCache {}
 
 #[derive(Debug)]
