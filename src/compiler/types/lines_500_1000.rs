@@ -549,8 +549,21 @@ impl Node {
 
     pub fn as_signature_declaration(&self) -> &dyn SignatureDeclarationInterface {
         match self {
-            Node::FunctionDeclaration(node) => node,
+            Node::ConstructorDeclaration(node) => node,
+            Node::GetAccessorDeclaration(node) => node,
+            Node::SetAccessorDeclaration(node) => node,
+            Node::IndexSignatureDeclaration(node) => node,
+            Node::FunctionTypeNode(node) => node,
+            Node::ConstructorTypeNode(node) => node,
+            Node::FunctionExpression(node) => node,
+            Node::ArrowFunction(node) => node,
+            Node::JSDocFunctionType(node) => node,
             Node::JSDocSignature(node) => node,
+            Node::CallSignatureDeclaration(node) => node,
+            Node::ConstructSignatureDeclaration(node) => node,
+            Node::FunctionDeclaration(node) => node,
+            Node::MethodSignature(node) => node,
+            Node::MethodDeclaration(node) => node,
             _ => panic!("Expected signature declaration"),
         }
     }
