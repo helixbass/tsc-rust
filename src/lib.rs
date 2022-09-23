@@ -26,9 +26,9 @@ use compiler::command_line_parser::{
 };
 pub use compiler::command_line_parser::{
     get_parsed_command_line_of_config_file, hash_map_to_compiler_options, parse_command_line,
-    ConfigFileDiagnosticsReporter, ConvertToTSConfigHost, DiagnosticReporter,
-    ExtendedConfigCacheEntry, OptionsNameMap, ParseCommandLineWorkerDiagnostics,
-    ParseConfigFileHost,
+    parse_config_file_text_to_json, ConfigFileDiagnosticsReporter, ConvertToTSConfigHost,
+    DiagnosticReporter, ExtendedConfigCacheEntry, OptionsNameMap,
+    ParseCommandLineWorkerDiagnostics, ParseConfigFileHost,
 };
 pub use compiler::core::{
     add_range, append, append_if_unique_rc, array_of, array_to_map, arrays_equal, binary_search,

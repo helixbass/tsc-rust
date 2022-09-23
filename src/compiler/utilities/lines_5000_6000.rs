@@ -14,10 +14,10 @@ use crate::{
     get_property_name_for_property_name_node, get_sys, has_syntactic_modifier,
     is_bindable_static_access_expression, is_element_access_expression, is_entity_name_expression,
     is_identifier, is_jsdoc_member_name, is_property_access_expression, is_property_name,
-    is_qualified_name, unescape_leading_underscores, walk_up_parenthesized_expressions,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CheckFlags,
-    CompilerOptions, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    is_qualified_name, parse_config_file_text_to_json, unescape_leading_underscores,
+    walk_up_parenthesized_expressions, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode,
+    BaseSymbol, BaseType, CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, MapLike, ModifierFlags,
     NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, Signature,
     SignatureFlags, SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
@@ -184,9 +184,18 @@ pub fn try_extract_ts_extension(file_name: &str) -> Option<Extension> {
 
 pub fn read_json<THostReadFile: FnMut(&str) -> io::Result<String>>(
     path: &str,
-    host_read_file: THostReadFile,
+    mut host_read_file: THostReadFile,
 ) -> serde_json::Value {
-    unimplemented!()
+    let json_text = host_read_file(path);
+    if json_text.is_err() {
+        return serde_json::Value::Object(serde_json::Map::new());
+    }
+    let json_text = json_text.unwrap();
+    let result = parse_config_file_text_to_json(path, json_text);
+    if result.error.is_some() {
+        return serde_json::Value::Object(serde_json::Map::new());
+    }
+    result.config.unwrap()
 }
 
 const carriage_return_line_feed: &str = "\r\n";
