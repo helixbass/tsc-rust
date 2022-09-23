@@ -2,7 +2,6 @@
 
 use bitflags::bitflags;
 use regex::Regex;
-use std::array::IntoIter;
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -1030,10 +1029,10 @@ pub fn get_emit_flags(node: &Node) -> EmitFlags {
 pub type ScriptTargetFeatures = HashMap<&'static str, HashMap<&'static str, Vec<&'static str>>>;
 
 pub fn get_script_target_features() -> ScriptTargetFeatures {
-    HashMap::from_iter(IntoIter::new([
+    HashMap::from_iter(IntoIterator::into_iter([
         (
             "es2015",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 (
                     "Array",
                     vec![
@@ -1135,11 +1134,11 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2016",
-            HashMap::from_iter(IntoIter::new([("Array", vec!["includes"])])),
+            HashMap::from_iter(IntoIterator::into_iter([("Array", vec!["includes"])])),
         ),
         (
             "es2017",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("Atomics", vec![]),
                 ("SharedArrayBuffer", vec![]),
                 ("String", vec!["padStart", "padEnd"]),
@@ -1152,7 +1151,7 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2018",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("Promise", vec!["finally"]),
                 ("RegExpMatchArray", vec!["groups"]),
                 ("RegExpExecArray", vec!["groups"]),
@@ -1166,7 +1165,7 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2019",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("Array", vec!["flat", "flatMap"]),
                 ("ObjectConstructor", vec!["fromEntries"]),
                 (
@@ -1178,7 +1177,7 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2020",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("BigInt", vec![]),
                 ("BigInt64Array", vec![]),
                 ("BigUint64Array", vec![]),
@@ -1197,14 +1196,17 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2021",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("PromiseConstructor", vec!["any"]),
                 ("String", vec!["replaceAll"]),
             ])),
         ),
         (
             "esnext",
-            HashMap::from_iter(IntoIter::new([("NumberFormat", vec!["formatToParts"])])),
+            HashMap::from_iter(IntoIterator::into_iter([(
+                "NumberFormat",
+                vec!["formatToParts"],
+            )])),
         ),
     ]))
 }

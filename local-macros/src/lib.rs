@@ -2,7 +2,6 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
-use std::array::IntoIter;
 use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::Data::{Enum, Struct};
@@ -3464,7 +3463,7 @@ pub fn enum_unwrapped(input: TokenStream) -> TokenStream {
 
 fn get_node_enum_unwrapped_call(argument: &Expr, variant_name: &Ident) -> TokenStream2 {
     let known_node_variant_names: HashMap<String, Vec<&'static str>> =
-        HashMap::from_iter(IntoIter::new([
+        HashMap::from_iter(IntoIterator::into_iter([
             ("Expression".to_string(), vec![]),
             ("VariableDeclarationList".to_string(), vec![]),
             ("TypeParameterDeclaration".to_string(), vec![]),
@@ -3521,7 +3520,7 @@ pub fn node_unwrapped(input: TokenStream) -> TokenStream {
 
 fn get_type_enum_unwrapped_call(argument: &Expr, variant_name: &Ident) -> TokenStream2 {
     let known_type_variant_names: HashMap<String, Vec<&'static str>> =
-        HashMap::from_iter(IntoIter::new([(
+        HashMap::from_iter(IntoIterator::into_iter([(
             "BaseInterfaceType".to_string(),
             vec!["ObjectType", "InterfaceType"],
         )]));

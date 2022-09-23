@@ -1,7 +1,6 @@
 #![allow(non_upper_case_globals)]
 
 use regex::Regex;
-use std::array::IntoIter;
 use std::cell::Ref;
 use std::cmp;
 use std::collections::HashMap;
@@ -26,7 +25,7 @@ pub(crate) fn token_is_identifier_or_keyword_or_greater_than(token: SyntaxKind) 
 
 lazy_static! {
     pub(crate) static ref text_to_keyword_obj: HashMap<&'static str, SyntaxKind> =
-        HashMap::from_iter(IntoIter::new([
+        HashMap::from_iter(IntoIterator::into_iter([
             ("abstract", SyntaxKind::AbstractKeyword),
             ("any", SyntaxKind::AnyKeyword),
             ("as", SyntaxKind::AsKeyword),
@@ -117,7 +116,7 @@ lazy_static! {
 lazy_static! {
     pub(super) static ref text_to_token: HashMap<&'static str, SyntaxKind> = {
         let mut ret = text_to_keyword_obj.clone();
-        ret.extend(IntoIter::new([
+        ret.extend(IntoIterator::into_iter([
             ("{", SyntaxKind::OpenBraceToken),
             ("}", SyntaxKind::CloseBraceToken),
             ("(", SyntaxKind::OpenParenToken),

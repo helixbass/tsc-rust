@@ -39,12 +39,28 @@ pub trait ModuleResolutionHost {
     fn realpath(&self, path: &str) -> Option<String> {
         None
     }
+    fn realpath_non_overridden(&self, path: &str) -> Option<String> {
+        None
+    }
+    fn is_realpath_supported(&self) -> bool;
+    fn set_overriding_realpath(
+        &self,
+        overriding_realpath: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
     fn get_current_directory(&self) -> Option<String> {
         None
     }
     fn get_directories(&self, path: &str) -> Option<Vec<String>> {
         None
     }
+    fn is_get_directories_supported(&self) -> bool;
+    fn get_directories_non_overridden(&self, path: &str) -> Option<Vec<String>> {
+        None
+    }
+    fn set_overriding_get_directories(
+        &self,
+        overriding_get_directories: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
     fn use_case_sensitive_file_names(&self) -> Option<bool> {
         None
     }
@@ -71,6 +87,12 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 pub trait ModuleResolutionHostOverrider {
     fn file_exists(&self, file_name: &str) -> bool;
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+        None
+    }
+    fn realpath(&self, path: &str) -> Option<String> {
+        None
+    }
+    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
         None
     }
 }

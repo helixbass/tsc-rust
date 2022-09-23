@@ -2,7 +2,6 @@
 
 use bitflags::bitflags;
 use regex::{Captures, Regex};
-use std::array::IntoIter;
 use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -933,7 +932,7 @@ lazy_static! {
 }
 lazy_static! {
     static ref escaped_chars_map: HashMap<&'static str, &'static str> =
-        HashMap::from_iter(IntoIter::new([
+        HashMap::from_iter(IntoIterator::into_iter([
             ("\t", "\\t"),
             ("\u{000b}", "\\v"),
             ("\u{000c}", "\\f"),
@@ -1025,7 +1024,7 @@ lazy_static! {
 }
 lazy_static! {
     static ref jsx_escaped_chars_map: HashMap<&'static str, &'static str> =
-        HashMap::from_iter(IntoIter::new([("\"", "&quot;"), ("'", "&apos;")]));
+        HashMap::from_iter(IntoIterator::into_iter([("\"", "&quot;"), ("'", "&apos;")]));
 }
 
 fn encode_jsx_character_entity(char_code: u32) -> String {

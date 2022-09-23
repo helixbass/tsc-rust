@@ -2,7 +2,6 @@
 
 use bitflags::bitflags;
 use regex::Regex;
-use std::array::IntoIter;
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
@@ -241,7 +240,7 @@ bitflags! {
 
 lazy_static! {
     pub(super) static ref typeof_eq_facts: HashMap<&'static str, TypeFacts> =
-        HashMap::from_iter(IntoIter::new([
+        HashMap::from_iter(IntoIterator::into_iter([
             ("string", TypeFacts::TypeofEQString),
             ("number", TypeFacts::TypeofEQNumber),
             ("bigint", TypeFacts::TypeofEQBigInt),
@@ -255,7 +254,7 @@ lazy_static! {
 
 lazy_static! {
     pub(super) static ref typeof_ne_facts: HashMap<&'static str, TypeFacts> =
-        HashMap::from_iter(IntoIter::new([
+        HashMap::from_iter(IntoIterator::into_iter([
             ("string", TypeFacts::TypeofNEString),
             ("number", TypeFacts::TypeofNENumber),
             ("bigint", TypeFacts::TypeofNEBigInt),
@@ -475,7 +474,7 @@ pub(super) enum IntrinsicTypeKind {
 
 lazy_static! {
     pub(super) static ref intrinsic_type_kinds: HashMap<&'static str, IntrinsicTypeKind> =
-        HashMap::from_iter(IntoIter::new([
+        HashMap::from_iter(IntoIterator::into_iter([
             ("Uppercase", IntrinsicTypeKind::Uppercase),
             ("Lowercase", IntrinsicTypeKind::Lowercase),
             ("Capitalize", IntrinsicTypeKind::Capitalize),
@@ -1352,7 +1351,7 @@ pub fn create_type_checker(
         type_checker.get_big_int_literal_type(PseudoBigInt::new(false, parse_pseudo_big_int("0"))),
     );
 
-    type_checker.typeof_types_by_name = Some(HashMap::from_iter(IntoIter::new([
+    type_checker.typeof_types_by_name = Some(HashMap::from_iter(IntoIterator::into_iter([
         ("string", type_checker.string_type()),
         ("number", type_checker.number_type()),
         ("bigint", type_checker.bigint_type()),

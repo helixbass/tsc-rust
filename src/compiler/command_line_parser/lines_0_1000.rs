@@ -1,4 +1,3 @@
-use std::array::IntoIter;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -47,7 +46,7 @@ pub(crate) fn compile_on_save_command_line_option() -> Rc<CommandLineOption> {
 
 thread_local! {
     pub(crate) static jsx_option_map: HashMap<&'static str, JsxEmit> =
-        HashMap::from_iter(IntoIter::new([
+        HashMap::from_iter(IntoIterator::into_iter([
             ("preserve", JsxEmit::Preserve),
             ("react-native", JsxEmit::ReactNative),
             ("react", JsxEmit::React),
@@ -152,7 +151,7 @@ thread_local! {
             _command_line_option_wrapper: RefCell::new(None),
             name: "watchFile".to_string(),
             type_: CommandLineOptionType::Map(
-                HashMap::from_iter(IntoIter::new([
+                HashMap::from_iter(IntoIterator::into_iter([
                     ("fixedpollinginterval", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::FixedPollingInterval)),
                     ("prioritypollinginterval", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::PriorityPollingInterval)),
                     ("dynamicprioritypolling", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::DynamicPriorityPolling)),
@@ -183,7 +182,7 @@ thread_local! {
             _command_line_option_wrapper: RefCell::new(None),
             name: "watchDirectory".to_string(),
             type_: CommandLineOptionType::Map(
-                HashMap::from_iter(IntoIter::new([
+                HashMap::from_iter(IntoIterator::into_iter([
                     ("usefsevents", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::UseFsEvents)),
                     ("fixedpollinginterval", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::FixedPollingInterval)),
                     ("dynamicprioritypolling", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::DynamicPriorityPolling)),
@@ -212,7 +211,7 @@ thread_local! {
             _command_line_option_wrapper: RefCell::new(None),
             name: "fallbackPolling".to_string(),
             type_: CommandLineOptionType::Map(
-                HashMap::from_iter(IntoIter::new([
+                HashMap::from_iter(IntoIterator::into_iter([
                     ("fixedinterval", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::FixedInterval)),
                     ("priorityinterval", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::PriorityInterval)),
                     ("dynamicpriority", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::DynamicPriority)),
@@ -740,7 +739,7 @@ thread_local! {
             _command_line_option_wrapper: RefCell::new(None),
             name: "target".to_string(),
             type_: CommandLineOptionType::Map(
-                HashMap::from_iter(IntoIter::new([
+                HashMap::from_iter(IntoIterator::into_iter([
                     ("es3", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES3)),
                     ("es5", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES5)),
                     ("es6", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2015)),
@@ -944,7 +943,7 @@ thread_local! {
             _command_line_option_wrapper: RefCell::new(None),
             name: "module".to_string(),
             type_: CommandLineOptionType::Map(
-                HashMap::from_iter(IntoIter::new([
+                HashMap::from_iter(IntoIterator::into_iter([
                     ("none", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::None)),
                     ("commonjs", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::CommonJS)),
                     ("amd", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::AMD)),
@@ -1378,7 +1377,7 @@ thread_local! {
         CommandLineOptionOfCustomType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "importsNotUsedAsValues".to_string(),
-            type_: CommandLineOptionType::Map(HashMap::from_iter(IntoIter::new([
+            type_: CommandLineOptionType::Map(HashMap::from_iter(IntoIterator::into_iter([
                ("remove", CommandLineOptionMapTypeValue::ImportsNotUsedAsValues(ImportsNotUsedAsValues::Remove)),
                ("preserve", CommandLineOptionMapTypeValue::ImportsNotUsedAsValues(ImportsNotUsedAsValues::Preserve)),
                ("error", CommandLineOptionMapTypeValue::ImportsNotUsedAsValues(ImportsNotUsedAsValues::Error)),
@@ -1842,7 +1841,7 @@ thread_local! {
         CommandLineOptionOfCustomType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "moduleResolution".to_string(),
-            type_: CommandLineOptionType::Map(HashMap::from_iter(IntoIter::new([
+            type_: CommandLineOptionType::Map(HashMap::from_iter(IntoIterator::into_iter([
                 ("node", CommandLineOptionMapTypeValue::ModuleResolutionKind(ModuleResolutionKind::NodeJs)),
                 ("classic", CommandLineOptionMapTypeValue::ModuleResolutionKind(ModuleResolutionKind::Classic)),
                 ("node12", CommandLineOptionMapTypeValue::ModuleResolutionKind(ModuleResolutionKind::Node12)),
@@ -2494,7 +2493,7 @@ thread_local! {
         CommandLineOptionOfCustomType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "all".to_string(),
-            type_: CommandLineOptionType::Map(HashMap::from_iter(IntoIter::new([
+            type_: CommandLineOptionType::Map(HashMap::from_iter(IntoIterator::into_iter([
                 ("crlf", CommandLineOptionMapTypeValue::NewLineKind(NewLineKind::CarriageReturnLineFeed)),
                 ("lf", CommandLineOptionMapTypeValue::NewLineKind(NewLineKind::LineFeed)),
             ]))),

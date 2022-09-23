@@ -945,6 +945,7 @@ impl Program {
         update_host_for_use_source_of_project_reference_redirect(
             HostForUseSourceOfProjectReferenceRedirect {
                 compiler_host: self.host(),
+                get_symlink_cache: self.get_symlink_cache_rc(),
                 use_source_of_project_reference_redirect: self
                     .use_source_of_project_reference_redirect(),
                 to_path: self.to_path_rc(),
@@ -1607,6 +1608,11 @@ impl Program {
         }
         symlinks
     }
+
+    pub fn get_symlink_cache_rc(&self) -> Rc<dyn FnMut() -> Rc<SymlinkCache>> {
+        let self_clone = self.rc_wrapper();
+        Rc::new(move || self_clone.get_symlink_cache())
+    }
 }
 
 pub enum FilesByNameValue {
@@ -1835,6 +1841,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
 
 struct HostForUseSourceOfProjectReferenceRedirect {
     compiler_host: Rc<dyn CompilerHost>,
+    get_symlink_cache: Rc<dyn FnMut() -> Rc<SymlinkCache>>,
     use_source_of_project_reference_redirect: bool,
     to_path: Rc<dyn FnMut(&str) -> Path>,
     get_resolved_project_references:
@@ -1855,6 +1862,7 @@ fn update_host_for_use_source_of_project_reference_redirect(
     let overrider: Rc<dyn ModuleResolutionHostOverrider> = Rc::new(
         UpdateHostForUseSourceOfProjectReferenceRedirectOverrider::new(
             host.compiler_host.clone(),
+            host.get_symlink_cache.clone(),
             host.to_path.clone(),
             host.get_resolved_project_references.clone(),
             host.for_each_resolved_project_reference.clone(),
@@ -1865,6 +1873,12 @@ fn update_host_for_use_source_of_project_reference_redirect(
 
     host.compiler_host
         .set_overriding_directory_exists(Some(overrider.clone()));
+
+    host.compiler_host
+        .set_overriding_get_directories(Some(overrider.clone()));
+
+    host.compiler_host
+        .set_overriding_realpath(Some(overrider.clone()));
 
     UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
         on_program_create_complete: {
@@ -1886,6 +1900,7 @@ struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
 
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_compiler_host: Rc<dyn CompilerHost>,
+    pub host_get_symlink_cache: Rc<dyn FnMut() -> Rc<SymlinkCache>>,
     pub host_to_path: Rc<dyn FnMut(&str) -> Path>,
     pub host_get_resolved_project_references:
         Rc<dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
@@ -1897,6 +1912,7 @@ struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
 impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub fn new(
         host_compiler_host: Rc<dyn CompilerHost>,
+        host_get_symlink_cache: Rc<dyn FnMut() -> Rc<SymlinkCache>>,
         host_to_path: Rc<dyn FnMut(&str) -> Path>,
         host_get_resolved_project_references: Rc<
             dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
@@ -1907,6 +1923,7 @@ impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     ) -> Self {
         Self {
             host_compiler_host,
+            host_get_symlink_cache,
             host_to_path,
             host_get_resolved_project_references,
             host_for_each_resolved_project_reference,
@@ -1984,6 +2001,33 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         }
 
         Some(self.file_or_directory_exists_using_source(path, false))
+    }
+
+    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+        if !self.host_compiler_host.is_get_directories_supported() {
+            return None;
+        }
+        if (self.host_get_resolved_project_references)().is_none()
+            || self
+                .host_compiler_host
+                .directory_exists_non_overridden(path)
+                == Some(true)
+        {
+            self.host_compiler_host.get_directories_non_overridden(path)
+        } else {
+            Some(vec![])
+        }
+    }
+
+    fn realpath(&self, s: &str) -> Option<String> {
+        if !self.host_compiler_host.is_realpath_supported() {
+            return None;
+        }
+        (self.host_get_symlink_cache)()
+            .get_symlinked_files()
+            .as_ref()
+            .and_then(|symlinked_files| symlinked_files.get(&(self.host_to_path)(s)).cloned())
+            .or_else(|| self.host_compiler_host.realpath_non_overridden(s))
     }
 }
 
