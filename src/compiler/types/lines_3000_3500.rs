@@ -421,6 +421,12 @@ impl ExportAssignment {
     }
 }
 
+impl HasExpressionInterface for ExportAssignment {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct FileReference {
     pos: Cell<isize>,

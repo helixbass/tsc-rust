@@ -332,6 +332,12 @@ impl TemplateSpan {
     }
 }
 
+impl HasExpressionInterface for TemplateSpan {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 pub trait HasExpressionInterface {
     fn expression(&self) -> Rc<Node>;
     fn maybe_expression(&self) -> Option<Rc<Node>> {

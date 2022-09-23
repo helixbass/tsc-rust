@@ -512,6 +512,12 @@ impl ExpressionStatement {
     }
 }
 
+impl HasExpressionInterface for ExpressionStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct IfStatement {
@@ -537,6 +543,12 @@ impl IfStatement {
     }
 }
 
+impl HasExpressionInterface for IfStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct DoStatement {
@@ -555,6 +567,12 @@ impl DoStatement {
     }
 }
 
+impl HasExpressionInterface for DoStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct WhileStatement {
@@ -570,6 +588,12 @@ impl WhileStatement {
             expression,
             statement,
         }
+    }
+}
+
+impl HasExpressionInterface for WhileStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -666,6 +690,12 @@ impl HasStatementInterface for ForInStatement {
     }
 }
 
+impl HasExpressionInterface for ForInStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ForOfStatement {
@@ -707,6 +737,12 @@ impl HasInitializerInterface for ForOfStatement {
 impl HasStatementInterface for ForOfStatement {
     fn statement(&self) -> Rc<Node> {
         self.statement.clone()
+    }
+}
+
+impl HasExpressionInterface for ForOfStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -774,6 +810,16 @@ impl ReturnStatement {
     }
 }
 
+impl HasExpressionInterface for ReturnStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone().unwrap()
+    }
+
+    fn maybe_expression(&self) -> Option<Rc<Node>> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct WithStatement {
@@ -789,6 +835,12 @@ impl WithStatement {
             expression,
             statement,
         }
+    }
+}
+
+impl HasExpressionInterface for WithStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -813,6 +865,12 @@ impl SwitchStatement {
 
     pub fn set_possibly_exhaustive(&self, possibly_exhaustive: Option<bool>) {
         self.possibly_exhaustive.set(possibly_exhaustive);
+    }
+}
+
+impl HasExpressionInterface for SwitchStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -869,6 +927,12 @@ pub trait CaseOrDefaultClauseInterface: HasStatementsInterface {
 impl CaseOrDefaultClauseInterface for CaseClause {
     fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>> {
         self.fallthrough_flow_node.borrow().clone()
+    }
+}
+
+impl HasExpressionInterface for CaseClause {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
