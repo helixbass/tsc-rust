@@ -149,6 +149,10 @@ pub(crate) fn create_compiler_host_worker(
         new_line,
         current_directory: RefCell::new(None),
         get_canonical_file_name,
+        file_exists_override: RefCell::new(None),
+        directory_exists_override: RefCell::new(None),
+        realpath_override: RefCell::new(None),
+        get_directories_override: RefCell::new(None),
     }
 }
 
@@ -161,9 +165,29 @@ struct CompilerHostConcrete {
     new_line: String,
     current_directory: RefCell<Option<String>>,
     get_canonical_file_name: fn(&str) -> String,
+    file_exists_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+    directory_exists_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+    realpath_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+    get_directories_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
 }
 
 impl CompilerHostConcrete {
+    fn maybe_file_exists_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        self.file_exists_override.borrow().clone()
+    }
+
+    fn maybe_directory_exists_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        self.directory_exists_override.borrow().clone()
+    }
+
+    fn maybe_realpath_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        self.realpath_override.borrow().clone()
+    }
+
+    fn maybe_get_directories_override(&self) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        self.get_directories_override.borrow().clone()
+    }
+
     fn compute_hash(&self, data: &str) -> String {
         if self.system.is_create_hash_supported() {
             self.system.create_hash(data)
@@ -244,12 +268,23 @@ impl ModuleResolutionHost for CompilerHostConcrete {
         self.system.read_file(file_name)
     }
 
-    fn realpath(&self, path: &str) -> Option<String> {
-        self.system.realpath(path)
+    fn file_exists(&self, file_name: &str) -> bool {
+        if let Some(file_exists_override) = self.maybe_file_exists_override() {
+            file_exists_override.file_exists(file_name)
+        } else {
+            self.file_exists_non_overridden(file_name)
+        }
     }
 
-    fn file_exists(&self, file_name: &str) -> bool {
+    fn file_exists_non_overridden(&self, file_name: &str) -> bool {
         self.system.file_exists(file_name)
+    }
+
+    fn set_overriding_file_exists(
+        &self,
+        overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        *self.file_exists_override.borrow_mut() = overriding_file_exists;
     }
 
     fn trace(&self, s: &str) {
@@ -257,11 +292,72 @@ impl ModuleResolutionHost for CompilerHostConcrete {
     }
 
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+        if let Some(directory_exists_override) = self.maybe_directory_exists_override() {
+            directory_exists_override.directory_exists(directory_name)
+        } else {
+            self.directory_exists_non_overridden(directory_name)
+        }
+    }
+
+    fn is_directory_exists_supported(&self) -> bool {
+        true
+    }
+
+    fn directory_exists_non_overridden(&self, directory_name: &str) -> Option<bool> {
         Some(self.system.directory_exists(directory_name))
     }
 
+    fn set_overriding_directory_exists(
+        &self,
+        overriding_directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        *self.directory_exists_override.borrow_mut() = overriding_directory_exists;
+    }
+
+    fn realpath(&self, path: &str) -> Option<String> {
+        if let Some(realpath_override) = self.maybe_realpath_override() {
+            realpath_override.realpath(path)
+        } else {
+            self.realpath_non_overridden(path)
+        }
+    }
+
+    fn realpath_non_overridden(&self, path: &str) -> Option<String> {
+        self.system.realpath(path)
+    }
+
+    fn is_realpath_supported(&self) -> bool {
+        self.system.is_realpath_supported()
+    }
+
+    fn set_overriding_realpath(
+        &self,
+        overriding_realpath: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        *self.realpath_override.borrow_mut() = overriding_realpath;
+    }
+
     fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+        if let Some(get_directories_override) = self.maybe_get_directories_override() {
+            get_directories_override.get_directories(path)
+        } else {
+            self.get_directories_non_overridden(path)
+        }
+    }
+
+    fn is_get_directories_supported(&self) -> bool {
+        true
+    }
+
+    fn get_directories_non_overridden(&self, path: &str) -> Option<Vec<String>> {
         Some(self.system.get_directories(path))
+    }
+
+    fn set_overriding_get_directories(
+        &self,
+        overriding_get_directories: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        *self.get_directories_override.borrow_mut() = overriding_get_directories;
     }
 }
 
@@ -1266,7 +1362,7 @@ impl Program {
         })
     }
 
-    pub fn to_path_rc(&self) -> Rc<dyn FnMut(&str) -> Path> {
+    pub fn to_path_rc(&self) -> Rc<dyn Fn(&str) -> Path> {
         let self_clone = self.rc_wrapper();
         Rc::new(move |file_name| self_clone.to_path(file_name))
     }
@@ -1466,7 +1562,7 @@ impl Program {
         TCallback: FnMut(&ResolvedProjectReference) -> Option<TReturn>,
     >(
         &self,
-        cb: TCallback,
+        mut cb: TCallback,
     ) -> Option<TReturn> {
         for_each_resolved_project_reference(
             self.maybe_resolved_project_references().as_deref(),
@@ -1476,7 +1572,7 @@ impl Program {
 
     pub fn for_each_resolved_project_reference_rc(
         &self,
-    ) -> Rc<dyn FnMut(Rc<dyn FnMut(&ResolvedProjectReference)>)> {
+    ) -> Rc<dyn Fn(&mut dyn FnMut(&ResolvedProjectReference))> {
         let self_clone = self.rc_wrapper();
         Rc::new(move |cb| {
             for_each_resolved_project_reference(
@@ -1627,7 +1723,7 @@ impl Program {
         symlinks
     }
 
-    pub fn get_symlink_cache_rc(&self) -> Rc<dyn FnMut() -> Rc<SymlinkCache>> {
+    pub fn get_symlink_cache_rc(&self) -> Rc<dyn Fn() -> Rc<SymlinkCache>> {
         let self_clone = self.rc_wrapper();
         Rc::new(move || self_clone.get_symlink_cache())
     }
@@ -1864,12 +1960,12 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
 
 struct HostForUseSourceOfProjectReferenceRedirect {
     compiler_host: Rc<dyn CompilerHost>,
-    get_symlink_cache: Rc<dyn FnMut() -> Rc<SymlinkCache>>,
+    get_symlink_cache: Rc<dyn Fn() -> Rc<SymlinkCache>>,
     use_source_of_project_reference_redirect: bool,
-    to_path: Rc<dyn FnMut(&str) -> Path>,
+    to_path: Rc<dyn Fn(&str) -> Path>,
     get_resolved_project_references:
-        Rc<dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
-    for_each_resolved_project_reference: Rc<dyn FnMut(Rc<dyn FnMut(&ResolvedProjectReference)>)>,
+        Rc<dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+    for_each_resolved_project_reference: Rc<dyn Fn(&mut dyn FnMut(&ResolvedProjectReference))>,
 }
 
 fn update_host_for_use_source_of_project_reference_redirect(
@@ -1920,32 +2016,32 @@ fn update_host_for_use_source_of_project_reference_redirect(
 }
 
 struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
-    pub on_program_create_complete: Rc<dyn FnMut()>,
+    pub on_program_create_complete: Rc<dyn Fn()>,
     pub directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
     pub file_exists: Rc<dyn ModuleResolutionHostOverrider>,
 }
 
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_compiler_host: Rc<dyn CompilerHost>,
-    pub host_get_symlink_cache: Rc<dyn FnMut() -> Rc<SymlinkCache>>,
-    pub host_to_path: Rc<dyn FnMut(&str) -> Path>,
+    pub host_get_symlink_cache: Rc<dyn Fn() -> Rc<SymlinkCache>>,
+    pub host_to_path: Rc<dyn Fn(&str) -> Path>,
     pub host_get_resolved_project_references:
-        Rc<dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+        Rc<dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
     pub host_for_each_resolved_project_reference:
-        Rc<dyn FnMut(Rc<dyn FnMut(&ResolvedProjectReference)>)>,
+        Rc<dyn Fn(&mut dyn FnMut(&ResolvedProjectReference))>,
     set_of_declaration_directories: RefCell<Option<HashSet<Path>>>,
 }
 
 impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub fn new(
         host_compiler_host: Rc<dyn CompilerHost>,
-        host_get_symlink_cache: Rc<dyn FnMut() -> Rc<SymlinkCache>>,
-        host_to_path: Rc<dyn FnMut(&str) -> Path>,
+        host_get_symlink_cache: Rc<dyn Fn() -> Rc<SymlinkCache>>,
+        host_to_path: Rc<dyn Fn(&str) -> Path>,
         host_get_resolved_project_references: Rc<
-            dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
+            dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
         >,
         host_for_each_resolved_project_reference: Rc<
-            dyn FnMut(Rc<dyn FnMut(&ResolvedProjectReference)>),
+            dyn Fn(&mut dyn FnMut(&ResolvedProjectReference)),
         >,
     ) -> Self {
         Self {
@@ -2008,7 +2104,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
                 self.set_of_declaration_directories.borrow_mut();
             *set_of_declaration_directories = Some(HashSet::new());
             let set_of_declaration_directories = set_of_declaration_directories.as_mut().unwrap();
-            (self.host_for_each_resolved_project_reference)(Rc::new(|ref_| {
+            (self.host_for_each_resolved_project_reference)(&mut |ref_| {
                 let out = out_file(&ref_.command_line.options);
                 if let Some(out) = out {
                     set_of_declaration_directories
@@ -2024,7 +2120,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
                         set_of_declaration_directories.insert((self.host_to_path)(declaration_dir));
                     }
                 }
-            }));
+            });
         }
 
         Some(self.file_or_directory_exists_using_source(path, false))

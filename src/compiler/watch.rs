@@ -676,13 +676,13 @@ pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String
         FileIncludeReason::ProjectReferenceFile(reason) => {
             let is_output = reason.kind == FileIncludeKind::OutputFromProjectReference;
             let referenced_resolved_ref: Rc<ResolvedProjectReference> = Debug_.check_defined(
-                program
-                    .get_resolved_project_references()
-                    .and_then(|resolved_project_references| {
+                program.get_resolved_project_references().as_ref().and_then(
+                    |resolved_project_references| {
                         resolved_project_references
                             .get(reason.index)
                             .map(|option| option.clone().unwrap())
-                    }),
+                    },
+                ),
                 None,
             );
             chain_diagnostic_messages(
@@ -702,11 +702,14 @@ pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String
                 },
                 Some(vec![
                     to_file_name(
-                        referenced_resolved_ref
-                            .source_file
-                            .as_source_file()
-                            .file_name()
-                            .clone(),
+                        {
+                            let tmp: String = referenced_resolved_ref
+                                .source_file
+                                .as_source_file()
+                                .file_name()
+                                .clone();
+                            tmp
+                        },
                         file_name_convertor.as_ref(),
                     ),
                     if options.out_file.is_some() {

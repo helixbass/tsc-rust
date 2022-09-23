@@ -124,6 +124,7 @@ pub trait System: ConvertToTSConfigHost {
     fn realpath(&self, path: &str) -> Option<String> {
         None
     }
+    fn is_realpath_supported(&self) -> bool;
     fn get_environment_variable(&self, name: &str) -> String;
     fn try_enable_source_maps_for_host(&self) {}
     fn debug_mode(&self) -> Option<bool> {
@@ -341,6 +342,10 @@ impl System for SystemConcrete {
 
     fn realpath(&self, path: &str) -> Option<String> {
         Some(self.realpath_sync(path).unwrap_or_else(|_| path.to_owned()))
+    }
+
+    fn is_realpath_supported(&self) -> bool {
+        true
     }
 
     fn exit(&self, exit_code: Option<ExitStatus>) -> ! {

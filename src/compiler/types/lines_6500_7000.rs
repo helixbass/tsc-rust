@@ -71,6 +71,52 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
         ParseConfigHost::file_exists(self, file_name)
     }
 
+    fn file_exists_non_overridden(&self, file_name: &str) -> bool {
+        // this is a guess that we don't need any of these overriding things for these implementors
+        // of ModuleResolutionHost
+        unreachable!()
+    }
+
+    fn set_overriding_file_exists(
+        &self,
+        overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn is_directory_exists_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn set_overriding_directory_exists(
+        &self,
+        overriding_directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn is_realpath_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn set_overriding_realpath(
+        &self,
+        overriding_realpath: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn is_get_directories_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn set_overriding_get_directories(
+        &self,
+        overriding_get_directories: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
     fn read_file(&self, file_name: &str) -> io::Result<String> {
         ParseConfigHost::read_file(self, file_name)
     }
