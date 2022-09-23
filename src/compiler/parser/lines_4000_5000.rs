@@ -753,16 +753,16 @@ impl ParserType {
                         .make_as_expression(left_operand, self.parse_type())
                         .into();
                 }
+            } else {
+                left_operand = self
+                    .make_binary_expression(
+                        left_operand,
+                        self.parse_token_node().into(),
+                        self.parse_binary_expression_or_higher(new_precedence),
+                        pos,
+                    )
+                    .into();
             }
-
-            left_operand = self
-                .make_binary_expression(
-                    left_operand,
-                    self.parse_token_node().into(),
-                    self.parse_binary_expression_or_higher(new_precedence),
-                    pos,
-                )
-                .into();
         }
 
         left_operand
