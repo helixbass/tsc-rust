@@ -47,6 +47,12 @@ impl<TItem: Clone> From<&SortedArray<TItem>> for Vec<TItem> {
     }
 }
 
+impl<TItem> From<Vec<TItem>> for SortedArray<TItem> {
+    fn from(value: Vec<TItem>) -> Self {
+        Self::new(value)
+    }
+}
+
 impl<TItem> Deref for SortedArray<TItem> {
     type Target = [TItem];
 

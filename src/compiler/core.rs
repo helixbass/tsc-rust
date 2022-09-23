@@ -448,6 +448,18 @@ pub fn maybe_concatenate<TItem>(
     Some(array1)
 }
 
+fn select_index<TItem>(_: TItem, i: usize) -> usize {
+    i
+}
+
+pub fn indices_of<TItem>(array: &[TItem]) -> Vec<usize> {
+    array
+        .into_iter()
+        .enumerate()
+        .map(|(i, item)| select_index(item, i))
+        .collect()
+}
+
 enum ComparerOrEqualityComparer<'closure, TItem> {
     Comparer(&'closure dyn Fn(&TItem, &TItem) -> Comparison),
     EqualityComparer(&'closure dyn Fn(&TItem, &TItem) -> bool),
@@ -668,6 +680,21 @@ pub fn comparison_to_ordering(comparison: Comparison) -> Ordering {
 //     |a, b| comparison_to_ordering(comparer(a, b))
 // }
 
+pub fn stable_sort_indices<TItem, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+    array: &[TItem],
+    indices: &mut Vec<usize>,
+    mut comparer: TComparer,
+) {
+    indices.sort_by(|x, y| {
+        let by_comparer = comparer(&array[*x], &array[*y]);
+        comparison_to_ordering(if by_comparer == Comparison::EqualTo {
+            compare_values(Some(*x), Some(*y))
+        } else {
+            by_comparer
+        })
+    });
+}
+
 pub fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
@@ -694,6 +721,19 @@ pub fn range_equals_rc<TItem>(
         pos += 1;
     }
     true
+}
+
+pub fn stable_sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+    array: &[TItem],
+    comparer: TComparer,
+) -> SortedArray<TItem> {
+    let mut indices = indices_of(array);
+    stable_sort_indices(array, &mut indices, comparer);
+    indices
+        .into_iter()
+        .map(|i| array[i].clone())
+        .collect::<Vec<_>>()
+        .into()
 }
 
 pub fn first<TItem>(array: &[TItem]) -> &TItem {

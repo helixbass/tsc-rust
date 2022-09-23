@@ -22,9 +22,9 @@ use crate::{
     get_property_assignment, get_strict_option_value, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module, get_sys, has_extension,
     has_js_file_extension, is_declaration_file_name, is_rooted_disk_path, is_watch_set,
-    maybe_for_each, missing_file_modified_time, normalize_path, options_have_changes, out_file,
-    remove_file_extension, resolve_config_file_project_name, resolve_module_name,
-    resolve_type_reference_directive, source_file_affecting_compiler_options,
+    map_defined, maybe_for_each, missing_file_modified_time, normalize_path, options_have_changes,
+    out_file, remove_file_extension, resolve_config_file_project_name, resolve_module_name,
+    resolve_type_reference_directive, source_file_affecting_compiler_options, stable_sort,
     supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
     AutomaticTypeDirectiveFile, CancellationTokenDebuggable, Comparison, CompilerHost,
     CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
@@ -1211,8 +1211,30 @@ impl Program {
                 }
             }
 
-            *self.files.borrow_mut() = Some(self.processing_other_files.borrow().clone().unwrap());
+            *self.missing_file_paths.borrow_mut() = Some(map_defined(
+                Some(&*self.files_by_name()),
+                |(path, file), _| {
+                    if matches!(file, FilesByNameValue::Undefined,) {
+                        Some(path.clone().into())
+                    } else {
+                        None
+                    }
+                },
+            ));
+
+            *self.files.borrow_mut() = Some({
+                let mut files: Vec<Rc<Node>> = stable_sort(
+                    self.processing_default_lib_files.borrow().as_ref().unwrap(),
+                    |a, b| self.compare_default_lib_files(a, b),
+                )
+                .into();
+                let mut processing_other_files =
+                    self.processing_other_files.borrow().clone().unwrap();
+                files.append(&mut processing_other_files);
+                files
+            });
             println!("files: {:#?}", &*self.files());
+            *self.processing_default_lib_files.borrow_mut() = None;
             *self.processing_other_files.borrow_mut() = None;
         }
 
@@ -1449,6 +1471,14 @@ impl Program {
         type_directive_names: &[String],
         containing_file: TContainingFile,
     ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
+        unimplemented!()
+    }
+
+    pub(super) fn compare_default_lib_files(
+        &self,
+        a: &Node, /*SourceFile*/
+        b: &Node, /*SourceFile*/
+    ) -> Comparison {
         unimplemented!()
     }
 
