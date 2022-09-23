@@ -1,4 +1,4 @@
-use regex::Regex;
+use fancy_regex::Regex;
 use serde::Serialize;
 use std::cell::RefCell;
 use std::cmp;
@@ -889,12 +889,13 @@ impl MatchesSpecs {
         }
         if let Some(include_re) = self.include_re.as_ref() {
             if let Some(exclude_re) = self.exclude_re.as_ref() {
-                return !(include_re.is_match(path) && !exclude_re.is_match(path));
+                return !(include_re.is_match(path).unwrap()
+                    && !exclude_re.is_match(path).unwrap());
             }
-            return !include_re.is_match(path);
+            return !include_re.is_match(path).unwrap();
         }
         if let Some(exclude_re) = self.exclude_re.as_ref() {
-            return exclude_re.is_match(path);
+            return exclude_re.is_match(path).unwrap();
         }
         true
     }

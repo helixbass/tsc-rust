@@ -1,4 +1,4 @@
-use regex::Regex;
+use fancy_regex::Regex;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -723,7 +723,7 @@ pub(crate) fn get_file_names_from_config_specs<THost: ParseConfigHost>(
                     }
                     let include_index = find_index(
                         json_only_include_regexes.as_ref().unwrap(),
-                        |re, _| re.is_match(&file),
+                        |re, _| re.is_match(&file).unwrap(),
                         None,
                     );
                     if include_index.is_some() {
@@ -864,11 +864,13 @@ pub(super) fn matches_exclude_worker(
         return false;
     }
     let exclude_regex = exclude_regex.unwrap();
-    if exclude_regex.is_match(path_to_check) {
+    if exclude_regex.is_match(path_to_check).unwrap() {
         return true;
     }
     !has_extension(path_to_check)
-        && exclude_regex.is_match(&ensure_trailing_directory_separator(path_to_check))
+        && exclude_regex
+            .is_match(&ensure_trailing_directory_separator(path_to_check))
+            .unwrap()
 }
 
 pub(super) fn validate_specs<TJsonSourceFile: Borrow<Node> + Clone>(
@@ -923,7 +925,7 @@ pub(super) fn spec_to_diagnostic(
     disallow_trailing_recursion: Option<bool>,
 ) -> Option<(&'static DiagnosticMessage, String)> {
     if matches!(disallow_trailing_recursion, Some(true))
-        && invalid_trailing_recursion_pattern.is_match(spec)
+        && invalid_trailing_recursion_pattern.is_match(spec).unwrap()
     {
         Some((&Diagnostics::File_specification_cannot_end_in_a_recursive_directory_wildcard_Asterisk_Asterisk_Colon_0, spec.to_owned()))
     } else if invalid_dot_dot_after_recursive_wildcard(spec) {
@@ -954,7 +956,7 @@ pub(super) fn get_wildcard_directories(
         let mut recursive_keys: Vec<String> = vec![];
         for file in include {
             let spec = normalize_path(&combine_paths(path, &vec![Some(&**file)]));
-            if matches!(exclude_regex.as_ref(), Some(exclude_regex) if exclude_regex.is_match(&spec))
+            if matches!(exclude_regex.as_ref(), Some(exclude_regex) if exclude_regex.is_match(&spec).unwrap())
             {
                 continue;
             }
@@ -1003,7 +1005,7 @@ pub(super) fn get_wildcard_directory_from_spec(
     use_case_sensitive_file_names: bool,
 ) -> Option<GetWildcardDirectoryFromSpecReturn> {
     let match_ = wildcard_directory_pattern.captures(spec);
-    if let Some(match_) = match_ {
+    if let Ok(Some(match_)) = match_ {
         let question_wildcard_index = spec.find("?");
         let star_wildcard_index = spec.find("*");
         let last_directory_separator_index = spec.rfind(directory_separator);

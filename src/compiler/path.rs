@@ -357,7 +357,7 @@ pub fn reduce_path_components(components: &[String]) -> Vec<String> {
         return vec![];
     }
     let mut reduced = vec![components[0].clone()];
-    for component in components.iter().take(1) {
+    for component in components.iter().skip(1) {
         if component.is_empty() {
             continue;
         }

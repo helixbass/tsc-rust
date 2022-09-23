@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use regex::{Captures, Regex};
+use fancy_regex::{Captures, Regex};
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::cmp;
@@ -1060,7 +1060,7 @@ pub fn is_implicit_glob(last_path_component: &str) -> bool {
     lazy_static! {
         static ref regex: Regex = Regex::new("[.*?]").unwrap();
     }
-    regex.is_match(last_path_component)
+    regex.is_match(last_path_component).unwrap()
 }
 
 pub fn get_pattern_from_spec(
@@ -1185,6 +1185,7 @@ pub struct FileSystemEntries {
     pub directories: Vec<String>,
 }
 
+#[derive(Debug)]
 pub struct FileMatcherPatterns {
     pub include_file_patterns: Option<Vec<String>>,
     pub include_file_pattern: Option<String>,
@@ -1353,7 +1354,7 @@ fn visit_directory<
         }
         if matches!(
             exclude_regex,
-            Some(exclude_regex) if exclude_regex.is_match(&absolute_name)
+            Some(exclude_regex) if exclude_regex.is_match(&absolute_name).unwrap()
         ) {
             continue;
         }
@@ -1364,7 +1365,7 @@ fn visit_directory<
             Some(include_file_regexes) => {
                 let include_index = find_index(
                     include_file_regexes,
-                    |re: &Regex, _| re.is_match(&absolute_name),
+                    |re: &Regex, _| re.is_match(&absolute_name).unwrap(),
                     None,
                 );
                 if let Some(include_index) = include_index {
@@ -1386,10 +1387,12 @@ fn visit_directory<
         let absolute_name = combine_paths(absolute_path, &[Some(current)]);
         if match include_directory_regex {
             None => true,
-            Some(include_directory_regex) => include_directory_regex.is_match(&absolute_name),
+            Some(include_directory_regex) => {
+                include_directory_regex.is_match(&absolute_name).unwrap()
+            }
         } && match exclude_regex {
             None => true,
-            Some(exclude_regex) => !exclude_regex.is_match(&absolute_name),
+            Some(exclude_regex) => !exclude_regex.is_match(&absolute_name).unwrap(),
         } {
             visit_directory(
                 to_canonical,

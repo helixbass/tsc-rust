@@ -526,7 +526,8 @@ pub fn get_matched_include_spec(program: &Program, file_name: &str) -> Option<St
                     &format!("({})$", pattern),
                     use_case_sensitive_file_names,
                 )
-                .is_match(file_name),
+                .is_match(file_name)
+                .unwrap(),
             }
         },
     )
