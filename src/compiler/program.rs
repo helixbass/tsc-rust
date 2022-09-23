@@ -18,27 +18,27 @@ use crate::{
     for_each_ancestor_directory_str, for_each_bool, generate_djb2_hash,
     get_allow_js_compiler_option, get_automatic_type_directive_names, get_default_lib_file_name,
     get_directory_path, get_emit_script_target, get_line_and_character_of_position,
-    get_new_line_character, get_normalized_path_components, get_path_from_path_components,
-    get_property_assignment, get_strict_option_value, get_supported_extensions,
-    get_supported_extensions_with_json_if_resolve_json_module, get_sys, has_extension,
-    has_js_file_extension, is_declaration_file_name, is_rooted_disk_path, is_watch_set,
-    map_defined, maybe_for_each, missing_file_modified_time, normalize_path, options_have_changes,
-    out_file, remove_file_extension, resolve_config_file_project_name, resolve_module_name,
-    resolve_type_reference_directive, source_file_affecting_compiler_options, stable_sort,
-    supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
-    AutomaticTypeDirectiveFile, CancellationTokenDebuggable, Comparison, CompilerHost,
-    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
-    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
-    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
-    Extension, FileIncludeKind, FileIncludeReason, LibFile, LineAndCharacter, ModuleKind,
-    ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, PackageId,
-    ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
-    ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, ScriptTarget, SortedArray,
-    SourceFile, SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache,
-    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeReferenceDirectiveResolutionCache, WriteFileCallback,
+    get_new_line_character, get_normalized_absolute_path, get_normalized_path_components,
+    get_path_from_path_components, get_property_assignment, get_strict_option_value,
+    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
+    has_extension, has_js_file_extension, is_declaration_file_name, is_rooted_disk_path,
+    is_watch_set, map_defined, maybe_for_each, missing_file_modified_time, normalize_path,
+    options_have_changes, out_file, remove_file_extension, resolve_config_file_project_name,
+    resolve_module_name, resolve_type_reference_directive, source_file_affecting_compiler_options,
+    stable_sort, supported_js_extensions_flat, to_path as to_path_helper,
+    write_file_ensuring_directories, AutomaticTypeDirectiveFile, CancellationTokenDebuggable,
+    Comparison, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions,
+    CustomTransformers, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
+    DirectoryStructureHost, EmitResult, Extension, FileIncludeKind, FileIncludeReason, LibFile,
+    LineAndCharacter, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleSpecifierResolutionHost, MultiMap,
+    NamedDeclarationInterface, Node, PackageId, ParseConfigFileHost, ParseConfigHost,
+    ParsedCommandLine, Path, Program, ProjectReference, ReferencedFile, ResolvedConfigFileName,
+    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceOfProjectReferenceRedirect,
+    StringOrRcNode, StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -1471,6 +1471,42 @@ impl Program {
         type_directive_names: &[String],
         containing_file: TContainingFile,
     ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
+        if type_directive_names.is_empty() {
+            return vec![];
+        }
+        let containing_file: StringOrRcNode = containing_file.into();
+        let containing_file_name = match &containing_file {
+            StringOrRcNode::RcNode(containing_file) => get_normalized_absolute_path(
+                &containing_file.as_source_file().original_file_name(),
+                Some(&self.current_directory()),
+            ),
+            StringOrRcNode::String(containing_file) => containing_file.clone(),
+        };
+        let redirected_reference = match &containing_file {
+            StringOrRcNode::RcNode(containing_file) => {
+                self.get_redirect_reference_for_resolution(containing_file)
+            }
+            StringOrRcNode::String(_) => None,
+        };
+        // tracing?.push(tracing.Phase.Program, "resolveTypeReferenceDirectiveNamesWorker", { containingFileName });
+        // performance.mark("beforeResolveTypeReference");
+        let result = self
+            .actual_resolve_type_reference_directive_names_worker()
+            .call(
+                type_directive_names,
+                &containing_file_name,
+                redirected_reference.as_deref(),
+            );
+        // performance.mark("afterResolveTypeReference");
+        // performance.measure("ResolveTypeReference", "beforeResolveTypeReference", "afterResolveTypeReference");
+        // tracing?.pop();
+        result
+    }
+
+    pub(super) fn get_redirect_reference_for_resolution(
+        &self,
+        file: &Node, /*SourceFile*/
+    ) -> Option<Rc<ResolvedProjectReference>> {
         unimplemented!()
     }
 
