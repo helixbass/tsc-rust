@@ -1060,7 +1060,7 @@ pub fn is_implicit_glob(last_path_component: &str) -> bool {
     lazy_static! {
         static ref regex: Regex = Regex::new("[.*?]").unwrap();
     }
-    regex.is_match(last_path_component).unwrap()
+    !regex.is_match(last_path_component).unwrap()
 }
 
 pub fn get_pattern_from_spec(
@@ -1203,7 +1203,7 @@ pub fn get_file_matcher_patterns<TExclude: AsRef<str>, TInclude: AsRef<str>>(
 ) -> FileMatcherPatterns {
     let path = normalize_path(path);
     let current_directory = normalize_path(current_directory);
-    let absolute_path = combine_paths(&current_directory, &*vec![Some(&*path)]);
+    let absolute_path = combine_paths(&current_directory, &[Some(&*path)]);
 
     FileMatcherPatterns {
         include_file_patterns: maybe_map(
