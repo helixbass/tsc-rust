@@ -673,13 +673,28 @@ impl LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>
     }
 }
 
-pub(crate) fn load_with_local_cache<TValue>(
+pub(crate) fn load_with_local_cache<TValue: Clone>(
     names: &[String],
     containing_file: &str,
     redirected_reference: Option<&ResolvedProjectReference>,
     loader: &dyn LoadWithLocalCacheLoader<TValue>,
 ) -> Vec<TValue> {
-    unimplemented!()
+    if names.is_empty() {
+        return vec![];
+    }
+    let mut resolutions: Vec<TValue> = vec![];
+    let mut cache: HashMap<String, TValue> = HashMap::new();
+    for name in names {
+        let result: TValue;
+        if cache.contains_key(name) {
+            result = cache.get(name).cloned().unwrap();
+        } else {
+            result = loader.call(name, containing_file, redirected_reference);
+            cache.insert(name.clone(), result.clone());
+        }
+        resolutions.push(result);
+    }
+    resolutions
 }
 
 pub(crate) trait SourceFileImportsList {}
