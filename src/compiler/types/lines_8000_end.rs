@@ -77,6 +77,9 @@ pub trait EmitTextWriter: SymbolWriter {
 
 pub trait ModuleSpecifierResolutionHost {
     fn file_exists(&self, path: &str) -> bool;
+    fn directory_exists(&self, path: &str) -> Option<bool> {
+        None
+    }
 }
 
 pub trait SymbolTracker {

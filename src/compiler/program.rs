@@ -818,6 +818,8 @@ impl Program {
             map_from_file_to_project_reference_redirects: RefCell::new(None),
             map_from_to_project_reference_redirect_source: RefCell::new(None),
             use_source_of_project_reference_redirect: Cell::new(None),
+            file_exists_rc: RefCell::new(None),
+            directory_exists_rc: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -942,7 +944,11 @@ impl Program {
             self.host().use_source_of_project_reference_redirect() == Some(true)
                 && self.options.disable_source_of_project_reference_redirect != Some(true),
         ));
-        update_host_for_use_source_of_project_reference_redirect(
+        let UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
+            on_program_create_complete,
+            file_exists,
+            directory_exists,
+        } = update_host_for_use_source_of_project_reference_redirect(
             HostForUseSourceOfProjectReferenceRedirect {
                 compiler_host: self.host(),
                 get_symlink_cache: self.get_symlink_cache_rc(),
@@ -956,6 +962,8 @@ impl Program {
                 for_each_resolved_project_reference: self.for_each_resolved_project_reference_rc(),
             },
         );
+        *self.file_exists_rc.borrow_mut() = Some(file_exists);
+        *self.directory_exists_rc.borrow_mut() = directory_exists;
 
         let structure_is_reused: StructureIsReused;
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});
@@ -1174,6 +1182,16 @@ impl Program {
 
     pub(super) fn use_source_of_project_reference_redirect(&self) -> bool {
         self.use_source_of_project_reference_redirect.get().unwrap()
+    }
+
+    pub(super) fn file_exists_rc(&self) -> Rc<dyn ModuleResolutionHostOverrider> {
+        self.file_exists_rc.borrow().clone().unwrap()
+    }
+
+    pub(super) fn maybe_directory_exists_rc(
+        &self,
+    ) -> Option<Rc<dyn ModuleResolutionHostOverrider>> {
+        self.directory_exists_rc.borrow().clone()
     }
 
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
@@ -1804,7 +1822,12 @@ impl ScriptReferenceHost for Program {
 
 impl ModuleSpecifierResolutionHost for Program {
     fn file_exists(&self, path: &str) -> bool {
-        unimplemented!()
+        self.file_exists_rc().file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &str) -> Option<bool> {
+        self.maybe_directory_exists_rc()
+            .and_then(|directory_exists_rc| directory_exists_rc.directory_exists(path))
     }
 }
 
@@ -1852,13 +1875,6 @@ struct HostForUseSourceOfProjectReferenceRedirect {
 fn update_host_for_use_source_of_project_reference_redirect(
     host: HostForUseSourceOfProjectReferenceRedirect,
 ) -> UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
-    if !host.use_source_of_project_reference_redirect {
-        return UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
-            on_program_create_complete: Rc::new(|| {}),
-            directory_exists: None,
-        };
-    }
-
     let overrider: Rc<dyn ModuleResolutionHostOverrider> = Rc::new(
         UpdateHostForUseSourceOfProjectReferenceRedirectOverrider::new(
             host.compiler_host.clone(),
@@ -1868,6 +1884,15 @@ fn update_host_for_use_source_of_project_reference_redirect(
             host.for_each_resolved_project_reference.clone(),
         ),
     );
+
+    if !host.use_source_of_project_reference_redirect {
+        return UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
+            on_program_create_complete: Rc::new(|| {}),
+            directory_exists: None,
+            file_exists: overrider,
+        };
+    }
+
     host.compiler_host
         .set_overriding_file_exists(Some(overrider.clone()));
 
@@ -1889,13 +1914,15 @@ fn update_host_for_use_source_of_project_reference_redirect(
                 host_compiler_host_clone.set_overriding_get_directories(None);
             })
         },
-        directory_exists: Some(overrider),
+        directory_exists: Some(overrider.clone()),
+        file_exists: overrider,
     }
 }
 
 struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
     pub on_program_create_complete: Rc<dyn FnMut()>,
     pub directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    pub file_exists: Rc<dyn ModuleResolutionHostOverrider>,
 }
 
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {

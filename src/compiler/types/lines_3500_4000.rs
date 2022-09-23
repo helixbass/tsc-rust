@@ -16,9 +16,9 @@ use crate::{
     ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
     CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
     DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue, ModeAwareCache,
-    ModuleKind, ModuleResolutionCache, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
-    ResolvedProjectReference, SourceOfProjectReferenceRedirect, SymlinkCache, Type, TypeFlags,
-    TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    ModuleKind, ModuleResolutionCache, ModuleResolutionHostOverrider, MultiMap, PackageId,
+    ParseConfigFileHost, PragmaContext, ResolvedProjectReference, SourceOfProjectReferenceRedirect,
+    SymlinkCache, Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1026,6 +1026,9 @@ pub struct Program {
     pub(crate) map_from_to_project_reference_redirect_source:
         RefCell<Option<HashMap<Path, SourceOfProjectReferenceRedirect>>>,
     pub(crate) use_source_of_project_reference_redirect: Cell<Option<bool>>,
+
+    pub(crate) file_exists_rc: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+    pub(crate) directory_exists_rc: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
 }
 
 impl fmt::Debug for Program {
