@@ -4,6 +4,7 @@ use bitflags::bitflags;
 use derive_builder::Builder;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::io;
 use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
@@ -78,6 +79,9 @@ pub trait EmitTextWriter: SymbolWriter {
 pub trait ModuleSpecifierResolutionHost {
     fn file_exists(&self, path: &str) -> bool;
     fn directory_exists(&self, path: &str) -> Option<bool> {
+        None
+    }
+    fn read_file(&self, path: &str) -> Option<io::Result<String>> {
         None
     }
 }

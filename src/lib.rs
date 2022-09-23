@@ -21,8 +21,8 @@ use compiler::command_line_parser::{
     build_opts, convert_to_object_worker, convert_to_options_with_absolute_paths,
     convert_to_tsconfig, get_diagnostic_text, module_resolution_option_declarations,
     option_declarations, options_affecting_program_structure, options_for_build, options_for_watch,
-    parse_build_command, target_option_declaration, JsonConversionNotifier,
-    JsonConversionNotifierDummy, ParsedBuildCommand, StringOrRcDiagnostic,
+    parse_build_command, source_file_affecting_compiler_options, target_option_declaration,
+    JsonConversionNotifier, JsonConversionNotifierDummy, ParsedBuildCommand, StringOrRcDiagnostic,
 };
 pub use compiler::command_line_parser::{
     get_parsed_command_line_of_config_file, hash_map_to_compiler_options, parse_command_line,
@@ -457,8 +457,8 @@ pub use compiler::utilities::{
     is_write_only_access, match_files, maybe_set_parent, min_and_max, modifier_to_flag,
     modifiers_to_flags, no_truncation_maximum_truncation_length, node_can_be_decorated,
     node_is_decorated, node_is_missing, node_is_present, node_is_synthesized,
-    node_starts_new_lexical_environment, object_allocator, out_file, package_id_to_string,
-    parameter_is_this_keyword, parse_pseudo_big_int, position_is_synthesized,
+    node_starts_new_lexical_environment, object_allocator, options_have_changes, out_file,
+    package_id_to_string, parameter_is_this_keyword, parse_pseudo_big_int, position_is_synthesized,
     pseudo_big_int_to_string, range_of_node, range_of_type_parameters, remove_extension,
     remove_file_extension, resolution_extension_is_ts_or_json, resolving_empty_array,
     set_node_flags, set_parent, set_parent_recursive, set_text_range_pos, set_text_range_pos_end,

@@ -20,11 +20,12 @@ use crate::{
     get_path_from_path_components, get_property_assignment, get_strict_option_value,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
     is_declaration_file_name, is_rooted_disk_path, is_watch_set, missing_file_modified_time,
-    normalize_path, out_file, remove_file_extension, resolve_module_name,
-    resolve_type_reference_directive, supported_js_extensions_flat, to_path as to_path_helper,
-    write_file_ensuring_directories, CancellationTokenDebuggable, Comparison, CompilerHost,
-    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
-    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
+    normalize_path, options_have_changes, out_file, remove_file_extension, resolve_module_name,
+    resolve_type_reference_directive, source_file_affecting_compiler_options,
+    supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
     Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionCache,
     ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleSpecifierResolutionHost, MultiMap,
@@ -849,6 +850,23 @@ pub fn get_config_file_parsing_diagnostics(
     vec![]
 }
 
+fn should_program_create_new_source_files(
+    program: Option<&Program>,
+    new_options: &CompilerOptions,
+) -> bool {
+    if program.is_none() {
+        return false;
+    }
+    let program = program.unwrap();
+    source_file_affecting_compiler_options.with(|source_file_affecting_compiler_options_| {
+        options_have_changes(
+            &program.get_compiler_options(),
+            new_options,
+            source_file_affecting_compiler_options_,
+        )
+    })
+}
+
 impl Program {
     pub fn new(
         create_program_options: CreateProgramOptions,
@@ -886,6 +904,7 @@ impl Program {
 
             source_files_found_searching_node_modules: RefCell::new(HashMap::new()),
 
+            old_program: RefCell::new(None),
             host: RefCell::new(None),
             config_parsing_host: RefCell::new(None),
 
@@ -916,6 +935,7 @@ impl Program {
             use_source_of_project_reference_redirect: Cell::new(None),
             file_exists_rc: RefCell::new(None),
             directory_exists_rc: RefCell::new(None),
+            should_create_new_source_file: Cell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -926,10 +946,11 @@ impl Program {
             root_names,
             config_file_parsing_diagnostics,
             project_references,
-            mut old_program,
+            old_program,
             host,
             ..
         } = self.create_program_options.borrow_mut().take().unwrap();
+        *self.old_program.borrow_mut() = old_program;
 
         // tracing?.push(tracing.Phase.Program, "createProgram", { configFilePath: options.configFilePath, rootDir: options.rootDir }, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeProgram");
@@ -1061,9 +1082,17 @@ impl Program {
         *self.file_exists_rc.borrow_mut() = Some(file_exists);
         *self.directory_exists_rc.borrow_mut() = directory_exists;
 
+        // tracing?.push(tracing.Phase.Program, "shouldProgramCreateNewSourceFiles", { hasOldProgram: !!oldProgram });
+        self.should_create_new_source_file
+            .set(Some(should_program_create_new_source_files(
+                self.maybe_old_program().as_deref(),
+                &self.options,
+            )));
+        // tracing?.pop();
         let structure_is_reused: StructureIsReused;
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});
-        structure_is_reused = StructureIsReused::Not;
+        structure_is_reused = self.try_reuse_structure_from_old_program();
+        // tracing?.pop();
         if structure_is_reused != StructureIsReused::Completely {
             *self.processing_other_files.borrow_mut() = Some(vec![]);
             for_each(root_names, |name, _index| {
@@ -1114,6 +1143,10 @@ impl Program {
         Ref::map(self.default_library_path.borrow(), |default_library_path| {
             default_library_path.as_ref().unwrap()
         })
+    }
+
+    pub(super) fn maybe_old_program(&self) -> Option<Rc<Program>> {
+        self.old_program.borrow().clone()
     }
 
     pub(super) fn host(&self) -> Rc<dyn CompilerHost> {
@@ -1290,6 +1323,10 @@ impl Program {
         self.directory_exists_rc.borrow().clone()
     }
 
+    pub(super) fn should_create_new_source_file(&self) -> bool {
+        self.should_create_new_source_file.get().unwrap()
+    }
+
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
         self.host()
             .has_invalidated_resolution(source_file)
@@ -1365,6 +1402,14 @@ impl Program {
     pub fn to_path_rc(&self) -> Rc<dyn Fn(&str) -> Path> {
         let self_clone = self.rc_wrapper();
         Rc::new(move |file_name| self_clone.to_path(file_name))
+    }
+
+    pub fn try_reuse_structure_from_old_program(&self) -> StructureIsReused {
+        if self.maybe_old_program().is_none() {
+            return StructureIsReused::Not;
+        }
+
+        unimplemented!()
     }
 
     pub fn get_resolved_project_references(
@@ -1924,6 +1969,10 @@ impl ModuleSpecifierResolutionHost for Program {
     fn directory_exists(&self, path: &str) -> Option<bool> {
         self.maybe_directory_exists_rc()
             .and_then(|directory_exists_rc| directory_exists_rc.directory_exists(path))
+    }
+
+    fn read_file(&self, path: &str) -> Option<io::Result<String>> {
+        Some(self.host().read_file(path))
     }
 }
 

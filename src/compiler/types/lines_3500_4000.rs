@@ -986,6 +986,7 @@ pub struct Program {
 
     pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
 
+    pub(crate) old_program: RefCell<Option<Rc<Program>>>,
     pub(crate) host: RefCell<Option<Rc<dyn CompilerHost>>>,
     pub(crate) config_parsing_host: RefCell<Option<Rc<dyn ParseConfigFileHost>>>,
 
@@ -1029,6 +1030,8 @@ pub struct Program {
 
     pub(crate) file_exists_rc: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
     pub(crate) directory_exists_rc: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+
+    pub(crate) should_create_new_source_file: Cell<Option<bool>>,
 }
 
 impl fmt::Debug for Program {
