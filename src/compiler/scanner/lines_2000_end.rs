@@ -659,9 +659,9 @@ impl Scanner {
     ) {
         let text = new_text.unwrap_or_else(|| "".to_string());
         let text_as_chars = new_text_as_chars.unwrap_or_else(|| vec![]);
-        let text_len = text.len();
+        let text_as_chars_len = text_as_chars.len();
         self.set_text_(text_as_chars, text);
-        self.set_end(length.map_or(text_len, |length| start.unwrap() + length));
+        self.set_end(length.map_or(text_as_chars_len, |length| start.unwrap() + length));
         self.set_text_pos(start.unwrap_or(0));
     }
 
