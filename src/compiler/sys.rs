@@ -405,7 +405,9 @@ impl System for SystemConcrete {
     }
 
     fn get_directories(&self, path: &str) -> Vec<String> {
-        unimplemented!()
+        self.get_accessible_file_system_entries(path)
+            .directories
+            .clone()
     }
 
     fn is_create_hash_supported(&self) -> bool {
