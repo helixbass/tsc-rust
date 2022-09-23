@@ -1,6 +1,6 @@
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::cmp;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::io;
 use std::rc::Rc;
@@ -663,6 +663,16 @@ pub(crate) fn load_with_mode_aware_cache<TValue>(
     unimplemented!()
 }
 
+pub fn for_each_resolved_project_reference<
+    TReturn,
+    TCallback: FnMut(&ResolvedProjectReference, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+>(
+    resolved_project_references: Option<&[Option<Rc<ResolvedProjectReference>>]>,
+    cb: TCallback,
+) -> Option<TReturn> {
+    unimplemented!()
+}
+
 pub(crate) struct DiagnosticCache {
     pub per_file: Option<HashMap<Path, Vec<Rc<Diagnostic>>>>,
     pub all_diagnostics: Option<Vec<Rc<Diagnostic>>>,
@@ -935,10 +945,14 @@ impl Program {
         update_host_for_use_source_of_project_reference_redirect(
             HostForUseSourceOfProjectReferenceRedirect {
                 compiler_host: self.host(),
+                use_source_of_project_reference_redirect: self
+                    .use_source_of_project_reference_redirect(),
+                to_path: self.to_path_rc(),
                 get_resolved_project_references: {
                     let self_clone = self.rc_wrapper();
                     Rc::new(move || self_clone.get_resolved_project_references().clone())
                 },
+                for_each_resolved_project_reference: self.for_each_resolved_project_reference_rc(),
             },
         );
 
@@ -1233,6 +1247,11 @@ impl Program {
         })
     }
 
+    pub fn to_path_rc(&self) -> Rc<dyn FnMut(&str) -> Path> {
+        let self_clone = self.rc_wrapper();
+        Rc::new(move |file_name| self_clone.to_path(file_name))
+    }
+
     pub fn get_resolved_project_references(
         &self,
     ) -> Ref<Option<Vec<Option<Rc<ResolvedProjectReference>>>>> {
@@ -1420,6 +1439,34 @@ impl Program {
                 .unwrap()
                 .push(file.clone());
             file
+        })
+    }
+
+    pub fn for_each_resolved_project_reference<
+        TReturn,
+        TCallback: FnMut(&ResolvedProjectReference) -> Option<TReturn>,
+    >(
+        &self,
+        cb: TCallback,
+    ) -> Option<TReturn> {
+        for_each_resolved_project_reference(
+            self.maybe_resolved_project_references().as_deref(),
+            |resolved_project_reference, _parent| cb(resolved_project_reference),
+        )
+    }
+
+    pub fn for_each_resolved_project_reference_rc(
+        &self,
+    ) -> Rc<dyn FnMut(Rc<dyn FnMut(&ResolvedProjectReference)>)> {
+        let self_clone = self.rc_wrapper();
+        Rc::new(move |cb| {
+            for_each_resolved_project_reference(
+                self_clone.maybe_resolved_project_references().as_deref(),
+                |resolved_project_reference, _parent| -> Option<()> {
+                    cb(resolved_project_reference);
+                    None
+                },
+            );
         })
     }
 
@@ -1788,21 +1835,37 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
 
 struct HostForUseSourceOfProjectReferenceRedirect {
     compiler_host: Rc<dyn CompilerHost>,
+    use_source_of_project_reference_redirect: bool,
+    to_path: Rc<dyn FnMut(&str) -> Path>,
     get_resolved_project_references:
         Rc<dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+    for_each_resolved_project_reference: Rc<dyn FnMut(Rc<dyn FnMut(&ResolvedProjectReference)>)>,
 }
 
 fn update_host_for_use_source_of_project_reference_redirect(
     host: HostForUseSourceOfProjectReferenceRedirect,
 ) -> UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
+    if !host.use_source_of_project_reference_redirect {
+        return UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
+            on_program_create_complete: Rc::new(|| {}),
+            directory_exists: None,
+        };
+    }
+
     let overrider: Rc<dyn ModuleResolutionHostOverrider> = Rc::new(
         UpdateHostForUseSourceOfProjectReferenceRedirectOverrider::new(
             host.compiler_host.clone(),
+            host.to_path.clone(),
             host.get_resolved_project_references.clone(),
+            host.for_each_resolved_project_reference.clone(),
         ),
     );
     host.compiler_host
         .set_overriding_file_exists(Some(overrider.clone()));
+
+    host.compiler_host
+        .set_overriding_directory_exists(Some(overrider.clone()));
+
     UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
         on_program_create_complete: {
             let host_compiler_host_clone = host.compiler_host.clone();
@@ -1812,30 +1875,47 @@ fn update_host_for_use_source_of_project_reference_redirect(
                 host_compiler_host_clone.set_overriding_get_directories(None);
             })
         },
+        directory_exists: Some(overrider),
     }
 }
 
 struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
     pub on_program_create_complete: Rc<dyn FnMut()>,
+    pub directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
 }
 
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_compiler_host: Rc<dyn CompilerHost>,
+    pub host_to_path: Rc<dyn FnMut(&str) -> Path>,
     pub host_get_resolved_project_references:
         Rc<dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+    pub host_for_each_resolved_project_reference:
+        Rc<dyn FnMut(Rc<dyn FnMut(&ResolvedProjectReference)>)>,
+    set_of_declaration_directories: RefCell<Option<HashSet<Path>>>,
 }
 
 impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub fn new(
         host_compiler_host: Rc<dyn CompilerHost>,
+        host_to_path: Rc<dyn FnMut(&str) -> Path>,
         host_get_resolved_project_references: Rc<
             dyn FnMut() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
+        >,
+        host_for_each_resolved_project_reference: Rc<
+            dyn FnMut(Rc<dyn FnMut(&ResolvedProjectReference)>),
         >,
     ) -> Self {
         Self {
             host_compiler_host,
+            host_to_path,
             host_get_resolved_project_references,
+            host_for_each_resolved_project_reference,
+            set_of_declaration_directories: RefCell::new(None),
         }
+    }
+
+    fn handle_directory_could_be_symlink(&self, directory: &str) {
+        unimplemented!()
     }
 
     fn file_or_directory_exists_using_source(
@@ -1860,6 +1940,50 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         }
 
         self.file_or_directory_exists_using_source(file, true)
+    }
+
+    fn directory_exists(&self, path: &str) -> Option<bool> {
+        if !self.host_compiler_host.is_directory_exists_supported() {
+            return None;
+        }
+        if self
+            .host_compiler_host
+            .directory_exists_non_overridden(path)
+            == Some(true)
+        {
+            self.handle_directory_could_be_symlink(path);
+            return Some(true);
+        }
+
+        if (self.host_get_resolved_project_references)().is_none() {
+            return Some(false);
+        }
+
+        if self.set_of_declaration_directories.borrow().is_none() {
+            let mut set_of_declaration_directories =
+                self.set_of_declaration_directories.borrow_mut();
+            *set_of_declaration_directories = Some(HashSet::new());
+            let set_of_declaration_directories = set_of_declaration_directories.as_mut().unwrap();
+            (self.host_for_each_resolved_project_reference)(Rc::new(|ref_| {
+                let out = out_file(&ref_.command_line.options);
+                if let Some(out) = out {
+                    set_of_declaration_directories
+                        .insert(get_directory_path(&(self.host_to_path)(out)).into());
+                } else {
+                    let declaration_dir = ref_
+                        .command_line
+                        .options
+                        .declaration_dir
+                        .as_ref()
+                        .or_else(|| ref_.command_line.options.out_dir.as_ref());
+                    if let Some(declaration_dir) = declaration_dir {
+                        set_of_declaration_directories.insert((self.host_to_path)(declaration_dir));
+                    }
+                }
+            }));
+        }
+
+        Some(self.file_or_directory_exists_using_source(path, false))
     }
 }
 

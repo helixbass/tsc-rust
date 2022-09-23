@@ -28,6 +28,14 @@ pub trait ModuleResolutionHost {
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
         None
     }
+    fn is_directory_exists_supported(&self) -> bool;
+    fn directory_exists_non_overridden(&self, directory_name: &str) -> Option<bool> {
+        None
+    }
+    fn set_overriding_directory_exists(
+        &self,
+        overriding_directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
     fn realpath(&self, path: &str) -> Option<String> {
         None
     }
@@ -62,6 +70,9 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
 pub trait ModuleResolutionHostOverrider {
     fn file_exists(&self, file_name: &str) -> bool;
+    fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+        None
+    }
 }
 
 #[derive(Clone, Debug)]
