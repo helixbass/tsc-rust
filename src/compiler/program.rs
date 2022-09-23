@@ -20,17 +20,18 @@ use crate::{
     get_path_from_path_components, get_property_assignment, get_strict_option_value,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
     is_declaration_file_name, is_rooted_disk_path, is_watch_set, missing_file_modified_time,
-    normalize_path, options_have_changes, out_file, remove_file_extension, resolve_module_name,
-    resolve_type_reference_directive, source_file_affecting_compiler_options,
-    supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
-    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
-    Extension, FileIncludeReason, LineAndCharacter, ModuleKind, ModuleResolutionCache,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleSpecifierResolutionHost, MultiMap,
-    NamedDeclarationInterface, Node, PackageId, ParseConfigFileHost, ParseConfigHost,
-    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
+    normalize_path, options_have_changes, out_file, remove_file_extension,
+    resolve_config_file_project_name, resolve_module_name, resolve_type_reference_directive,
+    source_file_affecting_compiler_options, supported_js_extensions_flat,
+    to_path as to_path_helper, write_file_ensuring_directories, CancellationTokenDebuggable,
+    Comparison, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions,
+    CustomTransformers, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
+    DirectoryStructureHost, EmitResult, Extension, FileIncludeReason, LineAndCharacter, ModuleKind,
+    ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, PackageId,
+    ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
+    ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile,
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, System, TypeChecker,
     TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
@@ -1094,7 +1095,22 @@ impl Program {
         structure_is_reused = self.try_reuse_structure_from_old_program();
         // tracing?.pop();
         if structure_is_reused != StructureIsReused::Completely {
+            *self.processing_default_lib_files.borrow_mut() = Some(vec![]);
             *self.processing_other_files.borrow_mut() = Some(vec![]);
+
+            if let Some(project_references) = project_references.as_ref() {
+                if self.resolved_project_references.borrow().is_none() {
+                    *self.resolved_project_references.borrow_mut() = Some(
+                        project_references
+                            .into_iter()
+                            .map(|project_reference| {
+                                self.parse_project_reference_config_file(project_reference)
+                            })
+                            .collect(),
+                    );
+                }
+            }
+
             for_each(root_names, |name, _index| {
                 self.process_root_file(&name);
                 Option::<()>::None
@@ -1637,6 +1653,28 @@ impl Program {
     pub fn get_canonical_file_name_rc(&self) -> Rc<dyn Fn(&str) -> String> {
         let host = self.host();
         Rc::new(move |file_name| host.get_canonical_file_name(file_name))
+    }
+
+    pub fn parse_project_reference_config_file(
+        &self,
+        ref_: &ProjectReference,
+    ) -> Option<Rc<ResolvedProjectReference>> {
+        if self.maybe_project_reference_redirects().is_none() {
+            *self.maybe_project_reference_redirects() = Some(HashMap::new());
+        }
+
+        let ref_path = resolve_project_reference_path(ref_);
+        let source_file_path = self.to_path(&ref_path);
+        let from_cache = self
+            .maybe_project_reference_redirects()
+            .as_ref()
+            .unwrap()
+            .get(&source_file_path)
+            .cloned();
+        if let Some(from_cache) = from_cache {
+            return from_cache;
+        }
+        unimplemented!()
     }
 
     pub fn create_option_diagnostic_in_object_literal_syntax(
@@ -2429,6 +2467,11 @@ impl ConfigFileDiagnosticsReporter for ParseConfigHostFromCompilerHostLike {
         self.host
             .on_un_recoverable_config_file_diagnostic(diagnostic)
     }
+}
+
+pub fn resolve_project_reference_path(ref_: &ProjectReference) -> ResolvedConfigFileName {
+    let passed_in_ref = ref_;
+    resolve_config_file_project_name(&passed_in_ref.path)
 }
 
 pub fn get_resolution_diagnostic(

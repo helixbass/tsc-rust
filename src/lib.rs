@@ -221,6 +221,7 @@ pub use compiler::transformers::{
     transform_jsx, transform_module, transform_node_module, transform_system_module,
     transform_type_script,
 };
+pub use compiler::tsbuild::resolve_config_file_project_name;
 pub use compiler::tsbuild_public::{
     create_builder_status_reporter, create_solution_builder, create_solution_builder_host,
     create_solution_builder_with_watch, create_solution_builder_with_watch_host, BuildOptions,
@@ -315,7 +316,7 @@ pub use compiler::types::{
     PrivateIdentifier, Program, ProjectReference, PropertyAccessExpression, PropertyAssignment,
     PropertyDeclaration, PropertySignature, PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec,
     ReadonlyTextRange, RedirectTargetsMap, RegularExpressionLiteral, RelationComparisonResult,
-    RequireResult, ResolvableTypeInterface, ResolvedModuleFull,
+    RequireResult, ResolvableTypeInterface, ResolvedConfigFileName, ResolvedModuleFull,
     ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference, ResolvedTypeInterface,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     RestTypeNode, ReturnStatement, ReverseMappedSymbol, ReverseMappedType, ScriptKind,

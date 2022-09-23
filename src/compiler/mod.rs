@@ -18,6 +18,7 @@ pub mod sys;
 pub mod tracing;
 pub mod transformer;
 pub mod transformers;
+pub mod tsbuild;
 pub mod tsbuild_public;
 pub mod types;
 pub mod utilities;

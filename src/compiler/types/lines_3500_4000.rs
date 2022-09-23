@@ -4,6 +4,7 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io;
+use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
@@ -857,6 +858,28 @@ pub trait ParseConfigHost {
 
     fn read_file(&self, path: &str) -> io::Result<String>;
     fn trace(&self, s: &str) {}
+}
+
+pub struct ResolvedConfigFileName(String);
+
+impl ResolvedConfigFileName {
+    pub fn new(string: String) -> Self {
+        string.into()
+    }
+}
+
+impl Deref for ResolvedConfigFileName {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<String> for ResolvedConfigFileName {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
 }
 
 pub trait WriteFileCallback {
