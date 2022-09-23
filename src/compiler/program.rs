@@ -16,19 +16,19 @@ use crate::{
     create_type_reference_directive_resolution_cache, diagnostic_category_name,
     extension_from_path, file_extension_is, file_extension_is_one_of, flatten, for_each,
     for_each_ancestor_directory_str, for_each_bool, generate_djb2_hash,
-    get_allow_js_compiler_option, get_default_lib_file_name, get_directory_path,
-    get_emit_script_target, get_line_and_character_of_position, get_new_line_character,
-    get_normalized_path_components, get_path_from_path_components, get_property_assignment,
-    get_strict_option_value, get_supported_extensions,
+    get_allow_js_compiler_option, get_automatic_type_directive_names, get_default_lib_file_name,
+    get_directory_path, get_emit_script_target, get_line_and_character_of_position,
+    get_new_line_character, get_normalized_path_components, get_path_from_path_components,
+    get_property_assignment, get_strict_option_value, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module, get_sys, has_extension,
     has_js_file_extension, is_declaration_file_name, is_rooted_disk_path, is_watch_set,
     missing_file_modified_time, normalize_path, options_have_changes, out_file,
     remove_file_extension, resolve_config_file_project_name, resolve_module_name,
     resolve_type_reference_directive, source_file_affecting_compiler_options,
     supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
+    AutomaticTypeDirectiveFile, CancellationTokenDebuggable, Comparison, CompilerHost,
+    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
+    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
     Extension, FileIncludeKind, FileIncludeReason, LineAndCharacter, ModuleKind,
     ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
@@ -36,9 +36,9 @@ use crate::{
     ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
     ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, ScriptTarget, SortedArray,
-    SourceFile, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, System,
-    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    WriteFileCallback,
+    SourceFile, SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache,
+    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
+    TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -774,6 +774,8 @@ pub fn for_each_resolved_project_reference<
     unimplemented!()
 }
 
+pub(crate) const inferred_types_containing_file: &str = "__inferred type names__.ts";
+
 pub(crate) struct DiagnosticCache {
     pub per_file: Option<HashMap<Path, Vec<Rc<Diagnostic>>>>,
     pub all_diagnostics: Option<Vec<Rc<Diagnostic>>>,
@@ -1130,6 +1132,54 @@ impl Program {
             });
             // tracing?.pop();
 
+            let type_references = if !root_names.is_empty() {
+                get_automatic_type_directive_names(
+                    &self.options,
+                    self.host().as_dyn_module_resolution_host(),
+                )
+            } else {
+                vec![]
+            };
+
+            if !type_references.is_empty() {
+                // tracing?.push(tracing.Phase.Program, "processTypeReferences", { count: typeReferences.length });
+                let containing_directory = if let Some(options_config_file_path) =
+                    self.options.config_file_path.as_ref()
+                {
+                    get_directory_path(options_config_file_path)
+                } else {
+                    CompilerHost::get_current_directory(&*self.host())
+                };
+                let containing_filename = combine_paths(
+                    &containing_directory,
+                    &[Some(inferred_types_containing_file)],
+                );
+                let resolutions = self.resolve_type_reference_directive_names_worker(
+                    &type_references,
+                    containing_filename,
+                );
+                for i in 0..type_references.len() {
+                    self.process_type_reference_directive(
+                        &type_references[i],
+                        resolutions
+                            .get(i)
+                            .and_then(|resolution| resolution.as_deref()),
+                        &FileIncludeReason::AutomaticTypeDirectiveFile(
+                            AutomaticTypeDirectiveFile {
+                                kind: FileIncludeKind::AutomaticTypeDirectiveFile,
+                                type_reference: type_references[i].clone(),
+                                package_id: resolutions
+                                    .get(i)
+                                    .cloned()
+                                    .flatten()
+                                    .and_then(|resolution| resolution.package_id.clone()),
+                            },
+                        ),
+                    );
+                }
+                // tracing?.pop();
+            }
+
             *self.files.borrow_mut() = Some(self.processing_other_files.borrow().clone().unwrap());
             println!("files: {:#?}", &*self.files());
             *self.processing_other_files.borrow_mut() = None;
@@ -1355,6 +1405,16 @@ impl Program {
 
     pub(super) fn should_create_new_source_file(&self) -> bool {
         self.should_create_new_source_file.get().unwrap()
+    }
+
+    pub(super) fn resolve_type_reference_directive_names_worker<
+        TContainingFile: Into<StringOrRcNode>,
+    >(
+        &self,
+        type_directive_names: &[String],
+        containing_file: TContainingFile,
+    ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
+        unimplemented!()
     }
 
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
@@ -1793,6 +1853,15 @@ impl Program {
                 },
             );
         })
+    }
+
+    pub fn process_type_reference_directive(
+        &self,
+        type_reference_directive: &str,
+        resolved_type_reference_directive: Option<&ResolvedTypeReferenceDirective>,
+        reason: &FileIncludeReason,
+    ) {
+        unimplemented!()
     }
 
     pub fn get_canonical_file_name(&self, file_name: &str) -> String {

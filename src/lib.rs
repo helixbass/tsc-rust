@@ -149,8 +149,9 @@ use compiler::module_name_resolver::{
 };
 pub use compiler::module_name_resolver::{
     create_module_resolution_cache, create_type_reference_directive_resolution_cache,
-    node_module_name_resolver, resolve_module_name, resolve_type_reference_directive,
-    ModeAwareCache, ModuleResolutionCache, TypeReferenceDirectiveResolutionCache,
+    get_automatic_type_directive_names, node_module_name_resolver, resolve_module_name,
+    resolve_type_reference_directive, ModeAwareCache, ModuleResolutionCache,
+    TypeReferenceDirectiveResolutionCache,
 };
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively_bool,
@@ -238,8 +239,8 @@ pub use compiler::types::{
     maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
     text_str_num_chars, text_substring, AllAccessorDeclarations, AlternateModeDiagnostics,
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
-    AssertClause, AssertEntry, AssignmentDeclarationKind, AwaitExpression,
-    BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    AssertClause, AssertEntry, AssignmentDeclarationKind, AutomaticTypeDirectiveFile,
+    AwaitExpression, BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
     BaseInterfaceType, BaseIntrinsicType, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseLiteralType, BaseNamedDeclaration, BaseNode, BaseObjectType,

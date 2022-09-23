@@ -25,6 +25,13 @@ pub fn resolve_type_reference_directive(
     unimplemented!()
 }
 
+pub fn get_automatic_type_directive_names(
+    options: &CompilerOptions,
+    host: &dyn ModuleResolutionHost,
+) -> Vec<String> {
+    unimplemented!()
+}
+
 pub struct TypeReferenceDirectiveResolutionCache {}
 
 #[derive(Debug)]
