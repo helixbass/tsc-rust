@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::cmp;
 use std::collections::{HashMap, HashSet};
@@ -13,28 +14,30 @@ use crate::{
     create_get_canonical_file_name, create_module_resolution_cache, create_multi_map,
     create_source_file, create_symlink_cache, create_type_checker,
     create_type_reference_directive_resolution_cache, diagnostic_category_name,
-    extension_from_path, file_extension_is, file_extension_is_one_of, for_each,
-    for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
-    get_default_lib_file_name, get_directory_path, get_emit_script_target,
-    get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
-    get_path_from_path_components, get_property_assignment, get_strict_option_value,
-    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
-    is_declaration_file_name, is_rooted_disk_path, is_watch_set, missing_file_modified_time,
-    normalize_path, options_have_changes, out_file, remove_file_extension,
-    resolve_config_file_project_name, resolve_module_name, resolve_type_reference_directive,
-    source_file_affecting_compiler_options, supported_js_extensions_flat,
-    to_path as to_path_helper, write_file_ensuring_directories, CancellationTokenDebuggable,
-    Comparison, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions,
-    CustomTransformers, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
-    DirectoryStructureHost, EmitResult, Extension, FileIncludeReason, LineAndCharacter, ModuleKind,
+    extension_from_path, file_extension_is, file_extension_is_one_of, flatten, for_each,
+    for_each_ancestor_directory_str, for_each_bool, generate_djb2_hash,
+    get_allow_js_compiler_option, get_default_lib_file_name, get_directory_path,
+    get_emit_script_target, get_line_and_character_of_position, get_new_line_character,
+    get_normalized_path_components, get_path_from_path_components, get_property_assignment,
+    get_strict_option_value, get_supported_extensions,
+    get_supported_extensions_with_json_if_resolve_json_module, get_sys, has_extension,
+    has_js_file_extension, is_declaration_file_name, is_rooted_disk_path, is_watch_set,
+    missing_file_modified_time, normalize_path, options_have_changes, out_file,
+    remove_file_extension, resolve_config_file_project_name, resolve_module_name,
+    resolve_type_reference_directive, source_file_affecting_compiler_options,
+    supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
+    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
+    Extension, FileIncludeKind, FileIncludeReason, LineAndCharacter, ModuleKind,
     ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
     ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, PackageId,
     ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
     ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile,
-    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, System, TypeChecker,
-    TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, ScriptTarget, SortedArray,
+    SourceFile, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, System,
+    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
     WriteFileCallback,
 };
 
@@ -1109,12 +1112,23 @@ impl Program {
                             .collect(),
                     );
                 }
+                unimplemented!()
             }
 
-            for_each(root_names, |name, _index| {
-                self.process_root_file(&name);
+            // tracing?.push(tracing.Phase.Program, "processRootFiles", { count: rootNames.length });
+            for_each(&root_names, |name, index| {
+                self.process_root_file(
+                    name,
+                    false,
+                    false,
+                    &FileIncludeReason::RootFile(RootFile {
+                        kind: FileIncludeKind::RootFile,
+                        index,
+                    }),
+                );
                 Option::<()>::None
             });
+            // tracing?.pop();
 
             *self.files.borrow_mut() = Some(self.processing_other_files.borrow().clone().unwrap());
             println!("files: {:#?}", &*self.files());
@@ -1572,22 +1586,157 @@ impl Program {
         vec![]
     }
 
-    pub fn process_root_file(&self, file_name: &str) {
-        self.process_source_file(&normalize_path(file_name));
+    pub fn process_root_file(
+        &self,
+        file_name: &str,
+        is_default_lib: bool,
+        ignore_no_default_lib: bool,
+        reason: &FileIncludeReason,
+    ) {
+        self.process_source_file(
+            &normalize_path(file_name),
+            is_default_lib,
+            ignore_no_default_lib,
+            None,
+            reason,
+        );
     }
 
-    fn get_source_file_from_reference_worker<TGetSourceFile: FnMut(&str) -> Option<Rc<Node>>>(
+    fn get_source_file_from_reference_worker<
+        TGetSourceFile: FnMut(&str) -> Option<Rc<Node>>,
+        TFail: FnMut(&DiagnosticMessage, Option<Vec<String>>),
+    >(
         &self,
         file_name: &str,
         mut get_source_file: TGetSourceFile,
+        mut fail: Option<TFail>,
+        reason: Option<&FileIncludeReason>,
     ) -> Option<Rc<Node>> {
-        get_source_file(file_name)
+        if has_extension(file_name) {
+            let canonical_file_name = self.host().get_canonical_file_name(file_name);
+            if self.options.allow_non_ts_extensions != Some(true)
+                && !for_each_bool(
+                    &flatten(&self.supported_extensions_with_json_if_resolve_json_module()),
+                    |extension: &Extension, _| {
+                        file_extension_is(&canonical_file_name, extension.to_str())
+                    },
+                )
+            {
+                if let Some(fail) = fail.as_mut() {
+                    if has_js_file_extension(&canonical_file_name) {
+                        fail(&Diagnostics::File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option, Some(vec![
+                            file_name.to_owned(),
+                        ]));
+                    } else {
+                        fail(&Diagnostics::File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1, Some(vec![
+                            file_name.to_owned(),
+                            format!("'{}'", flatten(&self.supported_extensions()).iter().map(Extension::to_str).collect::<Vec<_>>().join("', '"))
+                        ]));
+                    }
+                }
+                return None;
+            }
+
+            let source_file = get_source_file(file_name);
+            if let Some(fail) = fail.as_mut() {
+                if source_file.is_none() {
+                    let redirect = self.get_project_reference_redirect(file_name);
+                    if let Some(redirect) = redirect {
+                        fail(
+                            &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
+                            Some(vec![redirect, file_name.to_owned()]),
+                        );
+                    } else {
+                        fail(
+                            &Diagnostics::File_0_not_found,
+                            Some(vec![file_name.to_owned()]),
+                        );
+                    }
+                } else if is_referenced_file(reason)
+                    && canonical_file_name
+                        == self.host().get_canonical_file_name(
+                            &self
+                                .get_source_file_by_path(&reason.unwrap().as_referenced_file().file)
+                                .unwrap()
+                                .as_source_file()
+                                .file_name(),
+                        )
+                {
+                    fail(&Diagnostics::A_file_cannot_have_a_reference_to_itself, None);
+                }
+            }
+            source_file
+        } else {
+            let source_file_no_extension = if self.options.allow_non_ts_extensions == Some(true) {
+                get_source_file(file_name)
+            } else {
+                None
+            };
+            if source_file_no_extension.is_some() {
+                return source_file_no_extension;
+            }
+
+            if let Some(fail) = fail.as_mut() {
+                if self.options.allow_non_ts_extensions == Some(true) {
+                    fail(
+                        &Diagnostics::File_0_not_found,
+                        Some(vec![file_name.to_owned()]),
+                    );
+                    return None;
+                }
+            }
+
+            let source_file_with_added_extension = for_each(
+                &self.supported_extensions()[0],
+                |extension: &Extension, _| {
+                    get_source_file(&format!("{}{}", file_name, extension.to_str()))
+                },
+            );
+            if let Some(fail) = fail.as_mut() {
+                if source_file_with_added_extension.is_none() {
+                    fail(
+                        &Diagnostics::Could_not_resolve_the_path_0_with_the_extensions_Colon_1,
+                        Some(vec![
+                            file_name.to_owned(),
+                            format!(
+                                "'{}'",
+                                flatten(&self.supported_extensions())
+                                    .iter()
+                                    .map(Extension::to_str)
+                                    .collect::<Vec<_>>()
+                                    .join("', '")
+                            ),
+                        ]),
+                    );
+                }
+            }
+            source_file_with_added_extension
+        }
     }
 
-    pub fn process_source_file(&self, file_name: &str) {
-        self.get_source_file_from_reference_worker(file_name, |file_name| {
-            self.find_source_file(file_name)
-        });
+    pub fn process_source_file(
+        &self,
+        file_name: &str,
+        is_default_lib: bool,
+        ignore_no_default_lib: bool,
+        package_id: Option<&PackageId>,
+        reason: &FileIncludeReason,
+    ) {
+        self.get_source_file_from_reference_worker(
+            file_name,
+            |file_name| self.find_source_file(file_name),
+            Some(
+                |diagnostic: &DiagnosticMessage, args: Option<Vec<String>>| {
+                    self.add_file_preprocessing_file_explaining_diagnostic(
+                        Option::<&Node>::None,
+                        reason,
+                        diagnostic,
+                        args,
+                    )
+                },
+            ),
+            Some(reason),
+        );
     }
 
     pub fn find_source_file(&self, file_name: &str) -> Option<Rc<Node>> {
@@ -1674,6 +1823,16 @@ impl Program {
         if let Some(from_cache) = from_cache {
             return from_cache;
         }
+        unimplemented!()
+    }
+
+    pub fn add_file_preprocessing_file_explaining_diagnostic<TFile: Borrow<Node>>(
+        &self,
+        file: Option<TFile>,
+        file_processing_reason: &FileIncludeReason,
+        diagnostic: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
         unimplemented!()
     }
 

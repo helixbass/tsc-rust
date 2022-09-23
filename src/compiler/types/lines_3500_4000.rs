@@ -955,6 +955,12 @@ pub enum FileIncludeReason {
     AutomaticTypeDirectiveFile(AutomaticTypeDirectiveFile),
 }
 
+impl FileIncludeReason {
+    pub fn as_referenced_file(&self) -> &ReferencedFile {
+        enum_unwrapped!(self, [FileIncludeReason, ReferencedFile])
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub enum FilePreprocessingDiagnosticsKind {
     FilePreprocessingReferencedDiagnostic,

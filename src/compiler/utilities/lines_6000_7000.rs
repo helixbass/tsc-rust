@@ -1635,6 +1635,10 @@ pub fn is_js_like(script_kind: Option<ScriptKind>) -> bool {
     matches!(script_kind, Some(ScriptKind::JS) | Some(ScriptKind::JSX))
 }
 
+pub fn has_js_file_extension(file_name: &str) -> bool {
+    unimplemented!()
+}
+
 pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
     unimplemented!()
 }
