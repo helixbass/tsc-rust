@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    CompilerOptions, MapLike, ModuleKind, ModuleResolutionHost, Path,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    combine_paths, for_each_ancestor_directory, get_base_file_name, get_directory_path,
+    normalize_path, read_json, CharacterCodes, CompilerOptions, MapLike, ModuleKind,
+    ModuleResolutionHost, Path, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
 };
 
@@ -12,6 +13,72 @@ pub struct PackageJsonPathFields {}
 pub struct VersionPaths {
     pub version: String,
     pub paths: MapLike<Vec<String>>,
+}
+
+pub fn get_effective_type_roots<
+    THostGetCurrentDirectory: FnMut() -> Option<String>,
+    THostDirectoryExists: FnMut(&str) -> Option<bool>,
+    THostIsDirectoryExistsSupported: FnMut() -> bool,
+>(
+    options: &CompilerOptions,
+    mut host_get_current_directory: THostGetCurrentDirectory,
+    host_directory_exists: THostDirectoryExists,
+    host_is_directory_exists_supported: THostIsDirectoryExistsSupported,
+) -> Option<Vec<String>> {
+    if options.type_roots.is_some() {
+        return options.type_roots.clone();
+    }
+
+    let mut current_directory: Option<String> = None;
+    if let Some(options_config_file_path) = options.config_file_path.as_ref() {
+        current_directory = Some(get_directory_path(options_config_file_path));
+    } else
+    /*if host.getCurrentDirectory*/
+    {
+        current_directory = host_get_current_directory();
+    }
+
+    if let Some(current_directory) = current_directory.as_ref() {
+        return get_default_type_roots(
+            current_directory,
+            host_directory_exists,
+            host_is_directory_exists_supported,
+        );
+    }
+    None
+}
+
+fn get_default_type_roots<
+    THostIsDirectoryExistsSupported: FnMut() -> bool,
+    THostDirectoryExists: FnMut(&str) -> Option<bool>,
+>(
+    current_directory: &str,
+    mut host_directory_exists: THostDirectoryExists,
+    mut host_is_directory_exists_supported: THostIsDirectoryExistsSupported,
+) -> Option<Vec<String>> {
+    if !host_is_directory_exists_supported() {
+        return Some(vec![combine_paths(
+            current_directory,
+            &[Some(&node_modules_at_types)],
+        )]);
+    }
+
+    let mut type_roots: Option<Vec<String>> = None;
+    for_each_ancestor_directory(
+        &normalize_path(current_directory).into(),
+        |directory| -> Option<()> {
+            let at_types = combine_paths(directory, &[Some(&node_modules_at_types)]);
+            if host_directory_exists(&at_types).unwrap() {
+                type_roots.get_or_insert_with(|| vec![]).push(at_types);
+            }
+            None
+        },
+    );
+    type_roots
+}
+
+lazy_static! {
+    static ref node_modules_at_types: String = combine_paths("node_modules", &[Some("@types")]);
 }
 
 pub fn resolve_type_reference_directive(
@@ -29,7 +96,45 @@ pub fn get_automatic_type_directive_names(
     options: &CompilerOptions,
     host: &dyn ModuleResolutionHost,
 ) -> Vec<String> {
-    unimplemented!()
+    if let Some(options_types) = options.types.clone() {
+        return options_types;
+    }
+
+    let mut result: Vec<String> = vec![];
+    if host.is_directory_exists_supported() && host.is_get_directories_supported() {
+        let type_roots = get_effective_type_roots(
+            options,
+            || host.get_current_directory(),
+            |directory_name| host.directory_exists(directory_name),
+            || host.is_directory_exists_supported(),
+        );
+        if let Some(type_roots) = type_roots.as_ref() {
+            for root in type_roots {
+                if host.directory_exists(root).unwrap() {
+                    for type_directive_path in &host.get_directories(root).unwrap() {
+                        let normalized = normalize_path(type_directive_path);
+                        let package_json_path =
+                            combine_paths(root, &[Some(&normalized), Some("package.json")]);
+                        let is_not_needed_package = host.file_exists(&package_json_path)
+                            && matches!(
+                                read_json(&package_json_path, |file_name| host
+                                    .read_file(file_name))
+                                .get("typings"),
+                                Some(&serde_json::Value::Null),
+                            );
+                        if !is_not_needed_package {
+                            let base_file_name = get_base_file_name(&normalized, None, None);
+
+                            if base_file_name.chars().next() != Some(CharacterCodes::dot) {
+                                result.push(base_file_name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    result
 }
 
 pub struct TypeReferenceDirectiveResolutionCache {}

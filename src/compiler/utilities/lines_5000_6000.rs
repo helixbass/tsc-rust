@@ -4,6 +4,7 @@ use regex::{Captures, Regex};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
+use std::io;
 use std::ptr;
 use std::rc::Rc;
 
@@ -179,6 +180,13 @@ pub fn try_extract_ts_extension(file_name: &str) -> Option<Extension> {
         |extension, _| file_extension_is(file_name, extension.to_str()),
     )
     .copied()
+}
+
+pub fn read_json<THostReadFile: FnMut(&str) -> io::Result<String>>(
+    path: &str,
+    host_read_file: THostReadFile,
+) -> serde_json::Value {
+    unimplemented!()
 }
 
 const carriage_return_line_feed: &str = "\r\n";

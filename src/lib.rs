@@ -461,7 +461,7 @@ pub use compiler::utilities::{
     node_is_decorated, node_is_missing, node_is_present, node_is_synthesized,
     node_starts_new_lexical_environment, object_allocator, options_have_changes, out_file,
     package_id_to_string, parameter_is_this_keyword, parse_pseudo_big_int, position_is_synthesized,
-    pseudo_big_int_to_string, range_of_node, range_of_type_parameters, remove_extension,
+    pseudo_big_int_to_string, range_of_node, range_of_type_parameters, read_json, remove_extension,
     remove_file_extension, resolution_extension_is_ts_or_json, resolving_empty_array,
     set_node_flags, set_parent, set_parent_recursive, set_text_range_pos, set_text_range_pos_end,
     set_text_range_pos_width, set_value_declaration, should_preserve_const_enums, skip_parentheses,
