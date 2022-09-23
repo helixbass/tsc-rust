@@ -637,8 +637,8 @@ impl ParserType {
         if self.token() == SyntaxKind::StringLiteral {
             let result = self.parse_literal_node();
             let result_as_literal_like_node = result.as_literal_like_node();
-            result_as_literal_like_node
-                .set_text(self.intern_identifier(&result_as_literal_like_node.text()));
+            let text = self.intern_identifier(&result_as_literal_like_node.text());
+            result_as_literal_like_node.set_text(text);
             result.wrap()
         } else {
             self.parse_expression()
