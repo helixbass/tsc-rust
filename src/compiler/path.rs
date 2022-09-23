@@ -260,15 +260,19 @@ fn try_get_extension_from_path<TStringEqualityComparer: FnOnce(&str, &str) -> bo
     None
 }
 
-fn get_any_extension_from_path_worker<TStringEqualityComparer: Fn(&str, &str) -> bool + Copy>(
+fn get_any_extension_from_path_worker<
+    TExtension: AsRef<str>,
+    TStringEqualityComparer: Fn(&str, &str) -> bool + Copy,
+>(
     path: &str,
-    extensions: &[&str],
+    extensions: &[TExtension],
     string_equality_comparer: TStringEqualityComparer,
 ) -> String {
     // if (typeof extensions === "string") {
     // }
     for extension in extensions {
-        let result = try_get_extension_from_path(path, extension, string_equality_comparer);
+        let result =
+            try_get_extension_from_path(path, extension.as_ref(), string_equality_comparer);
         if let Some(result) = result {
             return result;
         }
@@ -276,9 +280,9 @@ fn get_any_extension_from_path_worker<TStringEqualityComparer: Fn(&str, &str) ->
     "".to_string()
 }
 
-pub fn get_any_extension_from_path(
+pub fn get_any_extension_from_path<TExtension: AsRef<str>>(
     path: &str,
-    extensions: Option<&[&str]>,
+    extensions: Option<&[TExtension]>,
     ignore_case: Option<bool>,
 ) -> String {
     let ignore_case = ignore_case.unwrap_or(false);
@@ -538,17 +542,17 @@ pub fn ensure_path_is_non_module_name(path: &str) -> String {
     }
 }
 
-pub fn change_any_extension(
+pub fn change_any_extension<TExtension: AsRef<str>>(
     path: &str,
     ext: &str,
-    extensions: Option<&[&str]>,
+    extensions: Option<&[TExtension]>,
     ignore_case: Option<bool>,
 ) -> String {
     let pathext = match (extensions, ignore_case) {
         (Some(extensions), Some(ignore_case)) => {
             get_any_extension_from_path(path, Some(extensions), Some(ignore_case))
         }
-        _ => get_any_extension_from_path(path, None, None),
+        _ => get_any_extension_from_path(path, Option::<&[&str]>::None, None),
     };
     if !pathext.is_empty() {
         format!(

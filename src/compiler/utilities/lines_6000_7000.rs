@@ -11,15 +11,15 @@ use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, compare_strings_case_sensitive, compare_strings_case_sensitive_maybe,
-    compare_values, comparison_to_ordering, contains_ignored_path, contains_path,
-    create_get_canonical_file_name, create_multi_map, directory_separator,
-    ensure_trailing_directory_separator, every, file_extension_is_one_of, find_index, flat_map,
-    flatten, for_each, format_string_from_args, get_directory_path, get_locale_specific_message,
-    get_normalized_path_components, get_string_comparer, has_extension, index_of,
-    index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map, normalize_path,
-    remove_trailing_directory_separator, sort, to_path, BaseTextRange, CharacterCodes,
-    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    change_any_extension, combine_paths, compare_strings_case_sensitive,
+    compare_strings_case_sensitive_maybe, compare_values, comparison_to_ordering,
+    contains_ignored_path, contains_path, create_get_canonical_file_name, create_multi_map,
+    directory_separator, ensure_trailing_directory_separator, every, file_extension_is_one_of,
+    find_index, flat_map, flatten, for_each, format_string_from_args, get_directory_path,
+    get_locale_specific_message, get_normalized_path_components, get_string_comparer,
+    has_extension, index_of, index_of_any_char_code, is_rooted_disk_path, last, map_defined,
+    maybe_map, normalize_path, remove_trailing_directory_separator, sort, to_path, BaseTextRange,
+    CharacterCodes, CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
@@ -1642,6 +1642,22 @@ pub fn has_js_file_extension(file_name: &str) -> bool {
     unimplemented!()
 }
 
+lazy_static! {
+    static ref extensions_to_remove: Vec<Extension> = vec![
+        Extension::Dts,
+        Extension::Dmts,
+        Extension::Dcts,
+        Extension::Mjs,
+        Extension::Mts,
+        Extension::Cjs,
+        Extension::Cts,
+        Extension::Ts,
+        Extension::Js,
+        Extension::Tsx,
+        Extension::Jsx,
+        Extension::Json,
+    ];
+}
 pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
     unimplemented!()
 }
@@ -1651,7 +1667,12 @@ pub fn remove_extension<'path>(path: &'path str, extension: &str) -> &'path str 
 }
 
 pub fn change_extension(path: &str, new_extension: &str) -> String {
-    unimplemented!()
+    change_any_extension(
+        path,
+        new_extension,
+        Some(&extensions_to_remove),
+        Some(false),
+    )
 }
 
 #[derive(Debug)]
