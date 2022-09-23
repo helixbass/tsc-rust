@@ -25,6 +25,7 @@ pub trait ModuleResolutionHost {
     );
     fn read_file(&self, file_name: &str) -> io::Result<String>;
     fn trace(&self, s: &str) {}
+    fn is_trace_supported(&self) -> bool;
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
         None
     }
@@ -123,6 +124,10 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn trace(&self, s: &str) {
         ParseConfigHost::trace(self, s)
+    }
+
+    fn is_trace_supported(&self) -> bool {
+        ParseConfigHost::is_trace_supported(self)
     }
 
     fn use_case_sensitive_file_names(&self) -> Option<bool> {

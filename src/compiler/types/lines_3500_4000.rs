@@ -858,6 +858,7 @@ pub trait ParseConfigHost {
 
     fn read_file(&self, path: &str) -> io::Result<String>;
     fn trace(&self, s: &str) {}
+    fn is_trace_supported(&self) -> bool;
 }
 
 pub struct ResolvedConfigFileName(String);

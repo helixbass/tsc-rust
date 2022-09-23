@@ -296,6 +296,10 @@ impl ModuleResolutionHost for CompilerHostConcrete {
         self.system.write(&format!("{}{}", s, self.new_line));
     }
 
+    fn is_trace_supported(&self) -> bool {
+        true
+    }
+
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
         if let Some(directory_exists_override) = self.maybe_directory_exists_override() {
             directory_exists_override.directory_exists(directory_name)
@@ -2609,6 +2613,7 @@ pub trait CompilerHostLike {
         None
     }
     fn trace(&self, s: &str) {}
+    fn is_trace_supported(&self) -> bool;
     fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {}
 
     // These exist to allow "forwarding" CompilerHost -> CompilerHostLike -> DirectoryStructureHost
@@ -2661,6 +2666,10 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
 
     fn trace(&self, s: &str) {
         self.host.trace(s)
+    }
+
+    fn is_trace_supported(&self) -> bool {
+        self.host.is_trace_supported()
     }
 
     // fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {}
@@ -2807,6 +2816,10 @@ impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
 
     fn trace(&self, s: &str) {
         self.host.trace(s)
+    }
+
+    fn is_trace_supported(&self) -> bool {
+        self.host.is_trace_supported()
     }
 }
 

@@ -296,6 +296,10 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
     fn read_file(&self, path: &str) -> io::Result<String> {
         self.system.read_file(path)
     }
+
+    fn is_trace_supported(&self) -> bool {
+        false
+    }
 }
 
 impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {

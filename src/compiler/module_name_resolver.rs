@@ -8,6 +8,13 @@ use crate::{
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
 };
 
+pub(crate) fn is_trace_enabled(
+    compiler_options: &CompilerOptions,
+    host: &dyn ModuleResolutionHost,
+) -> bool {
+    compiler_options.trace_resolution == Some(true) && host.is_trace_supported()
+}
+
 pub struct PackageJsonPathFields {}
 
 pub struct VersionPaths {
@@ -89,6 +96,7 @@ pub fn resolve_type_reference_directive(
     redirected_reference: Option<&ResolvedProjectReference>,
     cache: Option<&TypeReferenceDirectiveResolutionCache>,
 ) -> ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
+    let trace_enabled = is_trace_enabled(options, host);
     unimplemented!()
 }
 
