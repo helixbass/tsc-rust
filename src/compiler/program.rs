@@ -22,7 +22,7 @@ use crate::{
     get_property_assignment, get_strict_option_value, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module, get_sys, has_extension,
     has_js_file_extension, is_declaration_file_name, is_rooted_disk_path, is_watch_set,
-    missing_file_modified_time, normalize_path, options_have_changes, out_file,
+    maybe_for_each, missing_file_modified_time, normalize_path, options_have_changes, out_file,
     remove_file_extension, resolve_config_file_project_name, resolve_module_name,
     resolve_type_reference_directive, source_file_affecting_compiler_options,
     supported_js_extensions_flat, to_path as to_path_helper, write_file_ensuring_directories,
@@ -30,7 +30,7 @@ use crate::{
     CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers,
     Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
-    Extension, FileIncludeKind, FileIncludeReason, LineAndCharacter, ModuleKind,
+    Extension, FileIncludeKind, FileIncludeReason, LibFile, LineAndCharacter, ModuleKind,
     ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
     ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, PackageId,
     ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
@@ -1180,6 +1180,37 @@ impl Program {
                 // tracing?.pop();
             }
 
+            if !root_names.is_empty() && self.maybe_skip_default_lib() != Some(true) {
+                let default_library_file_name = self.get_default_library_file_name();
+                if self.options.lib.is_none() && *default_library_file_name != "" {
+                    self.process_root_file(
+                        &default_library_file_name,
+                        true,
+                        false,
+                        &FileIncludeReason::LibFile(LibFile {
+                            kind: FileIncludeKind::LibFile,
+                            index: None,
+                        }),
+                    );
+                } else {
+                    maybe_for_each(
+                        self.options.lib.as_ref(),
+                        |lib_file_name: &String, index| -> Option<()> {
+                            self.process_root_file(
+                                &self.path_for_lib_file(lib_file_name),
+                                true,
+                                false,
+                                &FileIncludeReason::LibFile(LibFile {
+                                    kind: FileIncludeKind::LibFile,
+                                    index: Some(index),
+                                }),
+                            );
+                            None
+                        },
+                    );
+                }
+            }
+
             *self.files.borrow_mut() = Some(self.processing_other_files.borrow().clone().unwrap());
             println!("files: {:#?}", &*self.files());
             *self.processing_other_files.borrow_mut() = None;
@@ -1217,6 +1248,10 @@ impl Program {
                 default_library_file_name_memoized.as_ref().unwrap()
             },
         )
+    }
+
+    pub(super) fn maybe_skip_default_lib(&self) -> Option<bool> {
+        self.skip_default_lib.get()
     }
 
     pub(super) fn default_library_path(&self) -> Ref<String> {
@@ -1861,6 +1896,10 @@ impl Program {
         resolved_type_reference_directive: Option<&ResolvedTypeReferenceDirective>,
         reason: &FileIncludeReason,
     ) {
+        unimplemented!()
+    }
+
+    pub fn path_for_lib_file(&self, lib_file_name: &str) -> String {
         unimplemented!()
     }
 

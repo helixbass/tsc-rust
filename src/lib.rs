@@ -298,7 +298,7 @@ pub use compiler::types::{
     JsxClosingElement, JsxClosingFragment, JsxElement, JsxEmit, JsxExpression, JsxFlags,
     JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxOpeningLikeElementInterface,
     JsxSelfClosingElement, JsxSpreadAttribute, JsxText, KeywordTypeNode, LabeledStatement,
-    LanguageVariant, LexicalEnvironmentFlags, LineAndCharacter, ListFormat,
+    LanguageVariant, LexicalEnvironmentFlags, LibFile, LineAndCharacter, ListFormat,
     LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, LiteralTypeNode, MappedSymbol,
     MappedType, MappedTypeNode, MetaProperty, MethodDeclaration, MethodSignature,
     MissingDeclaration, ModifierFlags, ModifiersArray, ModuleBlock, ModuleDeclaration, ModuleKind,
