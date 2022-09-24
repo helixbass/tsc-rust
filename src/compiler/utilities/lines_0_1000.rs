@@ -414,7 +414,6 @@ pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
         {
             return source_file_resolved_modules
                 .get(module_name_text, mode)
-                .cloned()
                 .flatten();
         }
     }
@@ -423,7 +422,7 @@ pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
 
 pub fn set_resolved_module(
     source_file: &Node, /*SourceFile*/
-    module_name_text: String,
+    module_name_text: &str,
     resolved_module: Rc<ResolvedModuleFull>,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) {
@@ -441,7 +440,7 @@ pub fn set_resolved_module(
 
 pub fn set_resolved_type_reference_directive(
     source_file: &Node, /*SourceFile*/
-    type_reference_directive_name: String,
+    type_reference_directive_name: &str,
     resolved_type_reference_directive /*?*/: Rc<ResolvedTypeReferenceDirective>,
 ) {
     let mut source_file_resolved_type_reference_directive_names = source_file
@@ -515,7 +514,7 @@ pub fn type_directive_is_equal_to(
 }
 
 pub fn has_changes_in_resolutions<
-    TValue,
+    TValue: Clone,
     TName: AsRef<str>,
     TOldSourceFile: Borrow<Node>,
     TComparer: FnMut(&TValue, &TValue) -> bool,
@@ -540,7 +539,7 @@ pub fn has_changes_in_resolutions<
                 }),
             )
         });
-        let changed = match old_resolution {
+        let changed = match old_resolution.as_ref() {
             Some(old_resolution) =>
             /* !newResolution ||*/
             {

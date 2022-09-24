@@ -146,11 +146,9 @@ pub fn resolve_type_reference_directive(
         } else {
             None
         };
-    let mut result = per_folder_cache.as_ref().and_then(|per_folder_cache| {
-        per_folder_cache
-            .get(type_reference_directive_name, None)
-            .cloned()
-    });
+    let mut result = per_folder_cache
+        .as_ref()
+        .and_then(|per_folder_cache| per_folder_cache.get(type_reference_directive_name, None));
     if let Some(result) = result.as_ref() {
         if trace_enabled {
             trace(
@@ -303,11 +301,7 @@ pub fn resolve_type_reference_directive(
     ));
     let result = result.unwrap();
     if let Some(per_folder_cache) = per_folder_cache.as_ref() {
-        per_folder_cache.set(
-            type_reference_directive_name.to_owned(),
-            None,
-            result.clone(),
-        );
+        per_folder_cache.set(type_reference_directive_name, None, result.clone());
     }
     if trace_enabled {
         trace_result(&result);
@@ -380,21 +374,8 @@ pub struct TypeReferenceDirectiveResolutionCache {
 
 #[derive(Debug)]
 pub struct ModeAwareCache<TValue> {
-    underlying: HashMap<String, TValue>,
-}
-
-impl<TValue> ModeAwareCache<TValue> {
-    pub fn get(&self, key: &str, mode: Option<ModuleKind>) -> Option<&TValue> {
-        unimplemented!()
-    }
-
-    pub fn set(&self, key: String, mode: Option<ModuleKind>, value: TValue) {
-        unimplemented!()
-    }
-
-    pub fn for_each<TCallback: FnMut(&TValue, &str, Option<ModuleKind>)>(&self, cb: TCallback) {
-        unimplemented!()
-    }
+    underlying: RefCell<HashMap<String, TValue>>,
+    memoized_reverse_keys: RefCell<HashMap<String, (String, Option<ModuleKind>)>>,
 }
 
 pub trait PerDirectoryResolutionCache<TValue> {
@@ -567,7 +548,9 @@ pub struct PerDirectoryResolutionCacheConcrete<TValue> {
     pub directory_to_module_name_map: Rc<CacheWithRedirects<ModeAwareCache<TValue>>>,
 }
 
-impl<TValue> PerDirectoryResolutionCache<TValue> for PerDirectoryResolutionCacheConcrete<TValue> {
+impl<TValue: Clone> PerDirectoryResolutionCache<TValue>
+    for PerDirectoryResolutionCacheConcrete<TValue>
+{
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
@@ -593,8 +576,68 @@ impl<TValue> PerDirectoryResolutionCache<TValue> for PerDirectoryResolutionCache
     }
 }
 
-pub(crate) fn create_mode_aware_cache<TValue>() -> ModeAwareCache<TValue> {
-    unimplemented!()
+pub(crate) fn create_mode_aware_cache<TValue: Clone>() -> ModeAwareCache<TValue> {
+    ModeAwareCache::new()
+}
+
+impl<TValue: Clone> ModeAwareCache<TValue> {
+    pub fn new() -> Self {
+        Self {
+            underlying: RefCell::new(HashMap::new()),
+            memoized_reverse_keys: RefCell::new(HashMap::new()),
+        }
+    }
+
+    pub fn get(&self, specifier: &str, mode: Option<ModuleKind>) -> Option<TValue> {
+        self.underlying
+            .borrow()
+            .get(&self.get_underlying_cache_key(specifier, mode))
+            .cloned()
+    }
+
+    pub fn set(&self, specifier: &str, mode: Option<ModuleKind>, value: TValue) -> &Self {
+        self.underlying
+            .borrow_mut()
+            .insert(self.get_underlying_cache_key(specifier, mode), value);
+        self
+    }
+
+    pub fn delete(&self, specifier: &str, mode: Option<ModuleKind>) -> &Self {
+        self.underlying
+            .borrow_mut()
+            .remove(&self.get_underlying_cache_key(specifier, mode));
+        self
+    }
+
+    pub fn has(&self, specifier: &str, mode: Option<ModuleKind>) -> bool {
+        self.underlying
+            .borrow()
+            .contains_key(&self.get_underlying_cache_key(specifier, mode))
+    }
+
+    pub fn for_each<TCallback: FnMut(&TValue, &str, Option<ModuleKind>)>(&self, mut cb: TCallback) {
+        for (key, elem) in &*self.underlying.borrow() {
+            let memoized_reverse_keys = self.memoized_reverse_keys.borrow();
+            let memoized_reverse_key = memoized_reverse_keys.get(key).unwrap();
+            let (specifier, mode) = memoized_reverse_key;
+            cb(elem, specifier, mode.clone())
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        self.underlying.borrow().len()
+    }
+
+    fn get_underlying_cache_key(&self, specifier: &str, mode: Option<ModuleKind>) -> String {
+        let result = match mode {
+            None => specifier.to_owned(),
+            Some(mode) => format!("{:?}|{}", mode, specifier),
+        };
+        self.memoized_reverse_keys
+            .borrow_mut()
+            .insert(result.clone(), (specifier.to_owned(), mode));
+        result
+    }
 }
 
 pub fn create_module_resolution_cache(
