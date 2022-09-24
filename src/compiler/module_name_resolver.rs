@@ -165,12 +165,47 @@ fn read_package_json_field<'json_content>(
     Some(value)
 }
 
+fn read_package_json_path_field(
+    json_content: &PackageJson,
+    field_name: &str, /*"typings" | "types" | "main" | "tsconfig"*/
+    base_directory: &str,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<String> {
+    let file_name =
+        read_package_json_field(json_content, field_name, StringOrObject::String, state)?;
+    let file_name = file_name.as_str().unwrap();
+    if file_name.is_empty() {
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::package_json_had_a_falsy_0_field,
+                Some(vec![field_name.to_owned()]),
+            );
+        }
+        return None;
+    }
+    let path = normalize_path(&combine_paths(base_directory, &[Some(file_name)]));
+    if state.trace_enabled {
+        trace(
+            state.host,
+            &Diagnostics::package_json_has_0_field_1_that_references_2,
+            Some(vec![
+                field_name.to_owned(),
+                file_name.to_owned(),
+                path.clone(),
+            ]),
+        );
+    }
+    Some(path)
+}
+
 fn read_package_json_types_field(
     json_content: &PackageJson,
     base_directory: &str,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
 ) -> Option<String> {
-    unimplemented!()
+    read_package_json_path_field(json_content, "typings", base_directory, state)
+        .or_else(|| read_package_json_path_field(json_content, "types", base_directory, state))
 }
 
 fn read_package_json_tsconfig_field(
@@ -178,7 +213,7 @@ fn read_package_json_tsconfig_field(
     base_directory: &str,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
 ) -> Option<String> {
-    unimplemented!()
+    read_package_json_path_field(json_content, "tsconfig", base_directory, state)
 }
 
 fn read_package_json_main_field(
@@ -186,7 +221,7 @@ fn read_package_json_main_field(
     base_directory: &str,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
 ) -> Option<String> {
-    unimplemented!()
+    read_package_json_path_field(json_content, "main", base_directory, state)
 }
 
 fn read_package_json_types_versions_field<'json_content>(
