@@ -28,11 +28,23 @@ pub(crate) fn is_trace_enabled(
     compiler_options.trace_resolution == Some(true) && host.is_trace_supported()
 }
 
+fn with_package_id(
+    package_info: Option<&PackageJsonInfo>,
+    r: Option<&PathAndExtension>,
+) -> Option<Resolved> {
+    unimplemented!()
+}
+
 struct Resolved {
     pub path: String,
     pub extension: Extension,
     pub package_id: Option<PackageId>,
     pub original_path: Option<StringOrBool>,
+}
+
+struct PathAndExtension {
+    pub path: String,
+    pub ext: Extension,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -906,13 +918,54 @@ fn load_node_module_from_directory(
     consider_package_json: Option<bool>,
 ) -> Option<Resolved> {
     let consider_package_json = consider_package_json.unwrap_or(true);
-    unimplemented!()
+    let package_info = if consider_package_json {
+        get_package_json_info(candidate, only_record_failures, state)
+    } else {
+        None
+    };
+    let package_json_content = package_info
+        .as_ref()
+        .map(|package_info| package_info.package_json_content.clone());
+    let version_paths = package_info
+        .as_ref()
+        .and_then(|package_info| package_info.version_paths.clone());
+    with_package_id(
+        package_info.as_deref(),
+        load_node_module_from_directory_worker(
+            extensions,
+            candidate,
+            only_record_failures,
+            state,
+            package_json_content.as_deref(),
+            version_paths.as_deref(),
+        )
+        .as_ref(),
+    )
 }
 
 pub struct PackageJsonInfo {
     pub package_directory: String,
-    pub package_json_content: PackageJsonPathFields,
-    pub version_paths: Option<VersionPaths>,
+    pub package_json_content: Rc<PackageJsonPathFields>,
+    pub version_paths: Option<Rc<VersionPaths>>,
+}
+
+pub(crate) fn get_package_json_info(
+    package_directory: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<Rc<PackageJsonInfo>> {
+    unimplemented!()
+}
+
+fn load_node_module_from_directory_worker(
+    extensions: Extensions,
+    candidate: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    json_content: Option<&PackageJsonPathFields>,
+    version_paths: Option<&VersionPaths>,
+) -> Option<PathAndExtension> {
+    unimplemented!()
 }
 
 pub enum PackageJsonInfoOrBool {
