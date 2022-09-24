@@ -1,10 +1,11 @@
 use bitflags::bitflags;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
     combine_paths, for_each_ancestor_directory, format_message, get_base_file_name,
-    get_directory_path, normalize_path, read_json, CharacterCodes, CompilerOptions,
+    get_directory_path, normalize_path, read_json, to_path, CharacterCodes, CompilerOptions,
     DiagnosticMessage, Diagnostics, MapLike, ModuleKind, ModuleResolutionHost, PackageId, Path,
     ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
@@ -370,7 +371,11 @@ pub fn get_automatic_type_directive_names(
     result
 }
 
-pub struct TypeReferenceDirectiveResolutionCache {}
+pub struct TypeReferenceDirectiveResolutionCache {
+    pub pre_directory_resolution_cache: PerDirectoryResolutionCacheConcrete<
+        Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
+    >,
+}
 
 #[derive(Debug)]
 pub struct ModeAwareCache<TValue> {
@@ -423,8 +428,27 @@ pub trait PackageJsonInfoCache {
 
 pub struct PerModuleNameCache {}
 
-pub struct CacheWithRedirects<TValue> {
-    own_map: HashMap<String, TValue>,
+pub struct CacheWithRedirects<TCache> {
+    own_map: HashMap<String, Rc<TCache>>,
+}
+
+impl<TCache> CacheWithRedirects<TCache> {
+    pub fn get_or_create_map_of_cache_redirects(
+        &self,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    ) -> Rc<RefCell<HashMap<String, Rc<TCache>>>> {
+        unimplemented!()
+    }
+
+    pub fn clear(&self) {
+        unimplemented!()
+    }
+}
+
+pub(crate) fn create_cache_with_redirects<TCache>(
+    options: Option<Rc<CompilerOptions>>,
+) -> CacheWithRedirects<TCache> {
+    unimplemented!()
 }
 
 pub fn create_package_json_info_cache(
@@ -450,6 +474,67 @@ impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
     }
 
     fn clear(&self) {
+        unimplemented!()
+    }
+}
+
+fn get_or_create_cache<TCache, TCreate: FnMut() -> TCache>(
+    cache_with_redirects: &CacheWithRedirects<TCache>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    key: &str,
+    mut create: TCreate,
+) -> Rc<TCache> {
+    let cache = cache_with_redirects.get_or_create_map_of_cache_redirects(redirected_reference);
+    let mut result: Option<Rc<TCache>> = (*cache).borrow().get(key).cloned();
+    if result.is_none() {
+        result = Some(Rc::new(create()));
+        cache
+            .borrow_mut()
+            .insert(key.to_owned(), result.clone().unwrap());
+    }
+    result.unwrap()
+}
+
+fn create_per_directory_resolution_cache<TValue>(
+    current_directory: &str,
+    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    directory_to_module_name_map: Rc<CacheWithRedirects<ModeAwareCache<TValue>>>,
+) -> PerDirectoryResolutionCacheConcrete<TValue> {
+    PerDirectoryResolutionCacheConcrete {
+        current_directory: current_directory.to_owned(),
+        get_canonical_file_name,
+        directory_to_module_name_map,
+    }
+}
+
+pub struct PerDirectoryResolutionCacheConcrete<TValue> {
+    pub current_directory: String,
+    pub get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    pub directory_to_module_name_map: Rc<CacheWithRedirects<ModeAwareCache<TValue>>>,
+}
+
+impl<TValue> PerDirectoryResolutionCache<TValue> for PerDirectoryResolutionCacheConcrete<TValue> {
+    fn get_or_create_cache_for_directory(
+        &self,
+        directory_name: &str,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    ) -> Rc<ModeAwareCache<TValue>> {
+        let path = to_path(directory_name, Some(&self.current_directory), |path| {
+            (self.get_canonical_file_name)(path)
+        });
+        get_or_create_cache(
+            &self.directory_to_module_name_map,
+            redirected_reference,
+            &path,
+            || create_mode_aware_cache(),
+        )
+    }
+
+    fn clear(&self) {
+        self.directory_to_module_name_map.clear();
+    }
+
+    fn update(&self, options: &CompilerOptions) {
         unimplemented!()
     }
 }
@@ -539,12 +624,21 @@ pub fn create_type_reference_directive_resolution_cache(
     directory_to_module_name_map: Option<
         Rc<
             CacheWithRedirects<
-                ModeAwareCache<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
+                ModeAwareCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
             >,
         >,
     >,
 ) -> TypeReferenceDirectiveResolutionCache {
-    TypeReferenceDirectiveResolutionCache {}
+    let pre_directory_resolution_cache = create_per_directory_resolution_cache(
+        current_directory,
+        get_canonical_file_name.clone(),
+        directory_to_module_name_map
+            .unwrap_or_else(|| Rc::new(create_cache_with_redirects(options))),
+    );
+
+    TypeReferenceDirectiveResolutionCache {
+        pre_directory_resolution_cache,
+    }
 }
 
 impl PerDirectoryResolutionCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>
@@ -555,7 +649,8 @@ impl PerDirectoryResolutionCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLook
         directory_name: &str,
         redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Rc<ModeAwareCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
-        unimplemented!()
+        self.pre_directory_resolution_cache
+            .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }
 
     fn clear(&self) {
