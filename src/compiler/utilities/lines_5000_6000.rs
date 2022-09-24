@@ -198,6 +198,17 @@ pub fn read_json<THostReadFile: FnMut(&str) -> io::Result<String>>(
     result.config.unwrap()
 }
 
+pub fn directory_probably_exists<
+    THostDirectoryExists: FnMut(&str) -> Option<bool>,
+    THostIsDirectoryExistsSupported: FnMut() -> bool,
+>(
+    directory_name: &str,
+    mut host_directory_exists: THostDirectoryExists,
+    mut host_is_directory_exists_supported: THostIsDirectoryExistsSupported,
+) -> bool {
+    !host_is_directory_exists_supported() || host_directory_exists(directory_name).unwrap()
+}
+
 const carriage_return_line_feed: &str = "\r\n";
 const line_feed: &str = "\n";
 pub fn get_new_line_character<TGetNewLine: Fn() -> String>(

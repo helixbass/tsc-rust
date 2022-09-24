@@ -4,12 +4,13 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, for_each_ancestor_directory, format_message, get_base_file_name,
-    get_directory_path, normalize_path, options_have_module_resolution_changes, read_json, to_path,
-    CharacterCodes, CompilerOptions, DiagnosticMessage, Diagnostics, MapLike, ModuleKind,
-    ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    combine_paths, directory_probably_exists, first_defined, for_each_ancestor_directory,
+    format_message, get_base_file_name, get_directory_path, normalize_path,
+    options_have_module_resolution_changes, read_json, to_path, CharacterCodes, CompilerOptions,
+    DiagnosticMessage, Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost,
+    PackageId, Path, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    StringOrBool,
 };
 
 pub(crate) fn trace(
@@ -27,9 +28,29 @@ pub(crate) fn is_trace_enabled(
     compiler_options.trace_resolution == Some(true) && host.is_trace_supported()
 }
 
+struct Resolved {
+    pub path: String,
+    pub extension: Extension,
+    pub package_id: Option<PackageId>,
+    pub original_path: Option<StringOrBool>,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum Extensions {
+    TypeScript,
+    JavaScript,
+    Json,
+    TSConfig,
+    DtsOnly,
+}
+
 struct PathAndPackageId {
     pub file_name: String,
     pub package_id: Option<PackageId>,
+}
+
+fn resolved_type_script_only(resolved: Option<&Resolved>) -> Option<PathAndPackageId> {
+    unimplemented!()
 }
 
 pub(crate) struct ModuleResolutionState<'host, TPackageJsonInfoCache: PackageJsonInfoCache> {
@@ -263,7 +284,13 @@ pub fn resolve_type_reference_directive(
         conditions: vec!["node".to_owned(), "require".to_owned(), "types".to_owned()],
         result_from_cache: None,
     };
-    let mut resolved = primary_lookup();
+    let mut resolved = primary_lookup(
+        type_roots.as_deref(),
+        trace_enabled,
+        host,
+        type_reference_directive_name,
+        &module_resolution_state,
+    );
     let mut primary = true;
     if resolved.is_none() {
         resolved = secondary_lookup();
@@ -309,8 +336,57 @@ pub fn resolve_type_reference_directive(
     result
 }
 
-fn primary_lookup() -> Option<PathAndPackageId> {
-    unimplemented!()
+fn primary_lookup(
+    type_roots: Option<&[String]>,
+    trace_enabled: bool,
+    host: &dyn ModuleResolutionHost,
+    type_reference_directive_name: &str,
+    module_resolution_state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<PathAndPackageId> {
+    if let Some(type_roots) = type_roots.filter(|type_roots| !type_roots.is_empty()) {
+        if trace_enabled {
+            trace(
+                host,
+                &Diagnostics::Resolving_with_primary_search_path_0,
+                Some(vec![type_roots.join(", ")]),
+            );
+        }
+        first_defined(type_roots, |type_root: &String, _| {
+            let candidate = combine_paths(type_root, &[Some(type_reference_directive_name)]);
+            let candidate_directory = get_directory_path(&candidate);
+            let directory_exists = directory_probably_exists(
+                &candidate_directory,
+                |directory_name| host.directory_exists(directory_name),
+                || host.is_directory_exists_supported(),
+            );
+            if !directory_exists && trace_enabled {
+                trace(
+                    host,
+                    &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    Some(vec![candidate_directory]),
+                );
+            }
+            resolved_type_script_only(
+                load_node_module_from_directory(
+                    Extensions::DtsOnly,
+                    &candidate,
+                    !directory_exists,
+                    module_resolution_state,
+                    None,
+                )
+                .as_ref(),
+            )
+        })
+    } else {
+        if trace_enabled {
+            trace(
+                host,
+                &Diagnostics::Root_directory_cannot_be_determined_skipping_primary_search_paths,
+                None,
+            );
+        }
+        None
+    }
 }
 
 fn secondary_lookup() -> Option<PathAndPackageId> {
@@ -819,6 +895,17 @@ fn real_path(path: &str, host: &dyn ModuleResolutionHost, trace_enabled: bool) -
 }
 
 fn path_contains_node_modules(path: &str) -> bool {
+    unimplemented!()
+}
+
+fn load_node_module_from_directory(
+    extensions: Extensions,
+    candidate: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    consider_package_json: Option<bool>,
+) -> Option<Resolved> {
+    let consider_package_json = consider_package_json.unwrap_or(true);
     unimplemented!()
 }
 
