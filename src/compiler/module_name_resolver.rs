@@ -5,10 +5,11 @@ use std::rc::Rc;
 
 use crate::{
     combine_paths, for_each_ancestor_directory, format_message, get_base_file_name,
-    get_directory_path, normalize_path, read_json, to_path, CharacterCodes, CompilerOptions,
-    DiagnosticMessage, Diagnostics, MapLike, ModuleKind, ModuleResolutionHost, PackageId, Path,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    get_directory_path, normalize_path, options_have_module_resolution_changes, read_json, to_path,
+    CharacterCodes, CompilerOptions, DiagnosticMessage, Diagnostics, MapLike, ModuleKind,
+    ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
 };
 
 pub(crate) fn trace(
@@ -429,26 +430,79 @@ pub trait PackageJsonInfoCache {
 pub struct PerModuleNameCache {}
 
 pub struct CacheWithRedirects<TCache> {
-    own_map: HashMap<String, Rc<TCache>>,
+    options: RefCell<Option<Rc<CompilerOptions>>>,
+    own_map: RefCell<Rc<RefCell<HashMap<String, Rc<TCache>>>>>,
+    redirects_map: Rc<RefCell<HashMap<Path, Rc<RefCell<HashMap<String, Rc<TCache>>>>>>>,
 }
 
 impl<TCache> CacheWithRedirects<TCache> {
+    pub fn new(options: Option<Rc<CompilerOptions>>) -> Self {
+        Self {
+            options: RefCell::new(options),
+            own_map: RefCell::new(Rc::new(RefCell::new(HashMap::new()))),
+            redirects_map: Rc::new(RefCell::new(HashMap::new())),
+        }
+    }
+
+    pub fn get_own_map(&self) -> Rc<RefCell<HashMap<String, Rc<TCache>>>> {
+        self.own_map.borrow().clone()
+    }
+
+    pub fn redirects_map(
+        &self,
+    ) -> Rc<RefCell<HashMap<Path, Rc<RefCell<HashMap<String, Rc<TCache>>>>>>> {
+        self.redirects_map.clone()
+    }
+
+    pub fn set_own_options(&self, new_options: Rc<CompilerOptions>) {
+        *self.options.borrow_mut() = Some(new_options);
+    }
+
+    pub fn set_own_map(&self, new_own_map: Rc<RefCell<HashMap<String, Rc<TCache>>>>) {
+        *self.own_map.borrow_mut() = new_own_map;
+    }
+
     pub fn get_or_create_map_of_cache_redirects(
         &self,
         redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Rc<RefCell<HashMap<String, Rc<TCache>>>> {
-        unimplemented!()
+        if redirected_reference.is_none() {
+            return self.own_map.borrow().clone();
+        }
+        let redirected_reference = redirected_reference.unwrap();
+        let path = redirected_reference.source_file.as_source_file().path();
+        let mut redirects = (*self.redirects_map).borrow().get(&path).cloned();
+        if redirects.is_none() {
+            redirects = Some(
+                if match self.options.borrow().as_ref() {
+                    None => true,
+                    Some(options) => options_have_module_resolution_changes(
+                        options,
+                        &redirected_reference.command_line.options,
+                    ),
+                } {
+                    Rc::new(RefCell::new(HashMap::new()))
+                } else {
+                    self.own_map.borrow().clone()
+                },
+            );
+            self.redirects_map
+                .borrow_mut()
+                .insert(path.clone(), redirects.clone().unwrap());
+        }
+        redirects.unwrap()
     }
 
     pub fn clear(&self) {
-        unimplemented!()
+        self.own_map.borrow().borrow_mut().clear();
+        self.redirects_map.borrow_mut().clear();
     }
 }
 
 pub(crate) fn create_cache_with_redirects<TCache>(
     options: Option<Rc<CompilerOptions>>,
 ) -> CacheWithRedirects<TCache> {
-    unimplemented!()
+    CacheWithRedirects::new(options)
 }
 
 pub fn create_package_json_info_cache(
