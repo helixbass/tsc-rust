@@ -4,15 +4,16 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, contains_path, directory_probably_exists, directory_separator_str,
-    extension_is_ts, first_defined, for_each_ancestor_directory, format_message,
-    get_base_file_name, get_directory_path, get_relative_path_from_directory, normalize_path,
-    options_have_module_resolution_changes, read_json, to_path, try_get_extension_from_path,
-    version, version_major_minor, CharacterCodes, CompilerOptions, Debug_, DiagnosticMessage,
-    Diagnostics, Extension, ModuleKind, ModuleResolutionHost, PackageId, Path,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
-    StringOrBool, StringOrPattern, VersionRange,
+    combine_paths, compare_paths, contains_path, directory_probably_exists,
+    directory_separator_str, extension_is_ts, first_defined, for_each_ancestor_directory,
+    format_message, get_base_file_name, get_directory_path, get_relative_path_from_directory,
+    normalize_path, options_have_module_resolution_changes, read_json, to_path,
+    try_get_extension_from_path, version, version_major_minor, CharacterCodes, Comparison,
+    CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, ModuleKind,
+    ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
+    VersionRange,
 };
 
 pub(crate) fn trace(
@@ -415,7 +416,13 @@ lazy_static! {
 }
 
 fn are_paths_equal(path1: &str, path2: &str, host: &dyn ModuleResolutionHost) -> bool {
-    unimplemented!()
+    let use_case_sensitive_file_names = host.use_case_sensitive_file_names();
+    compare_paths(
+        path1,
+        path2,
+        Some(use_case_sensitive_file_names != Some(true)),
+        None,
+    ) == Comparison::EqualTo
 }
 
 pub fn resolve_type_reference_directive(
