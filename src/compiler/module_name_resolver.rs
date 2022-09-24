@@ -488,6 +488,7 @@ pub struct TypeReferenceDirectiveResolutionCache {
     pub pre_directory_resolution_cache: PerDirectoryResolutionCacheConcrete<
         Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
     >,
+    pub package_json_info_cache: Rc<dyn PackageJsonInfoCache>,
 }
 
 #[derive(Debug)]
@@ -850,9 +851,16 @@ pub fn create_type_reference_directive_resolution_cache(
         directory_to_module_name_map
             .unwrap_or_else(|| Rc::new(create_cache_with_redirects(options))),
     );
+    let package_json_info_cache = package_json_info_cache.unwrap_or_else(|| {
+        Rc::new(create_package_json_info_cache(
+            current_directory,
+            get_canonical_file_name,
+        ))
+    });
 
     TypeReferenceDirectiveResolutionCache {
         pre_directory_resolution_cache,
+        package_json_info_cache,
     }
 }
 
@@ -879,19 +887,21 @@ impl PerDirectoryResolutionCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLook
 
 impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool> {
-        unimplemented!()
+        self.package_json_info_cache
+            .get_package_json_info(package_json_path)
     }
 
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
-        unimplemented!()
+        self.package_json_info_cache
+            .set_package_json_info(package_json_path, info)
     }
 
     fn entries(&self) -> &[(&Path, &PackageJsonInfoOrBool)] {
-        unimplemented!()
+        self.package_json_info_cache.entries()
     }
 
     fn clear(&self) {
-        unimplemented!()
+        self.package_json_info_cache.clear()
     }
 }
 
