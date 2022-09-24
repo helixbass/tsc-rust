@@ -5,8 +5,8 @@ use std::rc::Rc;
 
 use crate::{
     combine_paths, contains_path, directory_probably_exists, directory_separator_str,
-    first_defined, for_each_ancestor_directory, format_message, get_base_file_name,
-    get_directory_path, get_relative_path_from_directory, normalize_path,
+    extension_is_ts, first_defined, for_each_ancestor_directory, format_message,
+    get_base_file_name, get_directory_path, get_relative_path_from_directory, normalize_path,
     options_have_module_resolution_changes, read_json, to_path, try_get_extension_from_path,
     version, version_major_minor, CharacterCodes, CompilerOptions, Debug_, DiagnosticMessage,
     Diagnostics, Extension, ModuleKind, ModuleResolutionHost, PackageId, Path,
@@ -103,7 +103,12 @@ struct PathAndPackageId {
 }
 
 fn resolved_type_script_only(resolved: Option<&Resolved>) -> Option<PathAndPackageId> {
-    unimplemented!()
+    let resolved = resolved?;
+    Debug_.assert(extension_is_ts(resolved.extension), None);
+    Some(PathAndPackageId {
+        file_name: resolved.path.clone(),
+        package_id: resolved.package_id.clone(),
+    })
 }
 
 pub(crate) struct ModuleResolutionState<'host, TPackageJsonInfoCache: PackageJsonInfoCache> {
