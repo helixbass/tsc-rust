@@ -14,6 +14,7 @@ pub mod parser;
 pub mod path;
 pub mod program;
 pub mod scanner;
+pub mod semver;
 pub mod sys;
 pub mod tracing;
 pub mod transformer;

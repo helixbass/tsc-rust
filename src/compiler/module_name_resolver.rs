@@ -6,11 +6,11 @@ use std::rc::Rc;
 use crate::{
     combine_paths, directory_probably_exists, first_defined, for_each_ancestor_directory,
     format_message, get_base_file_name, get_directory_path, normalize_path,
-    options_have_module_resolution_changes, read_json, to_path, CharacterCodes, CompilerOptions,
-    DiagnosticMessage, Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost,
-    PackageId, Path, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
-    StringOrBool,
+    options_have_module_resolution_changes, read_json, to_path, version_major_minor,
+    CharacterCodes, CompilerOptions, DiagnosticMessage, Diagnostics, Extension, MapLike,
+    ModuleKind, ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -98,15 +98,148 @@ pub(crate) struct ModuleResolutionState<'host, TPackageJsonInfoCache: PackageJso
 
 pub type PackageJson = serde_json::Value;
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum StringOrObject {
+    String,
+    Object,
+}
+
+fn does_serde_json_value_match_string_or_object(
+    value: &serde_json::Value,
+    string_or_object: StringOrObject,
+) -> bool {
+    match (value, string_or_object) {
+        (serde_json::Value::Object(_), StringOrObject::Object) => true,
+        (serde_json::Value::String(_), StringOrObject::String) => true,
+        _ => false,
+    }
+}
+
+fn read_package_json_field<'json_content>(
+    json_content: &'json_content PackageJson,
+    field_name: &str,
+    type_of_tag: StringOrObject,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<&'json_content serde_json::Value> {
+    if json_content.get(field_name).is_none() {
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::package_json_does_not_have_a_0_field,
+                Some(vec![field_name.to_owned()]),
+            );
+        }
+        return None;
+    }
+    let value = json_content.get(field_name).unwrap();
+    if !does_serde_json_value_match_string_or_object(value, type_of_tag) {
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::Expected_type_of_0_field_in_package_json_to_be_1_got_2,
+                Some(vec![
+                    field_name.to_owned(),
+                    match type_of_tag {
+                        StringOrObject::String => "string".to_owned(),
+                        StringOrObject::Object => "object".to_owned(),
+                    },
+                    if matches!(value, serde_json::Value::Null) {
+                        "null".to_owned()
+                    } else {
+                        unimplemented!()
+                    },
+                ]),
+            );
+        }
+        return None;
+    }
+    Some(value)
+}
+
+fn read_package_json_types_versions_field<'json_content>(
+    json_content: &'json_content PackageJson,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<&'json_content serde_json::Value> {
+    let types_versions =
+        read_package_json_field(json_content, "typesVersions", StringOrObject::Object, state)?;
+
+    if state.trace_enabled {
+        trace(
+            state.host,
+            &Diagnostics::package_json_has_a_typesVersions_field_with_version_specific_path_mappings,
+            None,
+        );
+    }
+
+    Some(types_versions)
+}
+
 pub struct VersionPaths {
     pub version: String,
-    pub paths: MapLike<Vec<String>>,
+    pub paths: serde_json::Value, /*MapLike<string[]>*/
 }
 
 fn read_package_json_types_version_paths(
     json_content: &PackageJson,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
-) -> Option<Rc<VersionPaths>> {
+) -> Option<VersionPaths> {
+    let types_versions = read_package_json_types_versions_field(json_content, state)?;
+    let types_versions = types_versions.as_object().unwrap();
+
+    if state.trace_enabled {
+        for key in types_versions.keys() {
+            if
+            /*hasProperty(typesVersions, key) &&*/
+            VersionRange::try_parse(key).is_none() {
+                trace(
+                    state.host,
+                    &Diagnostics::package_json_has_a_typesVersions_entry_0_that_is_not_a_valid_semver_range,
+                    Some(vec![
+                        key.clone(),
+                    ])
+                );
+            }
+        }
+    }
+
+    let result = get_package_json_types_version_paths(types_versions);
+    if result.is_none() {
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::package_json_does_not_have_a_typesVersions_entry_that_matches_version_0,
+                Some(vec![
+                    version_major_minor.to_owned(),
+                ])
+            );
+        }
+        return None;
+    }
+    let result = result.unwrap();
+
+    let best_version_key = &result.version;
+    let best_version_paths = &result.paths;
+    if !matches!(best_version_paths, serde_json::Value::Object(_)) {
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::Expected_type_of_0_field_in_package_json_to_be_1_got_2,
+                Some(vec![
+                    format!("typesVersions['{}']", best_version_key),
+                    "object".to_owned(),
+                    unimplemented!(),
+                ]),
+            );
+        }
+        return None;
+    }
+
+    Some(result)
+}
+
+pub(crate) fn get_package_json_types_version_paths(
+    types_versions: &serde_json::Map<String, serde_json::Value>, /*MapLike<MapLike<string[]>>*/
+) -> Option<VersionPaths> {
     unimplemented!()
 }
 
@@ -1091,7 +1224,7 @@ pub(crate) fn get_package_json_info(
         let result = Rc::new(PackageJsonInfo {
             package_directory: package_directory.to_owned(),
             package_json_content,
-            version_paths,
+            version_paths: version_paths.map(Rc::new),
         });
         if let Some(state_package_json_info_cache) = state.package_json_info_cache.as_ref() {
             state_package_json_info_cache

@@ -53,7 +53,8 @@ pub use compiler::core::{
     AssertionLevel, Cloneable, MultiMap, Pattern,
 };
 pub use compiler::core_public::{
-    version, Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
+    version, version_major_minor, Comparer, Comparison, MapLike, Push, ReadonlyCollection,
+    SortedArray,
 };
 pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
@@ -211,6 +212,7 @@ pub use compiler::scanner::{
     is_white_space_like, is_white_space_single_line, reduce_each_leading_comment_range,
     reduce_each_trailing_comment_range, token_to_string, ErrorCallback, Scanner,
 };
+pub use compiler::semver::VersionRange;
 use compiler::sys::{generate_djb2_hash, missing_file_modified_time};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
