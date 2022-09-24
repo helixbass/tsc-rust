@@ -14,12 +14,13 @@ use crate::{
     change_any_extension, combine_paths, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, comparison_to_ordering,
     contains_ignored_path, contains_path, create_get_canonical_file_name, create_multi_map,
-    directory_separator, ensure_trailing_directory_separator, every, file_extension_is_one_of,
-    find_index, flat_map, flatten, for_each, format_string_from_args, get_directory_path,
-    get_locale_specific_message, get_normalized_path_components, get_string_comparer,
-    has_extension, index_of, index_of_any_char_code, is_rooted_disk_path, last, map_defined,
-    maybe_map, normalize_path, remove_trailing_directory_separator, sort, to_path, BaseTextRange,
-    CharacterCodes, CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    directory_separator, ensure_trailing_directory_separator, every, file_extension_is,
+    file_extension_is_one_of, find, find_index, flat_map, flatten, for_each,
+    format_string_from_args, get_directory_path, get_locale_specific_message,
+    get_normalized_path_components, get_string_comparer, has_extension, index_of,
+    index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map, normalize_path,
+    remove_trailing_directory_separator, sort, to_path, BaseTextRange, CharacterCodes,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
@@ -1708,6 +1709,13 @@ pub fn resolution_extension_is_ts_or_json(ext: Extension) -> bool {
 
 pub fn extension_from_path(path: &str) -> Extension {
     unimplemented!()
+}
+
+pub fn try_get_extension_from_path(path: &str) -> Option<Extension> {
+    find(&*extensions_to_remove, |e: &Extension, _| {
+        file_extension_is(path, e.to_str())
+    })
+    .copied()
 }
 
 pub fn is_check_js_enabled_for_file(

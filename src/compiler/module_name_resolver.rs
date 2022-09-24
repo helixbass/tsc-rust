@@ -7,11 +7,12 @@ use crate::{
     combine_paths, contains_path, directory_probably_exists, first_defined,
     for_each_ancestor_directory, format_message, get_base_file_name, get_directory_path,
     get_relative_path_from_directory, normalize_path, options_have_module_resolution_changes,
-    read_json, to_path, version, version_major_minor, CharacterCodes, CompilerOptions,
-    DiagnosticMessage, Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost,
-    PackageId, Path, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
-    StringOrBool, StringOrPattern, VersionRange,
+    read_json, to_path, try_get_extension_from_path, version, version_major_minor, CharacterCodes,
+    CompilerOptions, DiagnosticMessage, Diagnostics, Extension, MapLike, ModuleKind,
+    ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
+    VersionRange,
 };
 
 pub(crate) fn trace(
@@ -1530,7 +1531,23 @@ fn load_node_module_from_directory_worker(
 }
 
 fn resolved_if_extension_matches(extensions: Extensions, path: &str) -> Option<PathAndExtension> {
-    unimplemented!()
+    let ext = try_get_extension_from_path(path);
+    ext.filter(|ext| extension_is_ok(extensions, *ext))
+        .map(|ext| PathAndExtension {
+            path: path.to_owned(),
+            ext,
+        })
+}
+
+fn extension_is_ok(extensions: Extensions, extension: Extension) -> bool {
+    match extensions {
+        Extensions::JavaScript => matches!(extension, Extension::Js | Extension::Jsx),
+        Extensions::TSConfig | Extensions::Json => extension == Extension::Json,
+        Extensions::TypeScript => {
+            matches!(extension, Extension::Ts | Extension::Tsx | Extension::Dts)
+        }
+        Extensions::DtsOnly => extension == Extension::Dts,
+    }
 }
 
 #[derive(Clone)]
