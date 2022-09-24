@@ -1216,7 +1216,31 @@ fn try_file(
     only_record_failures: bool,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
 ) -> Option<String> {
-    unimplemented!()
+    if !only_record_failures {
+        if state.host.file_exists(file_name) {
+            if state.trace_enabled {
+                trace(
+                    state.host,
+                    &Diagnostics::File_0_exist_use_it_as_a_name_resolution_result,
+                    Some(vec![file_name.to_owned()]),
+                );
+            }
+            return Some(file_name.to_owned());
+        } else {
+            if state.trace_enabled {
+                trace(
+                    state.host,
+                    &Diagnostics::File_0_does_not_exist,
+                    Some(vec![file_name.to_owned()]),
+                );
+            }
+        }
+    }
+    state
+        .failed_lookup_locations
+        .borrow_mut()
+        .push(file_name.to_owned());
+    None
 }
 
 fn load_node_module_from_directory(
