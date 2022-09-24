@@ -1222,7 +1222,23 @@ pub fn node_module_name_resolver<THost: ModuleResolutionHost>(
 }
 
 fn real_path(path: &str, host: &dyn ModuleResolutionHost, trace_enabled: bool) -> String {
-    unimplemented!()
+    if !host.is_realpath_supported() {
+        return path.to_owned();
+    }
+
+    let real = normalize_path(&host.realpath(path).unwrap());
+    if trace_enabled {
+        trace(
+            host,
+            &Diagnostics::Resolving_real_path_for_0_result_1,
+            Some(vec![path.to_owned(), real.clone()]),
+        );
+    }
+    Debug_.assert(
+        host.file_exists(&real),
+        Some(&format!("{} linked to nonexistent file {}", path, real)),
+    );
+    real
 }
 
 fn node_load_module_by_relative_name(
