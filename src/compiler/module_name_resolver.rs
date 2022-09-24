@@ -4,13 +4,14 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, directory_probably_exists, first_defined, for_each_ancestor_directory,
-    format_message, get_base_file_name, get_directory_path, normalize_path,
-    options_have_module_resolution_changes, read_json, to_path, version_major_minor,
-    CharacterCodes, CompilerOptions, DiagnosticMessage, Diagnostics, Extension, MapLike,
-    ModuleKind, ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, VersionRange,
+    combine_paths, contains_path, directory_probably_exists, first_defined,
+    for_each_ancestor_directory, format_message, get_base_file_name, get_directory_path,
+    get_relative_path_from_directory, normalize_path, options_have_module_resolution_changes,
+    read_json, to_path, version, version_major_minor, CharacterCodes, CompilerOptions,
+    DiagnosticMessage, Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost,
+    PackageId, Path, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    StringOrBool, StringOrPattern, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -32,6 +33,14 @@ fn with_package_id(
     package_info: Option<&PackageJsonInfo>,
     r: Option<&PathAndExtension>,
 ) -> Option<Resolved> {
+    unimplemented!()
+}
+
+fn no_package_id(r: Option<&PathAndExtension>) -> Option<Resolved> {
+    with_package_id(None, r)
+}
+
+fn remove_ignored_package_id(r: Option<&Resolved>) -> Option<PathAndExtension> {
     unimplemented!()
 }
 
@@ -154,6 +163,30 @@ fn read_package_json_field<'json_content>(
         return None;
     }
     Some(value)
+}
+
+fn read_package_json_types_field(
+    json_content: &PackageJson,
+    base_directory: &str,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<String> {
+    unimplemented!()
+}
+
+fn read_package_json_tsconfig_field(
+    json_content: &PackageJson,
+    base_directory: &str,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<String> {
+    unimplemented!()
+}
+
+fn read_package_json_main_field(
+    json_content: &PackageJson,
+    base_directory: &str,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<String> {
+    unimplemented!()
 }
 
 fn read_package_json_types_versions_field<'json_content>(
@@ -1082,6 +1115,15 @@ pub fn resolve_module_name(
     unimplemented!()
 }
 
+type ResolutionKindSpecificLoader = Rc<
+    dyn Fn(
+        Extensions,
+        &str,
+        bool,
+        &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    ) -> Option<Resolved>,
+>;
+
 bitflags! {
     pub(crate) struct NodeResolutionFeatures: u32 {
         const None = 0;
@@ -1111,7 +1153,34 @@ fn real_path(path: &str, host: &dyn ModuleResolutionHost, trace_enabled: bool) -
     unimplemented!()
 }
 
+fn node_load_module_by_relative_name(
+    extensions: Extensions,
+    candidate: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    consider_package_json: bool,
+) -> Option<Resolved> {
+    unimplemented!()
+}
+
 fn path_contains_node_modules(path: &str) -> bool {
+    unimplemented!()
+}
+
+fn load_module_from_file(
+    extensions: Extensions,
+    candidate: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<PathAndExtension> {
+    unimplemented!()
+}
+
+fn try_file(
+    file_name: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<String> {
     unimplemented!()
 }
 
@@ -1259,6 +1328,149 @@ fn load_node_module_from_directory_worker(
     json_content: Option<&PackageJson /*PackageJsonPathFields*/>,
     version_paths: Option<&VersionPaths>,
 ) -> Option<PathAndExtension> {
+    let mut package_file: Option<String> = None;
+    if let Some(json_content) = json_content {
+        match extensions {
+            Extensions::JavaScript | Extensions::Json => {
+                package_file = read_package_json_main_field(json_content, candidate, state);
+            }
+            Extensions::TypeScript => {
+                package_file = read_package_json_types_field(json_content, candidate, state)
+                    .or_else(|| read_package_json_main_field(json_content, candidate, state));
+            }
+            Extensions::DtsOnly => {
+                package_file = read_package_json_types_field(json_content, candidate, state);
+            }
+            Extensions::TSConfig => {
+                package_file = read_package_json_tsconfig_field(json_content, candidate, state);
+            }
+        }
+    }
+
+    let loader: ResolutionKindSpecificLoader =
+        Rc::new(|extensions, candidate, only_record_failures, state| {
+            let from_file = try_file(candidate, only_record_failures, state);
+            if let Some(from_file) = from_file.as_ref() {
+                let resolved = resolved_if_extension_matches(extensions, from_file);
+                if let Some(resolved) = resolved.as_ref() {
+                    return no_package_id(Some(resolved));
+                }
+                if state.trace_enabled {
+                    trace(
+                        state.host,
+                        &Diagnostics::File_0_has_an_unsupported_extension_so_skipping_it,
+                        Some(vec![from_file.clone()]),
+                    );
+                }
+            }
+
+            let next_extensions = if extensions == Extensions::DtsOnly {
+                Extensions::TypeScript
+            } else {
+                extensions
+            };
+            node_load_module_by_relative_name(
+                next_extensions,
+                candidate,
+                only_record_failures,
+                state,
+                false,
+            )
+        });
+
+    let only_record_failures_for_package_file =
+        package_file.as_ref().map_or(false, |package_file| {
+            !directory_probably_exists(
+                &get_directory_path(package_file),
+                |directory_name| state.host.directory_exists(directory_name),
+                || state.host.is_directory_exists_supported(),
+            )
+        });
+    let only_record_failures_for_index = only_record_failures
+        || !directory_probably_exists(
+            candidate,
+            |directory_name| state.host.directory_exists(directory_name),
+            || state.host.is_directory_exists_supported(),
+        );
+    let index_path = combine_paths(
+        candidate,
+        &[Some(if extensions == Extensions::TSConfig {
+            "tsconfig"
+        } else {
+            "index"
+        })],
+    );
+
+    if let Some(version_paths) = version_paths {
+        if match package_file.as_ref() {
+            None => true,
+            Some(package_file) => {
+                contains_path(candidate, package_file, Option::<String>::None, None)
+            }
+        } {
+            let module_name = get_relative_path_from_directory(
+                candidate,
+                package_file
+                    .as_ref()
+                    .filter(|package_file| !package_file.is_empty())
+                    .unwrap_or(&index_path),
+                Option::<fn(&str) -> String>::None,
+                Some(false),
+            );
+            if state.trace_enabled {
+                trace(
+                    state.host,
+                    &Diagnostics::package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
+                    Some(vec![
+                        version_paths.version.clone(),
+                        version.to_owned(),
+                        module_name.clone(),
+                    ])
+                );
+            }
+            let result = try_load_module_using_paths(
+                extensions,
+                &module_name,
+                candidate,
+                &version_paths.paths,
+                None,
+                loader.clone(),
+                only_record_failures_for_package_file || only_record_failures_for_index,
+                state,
+            );
+            if let Some(result) = result.as_ref() {
+                return remove_ignored_package_id(result.value.as_ref());
+            }
+        }
+    }
+
+    let package_file_result = package_file.as_ref().and_then(|package_file| {
+        remove_ignored_package_id(
+            loader(
+                extensions,
+                package_file,
+                only_record_failures_for_package_file,
+                state,
+            )
+            .as_ref(),
+        )
+    });
+    if package_file_result.is_some() {
+        return package_file_result;
+    }
+
+    if !state.features.intersects(NodeResolutionFeatures::EsmMode) {
+        return load_module_from_file(
+            extensions,
+            &index_path,
+            only_record_failures_for_index,
+            state,
+        );
+    }
+    None
+}
+
+fn resolved_if_extension_matches(extensions: Extensions, path: &str) -> Option<PathAndExtension> {
     unimplemented!()
 }
 
@@ -1280,10 +1492,29 @@ impl From<bool> for PackageJsonInfoOrBool {
     }
 }
 
+fn try_load_module_using_paths(
+    extensions: Extensions,
+    module_name: &str,
+    base_directory: &str,
+    paths: &serde_json::Value, /*MapLike<string[]>*/
+    path_patterns: Option<&[StringOrPattern]>,
+    loader: ResolutionKindSpecificLoader,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> SearchResult<Resolved> {
+    unimplemented!()
+}
+
 pub(crate) fn get_types_package_name(package_name: &str) -> String {
     unimplemented!()
 }
 
 pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
     unimplemented!()
+}
+
+type SearchResult<TValue> = Option<SearchResultPresent<TValue>>;
+
+struct SearchResultPresent<TValue> {
+    pub value: Option<TValue>,
 }
