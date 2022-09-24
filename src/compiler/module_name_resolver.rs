@@ -69,18 +69,45 @@ pub(crate) struct ModuleResolutionState<'host, TPackageJsonInfoCache: PackageJso
     pub host: &'host dyn ModuleResolutionHost,
     pub compiler_options: Rc<CompilerOptions>,
     pub trace_enabled: bool,
-    pub failed_lookup_locations: Vec<String>,
+    pub failed_lookup_locations: RefCell<Vec<String>>,
     pub result_from_cache: Option<Rc<ResolvedModuleWithFailedLookupLocations>>,
     pub package_json_info_cache: Option<Rc<TPackageJsonInfoCache>>,
     pub features: NodeResolutionFeatures,
     pub conditions: Vec<String>,
 }
 
-pub struct PackageJsonPathFields {}
+// #[derive(Deserialize)]
+// pub struct PackageJson {
+//     pub typings: Option<String>,
+//     pub types: Option<String>,
+//     pub types_versions: Option<HashMap<String, HashMap<String, Vec<String>>>>,
+//     pub main: Option<String>,
+//     pub tsconfig: Option<String>,
+//     pub type_: Option<String>,
+//     pub imports: Option<serde_json::Map>,
+//     pub exports: Option<serde_json::Map>,
+//     pub name: Option<String>,
+//     pub version: Option<String>,
+// }
+
+// impl From<serde_json::Value> for PackageJson {
+//     fn from(value: serde_json::Value) -> Self {
+//         serde_json::from_str(&value.to_string()).unwrap()
+//     }
+// }
+
+pub type PackageJson = serde_json::Value;
 
 pub struct VersionPaths {
     pub version: String,
     pub paths: MapLike<Vec<String>>,
+}
+
+fn read_package_json_types_version_paths(
+    json_content: &PackageJson,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<Rc<VersionPaths>> {
+    unimplemented!()
 }
 
 pub fn get_effective_type_roots<
@@ -285,12 +312,12 @@ pub fn resolve_type_reference_directive(
         }
     }
 
-    let mut failed_lookup_locations: Vec<String> = vec![];
+    let failed_lookup_locations: Vec<String> = vec![];
     let module_resolution_state = ModuleResolutionState {
         compiler_options: options.clone(),
         host,
         trace_enabled,
-        failed_lookup_locations,
+        failed_lookup_locations: RefCell::new(failed_lookup_locations),
         package_json_info_cache: cache.clone(),
         features: NodeResolutionFeatures::AllFeatures,
         conditions: vec!["node".to_owned(), "require".to_owned(), "types".to_owned()],
@@ -335,7 +362,10 @@ pub fn resolve_type_reference_directive(
     result = Some(Rc::new(
         ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
             resolved_type_reference_directive,
-            failed_lookup_locations: module_resolution_state.failed_lookup_locations.clone(),
+            failed_lookup_locations: module_resolution_state
+                .failed_lookup_locations
+                .borrow()
+                .clone(),
         },
     ));
     let result = result.unwrap();
@@ -945,7 +975,7 @@ fn load_node_module_from_directory(
 
 pub struct PackageJsonInfo {
     pub package_directory: String,
-    pub package_json_content: Rc<PackageJsonPathFields>,
+    pub package_json_content: Rc<PackageJson /*PackageJsonPathFields*/>,
     pub version_paths: Option<Rc<VersionPaths>>,
 }
 
@@ -954,7 +984,96 @@ pub(crate) fn get_package_json_info(
     only_record_failures: bool,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
 ) -> Option<Rc<PackageJsonInfo>> {
-    unimplemented!()
+    let host = state.host;
+    let trace_enabled = state.trace_enabled;
+    let package_json_path = combine_paths(package_directory, &[Some("package.json")]);
+    if only_record_failures {
+        state
+            .failed_lookup_locations
+            .borrow_mut()
+            .push(package_json_path.clone());
+        return None;
+    }
+
+    let existing =
+        state
+            .package_json_info_cache
+            .as_ref()
+            .and_then(|state_package_json_info_cache| {
+                state_package_json_info_cache.get_package_json_info(&package_json_path)
+            });
+    if let Some(existing) = existing {
+        match existing {
+            PackageJsonInfoOrBool::PackageJsonInfo(existing) => {
+                if trace_enabled {
+                    trace(
+                        host,
+                        &Diagnostics::File_0_exists_according_to_earlier_cached_lookups,
+                        Some(vec![package_json_path]),
+                    );
+                }
+                return Some(existing.clone());
+            }
+            PackageJsonInfoOrBool::Bool(existing) => {
+                if *existing && trace_enabled {
+                    trace(
+                        host,
+                        &Diagnostics::File_0_does_not_exist_according_to_earlier_cached_lookups,
+                        Some(vec![package_json_path.clone()]),
+                    );
+                }
+                state
+                    .failed_lookup_locations
+                    .borrow_mut()
+                    .push(package_json_path);
+                return None;
+            }
+        }
+    }
+    let directory_exists = directory_probably_exists(
+        package_directory,
+        |directory_name| host.directory_exists(directory_name),
+        || host.is_directory_exists_supported(),
+    );
+    if directory_exists && host.file_exists(&package_json_path) {
+        let package_json_content =
+            Rc::new(read_json(&package_json_path, |path| host.read_file(path)));
+        if trace_enabled {
+            trace(
+                host,
+                &Diagnostics::Found_package_json_at_0,
+                Some(vec![package_json_path.clone()]),
+            );
+        }
+        let version_paths = read_package_json_types_version_paths(&package_json_content, state);
+        let result = Rc::new(PackageJsonInfo {
+            package_directory: package_directory.to_owned(),
+            package_json_content,
+            version_paths,
+        });
+        if let Some(state_package_json_info_cache) = state.package_json_info_cache.as_ref() {
+            state_package_json_info_cache
+                .set_package_json_info(&package_json_path, result.clone().into());
+        }
+        Some(result)
+    } else {
+        if directory_exists && trace_enabled {
+            trace(
+                host,
+                &Diagnostics::File_0_does_not_exist,
+                Some(vec![package_json_path.clone()]),
+            );
+        }
+        if let Some(state_package_json_info_cache) = state.package_json_info_cache.as_ref() {
+            state_package_json_info_cache
+                .set_package_json_info(&package_json_path, directory_exists.into());
+        }
+        state
+            .failed_lookup_locations
+            .borrow_mut()
+            .push(package_json_path);
+        None
+    }
 }
 
 fn load_node_module_from_directory_worker(
@@ -962,19 +1081,19 @@ fn load_node_module_from_directory_worker(
     candidate: &str,
     only_record_failures: bool,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
-    json_content: Option<&PackageJsonPathFields>,
+    json_content: Option<&PackageJson /*PackageJsonPathFields*/>,
     version_paths: Option<&VersionPaths>,
 ) -> Option<PathAndExtension> {
     unimplemented!()
 }
 
 pub enum PackageJsonInfoOrBool {
-    PackageJsonInfo(PackageJsonInfo),
+    PackageJsonInfo(Rc<PackageJsonInfo>),
     Bool(bool),
 }
 
-impl From<PackageJsonInfo> for PackageJsonInfoOrBool {
-    fn from(value: PackageJsonInfo) -> Self {
+impl From<Rc<PackageJsonInfo>> for PackageJsonInfoOrBool {
+    fn from(value: Rc<PackageJsonInfo>) -> Self {
         Self::PackageJsonInfo(value)
     }
 }
