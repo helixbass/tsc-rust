@@ -4,15 +4,15 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, contains_path, directory_probably_exists, first_defined,
-    for_each_ancestor_directory, format_message, get_base_file_name, get_directory_path,
-    get_relative_path_from_directory, normalize_path, options_have_module_resolution_changes,
-    read_json, to_path, try_get_extension_from_path, version, version_major_minor, CharacterCodes,
-    CompilerOptions, DiagnosticMessage, Diagnostics, Extension, MapLike, ModuleKind,
-    ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
-    VersionRange,
+    combine_paths, contains_path, directory_probably_exists, directory_separator_str,
+    first_defined, for_each_ancestor_directory, format_message, get_base_file_name,
+    get_directory_path, get_relative_path_from_directory, normalize_path,
+    options_have_module_resolution_changes, read_json, to_path, try_get_extension_from_path,
+    version, version_major_minor, CharacterCodes, CompilerOptions, DiagnosticMessage, Diagnostics,
+    Extension, ModuleKind, ModuleResolutionHost, PackageId, Path,
+    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    StringOrBool, StringOrPattern, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -34,7 +34,31 @@ fn with_package_id(
     package_info: Option<&PackageJsonInfo>,
     r: Option<&PathAndExtension>,
 ) -> Option<Resolved> {
-    unimplemented!()
+    let mut package_id: Option<PackageId> = None;
+    if let (Some(r), Some(package_info)) = (r, package_info) {
+        let package_json_content = package_info.package_json_content.clone();
+        if let (
+            Some(serde_json::Value::String(package_json_content_name)),
+            Some(serde_json::Value::String(package_json_content_version)),
+        ) = (
+            package_json_content.get("name"),
+            package_json_content.get("version"),
+        ) {
+            package_id = Some(PackageId {
+                name: package_json_content_name.clone(),
+                sub_module_name: r.path
+                    [package_info.package_directory.len() + directory_separator_str.len()..]
+                    .to_owned(),
+                version: package_json_content_version.clone(),
+            });
+        }
+    }
+    r.map(|r| Resolved {
+        path: r.path.clone(),
+        extension: r.ext,
+        package_id,
+        original_path: None,
+    })
 }
 
 fn no_package_id(r: Option<&PathAndExtension>) -> Option<Resolved> {
