@@ -521,9 +521,9 @@ pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
 }
 
 pub trait PackageJsonInfoCache {
-    fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool>;
+    fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool>;
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool);
-    fn entries(&self) -> &[(&Path, &PackageJsonInfoOrBool)];
+    fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)>;
     fn clear(&self);
 }
 
@@ -609,26 +609,58 @@ pub fn create_package_json_info_cache(
     current_directory: &str,
     get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
 ) -> PackageJsonInfoCacheConcrete {
-    PackageJsonInfoCacheConcrete {}
+    PackageJsonInfoCacheConcrete {
+        current_directory: current_directory.to_owned(),
+        cache: RefCell::new(None),
+        get_canonical_file_name,
+    }
 }
 
-pub struct PackageJsonInfoCacheConcrete {}
+pub struct PackageJsonInfoCacheConcrete {
+    pub current_directory: String,
+    pub cache: RefCell<Option<HashMap<Path, PackageJsonInfoOrBool>>>,
+    pub get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+}
 
 impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
-    fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool> {
-        unimplemented!()
+    fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool> {
+        self.cache.borrow().as_ref().and_then(|cache| {
+            cache
+                .get(&to_path(
+                    package_json_path,
+                    Some(&self.current_directory),
+                    |path| (self.get_canonical_file_name)(path),
+                ))
+                .cloned()
+        })
     }
 
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
-        unimplemented!()
-    }
-
-    fn entries(&self) -> &[(&Path, &PackageJsonInfoOrBool)] {
-        unimplemented!()
+        self.cache
+            .borrow_mut()
+            .get_or_insert_with(|| HashMap::new())
+            .insert(
+                to_path(package_json_path, Some(&self.current_directory), |path| {
+                    (self.get_canonical_file_name)(path)
+                }),
+                info,
+            );
     }
 
     fn clear(&self) {
-        unimplemented!()
+        *self.cache.borrow_mut() = None;
+    }
+
+    fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)> {
+        self.cache.borrow().as_ref().map_or_else(
+            || vec![],
+            |cache| {
+                cache
+                    .into_iter()
+                    .map(|(key, value)| (key.clone(), value.clone()))
+                    .collect()
+            },
+        )
     }
 }
 
@@ -815,7 +847,7 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
 }
 
 impl PackageJsonInfoCache for ModuleResolutionCache {
-    fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool> {
+    fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool> {
         unimplemented!()
     }
 
@@ -823,7 +855,7 @@ impl PackageJsonInfoCache for ModuleResolutionCache {
         unimplemented!()
     }
 
-    fn entries(&self) -> &[(&Path, &PackageJsonInfoOrBool)] {
+    fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)> {
         unimplemented!()
     }
 
@@ -886,7 +918,7 @@ impl PerDirectoryResolutionCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLook
 }
 
 impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
-    fn get_package_json_info(&self, package_json_path: &str) -> Option<&PackageJsonInfoOrBool> {
+    fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool> {
         self.package_json_info_cache
             .get_package_json_info(package_json_path)
     }
@@ -896,7 +928,7 @@ impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
             .set_package_json_info(package_json_path, info)
     }
 
-    fn entries(&self) -> &[(&Path, &PackageJsonInfoOrBool)] {
+    fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)> {
         self.package_json_info_cache.entries()
     }
 
@@ -1025,7 +1057,7 @@ pub(crate) fn get_package_json_info(
                 return Some(existing.clone());
             }
             PackageJsonInfoOrBool::Bool(existing) => {
-                if *existing && trace_enabled {
+                if existing && trace_enabled {
                     trace(
                         host,
                         &Diagnostics::File_0_does_not_exist_according_to_earlier_cached_lookups,
@@ -1097,6 +1129,7 @@ fn load_node_module_from_directory_worker(
     unimplemented!()
 }
 
+#[derive(Clone)]
 pub enum PackageJsonInfoOrBool {
     PackageJsonInfo(Rc<PackageJsonInfo>),
     Bool(bool),
