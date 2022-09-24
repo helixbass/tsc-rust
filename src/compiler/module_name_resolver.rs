@@ -8,8 +8,8 @@ use crate::{
     first_defined, for_each_ancestor_directory, format_message, get_base_file_name,
     get_directory_path, get_relative_path_from_directory, normalize_path,
     options_have_module_resolution_changes, read_json, to_path, try_get_extension_from_path,
-    version, version_major_minor, CharacterCodes, CompilerOptions, DiagnosticMessage, Diagnostics,
-    Extension, ModuleKind, ModuleResolutionHost, PackageId, Path,
+    version, version_major_minor, CharacterCodes, CompilerOptions, Debug_, DiagnosticMessage,
+    Diagnostics, Extension, ModuleKind, ModuleResolutionHost, PackageId, Path,
     ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, VersionRange,
@@ -66,7 +66,14 @@ fn no_package_id(r: Option<&PathAndExtension>) -> Option<Resolved> {
 }
 
 fn remove_ignored_package_id(r: Option<&Resolved>) -> Option<PathAndExtension> {
-    unimplemented!()
+    if let Some(r) = r {
+        Debug_.assert(r.package_id.is_none(), None);
+        return Some(PathAndExtension {
+            path: r.path.clone(),
+            ext: r.extension,
+        });
+    }
+    None
 }
 
 struct Resolved {
