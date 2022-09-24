@@ -7,7 +7,7 @@ use crate::{
     combine_paths, compare_paths, contains_path, directory_probably_exists,
     directory_separator_str, extension_is_ts, first_defined, for_each_ancestor_directory,
     format_message, get_base_file_name, get_directory_path, get_relative_path_from_directory,
-    normalize_path, options_have_module_resolution_changes, read_json, to_path,
+    normalize_path, options_have_module_resolution_changes, read_json, string_contains, to_path,
     try_get_extension_from_path, version, version_major_minor, CharacterCodes, Comparison,
     CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, ModuleKind,
     ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
@@ -1258,8 +1258,10 @@ fn node_load_module_by_relative_name(
     unimplemented!()
 }
 
+pub(crate) const node_modules_path_part: &str = "/node_modules/";
+
 fn path_contains_node_modules(path: &str) -> bool {
-    unimplemented!()
+    string_contains(path, node_modules_path_part)
 }
 
 fn load_module_from_file(
