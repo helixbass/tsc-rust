@@ -1,18 +1,44 @@
+use bitflags::bitflags;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, for_each_ancestor_directory, get_base_file_name, get_directory_path,
-    normalize_path, read_json, CharacterCodes, CompilerOptions, MapLike, ModuleKind,
-    ModuleResolutionHost, Path, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    combine_paths, for_each_ancestor_directory, format_message, get_base_file_name,
+    get_directory_path, normalize_path, read_json, CharacterCodes, CompilerOptions,
+    DiagnosticMessage, Diagnostics, MapLike, ModuleKind, ModuleResolutionHost, PackageId, Path,
+    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
 };
+
+pub(crate) fn trace(
+    host: &dyn ModuleResolutionHost,
+    message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
+) {
+    host.trace(&format_message(None, message, args))
+}
 
 pub(crate) fn is_trace_enabled(
     compiler_options: &CompilerOptions,
     host: &dyn ModuleResolutionHost,
 ) -> bool {
     compiler_options.trace_resolution == Some(true) && host.is_trace_supported()
+}
+
+struct PathAndPackageId {
+    pub file_name: String,
+    pub package_id: Option<PackageId>,
+}
+
+pub(crate) struct ModuleResolutionState<'host, TPackageJsonInfoCache: PackageJsonInfoCache> {
+    pub host: &'host dyn ModuleResolutionHost,
+    pub compiler_options: Rc<CompilerOptions>,
+    pub trace_enabled: bool,
+    pub failed_lookup_locations: Vec<String>,
+    pub result_from_cache: Option<Rc<ResolvedModuleWithFailedLookupLocations>>,
+    pub package_json_info_cache: Option<Rc<TPackageJsonInfoCache>>,
+    pub features: NodeResolutionFeatures,
+    pub conditions: Vec<String>,
 }
 
 pub struct PackageJsonPathFields {}
@@ -88,15 +114,214 @@ lazy_static! {
     static ref node_modules_at_types: String = combine_paths("node_modules", &[Some("@types")]);
 }
 
+fn are_paths_equal(path1: &str, path2: &str, host: &dyn ModuleResolutionHost) -> bool {
+    unimplemented!()
+}
+
 pub fn resolve_type_reference_directive(
     type_reference_directive_name: &str,
     containing_file: Option<&str>,
-    options: &CompilerOptions,
+    mut options: Rc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    redirected_reference: Option<&ResolvedProjectReference>,
-    cache: Option<&TypeReferenceDirectiveResolutionCache>,
-) -> ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
-    let trace_enabled = is_trace_enabled(options, host);
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    cache: Option<Rc<TypeReferenceDirectiveResolutionCache>>,
+) -> Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+    let trace_enabled = is_trace_enabled(&options, host);
+    if let Some(redirected_reference) = redirected_reference.as_ref() {
+        options = redirected_reference.command_line.options.clone();
+    }
+
+    let containing_directory =
+        containing_file.map(|containing_file| get_directory_path(containing_file));
+    let per_folder_cache =
+        if let (Some(containing_directory), Some(cache)) =
+            (containing_directory.as_ref(), cache.as_ref())
+        {
+            Some(cache.get_or_create_cache_for_directory(
+                containing_directory,
+                redirected_reference.clone(),
+            ))
+        } else {
+            None
+        };
+    let mut result = per_folder_cache.as_ref().and_then(|per_folder_cache| {
+        per_folder_cache
+            .get(type_reference_directive_name, None)
+            .cloned()
+    });
+    if let Some(result) = result.as_ref() {
+        if trace_enabled {
+            trace(
+                host,
+                &Diagnostics::Resolving_type_reference_directive_0_containing_file_1,
+                Some(vec![
+                    type_reference_directive_name.to_owned(),
+                    containing_file.unwrap().to_owned(),
+                ]),
+            );
+            if let Some(redirected_reference) = redirected_reference.as_ref() {
+                trace(
+                    host,
+                    &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
+                    Some(vec![redirected_reference
+                        .source_file
+                        .as_source_file()
+                        .file_name()
+                        .clone()]),
+                );
+            }
+            trace(
+                host,
+                &Diagnostics::Resolution_for_type_reference_directive_0_was_found_in_cache_from_location_1,
+                Some(vec![
+                    type_reference_directive_name.to_owned(),
+                    containing_directory.clone().unwrap(),
+                ])
+            );
+            trace_result(result);
+        }
+        return result.clone();
+    }
+
+    let type_roots = get_effective_type_roots(
+        &options,
+        || host.get_current_directory(),
+        |directory_name| host.directory_exists(directory_name),
+        || host.is_directory_exists_supported(),
+    );
+    if trace_enabled {
+        match containing_file {
+            None => {
+                match type_roots.as_ref() {
+                    None => {
+                        trace(
+                            host,
+                            &Diagnostics::Resolving_type_reference_directive_0_containing_file_not_set_root_directory_not_set,
+                            Some(vec![
+                                type_reference_directive_name.to_owned(),
+                            ])
+                        );
+                    }
+                    Some(type_roots) => {
+                        trace(
+                            host,
+                            &Diagnostics::Resolving_type_reference_directive_0_containing_file_not_set_root_directory_1,
+                            Some(vec![
+                                type_reference_directive_name.to_owned(),
+                                // TODO: not sure if this is the correct string-ification? (same below)
+                                type_roots.join(", "),
+                            ])
+                        );
+                    }
+                }
+            }
+            Some(containing_file) => match type_roots.as_ref() {
+                None => {
+                    trace(
+                            host,
+                            &Diagnostics::Resolving_type_reference_directive_0_containing_file_1_root_directory_not_set,
+                            Some(vec![
+                                type_reference_directive_name.to_owned(),
+                                containing_file.to_owned(),
+                            ])
+                        );
+                }
+                Some(type_roots) => {
+                    trace(
+                            host,
+                            &Diagnostics::Resolving_type_reference_directive_0_containing_file_1_root_directory_2,
+                            Some(vec![
+                                type_reference_directive_name.to_owned(),
+                                containing_file.to_owned(),
+                                type_roots.join(", "),
+                            ])
+                        );
+                }
+            },
+        }
+        if let Some(redirected_reference) = redirected_reference.as_ref() {
+            trace(
+                host,
+                &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
+                Some(vec![redirected_reference
+                    .source_file
+                    .as_source_file()
+                    .file_name()
+                    .clone()]),
+            );
+        }
+    }
+
+    let mut failed_lookup_locations: Vec<String> = vec![];
+    let module_resolution_state = ModuleResolutionState {
+        compiler_options: options.clone(),
+        host,
+        trace_enabled,
+        failed_lookup_locations,
+        package_json_info_cache: cache.clone(),
+        features: NodeResolutionFeatures::AllFeatures,
+        conditions: vec!["node".to_owned(), "require".to_owned(), "types".to_owned()],
+        result_from_cache: None,
+    };
+    let mut resolved = primary_lookup();
+    let mut primary = true;
+    if resolved.is_none() {
+        resolved = secondary_lookup();
+        primary = false;
+    }
+
+    let mut resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>> = None;
+    if let Some(resolved) = resolved {
+        let PathAndPackageId {
+            file_name,
+            package_id,
+        } = resolved;
+        let resolved_file_name = if options.preserve_symlinks == Some(true) {
+            file_name.clone()
+        } else {
+            real_path(&file_name, host, trace_enabled)
+        };
+        resolved_type_reference_directive = Some(Rc::new(ResolvedTypeReferenceDirective {
+            primary,
+            resolved_file_name: Some(resolved_file_name.clone()),
+            original_path: if are_paths_equal(&file_name, &resolved_file_name, host) {
+                None
+            } else {
+                Some(file_name.clone())
+            },
+            package_id,
+            is_external_library_import: Some(path_contains_node_modules(&file_name)),
+        }));
+    }
+    result = Some(Rc::new(
+        ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
+            resolved_type_reference_directive,
+            failed_lookup_locations: module_resolution_state.failed_lookup_locations.clone(),
+        },
+    ));
+    let result = result.unwrap();
+    if let Some(per_folder_cache) = per_folder_cache.as_ref() {
+        per_folder_cache.set(
+            type_reference_directive_name.to_owned(),
+            None,
+            result.clone(),
+        );
+    }
+    if trace_enabled {
+        trace_result(&result);
+    }
+    result
+}
+
+fn primary_lookup() -> Option<PathAndPackageId> {
+    unimplemented!()
+}
+
+fn secondary_lookup() -> Option<PathAndPackageId> {
+    unimplemented!()
+}
+
+fn trace_result(result: &ResolvedTypeReferenceDirectiveWithFailedLookupLocations) {
     unimplemented!()
 }
 
@@ -170,8 +395,8 @@ pub trait PerDirectoryResolutionCache<TValue> {
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
-        redirected_reference: Option<ResolvedProjectReference>,
-    ) -> &ModeAwareCache<TValue>;
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    ) -> Rc<ModeAwareCache<TValue>>;
     fn clear(&self);
     fn update(&self, options: &CompilerOptions);
 }
@@ -263,8 +488,8 @@ impl PerDirectoryResolutionCache<ResolvedModuleWithFailedLookupLocations>
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
-        redirected_reference: Option<ResolvedProjectReference>,
-    ) -> &ModeAwareCache<ResolvedModuleWithFailedLookupLocations> {
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    ) -> Rc<ModeAwareCache<ResolvedModuleWithFailedLookupLocations>> {
         unimplemented!()
     }
 
@@ -322,14 +547,14 @@ pub fn create_type_reference_directive_resolution_cache(
     TypeReferenceDirectiveResolutionCache {}
 }
 
-impl PerDirectoryResolutionCache<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>
+impl PerDirectoryResolutionCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>
     for TypeReferenceDirectiveResolutionCache
 {
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
-        redirected_reference: Option<ResolvedProjectReference>,
-    ) -> &ModeAwareCache<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    ) -> Rc<ModeAwareCache<Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
         unimplemented!()
     }
 
@@ -372,6 +597,19 @@ pub fn resolve_module_name(
     unimplemented!()
 }
 
+bitflags! {
+    pub(crate) struct NodeResolutionFeatures: u32 {
+        const None = 0;
+        const Imports = 1 << 1;
+        const SelfName = 1 << 2;
+        const Exports = 1 << 3;
+        const ExportsPatternTrailers = 1 << 4;
+        const AllFeatures = Self::Imports.bits | Self::SelfName.bits | Self::Exports.bits | Self::ExportsPatternTrailers.bits;
+
+        const EsmMode = 1 << 5;
+    }
+}
+
 pub fn node_module_name_resolver<THost: ModuleResolutionHost>(
     module_name: &str,
     containing_file: &str,
@@ -381,6 +619,14 @@ pub fn node_module_name_resolver<THost: ModuleResolutionHost>(
     redirected_reference: Option<ResolvedProjectReference>,
     lookup_config: Option<bool>,
 ) -> ResolvedModuleWithFailedLookupLocations {
+    unimplemented!()
+}
+
+fn real_path(path: &str, host: &dyn ModuleResolutionHost, trace_enabled: bool) -> String {
+    unimplemented!()
+}
+
+fn path_contains_node_modules(path: &str) -> bool {
     unimplemented!()
 }
 

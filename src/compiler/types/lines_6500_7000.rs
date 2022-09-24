@@ -255,7 +255,7 @@ pub struct ResolvedTypeReferenceDirective {
 }
 
 pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
-    pub resolved_type_reference_directive: Option<ResolvedTypeReferenceDirective>,
+    pub resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>>,
     pub failed_lookup_locations: Vec<String>,
 }
 

@@ -627,7 +627,7 @@ pub trait LoadWithLocalCacheLoader<TValue> {
         &self,
         name: &str,
         containing_file: &str,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> TValue;
 }
 
@@ -660,27 +660,26 @@ impl LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>
         &self,
         types_ref: &str,
         containing_file: &str,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Rc<ResolvedTypeReferenceDirective> {
-        Rc::new(
-            resolve_type_reference_directive(
-                types_ref,
-                Some(containing_file),
-                &self.options,
-                self.host.as_dyn_module_resolution_host(),
-                redirected_reference,
-                self.type_reference_directive_resolution_cache.as_deref(),
-            )
-            .resolved_type_reference_directive
-            .unwrap(),
+        resolve_type_reference_directive(
+            types_ref,
+            Some(containing_file),
+            self.options.clone(),
+            self.host.as_dyn_module_resolution_host(),
+            redirected_reference,
+            self.type_reference_directive_resolution_cache.clone(),
         )
+        .resolved_type_reference_directive
+        .clone()
+        .unwrap()
     }
 }
 
 pub(crate) fn load_with_local_cache<TValue: Clone>(
     names: &[String],
     containing_file: &str,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
     loader: &dyn LoadWithLocalCacheLoader<TValue>,
 ) -> Vec<TValue> {
     if names.is_empty() {
@@ -693,7 +692,7 @@ pub(crate) fn load_with_local_cache<TValue: Clone>(
         if cache.contains_key(name) {
             result = cache.get(name).cloned().unwrap();
         } else {
-            result = loader.call(name, containing_file, redirected_reference);
+            result = loader.call(name, containing_file, redirected_reference.clone());
             cache.insert(name.clone(), result.clone());
         }
         resolutions.push(result);
@@ -1514,7 +1513,7 @@ impl Program {
             .call(
                 type_directive_names,
                 &containing_file_name,
-                redirected_reference.as_deref(),
+                redirected_reference.clone(),
             );
         // performance.mark("afterResolveTypeReference");
         // performance.measure("ResolveTypeReference", "beforeResolveTypeReference", "afterResolveTypeReference");
@@ -2265,7 +2264,7 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker {
         &self,
         type_directive_names: &[String],
         containing_file: &str,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>>;
 }
 
@@ -2287,13 +2286,13 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         &self,
         type_directive_names: &[String],
         containing_file: &str,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
         self.host
             .resolve_type_reference_directives(
                 /*Debug.checkEachDefined(*/ type_directive_names, /*)*/
                 containing_file,
-                redirected_reference,
+                redirected_reference.as_deref(),
                 &self.options,
             )
             .unwrap()
@@ -2319,7 +2318,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         &self,
         type_reference_directive_names: &[String],
         containing_file: &str,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>> {
         load_with_local_cache(
             /*Debug.checkEachDefined(*/ type_reference_directive_names, /*)*/
