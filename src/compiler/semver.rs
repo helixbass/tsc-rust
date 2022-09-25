@@ -1,7 +1,8 @@
 use regex::Regex;
+use std::ptr;
 use std::rc::Rc;
 
-use crate::{trim_string, Debug_};
+use crate::{compare_values, trim_string, Comparison, Debug_};
 
 lazy_static! {
     static ref version_reg_exp: Regex =
@@ -61,6 +62,32 @@ impl Version {
                 vec![]
             },
         }
+    }
+
+    pub fn compare_to(&self, other: Option<&Self>) -> Comparison {
+        if matches!(
+            other,
+            Some(other) if ptr::eq(self, other)
+        ) {
+            return Comparison::EqualTo;
+        }
+        if other.is_none() {
+            return Comparison::GreaterThan;
+        }
+        let other = other.unwrap();
+        let mut ret = compare_values(Some(self.major), Some(other.major));
+        if ret != Comparison::EqualTo {
+            return ret;
+        }
+        ret = compare_values(Some(self.minor), Some(other.minor));
+        if ret != Comparison::EqualTo {
+            return ret;
+        }
+        ret = compare_values(Some(self.patch), Some(other.patch));
+        if ret != Comparison::EqualTo {
+            return ret;
+        }
+        compare_prerelease_identifiers(&self.prerelease, &other.prerelease)
     }
 
     pub fn increment(&self, field: &str /*"major" | "minor" | "patch"*/) -> Self {
@@ -138,6 +165,10 @@ fn try_parse_components(text: &str) -> Option<Components> {
     })
 }
 
+fn compare_prerelease_identifiers(left: &[String], right: &[String]) -> Comparison {
+    unimplemented!()
+}
+
 pub struct VersionRange {
     _alternatives: Vec<Vec<Comparator>>,
 }
@@ -164,7 +195,12 @@ impl VersionRange {
     }
 
     pub fn test<TVersion: Into<VersionOrString>>(&self, version: TVersion) -> bool {
-        unimplemented!()
+        let version: VersionOrString = version.into();
+        let version = match version {
+            VersionOrString::String(version) => Rc::new((&*version).into()),
+            VersionOrString::Version(version) => version,
+        };
+        test_disjunction(&version, &self._alternatives)
     }
 }
 
@@ -420,5 +456,37 @@ fn create_comparator<TOperator: Into<ComparatorOperator>>(
     Comparator {
         operator: operator.into(),
         operand,
+    }
+}
+
+fn test_disjunction(version: &Version, alternatives: &[Vec<Comparator>]) -> bool {
+    if alternatives.is_empty() {
+        return true;
+    }
+    for alternative in alternatives {
+        if test_alternative(version, alternative) {
+            return true;
+        }
+    }
+    false
+}
+
+fn test_alternative(version: &Version, comparators: &[Comparator]) -> bool {
+    for comparator in comparators {
+        if !test_comparator(version, comparator.operator, &comparator.operand) {
+            return false;
+        }
+    }
+    true
+}
+
+fn test_comparator(version: &Version, operator: ComparatorOperator, operand: &Version) -> bool {
+    let cmp = version.compare_to(Some(operand));
+    match operator {
+        ComparatorOperator::LessThan => cmp == Comparison::LessThan,
+        ComparatorOperator::LessThanOrEqual => cmp != Comparison::GreaterThan,
+        ComparatorOperator::GreaterThan => cmp == Comparison::GreaterThan,
+        ComparatorOperator::GreaterThanOrEqual => cmp != Comparison::LessThan,
+        ComparatorOperator::Equal => cmp == Comparison::EqualTo,
     }
 }
