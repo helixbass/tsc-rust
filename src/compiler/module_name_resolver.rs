@@ -1351,10 +1351,105 @@ fn try_adding_extensions(
     candidate: &str,
     extensions: Extensions,
     original_extension: &str,
-    only_record_failures: bool,
+    mut only_record_failures: bool,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
 ) -> Option<PathAndExtension> {
-    unimplemented!()
+    if !only_record_failures {
+        let directory = get_directory_path(candidate);
+        if !directory.is_empty() {
+            only_record_failures = !directory_probably_exists(
+                &directory,
+                |directory_name| state.host.directory_exists(directory_name),
+                || state.host.is_directory_exists_supported(),
+            );
+        }
+    }
+
+    let mut candidate = candidate.to_owned();
+    match extensions {
+        Extensions::DtsOnly => {
+            if original_extension == Extension::Mjs.to_str()
+                || original_extension == Extension::Mts.to_str()
+                || original_extension == Extension::Dmts.to_str()
+            {
+                try_extension(&candidate, only_record_failures, state, Extension::Dmts)
+            } else if original_extension == Extension::Cjs.to_str()
+                || original_extension == Extension::Cts.to_str()
+                || original_extension == Extension::Dcts.to_str()
+            {
+                try_extension(&candidate, only_record_failures, state, Extension::Dcts)
+            } else if original_extension == Extension::Json.to_str() {
+                candidate = format!("{}{}", candidate, Extension::Json.to_str());
+                try_extension(&candidate, only_record_failures, state, Extension::Dts)
+            } else {
+                try_extension(&candidate, only_record_failures, state, Extension::Dts)
+            }
+        }
+        Extensions::TypeScript => {
+            if original_extension == Extension::Mjs.to_str()
+                || original_extension == Extension::Mts.to_str()
+                || original_extension == Extension::Dmts.to_str()
+            {
+                try_extension(&candidate, only_record_failures, state, Extension::Mts).or_else(
+                    || try_extension(&candidate, only_record_failures, state, Extension::Dmts),
+                )
+            } else if original_extension == Extension::Cjs.to_str()
+                || original_extension == Extension::Cts.to_str()
+                || original_extension == Extension::Dcts.to_str()
+            {
+                try_extension(&candidate, only_record_failures, state, Extension::Cts).or_else(
+                    || try_extension(&candidate, only_record_failures, state, Extension::Dcts),
+                )
+            } else if original_extension == Extension::Json.to_str() {
+                candidate = format!("{}{}", candidate, Extension::Json.to_str());
+                try_extension(&candidate, only_record_failures, state, Extension::Dts)
+            } else {
+                try_extension(&candidate, only_record_failures, state, Extension::Ts)
+                    .or_else(|| {
+                        try_extension(&candidate, only_record_failures, state, Extension::Tsx)
+                    })
+                    .or_else(|| {
+                        try_extension(&candidate, only_record_failures, state, Extension::Dts)
+                    })
+            }
+        }
+        Extensions::JavaScript => {
+            if original_extension == Extension::Mjs.to_str()
+                || original_extension == Extension::Mts.to_str()
+                || original_extension == Extension::Dmts.to_str()
+            {
+                try_extension(&candidate, only_record_failures, state, Extension::Mjs)
+            } else if original_extension == Extension::Cjs.to_str()
+                || original_extension == Extension::Cts.to_str()
+                || original_extension == Extension::Dcts.to_str()
+            {
+                try_extension(&candidate, only_record_failures, state, Extension::Cjs)
+            } else if original_extension == Extension::Json.to_str() {
+                try_extension(&candidate, only_record_failures, state, Extension::Json)
+            } else {
+                try_extension(&candidate, only_record_failures, state, Extension::Js).or_else(
+                    || try_extension(&candidate, only_record_failures, state, Extension::Jsx),
+                )
+            }
+        }
+        Extensions::TSConfig | Extensions::Json => {
+            try_extension(&candidate, only_record_failures, state, Extension::Json)
+        }
+    }
+}
+
+fn try_extension(
+    candidate: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    ext: Extension,
+) -> Option<PathAndExtension> {
+    let path = try_file(
+        &format!("{}{}", candidate, ext.to_str()),
+        only_record_failures,
+        state,
+    )?;
+    Some(PathAndExtension { path, ext })
 }
 
 fn try_file(
