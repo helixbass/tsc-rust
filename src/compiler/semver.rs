@@ -64,7 +64,18 @@ impl Version {
     }
 
     pub fn increment(&self, field: &str /*"major" | "minor" | "patch"*/) -> Self {
-        unimplemented!()
+        match field {
+            "major" => Self::new(self.major + 1, Some(0), Some(0), None, None),
+            "minor" => Self::new(self.major, Some(self.minor + 1), Some(0), None, None),
+            "patch" => Self::new(
+                self.major,
+                Some(self.minor),
+                Some(self.patch + 1),
+                None,
+                None,
+            ),
+            _ => Debug_.assert_never(field, None),
+        }
     }
 }
 
