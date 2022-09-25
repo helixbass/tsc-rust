@@ -608,12 +608,9 @@ impl Scanner {
         let save_token_flags = self.token_flags();
         let save_error_expectations = (*self.maybe_comment_directives()).clone();
 
-        self.set_text(
-            Some(self.text().clone()),
-            Some(self.text_str().to_string()),
-            Some(start),
-            Some(length),
-        );
+        let text = Some(self.text().clone());
+        let text_str = Some(self.text_str().to_string());
+        self.set_text(text, text_str, Some(start), Some(length));
         let result = callback();
 
         self.set_end(save_end);
