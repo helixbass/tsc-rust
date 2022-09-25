@@ -1321,8 +1321,8 @@ pub fn get_spelling_suggestion<
 }
 
 fn levenshtein_with_max(s1: &SourceTextAsChars, s2: &SourceTextAsChars, max: f64) -> Option<f64> {
-    let mut previous: Vec<f64> = Vec::with_capacity(s2.len() + 1);
-    let mut current: Vec<f64> = Vec::with_capacity(s2.len() + 1);
+    let mut previous: Vec<f64> = vec![0.0; s2.len() + 1];
+    let mut current: Vec<f64> = vec![0.0; s2.len() + 1];
     let big = max + 0.01;
 
     for i in 0..=s2.len() {
