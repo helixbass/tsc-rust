@@ -382,6 +382,7 @@ impl From<Option<PollingWatchKind>> for CompilerOptionsValue {
 }
 
 #[derive(Builder, Debug, Default, Serialize)]
+#[builder(default)]
 pub struct CompilerOptions {
     pub(crate) all: Option<bool>,
     pub allow_js: Option<bool>,
