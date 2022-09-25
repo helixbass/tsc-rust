@@ -1663,6 +1663,14 @@ pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
     unimplemented!()
 }
 
+pub fn try_remove_extension<'path>(path: &'path str, extension: &str) -> Option<&'path str> {
+    if file_extension_is(path, extension) {
+        Some(remove_extension(path, extension))
+    } else {
+        None
+    }
+}
+
 pub fn remove_extension<'path>(path: &'path str, extension: &str) -> &'path str {
     &path[0..path.len() - extension.len()]
 }

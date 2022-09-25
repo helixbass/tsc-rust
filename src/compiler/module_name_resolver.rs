@@ -8,9 +8,9 @@ use crate::{
     directory_separator_str, extension_is_ts, first_defined, for_each_ancestor_directory,
     format_message, get_base_file_name, get_directory_path, get_relative_path_from_directory,
     normalize_path, options_have_module_resolution_changes, read_json, string_contains, to_path,
-    try_get_extension_from_path, version, version_major_minor, CharacterCodes, Comparison,
-    CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, ModuleKind,
-    ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
+    try_get_extension_from_path, try_remove_extension, version, version_major_minor,
+    CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension,
+    ModuleKind, ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
     ResolvedProjectReference, ResolvedTypeReferenceDirective,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
     Version, VersionRange,
@@ -1295,6 +1295,62 @@ fn path_contains_node_modules(path: &str) -> bool {
 fn load_module_from_file(
     extensions: Extensions,
     candidate: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<PathAndExtension> {
+    if matches!(extensions, Extensions::Json | Extensions::TSConfig) {
+        let extension_less = try_remove_extension(candidate, Extension::Json.to_str());
+        let extension = if let Some(extension_less) = extension_less {
+            &candidate[extension_less.len()..]
+        } else {
+            ""
+        };
+        return if extension_less.is_none() && extensions == Extensions::Json {
+            None
+        } else {
+            try_adding_extensions(
+                match extension_less {
+                    None => candidate,
+                    Some(extension_less) => {
+                        if extension_less.is_empty() {
+                            candidate
+                        } else {
+                            extension_less
+                        }
+                    }
+                },
+                extensions,
+                extension,
+                only_record_failures,
+                state,
+            )
+        };
+    }
+
+    if !state.features.intersects(NodeResolutionFeatures::EsmMode) {
+        let resolved_by_adding_extension =
+            try_adding_extensions(candidate, extensions, "", only_record_failures, state);
+        if resolved_by_adding_extension.is_some() {
+            return resolved_by_adding_extension;
+        }
+    }
+
+    load_module_from_file_no_implicit_extensions(extensions, candidate, only_record_failures, state)
+}
+
+fn load_module_from_file_no_implicit_extensions(
+    extensions: Extensions,
+    candidate: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+) -> Option<PathAndExtension> {
+    unimplemented!()
+}
+
+fn try_adding_extensions(
+    candidate: &str,
+    extensions: Extensions,
+    original_extension: &str,
     only_record_failures: bool,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
 ) -> Option<PathAndExtension> {

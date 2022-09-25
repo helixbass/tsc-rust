@@ -473,7 +473,7 @@ pub use compiler::utilities::{
     try_extract_ts_extension,
     try_get_class_implementing_or_extending_expression_with_type_arguments,
     try_get_extension_from_path, try_get_import_from_module_specifier,
-    try_get_property_access_or_identifier_to_string, try_parse_pattern,
+    try_get_property_access_or_identifier_to_string, try_parse_pattern, try_remove_extension,
     type_has_call_or_construct_signatures, unreachable_code_is_error, unused_label_is_error,
     using_single_line_string_writer, walk_up_parenthesized_expressions,
     walk_up_parenthesized_types, walk_up_parenthesized_types_and_get_parent_and_child,
