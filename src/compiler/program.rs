@@ -36,9 +36,10 @@ use crate::{
     NamedDeclarationInterface, Node, PackageId, ParseConfigFileHost, ParseConfigHost,
     ParsedCommandLine, Path, Program, ProjectReference, ReferencedFile, ResolvedConfigFileName,
     ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceOfProjectReferenceRedirect,
-    StringOrRcNode, StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceFileLike,
+    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, System,
+    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -1179,9 +1180,7 @@ impl Program {
                 for i in 0..type_references.len() {
                     self.process_type_reference_directive(
                         &type_references[i],
-                        resolutions
-                            .get(i)
-                            .and_then(|resolution| resolution.as_deref()),
+                        resolutions.get(i).and_then(|resolution| resolution.clone()),
                         &FileIncludeReason::AutomaticTypeDirectiveFile(
                             AutomaticTypeDirectiveFile {
                                 kind: FileIncludeKind::AutomaticTypeDirectiveFile,
@@ -1298,6 +1297,15 @@ impl Program {
         Ref::map(self.default_library_path.borrow(), |default_library_path| {
             default_library_path.as_ref().unwrap()
         })
+    }
+
+    pub(super) fn current_node_modules_depth(&self) -> usize {
+        self.current_node_modules_depth.get()
+    }
+
+    pub(super) fn set_current_node_modules_depth(&self, current_node_modules_depth: usize) {
+        self.current_node_modules_depth
+            .set(current_node_modules_depth);
     }
 
     pub(super) fn maybe_old_program(&self) -> Option<Rc<Program>> {
@@ -1555,6 +1563,10 @@ impl Program {
     }
 
     pub fn get_file_include_reasons(&self) -> MultiMap<Path, FileIncludeReason> {
+        unimplemented!()
+    }
+
+    pub fn get_source_file_(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
         unimplemented!()
     }
 
@@ -1977,10 +1989,119 @@ impl Program {
     pub fn process_type_reference_directive(
         &self,
         type_reference_directive: &str,
-        resolved_type_reference_directive: Option<&ResolvedTypeReferenceDirective>,
+        resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>>,
         reason: &FileIncludeReason,
     ) {
-        unimplemented!()
+        // tracing?.push(tracing.Phase.Program, "processTypeReferenceDirective", { directive: typeReferenceDirective, hasResolved: !!resolveModuleNamesReusingOldState, refKind: reason.kind, refPath: isReferencedFile(reason) ? reason.file : undefined });
+        self.process_type_reference_directive_worker(
+            type_reference_directive,
+            resolved_type_reference_directive,
+            reason,
+        )
+        // tracing?.pop();
+    }
+
+    pub fn process_type_reference_directive_worker(
+        &self,
+        type_reference_directive: &str,
+        resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>>,
+        reason: &FileIncludeReason,
+    ) {
+        let previous_resolution = self
+            .resolved_type_reference_directives()
+            .get(type_reference_directive)
+            .cloned()
+            .flatten();
+        if matches!(
+            previous_resolution.as_ref(),
+            Some(previous_resolution) if previous_resolution.primary
+        ) {
+            return;
+        }
+        let mut save_resolution = true;
+        if let Some(resolved_type_reference_directive) =
+            resolved_type_reference_directive.as_deref()
+        {
+            if resolved_type_reference_directive.is_external_library_import == Some(true) {
+                self.set_current_node_modules_depth(self.current_node_modules_depth() + 1);
+            }
+
+            if resolved_type_reference_directive.primary {
+                self.process_source_file(
+                    resolved_type_reference_directive
+                        .resolved_file_name
+                        .as_ref()
+                        .unwrap(),
+                    false,
+                    false,
+                    resolved_type_reference_directive.package_id.as_ref(),
+                    reason,
+                );
+            } else {
+                if let Some(previous_resolution) = previous_resolution.as_ref() {
+                    if resolved_type_reference_directive.resolved_file_name
+                        != previous_resolution.resolved_file_name
+                    {
+                        let other_file_text = self.host().read_file(
+                            resolved_type_reference_directive
+                                .resolved_file_name
+                                .as_ref()
+                                .unwrap(),
+                        );
+                        let existing_file = self
+                            .get_source_file_(
+                                previous_resolution.resolved_file_name.as_ref().unwrap(),
+                            )
+                            .unwrap();
+                        if !matches!(
+                            other_file_text.as_ref(),
+                            Ok(other_file_text) if other_file_text == &*existing_file.as_source_file().text()
+                        ) {
+                            self.add_file_preprocessing_file_explaining_diagnostic(
+                                Some(&*existing_file),
+                                reason,
+                                &Diagnostics::Conflicting_definitions_for_0_found_at_1_and_2_Consider_installing_a_specific_version_of_this_library_to_resolve_the_conflict,
+                                Some(vec![
+                                    type_reference_directive.to_owned(),
+                                    resolved_type_reference_directive.resolved_file_name.clone().unwrap(),
+                                    previous_resolution.resolved_file_name.clone().unwrap(),
+                                ])
+                            );
+                        }
+                    }
+                    save_resolution = false;
+                } else {
+                    self.process_source_file(
+                        resolved_type_reference_directive
+                            .resolved_file_name
+                            .as_ref()
+                            .unwrap(),
+                        false,
+                        false,
+                        resolved_type_reference_directive.package_id.as_ref(),
+                        reason,
+                    );
+                }
+            }
+
+            if resolved_type_reference_directive.is_external_library_import == Some(true) {
+                self.set_current_node_modules_depth(self.current_node_modules_depth() - 1);
+            }
+        } else {
+            self.add_file_preprocessing_file_explaining_diagnostic(
+                Option::<&Node>::None,
+                reason,
+                &Diagnostics::Cannot_find_type_definition_file_for_0,
+                Some(vec![type_reference_directive.to_owned()]),
+            );
+        }
+
+        if save_resolution {
+            self.resolved_type_reference_directives().insert(
+                type_reference_directive.to_owned(),
+                resolved_type_reference_directive,
+            );
+        }
     }
 
     pub fn path_for_lib_file(&self, lib_file_name: &str) -> String {
@@ -2338,7 +2459,7 @@ impl ScriptReferenceHost for Program {
     }
 
     fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
-        unimplemented!()
+        self.get_source_file_(file_name)
     }
 
     fn get_source_file_by_path(&self, path: &Path) -> Option<Rc<Node /*SourceFile*/>> {
@@ -2375,7 +2496,7 @@ impl TypeCheckerHost for Program {
     }
 
     fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
-        unimplemented!()
+        self.get_source_file_(file_name)
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
