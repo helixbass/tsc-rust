@@ -797,6 +797,10 @@ impl Scanner {
         self.token_value.borrow().as_ref().unwrap().to_string()
     }
 
+    pub(super) fn maybe_token_value(&self) -> Option<String> {
+        self.token_value.borrow().clone()
+    }
+
     pub(super) fn set_token_value(&self, token_value: String) {
         *self.token_value.borrow_mut() = Some(token_value);
     }
