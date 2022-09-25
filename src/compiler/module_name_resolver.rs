@@ -4,16 +4,16 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, compare_paths, contains_path, directory_probably_exists,
-    directory_separator_str, extension_is_ts, first_defined, for_each_ancestor_directory,
+    combine_paths, compare_paths, contains, contains_path, directory_probably_exists,
+    directory_separator_str, extension_is_ts, first_defined, for_each, for_each_ancestor_directory,
     format_message, get_base_file_name, get_directory_path, get_emit_module_kind,
     get_relative_path_from_directory, has_trailing_directory_separator,
-    is_external_module_name_relative, normalize_path, options_have_module_resolution_changes,
-    package_id_to_string, read_json, string_contains, to_path, try_get_extension_from_path,
-    try_remove_extension, version, version_major_minor, CharacterCodes, Comparison,
-    CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, ModuleKind,
-    ModuleResolutionHost, ModuleResolutionKind, PackageId, Path,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    is_external_module_name_relative, normalize_path, normalize_path_and_parts,
+    options_have_module_resolution_changes, package_id_to_string, read_json, starts_with,
+    string_contains, to_path, try_get_extension_from_path, try_remove_extension, version,
+    version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
+    Diagnostics, Extension, ModuleKind, ModuleResolutionHost, ModuleResolutionKind, PackageId,
+    Path, PathAndParts, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, Version, VersionRange,
 };
@@ -79,6 +79,7 @@ fn remove_ignored_package_id(r: Option<&Resolved>) -> Option<PathAndExtension> {
     None
 }
 
+#[derive(Clone)]
 struct Resolved {
     pub path: String,
     pub extension: Extension,
@@ -112,6 +113,15 @@ fn resolved_type_script_only(resolved: Option<&Resolved>) -> Option<PathAndPacka
         file_name: resolved.path.clone(),
         package_id: resolved.package_id.clone(),
     })
+}
+
+fn create_resolved_module_with_failed_lookup_locations(
+    resolved: Option<Resolved>,
+    is_external_library_import: Option<bool>,
+    failed_lookup_locations: Vec<String>,
+    result_from_cache: Option<Rc<ResolvedModuleWithFailedLookupLocations>>,
+) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+    unimplemented!()
 }
 
 pub(crate) struct ModuleResolutionState<'host_and_package_json_info_cache> {
@@ -1443,6 +1453,16 @@ pub fn resolve_module_name(
 type ResolutionKindSpecificLoader =
     Rc<dyn Fn(Extensions, &str, bool, &ModuleResolutionState) -> Option<Resolved>>;
 
+fn try_load_module_using_optional_resolution_settings(
+    extensions: Extensions,
+    module_name: &str,
+    containing_directory: &str,
+    loader: ResolutionKindSpecificLoader,
+    state: &ModuleResolutionState,
+) -> Option<Resolved> {
+    unimplemented!()
+}
+
 bitflags! {
     pub(crate) struct NodeResolutionFeatures: u32 {
         const None = 0;
@@ -1546,7 +1566,174 @@ fn node_module_name_resolver_worker(
         result_from_cache: None,
     };
 
-    unimplemented!()
+    let result = for_each(
+        extensions,
+        |ext: &Extensions, _| -> SearchResult<TryResolveSearchResultValue> {
+            try_resolve(
+                module_name,
+                containing_directory,
+                &state,
+                features,
+                cache,
+                redirected_reference,
+                host,
+                &compiler_options,
+                trace_enabled,
+                *ext,
+            )
+        },
+    );
+    let is_external_library_import = result
+        .as_ref()
+        .and_then(|result| result.value.as_ref())
+        .map(|result_value| result_value.is_external_library_import);
+    create_resolved_module_with_failed_lookup_locations(
+        result
+            .and_then(|result| result.value)
+            .map(|result_value| result_value.resolved),
+        is_external_library_import,
+        {
+            let failed_lookup_locations = state.failed_lookup_locations.borrow().clone();
+            failed_lookup_locations
+        },
+        state.result_from_cache.clone(),
+    )
+}
+
+fn try_resolve(
+    module_name: &str,
+    containing_directory: &str,
+    state: &ModuleResolutionState,
+    features: NodeResolutionFeatures,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+    host: &dyn ModuleResolutionHost,
+    compiler_options: &CompilerOptions,
+    trace_enabled: bool,
+    extensions: Extensions,
+) -> SearchResult<TryResolveSearchResultValue> {
+    let loader: ResolutionKindSpecificLoader =
+        Rc::new(|extensions, candidate, only_record_failures, state| {
+            node_load_module_by_relative_name(
+                extensions,
+                candidate,
+                only_record_failures,
+                state,
+                true,
+            )
+        });
+    let resolved = try_load_module_using_optional_resolution_settings(
+        extensions,
+        module_name,
+        containing_directory,
+        loader.clone(),
+        state,
+    );
+    if let Some(resolved) = resolved {
+        let is_external_library_import = path_contains_node_modules(&resolved.path);
+        return to_search_result(Some(TryResolveSearchResultValue {
+            resolved,
+            is_external_library_import,
+        }));
+    }
+
+    if !is_external_module_name_relative(module_name) {
+        let mut resolved: SearchResult<Resolved> = None;
+        if features.intersects(NodeResolutionFeatures::Imports) && starts_with(module_name, "#") {
+            resolved = load_module_from_imports(
+                extensions,
+                module_name,
+                containing_directory,
+                state,
+                cache,
+                redirected_reference,
+            );
+        }
+        if resolved.is_none() && features.intersects(NodeResolutionFeatures::SelfName) {
+            resolved = load_module_from_self_name_reference(
+                extensions,
+                module_name,
+                containing_directory,
+                state,
+                cache,
+                redirected_reference,
+            );
+        }
+        if resolved.is_none() {
+            if trace_enabled {
+                trace(
+                    host,
+                    &Diagnostics::Loading_module_0_from_node_modules_folder_target_file_type_1,
+                    Some(vec![module_name.to_owned(), format!("{:?}", extensions)]),
+                );
+            }
+            resolved = load_module_from_nearest_node_modules_directory(
+                extensions,
+                module_name,
+                containing_directory,
+                state,
+                cache,
+                redirected_reference,
+            );
+        }
+        let resolved = resolved?;
+
+        let mut resolved_value = resolved.value.clone();
+        if compiler_options.preserve_symlinks != Some(true) {
+            if let Some(resolved_value_present) =
+                resolved_value
+                    .as_ref()
+                    .filter(
+                        |resolved_value| !match resolved_value.original_path.as_ref() {
+                            None => false,
+                            Some(StringOrBool::String(resolved_value_original_path)) => {
+                                !resolved_value_original_path.is_empty()
+                            }
+                            Some(StringOrBool::Bool(resolved_value_original_path)) => {
+                                *resolved_value_original_path
+                            }
+                        },
+                    )
+            {
+                let path = real_path(&resolved_value_present.path, host, trace_enabled);
+                let original_path = if are_paths_equal(&path, &resolved_value_present.path, host) {
+                    None
+                } else {
+                    Some(resolved_value_present.path.clone())
+                };
+                resolved_value = Some(Resolved {
+                    extension: resolved_value_present.extension,
+                    package_id: resolved_value_present.package_id.clone(),
+                    path,
+                    original_path: original_path.map(Into::into),
+                });
+            }
+        }
+        Some(SearchResultPresent {
+            value: resolved_value.map(|resolved_value| TryResolveSearchResultValue {
+                resolved: resolved_value,
+                is_external_library_import: true,
+            }),
+        })
+    } else {
+        let PathAndParts {
+            path: candidate,
+            parts,
+        } = normalize_path_and_parts(&combine_paths(containing_directory, &[Some(module_name)]));
+        let resolved =
+            node_load_module_by_relative_name(extensions, &candidate, false, state, true);
+        resolved.and_then(|resolved| {
+            to_search_result(Some(TryResolveSearchResultValue {
+                resolved,
+                is_external_library_import: contains(Some(&parts), &"node_modules".to_owned()),
+            }))
+        })
+    }
+}
+
+struct TryResolveSearchResultValue {
+    pub resolved: Resolved,
+    pub is_external_library_import: bool,
 }
 
 fn real_path(path: &str, host: &dyn ModuleResolutionHost, trace_enabled: bool) -> String {
@@ -2152,6 +2339,39 @@ fn extension_is_ok(extensions: Extensions, extension: Extension) -> bool {
     }
 }
 
+fn load_module_from_self_name_reference(
+    extensions: Extensions,
+    module_name: &str,
+    directory: &str,
+    state: &ModuleResolutionState,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+) -> SearchResult<Resolved> {
+    unimplemented!()
+}
+
+fn load_module_from_imports(
+    extensions: Extensions,
+    module_name: &str,
+    directory: &str,
+    state: &ModuleResolutionState,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+) -> SearchResult<Resolved> {
+    unimplemented!()
+}
+
+fn load_module_from_nearest_node_modules_directory(
+    extensions: Extensions,
+    module_name: &str,
+    directory: &str,
+    state: &ModuleResolutionState,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+) -> SearchResult<Resolved> {
+    unimplemented!()
+}
+
 #[derive(Clone)]
 pub enum PackageJsonInfoOrBool {
     PackageJsonInfo(Rc<PackageJsonInfo>),
@@ -2206,4 +2426,8 @@ type SearchResult<TValue> = Option<SearchResultPresent<TValue>>;
 
 struct SearchResultPresent<TValue> {
     pub value: Option<TValue>,
+}
+
+fn to_search_result<TValue>(value: Option<TValue>) -> SearchResult<TValue> {
+    value.map(|value| SearchResultPresent { value: Some(value) })
 }

@@ -181,7 +181,7 @@ pub use compiler::path::{
     is_node_modules_directory, is_rooted_disk_path, is_url, normalize_path,
     normalize_path_and_parts, normalize_slashes, path_is_absolute, path_is_bare_specifier,
     path_is_relative, reduce_path_components, remove_trailing_directory_separator, resolve_path,
-    starts_with_directory, to_path, StringOrBool,
+    starts_with_directory, to_path, PathAndParts, StringOrBool,
 };
 use compiler::program::{
     change_compiler_host_like_to_use_cache, create_compiler_host_worker, format_color_and_reset,

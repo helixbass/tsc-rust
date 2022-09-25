@@ -610,6 +610,7 @@ pub fn compare_paths_case_insensitive(a: &str, b: &str) -> Comparison {
     compare_paths_worker(a, b, compare_strings_case_insensitive)
 }
 
+#[derive(Clone)]
 pub enum StringOrBool {
     String(String),
     Bool(bool),
