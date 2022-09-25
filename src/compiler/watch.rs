@@ -20,12 +20,12 @@ use crate::{
     DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
     EmitAndSemanticDiagnosticsBuilderProgram, EmitResult, ExitStatus, ExtendedConfigCacheEntry,
     Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason,
-    ForegroundColorEscapeSequences, FormatDiagnosticsHost, Node, ParseConfigFileHost,
-    ParseConfigHost, ParsedCommandLine, Program, ProgramHost, ProjectReference,
-    ReferenceFileLocationOrSyntheticReferenceFileLocation, ReportEmitErrorSummary,
-    ResolvedProjectReference, ScriptReferenceHost, SortedArray, SourceFileLike, StringOrRcNode,
-    System, TypeCheckerHost, WatchCompilerHost, WatchCompilerHostOfConfigFile, WatchHost,
-    WatchOptions, WatchStatusReporter, WriteFileCallback,
+    ForegroundColorEscapeSequences, FormatDiagnosticsHost, ModuleResolutionHost, Node,
+    ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Program, ProgramHost,
+    ProjectReference, ReferenceFileLocationOrSyntheticReferenceFileLocation,
+    ReportEmitErrorSummary, ResolvedProjectReference, ScriptReferenceHost, SortedArray,
+    SourceFileLike, StringOrRcNode, System, TypeCheckerHost, WatchCompilerHost,
+    WatchCompilerHostOfConfigFile, WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
 };
 use local_macros::enum_unwrapped;
 
@@ -299,6 +299,10 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
 
     fn is_trace_supported(&self) -> bool {
         false
+    }
+
+    fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+        self
     }
 }
 

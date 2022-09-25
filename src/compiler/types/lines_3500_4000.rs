@@ -17,9 +17,10 @@ use crate::{
     ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
     CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
     DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue, ModeAwareCache,
-    ModuleKind, ModuleResolutionCache, ModuleResolutionHostOverrider, MultiMap, PackageId,
-    ParseConfigFileHost, PragmaContext, ResolvedProjectReference, SourceOfProjectReferenceRedirect,
-    SymlinkCache, Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    MultiMap, PackageId, ParseConfigFileHost, PragmaContext, ResolvedProjectReference,
+    SourceOfProjectReferenceRedirect, SymlinkCache, Type, TypeFlags, TypeInterface,
+    TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -859,6 +860,7 @@ pub trait ParseConfigHost {
     fn read_file(&self, path: &str) -> io::Result<String>;
     fn trace(&self, s: &str) {}
     fn is_trace_supported(&self) -> bool;
+    fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
 }
 
 pub struct ResolvedConfigFileName(String);

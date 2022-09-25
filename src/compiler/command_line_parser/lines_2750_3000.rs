@@ -631,7 +631,7 @@ pub(super) fn get_extends_config_path<
             module_resolution: Some(ModuleResolutionKind::NodeJs),
             ..Default::default()
         },
-        host,
+        host.as_dyn_module_resolution_host(),
         None,
         None,
         None,

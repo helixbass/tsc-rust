@@ -6,11 +6,13 @@ use std::rc::Rc;
 use crate::{
     combine_paths, compare_paths, contains_path, directory_probably_exists,
     directory_separator_str, extension_is_ts, first_defined, for_each_ancestor_directory,
-    format_message, get_base_file_name, get_directory_path, get_relative_path_from_directory,
-    has_trailing_directory_separator, normalize_path, options_have_module_resolution_changes,
-    read_json, string_contains, to_path, try_get_extension_from_path, try_remove_extension,
-    version, version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_,
-    DiagnosticMessage, Diagnostics, Extension, ModuleKind, ModuleResolutionHost, PackageId, Path,
+    format_message, get_base_file_name, get_directory_path, get_emit_module_kind,
+    get_relative_path_from_directory, has_trailing_directory_separator,
+    is_external_module_name_relative, normalize_path, options_have_module_resolution_changes,
+    package_id_to_string, read_json, string_contains, to_path, try_get_extension_from_path,
+    try_remove_extension, version, version_major_minor, CharacterCodes, Comparison,
+    CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, ModuleKind,
+    ModuleResolutionHost, ModuleResolutionKind, PackageId, Path,
     ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, Version, VersionRange,
@@ -789,8 +791,8 @@ pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
         &self,
         non_relative_module_name: &str,
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-        redirected_reference: Option<ResolvedProjectReference>,
-    ) -> &PerModuleNameCache;
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    ) -> Rc<PerModuleNameCache>;
 }
 
 pub trait PackageJsonInfoCache {
@@ -1088,14 +1090,14 @@ impl ModuleResolutionCache {
     }
 }
 
-impl PerDirectoryResolutionCache<ResolvedModuleWithFailedLookupLocations>
+impl PerDirectoryResolutionCache<Rc<ResolvedModuleWithFailedLookupLocations>>
     for ModuleResolutionCache
 {
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
         redirected_reference: Option<Rc<ResolvedProjectReference>>,
-    ) -> Rc<ModeAwareCache<ResolvedModuleWithFailedLookupLocations>> {
+    ) -> Rc<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>> {
         unimplemented!()
     }
 
@@ -1113,8 +1115,8 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
         &self,
         non_relative_module_name: &str,
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-        redirected_reference: Option<ResolvedProjectReference>,
-    ) -> &PerModuleNameCache {
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    ) -> Rc<PerModuleNameCache> {
         unimplemented!()
     }
 }
@@ -1133,6 +1135,16 @@ impl PackageJsonInfoCache for ModuleResolutionCache {
     }
 
     fn clear(&self) {
+        unimplemented!()
+    }
+}
+
+impl PerModuleNameCache {
+    pub fn get(&self, directory: &str) -> Option<Rc<ResolvedModuleWithFailedLookupLocations>> {
+        unimplemented!()
+    }
+
+    pub fn set(&self, directory: &str, result: Rc<ResolvedModuleWithFailedLookupLocations>) {
         unimplemented!()
     }
 }
@@ -1213,13 +1225,195 @@ impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
 pub fn resolve_module_name(
     module_name: &str,
     containing_file: &str,
-    compiler_options: &CompilerOptions,
+    mut compiler_options: Rc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> ResolvedModuleWithFailedLookupLocations {
-    unimplemented!()
+) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+    let trace_enabled = is_trace_enabled(&compiler_options, host);
+    if let Some(redirected_reference) = redirected_reference.as_ref() {
+        compiler_options = redirected_reference.command_line.options.clone();
+    }
+    if trace_enabled {
+        trace(
+            host,
+            &Diagnostics::Resolving_module_0_from_1,
+            Some(vec![module_name.to_owned(), containing_file.to_owned()]),
+        );
+        if let Some(redirected_reference) = redirected_reference.as_ref() {
+            trace(
+                host,
+                &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
+                Some(vec![redirected_reference
+                    .source_file
+                    .as_source_file()
+                    .file_name()
+                    .clone()]),
+            );
+        }
+    }
+    let containing_directory = get_directory_path(containing_file);
+    let per_folder_cache = cache.map(|cache| {
+        cache.get_or_create_cache_for_directory(&containing_directory, redirected_reference.clone())
+    });
+    let mut result = per_folder_cache
+        .as_ref()
+        .and_then(|per_folder_cache| per_folder_cache.get(module_name, resolution_mode));
+
+    if let Some(result) = result.as_ref() {
+        if trace_enabled {
+            trace(
+                host,
+                &Diagnostics::Resolution_for_module_0_was_found_in_cache_from_location_1,
+                Some(vec![module_name.to_owned(), containing_directory.clone()]),
+            );
+        }
+    } else {
+        let mut module_resolution = compiler_options.module_resolution.clone();
+        if module_resolution.is_none() {
+            match get_emit_module_kind(&compiler_options) {
+                ModuleKind::CommonJS => {
+                    module_resolution = Some(ModuleResolutionKind::NodeJs);
+                }
+                ModuleKind::Node12 => {
+                    module_resolution = Some(ModuleResolutionKind::Node12);
+                }
+                ModuleKind::NodeNext => {
+                    module_resolution = Some(ModuleResolutionKind::NodeNext);
+                }
+                _ => {
+                    module_resolution = Some(ModuleResolutionKind::Classic);
+                }
+            }
+            if trace_enabled {
+                trace(
+                    host,
+                    &Diagnostics::Module_resolution_kind_is_not_specified_using_0,
+                    Some(vec![format!("{:?}", module_resolution)]),
+                );
+            }
+        } else {
+            if trace_enabled {
+                trace(
+                    host,
+                    &Diagnostics::Explicitly_specified_module_resolution_kind_Colon_0,
+                    Some(vec![format!("{:?}", module_resolution.unwrap())]),
+                );
+            }
+        }
+        let module_resolution = module_resolution.unwrap();
+
+        // perfLogger.logStartResolveModule(moduleName /* , containingFile, ModuleResolutionKind[moduleResolution]*/);
+        match module_resolution {
+            ModuleResolutionKind::Node12 => {
+                result = Some(node12_module_name_resolver(
+                    module_name,
+                    containing_file,
+                    &compiler_options,
+                    host,
+                    cache,
+                    redirected_reference.as_deref(),
+                    resolution_mode,
+                ));
+            }
+            ModuleResolutionKind::NodeNext => {
+                result = Some(node_next_module_name_resolver(
+                    module_name,
+                    containing_file,
+                    &compiler_options,
+                    host,
+                    cache,
+                    redirected_reference.as_deref(),
+                    resolution_mode,
+                ));
+            }
+            ModuleResolutionKind::NodeJs => {
+                result = Some(node_module_name_resolver(
+                    module_name,
+                    containing_file,
+                    &compiler_options,
+                    host,
+                    cache,
+                    redirected_reference.as_deref(),
+                    None,
+                ));
+            }
+            ModuleResolutionKind::Classic => {
+                result = Some(classic_name_resolver(
+                    module_name,
+                    containing_file,
+                    &compiler_options,
+                    host,
+                    cache,
+                    redirected_reference.as_deref(),
+                ));
+            }
+            _ => {
+                Debug_.fail(Some(&format!(
+                    "Unexpected moduleResolution: {:?}",
+                    module_resolution
+                )));
+            }
+        }
+        if let Some(ref result_resolved_module) = result
+            .as_ref()
+            .and_then(|result| result.resolved_module.clone())
+        {
+            // perfLogger.logInfoEvent(`Module "${moduleName}" resolved to "${result.resolvedModule.resolvedFileName}"`);
+        }
+        // perfLogger.logStopResolvedModule((result && result.resolvedModule) ? "" + result.resolvedModule.resolvedFileName : "null");
+
+        if let Some(per_folder_cache) = per_folder_cache.as_ref() {
+            per_folder_cache.set(module_name, resolution_mode, result.clone().unwrap());
+            if !is_external_module_name_relative(module_name) {
+                cache
+                    .unwrap()
+                    .get_or_create_cache_for_module_name(
+                        module_name,
+                        resolution_mode,
+                        redirected_reference.clone(),
+                    )
+                    .set(&containing_directory, result.clone().unwrap());
+            }
+        }
+    }
+    let result = result.unwrap();
+
+    if trace_enabled {
+        if let Some(result_resolved_module) = result.resolved_module.as_ref() {
+            if let Some(result_resolved_module_package_id) =
+                result_resolved_module.package_id.as_ref()
+            {
+                trace(
+                    host,
+                    &Diagnostics::Module_name_0_was_successfully_resolved_to_1_with_Package_ID_2,
+                    Some(vec![
+                        module_name.to_owned(),
+                        result_resolved_module.resolved_file_name.clone(),
+                        package_id_to_string(result_resolved_module_package_id),
+                    ]),
+                );
+            } else {
+                trace(
+                    host,
+                    &Diagnostics::Module_name_0_was_successfully_resolved_to_1,
+                    Some(vec![
+                        module_name.to_owned(),
+                        result_resolved_module.resolved_file_name.clone(),
+                    ]),
+                );
+            }
+        } else {
+            trace(
+                host,
+                &Diagnostics::Module_name_0_was_not_resolved,
+                Some(vec![module_name.to_owned()]),
+            );
+        }
+    }
+
+    result
 }
 
 type ResolutionKindSpecificLoader = Rc<
@@ -1244,15 +1438,39 @@ bitflags! {
     }
 }
 
-pub fn node_module_name_resolver<THost: ModuleResolutionHost>(
+fn node12_module_name_resolver(
     module_name: &str,
     containing_file: &str,
     compiler_options: &CompilerOptions,
-    host: &THost,
+    host: &dyn ModuleResolutionHost,
     cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<ResolvedProjectReference>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+    resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
+) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+    unimplemented!()
+}
+
+fn node_next_module_name_resolver(
+    module_name: &str,
+    containing_file: &str,
+    compiler_options: &CompilerOptions,
+    host: &dyn ModuleResolutionHost,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+    resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
+) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+    unimplemented!()
+}
+
+pub fn node_module_name_resolver(
+    module_name: &str,
+    containing_file: &str,
+    compiler_options: &CompilerOptions,
+    host: &dyn ModuleResolutionHost,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
     lookup_config: Option<bool>,
-) -> ResolvedModuleWithFailedLookupLocations {
+) -> Rc<ResolvedModuleWithFailedLookupLocations> {
     unimplemented!()
 }
 
@@ -1895,6 +2113,17 @@ pub(crate) fn get_types_package_name(package_name: &str) -> String {
 }
 
 pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
+    unimplemented!()
+}
+
+pub fn classic_name_resolver<TCache: NonRelativeModuleNameResolutionCache>(
+    module_name: &str,
+    containing_file: &str,
+    compiler_options: &CompilerOptions,
+    host: &dyn ModuleResolutionHost,
+    cache: Option<&TCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+) -> Rc<ResolvedModuleWithFailedLookupLocations> {
     unimplemented!()
 }
 

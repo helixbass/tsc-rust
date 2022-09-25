@@ -725,7 +725,7 @@ pub trait LoadWithModeAwareCacheLoader<TValue> {
         name: &str,
         resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         containing_file_name: &str,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> TValue;
 }
 
@@ -757,18 +757,19 @@ impl LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>
         module_name: &str,
         resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         containing_file_name: &str,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Rc<ResolvedModuleFull> {
         resolve_module_name(
             module_name,
             containing_file_name,
-            &self.options,
+            self.options.clone(),
             self.host.as_dyn_module_resolution_host(),
             self.module_resolution_cache.as_deref(),
             redirected_reference,
             resolver_mode,
         )
         .resolved_module
+        .clone()
         .unwrap()
     }
 }
@@ -2132,10 +2133,12 @@ impl Program {
         let local_override_module_result = resolve_module_name(
             &format!("@typescript/lib-{}", path),
             &resolve_from,
-            &CompilerOptionsBuilder::default()
-                .module_resolution(Some(ModuleResolutionKind::NodeJs))
-                .build()
-                .unwrap(),
+            Rc::new(
+                CompilerOptionsBuilder::default()
+                    .module_resolution(Some(ModuleResolutionKind::NodeJs))
+                    .build()
+                    .unwrap(),
+            ),
             self.host().as_dyn_module_resolution_host(),
             self.maybe_module_resolution_cache().as_deref(),
             None,
@@ -2983,6 +2986,10 @@ impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
 
     fn is_trace_supported(&self) -> bool {
         self.host.is_trace_supported()
+    }
+
+    fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+        self
     }
 }
 
