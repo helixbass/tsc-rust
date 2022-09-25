@@ -398,7 +398,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
 
     pub(super) fn call(&mut self) -> Option<JSDoc> {
         Some(self.parser
-            .scanner_mut()
+            .scanner()
             .scan_range(self.start + 3, self.length - 5, || {
                 let mut state = JSDocState::SawAsterisk;
                 let mut margin: Option<usize> = None;

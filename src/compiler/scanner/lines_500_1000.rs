@@ -679,10 +679,10 @@ pub struct Scanner /*<'on_error>*/ {
     pub(super) skip_trivia: bool,
     pub(super) language_variant: Option<LanguageVariant>,
     // on_error: Option<ErrorCallback<'on_error>>,
-    pub(super) text: Option<SourceTextAsChars>,
-    pub(super) text_str: Option<String>,
+    pub(super) text: RefCell<Option<SourceTextAsChars>>,
+    pub(super) text_str: RefCell<Option<String>>,
     pub(super) pos: RefCell<Option<usize>>,
-    pub(super) end: Option<usize>,
+    pub(super) end: Cell<Option<usize>>,
     pub(super) start_pos: RefCell<Option<usize>>,
     pub(super) token_pos: RefCell<Option<usize>>,
     pub(super) token: RefCell<Option<SyntaxKind>>,
@@ -703,10 +703,10 @@ impl Scanner {
             skip_trivia,
             language_variant,
             // on_error: None,
-            text: None,
-            text_str: None,
+            text: RefCell::new(None),
+            text_str: RefCell::new(None),
             pos: RefCell::new(None),
-            end: None,
+            end: Cell::new(None),
             start_pos: RefCell::new(None),
             token_pos: RefCell::new(None),
             token: RefCell::new(None),
@@ -717,29 +717,31 @@ impl Scanner {
         }
     }
 
-    pub(super) fn text(&self) -> &SourceTextAsChars {
-        self.text.as_ref().unwrap()
+    pub(super) fn text(&self) -> Ref<SourceTextAsChars> {
+        Ref::map(self.text.borrow(), |text| text.as_ref().unwrap())
     }
 
-    pub(super) fn text_str(&self) -> &str {
-        self.text_str.as_ref().unwrap()
+    pub(super) fn text_str(&self) -> Ref<String> {
+        Ref::map(self.text_str.borrow(), |text_str| {
+            text_str.as_ref().unwrap()
+        })
     }
 
-    pub(super) fn set_text_(&mut self, text: SourceTextAsChars, text_str: String) {
-        self.text = Some(text);
-        self.text_str = Some(text_str);
+    pub(super) fn set_text_(&self, text: SourceTextAsChars, text_str: String) {
+        *self.text.borrow_mut() = Some(text);
+        *self.text_str.borrow_mut() = Some(text_str);
     }
 
     pub(super) fn maybe_text_char_at_index(&self, index: usize) -> Option<char> {
-        maybe_text_char_at_index(self.text(), index)
+        maybe_text_char_at_index(&self.text(), index)
     }
 
     pub(super) fn text_char_at_index(&self, index: usize) -> char {
-        text_char_at_index(self.text(), index)
+        text_char_at_index(&self.text(), index)
     }
 
     pub(super) fn text_substring(&self, start: usize, end: usize) -> String {
-        text_substring(self.text(), start, end)
+        text_substring(&self.text(), start, end)
     }
 
     pub(super) fn pos(&self) -> usize {
@@ -759,11 +761,11 @@ impl Scanner {
     }
 
     pub(super) fn end(&self) -> usize {
-        self.end.unwrap()
+        self.end.get().unwrap()
     }
 
-    pub(super) fn set_end(&mut self, end: usize) {
-        self.end = Some(end);
+    pub(super) fn set_end(&self, end: usize) {
+        self.end.set(Some(end));
     }
 
     pub(super) fn start_pos(&self) -> usize {
