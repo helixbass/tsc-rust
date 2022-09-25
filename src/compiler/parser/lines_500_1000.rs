@@ -15,6 +15,72 @@ use crate::{
     TextChangeRange,
 };
 
+pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
+    Skip,
+    Value(TValue),
+}
+
+pub fn for_each_child_recursively<
+    TValue,
+    TCBNode: FnMut(&Node, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
+    TCBNodes: FnMut(&NodeArray, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
+>(
+    root_node: &Node,
+    mut cb_node: TCBNode,
+    mut cb_nodes: Option<TCBNodes>,
+) -> Option<TValue> {
+    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
+    let mut parents: Vec<Rc<Node>> = vec![];
+    while parents.len() < queue.len() {
+        parents.push(root_node.node_wrapper());
+    }
+    while !queue.is_empty() {
+        let current = queue.pop().unwrap();
+        let parent = parents.pop().unwrap();
+        match current {
+            RcNodeOrNodeArray::NodeArray(current) => {
+                if let Some(cb_nodes) = cb_nodes.as_mut() {
+                    let res = cb_nodes(&current, &parent);
+                    if let Some(res) = res {
+                        match res {
+                            ForEachChildRecursivelyCallbackReturn::Skip => {
+                                continue;
+                            }
+                            ForEachChildRecursivelyCallbackReturn::Value(res) => {
+                                return Some(res);
+                            }
+                        }
+                    }
+                }
+                for current_child in current.into_vec().iter().rev() {
+                    queue.push(current_child.clone().into());
+                    parents.push(parent.clone());
+                }
+            }
+            RcNodeOrNodeArray::RcNode(current) => {
+                let res = cb_node(&current, &parent);
+                if let Some(res) = res {
+                    match res {
+                        ForEachChildRecursivelyCallbackReturn::Skip => {
+                            continue;
+                        }
+                        ForEachChildRecursivelyCallbackReturn::Value(res) => {
+                            return Some(res);
+                        }
+                    }
+                }
+                if current.kind() >= SyntaxKind::FirstNode {
+                    for child in gather_possible_children(&current) {
+                        queue.push(child);
+                        parents.push(current.clone());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 pub fn for_each_child_recursively_bool<
     TCBNode: FnMut(&Node, &Node) -> bool,
     TCBNodes: FnMut(&NodeArray, &Node) -> bool,
