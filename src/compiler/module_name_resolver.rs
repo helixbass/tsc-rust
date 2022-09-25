@@ -7,13 +7,13 @@ use crate::{
     combine_paths, compare_paths, contains_path, directory_probably_exists,
     directory_separator_str, extension_is_ts, first_defined, for_each_ancestor_directory,
     format_message, get_base_file_name, get_directory_path, get_relative_path_from_directory,
-    normalize_path, options_have_module_resolution_changes, read_json, string_contains, to_path,
-    try_get_extension_from_path, try_remove_extension, version, version_major_minor,
-    CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension,
-    ModuleKind, ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
-    Version, VersionRange,
+    has_trailing_directory_separator, normalize_path, options_have_module_resolution_changes,
+    read_json, string_contains, to_path, try_get_extension_from_path, try_remove_extension,
+    version, version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_,
+    DiagnosticMessage, Diagnostics, Extension, ModuleKind, ModuleResolutionHost, PackageId, Path,
+    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    StringOrBool, StringOrPattern, Version, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -1279,17 +1279,86 @@ fn real_path(path: &str, host: &dyn ModuleResolutionHost, trace_enabled: bool) -
 fn node_load_module_by_relative_name(
     extensions: Extensions,
     candidate: &str,
-    only_record_failures: bool,
+    mut only_record_failures: bool,
     state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
     consider_package_json: bool,
 ) -> Option<Resolved> {
-    unimplemented!()
+    if state.trace_enabled {
+        trace(
+            state.host,
+            &Diagnostics::Loading_module_as_file_Slash_folder_candidate_module_location_0_target_file_type_1,
+            Some(vec![
+                candidate.to_owned(),
+                format!("{:?}", extensions)
+            ])
+        );
+    }
+    if !has_trailing_directory_separator(candidate) {
+        if !only_record_failures {
+            let parent_of_candidate = get_directory_path(candidate);
+            if !directory_probably_exists(
+                &parent_of_candidate,
+                |directory_name| state.host.directory_exists(directory_name),
+                || state.host.is_directory_exists_supported(),
+            ) {
+                if state.trace_enabled {
+                    trace(
+                        state.host,
+                        &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                        Some(vec![parent_of_candidate]),
+                    );
+                }
+                only_record_failures = true;
+            }
+        }
+        let resolved_from_file =
+            load_module_from_file(extensions, candidate, only_record_failures, state);
+        if let Some(resolved_from_file) = resolved_from_file.as_ref() {
+            let package_directory = if consider_package_json {
+                parse_node_module_from_path(&resolved_from_file.path)
+            } else {
+                None
+            };
+            let package_info = package_directory.as_ref().and_then(|package_directory| {
+                get_package_json_info(package_directory, false, state)
+            });
+            return with_package_id(package_info.as_deref(), Some(resolved_from_file));
+        }
+    }
+    if !only_record_failures {
+        let candidate_exists = directory_probably_exists(
+            candidate,
+            |directory_name| state.host.directory_exists(directory_name),
+            || state.host.is_directory_exists_supported(),
+        );
+        if !candidate_exists {
+            if state.trace_enabled {
+                trace(
+                    state.host,
+                    &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    Some(vec![candidate.to_owned()]),
+                );
+            }
+            only_record_failures = true;
+        }
+    }
+    load_node_module_from_directory(
+        extensions,
+        candidate,
+        only_record_failures,
+        state,
+        Some(consider_package_json),
+    )
 }
 
 pub(crate) const node_modules_path_part: &str = "/node_modules/";
 
 fn path_contains_node_modules(path: &str) -> bool {
     string_contains(path, node_modules_path_part)
+}
+
+pub(crate) fn parse_node_module_from_path(resolved: &str) -> Option<String> {
+    unimplemented!()
 }
 
 fn load_module_from_file(
