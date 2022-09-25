@@ -353,7 +353,7 @@ pub(crate) fn get_package_json_types_version_paths(
     type_script_version.with(|type_script_version_| {
         let mut type_script_version_ = type_script_version_.borrow_mut();
         if type_script_version_.is_none() {
-            *type_script_version_ = Some(Rc::new(Version::new(version)));
+            *type_script_version_ = Some(Rc::new(version.into()));
         }
         let type_script_version_ = type_script_version_.as_ref().unwrap();
 
