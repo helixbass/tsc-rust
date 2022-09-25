@@ -13,7 +13,7 @@ use crate::{
     ModuleResolutionHost, PackageId, Path, ResolvedModuleWithFailedLookupLocations,
     ResolvedProjectReference, ResolvedTypeReferenceDirective,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
-    VersionRange,
+    Version, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -343,10 +343,38 @@ fn read_package_json_types_version_paths(
     Some(result)
 }
 
+thread_local! {
+    static type_script_version: RefCell<Option<Version>> = RefCell::new(None);
+}
+
 pub(crate) fn get_package_json_types_version_paths(
     types_versions: &serde_json::Map<String, serde_json::Value>, /*MapLike<MapLike<string[]>>*/
 ) -> Option<VersionPaths> {
-    unimplemented!()
+    type_script_version.with(|type_script_version_| {
+        let mut type_script_version_ = type_script_version_.borrow_mut();
+        if type_script_version_.is_none() {
+            *type_script_version_ = Some(Version::new(version));
+        }
+        let type_script_version_ = type_script_version_.as_ref().unwrap();
+
+        for key in types_versions.keys() {
+            // if (!hasProperty(typesVersions, key)) continue;
+
+            let key_range = VersionRange::try_parse(key);
+            if key_range.is_none() {
+                continue;
+            }
+            let key_range = key_range.unwrap();
+
+            if key_range.test(type_script_version_.clone()) {
+                return Some(VersionPaths {
+                    version: key.clone(),
+                    paths: types_versions.get(key).cloned().unwrap(),
+                });
+            }
+        }
+        None
+    })
 }
 
 pub fn get_effective_type_roots<

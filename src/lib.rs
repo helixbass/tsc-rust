@@ -212,7 +212,7 @@ pub use compiler::scanner::{
     is_white_space_like, is_white_space_single_line, reduce_each_leading_comment_range,
     reduce_each_trailing_comment_range, token_to_string, ErrorCallback, Scanner,
 };
-pub use compiler::semver::VersionRange;
+pub use compiler::semver::{Version, VersionRange};
 use compiler::sys::{generate_djb2_hash, missing_file_modified_time};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
