@@ -114,13 +114,14 @@ fn resolved_type_script_only(resolved: Option<&Resolved>) -> Option<PathAndPacka
     })
 }
 
-pub(crate) struct ModuleResolutionState<'host, TPackageJsonInfoCache: PackageJsonInfoCache> {
-    pub host: &'host dyn ModuleResolutionHost,
+pub(crate) struct ModuleResolutionState<'host_and_package_json_info_cache> {
+    pub host: &'host_and_package_json_info_cache dyn ModuleResolutionHost,
     pub compiler_options: Rc<CompilerOptions>,
     pub trace_enabled: bool,
     pub failed_lookup_locations: RefCell<Vec<String>>,
     pub result_from_cache: Option<Rc<ResolvedModuleWithFailedLookupLocations>>,
-    pub package_json_info_cache: Option<Rc<TPackageJsonInfoCache>>,
+    pub package_json_info_cache:
+        Option<&'host_and_package_json_info_cache dyn PackageJsonInfoCache>,
     pub features: NodeResolutionFeatures,
     pub conditions: Vec<String>,
 }
@@ -168,7 +169,7 @@ fn read_package_json_field<'json_content>(
     json_content: &'json_content PackageJson,
     field_name: &str,
     type_of_tag: StringOrObject,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<&'json_content serde_json::Value> {
     if json_content.get(field_name).is_none() {
         if state.trace_enabled {
@@ -209,7 +210,7 @@ fn read_package_json_path_field(
     json_content: &PackageJson,
     field_name: &str, /*"typings" | "types" | "main" | "tsconfig"*/
     base_directory: &str,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<String> {
     let file_name =
         read_package_json_field(json_content, field_name, StringOrObject::String, state)?;
@@ -242,7 +243,7 @@ fn read_package_json_path_field(
 fn read_package_json_types_field(
     json_content: &PackageJson,
     base_directory: &str,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<String> {
     read_package_json_path_field(json_content, "typings", base_directory, state)
         .or_else(|| read_package_json_path_field(json_content, "types", base_directory, state))
@@ -251,7 +252,7 @@ fn read_package_json_types_field(
 fn read_package_json_tsconfig_field(
     json_content: &PackageJson,
     base_directory: &str,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<String> {
     read_package_json_path_field(json_content, "tsconfig", base_directory, state)
 }
@@ -259,14 +260,14 @@ fn read_package_json_tsconfig_field(
 fn read_package_json_main_field(
     json_content: &PackageJson,
     base_directory: &str,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<String> {
     read_package_json_path_field(json_content, "main", base_directory, state)
 }
 
 fn read_package_json_types_versions_field<'json_content>(
     json_content: &'json_content PackageJson,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<&'json_content serde_json::Value> {
     let types_versions =
         read_package_json_field(json_content, "typesVersions", StringOrObject::Object, state)?;
@@ -289,7 +290,7 @@ pub struct VersionPaths {
 
 fn read_package_json_types_version_paths(
     json_content: &PackageJson,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<VersionPaths> {
     let types_versions = read_package_json_types_versions_field(json_content, state)?;
     let types_versions = types_versions.as_object().unwrap();
@@ -588,12 +589,14 @@ pub fn resolve_type_reference_directive(
     }
 
     let failed_lookup_locations: Vec<String> = vec![];
+    let cache_clone = cache.clone();
+    let cache_clone = cache_clone.as_ref();
     let module_resolution_state = ModuleResolutionState {
         compiler_options: options.clone(),
         host,
         trace_enabled,
         failed_lookup_locations: RefCell::new(failed_lookup_locations),
-        package_json_info_cache: cache.clone(),
+        package_json_info_cache: cache_clone.map(|cache| cache.as_dyn_package_json_info_cache()),
         features: NodeResolutionFeatures::AllFeatures,
         conditions: vec!["node".to_owned(), "require".to_owned(), "types".to_owned()],
         result_from_cache: None,
@@ -658,7 +661,7 @@ fn primary_lookup(
     trace_enabled: bool,
     host: &dyn ModuleResolutionHost,
     type_reference_directive_name: &str,
-    module_resolution_state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    module_resolution_state: &ModuleResolutionState,
 ) -> Option<PathAndPackageId> {
     if let Some(type_roots) = type_roots.filter(|type_roots| !type_roots.is_empty()) {
         if trace_enabled {
@@ -1098,6 +1101,10 @@ impl ModuleResolutionCache {
     pub fn get_package_json_info_cache(&self) -> Rc<dyn PackageJsonInfoCache> {
         self.package_json_info_cache.clone()
     }
+
+    pub fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache {
+        self
+    }
 }
 
 impl PerDirectoryResolutionCache<Rc<ResolvedModuleWithFailedLookupLocations>>
@@ -1189,6 +1196,12 @@ pub fn create_type_reference_directive_resolution_cache(
     TypeReferenceDirectiveResolutionCache {
         pre_directory_resolution_cache,
         package_json_info_cache,
+    }
+}
+
+impl TypeReferenceDirectiveResolutionCache {
+    pub fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache {
+        self
     }
 }
 
@@ -1343,7 +1356,7 @@ pub fn resolve_module_name(
                 result = Some(node_module_name_resolver(
                     module_name,
                     containing_file,
-                    &compiler_options,
+                    compiler_options.clone(),
                     host,
                     cache,
                     redirected_reference.as_deref(),
@@ -1427,14 +1440,8 @@ pub fn resolve_module_name(
     result
 }
 
-type ResolutionKindSpecificLoader = Rc<
-    dyn Fn(
-        Extensions,
-        &str,
-        bool,
-        &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
-    ) -> Option<Resolved>,
->;
+type ResolutionKindSpecificLoader =
+    Rc<dyn Fn(Extensions, &str, bool, &ModuleResolutionState) -> Option<Resolved>>;
 
 bitflags! {
     pub(crate) struct NodeResolutionFeatures: u32 {
@@ -1473,15 +1480,72 @@ fn node_next_module_name_resolver(
     unimplemented!()
 }
 
+lazy_static! {
+    static ref ts_extensions: Vec<Extensions> =
+        vec![Extensions::TypeScript, Extensions::JavaScript];
+    static ref ts_plus_json_extensions: Vec<Extensions> = vec![
+        Extensions::TypeScript,
+        Extensions::JavaScript,
+        Extensions::Json
+    ];
+    static ref tsconfig_extensions: Vec<Extensions> = vec![Extensions::TSConfig];
+}
+
 pub fn node_module_name_resolver(
     module_name: &str,
     containing_file: &str,
-    compiler_options: &CompilerOptions,
+    compiler_options: Rc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<&ModuleResolutionCache>,
     redirected_reference: Option<&ResolvedProjectReference>,
     lookup_config: Option<bool>,
 ) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+    node_module_name_resolver_worker(
+        NodeResolutionFeatures::None,
+        module_name,
+        &get_directory_path(containing_file),
+        compiler_options.clone(),
+        host,
+        cache,
+        if lookup_config == Some(true) {
+            &*tsconfig_extensions
+        } else if compiler_options.resolve_json_module == Some(true) {
+            &*ts_plus_json_extensions
+        } else {
+            &*ts_extensions
+        },
+        redirected_reference,
+    )
+}
+
+fn node_module_name_resolver_worker(
+    features: NodeResolutionFeatures,
+    module_name: &str,
+    containing_directory: &str,
+    compiler_options: Rc<CompilerOptions>,
+    host: &dyn ModuleResolutionHost,
+    cache: Option<&ModuleResolutionCache>,
+    extensions: &[Extensions],
+    redirected_reference: Option<&ResolvedProjectReference>,
+) -> Rc<ResolvedModuleWithFailedLookupLocations> {
+    let trace_enabled = is_trace_enabled(&compiler_options, host);
+
+    let failed_lookup_locations: Vec<String> = vec![];
+    let state = ModuleResolutionState {
+        compiler_options: compiler_options.clone(),
+        host,
+        trace_enabled,
+        failed_lookup_locations: RefCell::new(failed_lookup_locations),
+        package_json_info_cache: cache.map(|cache| cache.as_dyn_package_json_info_cache()),
+        features,
+        conditions: if features.intersects(NodeResolutionFeatures::EsmMode) {
+            vec!["node".to_owned(), "import".to_owned(), "types".to_owned()]
+        } else {
+            vec!["node".to_owned(), "require".to_owned(), "types".to_owned()]
+        },
+        result_from_cache: None,
+    };
+
     unimplemented!()
 }
 
@@ -1509,7 +1573,7 @@ fn node_load_module_by_relative_name(
     extensions: Extensions,
     candidate: &str,
     mut only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
     consider_package_json: bool,
 ) -> Option<Resolved> {
     if state.trace_enabled {
@@ -1594,7 +1658,7 @@ fn load_module_from_file(
     extensions: Extensions,
     candidate: &str,
     only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<PathAndExtension> {
     if matches!(extensions, Extensions::Json | Extensions::TSConfig) {
         let extension_less = try_remove_extension(candidate, Extension::Json.to_str());
@@ -1640,7 +1704,7 @@ fn load_module_from_file_no_implicit_extensions(
     extensions: Extensions,
     candidate: &str,
     only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<PathAndExtension> {
     unimplemented!()
 }
@@ -1650,7 +1714,7 @@ fn try_adding_extensions(
     extensions: Extensions,
     original_extension: &str,
     mut only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<PathAndExtension> {
     if !only_record_failures {
         let directory = get_directory_path(candidate);
@@ -1739,7 +1803,7 @@ fn try_adding_extensions(
 fn try_extension(
     candidate: &str,
     only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
     ext: Extension,
 ) -> Option<PathAndExtension> {
     let path = try_file(
@@ -1753,7 +1817,7 @@ fn try_extension(
 fn try_file(
     file_name: &str,
     only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<String> {
     if !only_record_failures {
         if state.host.file_exists(file_name) {
@@ -1786,7 +1850,7 @@ fn load_node_module_from_directory(
     extensions: Extensions,
     candidate: &str,
     only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
     consider_package_json: Option<bool>,
 ) -> Option<Resolved> {
     let consider_package_json = consider_package_json.unwrap_or(true);
@@ -1824,7 +1888,7 @@ pub struct PackageJsonInfo {
 pub(crate) fn get_package_json_info(
     package_directory: &str,
     only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> Option<Rc<PackageJsonInfo>> {
     let host = state.host;
     let trace_enabled = state.trace_enabled;
@@ -1922,7 +1986,7 @@ fn load_node_module_from_directory_worker(
     extensions: Extensions,
     candidate: &str,
     only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
     json_content: Option<&PackageJson /*PackageJsonPathFields*/>,
     version_paths: Option<&VersionPaths>,
 ) -> Option<PathAndExtension> {
@@ -2114,7 +2178,7 @@ fn try_load_module_using_paths(
     path_patterns: Option<&[StringOrPattern]>,
     loader: ResolutionKindSpecificLoader,
     only_record_failures: bool,
-    state: &ModuleResolutionState<TypeReferenceDirectiveResolutionCache>,
+    state: &ModuleResolutionState,
 ) -> SearchResult<Resolved> {
     unimplemented!()
 }

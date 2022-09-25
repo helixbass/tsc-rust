@@ -627,10 +627,10 @@ pub(super) fn get_extends_config_path<
     let resolved = node_module_name_resolver(
         &extended_config,
         &combine_paths(base_path, &vec![Some("tsconfig.json")]),
-        &CompilerOptions {
+        Rc::new(CompilerOptions {
             module_resolution: Some(ModuleResolutionKind::NodeJs),
             ..Default::default()
-        },
+        }),
         host.as_dyn_module_resolution_host(),
         None,
         None,
