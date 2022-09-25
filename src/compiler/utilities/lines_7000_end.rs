@@ -120,7 +120,12 @@ fn bind_parent_to_child_ignoring_jsdoc(
     child: &Node,
     parent: &Node,
 ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
-    if incremental && ptr::eq(&*child.parent(), parent) {
+    if incremental
+        && matches!(
+            child.maybe_parent().as_ref(),
+            Some(child_parent) if ptr::eq(&**child_parent, parent)
+        )
+    {
         return Some(ForEachChildRecursivelyCallbackReturn::Skip);
     }
     set_parent(child, Some(parent));
