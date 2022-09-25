@@ -783,6 +783,8 @@ pub trait PerDirectoryResolutionCache<TValue> {
 }
 
 pub struct ModuleResolutionCache {
+    pre_directory_resolution_cache:
+        PerDirectoryResolutionCacheConcrete<Rc<ResolvedModuleWithFailedLookupLocations>>,
     package_json_info_cache: Rc<dyn PackageJsonInfoCache>,
 }
 
@@ -1071,15 +1073,23 @@ pub fn create_module_resolution_cache(
     get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
     options: Option<Rc<CompilerOptions>>,
     directory_to_module_name_map: Option<
-        Rc<CacheWithRedirects<ModeAwareCache<ResolvedModuleWithFailedLookupLocations>>>,
+        Rc<CacheWithRedirects<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>>>,
     >,
     module_name_to_directory_map: Option<Rc<CacheWithRedirects<PerModuleNameCache>>>,
 ) -> ModuleResolutionCache {
+    let directory_to_module_name_map = directory_to_module_name_map
+        .unwrap_or_else(|| Rc::new(create_cache_with_redirects(options.clone())));
+    let pre_directory_resolution_cache = create_per_directory_resolution_cache(
+        current_directory,
+        get_canonical_file_name.clone(),
+        directory_to_module_name_map.clone(),
+    );
     let package_json_info_cache: Rc<dyn PackageJsonInfoCache> = Rc::new(
         create_package_json_info_cache(current_directory, get_canonical_file_name),
     );
 
     ModuleResolutionCache {
+        pre_directory_resolution_cache,
         package_json_info_cache,
     }
 }
@@ -1098,15 +1108,16 @@ impl PerDirectoryResolutionCache<Rc<ResolvedModuleWithFailedLookupLocations>>
         directory_name: &str,
         redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Rc<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>> {
-        unimplemented!()
+        self.pre_directory_resolution_cache
+            .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }
 
     fn clear(&self) {
-        unimplemented!()
+        self.pre_directory_resolution_cache.clear()
     }
 
     fn update(&self, options: &CompilerOptions) {
-        unimplemented!()
+        self.pre_directory_resolution_cache.update(options)
     }
 }
 
