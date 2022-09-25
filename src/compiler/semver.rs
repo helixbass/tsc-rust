@@ -4,6 +4,9 @@ use std::rc::Rc;
 use crate::{trim_string, Debug_};
 
 lazy_static! {
+    static ref version_reg_exp: Regex =
+        Regex::new(r"(?i)^(0|[1-9]\d*)(?:\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*)(?:\-([a-z0-9-.]+))?(?:\+([a-z0-9-.]+))?)?)?$")
+            .unwrap();
     static ref prerelease_reg_exp: Regex =
         Regex::new(r"(?i)^(?:0|[1-9]\d*|[a-z-][a-z0-9-]*)(?:\.(?:0|[1-9]\d*|[a-z-][a-z0-9-]*))*$")
             .unwrap();
@@ -12,11 +15,11 @@ lazy_static! {
 
 #[derive(Clone)]
 pub struct Version {
-    major: usize,
-    minor: usize,
-    patch: usize,
-    prerelease: Vec<String>,
-    build: Vec<String>,
+    pub major: usize,
+    pub minor: usize,
+    pub patch: usize,
+    pub prerelease: Vec<String>,
+    pub build: Vec<String>,
 }
 
 impl Version {
@@ -67,7 +70,21 @@ impl Version {
 
 impl From<&str> for Version {
     fn from(value: &str) -> Self {
-        unimplemented!()
+        let result = Debug_.check_defined(try_parse_components(value), Some("Invalid version"));
+        let Components {
+            major,
+            minor,
+            patch,
+            prerelease,
+            build,
+        } = result;
+        Self::new(
+            major,
+            Some(minor),
+            Some(patch),
+            Some(&prerelease),
+            Some(&build),
+        )
     }
 }
 
@@ -77,6 +94,37 @@ thread_local! {
 
 fn version_zero() -> Rc<Version> {
     version_zero_.with(|version_zero| version_zero.clone())
+}
+
+struct Components {
+    pub major: usize,
+    pub minor: usize,
+    pub patch: usize,
+    pub prerelease: String,
+    pub build: String,
+}
+
+fn try_parse_components(text: &str) -> Option<Components> {
+    let match_ = version_reg_exp.captures(text)?;
+
+    let major = &match_[1];
+    let minor = match_.get(2).map_or("0", |capture| capture.as_str());
+    let patch = match_.get(3).map_or("0", |capture| capture.as_str());
+    let prerelease = match_.get(4).map_or("", |capture| capture.as_str());
+    let build = match_.get(5).map_or("", |capture| capture.as_str());
+    if !prerelease.is_empty() && !prerelease_reg_exp.is_match(prerelease) {
+        return None;
+    }
+    if !build.is_empty() && !build_reg_exp.is_match(build) {
+        return None;
+    }
+    Some(Components {
+        major: major.parse::<usize>().unwrap(),
+        minor: minor.parse::<usize>().unwrap(),
+        patch: patch.parse::<usize>().unwrap(),
+        prerelease: prerelease.to_owned(),
+        build: build.to_owned(),
+    })
 }
 
 pub struct VersionRange {
