@@ -27,19 +27,19 @@ use crate::{
     resolve_module_name, resolve_type_reference_directive, source_file_affecting_compiler_options,
     stable_sort, supported_js_extensions_flat, to_path as to_path_helper,
     write_file_ensuring_directories, AutomaticTypeDirectiveFile, CancellationTokenDebuggable,
-    Comparison, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgramOptions,
-    CustomTransformers, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
-    DirectoryStructureHost, EmitResult, Extension, FileIncludeKind, FileIncludeReason, LibFile,
-    LineAndCharacter, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, ModuleSpecifierResolutionHost, MultiMap,
-    NamedDeclarationInterface, Node, PackageId, ParseConfigFileHost, ParseConfigHost,
-    ParsedCommandLine, Path, Program, ProjectReference, ReferencedFile, ResolvedConfigFileName,
-    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceFileLike,
-    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, System,
-    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    WriteFileCallback,
+    Comparison, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
+    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
+    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
+    Extension, FileIncludeKind, FileIncludeReason, LibFile, LineAndCharacter, ModuleKind,
+    ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
+    PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program,
+    ProjectReference, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
+    ScriptTarget, SortedArray, SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect,
+    StringOrRcNode, StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -2105,7 +2105,50 @@ impl Program {
     }
 
     pub fn path_for_lib_file(&self, lib_file_name: &str) -> String {
-        unimplemented!()
+        let components = lib_file_name
+            .split(".")
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let mut path = components[1].clone();
+        let mut i = 2;
+        while let Some(components_i) = components
+            .get(i)
+            .filter(|components_i| &***components_i != "d")
+        {
+            path.push_str(&format!(
+                "{}{}",
+                if i == 2 { "/" } else { "-" },
+                components_i
+            ));
+            i += 1;
+        }
+        let resolve_from = combine_paths(
+            &self.current_directory(),
+            &[Some(&*format!(
+                "__lib_node_modules_lookup_{}__.ts",
+                lib_file_name
+            ))],
+        );
+        let local_override_module_result = resolve_module_name(
+            &format!("@typescript/lib-{}", path),
+            &resolve_from,
+            &CompilerOptionsBuilder::default()
+                .module_resolution(Some(ModuleResolutionKind::NodeJs))
+                .build()
+                .unwrap(),
+            self.host().as_dyn_module_resolution_host(),
+            self.maybe_module_resolution_cache().as_deref(),
+            None,
+            None,
+        );
+        if let Some(local_override_module_result_resolved_module) =
+            local_override_module_result.resolved_module.as_ref()
+        {
+            return local_override_module_result_resolved_module
+                .resolved_file_name
+                .clone();
+        }
+        combine_paths(&self.default_library_path(), &[Some(lib_file_name)])
     }
 
     pub fn get_canonical_file_name(&self, file_name: &str) -> String {
