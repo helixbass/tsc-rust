@@ -21,11 +21,12 @@ use crate::{
     get_new_line_character, get_normalized_absolute_path, get_normalized_path_components,
     get_path_from_path_components, get_property_assignment, get_strict_option_value,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
-    has_extension, has_js_file_extension, is_declaration_file_name, is_rooted_disk_path,
-    is_watch_set, map_defined, maybe_for_each, missing_file_modified_time, normalize_path,
-    options_have_changes, out_file, remove_file_extension, resolve_config_file_project_name,
-    resolve_module_name, resolve_type_reference_directive, source_file_affecting_compiler_options,
-    stable_sort, supported_js_extensions_flat, to_path as to_path_helper,
+    has_extension, has_js_file_extension, is_declaration_file_name, is_import_call,
+    is_import_equals_declaration, is_rooted_disk_path, is_watch_set, map_defined, maybe_for_each,
+    missing_file_modified_time, normalize_path, options_have_changes, out_file,
+    remove_file_extension, resolve_config_file_project_name, resolve_module_name,
+    resolve_type_reference_directive, source_file_affecting_compiler_options, stable_sort,
+    supported_js_extensions_flat, to_path as to_path_helper, walk_up_parenthesized_expressions,
     write_file_ensuring_directories, AutomaticTypeDirectiveFile, CancellationTokenDebuggable,
     Comparison, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
     ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
@@ -34,8 +35,8 @@ use crate::{
     Extension, FileIncludeKind, FileIncludeReason, LibFile, LineAndCharacter, ModuleKind,
     ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
     ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
-    PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program,
-    ProjectReference, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
+    NodeInterface, PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
+    Program, ProjectReference, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
     ScriptTarget, SortedArray, SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect,
     StringOrRcNode, StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
@@ -716,7 +717,28 @@ pub(crate) fn get_mode_for_usage_location(
     implied_node_format: Option<ModuleKind>,
     usage: &Node, /*StringLiteralLike*/
 ) -> Option<ModuleKind> {
-    unimplemented!()
+    let implied_node_format = implied_node_format?;
+    if implied_node_format != ModuleKind::ESNext {
+        return Some(
+            if is_import_call(&walk_up_parenthesized_expressions(&usage.parent()).unwrap()) {
+                ModuleKind::ESNext
+            } else {
+                ModuleKind::CommonJS
+            },
+        );
+    }
+    let expr_parent_parent =
+        walk_up_parenthesized_expressions(&usage.parent()).and_then(|node| node.maybe_parent());
+    Some(
+        if matches!(
+            expr_parent_parent.as_ref(),
+            Some(expr_parent_parent) if is_import_equals_declaration(expr_parent_parent)
+        ) {
+            ModuleKind::CommonJS
+        } else {
+            ModuleKind::ESNext
+        },
+    )
 }
 
 pub trait LoadWithModeAwareCacheLoader<TValue> {
