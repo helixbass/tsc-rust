@@ -9,7 +9,7 @@ use crate::{
     directory_separator_str, extension_is_ts, first_defined, for_each, for_each_ancestor_directory,
     format_message, get_base_file_name, get_directory_path, get_emit_module_kind,
     get_paths_base_path, get_relative_path_from_directory, has_trailing_directory_separator,
-    is_external_module_name_relative, normalize_path, normalize_path_and_parts,
+    is_external_module_name_relative, normalize_path, normalize_path_and_parts, normalize_slashes,
     options_have_module_resolution_changes, package_id_to_string, path_is_relative, read_json,
     starts_with, string_contains, to_path, try_get_extension_from_path, try_parse_patterns,
     try_remove_extension, version, version_major_minor, CharacterCodes, Comparison,
@@ -1390,7 +1390,7 @@ pub fn resolve_module_name(
                     compiler_options.clone(),
                     host,
                     cache,
-                    redirected_reference.as_deref(),
+                    redirected_reference.clone(),
                     None,
                 ));
             }
@@ -1667,7 +1667,7 @@ pub fn node_module_name_resolver(
     compiler_options: Rc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
     lookup_config: Option<bool>,
 ) -> Rc<ResolvedModuleWithFailedLookupLocations> {
     node_module_name_resolver_worker(
@@ -1696,7 +1696,7 @@ fn node_module_name_resolver_worker(
     host: &dyn ModuleResolutionHost,
     cache: Option<&ModuleResolutionCache>,
     extensions: &[Extensions],
-    redirected_reference: Option<&ResolvedProjectReference>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
 ) -> Rc<ResolvedModuleWithFailedLookupLocations> {
     let trace_enabled = is_trace_enabled(&compiler_options, host);
 
@@ -1725,7 +1725,7 @@ fn node_module_name_resolver_worker(
                 &state,
                 features,
                 cache,
-                redirected_reference,
+                redirected_reference.clone(),
                 host,
                 &compiler_options,
                 trace_enabled,
@@ -1756,7 +1756,7 @@ fn try_resolve(
     state: &ModuleResolutionState,
     features: NodeResolutionFeatures,
     cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
     host: &dyn ModuleResolutionHost,
     compiler_options: &CompilerOptions,
     trace_enabled: bool,
@@ -1796,7 +1796,7 @@ fn try_resolve(
                 containing_directory,
                 state,
                 cache,
-                redirected_reference,
+                redirected_reference.as_deref(),
             );
         }
         if resolved.is_none() && features.intersects(NodeResolutionFeatures::SelfName) {
@@ -1806,7 +1806,7 @@ fn try_resolve(
                 containing_directory,
                 state,
                 cache,
-                redirected_reference,
+                redirected_reference.as_deref(),
             );
         }
         if resolved.is_none() {
@@ -1823,7 +1823,7 @@ fn try_resolve(
                 containing_directory,
                 state,
                 cache,
-                redirected_reference,
+                redirected_reference.clone(),
             );
         }
         let resolved = resolved?;
@@ -2517,8 +2517,75 @@ fn load_module_from_nearest_node_modules_directory(
     directory: &str,
     state: &ModuleResolutionState,
     cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
 ) -> SearchResult<Resolved> {
+    load_module_from_nearest_node_modules_directory_worker(
+        extensions,
+        module_name,
+        directory,
+        state,
+        false,
+        cache,
+        redirected_reference,
+    )
+}
+
+fn load_module_from_nearest_node_modules_directory_worker(
+    extensions: Extensions,
+    module_name: &str,
+    directory: &str,
+    state: &ModuleResolutionState,
+    types_scope_only: bool,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
+) -> SearchResult<Resolved> {
+    let per_module_name_cache = cache.map(|cache| {
+        cache.get_or_create_cache_for_module_name(
+            module_name,
+            if state.features == NodeResolutionFeatures::None {
+                None
+            } else if state.features.intersects(NodeResolutionFeatures::EsmMode) {
+                Some(ModuleKind::ESNext)
+            } else {
+                Some(ModuleKind::CommonJS)
+            },
+            redirected_reference.clone(),
+        )
+    });
+    for_each_ancestor_directory(&normalize_slashes(directory).into(), |ancestor_directory| {
+        if get_base_file_name(ancestor_directory, None, None) != "node_modules" {
+            let resolution_from_cache = try_find_non_relative_module_name_in_cache(
+                per_module_name_cache.as_deref(),
+                module_name,
+                ancestor_directory,
+                state,
+            );
+            if resolution_from_cache.is_some() {
+                return resolution_from_cache;
+            }
+            return to_search_result(load_module_from_immediate_node_modules_directory(
+                extensions,
+                module_name,
+                ancestor_directory,
+                state,
+                types_scope_only,
+                cache,
+                redirected_reference.as_deref(),
+            ));
+        }
+        None
+    })
+}
+
+fn load_module_from_immediate_node_modules_directory(
+    extensions: Extensions,
+    module_name: &str,
+    directory: &str,
+    state: &ModuleResolutionState,
+    types_scope_only: bool,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+) -> Option<Resolved> {
     unimplemented!()
 }
 
@@ -2558,6 +2625,15 @@ pub(crate) fn get_types_package_name(package_name: &str) -> String {
 }
 
 pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
+    unimplemented!()
+}
+
+fn try_find_non_relative_module_name_in_cache(
+    cache: Option<&PerModuleNameCache>,
+    module_name: &str,
+    containing_directory: &str,
+    state: &ModuleResolutionState,
+) -> SearchResult<Resolved> {
     unimplemented!()
 }
 
