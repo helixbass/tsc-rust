@@ -332,7 +332,7 @@ impl BinderType {
     }
 
     pub(super) fn bind_return_or_throw(&self, node: &Node) {
-        self.bind(Some(node.as_has_expression().expression()));
+        self.bind(node.as_has_expression().maybe_expression());
         if node.kind() == SyntaxKind::ReturnStatement {
             self.set_has_explicit_return(Some(true));
             if let Some(current_return_target) = self.maybe_current_return_target() {

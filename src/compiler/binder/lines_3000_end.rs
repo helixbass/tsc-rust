@@ -732,7 +732,7 @@ impl BinderType {
 
     pub(super) fn bind_function_expression(
         &self,
-        node: &Node, /*FunctionExpression*/
+        node: &Node, /*FunctionExpression (actually also ArrowFunction)*/
     ) -> Rc<Symbol> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
@@ -745,7 +745,7 @@ impl BinderType {
             node.set_flow_node(Some(current_flow));
         }
         self.check_strict_mode_function_name(node);
-        let binding_name = match node.as_function_expression().maybe_name() {
+        let binding_name = match node.as_named_declaration().maybe_name() {
             Some(name) => name.as_identifier().escaped_text.clone(),
             None => InternalSymbolName::Function(),
         };
