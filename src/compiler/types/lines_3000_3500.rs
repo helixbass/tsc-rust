@@ -943,6 +943,7 @@ pub struct JSDocTemplateTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub constraint: Option<Rc<Node /*JSDocTypeExpression*/>>,
     pub type_parameters: NodeArray, /*<TypeParameterDeclaration>*/
+    type_parameters_for_has_type_parameters_interface: RefCell<Option<NodeArray>>, /*<TypeParameterDeclaration>*/
 }
 
 impl JSDocTemplateTag {
@@ -954,8 +955,16 @@ impl JSDocTemplateTag {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             constraint,
-            type_parameters,
+            type_parameters: type_parameters.clone(),
+            type_parameters_for_has_type_parameters_interface: RefCell::new(Some(type_parameters)),
         }
+    }
+}
+
+impl HasTypeParametersInterface for JSDocTemplateTag {
+    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>> {
+        self.type_parameters_for_has_type_parameters_interface
+            .borrow_mut()
     }
 }
 

@@ -522,9 +522,28 @@ impl Node {
 
     pub fn as_has_type_parameters(&self) -> &dyn HasTypeParametersInterface {
         match self {
-            Node::InterfaceDeclaration(interface_declaration) => interface_declaration,
-            Node::TypeAliasDeclaration(type_alias_declaration) => type_alias_declaration,
-            _ => panic!("Expected has type parameters"),
+            Node::ConstructorDeclaration(node) => node,
+            Node::GetAccessorDeclaration(node) => node,
+            Node::SetAccessorDeclaration(node) => node,
+            Node::IndexSignatureDeclaration(node) => node,
+            Node::ClassStaticBlockDeclaration(node) => node,
+            Node::FunctionTypeNode(node) => node,
+            Node::ConstructorTypeNode(node) => node,
+            Node::JSDocFunctionType(node) => node,
+            Node::JSDocTemplateTag(node) => node,
+            Node::JSDocSignature(node) => node,
+            Node::CallSignatureDeclaration(node) => node,
+            Node::ConstructSignatureDeclaration(node) => node,
+            Node::FunctionDeclaration(node) => node,
+            Node::MethodSignature(node) => node,
+            Node::MethodDeclaration(node) => node,
+            Node::FunctionExpression(node) => node,
+            Node::ArrowFunction(node) => node,
+            Node::ClassDeclaration(node) => node,
+            Node::ClassExpression(node) => node,
+            Node::InterfaceDeclaration(node) => node,
+            Node::TypeAliasDeclaration(node) => node,
+            _ => panic!("Expected has type parameters, got {:?}", self.kind()),
         }
     }
 
