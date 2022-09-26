@@ -6,19 +6,19 @@ use std::rc::Rc;
 
 use crate::{
     combine_paths, compare_paths, contains, contains_path, directory_probably_exists,
-    directory_separator, directory_separator_str, extension_is_ts, first_defined, for_each,
-    for_each_ancestor_directory, format_message, get_base_file_name, get_directory_path,
-    get_emit_module_kind, get_paths_base_path, get_relative_path_from_directory,
-    has_trailing_directory_separator, is_external_module_name_relative, normalize_path,
-    normalize_path_and_parts, normalize_slashes, options_have_module_resolution_changes,
-    package_id_to_string, path_is_relative, read_json, starts_with, string_contains, to_path,
-    try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
-    version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
-    Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
-    PackageId, Path, PathAndParts, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
-    Version, VersionRange,
+    directory_separator, directory_separator_str, extension_is_ts, file_extension_is,
+    first_defined, for_each, for_each_ancestor_directory, format_message, get_base_file_name,
+    get_directory_path, get_emit_module_kind, get_paths_base_path,
+    get_relative_path_from_directory, has_js_file_extension, has_trailing_directory_separator,
+    is_external_module_name_relative, normalize_path, normalize_path_and_parts, normalize_slashes,
+    options_have_module_resolution_changes, package_id_to_string, path_is_relative, read_json,
+    remove_file_extension, starts_with, string_contains, to_path, try_get_extension_from_path,
+    try_parse_patterns, try_remove_extension, version, version_major_minor, CharacterCodes,
+    Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, MapLike,
+    ModuleKind, ModuleResolutionHost, ModuleResolutionKind, PackageId, Path, PathAndParts,
+    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    StringOrBool, StringOrPattern, Version, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -2139,7 +2139,28 @@ fn load_module_from_file_no_implicit_extensions(
     only_record_failures: bool,
     state: &ModuleResolutionState,
 ) -> Option<PathAndExtension> {
-    unimplemented!()
+    if has_js_file_extension(candidate)
+        || file_extension_is(candidate, Extension::Json.to_str())
+            && state.compiler_options.resolve_json_module == Some(true)
+    {
+        let extensionless = remove_file_extension(candidate);
+        let extension = &candidate[extensionless.len()..];
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::File_name_0_has_a_1_extension_stripping_it,
+                Some(vec![candidate.to_owned(), extension.to_owned()]),
+            );
+        }
+        return try_adding_extensions(
+            &extensionless,
+            extensions,
+            extension,
+            only_record_failures,
+            state,
+        );
+    }
+    None
 }
 
 fn try_adding_extensions(
