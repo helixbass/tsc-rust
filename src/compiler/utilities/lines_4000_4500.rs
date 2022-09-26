@@ -552,7 +552,7 @@ pub fn get_external_module_name_from_path<THost: ResolveModuleNameResolutionHost
     if reference_path.is_some() {
         ensure_path_is_non_module_name(&extensionless)
     } else {
-        extensionless.into_owned()
+        extensionless.to_owned()
     }
 }
 
@@ -567,9 +567,9 @@ pub fn get_own_emit_output_file_path(
         emit_output_file_path_without_extension = remove_file_extension(
             &get_source_file_path_in_new_dir(file_name, host, compiler_options_out_dir),
         )
-        .into_owned();
+        .to_owned();
     } else {
-        emit_output_file_path_without_extension = remove_file_extension(file_name).into_owned();
+        emit_output_file_path_without_extension = remove_file_extension(file_name).to_owned();
     }
 
     format!("{}{}", emit_output_file_path_without_extension, extension)

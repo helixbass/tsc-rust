@@ -2184,7 +2184,7 @@ fn load_module_from_file_no_implicit_extensions(
             );
         }
         return try_adding_extensions(
-            &extensionless,
+            extensionless,
             extensions,
             extension,
             only_record_failures,

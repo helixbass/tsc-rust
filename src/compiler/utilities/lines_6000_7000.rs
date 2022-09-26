@@ -1662,8 +1662,14 @@ lazy_static! {
         Extension::Json,
     ];
 }
-pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
-    unimplemented!()
+pub fn remove_file_extension(path: &str) -> &str {
+    for ext in &*extensions_to_remove {
+        let extensionless = try_remove_extension(path, ext.to_str());
+        if let Some(extensionless) = extensionless {
+            return extensionless;
+        }
+    }
+    path
 }
 
 pub fn try_remove_extension<'path>(path: &'path str, extension: &str) -> Option<&'path str> {
