@@ -1245,8 +1245,6 @@ pub struct SpreadAssignment {
     pub expression: Rc<Node /*Expression*/>,
 }
 
-// TODO: should implement NamedDeclarationInterface for SpreadAssignment since it extends
-// NamedDeclaration (even though it appears to never have a populated name field?
 impl SpreadAssignment {
     pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
         Self {
@@ -1259,6 +1257,20 @@ impl SpreadAssignment {
 impl HasExpressionInterface for SpreadAssignment {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl NamedDeclarationInterface for SpreadAssignment {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        None
+    }
+
+    fn name(&self) -> Rc<Node> {
+        unreachable!()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        unreachable!()
     }
 }
 

@@ -458,6 +458,7 @@ impl Node {
             Node::ArrowFunction(node) => Some(node),
             Node::PropertyAccessExpression(node) => Some(node),
             Node::NamespaceImport(node) => Some(node),
+            Node::SpreadAssignment(node) => Some(node),
             _ => None,
         }
     }
