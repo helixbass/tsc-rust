@@ -712,7 +712,9 @@ pub(crate) fn get_non_assigned_name_of_declaration(
         }
         _ => (),
     }
-    declaration.as_named_declaration().maybe_name()
+    declaration
+        .maybe_as_named_declaration()
+        .and_then(|declaration| declaration.maybe_name())
 }
 
 pub fn get_name_of_declaration<TNode: Borrow<Node>>(
