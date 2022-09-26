@@ -1537,7 +1537,7 @@ impl NodeInterface for BaseNode {
         self._node_wrapper
             .borrow()
             .as_ref()
-            .unwrap()
+            .expect(&format!("Node wrapper wasn't set on {:?}", self.kind()))
             .upgrade()
             .unwrap()
     }
