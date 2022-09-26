@@ -5,11 +5,13 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find_ancestor, for_each_child_recursively, has_jsdoc_nodes, has_syntactic_modifier,
+    find_ancestor, first_or_undefined, for_each_child_recursively,
+    get_effective_type_annotation_node, has_jsdoc_nodes, has_syntactic_modifier,
     is_expression_node, is_identifier, is_jsdoc_node, is_part_of_type_query,
-    is_shorthand_property_assignment, CompilerOptions, FindAncestorCallbackReturn,
-    ForEachChildRecursivelyCallbackReturn, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeFlags, NodeInterface, PseudoBigInt, ReadonlyTextRange, Symbol, SyntaxKind,
+    is_shorthand_property_assignment, parameter_is_this_keyword, some, CompilerOptions,
+    FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
+    ReadonlyTextRange, Symbol, SyntaxKind,
 };
 
 pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
@@ -223,7 +225,28 @@ pub fn contains_ignored_path(path: &str) -> bool {
 }
 
 pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/) -> bool {
-    unimplemented!()
+    let node_as_function_like_declaration = node.as_function_like_declaration();
+    if node_as_function_like_declaration
+        .maybe_type_parameters()
+        .is_none()
+    {
+        if some(
+            Some(&**node_as_function_like_declaration.parameters()),
+            Some(|p: &Rc<Node>| get_effective_type_annotation_node(p).is_none()),
+        ) {
+            return true;
+        }
+        if node.kind() != SyntaxKind::ArrowFunction {
+            let parameter = first_or_undefined(node_as_function_like_declaration.parameters());
+            if !matches!(
+                parameter,
+                Some(parameter) if parameter_is_this_keyword(parameter)
+            ) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 pub fn is_infinity_or_nan_string(name: &str) -> bool {
