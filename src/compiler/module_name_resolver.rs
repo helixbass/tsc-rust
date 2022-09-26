@@ -817,6 +817,8 @@ pub trait PerDirectoryResolutionCache<TValue> {
 }
 
 pub struct ModuleResolutionCache {
+    current_directory: String,
+    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
     pre_directory_resolution_cache:
         PerDirectoryResolutionCacheConcrete<Rc<ResolvedModuleWithFailedLookupLocations>>,
     module_name_to_directory_map: Rc<CacheWithRedirects<PerModuleNameCache>>,
@@ -839,7 +841,11 @@ pub trait PackageJsonInfoCache {
     fn clear(&self);
 }
 
-pub struct PerModuleNameCache {}
+pub struct PerModuleNameCache {
+    current_directory: String,
+    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    directory_path_map: RefCell<HashMap<String, Rc<ResolvedModuleWithFailedLookupLocations>>>,
+}
 
 pub struct CacheWithRedirects<TCache> {
     options: RefCell<Option<Rc<CompilerOptions>>>,
@@ -1122,10 +1128,12 @@ pub fn create_module_resolution_cache(
     let module_name_to_directory_map = module_name_to_directory_map
         .unwrap_or_else(|| Rc::new(create_cache_with_redirects(options.clone())));
     let package_json_info_cache: Rc<dyn PackageJsonInfoCache> = Rc::new(
-        create_package_json_info_cache(current_directory, get_canonical_file_name),
+        create_package_json_info_cache(current_directory, get_canonical_file_name.clone()),
     );
 
     ModuleResolutionCache {
+        current_directory: current_directory.to_owned(),
+        get_canonical_file_name,
         pre_directory_resolution_cache,
         module_name_to_directory_map,
         package_json_info_cache,
@@ -1142,6 +1150,76 @@ impl ModuleResolutionCache {
     }
 
     pub fn create_per_module_name_cache(&self) -> PerModuleNameCache {
+        PerModuleNameCache::new(
+            self.current_directory.clone(),
+            self.get_canonical_file_name.clone(),
+        )
+    }
+}
+
+impl PerModuleNameCache {
+    pub fn new(
+        current_directory: String,
+        get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    ) -> Self {
+        Self {
+            current_directory,
+            get_canonical_file_name,
+            directory_path_map: RefCell::new(HashMap::new()),
+        }
+    }
+
+    pub fn get(&self, directory: &str) -> Option<Rc<ResolvedModuleWithFailedLookupLocations>> {
+        self.directory_path_map
+            .borrow()
+            .get(&*to_path(
+                directory,
+                Some(&self.current_directory),
+                |path| (self.get_canonical_file_name)(path),
+            ))
+            .cloned()
+    }
+
+    pub fn set(&self, directory: &str, result: Rc<ResolvedModuleWithFailedLookupLocations>) {
+        let path = to_path(directory, Some(&self.current_directory), |path| {
+            (self.get_canonical_file_name)(path)
+        });
+        if self.directory_path_map.borrow().contains_key(&*path) {
+            return;
+        }
+        self.directory_path_map
+            .borrow_mut()
+            .insert(path.to_string(), result.clone());
+
+        let resolved_file_name = result
+            .resolved_module
+            .as_ref()
+            .map(|result_resolved_module| {
+                result_resolved_module
+                    .original_path
+                    .clone()
+                    .unwrap_or_else(|| result_resolved_module.resolved_file_name.clone())
+            });
+        let common_prefix = resolved_file_name
+            .as_ref()
+            .and_then(|resolved_file_name| self.get_common_prefix(&path, resolved_file_name));
+        let mut current = path.to_string();
+        while !matches!(
+            common_prefix.as_ref(),
+            Some(common_prefix) if &current == common_prefix
+        ) {
+            let parent = get_directory_path(&current);
+            if parent == current || self.directory_path_map.borrow().contains_key(&parent) {
+                break;
+            }
+            self.directory_path_map
+                .borrow_mut()
+                .insert(parent.clone(), result.clone());
+            current = parent;
+        }
+    }
+
+    fn get_common_prefix(&self, directory: &Path, resolution: &str) -> Option<String> {
         unimplemented!()
     }
 }
@@ -1204,16 +1282,6 @@ impl PackageJsonInfoCache for ModuleResolutionCache {
     }
 
     fn clear(&self) {
-        unimplemented!()
-    }
-}
-
-impl PerModuleNameCache {
-    pub fn get(&self, directory: &str) -> Option<Rc<ResolvedModuleWithFailedLookupLocations>> {
-        unimplemented!()
-    }
-
-    pub fn set(&self, directory: &str, result: Rc<ResolvedModuleWithFailedLookupLocations>) {
         unimplemented!()
     }
 }
