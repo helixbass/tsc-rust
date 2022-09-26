@@ -777,7 +777,7 @@ impl BinderType {
         if symbol_flags.intersects(
             SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,
         ) {
-            let mut exports = symbol.maybe_exports();
+            let mut exports = symbol.maybe_exports_mut();
             if exports.is_none() {
                 *exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
             }

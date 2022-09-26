@@ -545,7 +545,7 @@ impl TypeChecker {
             )));
         }
         if let Some(symbol_exports) = symbol.maybe_exports().as_ref() {
-            *result.maybe_exports() = Some(Rc::new(RefCell::new(
+            *result.maybe_exports_mut() = Some(Rc::new(RefCell::new(
                 RefCell::borrow(symbol_exports).clone(),
             )));
         }
@@ -611,7 +611,7 @@ impl TypeChecker {
                 );
             }
             if let Some(source_exports) = source.maybe_exports().as_ref() {
-                let mut target_exports = target.maybe_exports();
+                let mut target_exports = target.maybe_exports_mut();
                 if target_exports.is_none() {
                     *target_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }

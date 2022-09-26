@@ -603,7 +603,7 @@ impl TypeChecker {
                 Rc::new(self.clone_symbol(target))
             };
             {
-                let mut inferred_exports = inferred.maybe_exports();
+                let mut inferred_exports = inferred.maybe_exports_mut();
                 if inferred_exports.is_none() {
                     *inferred_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }

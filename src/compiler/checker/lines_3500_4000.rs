@@ -147,7 +147,7 @@ impl TypeChecker {
             Rc::new(self.clone_symbol(exported))
         };
         merged.set_flags(merged.flags() | SymbolFlags::ValueModule);
-        let mut merged_exports = merged.maybe_exports();
+        let mut merged_exports = merged.maybe_exports_mut();
         if merged_exports.is_none() {
             *merged_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
         }
@@ -296,7 +296,7 @@ impl TypeChecker {
             )));
         }
         if let Some(symbol_exports) = symbol.maybe_exports().as_ref() {
-            *result.maybe_exports() = Some(Rc::new(RefCell::new(
+            *result.maybe_exports_mut() = Some(Rc::new(RefCell::new(
                 RefCell::borrow(symbol_exports).clone(),
             )));
         }

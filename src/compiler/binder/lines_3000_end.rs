@@ -289,7 +289,7 @@ impl BinderType {
             }
             namespace_symbol_members
         } else {
-            let mut namespace_symbol_exports = namespace_symbol.maybe_exports();
+            let mut namespace_symbol_exports = namespace_symbol.maybe_exports_mut();
             if namespace_symbol_exports.is_none() {
                 *namespace_symbol_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
             }

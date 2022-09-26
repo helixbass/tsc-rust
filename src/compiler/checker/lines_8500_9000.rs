@@ -1174,7 +1174,7 @@ impl TypeChecker {
             );
             let initial_size = members.len();
             if let Some(resolved_symbol) = resolved_symbol.as_ref() {
-                let mut resolved_symbol_exports = resolved_symbol.maybe_exports();
+                let mut resolved_symbol_exports = resolved_symbol.maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
                     *resolved_symbol_exports =
                         Some(Rc::new(RefCell::new(create_symbol_table(None))));

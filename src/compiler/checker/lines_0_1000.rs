@@ -854,7 +854,7 @@ pub fn create_type_checker(
     );
     let global_this_symbol = type_checker.global_this_symbol();
     {
-        let mut global_this_symbol_exports = global_this_symbol.maybe_exports();
+        let mut global_this_symbol_exports = global_this_symbol.maybe_exports_mut();
         *global_this_symbol_exports = Some(type_checker.globals_rc());
     }
     global_this_symbol.set_declarations(vec![]);

@@ -1236,7 +1236,7 @@ impl TypeChecker {
             )));
         }
         if let Some(value_symbol_exports) = value_symbol.maybe_exports().as_ref() {
-            *result.maybe_exports() = Some(Rc::new(RefCell::new(
+            *result.maybe_exports_mut() = Some(Rc::new(RefCell::new(
                 RefCell::borrow(value_symbol_exports).clone(),
             )));
         }
