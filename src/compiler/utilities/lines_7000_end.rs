@@ -5,9 +5,11 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    for_each_child_recursively, has_jsdoc_nodes, is_jsdoc_node, CompilerOptions,
-    ForEachChildRecursivelyCallbackReturn, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
-    ReadonlyTextRange, Symbol, SyntaxKind,
+    find_ancestor, for_each_child_recursively, has_jsdoc_nodes, has_syntactic_modifier,
+    is_expression_node, is_identifier, is_jsdoc_node, is_part_of_type_query,
+    is_shorthand_property_assignment, CompilerOptions, FindAncestorCallbackReturn,
+    ForEachChildRecursivelyCallbackReturn, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeArray, NodeFlags, NodeInterface, PseudoBigInt, ReadonlyTextRange, Symbol, SyntaxKind,
 };
 
 pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
@@ -38,7 +40,59 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
 }
 
 pub fn is_valid_type_only_alias_use_site(use_site: &Node) -> bool {
-    unimplemented!()
+    use_site.flags().intersects(NodeFlags::Ambient)
+        || is_part_of_type_query(use_site)
+        || is_identifier_in_non_emitting_heritage_clause(use_site)
+        || is_part_of_possibly_valid_type_or_abstract_computed_property_name(use_site)
+        || !(is_expression_node(use_site) || is_shorthand_property_name_use_site(use_site))
+}
+
+fn is_shorthand_property_name_use_site(use_site: &Node) -> bool {
+    is_identifier(use_site)
+        && is_shorthand_property_assignment(&use_site.parent())
+        && ptr::eq(
+            &*use_site.parent().as_shorthand_property_assignment().name(),
+            use_site,
+        )
+}
+
+fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(node: &Node) -> bool {
+    let mut node = node.node_wrapper();
+    while matches!(
+        node.kind(),
+        SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression
+    ) {
+        node = node.parent();
+    }
+    if node.kind() != SyntaxKind::ComputedPropertyName {
+        return false;
+    }
+    if has_syntactic_modifier(&node.parent(), ModifierFlags::Abstract) {
+        return true;
+    }
+    let container_kind = node.parent().parent().kind();
+    matches!(
+        container_kind,
+        SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeLiteral
+    )
+}
+
+fn is_identifier_in_non_emitting_heritage_clause(node: &Node) -> bool {
+    if node.kind() != SyntaxKind::Identifier {
+        return false;
+    }
+    let heritage_clause = find_ancestor(node.maybe_parent(), |parent| match parent.kind() {
+        SyntaxKind::HeritageClause => true.into(),
+        SyntaxKind::PropertyAccessExpression | SyntaxKind::ExpressionWithTypeArguments => {
+            false.into()
+        }
+        _ => FindAncestorCallbackReturn::Quit,
+    });
+    matches!(
+        heritage_clause.as_ref(),
+        Some(heritage_clause) if heritage_clause.as_heritage_clause().token == SyntaxKind::ImplementsKeyword ||
+            heritage_clause.parent().kind() == SyntaxKind::InterfaceDeclaration
+    )
 }
 
 pub fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
