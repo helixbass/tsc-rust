@@ -1270,19 +1270,21 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
 
 impl PackageJsonInfoCache for ModuleResolutionCache {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool> {
-        unimplemented!()
+        self.package_json_info_cache
+            .get_package_json_info(package_json_path)
     }
 
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
-        unimplemented!()
+        self.package_json_info_cache
+            .set_package_json_info(package_json_path, info)
     }
 
     fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)> {
-        unimplemented!()
+        self.package_json_info_cache.entries()
     }
 
     fn clear(&self) {
-        unimplemented!()
+        self.package_json_info_cache.clear()
     }
 }
 
