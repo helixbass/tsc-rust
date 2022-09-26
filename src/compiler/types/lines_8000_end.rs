@@ -189,6 +189,12 @@ impl PragmaArgumentType {
     pub fn as_pragma_argument_type_factory(&self) -> &PragmaArgumentTypeFactory {
         enum_unwrapped!(self, [PragmaArgumentType, PragmaArgumentTypeFactory])
     }
+
+    pub fn factory(&self) -> String {
+        match self {
+            Self::PragmaArgumentTypeFactory(value) => value.factory.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -197,7 +203,7 @@ pub struct PragmaPseudoMapValue {
     pub range: CommentRange,
 }
 
-pub type ReadonlyPragmaMap = HashMap<String, Vec<PragmaPseudoMapValue>>;
+pub type ReadonlyPragmaMap = HashMap<String, Vec<Rc<PragmaPseudoMapValue>>>;
 
 pub struct CommentDirectivesMap {
     pub directives_by_line: HashMap<String, Rc<CommentDirective>>,

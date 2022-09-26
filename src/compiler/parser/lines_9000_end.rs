@@ -1,11 +1,12 @@
-use std::cell::{Cell, Ref, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
     file_extension_is_one_of, for_each_child_bool, Debug_, DiagnosticMessage, Extension,
     IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
-    NodeInterface, ParserType, ReadonlyTextRange, SyntaxKind,
+    NodeInterface, ParserType, ReadonlyPragmaMap, ReadonlyTextRange, SyntaxKind,
 };
 
 impl IncrementalParserType {
@@ -212,12 +213,17 @@ pub(crate) fn is_declaration_file_name(file_name: &str) -> bool {
     )
 }
 
-pub(crate) trait PragmaContext {}
+pub(crate) trait PragmaContext {
+    fn maybe_pragmas(&self) -> RefMut<Option<ReadonlyPragmaMap>>;
+}
 
 pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
     context: &TContext,
     source_text: &str,
 ) {
+    // TODO
+    *context.maybe_pragmas() = Some(HashMap::new());
+    // TODO
 }
 
 pub(crate) fn process_pragmas_into_fields<

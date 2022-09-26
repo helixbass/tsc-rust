@@ -630,7 +630,11 @@ impl SourceFileLike for SourceFile {
     }
 }
 
-impl PragmaContext for SourceFile {}
+impl PragmaContext for SourceFile {
+    fn maybe_pragmas(&self) -> RefMut<Option<ReadonlyPragmaMap>> {
+        self.pragmas.borrow_mut()
+    }
+}
 
 impl HasStatementsInterface for SourceFile {
     fn statements(&self) -> &NodeArray {
