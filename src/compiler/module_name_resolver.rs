@@ -819,6 +819,7 @@ pub trait PerDirectoryResolutionCache<TValue> {
 pub struct ModuleResolutionCache {
     pre_directory_resolution_cache:
         PerDirectoryResolutionCacheConcrete<Rc<ResolvedModuleWithFailedLookupLocations>>,
+    module_name_to_directory_map: Rc<CacheWithRedirects<PerModuleNameCache>>,
     package_json_info_cache: Rc<dyn PackageJsonInfoCache>,
 }
 
@@ -1118,12 +1119,15 @@ pub fn create_module_resolution_cache(
         get_canonical_file_name.clone(),
         directory_to_module_name_map.clone(),
     );
+    let module_name_to_directory_map = module_name_to_directory_map
+        .unwrap_or_else(|| Rc::new(create_cache_with_redirects(options.clone())));
     let package_json_info_cache: Rc<dyn PackageJsonInfoCache> = Rc::new(
         create_package_json_info_cache(current_directory, get_canonical_file_name),
     );
 
     ModuleResolutionCache {
         pre_directory_resolution_cache,
+        module_name_to_directory_map,
         package_json_info_cache,
     }
 }
@@ -1135,6 +1139,10 @@ impl ModuleResolutionCache {
 
     pub fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache {
         self
+    }
+
+    pub fn create_per_module_name_cache(&self) -> PerModuleNameCache {
+        unimplemented!()
     }
 }
 
@@ -1166,7 +1174,19 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Rc<PerModuleNameCache> {
-        unimplemented!()
+        Debug_.assert(
+            !is_external_module_name_relative(non_relative_module_name),
+            None,
+        );
+        get_or_create_cache(
+            self.module_name_to_directory_map.as_ref(),
+            redirected_reference,
+            &*match mode {
+                None => non_relative_module_name.to_owned(),
+                Some(mode) => format!("{:?}|{}", mode, non_relative_module_name),
+            },
+            || self.create_per_module_name_cache(),
+        )
     }
 }
 
