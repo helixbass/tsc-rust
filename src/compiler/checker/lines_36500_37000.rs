@@ -397,23 +397,20 @@ impl TypeChecker {
         node: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement*/
     ) {
         self.check_decorators(node);
-        let node_as_variable_like_declaration = node.as_variable_like_declaration();
         if !is_binding_element(node) {
-            self.check_source_element(node_as_variable_like_declaration.maybe_type());
+            self.check_source_element(node.as_variable_like_declaration().maybe_type());
         }
 
-        let node_name = node_as_variable_like_declaration.maybe_name();
+        let node_name = node.as_named_declaration().maybe_name();
         if node_name.is_none() {
             return;
         }
         let node_name = node_name.unwrap();
 
+        let node_as_has_initializer = node.as_has_initializer();
         if node_name.kind() == SyntaxKind::ComputedPropertyName {
             self.check_computed_property_name(&node_name);
-            if let Some(node_initializer) = node_as_variable_like_declaration
-                .maybe_initializer()
-                .as_ref()
-            {
+            if let Some(node_initializer) = node_as_has_initializer.maybe_initializer().as_ref() {
                 self.check_expression_cached(node_initializer, None);
             }
         }
@@ -488,9 +485,7 @@ impl TypeChecker {
                 },
             );
         }
-        if node_as_variable_like_declaration
-            .maybe_initializer()
-            .is_some()
+        if node_as_has_initializer.maybe_initializer().is_some()
             && is_parameter_declaration(node)
             && node_is_missing(
                 get_containing_function(node)
@@ -507,18 +502,14 @@ impl TypeChecker {
             return;
         }
         if is_binding_pattern(Some(&*node_name)) {
-            let need_check_initializer = node_as_variable_like_declaration
-                .maybe_initializer()
-                .is_some()
+            let need_check_initializer = node_as_has_initializer.maybe_initializer().is_some()
                 && node.parent().parent().kind() != SyntaxKind::ForInStatement;
             let need_check_widened_type = node_name.as_has_elements().elements().is_empty();
             if need_check_initializer || need_check_widened_type {
                 let widened_type = self.get_widened_type_for_variable_like_declaration(node, None);
                 if need_check_initializer {
                     let initializer_type = self.check_expression_cached(
-                        &node_as_variable_like_declaration
-                            .maybe_initializer()
-                            .unwrap(),
+                        &node_as_has_initializer.maybe_initializer().unwrap(),
                         None,
                     );
                     if self.strict_null_checks && need_check_widened_type {
@@ -528,7 +519,7 @@ impl TypeChecker {
                             &initializer_type,
                             &self.get_widened_type_for_variable_like_declaration(node, None),
                             Some(node),
-                            node_as_variable_like_declaration.maybe_initializer(),
+                            node_as_has_initializer.maybe_initializer(),
                             None,
                             None,
                         );
@@ -628,10 +619,7 @@ impl TypeChecker {
                     &declaration_type,
                 );
             }
-            if let Some(node_initializer) = node_as_variable_like_declaration
-                .maybe_initializer()
-                .as_ref()
-            {
+            if let Some(node_initializer) = node_as_has_initializer.maybe_initializer().as_ref() {
                 self.check_type_assignable_to_and_optionally_elaborate(
                     &self.check_expression_cached(node_initializer, None),
                     &declaration_type,
