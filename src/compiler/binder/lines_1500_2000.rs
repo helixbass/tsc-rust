@@ -656,7 +656,7 @@ impl BindBinaryExpressionFlow {
 }
 
 pub struct WorkArea {
-    pub stack_index: usize,
+    pub stack_index: isize,
     pub skip: bool,
     pub in_strict_mode_stack: Vec<Option<bool>>,
     pub parent_stack: Vec<Option<Rc<Node>>>,
