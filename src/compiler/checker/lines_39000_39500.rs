@@ -245,9 +245,12 @@ impl TypeChecker {
 
     pub(super) fn check_type_alias_declaration(&self, node: &Node /*TypeAliasDeclaration*/) {
         self.check_grammar_decorators_and_modifiers(node);
-        self.check_type_name_is_reserved(node, &Diagnostics::Type_alias_name_cannot_be_0);
-        self.check_exports_on_merged_declarations(node);
         let node_as_type_alias_declaration = node.as_type_alias_declaration();
+        self.check_type_name_is_reserved(
+            &node_as_type_alias_declaration.name(),
+            &Diagnostics::Type_alias_name_cannot_be_0,
+        );
+        self.check_exports_on_merged_declarations(node);
         self.check_type_parameters(
             node_as_type_alias_declaration
                 .maybe_type_parameters()
