@@ -19,7 +19,7 @@ use crate::{
     format_string_from_args, get_directory_path, get_locale_specific_message,
     get_normalized_path_components, get_string_comparer, has_extension, index_of,
     index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map, normalize_path,
-    remove_trailing_directory_separator, sort, to_path, BaseTextRange, CharacterCodes,
+    remove_trailing_directory_separator, some, sort, to_path, BaseTextRange, CharacterCodes,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
@@ -1640,7 +1640,10 @@ pub fn is_js_like(script_kind: Option<ScriptKind>) -> bool {
 }
 
 pub fn has_js_file_extension(file_name: &str) -> bool {
-    unimplemented!()
+    some(
+        Some(&**supported_js_extensions_flat),
+        Some(|extension: &Extension| file_extension_is(file_name, extension.to_str())),
+    )
 }
 
 lazy_static! {
