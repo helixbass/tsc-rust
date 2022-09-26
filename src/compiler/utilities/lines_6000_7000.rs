@@ -730,7 +730,17 @@ pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
 }
 
 pub fn get_jsx_runtime_import(base: Option<&str>, options: &CompilerOptions) -> Option<String> {
-    unimplemented!()
+    base.map(|base| {
+        format!(
+            "{}/{}",
+            base,
+            if options.jsx == Some(JsxEmit::ReactJSXDev) {
+                "jsx-dev-runtime"
+            } else {
+                "jsx-runtime"
+            }
+        )
+    })
 }
 
 pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
