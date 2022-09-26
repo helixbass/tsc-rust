@@ -172,6 +172,20 @@ impl NamespaceImport {
     }
 }
 
+impl NamedDeclarationInterface for NamespaceImport {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct NamespaceExport {

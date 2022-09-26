@@ -457,13 +457,16 @@ impl Node {
             Node::FunctionExpression(node) => Some(node),
             Node::ArrowFunction(node) => Some(node),
             Node::PropertyAccessExpression(node) => Some(node),
+            Node::NamespaceImport(node) => Some(node),
             _ => None,
         }
     }
 
     pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
-        self.maybe_as_named_declaration()
-            .expect("Expected named declaration")
+        self.maybe_as_named_declaration().expect(&format!(
+            "Expected named declaration, got {:?}",
+            self.kind()
+        ))
     }
 
     pub fn as_member_name(&self) -> &dyn MemberNameInterface {
