@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use fancy_regex::{Captures, Regex};
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::cmp;
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ use crate::{
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
     FileExtensionInfo, JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind,
-    MultiMap, Node, NodeArray, Path, Pattern, PluginImport, ResolvedModuleFull,
+    MultiMap, Node, NodeArray, NodeInterface, Path, Pattern, PluginImport, ResolvedModuleFull,
     ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
@@ -698,7 +698,35 @@ pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
     compiler_options: &CompilerOptions,
     file: Option<TFile /*SourceFile*/>,
 ) -> Option<String> {
-    unimplemented!()
+    let file: Option<Rc<Node>> = file.map(|file| file.borrow().node_wrapper());
+    let jsx_import_source_pragmas = file.as_ref().and_then(|file| {
+        file.as_source_file()
+            .pragmas()
+            .get("jsximportsource")
+            .cloned()
+    });
+    let jsx_import_source_pragma = jsx_import_source_pragmas
+        .as_ref()
+        .filter(|jsx_import_source_pragmas| !jsx_import_source_pragmas.is_empty())
+        .map(|jsx_import_source_pragmas| {
+            jsx_import_source_pragmas[jsx_import_source_pragmas.len() - 1].clone()
+        });
+    if matches!(
+        compiler_options.jsx,
+        Some(JsxEmit::ReactJSX) | Some(JsxEmit::ReactJSXDev)
+    ) || compiler_options.jsx_import_source.is_some()
+        || jsx_import_source_pragma.is_some()
+    {
+        Some(
+            jsx_import_source_pragma
+                .as_ref()
+                .map(|jsx_import_source_pragma| jsx_import_source_pragma.arguments.factory())
+                .or_else(|| compiler_options.jsx_import_source.clone())
+                .unwrap_or_else(|| "react".to_owned()),
+        )
+    } else {
+        None
+    }
 }
 
 pub fn get_jsx_runtime_import(base: Option<&str>, options: &CompilerOptions) -> Option<String> {
