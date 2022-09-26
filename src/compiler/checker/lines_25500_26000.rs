@@ -628,8 +628,11 @@ impl TypeChecker {
             return self
                 .get_effective_first_argument_for_jsx_signature(signature.clone(), call_target);
         }
-        let rest_index = signature.parameters().len() - 1;
-        if signature_has_rest_parameter(&signature) && arg_index >= rest_index {
+        let rest_index = TryInto::<isize>::try_into(signature.parameters().len()).unwrap() - 1;
+        if signature_has_rest_parameter(&signature)
+            && TryInto::<isize>::try_into(arg_index).unwrap() >= rest_index
+        {
+            let rest_index: usize = rest_index.try_into().unwrap();
             self.get_indexed_access_type(
                 &self.get_type_of_symbol(&signature.parameters()[rest_index]),
                 &self.get_number_literal_type(Number::new((arg_index - rest_index) as f64)),
