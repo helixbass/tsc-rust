@@ -577,6 +577,12 @@ impl HasArgumentsInterface for CallExpression {
     }
 }
 
+impl HasTypeArgumentsInterface for CallExpression {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
+        self.type_arguments.as_ref()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ExpressionWithTypeArguments {
@@ -602,6 +608,12 @@ impl ExpressionWithTypeArguments {
 impl HasExpressionInterface for ExpressionWithTypeArguments {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
+        self.type_arguments.as_ref()
     }
 }
 
@@ -639,6 +651,12 @@ impl HasExpressionInterface for NewExpression {
 impl HasArgumentsInterface for NewExpression {
     fn maybe_arguments(&self) -> Option<&NodeArray> {
         self.arguments.as_ref()
+    }
+}
+
+impl HasTypeArgumentsInterface for NewExpression {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
+        self.type_arguments.as_ref()
     }
 }
 

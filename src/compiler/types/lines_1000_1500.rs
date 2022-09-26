@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use super::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
-    HasInitializerInterface, HasLeftAndRightInterface, HasTypeInterface,
+    HasInitializerInterface, HasLeftAndRightInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, Node, NodeInterface, ReadonlyTextRange, SyntaxKind, TransformFlags,
     __String,
 };
@@ -257,6 +257,12 @@ impl HasJSDocDotPosInterface for Identifier {
 
     fn set_jsdoc_dot_pos(&self, jsdoc_dot_pos: Option<isize>) {
         self.jsdoc_dot_pos.set(jsdoc_dot_pos);
+    }
+}
+
+impl HasTypeArgumentsInterface for Identifier {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
+        self.type_arguments.as_ref()
     }
 }
 

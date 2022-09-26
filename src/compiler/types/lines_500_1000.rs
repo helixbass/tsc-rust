@@ -530,8 +530,16 @@ impl Node {
 
     pub fn as_has_type_arguments(&self) -> &dyn HasTypeArgumentsInterface {
         match self {
-            Node::TypeReferenceNode(type_reference_node) => type_reference_node,
-            _ => panic!("Expected has type arguments"),
+            Node::TaggedTemplateExpression(node) => node,
+            Node::TypeReferenceNode(node) => node,
+            Node::JsxOpeningElement(node) => node,
+            Node::JsxSelfClosingElement(node) => node,
+            Node::Identifier(node) => node,
+            Node::ImportTypeNode(node) => node,
+            Node::CallExpression(node) => node,
+            Node::ExpressionWithTypeArguments(node) => node,
+            Node::NewExpression(node) => node,
+            _ => panic!("Expected has type arguments, got {:?}", self.kind()),
         }
     }
 

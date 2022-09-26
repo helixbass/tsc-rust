@@ -249,6 +249,12 @@ impl ImportTypeNode {
     }
 }
 
+impl HasTypeArgumentsInterface for ImportTypeNode {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
+        self.type_arguments.as_ref()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ThisTypeNode {
