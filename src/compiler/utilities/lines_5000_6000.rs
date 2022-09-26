@@ -10,19 +10,19 @@ use std::rc::Rc;
 
 use super::supported_ts_extensions_for_extract_extension;
 use crate::{
-    entity_name_to_string, file_extension_is, find, get_element_or_property_access_name,
-    get_property_name_for_property_name_node, get_sys, has_syntactic_modifier,
-    is_bindable_static_access_expression, is_element_access_expression, is_entity_name_expression,
-    is_identifier, is_jsdoc_member_name, is_property_access_expression, is_property_name,
-    is_qualified_name, parse_config_file_text_to_json, unescape_leading_underscores,
-    walk_up_parenthesized_expressions, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode,
-    BaseSymbol, BaseType, CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, MapLike, ModifierFlags,
-    NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, Signature,
-    SignatureFlags, SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransformFlags, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    __String,
+    entity_name_to_string, file_extension_is, find, get_combined_modifier_flags,
+    get_element_or_property_access_name, get_property_name_for_property_name_node, get_sys,
+    has_syntactic_modifier, is_bindable_static_access_expression, is_element_access_expression,
+    is_entity_name_expression, is_identifier, is_jsdoc_member_name, is_property_access_expression,
+    is_property_name, is_qualified_name, parse_config_file_text_to_json,
+    unescape_leading_underscores, walk_up_parenthesized_expressions, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CheckFlags, CompilerOptions,
+    Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    Extension, MapLike, ModifierFlags, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
+    PrefixUnaryExpression, Signature, SignatureFlags, SourceFileLike, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TransformFlags, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, __String,
 };
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
@@ -243,11 +243,52 @@ pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
 }
 
 pub fn get_declaration_modifier_flags_from_symbol(
-    symbol: &Symbol,
+    s: &Symbol,
     is_write: Option<bool>,
 ) -> ModifierFlags {
     let is_write = is_write.unwrap_or(false);
-    unimplemented!()
+    if let Some(s_value_declaration) = s.maybe_value_declaration().as_ref() {
+        let declaration: Rc<Node> = if is_write {
+            s.maybe_declarations().as_ref().and_then(|s_declarations| {
+                find(s_declarations, |d: &Rc<Node>, _| {
+                    d.kind() == SyntaxKind::SetAccessor
+                })
+                .cloned()
+            })
+        } else {
+            None
+        }
+        .unwrap_or_else(|| s_value_declaration.clone());
+        let flags = get_combined_modifier_flags(&declaration);
+        return if matches!(
+            s.maybe_parent(),
+            Some(s_parent) if s_parent.flags().intersects(SymbolFlags::Class)
+        ) {
+            flags
+        } else {
+            flags & !ModifierFlags::AccessibilityModifier
+        };
+    }
+    if get_check_flags(s).intersects(CheckFlags::Synthetic) {
+        let check_flags = s.as_transient_symbol().check_flags();
+        let access_modifier = if check_flags.intersects(CheckFlags::ContainsPrivate) {
+            ModifierFlags::Private
+        } else if check_flags.intersects(CheckFlags::ContainsPublic) {
+            ModifierFlags::Public
+        } else {
+            ModifierFlags::Protected
+        };
+        let static_modifier = if check_flags.intersects(CheckFlags::ContainsStatic) {
+            ModifierFlags::Static
+        } else {
+            ModifierFlags::None
+        };
+        return access_modifier | static_modifier;
+    }
+    if s.flags().intersects(SymbolFlags::Prototype) {
+        return ModifierFlags::Public | ModifierFlags::Static;
+    }
+    ModifierFlags::None
 }
 
 pub fn get_combined_local_and_export_symbol_flags(symbol: &Symbol) -> SymbolFlags {
