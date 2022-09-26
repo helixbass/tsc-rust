@@ -2677,6 +2677,77 @@ fn load_module_from_immediate_node_modules_directory(
     cache: Option<&ModuleResolutionCache>,
     redirected_reference: Option<&ResolvedProjectReference>,
 ) -> Option<Resolved> {
+    let node_modules_folder = combine_paths(directory, &[Some("node_modules")]);
+    let node_modules_folder_exists = directory_probably_exists(
+        &node_modules_folder,
+        |directory_name| state.host.directory_exists(directory_name),
+        || state.host.is_directory_exists_supported(),
+    );
+    if !node_modules_folder_exists && state.trace_enabled {
+        trace(
+            state.host,
+            &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+            Some(vec![node_modules_folder.clone()]),
+        );
+    }
+
+    let package_result = if types_scope_only {
+        None
+    } else {
+        load_module_from_specific_node_modules_directory(
+            extensions,
+            module_name,
+            &node_modules_folder,
+            node_modules_folder_exists,
+            state,
+            cache,
+            redirected_reference,
+        )
+    };
+    if package_result.is_some() {
+        return package_result;
+    }
+    if matches!(extensions, Extensions::TypeScript | Extensions::DtsOnly) {
+        let node_modules_at_types_ = combine_paths(&node_modules_folder, &[Some("@types")]);
+        let mut node_modules_at_types_exists = node_modules_folder_exists;
+        if node_modules_folder_exists
+            && !directory_probably_exists(
+                &node_modules_at_types_,
+                |directory_name| state.host.directory_exists(directory_name),
+                || state.host.is_directory_exists_supported(),
+            )
+        {
+            if state.trace_enabled {
+                trace(
+                    state.host,
+                    &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    Some(vec![node_modules_at_types_.clone()]),
+                );
+            }
+            node_modules_at_types_exists = false;
+        }
+        return load_module_from_specific_node_modules_directory(
+            Extensions::DtsOnly,
+            &mangle_scoped_package_name_with_trace(module_name, state),
+            &node_modules_at_types_,
+            node_modules_at_types_exists,
+            state,
+            cache,
+            redirected_reference,
+        );
+    }
+    None
+}
+
+fn load_module_from_specific_node_modules_directory(
+    extensions: Extensions,
+    module_name: &str,
+    node_modules_directory: &str,
+    node_modules_directory_exists: bool,
+    state: &ModuleResolutionState,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+) -> Option<Resolved> {
     unimplemented!()
 }
 
@@ -2708,6 +2779,13 @@ fn try_load_module_using_paths(
     only_record_failures: bool,
     state: &ModuleResolutionState,
 ) -> SearchResult<Resolved> {
+    unimplemented!()
+}
+
+pub(crate) fn mangle_scoped_package_name_with_trace(
+    package_name: &str,
+    state: &ModuleResolutionState,
+) -> String {
     unimplemented!()
 }
 
