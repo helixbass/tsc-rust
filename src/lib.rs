@@ -5,6 +5,7 @@ mod compiler;
 mod execute_command_line;
 mod rust_helpers;
 
+use compiler::binder::BindBinaryExpressionFlow;
 pub use compiler::binder::{bind_source_file, get_module_instance_state, ModuleInstanceState};
 pub use compiler::builder::ProgramBuildInfo;
 pub use compiler::builder_public::{

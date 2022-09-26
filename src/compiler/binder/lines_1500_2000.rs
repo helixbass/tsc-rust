@@ -1,23 +1,29 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{BinderType, ContainerFlags, ModuleInstanceState};
 use crate::{
-    append, get_host_signature_from_jsdoc, has_syntactic_modifier, is_ambient_module,
-    is_binding_pattern, is_class_static_block_declaration, is_export_assignment,
-    is_export_declaration, is_external_module, is_for_in_or_of_statement, is_function_like,
-    is_identifier, is_module_augmentation_external, is_module_block,
+    append, create_binary_expression_trampoline, get_host_signature_from_jsdoc,
+    has_syntactic_modifier, is_ambient_module, is_assignment_operator, is_assignment_target,
+    is_binary_expression, is_binding_pattern, is_class_static_block_declaration,
+    is_destructuring_assignment, is_export_assignment, is_export_declaration, is_external_module,
+    is_for_in_or_of_statement, is_function_like, is_identifier,
+    is_logical_or_coalescing_assignment_operator, is_module_augmentation_external, is_module_block,
     is_object_literal_or_class_expression_method_or_accessor, is_omitted_expression,
     is_optional_chain, is_optional_chain_root, is_outermost_optional_chain,
     is_push_or_unshift_identifier, is_source_file, is_static, set_parent, set_parent_recursive,
-    skip_parentheses, try_cast, try_parse_pattern, Diagnostics, FlowFlags, FlowNode,
-    HasInitializerInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags,
-    NodeInterface, PatternAmbientModule, StringOrNodeArray, StringOrPattern, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind,
+    skip_parentheses, try_cast, try_parse_pattern, BinaryExpressionStateMachine,
+    BinaryExpressionTrampoline, Diagnostics, FlowFlags, FlowNode, HasInitializerInterface,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, PatternAmbientModule,
+    StringOrNodeArray, StringOrPattern, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl BinderType {
-    pub(super) fn bind_binary_expression_flow(&self, node: &Node /*BinaryExpression*/) {
-        unimplemented!()
+    pub(super) fn create_bind_binary_expression_flow(&self) -> BindBinaryExpressionFlow {
+        let trampoline = create_binary_expression_trampoline(
+            BindBinaryExpressionFlowStateMachine::new(self.rc_wrapper()),
+        );
+        BindBinaryExpressionFlow::new(trampoline)
     }
 
     pub(super) fn bind_delete_expression_flow(&self, node: &Node /*DeleteExpression*/) {
@@ -630,5 +636,211 @@ impl BinderType {
                 ));
             }
         }
+    }
+}
+
+pub(crate) struct BindBinaryExpressionFlow {
+    trampoline: BinaryExpressionTrampoline<BindBinaryExpressionFlowStateMachine>,
+}
+
+impl BindBinaryExpressionFlow {
+    pub fn new(
+        trampoline: BinaryExpressionTrampoline<BindBinaryExpressionFlowStateMachine>,
+    ) -> Self {
+        Self { trampoline }
+    }
+
+    pub fn call(&self, node: &Node /*BinaryExpression*/) {
+        self.trampoline.call(node, ());
+    }
+}
+
+pub struct WorkArea {
+    pub stack_index: usize,
+    pub skip: bool,
+    pub in_strict_mode_stack: Vec<Option<bool>>,
+    pub parent_stack: Vec<Option<Rc<Node>>>,
+}
+
+pub(crate) struct BindBinaryExpressionFlowStateMachine {
+    binder: Rc<BinderType>,
+}
+
+impl BindBinaryExpressionFlowStateMachine {
+    pub fn new(binder: Rc<BinderType>) -> Self {
+        Self { binder }
+    }
+
+    pub fn maybe_bind(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        if
+        /*node &&*/
+        is_binary_expression(node) && !is_destructuring_assignment(node) {
+            return Some(node.node_wrapper());
+        }
+        self.binder.bind(Some(node));
+        None
+    }
+}
+
+impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
+    type TResult = ();
+    type TOuterState = ();
+    type TState = Rc<RefCell<WorkArea>>;
+
+    fn on_enter(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        mut state: Option<Rc<RefCell<WorkArea>>>,
+        _: (),
+    ) -> Rc<RefCell<WorkArea>> {
+        if let Some(state) = state.as_ref() {
+            let mut state = state.borrow_mut();
+            state.stack_index += 1;
+            set_parent(node, Some(self.binder.parent()));
+            let save_in_strict_mode = self.binder.maybe_in_strict_mode();
+            self.binder.bind_worker(node);
+            let save_parent = self.binder.parent();
+            self.binder.set_parent(Some(node.node_wrapper()));
+            state.skip = false;
+            state.in_strict_mode_stack.push(save_in_strict_mode);
+            state.parent_stack.push(Some(save_parent));
+        } else {
+            state = Some(Rc::new(RefCell::new(WorkArea {
+                stack_index: 0,
+                skip: false,
+                in_strict_mode_stack: vec![None],
+                parent_stack: vec![None],
+            })));
+        }
+        let state = state.unwrap();
+        let node_as_binary_expression = node.as_binary_expression();
+        let operator = node_as_binary_expression.operator_token.kind();
+        if matches!(
+            operator,
+            SyntaxKind::AmpersandAmpersandToken
+                | SyntaxKind::BarBarToken
+                | SyntaxKind::QuestionQuestionToken
+        ) || is_logical_or_coalescing_assignment_operator(operator)
+        {
+            if self.binder.is_top_level_logical_expression(node) {
+                let post_expression_label = self.binder.create_branch_label();
+                self.binder.bind_logical_like_expression(
+                    node,
+                    post_expression_label.clone(),
+                    post_expression_label.clone(),
+                );
+                self.binder
+                    .set_current_flow(Some(self.binder.finish_flow_label(post_expression_label)));
+            } else {
+                self.binder.bind_logical_like_expression(
+                    node,
+                    self.binder.current_true_target(),
+                    self.binder.current_false_target(),
+                );
+            }
+            state.borrow_mut().skip = true;
+        }
+        state
+    }
+
+    fn on_left(
+        &self,
+        left: &Node, /*Expression*/
+        state: Rc<RefCell<WorkArea>>,
+        _node: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        if !(*state).borrow().skip {
+            return self.maybe_bind(left);
+        }
+        None
+    }
+
+    fn on_operator(
+        &self,
+        operator_token: &Node, /*BinaryOperatorToken*/
+        state: Rc<RefCell<WorkArea>>,
+        node: &Node, /*BinaryExpression*/
+    ) {
+        if !(*state).borrow().skip {
+            if operator_token.kind() == SyntaxKind::CommaToken {
+                self.binder
+                    .maybe_bind_expression_flow_if_call(&node.as_binary_expression().left);
+            }
+            self.binder.bind(Some(operator_token));
+        }
+    }
+
+    fn on_right(
+        &self,
+        right: &Node, /*Expression*/
+        state: Rc<RefCell<WorkArea>>,
+        _node: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        if !(*state).borrow().skip {
+            return self.maybe_bind(right);
+        }
+        None
+    }
+
+    fn on_exit(&self, node: &Node /*BinaryExpression*/, state: Rc<RefCell<WorkArea>>) -> () {
+        if !(*state).borrow().skip {
+            let node_as_binary_expression = node.as_binary_expression();
+            let operator = node_as_binary_expression.operator_token.kind();
+            if is_assignment_operator(operator) && !is_assignment_target(node) {
+                self.binder
+                    .bind_assignment_target_flow(&node_as_binary_expression.left);
+                if operator == SyntaxKind::EqualsToken
+                    && node_as_binary_expression.left.kind() == SyntaxKind::ElementAccessExpression
+                {
+                    let element_access = node_as_binary_expression
+                        .left
+                        .as_element_access_expression();
+                    if self
+                        .binder
+                        .is_narrowable_operand(&element_access.expression)
+                    {
+                        self.binder
+                            .set_current_flow(Some(self.binder.create_flow_mutation(
+                                FlowFlags::ArrayMutation,
+                                self.binder.current_flow(),
+                                node,
+                            )));
+                    }
+                }
+            }
+        }
+        {
+            let mut state = state.borrow_mut();
+            let saved_in_strict_mode = state.in_strict_mode_stack.pop().unwrap();
+            let saved_parent = state.parent_stack.pop().unwrap();
+            if saved_in_strict_mode.is_some() {
+                self.binder.set_in_strict_mode(saved_in_strict_mode);
+            }
+            if saved_parent.is_some() {
+                self.binder.set_parent(saved_parent);
+            }
+            state.skip = false;
+            state.stack_index -= 1;
+        }
+        ()
+    }
+
+    fn implements_on_left(&self) -> bool {
+        true
+    }
+
+    fn implements_on_operator(&self) -> bool {
+        true
+    }
+
+    fn implements_on_right(&self) -> bool {
+        true
+    }
+
+    fn implements_fold_state(&self) -> bool {
+        false
     }
 }

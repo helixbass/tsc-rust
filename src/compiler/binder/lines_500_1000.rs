@@ -395,7 +395,7 @@ impl BinderType {
                     self.bind_destructuring_assignment_flow(node);
                     return;
                 }
-                self.bind_binary_expression_flow(node)
+                self.bind_binary_expression_flow().call(node)
             }
             SyntaxKind::DeleteExpression => self.bind_delete_expression_flow(node),
             SyntaxKind::ConditionalExpression => self.bind_conditional_expression_flow(node),
