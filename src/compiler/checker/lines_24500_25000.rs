@@ -635,9 +635,9 @@ impl TypeChecker {
     pub(super) fn remove_optionality_from_declared_type(
         &self,
         declared_type: &Type,
-        declaration: &Node, /*VariableLikeDeclaration*/
+        declaration: &Node, /*VariableLikeDeclaration (actually also includes BindingElement)*/
     ) -> Rc<Type> {
-        let declaration_as_variable_like_declaration = declaration.as_variable_like_declaration();
+        let declaration_as_has_initializer = declaration.as_has_initializer();
         if self.push_type_resolution(
             &declaration.symbol().into(),
             TypeSystemPropertyName::DeclaredType,
@@ -645,7 +645,7 @@ impl TypeChecker {
             let annotation_includes_undefined = self.strict_null_checks
                 && declaration.kind() == SyntaxKind::Parameter
                 && matches!(
-                    declaration_as_variable_like_declaration.maybe_initializer().as_ref(),
+                    declaration_as_has_initializer.maybe_initializer().as_ref(),
                     Some(declaration_initializer) if self.get_falsy_flags(declared_type).intersects(TypeFlags::Undefined) &&
                         !self.get_falsy_flags(&self.check_expression(declaration_initializer, None, None)).intersects(TypeFlags::Undefined)
                 );
