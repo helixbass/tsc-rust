@@ -1370,7 +1370,7 @@ pub fn resolve_module_name(
     containing_file: &str,
     mut compiler_options: Rc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<&ModuleResolutionCache>,
+    cache: Option<Rc<ModuleResolutionCache>>,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) -> Rc<ResolvedModuleWithFailedLookupLocations> {
@@ -1397,7 +1397,7 @@ pub fn resolve_module_name(
         }
     }
     let containing_directory = get_directory_path(containing_file);
-    let per_folder_cache = cache.map(|cache| {
+    let per_folder_cache = cache.as_ref().map(|cache| {
         cache.get_or_create_cache_for_directory(&containing_directory, redirected_reference.clone())
     });
     let mut result = per_folder_cache
@@ -1455,7 +1455,7 @@ pub fn resolve_module_name(
                     containing_file,
                     &compiler_options,
                     host,
-                    cache,
+                    cache.as_deref(),
                     redirected_reference.as_deref(),
                     resolution_mode,
                 ));
@@ -1466,7 +1466,7 @@ pub fn resolve_module_name(
                     containing_file,
                     &compiler_options,
                     host,
-                    cache,
+                    cache.as_deref(),
                     redirected_reference.as_deref(),
                     resolution_mode,
                 ));
@@ -1477,7 +1477,7 @@ pub fn resolve_module_name(
                     containing_file,
                     compiler_options.clone(),
                     host,
-                    cache,
+                    cache.clone(),
                     redirected_reference.clone(),
                     None,
                 ));
@@ -1488,7 +1488,7 @@ pub fn resolve_module_name(
                     containing_file,
                     &compiler_options,
                     host,
-                    cache,
+                    cache.as_deref(),
                     redirected_reference.as_deref(),
                 ));
             }
@@ -1754,7 +1754,7 @@ pub fn node_module_name_resolver(
     containing_file: &str,
     compiler_options: Rc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<&ModuleResolutionCache>,
+    cache: Option<Rc<ModuleResolutionCache>>,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
     lookup_config: Option<bool>,
 ) -> Rc<ResolvedModuleWithFailedLookupLocations> {
@@ -1782,7 +1782,7 @@ fn node_module_name_resolver_worker(
     containing_directory: &str,
     compiler_options: Rc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<&ModuleResolutionCache>,
+    cache: Option<Rc<ModuleResolutionCache>>,
     extensions: &[Extensions],
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
 ) -> Rc<ResolvedModuleWithFailedLookupLocations> {
@@ -1794,7 +1794,9 @@ fn node_module_name_resolver_worker(
         host,
         trace_enabled,
         failed_lookup_locations: RefCell::new(failed_lookup_locations),
-        package_json_info_cache: cache.map(|cache| cache.as_dyn_package_json_info_cache()),
+        package_json_info_cache: cache
+            .as_ref()
+            .map(|cache| cache.as_dyn_package_json_info_cache()),
         features,
         conditions: if features.intersects(NodeResolutionFeatures::EsmMode) {
             vec!["node".to_owned(), "import".to_owned(), "types".to_owned()]
@@ -1812,7 +1814,7 @@ fn node_module_name_resolver_worker(
                 containing_directory,
                 &state,
                 features,
-                cache,
+                cache.clone(),
                 redirected_reference.clone(),
                 host,
                 &compiler_options,
@@ -1846,7 +1848,7 @@ fn try_resolve(
     containing_directory: &str,
     state: &ModuleResolutionState,
     features: NodeResolutionFeatures,
-    cache: Option<&ModuleResolutionCache>,
+    cache: Option<Rc<ModuleResolutionCache>>,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
     host: &dyn ModuleResolutionHost,
     compiler_options: &CompilerOptions,
@@ -1886,7 +1888,7 @@ fn try_resolve(
                 module_name,
                 containing_directory,
                 state,
-                cache,
+                cache.as_deref(),
                 redirected_reference.as_deref(),
             );
         }
@@ -1896,7 +1898,7 @@ fn try_resolve(
                 module_name,
                 containing_directory,
                 state,
-                cache,
+                cache.as_deref(),
                 redirected_reference.as_deref(),
             );
         }
@@ -2580,10 +2582,30 @@ fn extension_is_ok(extensions: Extensions, extension: Extension) -> bool {
     }
 }
 
+pub(crate) fn parse_package_name(module_name: &str) -> ParsedPackageName {
+    unimplemented!()
+}
+
+pub(crate) struct ParsedPackageName {
+    pub package_name: String,
+    pub rest: String,
+}
+
 fn load_module_from_self_name_reference(
     extensions: Extensions,
     module_name: &str,
     directory: &str,
+    state: &ModuleResolutionState,
+    cache: Option<&ModuleResolutionCache>,
+    redirected_reference: Option<&ResolvedProjectReference>,
+) -> SearchResult<Resolved> {
+    unimplemented!()
+}
+
+fn load_module_from_exports(
+    scope: &PackageJsonInfo,
+    extensions: Extensions,
+    subpath: &str,
     state: &ModuleResolutionState,
     cache: Option<&ModuleResolutionCache>,
     redirected_reference: Option<&ResolvedProjectReference>,
@@ -2607,7 +2629,7 @@ fn load_module_from_nearest_node_modules_directory(
     module_name: &str,
     directory: &str,
     state: &ModuleResolutionState,
-    cache: Option<&ModuleResolutionCache>,
+    cache: Option<Rc<ModuleResolutionCache>>,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
 ) -> SearchResult<Resolved> {
     load_module_from_nearest_node_modules_directory_worker(
@@ -2627,10 +2649,10 @@ fn load_module_from_nearest_node_modules_directory_worker(
     directory: &str,
     state: &ModuleResolutionState,
     types_scope_only: bool,
-    cache: Option<&ModuleResolutionCache>,
+    cache: Option<Rc<ModuleResolutionCache>>,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
 ) -> SearchResult<Resolved> {
-    let per_module_name_cache = cache.map(|cache| {
+    let per_module_name_cache = cache.as_ref().map(|cache| {
         cache.get_or_create_cache_for_module_name(
             module_name,
             if state.features == NodeResolutionFeatures::None {
@@ -2660,8 +2682,8 @@ fn load_module_from_nearest_node_modules_directory_worker(
                 ancestor_directory,
                 state,
                 types_scope_only,
-                cache,
-                redirected_reference.as_deref(),
+                cache.clone(),
+                redirected_reference.clone(),
             ));
         }
         None
@@ -2674,8 +2696,8 @@ fn load_module_from_immediate_node_modules_directory(
     directory: &str,
     state: &ModuleResolutionState,
     types_scope_only: bool,
-    cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    cache: Option<Rc<ModuleResolutionCache>>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
 ) -> Option<Resolved> {
     let node_modules_folder = combine_paths(directory, &[Some("node_modules")]);
     let node_modules_folder_exists = directory_probably_exists(
@@ -2700,8 +2722,8 @@ fn load_module_from_immediate_node_modules_directory(
             &node_modules_folder,
             node_modules_folder_exists,
             state,
-            cache,
-            redirected_reference,
+            cache.clone(),
+            redirected_reference.clone(),
         )
     };
     if package_result.is_some() {
@@ -2745,10 +2767,135 @@ fn load_module_from_specific_node_modules_directory(
     node_modules_directory: &str,
     node_modules_directory_exists: bool,
     state: &ModuleResolutionState,
-    cache: Option<&ModuleResolutionCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    cache: Option<Rc<ModuleResolutionCache>>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
 ) -> Option<Resolved> {
-    unimplemented!()
+    let candidate = normalize_path(&combine_paths(node_modules_directory, &[Some(module_name)]));
+
+    let mut package_info = get_package_json_info(&candidate, !node_modules_directory_exists, state);
+    if !state.features.intersects(NodeResolutionFeatures::Exports) {
+        if let Some(package_info) = package_info.as_ref() {
+            let from_file = load_module_from_file(
+                extensions,
+                &candidate,
+                !node_modules_directory_exists,
+                state,
+            );
+            if from_file.is_some() {
+                return no_package_id(from_file.as_ref());
+            }
+
+            let from_directory = load_node_module_from_directory_worker(
+                extensions,
+                &candidate,
+                !node_modules_directory_exists,
+                state,
+                Some(&package_info.package_json_content),
+                package_info.version_paths.as_deref(),
+            );
+            return with_package_id(Some(&**package_info), from_directory.as_ref());
+        }
+    }
+
+    let ParsedPackageName { package_name, rest } = parse_package_name(module_name);
+    let loader: ResolutionKindSpecificLoader = Rc::new({
+        let package_info = package_info.clone();
+        let rest = rest.clone();
+        let redirected_reference = redirected_reference.clone();
+        let cache = cache.clone();
+        move |extensions, candidate, only_record_failures, state| {
+            if let Some(package_info) = package_info.as_ref().filter(|package_info| {
+                matches!(
+                    package_info.package_json_content.as_object(),
+                    Some(package_info_package_json_content) if package_info_package_json_content.get("exports").and_then(|package_info_package_json_content_exports| {
+                        package_info_package_json_content_exports.as_object()
+                    }).is_some()
+                ) && state.features.intersects(NodeResolutionFeatures::Exports)
+            }) {
+                return load_module_from_exports(
+                    package_info,
+                    extensions,
+                    &combine_paths(
+                        ".",
+                        &[Some(&rest)],
+                    ),
+                    state,
+                    cache.as_deref(),
+                    redirected_reference.as_deref(),
+                ).and_then(|search_result| search_result.value);
+            }
+            let path_and_extension =
+                load_module_from_file(extensions, candidate, only_record_failures, state).or_else(
+                    || {
+                        load_node_module_from_directory_worker(
+                            extensions,
+                            candidate,
+                            only_record_failures,
+                            state,
+                            package_info
+                                .as_ref()
+                                .map(|package_info| &*package_info.package_json_content),
+                            package_info
+                                .as_ref()
+                                .and_then(|package_info| package_info.version_paths.clone())
+                                .as_deref(),
+                        )
+                    },
+                );
+            with_package_id(package_info.as_deref(), path_and_extension.as_ref())
+        }
+    });
+
+    if !rest.is_empty() {
+        let package_directory = combine_paths(node_modules_directory, &[Some(&*package_name)]);
+
+        // TODO: would this mutate the closed-over packageInfo value in the Typescript version's `loader` closure?
+        package_info =
+            get_package_json_info(&package_directory, !node_modules_directory_exists, state);
+        if let Some(package_info_version_paths) = package_info
+            .as_ref()
+            .and_then(|package_info| package_info.version_paths.clone())
+            .as_ref()
+        {
+            if state.trace_enabled {
+                trace(
+                    state.host,
+                    &Diagnostics::package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
+                    Some(vec![
+                        package_info_version_paths.version.clone(),
+                        version.to_owned(),
+                        rest.clone(),
+                    ])
+                );
+            }
+            let package_directory_exists = node_modules_directory_exists
+                && directory_probably_exists(
+                    &package_directory,
+                    |directory_name| state.host.directory_exists(directory_name),
+                    || state.host.is_directory_exists_supported(),
+                );
+            let from_paths = try_load_module_using_paths(
+                extensions,
+                &rest,
+                &package_directory,
+                &version_paths_paths_to_map_like(&package_info_version_paths.paths),
+                None,
+                loader.clone(),
+                !package_directory_exists,
+                state,
+            );
+            if let Some(from_paths) = from_paths {
+                return from_paths.value;
+            }
+        }
+    }
+
+    loader(
+        extensions,
+        &candidate,
+        !node_modules_directory_exists,
+        state,
+    )
 }
 
 #[derive(Clone)]

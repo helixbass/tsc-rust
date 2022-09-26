@@ -764,7 +764,7 @@ impl LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>
             containing_file_name,
             self.options.clone(),
             self.host.as_dyn_module_resolution_host(),
-            self.module_resolution_cache.as_deref(),
+            self.module_resolution_cache.clone(),
             redirected_reference,
             resolver_mode,
         )
@@ -2140,7 +2140,7 @@ impl Program {
                     .unwrap(),
             ),
             self.host().as_dyn_module_resolution_host(),
-            self.maybe_module_resolution_cache().as_deref(),
+            self.maybe_module_resolution_cache().clone(),
             None,
             None,
         );
