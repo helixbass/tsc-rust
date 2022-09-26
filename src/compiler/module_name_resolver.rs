@@ -16,7 +16,7 @@ use crate::{
     try_parse_patterns, try_remove_extension, version, version_major_minor, CharacterCodes,
     Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, MapLike,
     ModuleKind, ModuleResolutionHost, ModuleResolutionKind, PackageId, Path, PathAndParts,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, Version, VersionRange,
 };
@@ -121,10 +121,41 @@ fn resolved_type_script_only(resolved: Option<&Resolved>) -> Option<PathAndPacka
 fn create_resolved_module_with_failed_lookup_locations(
     resolved: Option<Resolved>,
     is_external_library_import: Option<bool>,
-    failed_lookup_locations: Vec<String>,
+    mut failed_lookup_locations: Vec<String>,
     result_from_cache: Option<Rc<ResolvedModuleWithFailedLookupLocations>>,
 ) -> Rc<ResolvedModuleWithFailedLookupLocations> {
-    unimplemented!()
+    if let Some(result_from_cache) = result_from_cache {
+        result_from_cache
+            .failed_lookup_locations
+            .borrow_mut()
+            .append(&mut failed_lookup_locations);
+        return result_from_cache;
+    }
+    Rc::new(ResolvedModuleWithFailedLookupLocations {
+        resolved_module: resolved.map(|resolved| {
+            let Resolved {
+                path: resolved_path,
+                extension: resolved_extension,
+                package_id: resolved_package_id,
+                original_path: resolved_original_path,
+            } = resolved;
+            Rc::new(ResolvedModuleFull {
+                resolved_file_name: resolved_path,
+                original_path: resolved_original_path.and_then(|resolved_original_path| {
+                    match resolved_original_path {
+                        StringOrBool::Bool(_ /*true*/) => None,
+                        StringOrBool::String(resolved_original_path) => {
+                            Some(resolved_original_path)
+                        }
+                    }
+                }),
+                extension: Some(resolved_extension),
+                is_external_library_import,
+                package_id: resolved_package_id,
+            })
+        }),
+        failed_lookup_locations: RefCell::new(failed_lookup_locations),
+    })
 }
 
 pub(crate) struct ModuleResolutionState<'host_and_package_json_info_cache> {

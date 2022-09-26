@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io;
 use std::rc::Rc;
@@ -242,7 +242,7 @@ impl AsRef<str> for Extension {
 
 pub struct ResolvedModuleWithFailedLookupLocations {
     pub resolved_module: Option<Rc<ResolvedModuleFull>>,
-    pub failed_lookup_locations: Vec<String>,
+    pub failed_lookup_locations: RefCell<Vec<String>>,
 }
 
 #[derive(Debug)]
