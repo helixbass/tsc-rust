@@ -1578,7 +1578,39 @@ fn try_load_module_using_base_url(
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
 ) -> Option<Resolved> {
-    unimplemented!()
+    let base_url = state.compiler_options.base_url.as_ref()?;
+    if state.trace_enabled {
+        trace(
+            state.host,
+            &Diagnostics::baseUrl_option_is_set_to_0_using_this_value_to_resolve_non_relative_module_name_1,
+            Some(vec![
+                base_url.clone(),
+                module_name.to_owned(),
+            ])
+        );
+    }
+    let candidate = normalize_path(&combine_paths(base_url, &[Some(module_name)]));
+    if state.trace_enabled {
+        trace(
+            state.host,
+            &Diagnostics::Resolving_module_name_0_relative_to_base_url_1_2,
+            Some(vec![
+                module_name.to_owned(),
+                base_url.clone(),
+                candidate.clone(),
+            ]),
+        );
+    }
+    loader(
+        extensions,
+        &candidate,
+        !directory_probably_exists(
+            &get_directory_path(&candidate),
+            |directory_name| state.host.directory_exists(directory_name),
+            || state.host.is_directory_exists_supported(),
+        ),
+        state,
+    )
 }
 
 bitflags! {
