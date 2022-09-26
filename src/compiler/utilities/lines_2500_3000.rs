@@ -18,7 +18,7 @@ use crate::{
     is_parenthesized_expression, is_qualified_name, is_require_call, is_source_file,
     is_string_literal, is_type_alias_declaration, is_variable_like, is_variable_statement, last,
     last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, AssignmentDeclarationKind,
-    Debug_, FunctionLikeDeclarationInterface, HasTypeInterface, NamedDeclarationInterface, Node,
+    Debug_, HasQuestionTokenInterface, HasTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, OuterExpressionKinds, SignatureDeclarationInterface, Symbol, SyntaxKind,
 };
 

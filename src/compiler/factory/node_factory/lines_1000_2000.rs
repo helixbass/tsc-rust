@@ -9,12 +9,12 @@ use crate::{
     CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
     ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
     ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface, FunctionTypeNode,
-    GetAccessorDeclaration, HasInitializerInterface, IndexSignatureDeclaration,
-    IntersectionTypeNode, MethodDeclaration, MethodSignature, ModifierFlags,
-    NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration, PropertySignature,
-    QualifiedName, RestTypeNode, SetAccessorDeclaration, StringOrRcNode, SyntaxKind,
-    TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
+    GetAccessorDeclaration, HasInitializerInterface, HasQuestionTokenInterface,
+    IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
+    ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration,
+    PropertySignature, QualifiedName, RestTypeNode, SetAccessorDeclaration, StringOrRcNode,
+    SyntaxKind, TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
     TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 

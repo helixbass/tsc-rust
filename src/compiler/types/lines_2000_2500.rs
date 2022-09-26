@@ -5,8 +5,8 @@ use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
-    BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasTypeArgumentsInterface,
-    NamedDeclarationInterface, Node, NodeArray, SyntaxKind,
+    BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, NamedDeclarationInterface, Node, NodeArray, SyntaxKind,
 };
 use local_macros::ast_type;
 
@@ -97,9 +97,15 @@ impl HasConditionInterface for ConditionalExpression {
     }
 }
 
+impl HasQuestionTokenInterface for ConditionalExpression {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        Some(self.question_token.clone())
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct FunctionExpression {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -115,7 +121,7 @@ impl FunctionExpression {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct ArrowFunction {
     _function_like_declaration: BaseFunctionLikeDeclaration,

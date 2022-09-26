@@ -781,7 +781,21 @@ impl Node {
         match self {
             Node::PropertySignature(node) => node,
             Node::PropertyDeclaration(node) => node,
-            _ => panic!("Expected has question token"),
+            Node::PropertyAssignment(node) => node,
+            Node::ShorthandPropertyAssignment(node) => node,
+            Node::ConstructorDeclaration(node) => node,
+            Node::GetAccessorDeclaration(node) => node,
+            Node::SetAccessorDeclaration(node) => node,
+            Node::ParameterDeclaration(node) => node,
+            Node::NamedTupleMember(node) => node,
+            Node::MappedTypeNode(node) => node,
+            Node::ConditionalExpression(node) => node,
+            Node::FunctionExpression(node) => node,
+            Node::ArrowFunction(node) => node,
+            Node::FunctionDeclaration(node) => node,
+            Node::MethodSignature(node) => node,
+            Node::MethodDeclaration(node) => node,
+            _ => panic!("Expected has question token, got {:?}", self.kind()),
         }
     }
 

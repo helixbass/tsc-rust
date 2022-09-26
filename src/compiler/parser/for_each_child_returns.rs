@@ -1,9 +1,10 @@
 use super::{visit_node_returns, visit_nodes_returns};
 use crate::{
     for_each, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
-    InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
+    HasInitializerInterface, HasQuestionTokenInterface, HasTypeInterface,
+    HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SignatureDeclarationInterface,
+    StringOrNodeArray, SyntaxKind,
 };
 
 pub fn for_each_child_returns<

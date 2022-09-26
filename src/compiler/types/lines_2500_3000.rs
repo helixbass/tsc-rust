@@ -1201,6 +1201,12 @@ impl HasInitializerInterface for PropertyAssignment {
     }
 }
 
+impl HasQuestionTokenInterface for PropertyAssignment {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct ShorthandPropertyAssignment {
@@ -1223,6 +1229,12 @@ impl ShorthandPropertyAssignment {
             equals_token: None,
             object_assignment_initializer,
         }
+    }
+}
+
+impl HasQuestionTokenInterface for ShorthandPropertyAssignment {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
     }
 }
 

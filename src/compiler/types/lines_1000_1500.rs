@@ -7,9 +7,9 @@ use std::rc::Rc;
 
 use super::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
-    HasInitializerInterface, HasLeftAndRightInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, Node, NodeInterface, ReadonlyTextRange, SyntaxKind, TransformFlags,
-    __String,
+    HasInitializerInterface, HasLeftAndRightInterface, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
+    ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
 use local_macros::ast_type;
 
@@ -607,16 +607,17 @@ impl ConstructSignatureDeclaration {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "SignatureDeclarationBase",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub enum FunctionLikeDeclarationBase {
     BaseFunctionLikeDeclaration(BaseFunctionLikeDeclaration),
 }
 
-pub trait FunctionLikeDeclarationInterface: SignatureDeclarationInterface {
+pub trait FunctionLikeDeclarationInterface:
+    SignatureDeclarationInterface + HasQuestionTokenInterface
+{
     fn maybe_body(&self) -> Option<Rc<Node>>;
     fn maybe_asterisk_token(&self) -> Option<Rc<Node>>;
-    fn maybe_question_token(&self) -> Option<Rc<Node>>;
     fn maybe_exclamation_token(&self) -> RefMut<Option<Rc<Node>>>;
     fn maybe_end_flow_node(&self) -> Option<Rc<FlowNode>>;
     fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>);
@@ -662,10 +663,6 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
         self.asterisk_token.clone()
     }
 
-    fn maybe_question_token(&self) -> Option<Rc<Node>> {
-        self.question_token.clone()
-    }
-
     fn maybe_exclamation_token(&self) -> RefMut<Option<Rc<Node>>> {
         self.exclamation_token.borrow_mut()
     }
@@ -687,9 +684,15 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
     }
 }
 
+impl HasQuestionTokenInterface for BaseFunctionLikeDeclaration {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct FunctionDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -724,9 +727,15 @@ impl MethodSignature {
     }
 }
 
+impl HasQuestionTokenInterface for MethodSignature {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct MethodDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,

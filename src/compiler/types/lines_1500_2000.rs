@@ -6,13 +6,13 @@ use std::rc::Rc;
 use super::{
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
     BaseSignatureDeclaration, BaseVariableLikeDeclaration, FlowNode, HasExpressionInterface,
-    HasTypeInterface, Node, NodeArray, SyntaxKind, Type,
+    HasQuestionTokenInterface, HasTypeInterface, Node, NodeArray, SyntaxKind, Type,
 };
 use local_macros::ast_type;
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct ConstructorDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -40,7 +40,7 @@ impl SemicolonClassElement {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct GetAccessorDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -56,7 +56,7 @@ impl GetAccessorDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct SetAccessorDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -192,6 +192,12 @@ pub trait HasDotDotDotTokenInterface {
 impl HasDotDotDotTokenInterface for ParameterDeclaration {
     fn maybe_dot_dot_dot_token(&self) -> Option<Rc<Node>> {
         self.dot_dot_dot_token.clone()
+    }
+}
+
+impl HasQuestionTokenInterface for ParameterDeclaration {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
     }
 }
 
@@ -474,6 +480,12 @@ impl HasDotDotDotTokenInterface for NamedTupleMember {
     }
 }
 
+impl HasQuestionTokenInterface for NamedTupleMember {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct OptionalTypeNode {
@@ -721,6 +733,12 @@ impl HasTypeInterface for MappedTypeNode {
 
     fn set_type(&mut self, type_: Option<Rc<Node>>) {
         self.type_ = type_;
+    }
+}
+
+impl HasQuestionTokenInterface for MappedTypeNode {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
     }
 }
 
