@@ -705,7 +705,7 @@ impl ParserType {
         let mut check_identifier_end = self.scanner().get_text_pos();
         let mut is_type_only = false;
         let mut property_name: Option<Rc<Node>> = None;
-        let mut can_parse_as_keyword = false;
+        let mut can_parse_as_keyword = true;
         let mut name: Rc<Node> = self.parse_identifier_name(None).wrap();
         let mut parse_name_with_keyword_check = || {
             check_identifier_is_keyword = is_keyword(self.token()) && !self.is_identifier();
