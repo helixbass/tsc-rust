@@ -6,18 +6,19 @@ use std::rc::Rc;
 
 use crate::{
     combine_paths, compare_paths, contains, contains_path, directory_probably_exists,
-    directory_separator_str, extension_is_ts, first_defined, for_each, for_each_ancestor_directory,
-    format_message, get_base_file_name, get_directory_path, get_emit_module_kind,
-    get_paths_base_path, get_relative_path_from_directory, has_trailing_directory_separator,
-    is_external_module_name_relative, normalize_path, normalize_path_and_parts, normalize_slashes,
-    options_have_module_resolution_changes, package_id_to_string, path_is_relative, read_json,
-    starts_with, string_contains, to_path, try_get_extension_from_path, try_parse_patterns,
-    try_remove_extension, version, version_major_minor, CharacterCodes, Comparison,
-    CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, MapLike, ModuleKind,
-    ModuleResolutionHost, ModuleResolutionKind, PackageId, Path, PathAndParts,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
-    StringOrBool, StringOrPattern, Version, VersionRange,
+    directory_separator, directory_separator_str, extension_is_ts, first_defined, for_each,
+    for_each_ancestor_directory, format_message, get_base_file_name, get_directory_path,
+    get_emit_module_kind, get_paths_base_path, get_relative_path_from_directory,
+    has_trailing_directory_separator, is_external_module_name_relative, normalize_path,
+    normalize_path_and_parts, normalize_slashes, options_have_module_resolution_changes,
+    package_id_to_string, path_is_relative, read_json, starts_with, string_contains, to_path,
+    try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
+    version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
+    Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
+    PackageId, Path, PathAndParts, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
+    Version, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -2585,7 +2586,29 @@ fn extension_is_ok(extensions: Extensions, extension: Extension) -> bool {
 }
 
 pub(crate) fn parse_package_name(module_name: &str) -> ParsedPackageName {
-    unimplemented!()
+    let module_name_as_chars = module_name.chars().collect::<Vec<_>>();
+    let mut idx = module_name_as_chars
+        .iter()
+        .position(|ch| *ch == directory_separator);
+    if matches!(
+        module_name_as_chars.get(0),
+        Some(ch) if *ch == '@'
+    ) {
+        idx = module_name_as_chars
+            .iter()
+            .skip(idx.map_or(0, |idx| idx + 1))
+            .position(|ch| *ch == directory_separator);
+    }
+    match idx {
+        None => ParsedPackageName {
+            package_name: module_name.to_owned(),
+            rest: "".to_owned(),
+        },
+        Some(idx) => ParsedPackageName {
+            package_name: module_name_as_chars.iter().take(idx).collect(),
+            rest: module_name_as_chars.iter().skip(idx + 1).collect(),
+        },
+    }
 }
 
 pub(crate) struct ParsedPackageName {
