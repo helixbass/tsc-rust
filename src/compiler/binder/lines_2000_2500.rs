@@ -62,14 +62,17 @@ impl BinderType {
         &self,
         node: &Node, /*SignatureDeclaration | JSDocSignature*/
     ) {
-        let symbol = self.create_symbol(
-            SymbolFlags::Signature,
-            self.get_declaration_name(node).unwrap(),
-        );
+        let symbol = self
+            .create_symbol(
+                SymbolFlags::Signature,
+                self.get_declaration_name(node).unwrap(),
+            )
+            .wrap();
         self.add_declaration_to_symbol(&symbol, node, SymbolFlags::Signature);
 
-        let type_literal_symbol =
-            self.create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type());
+        let type_literal_symbol = self
+            .create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type())
+            .wrap();
         self.add_declaration_to_symbol(&type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let mut type_literal_symbol_members = type_literal_symbol.maybe_members();
         *type_literal_symbol_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
@@ -77,7 +80,7 @@ impl BinderType {
             .as_ref()
             .unwrap()
             .borrow_mut()
-            .insert(symbol.escaped_name().clone(), symbol.wrap());
+            .insert(symbol.escaped_name().clone(), symbol);
     }
 
     pub(super) fn bind_object_literal_expression(
