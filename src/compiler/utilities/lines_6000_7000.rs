@@ -1684,13 +1684,17 @@ pub fn change_extension(path: &str, new_extension: &str) -> String {
     )
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum StringOrPattern {
     String(String),
     Pattern(Pattern),
 }
 
 pub fn try_parse_pattern(pattern: &str) -> Option<StringOrPattern> {
+    unimplemented!()
+}
+
+pub fn try_parse_patterns(paths: &MapLike<Vec<String>>) -> Vec<StringOrPattern> {
     unimplemented!()
 }
 

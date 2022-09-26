@@ -1,19 +1,21 @@
 use bitflags::bitflags;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
     combine_paths, compare_paths, contains, contains_path, directory_probably_exists,
     directory_separator_str, extension_is_ts, first_defined, for_each, for_each_ancestor_directory,
     format_message, get_base_file_name, get_directory_path, get_emit_module_kind,
-    get_relative_path_from_directory, has_trailing_directory_separator,
+    get_paths_base_path, get_relative_path_from_directory, has_trailing_directory_separator,
     is_external_module_name_relative, normalize_path, normalize_path_and_parts,
-    options_have_module_resolution_changes, package_id_to_string, read_json, starts_with,
-    string_contains, to_path, try_get_extension_from_path, try_remove_extension, version,
-    version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
-    Diagnostics, Extension, ModuleKind, ModuleResolutionHost, ModuleResolutionKind, PackageId,
-    Path, PathAndParts, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    options_have_module_resolution_changes, package_id_to_string, path_is_relative, read_json,
+    starts_with, string_contains, to_path, try_get_extension_from_path, try_parse_patterns,
+    try_remove_extension, version, version_major_minor, CharacterCodes, Comparison,
+    CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, MapLike, ModuleKind,
+    ModuleResolutionHost, ModuleResolutionKind, PackageId, Path, PathAndParts,
+    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, Version, VersionRange,
 };
@@ -296,6 +298,25 @@ fn read_package_json_types_versions_field<'json_content>(
 pub struct VersionPaths {
     pub version: String,
     pub paths: serde_json::Value, /*MapLike<string[]>*/
+}
+
+fn version_paths_paths_to_map_like(paths: &serde_json::Value) -> MapLike<Vec<String>> {
+    HashMap::from_iter(
+        paths
+            .as_object()
+            .unwrap()
+            .into_iter()
+            .map(|(key, value)| (key.clone(), serde_json_value_to_vec_string(value))),
+    )
+}
+
+fn serde_json_value_to_vec_string(value: &serde_json::Value) -> Vec<String> {
+    value
+        .as_array()
+        .unwrap()
+        .into_iter()
+        .map(|item| item.as_str().unwrap().to_owned())
+        .collect()
 }
 
 fn read_package_json_types_version_paths(
@@ -1460,6 +1481,103 @@ fn try_load_module_using_optional_resolution_settings(
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
 ) -> Option<Resolved> {
+    let resolved =
+        try_load_module_using_paths_if_eligible(extensions, module_name, loader.clone(), state);
+    if let Some(resolved) = resolved {
+        return resolved.value;
+    }
+
+    if !is_external_module_name_relative(module_name) {
+        try_load_module_using_base_url(extensions, module_name, loader, state)
+    } else {
+        try_load_module_using_root_dirs(
+            extensions,
+            module_name,
+            containing_directory,
+            loader,
+            state,
+        )
+    }
+}
+
+fn try_load_module_using_paths_if_eligible(
+    extensions: Extensions,
+    module_name: &str,
+    loader: ResolutionKindSpecificLoader,
+    state: &ModuleResolutionState,
+) -> SearchResult<Resolved> {
+    let base_url = state.compiler_options.base_url.as_ref();
+    let paths = state.compiler_options.paths.as_ref();
+    let config_file = state.compiler_options.config_file.as_ref();
+    if let Some(paths) = paths {
+        if !path_is_relative(module_name) {
+            if state.trace_enabled {
+                if let Some(base_url) = base_url {
+                    trace(
+                        state.host,
+                        &Diagnostics::baseUrl_option_is_set_to_0_using_this_value_to_resolve_non_relative_module_name_1,
+                        Some(vec![
+                            base_url.clone(),
+                            module_name.to_owned(),
+                        ])
+                    );
+                }
+                trace(
+                    state.host,
+                    &Diagnostics::paths_option_is_specified_looking_for_a_pattern_to_match_module_name_0,
+                    Some(vec![
+                        module_name.to_owned(),
+                    ])
+                );
+            }
+            let base_directory = get_paths_base_path(&state.compiler_options, || {
+                state.host.get_current_directory()
+            })
+            .unwrap();
+            let path_patterns = config_file
+                .and_then(|config_file| {
+                    config_file
+                        .as_source_file()
+                        .maybe_config_file_specs()
+                        .clone()
+                })
+                .map(|config_file_config_file_specs| {
+                    config_file_config_file_specs
+                        .maybe_path_patterns()
+                        .get_or_insert_with(|| try_parse_patterns(paths))
+                        .clone()
+                });
+            return try_load_module_using_paths(
+                extensions,
+                module_name,
+                &base_directory,
+                paths,
+                path_patterns.as_deref(),
+                loader,
+                false,
+                state,
+            );
+        }
+    }
+    None
+}
+
+fn try_load_module_using_root_dirs(
+    extensions: Extensions,
+    module_name: &str,
+    containing_directory: &str,
+    loader: ResolutionKindSpecificLoader,
+    state: &ModuleResolutionState,
+) -> Option<Resolved> {
+    unimplemented!()
+}
+
+fn try_load_module_using_base_url(
+    extensions: Extensions,
+    module_name: &str,
+    loader: ResolutionKindSpecificLoader,
+    state: &ModuleResolutionState,
+) -> Option<Resolved> {
     unimplemented!()
 }
 
@@ -2281,7 +2399,7 @@ fn load_node_module_from_directory_worker(
                 extensions,
                 &module_name,
                 candidate,
-                &version_paths.paths,
+                &version_paths_paths_to_map_like(&version_paths.paths),
                 None,
                 loader.clone(),
                 only_record_failures_for_package_file || only_record_failures_for_index,
@@ -2394,7 +2512,7 @@ fn try_load_module_using_paths(
     extensions: Extensions,
     module_name: &str,
     base_directory: &str,
-    paths: &serde_json::Value, /*MapLike<string[]>*/
+    paths: &MapLike<Vec<String>>,
     path_patterns: Option<&[StringOrPattern]>,
     loader: ResolutionKindSpecificLoader,
     only_record_failures: bool,

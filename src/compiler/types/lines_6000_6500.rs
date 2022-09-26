@@ -3,7 +3,7 @@
 use bitflags::bitflags;
 use derive_builder::Builder;
 use serde::Serialize;
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::{Rc, Weak};
@@ -1800,7 +1800,13 @@ pub struct ConfigFileSpecs {
     pub validated_files_spec: Option<Vec<String>>,
     pub validated_include_specs: Option<Vec<String>>,
     pub validated_exclude_specs: Option<Vec<String>>,
-    pub path_patterns: Option<Vec<StringOrPattern>>,
+    pub path_patterns: RefCell<Option<Vec<StringOrPattern>>>,
+}
+
+impl ConfigFileSpecs {
+    pub fn maybe_path_patterns(&self) -> RefMut<Option<Vec<StringOrPattern>>> {
+        self.path_patterns.borrow_mut()
+    }
 }
 
 pub type RequireResult = ();

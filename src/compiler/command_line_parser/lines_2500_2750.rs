@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -422,7 +423,7 @@ pub(super) fn get_config_file_specs<TSourceFile: Borrow<Node> + Clone>(
         validated_files_spec,
         validated_include_specs,
         validated_exclude_specs,
-        path_patterns: None,
+        path_patterns: RefCell::new(None),
     }
 }
 
