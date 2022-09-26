@@ -2772,9 +2772,13 @@ fn load_module_from_specific_node_modules_directory(
 ) -> Option<Resolved> {
     let candidate = normalize_path(&combine_paths(node_modules_directory, &[Some(module_name)]));
 
-    let mut package_info = get_package_json_info(&candidate, !node_modules_directory_exists, state);
+    let package_info = Rc::new(RefCell::new(get_package_json_info(
+        &candidate,
+        !node_modules_directory_exists,
+        state,
+    )));
     if !state.features.intersects(NodeResolutionFeatures::Exports) {
-        if let Some(package_info) = package_info.as_ref() {
+        if let Some(package_info) = (*package_info).borrow().as_ref() {
             let from_file = load_module_from_file(
                 extensions,
                 &candidate,
@@ -2804,7 +2808,7 @@ fn load_module_from_specific_node_modules_directory(
         let redirected_reference = redirected_reference.clone();
         let cache = cache.clone();
         move |extensions, candidate, only_record_failures, state| {
-            if let Some(package_info) = package_info.as_ref().filter(|package_info| {
+            if let Some(package_info) = (*package_info).borrow().as_ref().filter(|package_info| {
                 matches!(
                     package_info.package_json_content.as_object(),
                     Some(package_info_package_json_content) if package_info_package_json_content.get("exports").and_then(|package_info_package_json_content_exports| {
@@ -2832,27 +2836,32 @@ fn load_module_from_specific_node_modules_directory(
                             candidate,
                             only_record_failures,
                             state,
-                            package_info
+                            (*package_info)
+                                .borrow()
                                 .as_ref()
                                 .map(|package_info| &*package_info.package_json_content),
-                            package_info
+                            (*package_info)
+                                .borrow()
                                 .as_ref()
                                 .and_then(|package_info| package_info.version_paths.clone())
                                 .as_deref(),
                         )
                     },
                 );
-            with_package_id(package_info.as_deref(), path_and_extension.as_ref())
+            with_package_id(
+                (*package_info).borrow().as_deref(),
+                path_and_extension.as_ref(),
+            )
         }
     });
 
     if !rest.is_empty() {
         let package_directory = combine_paths(node_modules_directory, &[Some(&*package_name)]);
 
-        // TODO: would this mutate the closed-over packageInfo value in the Typescript version's `loader` closure?
-        package_info =
+        *package_info.borrow_mut() =
             get_package_json_info(&package_directory, !node_modules_directory_exists, state);
-        if let Some(package_info_version_paths) = package_info
+        if let Some(package_info_version_paths) = (*package_info)
+            .borrow()
             .as_ref()
             .and_then(|package_info| package_info.version_paths.clone())
             .as_ref()
