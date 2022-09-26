@@ -245,7 +245,24 @@ pub fn get_emit_module_kind(compiler_options: &CompilerOptions) -> ModuleKind {
 }
 
 pub fn get_emit_module_resolution_kind(compiler_options: &CompilerOptions) -> ModuleResolutionKind {
-    unimplemented!()
+    let mut module_resolution = compiler_options.module_resolution;
+    if module_resolution.is_none() {
+        match get_emit_module_kind(compiler_options) {
+            ModuleKind::CommonJS => {
+                module_resolution = Some(ModuleResolutionKind::NodeJs);
+            }
+            ModuleKind::Node12 => {
+                module_resolution = Some(ModuleResolutionKind::Node12);
+            }
+            ModuleKind::NodeNext => {
+                module_resolution = Some(ModuleResolutionKind::NodeNext);
+            }
+            _ => {
+                module_resolution = Some(ModuleResolutionKind::Classic);
+            }
+        }
+    }
+    module_resolution.unwrap()
 }
 
 pub fn has_json_module_emit_enabled(compiler_options: &CompilerOptions) -> bool {

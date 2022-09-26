@@ -1150,6 +1150,6 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
         Node::PartiallyEmittedExpression(node) => {
             visit_node(&mut cb_node, Some(&*node.expression));
         }
-        _ => unimplemented!(),
+        _ => (),
     }
 }
