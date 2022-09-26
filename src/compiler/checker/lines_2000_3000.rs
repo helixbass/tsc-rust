@@ -1304,9 +1304,7 @@ impl TypeChecker {
                 Node::ExportDeclaration(node) => node.module_specifier.clone().unwrap(),
                 _ => panic!("Expected ImportDeclaration or ExportDeclaration"),
             });
-        let module_symbol = self
-            .resolve_external_module_name_(node, &module_specifier, None)
-            .unwrap();
+        let module_symbol = self.resolve_external_module_name_(node, &module_specifier, None);
         let name: Rc<Node> = if !is_property_access_expression(specifier) {
             specifier.as_has_property_name().maybe_property_name()
         } else {
@@ -1324,11 +1322,12 @@ impl TypeChecker {
                 Some(true)
             ) || matches!(get_es_module_interop(&self.compiler_options), Some(true)));
         let target_symbol = self.resolve_es_module_symbol(
-            Some(&*module_symbol),
+            module_symbol.as_deref(),
             &module_specifier,
             false,
             suppress_interop_error,
         )?;
+        let module_symbol = module_symbol.unwrap();
         if !(&*name_as_identifier.escaped_text).is_empty() {
             if is_shorthand_ambient_module_symbol(&module_symbol) {
                 return Some(module_symbol);
