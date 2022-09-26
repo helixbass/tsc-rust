@@ -611,7 +611,13 @@ impl Node {
         &self,
     ) -> Option<&dyn FunctionLikeDeclarationInterface> {
         match self {
-            Node::FunctionDeclaration(function_declaration) => Some(function_declaration),
+            Node::ConstructorDeclaration(node) => Some(node),
+            Node::GetAccessorDeclaration(node) => Some(node),
+            Node::SetAccessorDeclaration(node) => Some(node),
+            Node::FunctionDeclaration(node) => Some(node),
+            Node::MethodDeclaration(node) => Some(node),
+            Node::FunctionExpression(node) => Some(node),
+            Node::ArrowFunction(node) => Some(node),
             _ => None,
         }
     }
