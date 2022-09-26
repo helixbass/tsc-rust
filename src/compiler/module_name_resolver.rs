@@ -131,7 +131,7 @@ pub(crate) struct ModuleResolutionState<'host_and_package_json_info_cache> {
     pub compiler_options: Rc<CompilerOptions>,
     pub trace_enabled: bool,
     pub failed_lookup_locations: RefCell<Vec<String>>,
-    pub result_from_cache: Option<Rc<ResolvedModuleWithFailedLookupLocations>>,
+    pub result_from_cache: RefCell<Option<Rc<ResolvedModuleWithFailedLookupLocations>>>,
     pub package_json_info_cache:
         Option<&'host_and_package_json_info_cache dyn PackageJsonInfoCache>,
     pub features: NodeResolutionFeatures,
@@ -630,7 +630,7 @@ pub fn resolve_type_reference_directive(
         package_json_info_cache: cache_clone.map(|cache| cache.as_dyn_package_json_info_cache()),
         features: NodeResolutionFeatures::AllFeatures,
         conditions: vec!["node".to_owned(), "require".to_owned(), "types".to_owned()],
-        result_from_cache: None,
+        result_from_cache: RefCell::new(None),
     };
     let mut resolved = primary_lookup(
         type_roots.as_deref(),
@@ -1801,7 +1801,7 @@ fn node_module_name_resolver_worker(
         } else {
             vec!["node".to_owned(), "require".to_owned(), "types".to_owned()]
         },
-        result_from_cache: None,
+        result_from_cache: RefCell::new(None),
     };
 
     let result = for_each(
@@ -1834,7 +1834,10 @@ fn node_module_name_resolver_worker(
             let failed_lookup_locations = state.failed_lookup_locations.borrow().clone();
             failed_lookup_locations
         },
-        state.result_from_cache.clone(),
+        {
+            let result_from_cache = state.result_from_cache.borrow().clone();
+            result_from_cache
+        },
     )
 }
 
@@ -2722,7 +2725,34 @@ fn try_find_non_relative_module_name_in_cache(
     containing_directory: &str,
     state: &ModuleResolutionState,
 ) -> SearchResult<Resolved> {
-    unimplemented!()
+    let result = cache.and_then(|cache| cache.get(containing_directory))?;
+    if state.trace_enabled {
+        trace(
+            state.host,
+            &Diagnostics::Resolution_for_module_0_was_found_in_cache_from_location_1,
+            Some(vec![
+                module_name.to_owned(),
+                containing_directory.to_owned(),
+            ]),
+        );
+    }
+    *state.result_from_cache.borrow_mut() = Some(result.clone());
+    Some(SearchResultPresent {
+        value: result
+            .resolved_module
+            .clone()
+            .map(|result_resolved_module| Resolved {
+                path: result_resolved_module.resolved_file_name.clone(),
+                original_path: Some(result_resolved_module.original_path.clone().map_or_else(
+                    || true.into(),
+                    |result_resolved_module_original_path| {
+                        result_resolved_module_original_path.into()
+                    },
+                )),
+                extension: result_resolved_module.extension(),
+                package_id: result_resolved_module.package_id.clone(),
+            }),
+    })
 }
 
 pub fn classic_name_resolver<TCache: NonRelativeModuleNameResolutionCache>(
