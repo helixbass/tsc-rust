@@ -698,10 +698,11 @@ impl Node {
 
     pub fn as_variable_like_declaration(&self) -> &dyn VariableLikeDeclarationInterface {
         match self {
+            Node::PropertySignature(node) => node,
             Node::PropertyDeclaration(node) => node,
             Node::VariableDeclaration(node) => node,
             Node::ParameterDeclaration(node) => node,
-            _ => panic!("Expected variable like declaration"),
+            _ => panic!("Expected variable like declaration, got {:?}", self.kind()),
         }
     }
 

@@ -522,6 +522,10 @@ impl TypeChecker {
     }
 
     pub(super) fn check_source_file(&self, node: &Node /*SourceFile*/) {
+        println!(
+            "checking source file: {}",
+            node.as_source_file().file_name()
+        );
         // tracing?.push(tracing.Phase.Check, "checkSourceFile", { path: node.path }, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeCheck");
         self.check_source_file_worker(node);
