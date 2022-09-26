@@ -688,7 +688,8 @@ impl TypeChecker {
                     | SyntaxKind::ImportSpecifier
                     | SyntaxKind::ExportSpecifier
             )
-            || node.kind() == SyntaxKind::ExportAssignment
+            || node.kind() == SyntaxKind::ExportAssignment && export_assignment_is_alias(node)
+            || is_binary_expression(node)
                 && get_assignment_declaration_kind(node) == AssignmentDeclarationKind::ModuleExports
                 && export_assignment_is_alias(node)
             || is_access_expression(node) && is_binary_expression(&node.parent()) && {
