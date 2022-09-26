@@ -1251,7 +1251,7 @@ impl Program {
                 files.append(&mut processing_other_files);
                 files
             });
-            println!("files: {:#?}", &*self.files());
+            // println!("files: {:#?}", &*self.files());
             *self.processing_default_lib_files.borrow_mut() = None;
             *self.processing_other_files.borrow_mut() = None;
         }
