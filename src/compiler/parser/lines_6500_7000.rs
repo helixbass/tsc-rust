@@ -36,7 +36,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayBindingElements,
-            || self.parse_array_binding_element().into(),
+            || self.parse_array_binding_element().wrap(),
             None,
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
