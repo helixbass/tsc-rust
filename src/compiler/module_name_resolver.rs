@@ -2984,11 +2984,21 @@ fn try_load_module_using_paths(
     unimplemented!()
 }
 
+static mangled_scoped_package_separator: &str = "__";
+
 pub(crate) fn mangle_scoped_package_name_with_trace(
     package_name: &str,
     state: &ModuleResolutionState,
 ) -> String {
-    unimplemented!()
+    let mangled = mangle_scoped_package_name(package_name);
+    if state.trace_enabled && mangled != package_name {
+        trace(
+            state.host,
+            &Diagnostics::Scoped_package_detected_looking_in_0,
+            Some(vec![mangled.clone()]),
+        );
+    }
+    mangled
 }
 
 pub(crate) fn get_types_package_name(package_name: &str) -> String {
@@ -2996,7 +3006,14 @@ pub(crate) fn get_types_package_name(package_name: &str) -> String {
 }
 
 pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
-    unimplemented!()
+    if starts_with(package_name, "@") {
+        let replace_slash =
+            package_name.replace(directory_separator_str, mangled_scoped_package_separator);
+        if replace_slash != package_name {
+            return replace_slash[1..].to_owned();
+        }
+    }
+    package_name.to_owned()
 }
 
 fn try_find_non_relative_module_name_in_cache(
