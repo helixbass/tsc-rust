@@ -1491,7 +1491,7 @@ pub struct BaseNode {
     contextual_type: RefCell<Option<Rc<Type>>>,
     inference_context: RefCell<Option<Rc<InferenceContext>>>,
     flow_node: RefCell<Option<Rc<FlowNode>>>,
-    js_doc: RefCell<Option<Vec<Weak<Node>>>>,
+    js_doc: RefCell<Option<Vec<Rc<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
     intersects_change: Cell<Option<bool>>,
 }
@@ -1700,14 +1700,11 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node>>> {
-        self.js_doc
-            .borrow()
-            .clone()
-            .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
+        self.js_doc.borrow().clone()
     }
 
     fn set_js_doc(&self, js_doc: Vec<Rc<Node>>) {
-        *self.js_doc.borrow_mut() = Some(js_doc.iter().map(|rc| Rc::downgrade(rc)).collect());
+        *self.js_doc.borrow_mut() = Some(js_doc);
     }
 
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node>>> {
