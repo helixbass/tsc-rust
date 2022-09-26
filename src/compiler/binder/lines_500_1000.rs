@@ -233,7 +233,9 @@ impl BinderType {
                     SyntaxKind::ClassStaticBlockDeclaration => {
                         Some(node.as_class_static_block_declaration().body.clone())
                     }
-                    _ => node.as_function_like_declaration().maybe_body(),
+                    _ => node
+                        .maybe_as_function_like_declaration()
+                        .and_then(|node| node.maybe_body()),
                 })
             {
                 node.set_flags(node.flags() | NodeFlags::HasImplicitReturn);
