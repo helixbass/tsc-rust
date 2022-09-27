@@ -3,6 +3,7 @@
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
+use std::io;
 use std::ptr;
 use std::rc::Rc;
 
@@ -17,11 +18,13 @@ use crate::{
     is_type_reference_node, is_variable_declaration, is_variable_statement, map, maybe_filter,
     no_truncation_maximum_truncation_length, pseudo_big_int_to_string, set_emit_flags, symbol_name,
     synthetic_factory, using_single_line_string_writer, Debug_, EmitFlags, EmitHint,
-    EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilderFlags,
-    NodeFlags, NodeInterface, ObjectFlags, PrinterOptionsBuilder, ScriptTarget, Signature,
-    SignatureKind, Symbol, SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolId,
-    SymbolInterface, SymbolTable, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    EmitTextWriter, FileIncludeReason, IndexInfo, KeywordTypeNode, ModifierFlags,
+    ModuleSpecifierResolutionHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
+    MultiMap, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path,
+    PrinterOptionsBuilder, RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol,
+    SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
+    SymbolTracker, SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker,
+    TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -670,14 +673,22 @@ impl NodeBuilder {
             None,
         );
         // TODO: finish this
-        let default_tracker: Option<DefaultNodeBuilderContextSymbolTracker> = match tracker {
+        let default_tracker: Option<DefaultNodeBuilderContextSymbolTracker> = match tracker
+            .as_ref()
+            .filter(|tracker| tracker.is_track_symbol_supported())
+        {
             Some(_) => None,
-            None => Some(DefaultNodeBuilderContextSymbolTracker::new()),
+            None => Some(DefaultNodeBuilderContextSymbolTracker::new(
+                self.type_checker.host.clone(),
+                flags,
+            )),
         };
         let context = NodeBuilderContext::new(
             enclosing_declaration,
             flags.unwrap_or(NodeBuilderFlags::None),
-            tracker.unwrap_or_else(|| default_tracker.as_ref().unwrap()),
+            tracker
+                .filter(|tracker| tracker.is_track_symbol_supported())
+                .unwrap_or_else(|| default_tracker.as_ref().unwrap()),
         );
         let resulting_node = cb(&context);
         resulting_node
@@ -1510,15 +1521,109 @@ impl NodeBuilder {
     }
 }
 
-struct DefaultNodeBuilderContextSymbolTracker {}
+struct DefaultNodeBuilderContextSymbolTracker {
+    pub module_resolver_host:
+        Option<Rc<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>,
+}
 
 impl DefaultNodeBuilderContextSymbolTracker {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(host: Rc<dyn TypeCheckerHostDebuggable>, flags: Option<NodeBuilderFlags>) -> Self {
+        Self {
+            module_resolver_host: if matches!(
+                flags,
+                Some(flags) if flags.intersects(NodeBuilderFlags::DoNotIncludeSymbolChain)
+            ) {
+                Some(Rc::new(
+                    DefaultNodeBuilderContextSymbolTrackerModuleResolverHost::new(host),
+                ))
+            } else {
+                None
+            },
+        }
     }
 }
 
-impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {}
+impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
+    fn track_symbol(
+        &mut self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<Rc<Node>>,
+        meaning: SymbolFlags,
+    ) -> Option<bool> {
+        Some(false)
+    }
+
+    fn is_track_symbol_supported(&self) -> bool {
+        true
+    }
+
+    fn module_resolver_host(
+        &self,
+    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+        self.module_resolver_host.as_deref()
+    }
+}
+
+struct DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
+    pub host: Rc<dyn TypeCheckerHostDebuggable>,
+}
+
+impl DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
+    pub fn new(host: Rc<dyn TypeCheckerHostDebuggable>) -> Self {
+        Self { host }
+    }
+}
+
+impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory
+    for DefaultNodeBuilderContextSymbolTrackerModuleResolverHost
+{
+    fn get_common_source_directory(&self) -> String {
+        self.host
+            .get_common_source_directory()
+            .unwrap_or_else(|| "".to_owned())
+    }
+}
+
+impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
+    fn get_current_directory(&self) -> String {
+        self.host.get_current_directory()
+    }
+
+    fn get_symlink_cache(&self) -> Option<Rc<SymlinkCache>> {
+        self.host.get_symlink_cache()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        self.host.use_case_sensitive_file_names()
+    }
+
+    fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
+        self.host.redirect_targets_map()
+    }
+
+    fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
+        ModuleSpecifierResolutionHost::get_project_reference_redirect(&*self.host, file_name)
+    }
+
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        ModuleSpecifierResolutionHost::is_source_of_project_reference_redirect(
+            &*self.host,
+            file_name,
+        )
+    }
+
+    fn file_exists(&self, file_name: &str) -> bool {
+        self.host.file_exists(file_name)
+    }
+
+    fn get_file_include_reasons(&self) -> Rc<MultiMap<Path, FileIncludeReason>> {
+        self.host.get_file_include_reasons()
+    }
+
+    fn read_file(&self, file_name: &str) -> Option<io::Result<String>> {
+        self.host.read_file(file_name)
+    }
+}
 
 pub struct NodeBuilderContext<'symbol_tracker> {
     enclosing_declaration: RefCell<Option<Rc<Node>>>,

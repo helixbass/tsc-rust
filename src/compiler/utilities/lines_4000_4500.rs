@@ -275,6 +275,10 @@ impl SymbolTracker for TextWriter {
     ) -> Option<bool> {
         Some(false)
     }
+
+    fn is_track_symbol_supported(&self) -> bool {
+        true
+    }
 }
 
 pub fn create_text_writer(new_line: &str) -> TextWriter {
@@ -431,7 +435,11 @@ impl SymbolWriter for TrailingSemicolonDeferringWriter {
 }
 
 // TODO: should explicitly forward all SymbolTracker methods to self.writer too?
-impl SymbolTracker for TrailingSemicolonDeferringWriter {}
+impl SymbolTracker for TrailingSemicolonDeferringWriter {
+    fn is_track_symbol_supported(&self) -> bool {
+        false // TODO: is this correct?
+    }
+}
 
 pub fn host_uses_case_sensitive_file_names<TGetUseCaseSensitiveFileNames: Fn() -> Option<bool>>(
     get_use_case_sensitive_file_names: TGetUseCaseSensitiveFileNames,

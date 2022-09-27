@@ -231,6 +231,10 @@ impl SymbolTracker for SingleLineStringWriter {
         Some(false)
     }
 
+    fn is_track_symbol_supported(&self) -> bool {
+        true
+    }
+
     fn report_inaccessible_this_error(&mut self) {}
 
     fn report_inaccessible_unique_symbol_error(&self) {}

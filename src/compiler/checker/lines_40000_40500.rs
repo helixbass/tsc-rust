@@ -14,7 +14,7 @@ use crate::{
     is_parameter, is_rest_parameter, last, last_or_undefined, maybe_for_each, skip_type_checking,
     CancellationTokenDebuggable, Debug_, Diagnostic, Diagnostics, ImportsNotUsedAsValues, Node,
     NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
-    Type, TypeChecker,
+    Type, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -563,7 +563,7 @@ impl TypeChecker {
             .intersects(NodeCheckFlags::TypeChecked)
         {
             if skip_type_checking(node, &self.compiler_options, |file_name| {
-                self.host.is_source_of_project_reference_redirect(file_name)
+                TypeCheckerHost::is_source_of_project_reference_redirect(&*self.host, file_name)
             }) {
                 return;
             }

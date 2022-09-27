@@ -8,7 +8,10 @@ use std::io;
 use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
-use crate::{CommentRange, ModuleKind, NewLineKind, ScriptTarget, SortedArray};
+use crate::{
+    CommentRange, FileIncludeReason, ModuleKind, MultiMap, NewLineKind, Path, RedirectTargetsMap,
+    ScriptTarget, SortedArray, SymlinkCache,
+};
 use local_macros::{ast_type, enum_unwrapped};
 
 pub struct Printer {
@@ -77,14 +80,44 @@ pub trait EmitTextWriter: SymbolWriter {
 }
 
 pub trait ModuleSpecifierResolutionHost {
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        None
+    }
     fn file_exists(&self, path: &str) -> bool;
+    fn get_current_directory(&self) -> String;
     fn directory_exists(&self, path: &str) -> Option<bool> {
         None
     }
     fn read_file(&self, path: &str) -> Option<io::Result<String>> {
         None
     }
+    fn realpath(&self, path: &str) -> Option<String> {
+        None
+    }
+    fn get_symlink_cache(&self) -> Option<Rc<SymlinkCache>> {
+        None
+    }
+    fn get_module_specifier_cache(&self) -> Option<Rc<dyn ModuleSpecifierCache>> {
+        None
+    }
+    fn get_global_typings_cache_location(&self) -> Option<String> {
+        None
+    }
+    fn get_nearest_ancestor_directory_with_package_json(
+        &self,
+        file_name: &str,
+        root_dir: Option<&str>,
+    ) -> Option<String> {
+        None
+    }
+
+    fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>>;
+    fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
+    fn get_file_include_reasons(&self) -> Rc<MultiMap<Path, FileIncludeReason>>;
 }
+
+pub trait ModuleSpecifierCache {}
 
 pub trait SymbolTracker {
     fn track_symbol(
@@ -95,6 +128,7 @@ pub trait SymbolTracker {
     ) -> Option<bool> {
         None
     }
+    fn is_track_symbol_supported(&self) -> bool;
     fn report_inaccessible_this_error(&mut self) {}
     fn report_private_in_base_of_class_expression(&self, property_name: &str) {}
     fn report_inaccessible_unique_symbol_error(&self) {}
@@ -103,8 +137,7 @@ pub trait SymbolTracker {
     fn report_truncation_error(&mut self, specifier: &str) {}
     fn module_resolver_host(
         &self,
-    ) -> Option<&dyn ModuleSpecifierResolutionHost /*& { getCommonSourceDirectory(): string } */>
-    {
+    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         None
     }
     fn track_referenced_ambient_module(
@@ -122,6 +155,12 @@ pub trait SymbolTracker {
     ) {
     }
     fn report_non_serializable_property(&mut self, property_name: &str) {}
+}
+
+pub trait ModuleSpecifierResolutionHostAndGetCommonSourceDirectory:
+    ModuleSpecifierResolutionHost
+{
+    fn get_common_source_directory(&self) -> String;
 }
 
 #[derive(Copy, Clone, Debug)]

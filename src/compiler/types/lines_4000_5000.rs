@@ -122,6 +122,11 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
+
+    // this is to support createNodeBuilder() withContext() casting host as Program
+    fn get_common_source_directory(&self) -> Option<String> {
+        None
+    }
 }
 
 pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}

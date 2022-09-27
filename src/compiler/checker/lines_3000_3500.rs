@@ -28,7 +28,7 @@ use crate::{
     Diagnostics, Extension, FindAncestorCallbackReturn, HasInitializerInterface,
     InternalSymbolName, ModuleKind, ModuleResolutionKind, NamedDeclarationInterface, Node,
     NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolLinks,
-    SyntaxKind, TypeChecker,
+    SyntaxKind, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -1015,9 +1015,10 @@ impl TypeChecker {
 
         if let Some(module_not_found_error) = module_not_found_error {
             if let Some(resolved_module) = resolved_module.as_ref() {
-                let redirect = self
-                    .host
-                    .get_project_reference_redirect(&resolved_module.resolved_file_name);
+                let redirect = TypeCheckerHost::get_project_reference_redirect(
+                    &*self.host,
+                    &resolved_module.resolved_file_name,
+                );
                 if let Some(redirect) = redirect {
                     self.error(
                         Some(error_node),

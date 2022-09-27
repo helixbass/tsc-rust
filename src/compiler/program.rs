@@ -36,11 +36,12 @@ use crate::{
     ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
     ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
     NodeInterface, PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
-    Program, ProjectReference, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
-    ScriptTarget, SortedArray, SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect,
-    StringOrRcNode, StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
+    Program, ProjectReference, RedirectTargetsMap, ReferencedFile, ResolvedConfigFileName,
+    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceFileLike,
+    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, System,
+    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -1854,7 +1855,7 @@ impl Program {
             let source_file = get_source_file(file_name);
             if let Some(fail) = fail.as_mut() {
                 if source_file.is_none() {
-                    let redirect = self.get_project_reference_redirect(file_name);
+                    let redirect = self.get_project_reference_redirect_(file_name);
                     if let Some(redirect) = redirect {
                         fail(
                             &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
@@ -1979,6 +1980,10 @@ impl Program {
                 .push(file.clone());
             file
         })
+    }
+
+    pub fn get_project_reference_redirect_(&self, file_name: &str) -> Option<String> {
+        unimplemented!()
     }
 
     pub fn for_each_resolved_project_reference<
@@ -2544,6 +2549,10 @@ impl ModuleSpecifierResolutionHost for Program {
         self.file_exists_rc().file_exists(path)
     }
 
+    fn get_current_directory(&self) -> String {
+        unimplemented!()
+    }
+
     fn directory_exists(&self, path: &str) -> Option<bool> {
         self.maybe_directory_exists_rc()
             .and_then(|directory_exists_rc| directory_exists_rc.directory_exists(path))
@@ -2551,6 +2560,22 @@ impl ModuleSpecifierResolutionHost for Program {
 
     fn read_file(&self, path: &str) -> Option<io::Result<String>> {
         Some(self.host().read_file(path))
+    }
+
+    fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
+        unimplemented!()
+    }
+
+    fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
+        self.get_project_reference_redirect_(file_name)
+    }
+
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        unimplemented!()
+    }
+
+    fn get_file_include_reasons(&self) -> Rc<MultiMap<Path, FileIncludeReason>> {
+        unimplemented!()
     }
 }
 
@@ -2568,10 +2593,14 @@ impl TypeCheckerHost for Program {
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
-        unimplemented!()
+        self.get_project_reference_redirect_(file_name)
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        unimplemented!()
+    }
+
+    fn get_common_source_directory(&self) -> Option<String> {
         unimplemented!()
     }
 }
