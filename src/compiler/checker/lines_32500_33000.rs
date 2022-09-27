@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
@@ -974,7 +975,7 @@ impl CheckBinaryExpression {
 pub struct WorkArea {
     pub check_mode: Option<CheckMode>,
     pub skip: bool,
-    pub stack_index: usize,
+    pub stack_index: isize,
     pub type_stack: Vec<Option<Rc<Type>>>,
 }
 
@@ -1005,13 +1006,17 @@ impl CheckBinaryExpressionStateMachine {
 
     pub fn get_left_type(&self, state: Rc<RefCell<WorkArea>>) -> Option<Rc<Type>> {
         let state = (*state).borrow();
-        state.type_stack.get(state.stack_index).cloned().flatten()
+        state
+            .type_stack
+            .get(TryInto::<usize>::try_into(state.stack_index).unwrap())
+            .cloned()
+            .flatten()
     }
 
     pub fn set_left_type<TType: Borrow<Type>>(&self, state: &mut WorkArea, type_: Option<TType>) {
         push_or_replace(
             &mut state.type_stack,
-            state.stack_index,
+            TryInto::<usize>::try_into(state.stack_index).unwrap(),
             type_.map(|type_| type_.borrow().type_wrapper()),
         );
     }
@@ -1020,7 +1025,7 @@ impl CheckBinaryExpressionStateMachine {
         let state = (*state).borrow();
         state
             .type_stack
-            .get(state.stack_index + 1)
+            .get(TryInto::<usize>::try_into(state.stack_index).unwrap() + 1)
             .cloned()
             .flatten()
     }
@@ -1028,7 +1033,7 @@ impl CheckBinaryExpressionStateMachine {
     pub fn set_last_result<TType: Borrow<Type>>(&self, state: &mut WorkArea, type_: Option<TType>) {
         push_or_replace(
             &mut state.type_stack,
-            state.stack_index + 1,
+            TryInto::<usize>::try_into(state.stack_index).unwrap() + 1,
             type_.map(|type_| type_.borrow().type_wrapper()),
         );
     }
