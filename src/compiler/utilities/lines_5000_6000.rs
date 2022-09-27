@@ -12,14 +12,15 @@ use super::supported_ts_extensions_for_extract_extension;
 use crate::{
     entity_name_to_string, file_extension_is, find, get_combined_modifier_flags,
     get_element_or_property_access_name, get_property_name_for_property_name_node, get_sys,
-    has_syntactic_modifier, is_bindable_static_access_expression, is_element_access_expression,
-    is_entity_name_expression, is_identifier, is_jsdoc_member_name, is_property_access_expression,
-    is_property_name, is_qualified_name, parse_config_file_text_to_json,
-    unescape_leading_underscores, walk_up_parenthesized_expressions, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CheckFlags, CompilerOptions,
-    Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    Extension, MapLike, ModifierFlags, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
+    has_syntactic_modifier, is_assignment_operator, is_bindable_static_access_expression,
+    is_element_access_expression, is_entity_name_expression, is_identifier, is_jsdoc_member_name,
+    is_property_access_expression, is_property_name, is_qualified_name,
+    parse_config_file_text_to_json, unescape_leading_underscores,
+    walk_up_parenthesized_expressions, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode,
+    BaseSymbol, BaseType, CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, MapLike, ModifierFlags,
+    NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
     PrefixUnaryExpression, Signature, SignatureFlags, SourceFileLike, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, TransformFlags, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, __String,
@@ -315,40 +316,87 @@ fn access_kind(node: &Node) -> AccessKind {
     if parent.is_none() {
         return AccessKind::Read;
     }
-    let parent = parent.unwrap();
+    let ref parent = parent.unwrap();
 
-    let write_or_read_write = || {
-        if let Some(grandparent) = parent.maybe_parent() {
-            if walk_up_parenthesized_expressions(&*grandparent)
-                .unwrap()
-                .kind()
-                == SyntaxKind::ExpressionStatement
-            {
-                return AccessKind::Write;
-            }
-        }
-        AccessKind::ReadWrite
-    };
-
-    match &*parent {
-        /*ParenthesizedExpression*/
-        /*PostfixUnaryExpression*/
-        Node::PrefixUnaryExpression(PrefixUnaryExpression { operator, .. }) => {
+    match parent.kind() {
+        SyntaxKind::ParenthesizedExpression => access_kind(parent),
+        SyntaxKind::PostfixUnaryExpression | SyntaxKind::PrefixUnaryExpression => {
+            let parent_as_unary_expression = parent.as_unary_expression();
+            let operator = parent_as_unary_expression.operator();
             if matches!(
                 operator,
                 SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
             ) {
-                write_or_read_write()
+                write_or_read_write(parent)
             } else {
                 AccessKind::Read
             }
         }
-        Node::BinaryExpression(_) => unimplemented!(),
-        /*PropertyAccessExpression*/
-        /*PropertyAssignment*/
-        /*ShorthandPropertyAssignment*/
-        Node::ArrayLiteralExpression(_) => access_kind(&*parent),
+        SyntaxKind::BinaryExpression => {
+            let parent_as_binary_expression = parent.as_binary_expression();
+            let left = &parent_as_binary_expression.left;
+            let operator_token = &parent_as_binary_expression.operator_token;
+            if ptr::eq(&**left, node) && is_assignment_operator(operator_token.kind()) {
+                if operator_token.kind() == SyntaxKind::EqualsToken {
+                    AccessKind::Write
+                } else {
+                    write_or_read_write(parent)
+                }
+            } else {
+                AccessKind::Read
+            }
+        }
+        SyntaxKind::PropertyAccessExpression => {
+            if !ptr::eq(&*parent.as_property_access_expression().name, node) {
+                AccessKind::Read
+            } else {
+                access_kind(parent)
+            }
+        }
+        SyntaxKind::PropertyAssignment => {
+            let parent_access = access_kind(&parent.parent());
+            if ptr::eq(node, &*parent.as_property_assignment().name()) {
+                reverse_access_kind(parent_access)
+            } else {
+                parent_access
+            }
+        }
+        SyntaxKind::ShorthandPropertyAssignment => {
+            if matches!(
+                parent.as_shorthand_property_assignment().object_assignment_initializer.as_ref(),
+                Some(parent_object_assignment_initializer) if ptr::eq(
+                    node,
+                    &**parent_object_assignment_initializer
+                )
+            ) {
+                AccessKind::Read
+            } else {
+                access_kind(&parent.parent())
+            }
+        }
+        SyntaxKind::ArrayLiteralExpression => access_kind(parent),
         _ => AccessKind::Read,
+    }
+}
+
+fn write_or_read_write(parent: &Node) -> AccessKind {
+    if let Some(grandparent) = parent.maybe_parent().as_ref() {
+        if walk_up_parenthesized_expressions(grandparent)
+            .unwrap()
+            .kind()
+            == SyntaxKind::ExpressionStatement
+        {
+            return AccessKind::Write;
+        }
+    }
+    AccessKind::ReadWrite
+}
+
+fn reverse_access_kind(a: AccessKind) -> AccessKind {
+    match a {
+        AccessKind::Read => AccessKind::Write,
+        AccessKind::Write => AccessKind::Read,
+        AccessKind::ReadWrite => AccessKind::ReadWrite,
     }
 }
 
