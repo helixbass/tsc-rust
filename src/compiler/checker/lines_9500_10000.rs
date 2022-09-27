@@ -358,7 +358,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_type(&self, type_: &Type) -> Rc<Type> {
         if get_object_flags(type_).intersects(ObjectFlags::Reference) {
-            type_.as_type_reference().target.clone()
+            type_.as_type_reference_interface().target()
         } else {
             type_.type_wrapper()
         }
