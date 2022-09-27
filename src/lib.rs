@@ -65,7 +65,8 @@ pub use compiler::factory::base_node_factory::{
 };
 pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
 pub use compiler::factory::emit_node::{
-    add_synthetic_leading_comment, dispose_emit_nodes, set_emit_flags,
+    add_synthetic_leading_comment, dispose_emit_nodes, set_comment_range, set_emit_flags,
+    set_synthetic_leading_comments,
 };
 use compiler::factory::emit_node::{get_starts_on_new_line, set_starts_on_new_line};
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
@@ -524,7 +525,7 @@ pub use compiler::utilities_public::{
     text_span_intersects_with_position, text_span_intersects_with_text_span, text_span_is_empty,
     text_span_overlap, text_span_overlaps_with, unchanged_text_change_range,
     unescape_leading_underscores, validate_locale_and_set_language,
-    walk_up_binding_elements_and_patterns, FindAncestorCallbackReturn,
+    walk_up_binding_elements_and_patterns, FindAncestorCallbackReturn, StrOrNodeArrayRef,
 };
 use compiler::utilities_public::{
     get_assigned_name, get_combined_node_flags_always_include_jsdoc,

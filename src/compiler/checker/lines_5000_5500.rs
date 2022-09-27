@@ -1350,7 +1350,7 @@ impl NodeBuilder {
                         bundled_imports: None,
                     }),
                 );
-                type_elements.push(self.preserve_comments_on(method_declaration));
+                type_elements.push(self.preserve_comments_on(property_symbol, method_declaration));
             }
         } else {
             let property_type_node: Rc<Node>;
@@ -1426,7 +1426,7 @@ impl NodeBuilder {
                 })
             });
 
-            type_elements.push(self.preserve_comments_on(property_signature));
+            type_elements.push(self.preserve_comments_on(property_symbol, property_signature));
         }
     }
 }

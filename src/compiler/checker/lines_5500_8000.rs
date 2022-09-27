@@ -6,15 +6,60 @@ use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    count_where, factory, get_emit_script_target, is_identifier_text, synthetic_factory,
+    factory, get_emit_script_target, get_text_of_jsdoc_comment, is_identifier_text,
+    set_comment_range, set_synthetic_leading_comments, some, synthetic_factory,
     unescape_leading_underscores, using_single_line_string_writer, EmitTextWriter, IndexInfo, Node,
-    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFormatFlags, TypePredicate,
+    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature, StrOrNodeArrayRef,
+    StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    SynthesizedComment, Type, TypeChecker, TypeFormatFlags, TypePredicate,
 };
 
 impl NodeBuilder {
-    pub(super) fn preserve_comments_on(&self, node: Rc<Node>) -> Rc<Node> {
-        unimplemented!()
+    pub(super) fn preserve_comments_on(
+        &self,
+        property_symbol: &Symbol,
+        node: Rc<Node>,
+    ) -> Rc<Node> {
+        if some(
+            property_symbol.maybe_declarations().as_deref(),
+            Some(|d: &Rc<Node>| d.kind() == SyntaxKind::JSDocPropertyTag),
+        ) {
+            let d: Rc<Node> = property_symbol
+                .maybe_declarations()
+                .as_ref()
+                .unwrap()
+                .into_iter()
+                .find(|d| d.kind() == SyntaxKind::JSDocPropertyTag)
+                .cloned()
+                .unwrap();
+            let comment_text = get_text_of_jsdoc_comment(d.as_jsdoc_tag().maybe_comment().map(
+                |d_comment| -> StrOrNodeArrayRef {
+                    match d_comment {
+                        StringOrNodeArray::String(d_comment) => (&**d_comment).into(),
+                        StringOrNodeArray::NodeArray(d_comment) => d_comment.into(),
+                    }
+                },
+            ));
+            if let Some(comment_text) = comment_text
+                .as_deref()
+                .filter(|comment_text| !comment_text.is_empty())
+            {
+                set_synthetic_leading_comments(
+                    &node,
+                    Some(vec![Rc::new(SynthesizedComment {
+                        kind: SyntaxKind::MultiLineCommentTrivia,
+                        text: format!("*\n * {}\n ", comment_text.replace("\n", "\n * ")),
+                        has_trailing_new_line: Some(true),
+                        has_leading_new_line: None,
+                    })]),
+                );
+            }
+        } else if let Some(property_symbol_value_declaration) =
+            property_symbol.maybe_value_declaration().as_ref()
+        {
+            set_comment_range(&node, &**property_symbol_value_declaration);
+        }
+        node
     }
 
     pub(super) fn map_to_type_nodes(

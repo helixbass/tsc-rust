@@ -2,7 +2,10 @@ use std::borrow::Borrow;
 use std::cell::RefMut;
 use std::rc::Rc;
 
-use crate::{is_parse_tree_node, Debug_, EmitFlags, EmitNode, Node, NodeInterface, SyntaxKind};
+use crate::{
+    is_parse_tree_node, Debug_, EmitFlags, EmitNode, Node, NodeInterface, ReadonlyTextRange,
+    SyntaxKind, SynthesizedComment,
+};
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> RefMut<EmitNode> {
     let mut node_emit_node = node.maybe_emit_node();
@@ -50,6 +53,18 @@ pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Rc<Node>*
 {
     get_or_create_emit_node(node).starts_on_new_line = Some(new_line);
     // node
+}
+
+pub fn set_comment_range<TRange: ReadonlyTextRange /*TextRange*/>(node: &Node, range: &TRange)
+/*-> Rc<Node>*/
+{
+    unimplemented!()
+}
+
+pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
+/*-> Rc<Node>*/
+{
+    unimplemented!()
 }
 
 pub fn add_synthetic_leading_comment(
