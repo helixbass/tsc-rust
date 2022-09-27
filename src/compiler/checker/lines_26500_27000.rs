@@ -968,7 +968,7 @@ impl TypeChecker {
 
         let mut offset = 0;
         for member_decl in &node_as_object_literal_expression.properties {
-            let mut member = self.get_symbol_of_node(member_decl).unwrap();
+            let mut member = self.get_symbol_of_node(member_decl);
             let computed_name_type = member_decl
                 .as_named_declaration()
                 .maybe_name()
@@ -982,7 +982,11 @@ impl TypeChecker {
                 SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
             ) || is_object_literal_method(member_decl)
             {
+                let member_present = member.as_ref().unwrap();
                 let mut type_: Rc<Type> = if member_decl.kind() == SyntaxKind::PropertyAssignment {
+                    if !matches!(&**member_decl, Node::PropertyAssignment(_)) {
+                        println!("check_object_literal() member_decl: {member_decl:#?}");
+                    }
                     self.check_property_assignment(member_decl, check_mode)
                 } else if member_decl.kind() == SyntaxKind::ShorthandPropertyAssignment {
                     let member_decl_as_shorthand_property_assignment =
@@ -1044,15 +1048,15 @@ impl TypeChecker {
                 });
                 let prop: Rc<Symbol> = if let Some(name_type) = name_type {
                     self.create_symbol(
-                        SymbolFlags::Property | member.flags(),
+                        SymbolFlags::Property | member_present.flags(),
                         self.get_property_name_from_type(name_type),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()
                 } else {
                     self.create_symbol(
-                        SymbolFlags::Property | member.flags(),
-                        member.escaped_name().clone(),
+                        SymbolFlags::Property | member_present.flags(),
+                        member_present.escaped_name().clone(),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()
@@ -1086,7 +1090,7 @@ impl TypeChecker {
                 {
                     let implied_prop = self.get_property_of_type_(
                         contextual_type.as_ref().unwrap(),
-                        member.escaped_name(),
+                        member_present.escaped_name(),
                         None,
                     );
                     if let Some(implied_prop) = implied_prop.as_ref() {
@@ -1106,7 +1110,7 @@ impl TypeChecker {
                             &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
                             Some(vec![
                                 self.symbol_to_string_(
-                                    &member,
+                                    &member_present,
                                     Option::<&Node>::None,
                                     None, None, None,
                                 ),
@@ -1120,11 +1124,11 @@ impl TypeChecker {
                     }
                 }
 
-                if let Some(member_declarations) = member.maybe_declarations().clone() {
+                if let Some(member_declarations) = member_present.maybe_declarations().clone() {
                     prop.set_declarations(member_declarations);
                 }
-                prop.set_parent(member.maybe_parent());
-                if let Some(member_value_declaration) = member.maybe_value_declaration() {
+                prop.set_parent(member_present.maybe_parent());
+                if let Some(member_value_declaration) = member_present.maybe_value_declaration() {
                     prop.set_value_declaration(member_value_declaration);
                 }
 
@@ -1132,9 +1136,9 @@ impl TypeChecker {
                     let prop_links = prop.as_transient_symbol().symbol_links();
                     let mut prop_links = prop_links.borrow_mut();
                     prop_links.type_ = Some(type_.type_wrapper());
-                    prop_links.target = Some(member.clone());
+                    prop_links.target = Some(member_present.clone());
                 }
-                member = prop.clone();
+                member = Some(prop.clone());
                 if let Some(all_properties_table) = all_properties_table.as_mut() {
                     all_properties_table.insert(prop.escaped_name().clone(), prop.clone());
                 };
@@ -1213,6 +1217,7 @@ impl TypeChecker {
                 );
                 self.check_node_deferred(member_decl);
             }
+            let member = member.unwrap();
 
             if let Some(computed_name_type) =
                 computed_name_type.as_ref().filter(|computed_name_type| {
