@@ -600,7 +600,7 @@ impl TypeChecker {
             let inferred = if is_transient_symbol(target) {
                 target.symbol_wrapper()
             } else {
-                Rc::new(self.clone_symbol(target))
+                self.clone_symbol(target)
             };
             {
                 let mut inferred_exports = inferred.maybe_exports_mut();

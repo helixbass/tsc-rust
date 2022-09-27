@@ -144,7 +144,7 @@ impl TypeChecker {
         let merged = if exported.flags().intersects(SymbolFlags::Transient) {
             exported.symbol_wrapper()
         } else {
-            Rc::new(self.clone_symbol(exported))
+            self.clone_symbol(exported)
         };
         merged.set_flags(merged.flags() | SymbolFlags::ValueModule);
         let mut merged_exports = merged.maybe_exports_mut();

@@ -521,8 +521,8 @@ impl TypeChecker {
             .insert(source.maybe_merge_id().unwrap(), target.symbol_wrapper());
     }
 
-    pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Symbol {
-        let result: Symbol = self
+    pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
+        let result: Rc<Symbol> = self
             .create_symbol(symbol.flags(), symbol.escaped_name().clone(), None)
             .into();
         result.set_declarations(
@@ -574,7 +574,7 @@ impl TypeChecker {
                 if Rc::ptr_eq(&resolved_target, &self.unknown_symbol()) {
                     return source.symbol_wrapper();
                 }
-                target = Rc::new(self.clone_symbol(&resolved_target));
+                target = self.clone_symbol(&resolved_target);
             }
             if source.flags().intersects(SymbolFlags::ValueModule)
                 && target.flags().intersects(SymbolFlags::ValueModule)
