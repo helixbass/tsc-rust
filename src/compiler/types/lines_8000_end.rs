@@ -121,7 +121,7 @@ pub trait ModuleSpecifierCache {}
 
 pub trait SymbolTracker {
     fn track_symbol(
-        &mut self,
+        &self,
         symbol: &Symbol,
         enclosing_declaration: Option<Rc<Node>>,
         meaning: SymbolFlags,
@@ -129,32 +129,39 @@ pub trait SymbolTracker {
         None
     }
     fn is_track_symbol_supported(&self) -> bool;
-    fn report_inaccessible_this_error(&mut self) {}
+    fn report_inaccessible_this_error(&self) {}
+    fn is_report_inaccessible_this_error_supported(&self) -> bool;
     fn report_private_in_base_of_class_expression(&self, property_name: &str) {}
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool;
     fn report_inaccessible_unique_symbol_error(&self) {}
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool;
     fn report_cyclic_structure_error(&self) {}
-    fn report_likely_unsafe_import_required_error(&mut self, specifier: &str) {}
-    fn report_truncation_error(&mut self, specifier: &str) {}
+    fn is_report_cyclic_structure_error_supported(&self) -> bool;
+    fn report_likely_unsafe_import_required_error(&self, specifier: &str) {}
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool;
+    fn report_truncation_error(&self) {}
     fn module_resolver_host(
         &self,
     ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         None
     }
     fn track_referenced_ambient_module(
-        &mut self,
+        &self,
         decl: &Node, /*ModuleDeclaration*/
         symbol: &Symbol,
     ) {
     }
-    fn track_external_module_symbol_of_import_type_node(&mut self, symbol: &Symbol) {}
+    fn track_external_module_symbol_of_import_type_node(&self, symbol: &Symbol) {}
     fn report_nonlocal_augmentation(
-        &mut self,
+        &self,
         containing_file: &Node, /*SourceFile*/
         parent_symbol: &Symbol,
         augmenting_symbol: &Symbol,
     ) {
     }
-    fn report_non_serializable_property(&mut self, property_name: &str) {}
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool;
+    fn report_non_serializable_property(&self, property_name: &str) {}
+    fn is_report_non_serializable_property_supported(&self) -> bool;
 }
 
 pub trait ModuleSpecifierResolutionHostAndGetCommonSourceDirectory:

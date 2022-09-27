@@ -223,7 +223,7 @@ impl SymbolWriter for SingleLineStringWriter {
 
 impl SymbolTracker for SingleLineStringWriter {
     fn track_symbol(
-        &mut self,
+        &self,
         symbol: &Symbol,
         enclosing_declaration: Option<Rc<Node>>,
         meaning: SymbolFlags,
@@ -235,11 +235,39 @@ impl SymbolTracker for SingleLineStringWriter {
         true
     }
 
-    fn report_inaccessible_this_error(&mut self) {}
+    fn report_inaccessible_this_error(&self) {}
+
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        true
+    }
 
     fn report_inaccessible_unique_symbol_error(&self) {}
 
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        true
+    }
+
     fn report_private_in_base_of_class_expression(&self, _property_name: &str) {}
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        true
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        false
+    }
 }
 
 pub fn changes_affect_module_resolution(

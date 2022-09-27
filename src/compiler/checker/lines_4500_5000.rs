@@ -672,7 +672,6 @@ impl NodeBuilder {
             },
             None,
         );
-        // TODO: finish this
         let default_tracker: Option<DefaultNodeBuilderContextSymbolTracker> = match tracker
             .as_ref()
             .filter(|tracker| tracker.is_track_symbol_supported())
@@ -683,15 +682,31 @@ impl NodeBuilder {
                 flags,
             )),
         };
-        let context = NodeBuilderContext::new(
+        let tracker = tracker
+            .filter(|tracker| tracker.is_track_symbol_supported())
+            .unwrap_or_else(|| default_tracker.as_ref().unwrap());
+        let context = Rc::new(RefCell::new(NodeBuilderContext::new(
             enclosing_declaration,
             flags.unwrap_or(NodeBuilderFlags::None),
-            tracker
-                .filter(|tracker| tracker.is_track_symbol_supported())
-                .unwrap_or_else(|| default_tracker.as_ref().unwrap()),
-        );
+            tracker,
+        )));
+        let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
+        context.borrow_mut().tracker = &context_tracker;
+        let context = (*context).borrow();
         let resulting_node = cb(&context);
-        resulting_node
+        if context.truncating.get() == Some(true)
+            && context
+                .flags
+                .get()
+                .intersects(NodeBuilderFlags::NoTruncation)
+        {
+            context.tracker.report_truncation_error();
+        }
+        if context.encountered_error.get() {
+            None
+        } else {
+            resulting_node
+        }
     }
 
     pub(super) fn check_truncation_length(&self, context: &NodeBuilderContext) -> bool {
@@ -1545,7 +1560,7 @@ impl DefaultNodeBuilderContextSymbolTracker {
 
 impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     fn track_symbol(
-        &mut self,
+        &self,
         symbol: &Symbol,
         enclosing_declaration: Option<Rc<Node>>,
         meaning: SymbolFlags,
@@ -1561,6 +1576,35 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
         &self,
     ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         self.module_resolver_host.as_deref()
+    }
+
+    // TODO: are these correct?
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        false
     }
 }
 
@@ -1622,6 +1666,165 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
 
     fn read_file(&self, file_name: &str) -> Option<io::Result<String>> {
         self.host.read_file(file_name)
+    }
+}
+
+fn wrap_symbol_tracker_to_report_for_context<'symbol_tracker>(
+    context: Rc<RefCell<NodeBuilderContext<'symbol_tracker>>>,
+    tracker: &'symbol_tracker dyn SymbolTracker,
+) -> NodeBuilderContextWrappedSymbolTracker<'symbol_tracker> {
+    NodeBuilderContextWrappedSymbolTracker { tracker, context }
+}
+
+struct NodeBuilderContextWrappedSymbolTracker<'symbol_tracker> {
+    tracker: &'symbol_tracker dyn SymbolTracker,
+    context: Rc<RefCell<NodeBuilderContext<'symbol_tracker>>>,
+}
+
+impl NodeBuilderContextWrappedSymbolTracker<'_> {
+    fn mark_context_reported_diagnostic(&self) {
+        (*self.context).borrow().reported_diagnostic.set(true);
+    }
+}
+
+impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker<'_> {
+    fn report_cyclic_structure_error(&self) {
+        if self.tracker.is_report_cyclic_structure_error_supported() {
+            self.mark_context_reported_diagnostic();
+        }
+        self.tracker.report_cyclic_structure_error()
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        self.tracker.is_report_cyclic_structure_error_supported()
+    }
+
+    fn report_inaccessible_this_error(&self) {
+        if self.tracker.is_report_inaccessible_this_error_supported() {
+            self.mark_context_reported_diagnostic();
+        }
+        self.tracker.report_inaccessible_this_error()
+    }
+
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        self.tracker.is_report_inaccessible_this_error_supported()
+    }
+
+    fn report_inaccessible_unique_symbol_error(&self) {
+        if self
+            .tracker
+            .is_report_inaccessible_unique_symbol_error_supported()
+        {
+            self.mark_context_reported_diagnostic();
+        }
+        self.tracker.report_inaccessible_unique_symbol_error()
+    }
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        self.tracker
+            .is_report_inaccessible_unique_symbol_error_supported()
+    }
+
+    fn report_likely_unsafe_import_required_error(&self, specifier: &str) {
+        if self
+            .tracker
+            .is_report_likely_unsafe_import_required_error_supported()
+        {
+            self.mark_context_reported_diagnostic();
+        }
+        self.tracker
+            .report_likely_unsafe_import_required_error(specifier)
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        self.tracker
+            .is_report_likely_unsafe_import_required_error_supported()
+    }
+
+    fn report_nonlocal_augmentation(
+        &self,
+        containing_file: &Node, /*SourceFile*/
+        parent_symbol: &Symbol,
+        augmenting_symbol: &Symbol,
+    ) {
+        if self.tracker.is_report_nonlocal_augmentation_supported() {
+            self.mark_context_reported_diagnostic();
+        }
+        self.tracker
+            .report_nonlocal_augmentation(containing_file, parent_symbol, augmenting_symbol)
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        self.tracker.is_report_nonlocal_augmentation_supported()
+    }
+
+    fn report_private_in_base_of_class_expression(&self, property_name: &str) {
+        if self
+            .tracker
+            .is_report_private_in_base_of_class_expression_supported()
+        {
+            self.mark_context_reported_diagnostic();
+        }
+        self.tracker
+            .report_private_in_base_of_class_expression(property_name)
+    }
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        self.tracker
+            .is_report_private_in_base_of_class_expression_supported()
+    }
+
+    fn report_non_serializable_property(&self, property_name: &str) {
+        if self.tracker.is_report_non_serializable_property_supported() {
+            self.mark_context_reported_diagnostic();
+        }
+        self.tracker.report_non_serializable_property(property_name)
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        self.tracker.is_report_non_serializable_property_supported()
+    }
+
+    fn track_symbol(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<Rc<Node>>,
+        meaning: SymbolFlags,
+    ) -> Option<bool> {
+        let result = self
+            .tracker
+            .track_symbol(symbol, enclosing_declaration, meaning);
+        if result == Some(true) {
+            self.mark_context_reported_diagnostic();
+        }
+        result
+    }
+
+    fn is_track_symbol_supported(&self) -> bool {
+        self.tracker.is_track_symbol_supported()
+    }
+
+    fn report_truncation_error(&self) {
+        self.tracker.report_truncation_error()
+    }
+
+    fn module_resolver_host(
+        &self,
+    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+        self.tracker.module_resolver_host()
+    }
+
+    fn track_referenced_ambient_module(
+        &self,
+        decl: &Node, /*ModuleDeclaration*/
+        symbol: &Symbol,
+    ) {
+        self.tracker.track_referenced_ambient_module(decl, symbol)
+    }
+
+    fn track_external_module_symbol_of_import_type_node(&self, symbol: &Symbol) {
+        self.tracker
+            .track_external_module_symbol_of_import_type_node(symbol)
     }
 }
 

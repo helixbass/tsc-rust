@@ -268,7 +268,7 @@ impl SymbolWriter for TextWriter {
 
 impl SymbolTracker for TextWriter {
     fn track_symbol(
-        &mut self,
+        &self,
         _symbol: &Symbol,
         _enclosing_declaration: Option<Rc<Node>>,
         _meaning: SymbolFlags,
@@ -278,6 +278,35 @@ impl SymbolTracker for TextWriter {
 
     fn is_track_symbol_supported(&self) -> bool {
         true
+    }
+
+    // TODO: are these correct?
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        false
     }
 }
 
@@ -436,8 +465,37 @@ impl SymbolWriter for TrailingSemicolonDeferringWriter {
 
 // TODO: should explicitly forward all SymbolTracker methods to self.writer too?
 impl SymbolTracker for TrailingSemicolonDeferringWriter {
+    // TODO: are these correct?
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        false
+    }
+
     fn is_track_symbol_supported(&self) -> bool {
-        false // TODO: is this correct?
+        false
     }
 }
 
