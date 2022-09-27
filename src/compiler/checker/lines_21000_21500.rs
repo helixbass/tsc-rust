@@ -810,7 +810,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::Object)
                 && !self.is_non_generic_top_level_type(type_)
                 && (object_flags.intersects(ObjectFlags::Reference)
-                    && (type_.as_type_reference().maybe_node().is_some()
+                    && (type_.as_type_reference_interface().maybe_node().is_some()
                         || for_each_bool(
                             &self.get_type_arguments(type_),
                             |type_argument: &Rc<Type>, _| {
