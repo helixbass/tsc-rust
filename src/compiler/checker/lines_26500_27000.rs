@@ -984,9 +984,6 @@ impl TypeChecker {
             {
                 let member_present = member.as_ref().unwrap();
                 let mut type_: Rc<Type> = if member_decl.kind() == SyntaxKind::PropertyAssignment {
-                    // if !matches!(&**member_decl, Node::PropertyAssignment(_)) {
-                    //     println!("check_object_literal() member_decl: {member_decl:#?}");
-                    // }
                     self.check_property_assignment(member_decl, check_mode)
                 } else if member_decl.kind() == SyntaxKind::ShorthandPropertyAssignment {
                     let member_decl_as_shorthand_property_assignment =

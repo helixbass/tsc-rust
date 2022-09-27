@@ -47,7 +47,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
             base_factory,
-            SyntaxKind::PropertyAssignment,
+            SyntaxKind::ShorthandPropertyAssignment,
             Option::<NodeArray>::None,
             Option::<NodeArray>::None,
             Some(name),
