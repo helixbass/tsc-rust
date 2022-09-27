@@ -389,7 +389,7 @@ impl TypeChecker {
         let this_argument =
             this_argument.map(|this_argument| this_argument.borrow().type_wrapper());
         if get_object_flags(type_).intersects(ObjectFlags::Reference) {
-            let target = &type_.as_type_reference().target;
+            let ref target = type_.as_type_reference_interface().target();
             let type_arguments = self.get_type_arguments(type_);
             let target_as_interface_type = target.as_interface_type();
             if length(target_as_interface_type.maybe_type_parameters())
