@@ -574,8 +574,8 @@ impl TypeChecker {
     }
 
     pub(super) fn resolve_type_reference_members(&self, type_: &Type /*TypeReference*/) {
-        let type_as_type_reference = type_.as_type_reference();
-        let source = self.resolve_declared_members(&type_as_type_reference.target);
+        let type_as_type_reference = type_.as_type_reference_interface();
+        let source = self.resolve_declared_members(&type_as_type_reference.target());
         let source_as_interface_type = source.as_interface_type();
         let type_parameters = concatenate(
             source_as_interface_type
