@@ -521,7 +521,7 @@ pub fn create_type_checker(
         _types_needing_strong_references: RefCell::new(vec![]),
         _packages_map: RefCell::new(None),
         cancellation_token: RefCell::new(None),
-        requested_external_emit_helpers: Cell::new(None),
+        requested_external_emit_helpers: Cell::new(ExternalEmitHelpers::None),
         external_helpers_module: RefCell::new(None),
 
         Symbol: object_allocator.get_symbol_constructor(),
@@ -1494,7 +1494,7 @@ impl TypeChecker {
     }
 
     pub(super) fn requested_external_emit_helpers(&self) -> ExternalEmitHelpers {
-        self.requested_external_emit_helpers.get().unwrap()
+        self.requested_external_emit_helpers.get()
     }
 
     pub(super) fn set_requested_external_emit_helpers(
@@ -1502,7 +1502,7 @@ impl TypeChecker {
         requested_external_emit_helpers: ExternalEmitHelpers,
     ) {
         self.requested_external_emit_helpers
-            .set(Some(requested_external_emit_helpers));
+            .set(requested_external_emit_helpers);
     }
 
     pub(super) fn maybe_external_helpers_module(&self) -> RefMut<Option<Rc<Symbol>>> {

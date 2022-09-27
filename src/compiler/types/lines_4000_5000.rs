@@ -135,7 +135,7 @@ pub struct TypeChecker {
     pub(crate) _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
     pub(crate) _packages_map: RefCell<Option<HashMap<String, bool>>>,
     pub(crate) cancellation_token: RefCell<Option<Rc<dyn CancellationTokenDebuggable>>>,
-    pub(crate) requested_external_emit_helpers: Cell<Option<ExternalEmitHelpers>>,
+    pub(crate) requested_external_emit_helpers: Cell<ExternalEmitHelpers>,
     pub(crate) external_helpers_module: RefCell<Option<Rc<Symbol>>>,
     pub(crate) Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub(crate) Type: fn(TypeFlags) -> BaseType,
