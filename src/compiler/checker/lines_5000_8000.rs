@@ -26,17 +26,12 @@ use crate::{
 impl NodeBuilder {
     pub(super) fn conditional_type_to_type_node(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ConditionalType*/
     ) -> Rc<Node> {
         let type_as_conditional_type = type_.as_conditional_type();
         let check_type_node = self
-            .type_to_type_node_helper(
-                type_checker,
-                Some(&*type_as_conditional_type.check_type),
-                context,
-            )
+            .type_to_type_node_helper(Some(&*type_as_conditional_type.check_type), context)
             .unwrap();
         let save_infer_type_parameters = context.infer_type_parameters.borrow().clone();
         *context.infer_type_parameters.borrow_mut() = (*type_as_conditional_type.root)
@@ -44,22 +39,18 @@ impl NodeBuilder {
             .infer_type_parameters
             .clone();
         let extends_type_node = self
-            .type_to_type_node_helper(
-                type_checker,
-                Some(&*type_as_conditional_type.extends_type),
-                context,
-            )
+            .type_to_type_node_helper(Some(&*type_as_conditional_type.extends_type), context)
             .unwrap();
         *context.infer_type_parameters.borrow_mut() = save_infer_type_parameters;
         let true_type_node = self.type_to_type_node_or_circularity_elision(
-            type_checker,
             context,
-            &type_checker.get_true_type_from_conditional_type(type_),
+            &self.type_checker.get_true_type_from_conditional_type(type_),
         );
         let false_type_node = self.type_to_type_node_or_circularity_elision(
-            type_checker,
             context,
-            &type_checker.get_false_type_from_conditional_type(type_),
+            &self
+                .type_checker
+                .get_false_type_from_conditional_type(type_),
         );
         context.increment_approximate_length_by(15);
         synthetic_factory.with(|synthetic_factory_| {
@@ -79,12 +70,11 @@ impl NodeBuilder {
 
     pub(super) fn type_to_type_node_or_circularity_elision(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type,
     ) -> Rc<Node> {
         if type_.flags().intersects(TypeFlags::Union) {
-            if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_checker.get_type_id(type_)))
+            if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&self.type_checker.get_type_id(type_)))
             {
                 if !context
                     .flags()
@@ -95,18 +85,15 @@ impl NodeBuilder {
                 }
                 return self.create_elided_information_placeholder(context);
             }
-            return self.visit_and_transform_type(type_checker, context, type_, |type_| {
-                self.type_to_type_node_helper(type_checker, Some(type_), context)
-                    .unwrap()
+            return self.visit_and_transform_type(context, type_, |type_| {
+                self.type_to_type_node_helper(Some(type_), context).unwrap()
             });
         }
-        self.type_to_type_node_helper(type_checker, Some(type_), context)
-            .unwrap()
+        self.type_to_type_node_helper(Some(type_), context).unwrap()
     }
 
     pub(super) fn create_mapped_type_node_from_type(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*MappedType*/
     ) -> Rc<Node> {
@@ -139,7 +126,10 @@ impl NodeBuilder {
                 })
             });
         let appropriate_constraint_type_node: Rc<Node /*TypeNode*/>;
-        if type_checker.is_mapped_type_with_keyof_constraint_declaration(type_) {
+        if self
+            .type_checker
+            .is_mapped_type_with_keyof_constraint_declaration(type_)
+        {
             appropriate_constraint_type_node = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     factory_
@@ -147,8 +137,7 @@ impl NodeBuilder {
                             synthetic_factory_,
                             SyntaxKind::KeyOfKeyword,
                             self.type_to_type_node_helper(
-                                type_checker,
-                                Some(type_checker.get_modifiers_type_from_mapped_type(type_)),
+                                Some(self.type_checker.get_modifiers_type_from_mapped_type(type_)),
                                 context,
                             )
                             .unwrap(),
@@ -159,33 +148,33 @@ impl NodeBuilder {
         } else {
             appropriate_constraint_type_node = self
                 .type_to_type_node_helper(
-                    type_checker,
-                    Some(type_checker.get_constraint_type_from_mapped_type(type_)),
+                    Some(
+                        self.type_checker
+                            .get_constraint_type_from_mapped_type(type_),
+                    ),
                     context,
                 )
                 .unwrap();
         }
         let type_parameter_node: Rc<Node> = self.type_parameter_to_declaration_with_constraint(
-            &type_checker.get_type_parameter_from_mapped_type(type_),
+            &self.type_checker.get_type_parameter_from_mapped_type(type_),
             context,
             Some(appropriate_constraint_type_node),
         );
         let name_type_node: Option<Rc<Node>> =
             if type_declaration_as_mapped_type_node.name_type.is_some() {
                 self.type_to_type_node_helper(
-                    type_checker,
-                    type_checker.get_name_type_from_mapped_type(type_),
+                    self.type_checker.get_name_type_from_mapped_type(type_),
                     context,
                 )
             } else {
                 None
             };
         let template_type_node: Option<Rc<Node>> = self.type_to_type_node_helper(
-            type_checker,
             Some(
-                type_checker.remove_missing_type(
-                    &type_checker.get_template_type_from_mapped_type(type_),
-                    type_checker
+                self.type_checker.remove_missing_type(
+                    &self.type_checker.get_template_type_from_mapped_type(type_),
+                    self.type_checker
                         .get_mapped_type_modifiers(type_)
                         .intersects(MappedTypeModifiers::IncludeOptional),
                 ),
@@ -213,22 +202,25 @@ impl NodeBuilder {
 
     pub(super) fn create_anonymous_type_node(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
     ) -> Rc<Node> {
         let type_id = type_.id();
         let symbol = type_.maybe_symbol();
         if let Some(symbol) = symbol {
-            let is_instance_type = if type_checker.is_class_instance_side(type_) {
+            let is_instance_type = if self.type_checker.is_class_instance_side(type_) {
                 SymbolFlags::Type
             } else {
                 SymbolFlags::Value
             };
-            if type_checker.is_js_constructor(symbol.maybe_value_declaration()) {
-                self.symbol_to_type_node(type_checker, &symbol, context, is_instance_type, None)
+            if self
+                .type_checker
+                .is_js_constructor(symbol.maybe_value_declaration())
+            {
+                self.symbol_to_type_node(&symbol, context, is_instance_type, None)
             } else if symbol.flags().intersects(SymbolFlags::Class)
-                && type_checker
+                && self
+                    .type_checker
                     .get_base_type_variable_of_class(&symbol)
                     .is_none()
                 && !(matches!(symbol.maybe_value_declaration(), Some(value_declaration) if value_declaration.kind() == SyntaxKind::ClassExpression)
@@ -238,41 +230,29 @@ impl NodeBuilder {
                 || symbol
                     .flags()
                     .intersects(SymbolFlags::Enum | SymbolFlags::ValueModule)
-                || self.should_write_type_of_function_symbol(
-                    type_checker,
-                    &symbol,
-                    context,
-                    type_id,
-                )
+                || self.should_write_type_of_function_symbol(&symbol, context, type_id)
             {
-                self.symbol_to_type_node(type_checker, &symbol, context, is_instance_type, None)
+                self.symbol_to_type_node(&symbol, context, is_instance_type, None)
             } else if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id))
             {
-                let type_alias = type_checker.get_type_alias_for_type_literal(type_);
+                let type_alias = self.type_checker.get_type_alias_for_type_literal(type_);
                 if let Some(type_alias) = type_alias {
-                    self.symbol_to_type_node(
-                        type_checker,
-                        &type_alias,
-                        context,
-                        SymbolFlags::Type,
-                        None,
-                    )
+                    self.symbol_to_type_node(&type_alias, context, SymbolFlags::Type, None)
                 } else {
                     self.create_elided_information_placeholder(context)
                 }
             } else {
-                self.visit_and_transform_type(type_checker, context, type_, |type_| {
-                    self.create_type_node_from_object_type(type_checker, context, type_)
+                self.visit_and_transform_type(context, type_, |type_| {
+                    self.create_type_node_from_object_type(context, type_)
                 })
             }
         } else {
-            self.create_type_node_from_object_type(type_checker, context, type_)
+            self.create_type_node_from_object_type(context, type_)
         }
     }
 
     pub(super) fn should_write_type_of_function_symbol(
         &self,
-        type_checker: &TypeChecker,
         symbol: &Symbol,
         context: &NodeBuilderContext,
         type_id: TypeId,
@@ -301,7 +281,7 @@ impl NodeBuilder {
                 && (!context
                     .flags()
                     .intersects(NodeBuilderFlags::UseStructuralFallback)
-                    || type_checker.is_value_symbol_accessible(
+                    || self.type_checker.is_value_symbol_accessible(
                         symbol,
                         context.maybe_enclosing_declaration().as_deref(),
                     ));
@@ -311,7 +291,6 @@ impl NodeBuilder {
 
     pub(super) fn visit_and_transform_type<TTransform: FnMut(&Type) -> Rc<Node>>(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type,
         mut transform: TTransform,
@@ -352,10 +331,10 @@ impl NodeBuilder {
         let links = context
             .maybe_enclosing_declaration()
             .as_ref()
-            .map(|enclosing_declaration| type_checker.get_node_links(enclosing_declaration));
+            .map(|enclosing_declaration| self.type_checker.get_node_links(enclosing_declaration));
         let key = format!(
             "{}|{}",
-            type_checker.get_type_id(type_),
+            self.type_checker.get_type_id(type_),
             context.flags().bits()
         );
         if let Some(links) = links.as_ref() {
@@ -493,11 +472,10 @@ impl NodeBuilder {
 
     pub(super) fn create_type_node_from_object_type(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
     ) -> Rc<Node> {
-        if type_checker.is_generic_mapped_type(type_)
+        if self.type_checker.is_generic_mapped_type(type_)
             || matches!(
                 type_
                     .maybe_as_mapped_type()
@@ -505,10 +483,10 @@ impl NodeBuilder {
                 Some(true)
             )
         {
-            return self.create_mapped_type_node_from_type(type_checker, context, type_);
+            return self.create_mapped_type_node_from_type(context, type_);
         }
 
-        let resolved = type_checker.resolve_structured_type_members(type_);
+        let resolved = self.type_checker.resolve_structured_type_members(type_);
         let resolved_as_resolved_type = resolved.as_resolved_type();
         if resolved_as_resolved_type.properties().is_empty()
             && resolved_as_resolved_type.index_infos().is_empty()
@@ -568,7 +546,8 @@ impl NodeBuilder {
             Option::<fn(&Rc<Signature>) -> bool>::None,
         ) {
             let mut types = map(&abstract_signatures, |signature: &Rc<Signature>, _| {
-                type_checker.get_or_create_type_from_signature(signature.clone())
+                self.type_checker
+                    .get_or_create_type_from_signature(signature.clone())
             });
             let type_element_count = resolved_as_resolved_type.call_signatures().len()
                 + (resolved_as_resolved_type.construct_signatures().len()
@@ -587,13 +566,13 @@ impl NodeBuilder {
                 };
             if type_element_count > 0 {
                 types.push(
-                    type_checker.get_resolved_type_without_abstract_construct_signatures(&resolved),
+                    self.type_checker
+                        .get_resolved_type_without_abstract_construct_signatures(&resolved),
                 );
             }
             return self
                 .type_to_type_node_helper(
-                    type_checker,
-                    Some(&*type_checker.get_intersection_type(
+                    Some(&*self.type_checker.get_intersection_type(
                         &types,
                         Option::<&Symbol>::None,
                         None,
@@ -605,7 +584,7 @@ impl NodeBuilder {
 
         let saved_flags = context.flags();
         context.set_flags(context.flags() | NodeBuilderFlags::InObjectTypeLiteral);
-        let members = self.create_type_nodes_from_resolved_type(type_checker, context, &resolved);
+        let members = self.create_type_nodes_from_resolved_type(context, &resolved);
         context.set_flags(saved_flags);
         let type_literal_node: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
             factory.with(|factory_| {
@@ -631,25 +610,24 @@ impl NodeBuilder {
 
     pub(super) fn type_reference_to_type_node(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*TypeReference*/
     ) -> Option<Rc<Node>> {
-        let type_arguments = type_checker.get_type_arguments(type_);
+        let type_arguments = self.type_checker.get_type_arguments(type_);
         let type_as_type_reference = type_.as_type_reference();
         if Rc::ptr_eq(
             &type_as_type_reference.target,
-            &type_checker.global_array_type(),
+            &self.type_checker.global_array_type(),
         ) || Rc::ptr_eq(
             &type_as_type_reference.target,
-            &type_checker.global_readonly_array_type(),
+            &self.type_checker.global_readonly_array_type(),
         ) {
             if context
                 .flags()
                 .intersects(NodeBuilderFlags::WriteArrayAsGenericType)
             {
                 let type_argument_node = self
-                    .type_to_type_node_helper(type_checker, Some(&*type_arguments[0]), context)
+                    .type_to_type_node_helper(Some(&*type_arguments[0]), context)
                     .unwrap();
                 return Some(synthetic_factory.with(|synthetic_factory_| {
                     factory.with(|factory_| {
@@ -658,7 +636,7 @@ impl NodeBuilder {
                                 synthetic_factory_,
                                 if Rc::ptr_eq(
                                     &type_as_type_reference.target,
-                                    &type_checker.global_array_type(),
+                                    &self.type_checker.global_array_type(),
                                 ) {
                                     "Array"
                                 } else {
@@ -672,7 +650,7 @@ impl NodeBuilder {
                 }));
             }
             let element_type = self
-                .type_to_type_node_helper(type_checker, Some(&*type_arguments[0]), context)
+                .type_to_type_node_helper(Some(&*type_arguments[0]), context)
                 .unwrap();
             let array_type: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
@@ -684,7 +662,7 @@ impl NodeBuilder {
             Some(
                 if Rc::ptr_eq(
                     &type_as_type_reference.target,
-                    &type_checker.global_array_type(),
+                    &self.type_checker.global_array_type(),
                 ) {
                     array_type
                 } else {
@@ -709,19 +687,15 @@ impl NodeBuilder {
         {
             let type_target_as_tuple_type = type_as_type_reference.target.as_tuple_type();
             let type_arguments = same_map(&type_arguments, |t: &Rc<Type>, i| {
-                type_checker.remove_missing_type(
+                self.type_checker.remove_missing_type(
                     t,
                     type_target_as_tuple_type.element_flags[i].intersects(ElementFlags::Optional),
                 )
             });
             if !type_arguments.is_empty() {
-                let arity = type_checker.get_type_reference_arity(type_);
-                let tuple_constituent_nodes = self.map_to_type_nodes(
-                    type_checker,
-                    Some(&type_arguments[0..arity]),
-                    context,
-                    None,
-                );
+                let arity = self.type_checker.get_type_reference_arity(type_);
+                let tuple_constituent_nodes =
+                    self.map_to_type_nodes(Some(&type_arguments[0..arity]), context, None);
                 if let Some(mut tuple_constituent_nodes) = tuple_constituent_nodes {
                     if let Some(type_target_labeled_element_declarations) =
                         type_target_as_tuple_type
@@ -744,7 +718,7 @@ impl NodeBuilder {
                                             factory_.create_identifier(
                                                 synthetic_factory_,
                                                 &unescape_leading_underscores(
-                                                    &type_checker.get_tuple_element_label(
+                                                    &self.type_checker.get_tuple_element_label(
                                                         &type_target_labeled_element_declarations[i]
                                                     )
                                                 ),
@@ -874,12 +848,12 @@ impl NodeBuilder {
             .flags()
             .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
             && matches!(type_.symbol().maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
-            && !type_checker.is_value_symbol_accessible(
+            && !self.type_checker.is_value_symbol_accessible(
                 &type_.symbol(),
                 context.maybe_enclosing_declaration().as_deref(),
             )
         {
-            Some(self.create_anonymous_type_node(type_checker, context, type_))
+            Some(self.create_anonymous_type_node(context, type_))
         } else {
             let outer_type_parameters = type_as_type_reference
                 .target
@@ -891,27 +865,23 @@ impl NodeBuilder {
                 let length = outer_type_parameters.len();
                 while i < length {
                     let start = i;
-                    let parent = type_checker
+                    let parent = self
+                        .type_checker
                         .get_parent_symbol_of_type_parameter(&outer_type_parameters[i])
                         .unwrap();
                     while {
                         i += 1;
                         i < length
-                            && matches!(type_checker.get_parent_symbol_of_type_parameter(&outer_type_parameters[i]), Some(parent_symbol) if Rc::ptr_eq(&parent_symbol, &parent))
+                            && matches!(self.type_checker.get_parent_symbol_of_type_parameter(&outer_type_parameters[i]), Some(parent_symbol) if Rc::ptr_eq(&parent_symbol, &parent))
                     } {}
                     if !range_equals_rc(outer_type_parameters, &type_arguments, start, i) {
-                        let type_argument_slice = self.map_to_type_nodes(
-                            type_checker,
-                            Some(&type_arguments[start..i]),
-                            context,
-                            None,
-                        );
+                        let type_argument_slice =
+                            self.map_to_type_nodes(Some(&type_arguments[start..i]), context, None);
                         let flags = context.flags();
                         context.set_flags(
                             context.flags() | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences,
                         );
                         let ref_ = self.symbol_to_type_node(
-                            type_checker,
                             &parent,
                             context,
                             SymbolFlags::Type,
@@ -935,7 +905,6 @@ impl NodeBuilder {
                     .maybe_type_parameters()
                     .map_or(0, |type_parameters| type_parameters.len());
                 type_argument_nodes = self.map_to_type_nodes(
-                    type_checker,
                     Some(&type_arguments[i..type_parameter_count]),
                     context,
                     None,
@@ -945,7 +914,6 @@ impl NodeBuilder {
             context
                 .set_flags(context.flags() | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences);
             let final_ref = self.symbol_to_type_node(
-                type_checker,
                 &type_.symbol(),
                 context,
                 SymbolFlags::Type,
@@ -1096,7 +1064,6 @@ impl NodeBuilder {
 
     pub(super) fn create_type_nodes_from_resolved_type(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         resolved_type: &Type, /*ResolvedType*/
     ) -> Option<Vec<Rc<Node /*TypeElement*/>>> {
@@ -1192,19 +1159,13 @@ impl NodeBuilder {
                     })
                 }));
                 self.add_property_to_element_list(
-                    type_checker,
                     &properties[properties.len() - 1],
                     context,
                     &mut type_elements,
                 );
                 break;
             }
-            self.add_property_to_element_list(
-                type_checker,
-                property_symbol,
-                context,
-                &mut type_elements,
-            );
+            self.add_property_to_element_list(property_symbol, context, &mut type_elements);
         }
         if !type_elements.is_empty() {
             Some(type_elements)
@@ -1268,7 +1229,6 @@ impl NodeBuilder {
 
     pub(super) fn add_property_to_element_list(
         &self,
-        type_checker: &TypeChecker,
         property_symbol: &Symbol,
         context: &NodeBuilderContext,
         type_elements: &mut Vec<Rc<Node /*TypeElement*/>>,
@@ -1276,14 +1236,14 @@ impl NodeBuilder {
         let property_is_reverse_mapped =
             get_check_flags(property_symbol).intersects(CheckFlags::ReverseMapped);
         let property_type = if self.should_use_placeholder_for_property(property_symbol, context) {
-            type_checker.any_type()
+            self.type_checker.any_type()
         } else {
-            type_checker.get_non_missing_type_of_symbol(property_symbol)
+            self.type_checker
+                .get_non_missing_type_of_symbol(property_symbol)
         };
         let save_enclosing_declaration = context.maybe_enclosing_declaration();
         context.set_enclosing_declaration(None);
-        let property_name =
-            self.get_property_name_node_for_symbol(type_checker, property_symbol, context);
+        let property_name = self.get_property_name_node_for_symbol(property_symbol, context);
         let optional_token = if property_symbol.flags().intersects(SymbolFlags::Optional) {
             synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
@@ -1301,12 +1261,7 @@ impl NodeBuilder {
                 unimplemented!()
             } else {
                 property_type_node = if true {
-                    self.serialize_type_for_declaration(
-                        type_checker,
-                        context,
-                        &property_type,
-                        property_symbol,
-                    )
+                    self.serialize_type_for_declaration(context, &property_type, property_symbol)
                 } else {
                     unimplemented!()
                 };
@@ -1335,7 +1290,6 @@ impl NodeBuilder {
 
     pub(super) fn map_to_type_nodes(
         &self,
-        type_checker: &TypeChecker,
         types: Option<&[Rc<Type>]>,
         context: &NodeBuilderContext,
         is_bare_list: Option<bool>,
@@ -1349,8 +1303,7 @@ impl NodeBuilder {
                     .intersects(NodeBuilderFlags::UseFullyQualifiedType);
                 let mut result: Vec<Rc<Node>> = vec![];
                 for (i, type_) in types.iter().enumerate() {
-                    let type_node =
-                        self.type_to_type_node_helper(type_checker, Some(&**type_), context);
+                    let type_node = self.type_to_type_node_helper(Some(&**type_), context);
                     result.push(type_node.unwrap().into());
                 }
 
@@ -1390,13 +1343,12 @@ impl NodeBuilder {
 
     pub(super) fn type_parameter_to_declaration_(
         &self,
-        type_checker: &TypeChecker,
         type_: &Type, /*TypeParameter*/
         context: &NodeBuilderContext,
         constraint: Option<Rc<Type>>,
     ) -> Rc<Node /*TypeParameterDeclaration*/> {
         let constraint =
-            constraint.or_else(|| type_checker.get_constraint_of_type_parameter(type_));
+            constraint.or_else(|| self.type_checker.get_constraint_of_type_parameter(type_));
         unimplemented!()
     }
 
@@ -1449,7 +1401,6 @@ impl NodeBuilder {
 
     pub(super) fn symbol_to_type_node(
         &self,
-        type_checker: &TypeChecker,
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: SymbolFlags,
@@ -1458,8 +1409,7 @@ impl NodeBuilder {
         let chain = self.lookup_symbol_chain(symbol, context, Some(meaning));
 
         let chain_index = chain.len() - 1;
-        let entity_name =
-            self.create_access_from_symbol_chain(type_checker, context, chain, chain_index, 0);
+        let entity_name = self.create_access_from_symbol_chain(context, chain, chain_index, 0);
         if false {
             unimplemented!()
         } else {
@@ -1485,7 +1435,6 @@ impl NodeBuilder {
 
     pub(super) fn create_access_from_symbol_chain(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         chain: Vec<Rc<Symbol>>,
         index: usize,
@@ -1496,12 +1445,18 @@ impl NodeBuilder {
 
         let mut symbol_name: Option<Cow<'static, str>>;
         if index == 0 {
-            symbol_name = Some(type_checker.get_name_of_symbol_as_written(&symbol, Some(context)));
+            symbol_name = Some(
+                self.type_checker
+                    .get_name_of_symbol_as_written(&symbol, Some(context)),
+            );
         } else {
             unimplemented!()
         }
         if symbol_name.is_none() {
-            symbol_name = Some(type_checker.get_name_of_symbol_as_written(&symbol, Some(context)));
+            symbol_name = Some(
+                self.type_checker
+                    .get_name_of_symbol_as_written(&symbol, Some(context)),
+            );
         }
         let symbol_name = symbol_name.unwrap();
 
@@ -1530,7 +1485,6 @@ impl NodeBuilder {
 
     pub(super) fn symbol_to_name(
         &self,
-        type_checker: &TypeChecker,
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
@@ -1541,19 +1495,17 @@ impl NodeBuilder {
 
     pub(super) fn symbol_to_expression_(
         &self,
-        type_checker: &TypeChecker,
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
     ) -> Rc<Node> {
         let chain = self.lookup_symbol_chain(symbol, context, meaning);
         let index = chain.len() - 1;
-        self.create_expression_from_symbol_chain(type_checker, context, chain, index)
+        self.create_expression_from_symbol_chain(context, chain, index)
     }
 
     pub(super) fn get_property_name_node_for_symbol(
         &self,
-        type_checker: &TypeChecker,
         symbol: &Symbol,
         context: &NodeBuilderContext,
     ) -> Rc<Node> {
@@ -1561,7 +1513,6 @@ impl NodeBuilder {
         let string_named = false;
         let raw_name = unescape_leading_underscores(symbol.escaped_name());
         self.create_property_name_node_for_identifier_or_literal(
-            type_checker,
             raw_name,
             Some(string_named),
             Some(single_quote),
@@ -1570,14 +1521,13 @@ impl NodeBuilder {
 
     pub(super) fn create_property_name_node_for_identifier_or_literal(
         &self,
-        type_checker: &TypeChecker,
         name: String,
         string_named: Option<bool>,
         single_quote: Option<bool>,
     ) -> Rc<Node> {
         if is_identifier_text(
             &name,
-            Some(get_emit_script_target(&type_checker.compiler_options)),
+            Some(get_emit_script_target(&self.type_checker.compiler_options)),
             None,
         ) {
             synthetic_factory.with(|synthetic_factory_| {
@@ -1598,7 +1548,6 @@ impl NodeBuilder {
 
     pub(super) fn create_expression_from_symbol_chain(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         chain: Vec<Rc<Symbol>>,
         index: usize,
@@ -1606,7 +1555,9 @@ impl NodeBuilder {
         let type_parameter_nodes = Option::<NodeArray>::None; // TODO: this is wrong
         let symbol = &*(&chain)[index];
 
-        let symbol_name = type_checker.get_name_of_symbol_as_written(symbol, Some(context));
+        let symbol_name = self
+            .type_checker
+            .get_name_of_symbol_as_written(symbol, Some(context));
 
         if index == 0 || false {
             let identifier = synthetic_factory.with(|synthetic_factory_| {
@@ -1628,12 +1579,11 @@ impl NodeBuilder {
 
     pub(super) fn serialize_type_for_declaration(
         &self,
-        type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type,
         symbol: &Symbol,
     ) -> Rc<Node> {
-        let result = self.type_to_type_node_helper(type_checker, Some(type_), context);
+        let result = self.type_to_type_node_helper(Some(type_), context);
         result.unwrap()
     }
 

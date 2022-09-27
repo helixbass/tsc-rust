@@ -10,7 +10,7 @@ use std::iter::FromIterator;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{create_node_builder, is_not_accessor, is_not_overload};
+use super::{is_not_accessor, is_not_overload};
 use crate::{
     add_range, contains_parse_error, get_first_identifier, is_function_like,
     is_property_access_expression, is_property_access_or_qualified_name_or_import_type_node,
@@ -20,7 +20,7 @@ use crate::{
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, EmitTextWriter,
     Extension, ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType,
     GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, IterationTypeCacheKey,
-    IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags,
+    IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
     NodeCheckFlags, NodeFlags, NodeId, NodeInterface, NodeLinks, Number, ObjectFlags,
     ObjectFlagsTypeInterface, Path, PatternAmbientModule, PseudoBigInt, RelationComparisonResult,
     Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
@@ -570,7 +570,7 @@ pub fn create_type_checker(
 
         check_binary_expression: RefCell::new(None),
         emit_resolver: None,
-        node_builder: create_node_builder(),
+        node_builder: RefCell::new(None),
 
         globals: Rc::new(RefCell::new(create_symbol_table(None))),
         undefined_symbol: None,
@@ -1376,6 +1376,8 @@ pub fn create_type_checker(
     *rc_wrapped.check_binary_expression.borrow_mut() =
         Some(Rc::new(rc_wrapped.create_check_binary_expression()));
 
+    *rc_wrapped.node_builder.borrow_mut() = Some(Rc::new(rc_wrapped.create_node_builder()));
+
     rc_wrapped
 }
 
@@ -1590,6 +1592,10 @@ impl TypeChecker {
         self.check_binary_expression.borrow().clone().unwrap()
     }
 
+    pub(super) fn node_builder(&self) -> Rc<NodeBuilder> {
+        self.node_builder.borrow().clone().unwrap()
+    }
+
     pub(super) fn globals(&self) -> Ref<SymbolTable> {
         (*self.globals).borrow()
     }
@@ -1771,8 +1777,8 @@ impl TypeChecker {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Rc<Node /*TypeNode*/>> {
-        self.node_builder
-            .type_to_type_node(self, type_, enclosing_declaration, flags, tracker)
+        self.node_builder()
+            .type_to_type_node(type_, enclosing_declaration, flags, tracker)
     }
 
     pub fn index_info_to_index_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
@@ -1782,12 +1788,13 @@ impl TypeChecker {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Rc<Node /*IndexSignatureDeclaration*/>> {
-        self.node_builder.index_info_to_index_signature_declaration(
-            index_info,
-            enclosing_declaration,
-            flags,
-            tracker,
-        )
+        self.node_builder()
+            .index_info_to_index_signature_declaration(
+                index_info,
+                enclosing_declaration,
+                flags,
+                tracker,
+            )
     }
 
     pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
@@ -1798,7 +1805,7 @@ impl TypeChecker {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Rc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>> {
-        self.node_builder.signature_to_signature_declaration(
+        self.node_builder().signature_to_signature_declaration(
             signature,
             kind,
             enclosing_declaration,
@@ -1814,8 +1821,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
     ) -> Option<Rc<Node /*EntityName*/>> {
-        self.node_builder.symbol_to_entity_name(
-            self,
+        self.node_builder().symbol_to_entity_name(
             symbol,
             Some(meaning),
             enclosing_declaration,
@@ -1831,8 +1837,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
     ) -> Option<Rc<Node /*Expression*/>> {
-        self.node_builder.symbol_to_expression(
-            self,
+        self.node_builder().symbol_to_expression(
             symbol,
             Some(meaning),
             enclosing_declaration,
@@ -1847,7 +1852,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
     ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
-        self.node_builder.symbol_to_type_parameter_declarations(
+        self.node_builder().symbol_to_type_parameter_declarations(
             symbol,
             enclosing_declaration,
             flags,
@@ -1861,7 +1866,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
     ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
-        self.node_builder.symbol_to_parameter_declaration(
+        self.node_builder().symbol_to_parameter_declaration(
             symbol,
             enclosing_declaration,
             flags,
@@ -1875,8 +1880,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
     ) -> Option<Rc<Node /*TypeParameterDeclaration*/>> {
-        self.node_builder.type_parameter_to_declaration(
-            self,
+        self.node_builder().type_parameter_to_declaration(
             parameter,
             enclosing_declaration,
             flags,

@@ -302,8 +302,7 @@ impl TypeChecker {
             self.get_symbol(&(**exports).borrow(), &JsxNames::Element, SymbolFlags::Type)
         });
         let return_node = type_symbol.as_ref().and_then(|type_symbol| {
-            self.node_builder.symbol_to_entity_name(
-                self,
+            self.node_builder().symbol_to_entity_name(
                 type_symbol,
                 Some(SymbolFlags::Type),
                 Some(node),
@@ -325,8 +324,7 @@ impl TypeChecker {
                                 None,
                                 Some("props".to_owned()),
                                 None,
-                                self.node_builder.type_to_type_node(
-                                    self,
+                                self.node_builder().type_to_type_node(
                                     result,
                                     Some(node),
                                     None,

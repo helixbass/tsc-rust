@@ -256,8 +256,7 @@ impl TypeChecker {
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let symbol_to_string_worker = |writer: Rc<RefCell<dyn EmitTextWriter>>| {
             let entity = builder(
-                &self.node_builder,
-                self,
+                &self.node_builder(),
                 symbol,
                 // meaning.unwrap() TODO: this is ! in the Typescript code but would be undefined at runtime when called from propertyRelatedTo()?
                 meaning,
@@ -355,7 +354,7 @@ impl TypeChecker {
         }
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let sig = self.node_builder.signature_to_signature_declaration(
+        let sig = self.node_builder().signature_to_signature_declaration(
             signature,
             sig_output,
             enclosing_declaration.as_deref(),
@@ -403,8 +402,7 @@ impl TypeChecker {
             || flags.intersects(TypeFormatFlags::NoTruncation);
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let type_node = self.node_builder.type_to_type_node(
-            self,
+        let type_node = self.node_builder().type_to_type_node(
             type_,
             enclosing_declaration.as_deref(),
             Some(
@@ -511,30 +509,31 @@ impl TypeChecker {
             )
         )
     }
-}
 
-pub(super) fn create_node_builder() -> NodeBuilder {
-    NodeBuilder::new()
+    pub(super) fn create_node_builder(&self) -> NodeBuilder {
+        NodeBuilder::new(self.rc_wrapper())
+    }
 }
 
 #[derive(Debug)]
-pub struct NodeBuilder {}
+pub struct NodeBuilder {
+    pub type_checker: Rc<TypeChecker>,
+}
 
 impl NodeBuilder {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(type_checker: Rc<TypeChecker>) -> Self {
+        Self { type_checker }
     }
 
     pub fn type_to_type_node<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        type_checker: &TypeChecker,
         type_: &Type,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Rc<Node>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
-            self.type_to_type_node_helper(type_checker, Some(type_), context)
+            self.type_to_type_node_helper(Some(type_), context)
         })
     }
 
@@ -569,7 +568,6 @@ impl NodeBuilder {
 
     pub fn symbol_to_entity_name<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        type_checker: &TypeChecker,
         symbol: &Symbol,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
@@ -577,13 +575,12 @@ impl NodeBuilder {
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Rc<Node /*EntityName*/>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
-            Some(self.symbol_to_name(type_checker, symbol, context, meaning, false))
+            Some(self.symbol_to_name(symbol, context, meaning, false))
         })
     }
 
     pub fn symbol_to_expression<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        type_checker: &TypeChecker,
         symbol: &Symbol,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
@@ -591,7 +588,7 @@ impl NodeBuilder {
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Rc<Node>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
-            Some(self.symbol_to_expression_(type_checker, symbol, context, meaning))
+            Some(self.symbol_to_expression_(symbol, context, meaning))
         })
     }
 
@@ -627,14 +624,13 @@ impl NodeBuilder {
 
     pub fn type_parameter_to_declaration<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        type_checker: &TypeChecker,
         parameter: &Type, /*TypeParameter*/
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Rc<Node /*TypeParameterDeclaration*/>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
-            Some(self.type_parameter_to_declaration_(type_checker, parameter, context, None))
+            Some(self.type_parameter_to_declaration_(parameter, context, None))
         })
     }
 
@@ -704,11 +700,10 @@ impl NodeBuilder {
 
     pub(super) fn type_to_type_node_helper<TType: Borrow<Type>>(
         &self,
-        type_checker: &TypeChecker,
         type_: Option<TType>,
         context: &NodeBuilderContext,
     ) -> Option<Rc<Node>> {
-        if let Some(cancellation_token) = type_checker.maybe_cancellation_token()
+        if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token()
         /*&& cancellationToken.throwIfCancellationRequested*/
         {
             // cancellationToken.throwIfCancellationRequested();
@@ -742,7 +737,7 @@ impl NodeBuilder {
             .flags()
             .intersects(NodeBuilderFlags::NoTypeReduction)
         {
-            type_ = type_checker.get_reduced_type(&type_);
+            type_ = self.type_checker.get_reduced_type(&type_);
         }
 
         if type_.flags().intersects(TypeFlags::Any) {
@@ -754,7 +749,6 @@ impl NodeBuilder {
                                 synthetic_factory_,
                                 self.symbol_to_entity_name_node(&type_alias_symbol),
                                 self.map_to_type_nodes(
-                                    type_checker,
                                     type_.maybe_alias_type_arguments().as_deref(),
                                     context,
                                     None,
@@ -764,7 +758,7 @@ impl NodeBuilder {
                     })
                 }));
             }
-            if Rc::ptr_eq(&type_, &type_checker.unresolved_type()) {
+            if Rc::ptr_eq(&type_, &self.type_checker.unresolved_type()) {
                 let ret: Node =
                     synthetic_factory.with(|synthetic_factory_| {
                         factory.with(|factory_| {
@@ -788,7 +782,7 @@ impl NodeBuilder {
                 factory.with(|factory_| {
                     Into::<KeywordTypeNode>::into(factory_.create_keyword_type_node(
                         synthetic_factory_,
-                        if Rc::ptr_eq(&type_, &type_checker.intrinsic_marker_type()) {
+                        if Rc::ptr_eq(&type_, &self.type_checker.intrinsic_marker_type()) {
                             SyntaxKind::IntrinsicKeyword
                         } else {
                             SyntaxKind::AnyKeyword
@@ -864,16 +858,16 @@ impl NodeBuilder {
         if type_.flags().intersects(TypeFlags::EnumLiteral)
             && !type_.flags().intersects(TypeFlags::Union)
         {
-            let parent_symbol = type_checker.get_parent_of_symbol(&type_.symbol()).unwrap();
-            let parent_name = self.symbol_to_type_node(
-                type_checker,
-                &parent_symbol,
-                context,
-                SymbolFlags::Type,
-                None,
-            );
+            let parent_symbol = self
+                .type_checker
+                .get_parent_of_symbol(&type_.symbol())
+                .unwrap();
+            let parent_name =
+                self.symbol_to_type_node(&parent_symbol, context, SymbolFlags::Type, None);
             if Rc::ptr_eq(
-                &type_checker.get_declared_type_of_symbol(&parent_symbol),
+                &self
+                    .type_checker
+                    .get_declared_type_of_symbol(&parent_symbol),
                 &type_,
             ) {
                 return Some(parent_name);
@@ -957,7 +951,6 @@ impl NodeBuilder {
         }
         if type_.flags().intersects(TypeFlags::EnumLike) {
             return Some(self.symbol_to_type_node(
-                type_checker,
                 &type_.symbol(),
                 context,
                 SymbolFlags::Type,
@@ -1070,13 +1063,12 @@ impl NodeBuilder {
                 .flags()
                 .intersects(NodeBuilderFlags::AllowUniqueESSymbolType)
             {
-                if type_checker.is_value_symbol_accessible(
+                if self.type_checker.is_value_symbol_accessible(
                     &type_.symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
                 ) {
                     context.increment_approximate_length_by(6);
                     return Some(self.symbol_to_type_node(
-                        type_checker,
                         &type_.symbol(),
                         context,
                         SymbolFlags::Value,
@@ -1183,7 +1175,7 @@ impl NodeBuilder {
                 })
             }));
         }
-        if type_checker.is_this_type_parameter(&type_) {
+        if self.type_checker.is_this_type_parameter(&type_) {
             if context
                 .flags()
                 .intersects(NodeBuilderFlags::InObjectTypeLiteral)
@@ -1210,18 +1202,19 @@ impl NodeBuilder {
                 if context
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
-                    || type_checker.is_type_symbol_accessible(
+                    || self.type_checker.is_type_symbol_accessible(
                         &type_alias_symbol,
                         context.maybe_enclosing_declaration().as_deref(),
                     )
                 {
                     let type_argument_nodes = self.map_to_type_nodes(
-                        type_checker,
                         type_.maybe_alias_type_arguments().as_deref(),
                         context,
                         None,
                     );
-                    if type_checker.is_reserved_member_name(type_alias_symbol.escaped_name())
+                    if self
+                        .type_checker
+                        .is_reserved_member_name(type_alias_symbol.escaped_name())
                         && !type_alias_symbol.flags().intersects(SymbolFlags::Class)
                     {
                         return Some(synthetic_factory.with(|synthetic_factory_| {
@@ -1242,7 +1235,6 @@ impl NodeBuilder {
                         }));
                     }
                     return Some(self.symbol_to_type_node(
-                        type_checker,
                         &type_alias_symbol,
                         context,
                         SymbolFlags::Type,
@@ -1257,13 +1249,11 @@ impl NodeBuilder {
         if object_flags.intersects(ObjectFlags::Reference) {
             Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
             return Some(if type_.as_type_reference().node.borrow().is_some() {
-                self.visit_and_transform_type(type_checker, context, &type_, |type_| {
-                    self.type_reference_to_type_node(type_checker, context, type_)
-                        .unwrap()
+                self.visit_and_transform_type(context, &type_, |type_| {
+                    self.type_reference_to_type_node(context, type_).unwrap()
                 })
             } else {
-                self.type_reference_to_type_node(type_checker, context, &type_)
-                    .unwrap()
+                self.type_reference_to_type_node(context, &type_).unwrap()
             });
         }
         if type_.flags().intersects(TypeFlags::TypeParameter)
@@ -1293,7 +1283,7 @@ impl NodeBuilder {
                 .flags()
                 .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
                 && type_.flags().intersects(TypeFlags::TypeParameter)
-                && !type_checker.is_type_symbol_accessible(
+                && !self.type_checker.is_type_symbol_accessible(
                     &type_.symbol(),
                     context.maybe_enclosing_declaration().as_deref(),
                 )
@@ -1318,13 +1308,7 @@ impl NodeBuilder {
                 }));
             }
             return Some(if let Some(type_symbol) = type_.maybe_symbol() {
-                self.symbol_to_type_node(
-                    type_checker,
-                    &type_symbol,
-                    context,
-                    SymbolFlags::Type,
-                    None,
-                )
+                self.symbol_to_type_node(&type_symbol, context, SymbolFlags::Type, None)
             } else {
                 synthetic_factory.with(|synthetic_factory_| {
                     factory.with(|factory_| {
@@ -1356,16 +1340,15 @@ impl NodeBuilder {
             let types = {
                 let types = type_.as_union_or_intersection_type_interface().types();
                 if type_.flags().intersects(TypeFlags::Union) {
-                    type_checker.format_union_types(types)
+                    self.type_checker.format_union_types(types)
                 } else {
                     types.to_vec()
                 }
             };
             if types.len() == 1 {
-                return self.type_to_type_node_helper(type_checker, Some(&*types[0]), context);
+                return self.type_to_type_node_helper(Some(&*types[0]), context);
             }
-            let type_nodes =
-                self.map_to_type_nodes(type_checker, Some(&types), context, Some(true));
+            let type_nodes = self.map_to_type_nodes(Some(&types), context, Some(true));
             if let Some(type_nodes) = type_nodes {
                 if !type_nodes.is_empty() {
                     return Some(if type_.flags().intersects(TypeFlags::Union) {
@@ -1398,13 +1381,13 @@ impl NodeBuilder {
         }
         if object_flags.intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped) {
             Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
-            return Some(self.create_anonymous_type_node(type_checker, context, &type_));
+            return Some(self.create_anonymous_type_node(context, &type_));
         }
         if type_.flags().intersects(TypeFlags::Index) {
             let indexed_type = &type_.as_index_type().type_;
             context.increment_approximate_length_by(6);
             let index_type_node = self
-                .type_to_type_node_helper(type_checker, Some(&**indexed_type), context)
+                .type_to_type_node_helper(Some(&**indexed_type), context)
                 .unwrap();
             return Some(synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
@@ -1441,12 +1424,7 @@ impl NodeBuilder {
                             factory_
                                 .create_template_literal_type_span(
                                     synthetic_factory_,
-                                    self.type_to_type_node_helper(
-                                        type_checker,
-                                        Some(&**t),
-                                        context,
-                                    )
-                                    .unwrap(),
+                                    self.type_to_type_node_helper(Some(&**t), context).unwrap(),
                                     if i < types.len() - 1 {
                                         factory_
                                             .create_template_middle(
@@ -1488,14 +1466,9 @@ impl NodeBuilder {
         }
         if type_.flags().intersects(TypeFlags::StringMapping) {
             let type_node = self
-                .type_to_type_node_helper(
-                    type_checker,
-                    Some(&*type_.as_string_mapping_type().type_),
-                    context,
-                )
+                .type_to_type_node_helper(Some(&*type_.as_string_mapping_type().type_), context)
                 .unwrap();
             return Some(self.symbol_to_type_node(
-                type_checker,
                 &type_.symbol(),
                 context,
                 SymbolFlags::Type,
@@ -1505,18 +1478,10 @@ impl NodeBuilder {
         if type_.flags().intersects(TypeFlags::IndexedAccess) {
             let type_as_indexed_access_type = type_.as_indexed_access_type();
             let object_type_node = self
-                .type_to_type_node_helper(
-                    type_checker,
-                    Some(&*type_as_indexed_access_type.object_type),
-                    context,
-                )
+                .type_to_type_node_helper(Some(&*type_as_indexed_access_type.object_type), context)
                 .unwrap();
             let index_type_node = self
-                .type_to_type_node_helper(
-                    type_checker,
-                    Some(&*type_as_indexed_access_type.index_type),
-                    context,
-                )
+                .type_to_type_node_helper(Some(&*type_as_indexed_access_type.index_type), context)
                 .unwrap();
             context.increment_approximate_length_by(2);
             return Some(synthetic_factory.with(|synthetic_factory_| {
@@ -1532,18 +1497,13 @@ impl NodeBuilder {
             }));
         }
         if type_.flags().intersects(TypeFlags::Conditional) {
-            return Some(
-                self.visit_and_transform_type(type_checker, context, &type_, |type_| {
-                    self.conditional_type_to_type_node(type_checker, context, type_)
-                }),
-            );
+            return Some(self.visit_and_transform_type(context, &type_, |type_| {
+                self.conditional_type_to_type_node(context, type_)
+            }));
         }
         if type_.flags().intersects(TypeFlags::Substitution) {
-            return self.type_to_type_node_helper(
-                type_checker,
-                Some(&*type_.as_substitution_type().base_type),
-                context,
-            );
+            return self
+                .type_to_type_node_helper(Some(&*type_.as_substitution_type().base_type), context);
         }
 
         Debug_.fail(Some("Should be unreachable."));

@@ -69,8 +69,7 @@ impl TypeChecker {
                             factory_.create_this_type_node(synthetic_factory_).into()
                         },
                         type_predicate.type_.as_ref().and_then(|type_| {
-                            self.node_builder.type_to_type_node(
-                                self,
+                            self.node_builder().type_to_type_node(
                                 type_,
                                 enclosing_declaration.as_deref(),
                                 Some(
