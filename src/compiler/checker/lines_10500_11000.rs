@@ -476,7 +476,7 @@ impl TypeChecker {
             members = Rc::new(RefCell::new(
                 self.create_instantiated_symbol_table(
                     source
-                        .as_base_interface_type()
+                        .as_interface_type()
                         .maybe_declared_properties()
                         .as_ref()
                         .unwrap(),
