@@ -362,6 +362,16 @@ impl TypePredicateNode {
     }
 }
 
+impl HasTypeInterface for TypePredicateNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_;
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct TypeQueryNode {
@@ -499,6 +509,16 @@ impl OptionalTypeNode {
             _node: base_node,
             type_,
         }
+    }
+}
+
+impl HasTypeInterface for OptionalTypeNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 

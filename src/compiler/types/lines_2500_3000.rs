@@ -1525,6 +1525,16 @@ impl TypeAliasDeclaration {
     }
 }
 
+impl HasTypeInterface for TypeAliasDeclaration {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct EnumMember {

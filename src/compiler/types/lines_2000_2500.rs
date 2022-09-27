@@ -6,7 +6,8 @@ use std::rc::Rc;
 
 use super::{
     BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, NamedDeclarationInterface, Node, NodeArray, SyntaxKind,
+    HasTypeArgumentsInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
+    SyntaxKind,
 };
 use local_macros::ast_type;
 
@@ -724,6 +725,16 @@ impl HasExpressionInterface for AsExpression {
     }
 }
 
+impl HasTypeInterface for AsExpression {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct TypeAssertion {
@@ -745,6 +756,16 @@ impl TypeAssertion {
 impl HasExpressionInterface for TypeAssertion {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl HasTypeInterface for TypeAssertion {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 

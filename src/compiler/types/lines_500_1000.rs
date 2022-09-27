@@ -487,16 +487,6 @@ impl Node {
         }
     }
 
-    pub fn maybe_as_has_type(&self) -> Option<&dyn HasTypeInterface> {
-        match self {
-            Node::VariableDeclaration(variable_declaration) => Some(variable_declaration),
-            Node::PropertySignature(property_signature) => Some(property_signature),
-            Node::FunctionDeclaration(function_declaration) => Some(function_declaration),
-            Node::ParameterDeclaration(parameter_declaration) => Some(parameter_declaration),
-            _ => None,
-        }
-    }
-
     pub fn maybe_as_has_initializer(&self) -> Option<&dyn HasInitializerInterface> {
         match self {
             Node::VariableDeclaration(node) => Some(node),
@@ -629,6 +619,44 @@ impl Node {
             Node::MethodSignature(node) => node,
             Node::MethodDeclaration(node) => node,
             _ => panic!("Expected signature declaration"),
+        }
+    }
+
+    pub fn maybe_as_has_type(&self) -> Option<&dyn HasTypeInterface> {
+        match self {
+            Node::FunctionExpression(node) => Some(node),
+            Node::ArrowFunction(node) => Some(node),
+            Node::AsExpression(node) => Some(node),
+            Node::TypeAssertion(node) => Some(node),
+            Node::PropertySignature(node) => Some(node),
+            Node::PropertyDeclaration(node) => Some(node),
+            Node::TypeAliasDeclaration(node) => Some(node),
+            Node::JSDocTypeExpression(node) => Some(node),
+            Node::BaseJSDocUnaryType(node) => Some(node),
+            Node::JSDocFunctionType(node) => Some(node),
+            Node::JSDocSignature(node) => Some(node),
+            Node::ConstructorDeclaration(node) => Some(node),
+            Node::GetAccessorDeclaration(node) => Some(node),
+            Node::SetAccessorDeclaration(node) => Some(node),
+            Node::IndexSignatureDeclaration(node) => Some(node),
+            Node::VariableDeclaration(node) => Some(node),
+            Node::ParameterDeclaration(node) => Some(node),
+            Node::FunctionTypeNode(node) => Some(node),
+            Node::ConstructorTypeNode(node) => Some(node),
+            Node::TypePredicateNode(node) => Some(node),
+            Node::NamedTupleMember(node) => Some(node),
+            Node::OptionalTypeNode(node) => Some(node),
+            Node::RestTypeNode(node) => Some(node),
+            Node::ParenthesizedTypeNode(node) => Some(node),
+            Node::TypeOperatorNode(node) => Some(node),
+            Node::MappedTypeNode(node) => Some(node),
+            Node::TemplateLiteralTypeSpan(node) => Some(node),
+            Node::CallSignatureDeclaration(node) => Some(node),
+            Node::ConstructSignatureDeclaration(node) => Some(node),
+            Node::FunctionDeclaration(node) => Some(node),
+            Node::MethodSignature(node) => Some(node),
+            Node::MethodDeclaration(node) => Some(node),
+            _ => None,
         }
     }
 
