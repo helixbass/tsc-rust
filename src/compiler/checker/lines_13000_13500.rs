@@ -14,9 +14,9 @@ use crate::{
     is_statement, is_type_alias, length, map, maybe_concatenate, skip_parentheses,
     walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType, CheckFlags, Diagnostics,
     InterfaceTypeInterface, Node, NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    ObjectTypeInterface, SubstitutionType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeReference,
-    TypeReferenceInterface, TypeSystemPropertyName,
+    ObjectTypeInterface, SubstitutionType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    TypeMapper, TypeReference, TypeReferenceInterface, TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -820,6 +820,14 @@ impl TypeChecker {
                     )
                     .into(),
                 );
+                let result = result.as_ref().unwrap();
+                self.unresolved_symbols().insert(path, result.clone());
+                result.set_parent(parent_symbol);
+                result
+                    .as_transient_symbol()
+                    .symbol_links()
+                    .borrow_mut()
+                    .declared_type = Some(self.unresolved_type());
             }
             return result.unwrap();
         }
