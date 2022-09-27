@@ -9,18 +9,19 @@ use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext};
 use crate::{
-    contains_rc, count_where, factory, filter, get_check_flags,
-    get_declaration_modifier_flags_from_symbol, get_emit_script_target, get_object_flags,
-    get_parse_tree_node, is_class_like, is_identifier, is_identifier_text, is_import_type_node,
-    is_static, last, length, map, maybe_for_each_bool, node_is_synthesized,
-    null_transformation_context, range_equals_rc, same_map, set_emit_flags, set_text_range, some,
-    synthetic_factory, unescape_leading_underscores, using_single_line_string_writer,
-    visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags, EmitTextWriter, IndexInfo,
-    InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder,
-    NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypePredicate, VisitResult,
+    contains_rc, count_where, factory, filter, first, get_check_flags,
+    get_declaration_modifier_flags_from_symbol, get_emit_script_target, get_name_of_declaration,
+    get_object_flags, get_parse_tree_node, is_binary_expression, is_class_like,
+    is_element_access_expression, is_identifier, is_identifier_text, is_import_type_node,
+    is_property_access_entity_name_expression, is_static, last, length, map, maybe_for_each_bool,
+    node_is_synthesized, null_transformation_context, range_equals_rc, same_map, set_emit_flags,
+    set_text_range, some, symbol_name, synthetic_factory, unescape_leading_underscores,
+    using_single_line_string_writer, visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags,
+    EmitTextWriter, IndexInfo, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node,
+    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeId, TypeInterface, TypePredicate, VisitResult,
 };
 
 impl NodeBuilder {
@@ -1243,49 +1244,194 @@ impl NodeBuilder {
         };
         let save_enclosing_declaration = context.maybe_enclosing_declaration();
         context.set_enclosing_declaration(None);
-        let property_name = self.get_property_name_node_for_symbol(property_symbol, context);
-        let optional_token = if property_symbol.flags().intersects(SymbolFlags::Optional) {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    Some(factory_.create_token(synthetic_factory_, SyntaxKind::QuestionToken))
+        if context.tracker.is_track_symbol_supported()
+            && get_check_flags(property_symbol).intersects(CheckFlags::Late)
+            && self
+                .type_checker
+                .is_late_bound_name(property_symbol.escaped_name())
+        {
+            if let Some(property_symbol_declarations) =
+                property_symbol.maybe_declarations().as_ref()
+            {
+                let decl: &Rc<Node> = first(property_symbol_declarations);
+                if self.type_checker.has_late_bindable_name(decl) {
+                    if is_binary_expression(decl) {
+                        let name = get_name_of_declaration(Some(&**decl));
+                        if let Some(name) = name.as_ref().filter(|name| {
+                            is_element_access_expression(name)
+                                && is_property_access_entity_name_expression(
+                                    &name.as_element_access_expression().argument_expression,
+                                )
+                        }) {
+                            self.track_computed_name(
+                                &name.as_element_access_expression().argument_expression,
+                                save_enclosing_declaration.as_deref(),
+                                context,
+                            );
+                        }
+                    } else {
+                        self.track_computed_name(
+                            &decl
+                                .as_named_declaration()
+                                .name()
+                                .as_has_expression()
+                                .expression(),
+                            save_enclosing_declaration.as_deref(),
+                            context,
+                        );
+                    }
+                }
+            } else if context
+                .tracker
+                .is_report_non_serializable_property_supported()
+            {
+                context.tracker.report_non_serializable_property(
+                    &self.type_checker.symbol_to_string_(
+                        property_symbol,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                        None,
+                    ),
+                );
+            }
+        }
+        context.set_enclosing_declaration(
+            property_symbol
+                .maybe_value_declaration()
+                .or_else(|| {
+                    property_symbol.maybe_declarations().as_ref().and_then(
+                        |property_symbol_declarations| property_symbol_declarations.get(0).cloned(),
+                    )
                 })
-            })
-        } else {
-            None
-        };
-        if false {
-            unimplemented!()
+                .or_else(|| save_enclosing_declaration.clone()),
+        );
+        let property_name = self.get_property_name_node_for_symbol(property_symbol, context);
+        context.set_enclosing_declaration(save_enclosing_declaration.clone());
+        context.increment_approximate_length_by(symbol_name(property_symbol).len() + 1);
+        let optional_token: Option<Rc<Node>> =
+            if property_symbol.flags().intersects(SymbolFlags::Optional) {
+                synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        Some(
+                            factory_
+                                .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
+                                .into(),
+                        )
+                    })
+                })
+            } else {
+                None
+            };
+        if property_symbol
+            .flags()
+            .intersects(SymbolFlags::Function | SymbolFlags::Method)
+            && self
+                .type_checker
+                .get_properties_of_object_type(&property_type)
+                .is_empty()
+            && !self.type_checker.is_readonly_symbol(property_symbol)
+        {
+            let signatures = self.type_checker.get_signatures_of_type(
+                &self.type_checker.filter_type(&property_type, |t| {
+                    !t.flags().intersects(TypeFlags::Undefined)
+                }),
+                SignatureKind::Call,
+            );
+            for signature in &signatures {
+                let method_declaration = self.signature_to_signature_declaration_helper(
+                    signature,
+                    SyntaxKind::MethodSignature,
+                    context,
+                    Some(SignatureToSignatureDeclarationOptions {
+                        modifiers: None,
+                        name: Some(property_name.clone()),
+                        question_token: optional_token.clone(),
+                        bundled_imports: None,
+                    }),
+                );
+                type_elements.push(self.preserve_comments_on(method_declaration));
+            }
         } else {
             let property_type_node: Rc<Node>;
-            if false {
-                unimplemented!()
+            if self.should_use_placeholder_for_property(property_symbol, context) {
+                property_type_node = self.create_elided_information_placeholder(context);
             } else {
-                property_type_node = if true {
-                    self.serialize_type_for_declaration(context, &property_type, property_symbol)
+                if property_is_reverse_mapped {
+                    context
+                        .reverse_mapped_stack
+                        .borrow_mut()
+                        .get_or_insert_with(|| vec![])
+                        .push(property_symbol.symbol_wrapper());
+                }
+                property_type_node = if true
+                /*propertyType*/
+                {
+                    self.serialize_type_for_declaration(
+                        context,
+                        &property_type,
+                        property_symbol,
+                        save_enclosing_declaration.as_deref(),
+                        Option::<fn(&Symbol)>::None,
+                        None,
+                    )
                 } else {
-                    unimplemented!()
+                    synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_
+                                .create_keyword_type_node(
+                                    synthetic_factory_,
+                                    SyntaxKind::AnyKeyword,
+                                )
+                                .into()
+                        })
+                    })
                 };
+                if property_is_reverse_mapped {
+                    context
+                        .reverse_mapped_stack
+                        .borrow_mut()
+                        .as_mut()
+                        .unwrap()
+                        .pop();
+                }
             }
 
-            let modifiers = if false {
-                unimplemented!()
-            } else {
-                Option::<NodeArray>::None
-            };
-            let property_signature = synthetic_factory.with(|synthetic_factory_| {
+            let modifiers: Option<Vec<Rc<Node>>> =
+                if self.type_checker.is_readonly_symbol(property_symbol) {
+                    Some(vec![synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_
+                                .create_token(synthetic_factory_, SyntaxKind::ReadonlyKeyword)
+                                .into()
+                        })
+                    })])
+                } else {
+                    None
+                };
+            if modifiers.is_some() {
+                context.increment_approximate_length_by(9);
+            }
+            let property_signature: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
-                    factory_.create_property_signature(
-                        synthetic_factory_,
-                        modifiers,
-                        property_name,
-                        optional_token.map(Into::into),
-                        Some(property_type_node),
-                    )
+                    factory_
+                        .create_property_signature(
+                            synthetic_factory_,
+                            modifiers,
+                            property_name,
+                            optional_token,
+                            Some(property_type_node),
+                        )
+                        .into()
                 })
             });
 
-            type_elements.push(property_signature.into());
+            type_elements.push(self.preserve_comments_on(property_signature));
         }
+    }
+
+    pub(super) fn preserve_comments_on(&self, node: Rc<Node>) -> Rc<Node> {
+        unimplemented!()
     }
 
     pub(super) fn map_to_type_nodes(
@@ -1360,6 +1506,15 @@ impl NodeBuilder {
         private_symbol_visitor: Option<TPrivateSymbolVisitor>,
         bundled_imports: Option<bool>,
     ) -> Rc<Node /*ParameterDeclaration*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn track_computed_name<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        access_expression: &Node, /*EntityNameOrEntityNameExpression*/
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        context: &NodeBuilderContext,
+    ) {
         unimplemented!()
     }
 
@@ -1577,11 +1732,17 @@ impl NodeBuilder {
         }
     }
 
-    pub(super) fn serialize_type_for_declaration(
+    pub(super) fn serialize_type_for_declaration<
+        TEnclosingDeclaration: Borrow<Node>,
+        TIncludePrivateSymbol: FnMut(&Symbol),
+    >(
         &self,
         context: &NodeBuilderContext,
         type_: &Type,
         symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        include_private_symbol: Option<TIncludePrivateSymbol>,
+        bundled: Option<bool>,
     ) -> Rc<Node> {
         let result = self.type_to_type_node_helper(Some(type_), context);
         result.unwrap()
@@ -1627,4 +1788,10 @@ impl TypeChecker {
     }
 }
 
-pub(super) struct SignatureToSignatureDeclarationOptions {}
+pub(super) struct SignatureToSignatureDeclarationOptions {
+    pub modifiers: Option<Vec<Rc<Node /*Modifier*/>>>,
+    pub name: Option<Rc<Node /*PropertyName*/>>,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+    // pub private_symbol_visitor:
+    pub bundled_imports: Option<bool>,
+}
