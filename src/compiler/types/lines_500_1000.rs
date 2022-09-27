@@ -464,10 +464,8 @@ impl Node {
     }
 
     pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
-        self.maybe_as_named_declaration().expect(&format!(
-            "Expected named declaration, got {:?}",
-            self.kind()
-        ))
+        self.maybe_as_named_declaration()
+            .expect("Expected named declaration")
     }
 
     pub fn as_member_name(&self) -> &dyn MemberNameInterface {
@@ -1526,7 +1524,7 @@ pub struct BaseNode {
     pub original: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
     pub end: Cell<isize>,
-    pub symbol: RefCell<Option<Weak<Symbol>>>,
+    pub symbol: RefCell<Option<Rc<Symbol>>>,
     pub locals: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     next_container: RefCell<Option<Rc<Node>>>,
     local_symbol: RefCell<Option<Rc<Symbol>>>,
@@ -1580,7 +1578,7 @@ impl NodeInterface for BaseNode {
         self._node_wrapper
             .borrow()
             .as_ref()
-            .expect(&format!("Node wrapper wasn't set on {:?}", self.kind()))
+            .unwrap()
             .upgrade()
             .unwrap()
     }
@@ -1676,18 +1674,15 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
-        self.symbol
-            .borrow()
-            .as_ref()
-            .map(|weak| weak.upgrade().unwrap())
+        self.symbol.borrow().clone()
     }
 
     fn symbol(&self) -> Rc<Symbol> {
-        self.symbol.borrow().as_ref().unwrap().upgrade().unwrap()
+        self.symbol.borrow().clone().unwrap()
     }
 
     fn set_symbol(&self, symbol: Rc<Symbol>) {
-        *self.symbol.borrow_mut() = Some(Rc::downgrade(&symbol));
+        *self.symbol.borrow_mut() = Some(symbol);
     }
 
     fn maybe_locals(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
