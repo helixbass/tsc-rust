@@ -770,7 +770,7 @@ impl TypeReference {
     }
 }
 
-pub trait TypeReferenceInterface {
+pub trait TypeReferenceInterface: ObjectTypeInterface {
     fn target(&self) -> Rc<Type>;
     fn set_target(&self, target: Rc<Type>);
     fn maybe_node(&self) -> RefMut<Option<Rc<Node>>>;

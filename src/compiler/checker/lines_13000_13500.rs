@@ -402,14 +402,17 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_arguments(&self, type_: &Type /*TypeReference*/) -> Vec<Rc<Type>> {
-        let type_as_type_reference = type_.as_type_reference();
-        if (*type_as_type_reference.resolved_type_arguments.borrow()).is_none() {
+        let type_as_type_reference = type_.as_type_reference_interface();
+        if type_as_type_reference
+            .maybe_resolved_type_arguments()
+            .is_none()
+        {
             if !self.push_type_resolution(
                 &type_.type_wrapper().into(),
                 TypeSystemPropertyName::ResolvedTypeArguments,
             ) {
                 return type_as_type_reference
-                    .target
+                    .target()
                     .as_interface_type()
                     .maybe_local_type_parameters()
                     .map_or_else(
@@ -422,14 +425,14 @@ impl TypeChecker {
                         },
                     );
             }
-            let node = type_as_type_reference.node.borrow().clone();
+            let node = type_as_type_reference.maybe_node().clone();
             let type_arguments: Vec<Rc<Type>> = if node.is_none() {
                 vec![]
             } else {
                 let node = node.unwrap();
                 if node.kind() == SyntaxKind::TypeReference {
-                    let target_as_interface_type =
-                        type_as_type_reference.target.as_interface_type();
+                    let target = type_as_type_reference.target();
+                    let target_as_interface_type = target.as_interface_type();
                     concatenate(
                         target_as_interface_type
                             .maybe_outer_type_parameters()
@@ -451,16 +454,16 @@ impl TypeChecker {
                 }
             };
             if self.pop_type_resolution() {
-                *type_as_type_reference.resolved_type_arguments.borrow_mut() =
+                *type_as_type_reference.maybe_resolved_type_arguments() =
                     if let Some(type_mapper) = type_as_type_reference.maybe_mapper() {
                         self.instantiate_types(Some(&type_arguments), type_mapper)
                     } else {
                         Some(type_arguments)
                     };
             } else {
-                *type_as_type_reference.resolved_type_arguments.borrow_mut() = Some(
+                *type_as_type_reference.maybe_resolved_type_arguments() = Some(
                     type_as_type_reference
-                        .target
+                        .target()
                         .as_interface_type()
                         .maybe_local_type_parameters()
                         .map_or_else(
@@ -478,12 +481,13 @@ impl TypeChecker {
                         .maybe_node()
                         .clone()
                         .or_else(|| self.maybe_current_node()),
-                    if type_as_type_reference.target.maybe_symbol().is_some() {
+                    if type_as_type_reference.target().maybe_symbol().is_some() {
                         &Diagnostics::Type_arguments_for_0_circularly_reference_themselves
                     } else {
                         &Diagnostics::Tuple_type_arguments_circularly_reference_themselves
                     },
-                    if let Some(type_target_symbol) = type_as_type_reference.target.maybe_symbol() {
+                    if let Some(type_target_symbol) = type_as_type_reference.target().maybe_symbol()
+                    {
                         Some(vec![self.symbol_to_string_(
                             &type_target_symbol,
                             Option::<&Node>::None,
@@ -497,7 +501,8 @@ impl TypeChecker {
                 );
             }
         }
-        (*type_as_type_reference.resolved_type_arguments.borrow())
+        type_as_type_reference
+            .maybe_resolved_type_arguments()
             .clone()
             .unwrap()
     }
