@@ -9,7 +9,7 @@ use super::{NodeBuilderContext, TypeFacts};
 use crate::{
     are_option_rcs_equal, array_is_homogeneous, cast_present, create_underscore_escaped_multi_map,
     factory, get_check_flags, get_declaration_of_kind, get_emit_script_target,
-    get_name_from_index_info, get_text_of_jsdoc_comment, is_binding_element,
+    get_first_identifier, get_name_from_index_info, get_text_of_jsdoc_comment, is_binding_element,
     is_computed_property_name, is_identifier, is_identifier_text, is_identifier_type_reference,
     is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, modifiers_to_flags,
     node_is_synthesized, null_transformation_context, set_comment_range, set_emit_flags,
@@ -982,7 +982,27 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         context: &NodeBuilderContext,
     ) {
-        unimplemented!()
+        if !context.tracker.is_track_symbol_supported() {
+            return;
+        }
+        let first_identifier = get_first_identifier(access_expression);
+        let name = self.type_checker.resolve_name_(
+            Some(&*first_identifier),
+            &first_identifier.as_identifier().escaped_text,
+            SymbolFlags::Value | SymbolFlags::ExportValue,
+            None,
+            Option::<Rc<Node>>::None,
+            true,
+            None,
+        );
+        if let Some(name) = name.as_ref() {
+            context.tracker.track_symbol(
+                name,
+                enclosing_declaration
+                    .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper()),
+                SymbolFlags::Value,
+            );
+        }
     }
 
     pub(super) fn lookup_symbol_chain(
@@ -990,8 +1010,17 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
+        yield_module_symbol: Option<bool>,
     ) -> Vec<Rc<Symbol>> {
-        self.lookup_symbol_chain_worker(symbol, context, meaning)
+        context.tracker.track_symbol(
+            symbol,
+            context.maybe_enclosing_declaration(),
+            // TODO: it looks like this is a place where the Typescript version "lied", I don't
+            // know if we should "bubble down" the "real" Option<SymbolFlags> type into the
+            // signature of .track_symbol()?
+            meaning.unwrap_or(SymbolFlags::None),
+        );
+        self.lookup_symbol_chain_worker(symbol, context, meaning, yield_module_symbol)
     }
 
     pub(super) fn lookup_symbol_chain_worker(
@@ -999,6 +1028,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
+        yield_module_symbol: Option<bool>,
     ) -> Vec<Rc<Symbol>> {
         let chain: Vec<Rc<Symbol>>;
         if false {
@@ -1028,7 +1058,16 @@ impl NodeBuilder {
         meaning: SymbolFlags,
         override_type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
     ) -> Rc<Node> {
-        let chain = self.lookup_symbol_chain(symbol, context, Some(meaning));
+        let chain = self.lookup_symbol_chain(
+            symbol,
+            context,
+            Some(meaning),
+            Some(
+                !context
+                    .flags()
+                    .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope),
+            ),
+        );
 
         let chain_index = chain.len() - 1;
         let entity_name = self.create_access_from_symbol_chain(context, chain, chain_index, 0);
@@ -1121,7 +1160,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
     ) -> Rc<Node> {
-        let chain = self.lookup_symbol_chain(symbol, context, meaning);
+        let chain = self.lookup_symbol_chain(symbol, context, meaning, None);
         let index = chain.len() - 1;
         self.create_expression_from_symbol_chain(context, chain, index)
     }
