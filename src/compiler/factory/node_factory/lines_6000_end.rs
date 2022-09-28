@@ -340,6 +340,15 @@ pub fn with_synthetic_factory_and_factory<
         .with(|synthetic_factory_| factory.with(|factory_| callback(synthetic_factory_, factory_)))
 }
 
+pub fn with_factory<
+    TReturn,
+    TCallback: FnOnce(&Rc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
+>(
+    callback: TCallback,
+) -> TReturn {
+    factory.with(|factory_| callback(factory_))
+}
+
 #[derive(Debug)]
 pub struct BaseNodeFactorySynthetic {}
 

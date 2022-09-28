@@ -72,7 +72,7 @@ pub use compiler::factory::emit_node::{
 use compiler::factory::emit_node::{get_starts_on_new_line, set_starts_on_new_line};
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
-    create_node_factory, factory, set_original_node, synthetic_factory,
+    create_node_factory, factory, set_original_node, synthetic_factory, with_factory,
     with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, NodeFactoryFlags, StringOrNumber,
     StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKindOrRcNode,
 };

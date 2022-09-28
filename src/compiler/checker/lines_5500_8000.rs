@@ -3,26 +3,28 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{NodeBuilderContext, TypeFacts};
+use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
     are_option_rcs_equal, array_is_homogeneous, cast_present, create_underscore_escaped_multi_map,
     factory, get_check_flags, get_declaration_of_kind, get_emit_script_target,
     get_first_identifier, get_name_from_index_info, get_text_of_jsdoc_comment, is_binding_element,
     is_computed_property_name, is_identifier, is_identifier_text, is_identifier_type_reference,
-    is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, length, maybe_for_each_bool,
-    modifiers_to_flags, module_specifiers, node_is_synthesized, null_transformation_context,
-    path_is_relative, set_comment_range, set_emit_flags, set_synthetic_leading_comments, some,
-    symbol_name, synthetic_factory, unescape_leading_underscores, using_single_line_string_writer,
-    visit_each_child, with_synthetic_factory_and_factory, CheckFlags, Debug_, EmitFlags,
-    EmitTextWriter, IndexInfo, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeBuilder,
-    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef,
-    StringOrNodeArray, StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, SynthesizedComment, Type, TypeChecker, TypeFormatFlags, TypeInterface,
-    TypePredicate, TypePredicateKind, UnderscoreEscapedMultiMap, VisitResult,
+    is_indexed_access_type_node, is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol,
+    length, maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers,
+    node_is_synthesized, null_transformation_context, path_is_relative, set_comment_range,
+    set_emit_flags, set_synthetic_leading_comments, some, symbol_name, synthetic_factory,
+    unescape_leading_underscores, using_single_line_string_writer, visit_each_child, with_factory,
+    with_synthetic_factory_and_factory, CheckFlags, Debug_, EmitFlags, EmitTextWriter, IndexInfo,
+    InternalSymbolName, ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
+    NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef, StringOrNodeArray, StringOrRcNode,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, SynthesizedComment,
+    TransientSymbolInterface, Type, TypeChecker, TypeFormatFlags, TypeInterface, TypePredicate,
+    TypePredicateKind, UnderscoreEscapedMultiMap, VisitResult,
 };
 
 impl NodeBuilder {
@@ -1228,7 +1230,104 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
     ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
-        unimplemented!()
+        let mut type_parameter_nodes: Option<NodeArray /*TypeParameterDeclaration*/> = None;
+        let target_symbol = self.type_checker.get_target_symbol(symbol);
+        if target_symbol
+            .flags()
+            .intersects(SymbolFlags::Class | SymbolFlags::Interface | SymbolFlags::TypeAlias)
+        {
+            type_parameter_nodes = Some(with_factory(|factory_| {
+                factory_.create_node_array(
+                    maybe_map(
+                        self.type_checker
+                            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)
+                            .as_ref(),
+                        |tp: &Rc<Type>, _| self.type_parameter_to_declaration_(tp, context, None),
+                    ),
+                    None,
+                )
+            }));
+        }
+        type_parameter_nodes
+    }
+
+    pub(super) fn lookup_type_parameter_nodes(
+        &self,
+        chain: &[Rc<Symbol>],
+        index: usize,
+        context: &NodeBuilderContext,
+    ) -> Option<Vec<Rc<Node>>> {
+        Debug_.assert(/*chain && 0 <= index &&*/ index < chain.len(), None);
+        let symbol = &chain[index];
+        let symbol_id = get_symbol_id(symbol);
+        if matches!(
+            context.type_parameter_symbol_list.borrow().as_ref(),
+            Some(context_type_parameter_symbol_list) if context_type_parameter_symbol_list.contains(
+                &symbol_id
+            )
+        ) {
+            return None;
+        }
+        context
+            .type_parameter_symbol_list
+            .borrow_mut()
+            .get_or_insert_with(|| HashSet::new())
+            .insert(symbol_id);
+        let mut type_parameter_nodes: Option<
+            Vec<Rc<Node /*TypeNode[] | TypeParameterDeclaration[]*/>>,
+        > = None;
+        if context
+            .flags()
+            .intersects(NodeBuilderFlags::WriteTypeParametersInQualifiedName)
+            && index < chain.len() - 1
+        {
+            let parent_symbol = symbol;
+            let next_symbol = &chain[index + 1];
+            if get_check_flags(next_symbol).intersects(CheckFlags::Instantiated) {
+                let params =
+                    self.type_checker
+                        .get_type_parameters_of_class_or_interface(&*if parent_symbol
+                            .flags()
+                            .intersects(SymbolFlags::Alias)
+                        {
+                            self.type_checker.resolve_alias(parent_symbol)
+                        } else {
+                            parent_symbol.clone()
+                        });
+                type_parameter_nodes = self.map_to_type_nodes(
+                    maybe_map(params.as_ref(), |t: &Rc<Type>, _| {
+                        self.type_checker.get_mapped_type(
+                            t,
+                            (*next_symbol.as_transient_symbol().symbol_links())
+                                .borrow()
+                                .mapper
+                                .as_ref()
+                                .unwrap(),
+                        )
+                    })
+                    .as_deref(),
+                    context,
+                    None,
+                );
+            } else {
+                type_parameter_nodes = self
+                    .type_parameters_to_type_parameter_declarations(symbol, context)
+                    .map(|node_array| node_array.into_vec());
+            }
+        }
+        type_parameter_nodes
+    }
+
+    pub(super) fn get_topmost_indexed_access_type(
+        &self,
+        top: &Node, /*IndexedAccessTypeNode*/
+    ) -> Rc<Node /*IndexedAccessTypeNode*/> {
+        let top_as_indexed_access_type_node = top.as_indexed_access_type_node();
+        if is_indexed_access_type_node(&top_as_indexed_access_type_node.object_type) {
+            return self
+                .get_topmost_indexed_access_type(&top_as_indexed_access_type_node.object_type);
+        }
+        top.node_wrapper()
     }
 
     pub(super) fn get_specifier_for_module_symbol(
