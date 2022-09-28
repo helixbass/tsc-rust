@@ -1504,7 +1504,13 @@ impl NodeBuilder {
             }),
         ) {
             let non_root_parts = if chain.len() > 1 {
-                Some(self.create_access_from_symbol_chain(context, &chain, chain.len() - 1, 1))
+                Some(self.create_access_from_symbol_chain(
+                    context,
+                    override_type_arguments,
+                    &chain,
+                    chain.len() - 1,
+                    1,
+                ))
             } else {
                 None
             };
@@ -1595,7 +1601,13 @@ impl NodeBuilder {
             }
         }
 
-        let entity_name = self.create_access_from_symbol_chain(context, &chain, chain.len() - 1, 0);
+        let entity_name = self.create_access_from_symbol_chain(
+            context,
+            override_type_arguments,
+            &chain,
+            chain.len() - 1,
+            0,
+        );
         if is_indexed_access_type_node(&entity_name) {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
