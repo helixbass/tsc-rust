@@ -145,12 +145,14 @@ pub trait SymbolTracker {
     ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
         None
     }
+    fn is_module_resolver_host_supported(&self) -> bool;
     fn track_referenced_ambient_module(
         &self,
         decl: &Node, /*ModuleDeclaration*/
         symbol: &Symbol,
     ) {
     }
+    fn is_track_referenced_ambient_module_supported(&self) -> bool;
     fn track_external_module_symbol_of_import_type_node(&self, symbol: &Symbol) {}
     fn report_nonlocal_augmentation(
         &self,
@@ -168,6 +170,7 @@ pub trait ModuleSpecifierResolutionHostAndGetCommonSourceDirectory:
     ModuleSpecifierResolutionHost
 {
     fn get_common_source_directory(&self) -> String;
+    fn as_dyn_module_specifier_resolution_host(&self) -> &dyn ModuleSpecifierResolutionHost;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -266,6 +269,28 @@ impl CommentDirectivesMap {
             used_lines,
         }
     }
+}
+
+#[derive(Builder, Default)]
+#[builder(default)]
+pub struct UserPreferences {
+    pub disable_suggestions: Option<bool>,
+    pub quote_preference: Option<String /*"auto" | "double" | "single"*/>,
+    pub include_completions_for_module_exports: Option<bool>,
+    pub include_completions_for_import_statements: Option<bool>,
+    pub include_completions_with_snippet_text: Option<bool>,
+    pub include_automatic_optional_chain_completions: Option<bool>,
+    pub include_completions_with_insert_text: Option<bool>,
+    pub include_completions_with_class_member_snippets: Option<bool>,
+    pub allow_incomplete_completions: Option<bool>,
+    pub import_module_specifier_preference:
+        Option<String /*"shortest" | "project-relative" | "relative" | "non-relative"*/>,
+    pub import_module_specifier_ending: Option<String /*"auto" | "minimal" | "index" | "js"*/>,
+    pub allow_text_changes_in_new_files: Option<bool>,
+    pub provide_prefix_and_suffix_text_for_rename: Option<bool>,
+    pub include_package_json_auto_imports: Option<String /*"auto" | "on" | "off"*/>,
+    pub provide_refactor_not_applicable_reason: Option<bool>,
+    pub jsx_attribute_completion_style: Option<String /*"auto" | "braces" | "none"*/>,
 }
 
 #[derive(Clone, Debug)]

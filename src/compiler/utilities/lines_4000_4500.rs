@@ -308,6 +308,14 @@ impl SymbolTracker for TextWriter {
     fn is_report_non_serializable_property_supported(&self) -> bool {
         false
     }
+
+    fn is_module_resolver_host_supported(&self) -> bool {
+        false
+    }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        false
+    }
 }
 
 pub fn create_text_writer(new_line: &str) -> TextWriter {
@@ -495,6 +503,14 @@ impl SymbolTracker for TrailingSemicolonDeferringWriter {
     }
 
     fn is_track_symbol_supported(&self) -> bool {
+        false
+    }
+
+    fn is_module_resolver_host_supported(&self) -> bool {
+        false
+    }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
         false
     }
 }

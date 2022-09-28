@@ -1584,6 +1584,10 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
         self.module_resolver_host.as_deref()
     }
 
+    fn is_module_resolver_host_supported(&self) -> bool {
+        true
+    }
+
     // TODO: are these correct?
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         false
@@ -1612,6 +1616,10 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     fn is_report_non_serializable_property_supported(&self) -> bool {
         false
     }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        false
+    }
 }
 
 struct DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
@@ -1631,6 +1639,10 @@ impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory
         self.host
             .get_common_source_directory()
             .unwrap_or_else(|| "".to_owned())
+    }
+
+    fn as_dyn_module_specifier_resolution_host(&self) -> &dyn ModuleSpecifierResolutionHost {
+        self
     }
 }
 
@@ -1820,12 +1832,20 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker<'_> {
         self.tracker.module_resolver_host()
     }
 
+    fn is_module_resolver_host_supported(&self) -> bool {
+        self.tracker.is_module_resolver_host_supported()
+    }
+
     fn track_referenced_ambient_module(
         &self,
         decl: &Node, /*ModuleDeclaration*/
         symbol: &Symbol,
     ) {
         self.tracker.track_referenced_ambient_module(decl, symbol)
+    }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        self.tracker.is_track_referenced_ambient_module_supported()
     }
 
     fn track_external_module_symbol_of_import_type_node(&self, symbol: &Symbol) {

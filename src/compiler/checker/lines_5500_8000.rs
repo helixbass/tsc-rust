@@ -3,28 +3,31 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
+use super::{ambient_module_symbol_regex, get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
     are_option_rcs_equal, array_is_homogeneous, cast_present, create_underscore_escaped_multi_map,
-    factory, get_check_flags, get_declaration_of_kind, get_emit_script_target,
-    get_first_identifier, get_name_from_index_info, get_text_of_jsdoc_comment, is_binding_element,
-    is_computed_property_name, is_identifier, is_identifier_text, is_identifier_type_reference,
-    is_indexed_access_type_node, is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol,
-    length, maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers,
-    node_is_synthesized, null_transformation_context, path_is_relative, set_comment_range,
-    set_emit_flags, set_synthetic_leading_comments, some, symbol_name, synthetic_factory,
+    factory, first, get_check_flags, get_declaration_of_kind, get_emit_script_target,
+    get_first_identifier, get_name_from_index_info, get_non_augmentation_declaration,
+    get_original_node, get_source_file_of_node, get_text_of_jsdoc_comment, is_ambient_module,
+    is_binding_element, is_computed_property_name, is_identifier, is_identifier_text,
+    is_identifier_type_reference, is_indexed_access_type_node, is_jsdoc_parameter_tag,
+    is_rest_parameter, is_transient_symbol, length, maybe_filter, maybe_first_defined,
+    maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers, node_is_synthesized,
+    null_transformation_context, out_file, path_is_relative, set_comment_range, set_emit_flags,
+    set_synthetic_leading_comments, some, symbol_name, synthetic_factory,
     unescape_leading_underscores, using_single_line_string_writer, visit_each_child, with_factory,
-    with_synthetic_factory_and_factory, CheckFlags, Debug_, EmitFlags, EmitTextWriter, IndexInfo,
-    InternalSymbolName, ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
-    NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef, StringOrNodeArray, StringOrRcNode,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, SynthesizedComment,
-    TransientSymbolInterface, Type, TypeChecker, TypeFormatFlags, TypeInterface, TypePredicate,
-    TypePredicateKind, UnderscoreEscapedMultiMap, VisitResult,
+    with_synthetic_factory_and_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags,
+    EmitTextWriter, IndexInfo, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeBuilder,
+    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef,
+    StringOrNodeArray, StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type, TypeChecker, TypeFormatFlags,
+    TypeInterface, TypePredicate, TypePredicateKind, UnderscoreEscapedMultiMap,
+    UserPreferencesBuilder, VisitResult,
 };
 
 impl NodeBuilder {
@@ -1335,7 +1338,119 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
     ) -> String {
-        unimplemented!()
+        let mut file = get_declaration_of_kind(symbol, SyntaxKind::SourceFile);
+        if file.is_none() {
+            let equivalent_file_symbol =
+                maybe_first_defined(symbol.maybe_declarations().as_ref(), |d: &Rc<Node>, _| {
+                    self.type_checker
+                        .get_file_symbol_if_file_symbol_export_equals_container(d, symbol)
+                });
+            if let Some(equivalent_file_symbol) = equivalent_file_symbol.as_ref() {
+                file = get_declaration_of_kind(equivalent_file_symbol, SyntaxKind::SourceFile);
+            }
+        }
+        if let Some(file_module_name) = file
+            .as_ref()
+            .and_then(|file| file.as_source_file().maybe_module_name().clone())
+        {
+            return file_module_name;
+        }
+        if file.is_none() {
+            if context
+                .tracker
+                .is_track_referenced_ambient_module_supported()
+            {
+                let ambient_decls = maybe_filter(
+                    symbol.maybe_declarations().as_deref(),
+                    |declaration: &Rc<Node>| is_ambient_module(declaration),
+                );
+                if length(ambient_decls.as_deref()) > 0 {
+                    for decl in ambient_decls.as_ref().unwrap() {
+                        context
+                            .tracker
+                            .track_referenced_ambient_module(decl, symbol);
+                    }
+                }
+            }
+            if ambient_module_symbol_regex.is_match(symbol.escaped_name()) {
+                return symbol.escaped_name()[1..symbol.escaped_name().len() - 1].to_owned();
+            }
+        }
+        if context.maybe_enclosing_declaration().is_none()
+            || !context.tracker.is_module_resolver_host_supported()
+        {
+            if ambient_module_symbol_regex.is_match(symbol.escaped_name()) {
+                return symbol.escaped_name()[1..symbol.escaped_name().len() - 1].to_owned();
+            }
+            return get_source_file_of_node(get_non_augmentation_declaration(symbol))
+                .unwrap()
+                .as_source_file()
+                .file_name()
+                .clone();
+        }
+        let context_file = get_source_file_of_node(get_original_node(
+            context.maybe_enclosing_declaration(),
+            Option::<fn(Option<Rc<Node>>) -> bool>::None,
+        ))
+        .unwrap();
+        let links = self.type_checker.get_symbol_links(symbol);
+        let mut specifier =
+            (*links)
+                .borrow()
+                .specifier_cache
+                .as_ref()
+                .and_then(|links_specifier_cache| {
+                    links_specifier_cache
+                        .get(&**context_file.as_source_file().path())
+                        .cloned()
+                });
+        if specifier.is_none() {
+            let is_bundle = matches!(
+                out_file(&self.type_checker.compiler_options),
+                Some(out_file) if !out_file.is_empty()
+            );
+            let module_resolver_host = context.tracker.module_resolver_host().unwrap();
+            let specifier_compiler_options = if is_bundle {
+                Rc::new(CompilerOptions {
+                    base_url: Some(module_resolver_host.get_common_source_directory()),
+                    ..(*self.type_checker.compiler_options).clone()
+                })
+            } else {
+                self.type_checker.compiler_options.clone()
+            };
+            specifier = Some(
+                first(&module_specifiers::get_module_specifiers(
+                    symbol,
+                    &self.type_checker,
+                    &specifier_compiler_options,
+                    &context_file,
+                    module_resolver_host.as_dyn_module_specifier_resolution_host(),
+                    UserPreferencesBuilder::default()
+                        .import_module_specifier_preference(Some(if is_bundle {
+                            "non-relative".to_owned()
+                        } else {
+                            "project-relative".to_owned()
+                        }))
+                        .import_module_specifier_ending(if is_bundle {
+                            Some("minimal".to_owned())
+                        } else {
+                            None
+                        })
+                        .build()
+                        .unwrap(),
+                ))
+                .clone(),
+            );
+            links
+                .borrow_mut()
+                .specifier_cache
+                .get_or_insert_with(|| HashMap::new())
+                .insert(
+                    context_file.as_source_file().path().to_string(),
+                    specifier.clone().unwrap(),
+                );
+        }
+        specifier.unwrap()
     }
 
     pub(super) fn symbol_to_entity_name_node(&self, symbol: &Symbol) -> Rc<Node /*EntityName*/> {
