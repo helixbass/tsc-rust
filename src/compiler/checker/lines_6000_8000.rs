@@ -321,6 +321,25 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         expects_identifier: bool,
     ) -> Rc<Node /*EntityName*/> {
+        let chain = self.lookup_symbol_chain(symbol, context, meaning, None);
+
+        if expects_identifier
+            && chain.len() != 1
+            && !context.encountered_error.get()
+            && !context
+                .flags()
+                .intersects(NodeBuilderFlags::AllowQualifiedNameInPlaceOfIdentifier)
+        {
+            context.encountered_error.set(true);
+        }
+        self.create_entity_name_from_symbol_chain(&chain, chain.len() - 1)
+    }
+
+    pub(super) fn create_entity_name_from_symbol_chain(
+        &self,
+        chain: &[Rc<Symbol>],
+        index: usize,
+    ) -> Rc<Node /*EntityName*/> {
         unimplemented!()
     }
 
