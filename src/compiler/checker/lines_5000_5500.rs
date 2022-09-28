@@ -1373,7 +1373,7 @@ impl NodeBuilder {
                         &property_type,
                         property_symbol,
                         save_enclosing_declaration.as_deref(),
-                        Option::<fn(&Symbol)>::None,
+                        Option::<&fn(&Symbol)>::None,
                         None,
                     )
                 } else {

@@ -5,18 +5,22 @@ use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::NodeBuilderContext;
+use super::{NodeBuilderContext, TypeFacts};
 use crate::{
     are_option_rcs_equal, array_is_homogeneous, cast_present, create_underscore_escaped_multi_map,
-    factory, get_check_flags, get_emit_script_target, get_name_from_index_info,
-    get_text_of_jsdoc_comment, is_identifier, is_identifier_text, is_identifier_type_reference,
-    modifiers_to_flags, set_comment_range, set_emit_flags, set_synthetic_leading_comments, some,
-    synthetic_factory, unescape_leading_underscores, using_single_line_string_writer,
+    factory, get_check_flags, get_declaration_of_kind, get_emit_script_target,
+    get_name_from_index_info, get_text_of_jsdoc_comment, is_binding_element,
+    is_computed_property_name, is_identifier, is_identifier_text, is_identifier_type_reference,
+    is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, modifiers_to_flags,
+    node_is_synthesized, null_transformation_context, set_comment_range, set_emit_flags,
+    set_synthetic_leading_comments, some, symbol_name, synthetic_factory,
+    unescape_leading_underscores, using_single_line_string_writer, visit_each_child,
     with_synthetic_factory_and_factory, CheckFlags, Debug_, EmitFlags, EmitTextWriter, IndexInfo,
     ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature,
-    SignatureFlags, StrOrNodeArrayRef, StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, SynthesizedComment, Type, TypeChecker, TypeFormatFlags, TypeInterface,
-    TypePredicate, TypePredicateKind, UnderscoreEscapedMultiMap,
+    SignatureFlags, StrOrNodeArrayRef, StringOrNodeArray, StringOrRcNode, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, SynthesizedComment, Type, TypeChecker,
+    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, UnderscoreEscapedMultiMap,
+    VisitResult,
 };
 
 impl NodeBuilder {
@@ -758,7 +762,218 @@ impl NodeBuilder {
         private_symbol_visitor: Option<&TPrivateSymbolVisitor>,
         bundled_imports: Option<bool>,
     ) -> Rc<Node /*ParameterDeclaration*/> {
-        unimplemented!()
+        let mut parameter_declaration: Option<
+            Rc<Node /*ParameterDeclaration | JSDocParameterTag*/>,
+        > = get_declaration_of_kind(parameter_symbol, SyntaxKind::Parameter);
+        if parameter_declaration.is_none() && !is_transient_symbol(parameter_symbol) {
+            parameter_declaration =
+                get_declaration_of_kind(parameter_symbol, SyntaxKind::JSDocParameterTag);
+        }
+
+        let mut parameter_type = self.type_checker.get_type_of_symbol(parameter_symbol);
+        if matches!(
+            parameter_declaration.as_ref(),
+            Some(parameter_declaration) if self.type_checker.is_required_initialized_parameter(parameter_declaration)
+        ) {
+            parameter_type = self.type_checker.get_optional_type_(&parameter_type, None);
+        }
+        if context
+            .flags()
+            .intersects(NodeBuilderFlags::NoUndefinedOptionalParameterType)
+            && matches!(
+                parameter_declaration.as_ref(),
+                Some(parameter_declaration) if !is_jsdoc_parameter_tag(parameter_declaration) &&
+                    self.type_checker.is_optional_uninitialized_parameter_(parameter_declaration)
+            )
+        {
+            parameter_type = self
+                .type_checker
+                .get_type_with_facts(&parameter_type, TypeFacts::NEUndefined);
+        }
+        let parameter_type_node = self.serialize_type_for_declaration(
+            context,
+            &parameter_type,
+            parameter_symbol,
+            context.maybe_enclosing_declaration(),
+            private_symbol_visitor,
+            bundled_imports,
+        );
+
+        let modifiers: Option<Vec<Rc<Node>>> = if !context
+            .flags()
+            .intersects(NodeBuilderFlags::OmitParameterModifiers)
+            && preserve_modifier_flags == Some(true)
+        {
+            parameter_declaration
+                .as_ref()
+                .and_then(|parameter_declaration| {
+                    parameter_declaration.maybe_modifiers().as_ref().map(
+                        |parameter_declaration_modifiers| {
+                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                                parameter_declaration_modifiers
+                                    .into_iter()
+                                    .map(|modifier| {
+                                        factory_.clone_node(synthetic_factory_, modifier).wrap()
+                                    })
+                                    .collect()
+                            })
+                        },
+                    )
+                })
+        } else {
+            None
+        };
+        let is_rest = matches!(
+            parameter_declaration.as_ref(),
+            Some(parameter_declaration) if is_rest_parameter(parameter_declaration)
+        ) || get_check_flags(parameter_symbol).intersects(CheckFlags::RestParameter);
+        let dot_dot_dot_token: Option<Rc<Node>> = if is_rest {
+            Some(with_synthetic_factory_and_factory(
+                |synthetic_factory_, factory_| {
+                    factory_
+                        .create_token(synthetic_factory_, SyntaxKind::DotDotDotToken)
+                        .into()
+                },
+            ))
+        } else {
+            None
+        };
+        let name: StringOrRcNode =
+            if let Some(parameter_declaration) = parameter_declaration.as_ref() {
+                if let Some(parameter_declaration_name) = parameter_declaration
+                    .as_named_declaration()
+                    .maybe_name()
+                    .as_ref()
+                {
+                    match parameter_declaration_name.kind() {
+                        SyntaxKind::Identifier => set_emit_flags(
+                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                                factory_
+                                    .clone_node(synthetic_factory_, parameter_declaration_name)
+                                    .wrap()
+                            }),
+                            EmitFlags::NoAsciiEscaping,
+                        ),
+                        SyntaxKind::QualifiedName => set_emit_flags(
+                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                                factory_
+                                    .clone_node(
+                                        synthetic_factory_,
+                                        &parameter_declaration_name.as_qualified_name().right,
+                                    )
+                                    .wrap()
+                            }),
+                            EmitFlags::NoAsciiEscaping,
+                        ),
+                        _ => self.clone_binding_name(context, parameter_declaration_name),
+                    }
+                    .into()
+                } else {
+                    symbol_name(parameter_symbol).into()
+                }
+            } else {
+                symbol_name(parameter_symbol).into()
+            };
+        let is_optional = matches!(
+            parameter_declaration.as_ref(),
+            Some(parameter_declaration) if self.type_checker.is_optional_parameter_(parameter_declaration)
+        ) || get_check_flags(parameter_symbol)
+            .intersects(CheckFlags::OptionalParameter);
+        let question_token: Option<Rc<Node>> = if is_optional {
+            Some(with_synthetic_factory_and_factory(
+                |synthetic_factory_, factory_| {
+                    factory_
+                        .create_token(synthetic_factory_, SyntaxKind::QuestionToken)
+                        .into()
+                },
+            ))
+        } else {
+            None
+        };
+        let parameter_node: Rc<Node> =
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_parameter_declaration(
+                        synthetic_factory_,
+                        Option::<NodeArray>::None,
+                        modifiers,
+                        dot_dot_dot_token,
+                        Some(name),
+                        question_token,
+                        Some(parameter_type_node),
+                        None,
+                    )
+                    .into()
+            });
+        context.increment_approximate_length_by(symbol_name(parameter_symbol).len() + 3);
+        parameter_node
+    }
+
+    pub(super) fn clone_binding_name(
+        &self,
+        context: &NodeBuilderContext,
+        node: &Node, /*BindingName*/
+    ) -> Rc<Node /*BIndingName*/> {
+        self.elide_initializer_and_set_emit_flags(context, node)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap()
+    }
+
+    pub(super) fn elide_initializer_and_set_emit_flags(
+        &self,
+        context: &NodeBuilderContext,
+        node: &Node,
+    ) -> Option<Vec<Rc<Node>>> {
+        if context.tracker.is_track_symbol_supported()
+            && is_computed_property_name(node)
+            && self.type_checker.is_late_bindable_name(node)
+        {
+            self.track_computed_name(
+                &node.as_computed_property_name().expression,
+                context.maybe_enclosing_declaration(),
+                context,
+            );
+        }
+        let mut visited = visit_each_child(
+            Some(node),
+            |node: &Node| self.elide_initializer_and_set_emit_flags(context, node),
+            &*null_transformation_context,
+            Option::<
+                fn(
+                    Option<&NodeArray>,
+                    Option<fn(&Node) -> VisitResult>,
+                    Option<fn(&Node) -> bool>,
+                    Option<usize>,
+                    Option<usize>,
+                ) -> NodeArray,
+            >::None,
+            Some(|node: &Node| self.elide_initializer_and_set_emit_flags(context, node)),
+            Option::<
+                fn(
+                    Option<&Node>,
+                    Option<fn(&Node) -> VisitResult>,
+                    Option<fn(&Node) -> bool>,
+                    Option<fn(&[Rc<Node>]) -> Rc<Node>>,
+                ) -> Option<Rc<Node>>,
+            >::None,
+        )
+        .into_iter()
+        .next()
+        .unwrap();
+        if is_binding_element(&visited) {
+            unimplemented!()
+        }
+        if !node_is_synthesized(&*visited) {
+            visited = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_.clone_node(synthetic_factory_, &visited).wrap()
+            });
+        }
+        Some(vec![set_emit_flags(
+            visited,
+            EmitFlags::SingleLine | EmitFlags::NoAsciiEscaping,
+        )])
     }
 
     pub(super) fn track_computed_name<TEnclosingDeclaration: Borrow<Node>>(
@@ -993,7 +1208,7 @@ impl NodeBuilder {
         type_: &Type,
         symbol: &Symbol,
         enclosing_declaration: Option<TEnclosingDeclaration>,
-        include_private_symbol: Option<TIncludePrivateSymbol>,
+        include_private_symbol: Option<&TIncludePrivateSymbol>,
         bundled: Option<bool>,
     ) -> Rc<Node> {
         let result = self.type_to_type_node_helper(Some(type_), context);
