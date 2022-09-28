@@ -97,6 +97,17 @@ fn is_identifier_in_non_emitting_heritage_clause(node: &Node) -> bool {
     )
 }
 
+pub fn is_identifier_type_reference(node: &Node) -> bool {
+    unimplemented!()
+}
+
+pub fn array_is_homogeneous<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
+    array: &[TItem],
+    mut comparer: TComparer, /*= equateValues*/
+) -> bool {
+    unimplemented!()
+}
+
 pub fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
     range.set_pos(pos);
     range

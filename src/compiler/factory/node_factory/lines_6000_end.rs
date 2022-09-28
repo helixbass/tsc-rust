@@ -330,6 +330,16 @@ thread_local! {
 //     BaseNodeFactorySynthetic::new()
 // }
 
+pub fn with_synthetic_factory_and_factory<
+    TReturn,
+    TCallback: FnOnce(&BaseNodeFactorySynthetic, &Rc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
+>(
+    callback: TCallback,
+) -> TReturn {
+    synthetic_factory
+        .with(|synthetic_factory_| factory.with(|factory_| callback(synthetic_factory_, factory_)))
+}
+
 #[derive(Debug)]
 pub struct BaseNodeFactorySynthetic {}
 

@@ -6,12 +6,14 @@ use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    factory, get_emit_script_target, get_text_of_jsdoc_comment, is_identifier_text,
-    set_comment_range, set_synthetic_leading_comments, some, synthetic_factory,
-    unescape_leading_underscores, using_single_line_string_writer, EmitTextWriter, IndexInfo, Node,
-    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature, StrOrNodeArrayRef,
+    array_is_homogeneous, create_underscore_escaped_multi_map, factory, get_emit_script_target,
+    get_text_of_jsdoc_comment, is_identifier_text, is_identifier_type_reference, set_comment_range,
+    set_synthetic_leading_comments, some, synthetic_factory, unescape_leading_underscores,
+    using_single_line_string_writer, with_synthetic_factory_and_factory, EmitTextWriter, IndexInfo,
+    Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature, StrOrNodeArrayRef,
     StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
     SynthesizedComment, Type, TypeChecker, TypeFormatFlags, TypePredicate,
+    UnderscoreEscapedMultiMap,
 };
 
 impl NodeBuilder {
@@ -72,19 +74,116 @@ impl NodeBuilder {
             if !types.is_empty()
             /*some(types)*/
             {
+                if self.check_truncation_length(context) {
+                    if is_bare_list != Some(true) {
+                        return Some(vec![with_synthetic_factory_and_factory(
+                            |synthetic_factory_, factory_| {
+                                factory_
+                                    .create_type_reference_node(
+                                        synthetic_factory_,
+                                        "...".to_owned(),
+                                        Option::<NodeArray>::None,
+                                    )
+                                    .into()
+                            },
+                        )]);
+                    } else if types.len() > 2 {
+                        return Some(vec![
+                            self.type_to_type_node_helper(Some(&*types[0]), context)
+                                .unwrap(),
+                            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                                factory_
+                                    .create_type_reference_node(
+                                        synthetic_factory_,
+                                        format!("... {} more ...", types.len() - 2),
+                                        Option::<NodeArray>::None,
+                                    )
+                                    .into()
+                            }),
+                            self.type_to_type_node_helper(Some(&*types[types.len() - 1]), context)
+                                .unwrap(),
+                        ]);
+                    }
+                }
                 let may_have_name_collisions = !context
                     .flags()
                     .intersects(NodeBuilderFlags::UseFullyQualifiedType);
-                let mut result: Vec<Rc<Node>> = vec![];
-                for (i, type_) in types.iter().enumerate() {
+                let mut seen_names: Option<UnderscoreEscapedMultiMap<(Rc<Type>, usize)>> =
+                    if may_have_name_collisions {
+                        Some(create_underscore_escaped_multi_map())
+                    } else {
+                        None
+                    };
+                let mut result: Vec<Rc<Node /*TypeNode*/>> = vec![];
+                let mut i = 0;
+                for type_ in types {
+                    i += 1;
+                    if self.check_truncation_length(context) && i + 2 < types.len() - 1 {
+                        result.push(with_synthetic_factory_and_factory(
+                            |synthetic_factory_, factory_| {
+                                factory_
+                                    .create_type_reference_node(
+                                        synthetic_factory_,
+                                        format!("... {} more ...", types.len() - i),
+                                        Option::<NodeArray>::None,
+                                    )
+                                    .into()
+                            },
+                        ));
+                        let type_node =
+                            self.type_to_type_node_helper(Some(&*types[types.len() - 1]), context);
+                        if let Some(type_node) = type_node {
+                            result.push(type_node);
+                        }
+                        break;
+                    }
+                    context.increment_approximate_length_by(2);
                     let type_node = self.type_to_type_node_helper(Some(&**type_), context);
-                    result.push(type_node.unwrap().into());
+                    if let Some(type_node) = type_node.as_ref() {
+                        result.push(type_node.clone());
+                        if let Some(seen_names) = seen_names.as_mut() {
+                            if is_identifier_type_reference(type_node) {
+                                seen_names.add(
+                                    type_node
+                                        .as_type_reference_node()
+                                        .type_name
+                                        .as_identifier()
+                                        .escaped_text
+                                        .clone(),
+                                    (type_.clone(), result.len() - 1),
+                                );
+                            }
+                        }
+                    }
+                }
+
+                if let Some(seen_names) = seen_names {
+                    let save_context_flags = context.flags.get();
+                    context
+                        .flags
+                        .set(context.flags.get() | NodeBuilderFlags::UseFullyQualifiedType);
+                    for types in seen_names.0.values() {
+                        if !array_is_homogeneous(types, |(a, _), (b, _)| {
+                            self.types_are_same_reference(a, b)
+                        }) {
+                            for (type_, result_index) in types {
+                                result[*result_index] = self
+                                    .type_to_type_node_helper(Some(&**type_), context)
+                                    .unwrap();
+                            }
+                        }
+                    }
+                    context.flags.set(save_context_flags);
                 }
 
                 return Some(result);
             }
         }
         None
+    }
+
+    pub(super) fn types_are_same_reference(&self, a: &Type, b: &Type) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn index_info_to_index_signature_declaration_helper<TTypeNode: Borrow<Node>>(

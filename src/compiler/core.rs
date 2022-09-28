@@ -10,7 +10,7 @@ use std::hash::Hash;
 use std::mem;
 use std::rc::Rc;
 
-use crate::{text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
+use crate::{__String, text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
     array.map_or(0, |array| array.len())
@@ -1102,6 +1102,12 @@ impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
 
 pub fn create_multi_map<TKey, TValue>() -> MultiMap<TKey, TValue> {
     MultiMap(HashMap::new())
+}
+
+pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
+
+pub fn create_underscore_escaped_multi_map<TValue>() -> UnderscoreEscapedMultiMap<TValue> {
+    create_multi_map()
 }
 
 pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Option<TIn> {
