@@ -2,17 +2,19 @@
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    array_is_homogeneous, create_underscore_escaped_multi_map, factory, get_emit_script_target,
-    get_text_of_jsdoc_comment, is_identifier_text, is_identifier_type_reference, set_comment_range,
+    are_option_rcs_equal, array_is_homogeneous, create_underscore_escaped_multi_map, factory,
+    get_emit_script_target, get_name_from_index_info, get_text_of_jsdoc_comment,
+    is_identifier_text, is_identifier_type_reference, set_comment_range,
     set_synthetic_leading_comments, some, synthetic_factory, unescape_leading_underscores,
     using_single_line_string_writer, with_synthetic_factory_and_factory, EmitTextWriter, IndexInfo,
     Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature, StrOrNodeArrayRef,
     StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    SynthesizedComment, Type, TypeChecker, TypeFormatFlags, TypePredicate,
+    SynthesizedComment, Type, TypeChecker, TypeFormatFlags, TypeInterface, TypePredicate,
     UnderscoreEscapedMultiMap,
 };
 
@@ -183,7 +185,14 @@ impl NodeBuilder {
     }
 
     pub(super) fn types_are_same_reference(&self, a: &Type, b: &Type) -> bool {
-        unimplemented!()
+        ptr::eq(a, b)
+            || a.maybe_symbol().is_some()
+                && are_option_rcs_equal(a.maybe_symbol().as_ref(), b.maybe_symbol().as_ref())
+            || a.maybe_alias_symbol().is_some()
+                && are_option_rcs_equal(
+                    a.maybe_alias_symbol().as_ref(),
+                    b.maybe_alias_symbol().as_ref(),
+                )
     }
 
     pub(super) fn index_info_to_index_signature_declaration_helper<TTypeNode: Borrow<Node>>(
@@ -192,7 +201,52 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_node: Option<TTypeNode /*TypeNode*/>,
     ) -> Rc<Node /*IndexSignatureDeclaration*/> {
-        unimplemented!()
+        let name = get_name_from_index_info(index_info)
+            .unwrap_or_else(|| Cow::Borrowed("x"))
+            .into_owned();
+        let indexer_type_node = self.type_to_type_node_helper(Some(&*index_info.key_type), context);
+
+        let indexing_parameter: Rc<Node> =
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_parameter_declaration(
+                        synthetic_factory_,
+                        Option::<NodeArray>::None,
+                        Option::<NodeArray>::None,
+                        None,
+                        Some(name.clone()),
+                        None,
+                        indexer_type_node,
+                        None,
+                    )
+                    .into()
+            });
+        let type_node = type_node
+            .map(|type_node| type_node.borrow().node_wrapper())
+            .or_else(|| {
+                self.type_to_type_node_helper(Some(&*index_info.type_ /*|| anyType*/), context)
+            });
+        // if (!indexInfo.type && !(context.flags & NodeBuilderFlags.AllowEmptyIndexInfoType)) {
+        //     context.encounteredError = true;
+        // }
+        context.increment_approximate_length_by(name.len() + 4);
+        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+            factory_
+                .create_index_signature(
+                    synthetic_factory_,
+                    Option::<NodeArray>::None,
+                    if index_info.is_readonly {
+                        Some(vec![factory_
+                            .create_token(synthetic_factory_, SyntaxKind::ReadonlyKeyword)
+                            .into()])
+                    } else {
+                        None
+                    },
+                    vec![indexing_parameter],
+                    type_node,
+                )
+                .into()
+        })
     }
 
     pub(super) fn signature_to_signature_declaration_helper(
