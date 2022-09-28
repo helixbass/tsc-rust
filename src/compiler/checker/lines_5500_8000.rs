@@ -11,23 +11,23 @@ use std::rc::Rc;
 use super::{ambient_module_symbol_regex, get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
     are_option_rcs_equal, array_is_homogeneous, cast_present, create_underscore_escaped_multi_map,
-    factory, first, get_check_flags, get_declaration_of_kind, get_emit_script_target,
-    get_first_identifier, get_name_from_index_info, get_non_augmentation_declaration,
-    get_original_node, get_source_file_of_node, get_text_of_jsdoc_comment, is_ambient_module,
-    is_binding_element, is_computed_property_name, is_identifier, is_identifier_text,
-    is_identifier_type_reference, is_indexed_access_type_node, is_jsdoc_parameter_tag,
-    is_rest_parameter, is_transient_symbol, length, maybe_filter, maybe_first_defined,
-    maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers, node_is_synthesized,
-    null_transformation_context, out_file, path_is_relative, set_comment_range, set_emit_flags,
-    set_synthetic_leading_comments, some, symbol_name, synthetic_factory,
-    unescape_leading_underscores, using_single_line_string_writer, visit_each_child, with_factory,
-    with_synthetic_factory_and_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags,
-    EmitTextWriter, IndexInfo, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeBuilder,
-    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef,
-    StringOrNodeArray, StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type, TypeChecker, TypeFormatFlags,
-    TypeInterface, TypePredicate, TypePredicateKind, UnderscoreEscapedMultiMap,
-    UserPreferencesBuilder, VisitResult,
+    factory, first, get_check_flags, get_declaration_of_kind, get_emit_module_resolution_kind,
+    get_emit_script_target, get_first_identifier, get_name_from_index_info,
+    get_non_augmentation_declaration, get_original_node, get_source_file_of_node,
+    get_text_of_jsdoc_comment, is_ambient_module, is_binding_element, is_computed_property_name,
+    is_entity_name, is_identifier, is_identifier_text, is_identifier_type_reference,
+    is_indexed_access_type_node, is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol,
+    length, maybe_filter, maybe_first_defined, maybe_for_each_bool, maybe_map, modifiers_to_flags,
+    module_specifiers, node_is_synthesized, null_transformation_context, out_file,
+    path_is_relative, set_comment_range, set_emit_flags, set_synthetic_leading_comments, some,
+    symbol_name, synthetic_factory, unescape_leading_underscores, using_single_line_string_writer,
+    visit_each_child, with_factory, with_synthetic_factory_and_factory, CheckFlags,
+    CompilerOptions, Debug_, EmitFlags, EmitTextWriter, IndexInfo, InternalSymbolName,
+    ModifierFlags, ModuleResolutionKind, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
+    NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef, StringOrNodeArray, StringOrRcNode,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, SynthesizedComment,
+    TransientSymbolInterface, Type, TypeChecker, TypeFormatFlags, TypeInterface, TypePredicate,
+    TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder, VisitResult,
 };
 
 impl NodeBuilder {
@@ -1454,7 +1454,30 @@ impl NodeBuilder {
     }
 
     pub(super) fn symbol_to_entity_name_node(&self, symbol: &Symbol) -> Rc<Node /*EntityName*/> {
-        unimplemented!()
+        let identifier: Rc<Node> =
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_identifier(
+                        synthetic_factory_,
+                        &unescape_leading_underscores(symbol.escaped_name()),
+                        Option::<NodeArray>::None,
+                        None,
+                    )
+                    .into()
+            });
+        if let Some(symbol_parent) = symbol.maybe_parent().as_ref() {
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_qualified_name(
+                        synthetic_factory_,
+                        self.symbol_to_entity_name_node(symbol_parent),
+                        identifier,
+                    )
+                    .into()
+            })
+        } else {
+            identifier
+        }
     }
 
     pub(super) fn symbol_to_type_node(
@@ -1463,7 +1486,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         meaning: SymbolFlags,
         override_type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
-    ) -> Rc<Node> {
+    ) -> Rc<Node /*TypeNode*/> {
         let chain = self.lookup_symbol_chain(
             symbol,
             context,
@@ -1475,35 +1498,132 @@ impl NodeBuilder {
             ),
         );
 
-        let chain_index = chain.len() - 1;
-        let entity_name = self.create_access_from_symbol_chain(context, chain, chain_index, 0);
-        if false {
-            unimplemented!()
-        } else {
-            // let last_id = if is_identifier(entity_name) {
-            //     entity_name
-            // } else {
-            //     unimplemented!()
-            // };
-            let last_type_args: Option<NodeArray> = None;
-            synthetic_factory
-                .with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_.create_type_reference_node(
+        let is_type_of = meaning == SymbolFlags::Value;
+        if some(
+            chain[0].maybe_declarations().as_deref(),
+            Some(|declaration: &Rc<Node>| {
+                self.type_checker
+                    .has_non_global_augmentation_external_module_symbol(declaration)
+            }),
+        ) {
+            let non_root_parts = if chain.len() > 1 {
+                Some(self.create_access_from_symbol_chain(context, &chain, chain.len() - 1, 1))
+            } else {
+                None
+            };
+            let type_parameter_nodes = override_type_arguments
+                .map(ToOwned::to_owned)
+                .or_else(|| self.lookup_type_parameter_nodes(&chain, 0, context));
+            let specifier = self.get_specifier_for_module_symbol(&chain[0], context);
+            if !context
+                .flags()
+                .intersects(NodeBuilderFlags::AllowNodeModulesRelativePaths)
+                && get_emit_module_resolution_kind(&self.type_checker.compiler_options)
+                    != ModuleResolutionKind::Classic
+                && specifier.contains("/node_modules/")
+            {
+                context.encountered_error.set(true);
+                context
+                    .tracker
+                    .report_likely_unsafe_import_required_error(&specifier);
+            }
+            let lit: Rc<Node> =
+                with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                    factory_
+                        .create_literal_type_node(
                             synthetic_factory_,
-                            entity_name,
-                            last_type_args,
+                            factory_
+                                .create_string_literal(
+                                    synthetic_factory_,
+                                    specifier.clone(),
+                                    None,
+                                    None,
+                                )
+                                .into(),
                         )
-                    })
-                })
-                .into()
+                        .into()
+                });
+            context
+                .tracker
+                .track_external_module_symbol_of_import_type_node(&chain[0]);
+            context.increment_approximate_length_by(specifier.len() + 10);
+            if match non_root_parts.as_ref() {
+                None => true,
+                Some(non_root_parts) => is_entity_name(non_root_parts),
+            } {
+                if let Some(non_root_parts) = non_root_parts.as_ref() {
+                    let last_id = if is_identifier(non_root_parts) {
+                        non_root_parts.clone()
+                    } else {
+                        non_root_parts.as_qualified_name().right.clone()
+                    };
+                    *last_id.as_identifier().maybe_type_arguments_mut() = None;
+                }
+                return with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                    factory_
+                        .create_import_type_node(
+                            synthetic_factory_,
+                            lit,
+                            non_root_parts,
+                            type_parameter_nodes,
+                            Some(is_type_of),
+                        )
+                        .into()
+                });
+            } else {
+                let split_node =
+                    self.get_topmost_indexed_access_type(non_root_parts.as_ref().unwrap());
+                let qualifier = &split_node
+                    .as_indexed_access_type_node()
+                    .object_type
+                    .as_type_reference_node()
+                    .type_name;
+                return with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                    factory_
+                        .create_indexed_access_type_node(
+                            synthetic_factory_,
+                            factory_
+                                .create_import_type_node(
+                                    synthetic_factory_,
+                                    lit,
+                                    Some(qualifier.clone()),
+                                    type_parameter_nodes,
+                                    Some(is_type_of),
+                                )
+                                .into(),
+                            split_node.as_indexed_access_type_node().index_type.clone(),
+                        )
+                        .into()
+                });
+            }
+        }
+
+        let entity_name = self.create_access_from_symbol_chain(context, &chain, chain.len() - 1, 0);
+        if is_indexed_access_type_node(&entity_name) {
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_type_query_node(synthetic_factory_, entity_name)
+                    .into()
+            })
+        } else {
+            let last_id = if is_identifier(&entity_name) {
+                entity_name.clone()
+            } else {
+                entity_name.as_qualified_name().right.clone()
+            };
+            let last_type_args = last_id.as_identifier().maybe_type_arguments_mut().take();
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_type_reference_node(synthetic_factory_, entity_name, last_type_args)
+                    .into()
+            })
         }
     }
 
     pub(super) fn create_access_from_symbol_chain(
         &self,
         context: &NodeBuilderContext,
-        chain: Vec<Rc<Symbol>>,
+        chain: &[Rc<Symbol>],
         index: usize,
         stopper: usize,
     ) -> Rc<Node> {

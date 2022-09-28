@@ -14,8 +14,9 @@ use crate::{
     is_push_or_unshift_identifier, is_source_file, is_static, set_parent, set_parent_recursive,
     skip_parentheses, try_cast, try_parse_pattern, BinaryExpressionStateMachine,
     BinaryExpressionTrampoline, Diagnostics, FlowFlags, FlowNode, HasInitializerInterface,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, PatternAmbientModule,
-    StringOrNodeArray, StringOrPattern, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags,
+    NodeInterface, PatternAmbientModule, StringOrNodeArray, StringOrPattern, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind,
 };
 
 impl BinderType {
@@ -183,7 +184,7 @@ impl BinderType {
             SyntaxKind::CallExpression => {
                 let node_as_call_expression = node.as_call_expression();
                 self.bind(node_as_call_expression.question_dot_token.clone());
-                self.bind_each(node_as_call_expression.type_arguments.as_deref());
+                self.bind_each(node_as_call_expression.maybe_type_arguments().as_deref());
                 self.bind_each(Some(&node_as_call_expression.arguments));
             }
             _ => (),
@@ -290,7 +291,7 @@ impl BinderType {
                 expr.kind(),
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
             ) {
-                self.bind_each(node_as_call_expression.type_arguments.as_deref());
+                self.bind_each(node_as_call_expression.maybe_type_arguments().as_deref());
                 self.bind_each(Some(&*node_as_call_expression.arguments));
                 self.bind(Some(&*node_as_call_expression.expression));
             } else {

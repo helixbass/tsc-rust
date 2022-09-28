@@ -13,10 +13,11 @@ use crate::{
     is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_index_signature, is_jsdoc_template_tag,
     is_statement, is_type_alias, length, map, maybe_concatenate, skip_parentheses,
     walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType, CheckFlags, Diagnostics,
-    InterfaceTypeInterface, Node, NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    ObjectTypeInterface, SubstitutionType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypeMapper, TypeReference, TypeReferenceInterface, TypeSystemPropertyName,
+    HasTypeArgumentsInterface, InterfaceTypeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectTypeInterface, SubstitutionType, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeReference, TypeReferenceInterface,
+    TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -46,7 +47,7 @@ impl TypeChecker {
                                 let index: usize = index_of_rc(
                                     type_reference
                                         .as_type_reference_node()
-                                        .type_arguments
+                                        .maybe_type_arguments()
                                         .as_deref()
                                         .unwrap(),
                                     &child_type_parameter,
@@ -530,6 +531,7 @@ impl TypeChecker {
             let num_type_arguments = length(
                 node.as_has_type_arguments()
                     .maybe_type_arguments()
+                    .as_ref()
                     .map(|type_arguments| &**type_arguments),
             );
             let min_type_argument_count = self.get_min_type_argument_count(Some(type_parameters));
@@ -582,6 +584,7 @@ impl TypeChecker {
                         length(
                             node.as_has_type_arguments()
                                 .maybe_type_arguments()
+                                .as_ref()
                                 .map(|node_array| &**node_array),
                         ) != type_parameters.len(),
                     ),
@@ -699,6 +702,7 @@ impl TypeChecker {
             let num_type_arguments = length(
                 node.as_has_type_arguments()
                     .maybe_type_arguments()
+                    .as_ref()
                     .map(|type_arguments| &**type_arguments),
             );
             let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
@@ -1029,7 +1033,7 @@ impl TypeChecker {
         node: &Node, /*NodeWithTypeArguments*/
         symbol: Option<TSymbol>,
     ) -> bool {
-        if let Some(type_arguments) = node.as_has_type_arguments().maybe_type_arguments() {
+        if let Some(type_arguments) = node.as_has_type_arguments().maybe_type_arguments().as_ref() {
             self.error(
                 Some(node),
                 &Diagnostics::Type_0_is_not_generic,
@@ -1056,7 +1060,8 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         let node_as_type_reference_node = node.as_type_reference_node();
         if is_identifier(&node_as_type_reference_node.type_name) {
-            let type_args = node_as_type_reference_node.type_arguments.as_ref();
+            let type_args = node_as_type_reference_node.maybe_type_arguments();
+            let type_args = type_args.as_ref();
             match &*node_as_type_reference_node
                 .type_name
                 .as_identifier()

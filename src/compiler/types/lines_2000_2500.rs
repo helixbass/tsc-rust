@@ -544,7 +544,7 @@ pub struct CallExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
     pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub arguments: NodeArray, /*<Expression>*/
 }
 
@@ -560,7 +560,7 @@ impl CallExpression {
             _node: base_node,
             expression,
             question_dot_token,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             arguments,
         }
     }
@@ -585,8 +585,8 @@ impl HasArgumentsInterface for CallExpression {
 }
 
 impl HasTypeArgumentsInterface for CallExpression {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -594,7 +594,7 @@ impl HasTypeArgumentsInterface for CallExpression {
 #[ast_type]
 pub struct ExpressionWithTypeArguments {
     _node: BaseNode,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
 }
 
@@ -607,7 +607,7 @@ impl ExpressionWithTypeArguments {
         Self {
             _node: base_node,
             expression,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
         }
     }
 }
@@ -619,8 +619,8 @@ impl HasExpressionInterface for ExpressionWithTypeArguments {
 }
 
 impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -629,7 +629,7 @@ impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
 pub struct NewExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub arguments: Option<NodeArray /*<Expression>*/>,
 }
 
@@ -643,7 +643,7 @@ impl NewExpression {
         Self {
             _node: base_node,
             expression,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             arguments,
         }
     }
@@ -662,8 +662,8 @@ impl HasArgumentsInterface for NewExpression {
 }
 
 impl HasTypeArgumentsInterface for NewExpression {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -672,7 +672,7 @@ impl HasTypeArgumentsInterface for NewExpression {
 pub struct TaggedTemplateExpression {
     _node: BaseNode,
     pub tag: Rc<Node /*LeftHandSideExpression*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub template: Rc<Node /*TemplateLiteral*/>,
     pub(crate) question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
 }
@@ -688,7 +688,7 @@ impl TaggedTemplateExpression {
         Self {
             _node: base_node,
             tag,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             template,
             question_dot_token,
         }
@@ -696,8 +696,8 @@ impl TaggedTemplateExpression {
 }
 
 impl HasTypeArgumentsInterface for TaggedTemplateExpression {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 

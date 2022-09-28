@@ -15,13 +15,14 @@ use crate::{
     is_prefix_unary_expression, is_private_identifier, is_property_declaration, is_spread_element,
     is_static, is_string_literal, is_type_literal_node, is_var_const, length, skip_trivia,
     text_span_end, token_to_string, AllAccessorDeclarations, DiagnosticMessage, Diagnostics,
-    EmitResolver, EmitResolverDebuggable, HasInitializerInterface, HasTypeInterface,
-    HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface, ModifierFlags,
-    ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
-    SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
+    EmitResolver, EmitResolverDebuggable, HasInitializerInterface, HasTypeArgumentsInterface,
+    HasTypeInterface, HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface,
+    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags,
+    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
+    SignatureFlags, SignatureKind, SourceFileLike, StringOrNumber, Symbol,
+    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult,
+    SyntaxKind, Ternary, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -689,7 +690,7 @@ impl TypeChecker {
         }
 
         let node_as_call_expression = node.as_call_expression();
-        if node_as_call_expression.type_arguments.is_some() {
+        if node_as_call_expression.maybe_type_arguments().is_some() {
             return self.grammar_error_on_node(
                 node,
                 &Diagnostics::Dynamic_import_cannot_have_type_arguments,

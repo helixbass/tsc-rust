@@ -1158,7 +1158,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> Identifier {
         let mut node = self.create_base_identifier(base_factory, text, original_keyword_kind);
         if let Some(type_arguments) = type_arguments {
-            node.type_arguments = Some(self.create_node_array(Some(type_arguments), None));
+            *node.maybe_type_arguments_mut() =
+                Some(self.create_node_array(Some(type_arguments), None));
         }
         if matches!(node.original_keyword_kind, Some(SyntaxKind::AwaitKeyword)) {
             node.add_transform_flags(TransformFlags::ContainsPossibleTopLevelAwait);

@@ -32,7 +32,7 @@ impl TypeChecker {
         self.check_grammar_jsx_name(&node_as_jsx_opening_like_element.tag_name());
         self.check_grammar_type_arguments(
             node,
-            node.as_has_type_arguments().maybe_type_arguments(),
+            node.as_has_type_arguments().maybe_type_arguments().as_ref(),
         );
         let mut seen: HashMap<__String, bool> = HashMap::new();
 

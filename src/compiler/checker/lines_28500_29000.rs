@@ -777,7 +777,7 @@ impl TypeChecker {
     ) -> Rc<Signature> {
         if self.call_like_expression_may_have_type_arguments(node) {
             maybe_for_each(
-                node.as_has_type_arguments().maybe_type_arguments(),
+                node.as_has_type_arguments().maybe_type_arguments().as_ref(),
                 |type_argument: &Rc<Node>, _| -> Option<()> {
                     self.check_source_element(Some(&**type_argument));
                     None

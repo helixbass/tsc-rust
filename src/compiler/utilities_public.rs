@@ -8,9 +8,9 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    ReadonlyTextRange, TextSpan, __String, combine_paths, compare_diagnostics, contains,
-    create_compiler_diagnostic, entity_name_to_string, every, find, flat_map,
-    get_assignment_declaration_kind, get_directory_path, get_effective_modifier_flags,
+    HasTypeArgumentsInterface, ReadonlyTextRange, TextSpan, __String, combine_paths,
+    compare_diagnostics, contains, create_compiler_diagnostic, entity_name_to_string, every, find,
+    flat_map, get_assignment_declaration_kind, get_directory_path, get_effective_modifier_flags,
     get_effective_modifier_flags_always_include_jsdoc,
     get_element_or_property_access_argument_expression_or_name, get_emit_script_target,
     get_jsdoc_comments_and_tags, get_jsdoc_type_parameter_declarations, has_syntactic_modifier,
@@ -1272,7 +1272,7 @@ pub fn is_const_type_reference(node: &Node) -> bool {
             .as_identifier()
             .escaped_text
             .eq_str("const")
-        && node_as_type_reference_node.type_arguments.is_none()
+        && node_as_type_reference_node.maybe_type_arguments().is_none()
 }
 
 pub fn skip_partially_emitted_expressions(node: &Node) -> Rc<Node> {

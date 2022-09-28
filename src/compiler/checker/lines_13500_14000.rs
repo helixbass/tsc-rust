@@ -11,10 +11,10 @@ use crate::{
     count_where, create_symbol_table, find, is_assertion_expression, is_const_type_reference,
     is_this_identifier, is_type_alias_declaration, is_type_operator_node, length, maybe_map, some,
     symbol_name, BaseInterfaceType, CheckFlags, ElementFlags, GenericableTypeInterface,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, NodeInterface, Number,
-    ObjectFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, TypeFlags,
-    TypeInterface, TypeReferenceInterface, __String, map, DiagnosticMessage, Diagnostics, Node,
-    Symbol, SymbolFlags, Type, TypeChecker,
+    HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    NodeInterface, Number, ObjectFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    TupleType, TypeFlags, TypeInterface, TypeReferenceInterface, __String, map, DiagnosticMessage,
+    Diagnostics, Node, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -82,7 +82,7 @@ impl TypeChecker {
         node: &Node, /*NodeWithTypeArguments*/
     ) -> Option<Vec<Rc<Type>>> {
         maybe_map(
-            node.as_has_type_arguments().maybe_type_arguments(),
+            node.as_has_type_arguments().maybe_type_arguments().as_ref(),
             |type_argument, _| self.get_type_from_type_node_(&**type_argument),
         )
     }
@@ -806,7 +806,9 @@ impl TypeChecker {
                 } else {
                     matches!(has_default_type_arguments, Some(true))
                         || some(
-                            node.as_type_reference_node().type_arguments.as_deref(),
+                            node.as_type_reference_node()
+                                .maybe_type_arguments()
+                                .as_deref(),
                             Some(|type_argument: &Rc<Node>| {
                                 self.may_resolve_type_alias(type_argument)
                             }),

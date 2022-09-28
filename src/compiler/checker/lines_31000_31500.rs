@@ -10,10 +10,10 @@ use crate::{
     get_new_target_container, get_source_file_of_node, is_call_expression, is_const_type_reference,
     is_identifier, is_parameter, is_property_access_expression, is_require_call, is_source_file,
     length, Debug_, Diagnostics, ElementFlags, EnumKind, Extension, ExternalEmitHelpers,
-    InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeFlags, Number, ObjectFlags,
-    ScriptTarget, Signature, SignatureFlags, SymbolFlags, TransientSymbolInterface, __String,
-    has_initializer, Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    HasTypeArgumentsInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface,
+    NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
+    TransientSymbolInterface, __String, has_initializer, Node, NodeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -310,7 +310,9 @@ impl TypeChecker {
         if !self.check_grammar_tagged_template_chain(node) {
             self.check_grammar_type_arguments(
                 node,
-                node_as_tagged_template_expression.type_arguments.as_ref(),
+                node_as_tagged_template_expression
+                    .maybe_type_arguments()
+                    .as_ref(),
             );
         }
         if self.language_version < ScriptTarget::ES2015 {

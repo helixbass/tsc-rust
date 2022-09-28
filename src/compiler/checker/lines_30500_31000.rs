@@ -410,11 +410,14 @@ impl TypeChecker {
             if length(
                 node_as_jsx_opening_like_element
                     .maybe_type_arguments()
+                    .as_ref()
                     .map(|type_arguments| &**type_arguments),
             ) > 0
             {
                 maybe_for_each(
-                    node_as_jsx_opening_like_element.maybe_type_arguments(),
+                    node_as_jsx_opening_like_element
+                        .maybe_type_arguments()
+                        .as_ref(),
                     |type_argument: &Rc<Node>, _| -> Option<()> {
                         self.check_source_element(Some(&**type_argument));
                         None
@@ -425,6 +428,7 @@ impl TypeChecker {
                         &get_source_file_of_node(Some(node)).unwrap(),
                         node_as_jsx_opening_like_element
                             .maybe_type_arguments()
+                            .as_ref()
                             .unwrap(),
                         &Diagnostics::Expected_0_type_arguments_but_got_1,
                         Some(vec![
@@ -432,6 +436,7 @@ impl TypeChecker {
                             length(
                                 node_as_jsx_opening_like_element
                                     .maybe_type_arguments()
+                                    .as_ref()
                                     .map(|type_arguments| &**type_arguments),
                             )
                             .to_string(),
@@ -803,9 +808,10 @@ impl TypeChecker {
         node: &Node, /*CallExpression |} NewExpression*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
-        if !self
-            .check_grammar_type_arguments(node, node.as_has_type_arguments().maybe_type_arguments())
-        {
+        if !self.check_grammar_type_arguments(
+            node,
+            node.as_has_type_arguments().maybe_type_arguments().as_ref(),
+        ) {
             self.check_grammar_arguments(node.as_has_arguments().maybe_arguments());
         }
 

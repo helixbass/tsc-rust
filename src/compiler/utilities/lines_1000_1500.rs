@@ -20,9 +20,9 @@ use crate::{
     CharacterCodes, ClassLikeDeclarationInterface, CommentRange, Debug_, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticWithLocation, EmitFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
-    TextSpan,
+    HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars,
+    SyntaxKind, TextRange, TextSpan,
 };
 
 pub fn create_diagnostic_for_node(
@@ -616,13 +616,16 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                 }
                 SyntaxKind::CallExpression => {
                     return contains_rc(
-                        parent.as_call_expression().type_arguments.as_deref(),
+                        parent
+                            .as_call_expression()
+                            .maybe_type_arguments()
+                            .as_deref(),
                         &node,
                     );
                 }
                 SyntaxKind::NewExpression => {
                     return contains_rc(
-                        parent.as_new_expression().type_arguments.as_deref(),
+                        parent.as_new_expression().maybe_type_arguments().as_deref(),
                         &node,
                     );
                 }
@@ -777,10 +780,12 @@ pub fn get_rest_parameter_element_type<TNode: Borrow<Node>>(
     let node = node.borrow();
     match node.kind() {
         SyntaxKind::ArrayType => Some(node.as_array_type_node().element_type.clone()),
-        SyntaxKind::TypeReference => {
-            single_or_undefined(node.as_type_reference_node().type_arguments.as_deref())
-                .map(Clone::clone)
-        }
+        SyntaxKind::TypeReference => single_or_undefined(
+            node.as_type_reference_node()
+                .maybe_type_arguments()
+                .as_deref(),
+        )
+        .cloned(),
         _ => None,
     }
 }

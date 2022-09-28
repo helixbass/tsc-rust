@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
@@ -223,7 +223,7 @@ impl From<BaseNode> for KeywordTypeNode {
 #[ast_type]
 pub struct ImportTypeNode {
     _node: BaseNode,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     is_type_of: Cell<bool>,
     pub argument: Rc<Node /*<TypeNode>*/>,
     pub qualifier: Option<Rc<Node /*<EntityName>*/>>,
@@ -239,7 +239,7 @@ impl ImportTypeNode {
     ) -> Self {
         Self {
             _node: base_node,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             is_type_of: Cell::new(is_type_of),
             argument,
             qualifier,
@@ -256,8 +256,8 @@ impl ImportTypeNode {
 }
 
 impl HasTypeArgumentsInterface for ImportTypeNode {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -306,7 +306,10 @@ impl ConstructorTypeNode {
 }
 
 pub trait HasTypeArgumentsInterface {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray>;
+    // TODO: changed this from Option<&NodeArray> to Ref<Option<NodeArray>> (and changed everything
+    // except Identifier to have an unnecessary RefCell wrapper) because Identifier needs to mutate
+    // its type_arguments, don't know if there's "a better way"?
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>>;
 }
 
 #[derive(Debug)]
@@ -314,7 +317,7 @@ pub trait HasTypeArgumentsInterface {
 pub struct TypeReferenceNode {
     _node: BaseNode,
     pub type_name: Rc<Node /*EntityName*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
 }
 
 impl TypeReferenceNode {
@@ -326,14 +329,14 @@ impl TypeReferenceNode {
         Self {
             _node: base_node,
             type_name,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
         }
     }
 }
 
 impl HasTypeArgumentsInterface for TypeReferenceNode {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 

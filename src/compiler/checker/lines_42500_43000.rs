@@ -14,10 +14,10 @@ use crate::{
     is_block, is_function_like_declaration, is_object_literal_expression, is_rest_parameter,
     length, skip_parentheses, skip_trivia, some, token_to_string, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformation, Diagnostics, Extension, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
-    LineAndCharacter, NamedDeclarationInterface, NodeArray, NodeFlags, ReadonlyTextRange,
-    ScriptTarget, SourceFileLike, SyntaxKind, TypeFlags, TypeInterface, __String, for_each, Node,
-    NodeInterface, Type, TypeChecker,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    InterfaceOrClassLikeDeclarationInterface, LineAndCharacter, NamedDeclarationInterface,
+    NodeArray, NodeFlags, ReadonlyTextRange, ScriptTarget, SourceFileLike, SyntaxKind, TypeFlags,
+    TypeInterface, __String, for_each, Node, NodeInterface, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -626,7 +626,7 @@ impl TypeChecker {
         self.check_grammar_type_arguments(
             node,
             node.as_expression_with_type_arguments()
-                .type_arguments
+                .maybe_type_arguments()
                 .as_ref(),
         )
     }

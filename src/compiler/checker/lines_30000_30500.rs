@@ -12,11 +12,11 @@ use crate::{
     get_source_file_of_node, has_syntactic_modifier, is_call_chain, is_call_expression,
     is_in_js_file, is_line_break, is_outermost_optional_chain, last, length, map_defined,
     min_and_max, skip_trivia, text_char_at_index, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, InferenceFlags, MinAndMax,
-    ModifierFlags, Node, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, HasTypeArgumentsInterface,
+    InferenceFlags, MinAndMax, ModifierFlags, Node, NodeInterface, ObjectFlags, ReadonlyTextRange,
+    ScriptTarget, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -202,11 +202,11 @@ impl TypeChecker {
         let type_parameters = &type_parameters;
 
         let type_argument_nodes = if self.call_like_expression_may_have_type_arguments(node) {
-            node.as_has_type_arguments().maybe_type_arguments()
+            node.as_has_type_arguments().maybe_type_arguments().clone()
         } else {
             None
         };
-        let instantiated = if let Some(type_argument_nodes) = type_argument_nodes {
+        let instantiated = if let Some(type_argument_nodes) = type_argument_nodes.as_ref() {
             Rc::new(self.create_signature_instantiation(
                 candidate.clone(),
                 Some(&self.get_type_arguments_from_nodes(
@@ -325,7 +325,7 @@ impl TypeChecker {
                         &super_type,
                         base_type_node
                             .as_expression_with_type_arguments()
-                            .type_arguments
+                            .maybe_type_arguments()
                             .as_deref(),
                         base_type_node,
                     );
@@ -387,7 +387,9 @@ impl TypeChecker {
             call_signatures.len(),
             num_construct_signatures,
         ) {
-            if !self.is_error_type(&func_type) && node_as_call_expression.type_arguments.is_some() {
+            if !self.is_error_type(&func_type)
+                && node_as_call_expression.maybe_type_arguments().is_some()
+            {
                 self.error(
                     Some(node),
                     &Diagnostics::Untyped_function_calls_may_not_accept_type_arguments,
@@ -445,7 +447,7 @@ impl TypeChecker {
             return self.resolve_error_call(node);
         }
         if check_mode.intersects(CheckMode::SkipGenericFunctions)
-            && node_as_call_expression.type_arguments.is_none()
+            && node_as_call_expression.maybe_type_arguments().is_none()
             && call_signatures.iter().any(|call_signature| {
                 self.is_generic_function_returning_function(call_signature.clone())
             })
@@ -538,7 +540,7 @@ impl TypeChecker {
         }
 
         if self.is_type_any(Some(&*expression_type)) {
-            if node_as_new_expression.type_arguments.is_some() {
+            if node_as_new_expression.maybe_type_arguments().is_some() {
                 self.error(
                     Some(node),
                     &Diagnostics::Untyped_function_calls_may_not_accept_type_arguments,

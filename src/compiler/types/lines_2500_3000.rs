@@ -93,7 +93,7 @@ impl HasPropertiesInterface for JsxAttributes {
 pub struct JsxOpeningElement {
     _node: BaseNode,
     pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub attributes: Rc<Node /*JsxAttributes*/>,
 }
 
@@ -107,7 +107,7 @@ impl JsxOpeningElement {
         Self {
             _node: base_node,
             tag_name,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             attributes,
         }
     }
@@ -134,8 +134,8 @@ impl JsxOpeningLikeElementInterface for JsxOpeningElement {
 }
 
 impl HasTypeArgumentsInterface for JsxOpeningElement {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -144,7 +144,7 @@ impl HasTypeArgumentsInterface for JsxOpeningElement {
 pub struct JsxSelfClosingElement {
     _node: BaseNode,
     pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub attributes: Rc<Node /*JsxAttributes*/>,
 }
 
@@ -158,7 +158,7 @@ impl JsxSelfClosingElement {
         Self {
             _node: base_node,
             tag_name,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             attributes,
         }
     }
@@ -177,8 +177,8 @@ impl JsxOpeningLikeElementInterface for JsxSelfClosingElement {
 }
 
 impl HasTypeArgumentsInterface for JsxSelfClosingElement {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 

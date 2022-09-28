@@ -258,7 +258,10 @@ impl TypeChecker {
     ) -> Vec<Rc<Type>> {
         self.fill_missing_type_arguments(
             Some(map(
-                node.as_has_type_arguments().maybe_type_arguments().unwrap(),
+                node.as_has_type_arguments()
+                    .maybe_type_arguments()
+                    .as_ref()
+                    .unwrap(),
                 |type_argument, _| self.get_type_from_type_node_(type_argument),
             )),
             Some(type_parameters),
@@ -291,6 +294,7 @@ impl TypeChecker {
                         &self.instantiate_type(constraint, mapper.as_ref()),
                         node.as_has_type_arguments()
                             .maybe_type_arguments()
+                            .as_ref()
                             .unwrap()
                             .get(i)
                             .cloned(),
@@ -344,7 +348,10 @@ impl TypeChecker {
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
     ) {
         let node_as_has_type_arguments = node.as_has_type_arguments();
-        self.check_grammar_type_arguments(node, node_as_has_type_arguments.maybe_type_arguments());
+        self.check_grammar_type_arguments(
+            node,
+            node_as_has_type_arguments.maybe_type_arguments().as_ref(),
+        );
         if node.kind() == SyntaxKind::TypeReference {
             if let Some(node_type_name_jsdoc_dot_pos) = node
                 .as_type_reference_node()
@@ -364,7 +371,7 @@ impl TypeChecker {
             }
         }
         maybe_for_each(
-            node_as_has_type_arguments.maybe_type_arguments(),
+            node_as_has_type_arguments.maybe_type_arguments().as_ref(),
             |type_argument, _| {
                 self.check_source_element(Some(&**type_argument));
                 Option::<()>::None
@@ -428,6 +435,7 @@ impl TypeChecker {
             &type_parameters[type_reference_node
                 .as_has_type_arguments()
                 .maybe_type_arguments()
+                .as_ref()
                 .unwrap()
                 .into_iter()
                 .position(|type_argument| ptr::eq(&**type_argument, node))

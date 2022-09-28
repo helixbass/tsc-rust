@@ -17,12 +17,12 @@ use crate::{
     AwaitExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
     BindingElement, CallExpression, ClassExpression, ConditionalExpression, Debug_,
     DeleteExpression, ElementAccessExpression, FunctionExpression,
-    FunctionLikeDeclarationInterface, HasTypeParametersInterface, ImportTypeNode,
-    IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode, ModifierFlags,
-    NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
-    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, SpreadElement,
-    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
+    FunctionLikeDeclarationInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
+    ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode,
+    ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression,
+    ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
+    SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
     TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
     ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOfExpression, TypeOperatorNode,
     VoidExpression, YieldExpression,
@@ -462,10 +462,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_ref())
                 | propagate_children_flags(Some(&node.arguments)),
         );
-        if node.type_arguments.is_some() {
+        if node.maybe_type_arguments().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         if is_import_keyword(&node.expression) {
@@ -497,7 +497,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
         if !ptr::eq(&*node_as_call_expression.expression, expression)
             || !match (
-                node_as_call_expression.type_arguments.as_ref(),
+                node_as_call_expression.maybe_type_arguments().as_ref(),
                 type_arguments,
             ) {
                 (Some(node_type_arguments), Some(type_arguments)) => {
@@ -559,11 +559,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
                 | propagate_child_flags(node.question_dot_token.clone())
-                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_ref())
                 | propagate_children_flags(Some(&node.arguments))
                 | TransformFlags::ContainsES2020,
         );
-        if node.type_arguments.is_some() {
+        if node.maybe_type_arguments().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         if is_super_property(&node.expression) {
@@ -598,7 +598,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 _ => false,
             }
             || !match (
-                node_as_call_expression.type_arguments.as_ref(),
+                node_as_call_expression.maybe_type_arguments().as_ref(),
                 type_arguments,
             ) {
                 (Some(node_type_arguments), Some(type_arguments)) => {
@@ -659,11 +659,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_ref())
                 | propagate_children_flags(node.arguments.as_ref())
                 | TransformFlags::ContainsES2020,
         );
-        if node.type_arguments.is_some() {
+        if node.maybe_type_arguments().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node
@@ -687,11 +687,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag))
-                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_ref())
                 | propagate_child_flags(Some(&*node.template))
                 | TransformFlags::ContainsES2015,
         );
-        if node.type_arguments.is_some() {
+        if node.maybe_type_arguments().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         if has_invalid_escape(&node.template) {

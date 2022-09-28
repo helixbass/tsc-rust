@@ -8,14 +8,14 @@ use crate::{
     BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement,
     DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
     ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
-    FunctionLikeDeclarationInterface, IfStatement, ImportClause, ImportDeclaration,
-    ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags,
-    ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
-    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
-    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
-    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
-    WhileStatement, WithStatement,
+    FunctionLikeDeclarationInterface, HasTypeArgumentsInterface, IfStatement, ImportClause,
+    ImportDeclaration, ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement,
+    MetaProperty, ModifierFlags, ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
+    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement,
+    StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags,
+    TryStatement, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
+    VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -42,7 +42,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_ref())
                 | TransformFlags::ContainsES2015,
         );
         node

@@ -18,10 +18,11 @@ use crate::{
     length, map, maybe_for_each_bool, node_is_synthesized, null_transformation_context,
     range_equals_rc, same_map, set_emit_flags, set_text_range, some, symbol_name,
     synthetic_factory, unescape_leading_underscores, visit_each_child, CheckFlags, Debug_,
-    ElementFlags, EmitFlags, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node,
-    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface, VisitResult,
+    ElementFlags, EmitFlags, HasTypeArgumentsInterface, InterfaceTypeInterface, KeywordTypeNode,
+    ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId,
+    TypeInterface, VisitResult,
 };
 
 impl NodeBuilder {
@@ -935,7 +936,8 @@ impl NodeBuilder {
     ) -> Rc<Node /*TypeReferenceNode | ImportTypeNode*/> {
         if is_import_type_node(root) {
             let root_as_import_type_node = root.as_import_type_node();
-            let type_arguments = root_as_import_type_node.type_arguments.as_ref();
+            let type_arguments = root_as_import_type_node.maybe_type_arguments();
+            let type_arguments = type_arguments.as_ref();
             let mut qualifier: Option<Rc<Node>> = root_as_import_type_node.qualifier.clone();
             if let Some(qualifier_present) = qualifier {
                 if is_identifier(&qualifier_present) {
@@ -965,7 +967,8 @@ impl NodeBuilder {
                     }));
                 }
             }
-            let type_arguments = ref_.as_type_reference_node().type_arguments.as_deref();
+            let type_arguments = ref_.as_type_reference_node().maybe_type_arguments();
+            let type_arguments = type_arguments.as_deref();
             let ids = self.get_access_stack(ref_);
             for id in ids {
                 qualifier = Some(if let Some(qualifier) = qualifier {
@@ -996,7 +999,8 @@ impl NodeBuilder {
             })
         } else {
             let root_as_type_reference_node = root.as_type_reference_node();
-            let type_arguments = root_as_type_reference_node.type_arguments.as_ref();
+            let type_arguments = root_as_type_reference_node.maybe_type_arguments();
+            let type_arguments = type_arguments.as_ref();
             let mut type_name: Rc<Node> = root_as_type_reference_node.type_name.clone();
             if is_identifier(&type_name) {
                 type_name = synthetic_factory.with(|synthetic_factory_| {
@@ -1024,7 +1028,8 @@ impl NodeBuilder {
                     })
                 });
             }
-            let type_arguments = ref_.as_type_reference_node().type_arguments.as_ref();
+            let type_arguments = ref_.as_type_reference_node().maybe_type_arguments();
+            let type_arguments = type_arguments.as_ref();
             let ids = self.get_access_stack(ref_);
             for id in ids {
                 type_name = synthetic_factory.with(|synthetic_factory_| {

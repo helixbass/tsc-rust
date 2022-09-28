@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -203,7 +203,7 @@ pub struct Identifier {
     pub(crate) auto_generate_id: Option<usize>,
     generated_import_reference: RefCell<Option<Rc<Node /*ImportSpecifier*/>>>,
     is_in_jsdoc_namespace: Cell<Option<bool>>,
-    pub(crate) type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>>,
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
 
@@ -217,7 +217,7 @@ impl Identifier {
             auto_generate_id: None,
             generated_import_reference: RefCell::new(None),
             is_in_jsdoc_namespace: Cell::new(None),
-            type_arguments: None,
+            type_arguments: RefCell::new(None),
             jsdoc_dot_pos: Cell::new(None),
         }
     }
@@ -236,6 +236,10 @@ impl Identifier {
 
     pub fn set_is_in_jsdoc_namespace(&self, is_in_jsdoc_namespace: Option<bool>) {
         self.is_in_jsdoc_namespace.set(is_in_jsdoc_namespace);
+    }
+
+    pub fn maybe_type_arguments_mut(&self) -> RefMut<Option<NodeArray>> {
+        self.type_arguments.borrow_mut()
     }
 }
 
@@ -261,8 +265,8 @@ impl HasJSDocDotPosInterface for Identifier {
 }
 
 impl HasTypeArgumentsInterface for Identifier {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 

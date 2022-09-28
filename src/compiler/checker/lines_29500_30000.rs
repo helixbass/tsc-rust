@@ -696,17 +696,17 @@ impl TypeChecker {
         let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(node);
         let report_errors = candidates_out_array.is_none() && self.produce_diagnostics;
 
-        let mut type_arguments: Option<&NodeArray /*<TypeNode>*/> = None;
+        let mut type_arguments: Option<NodeArray /*<TypeNode>*/> = None;
 
         if !is_decorator {
-            type_arguments = node.as_has_type_arguments().maybe_type_arguments();
+            type_arguments = node.as_has_type_arguments().maybe_type_arguments().clone();
 
             if is_tagged_template
                 || is_jsx_opening_or_self_closing_element
                 || node.as_has_expression().expression().kind() != SyntaxKind::SuperKeyword
             {
                 maybe_for_each(
-                    type_arguments,
+                    type_arguments.as_ref(),
                     |type_argument: &Rc<Node>, _| -> Option<()> {
                         self.check_source_element(Some(&**type_argument));
                         None
@@ -759,7 +759,7 @@ impl TypeChecker {
                 &mut candidates_for_argument_error,
                 &mut candidate_for_argument_arity_error,
                 &mut candidate_for_type_argument_error,
-                type_arguments,
+                type_arguments.as_ref(),
                 node,
                 &args,
                 &mut arg_check_mode,
@@ -774,7 +774,7 @@ impl TypeChecker {
                 &mut candidates_for_argument_error,
                 &mut candidate_for_argument_arity_error,
                 &mut candidate_for_type_argument_error,
-                type_arguments,
+                type_arguments.as_ref(),
                 node,
                 &args,
                 &mut arg_check_mode,
@@ -843,7 +843,7 @@ impl TypeChecker {
                                 &mut candidates_for_argument_error,
                                 &mut candidate_for_argument_arity_error,
                                 &mut candidate_for_type_argument_error,
-                                type_arguments,
+                                type_arguments.as_ref(),
                                 node,
                                 &args,
                                 &mut arg_check_mode,
@@ -959,7 +959,7 @@ impl TypeChecker {
                         &mut candidates_for_argument_error,
                         &mut candidate_for_argument_arity_error,
                         &mut candidate_for_type_argument_error,
-                        type_arguments,
+                        type_arguments.as_ref(),
                         node,
                         &args,
                         &mut arg_check_mode,
@@ -981,20 +981,23 @@ impl TypeChecker {
             {
                 self.check_type_arguments(
                     candidate_for_type_argument_error,
-                    node.as_has_type_arguments().maybe_type_arguments().unwrap(),
+                    node.as_has_type_arguments()
+                        .maybe_type_arguments()
+                        .as_ref()
+                        .unwrap(),
                     true,
                     fallback_error,
                 );
             } else {
                 let signatures_with_correct_type_argument_arity =
                     filter(signatures, |s: &Rc<Signature>| {
-                        self.has_correct_type_argument_arity(s, type_arguments)
+                        self.has_correct_type_argument_arity(s, type_arguments.as_ref())
                     });
                 if signatures_with_correct_type_argument_arity.is_empty() {
                     self.diagnostics().add(self.get_type_argument_arity_error(
                         node,
                         signatures,
-                        type_arguments.unwrap(),
+                        type_arguments.as_ref().unwrap(),
                     ));
                 } else if !is_decorator {
                     self.diagnostics().add(self.get_argument_arity_error(

@@ -14,11 +14,11 @@ use crate::{
     is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
     is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
     maybe_for_each, some, ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, IndexInfo, InterfaceTypeInterface,
-    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, __String,
-    for_each_key, get_effective_type_annotation_node, get_root_declaration,
+    ExternalEmitHelpers, FindAncestorCallbackReturn, HasTypeArgumentsInterface, IndexInfo,
+    InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, __String, for_each_key, get_effective_type_annotation_node, get_root_declaration,
     HasInitializerInterface, TypeFlags, TypeInterface,
 };
 
@@ -777,7 +777,7 @@ impl TypeChecker {
                 base_type_node.as_expression_with_type_arguments();
             maybe_for_each(
                 base_type_node_as_expression_with_type_arguments
-                    .type_arguments
+                    .maybe_type_arguments()
                     .as_ref(),
                 |type_argument: &Rc<Node>, _| -> Option<()> {
                     self.check_source_element(Some(&**type_argument));
@@ -813,13 +813,13 @@ impl TypeChecker {
                 ));
                 if some(
                     base_type_node_as_expression_with_type_arguments
-                        .type_arguments
+                        .maybe_type_arguments()
                         .as_deref(),
                     Option::<fn(&Rc<Node>) -> bool>::None,
                 ) {
                     maybe_for_each(
                         base_type_node_as_expression_with_type_arguments
-                            .type_arguments
+                            .maybe_type_arguments()
                             .as_ref(),
                         |type_argument: &Rc<Node>, _| -> Option<()> {
                             self.check_source_element(Some(&**type_argument));
@@ -829,7 +829,7 @@ impl TypeChecker {
                     for constructor in &self.get_constructors_for_type_arguments(
                         &static_base_type,
                         base_type_node_as_expression_with_type_arguments
-                            .type_arguments
+                            .maybe_type_arguments()
                             .as_deref(),
                         base_type_node,
                     ) {
@@ -908,7 +908,7 @@ impl TypeChecker {
                     let constructors = self.get_instantiated_constructors_for_type_arguments(
                         &static_base_type,
                         base_type_node_as_expression_with_type_arguments
-                            .type_arguments
+                            .maybe_type_arguments()
                             .as_deref(),
                         base_type_node,
                     );

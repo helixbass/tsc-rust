@@ -1,10 +1,10 @@
 use super::{visit_node, visit_nodes};
 use crate::{
     for_each, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasQuestionTokenInterface, HasTypeInterface,
-    HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SignatureDeclarationInterface,
-    StringOrNodeArray, SyntaxKind,
+    HasInitializerInterface, HasQuestionTokenInterface, HasTypeArgumentsInterface,
+    HasTypeInterface, HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
+    JSDocTagInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
 };
 
 pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeArray)>(
@@ -448,7 +448,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             )
         }
         Node::TypePredicateNode(node) => {
@@ -485,7 +485,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             )
         }
         Node::ParenthesizedTypeNode(node) => visit_node(&mut cb_node, Some(&*node.type_)),
@@ -537,7 +537,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.arguments));
         }
@@ -546,7 +546,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.arguments.as_ref());
         }
@@ -556,7 +556,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_node(&mut cb_node, Some(&*node.template));
         }
@@ -954,7 +954,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             )
         }
         Node::ExternalModuleReference(node) => {
@@ -985,7 +985,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_node(&mut cb_node, Some(&*node.attributes));
         }
@@ -994,7 +994,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_node(&mut cb_node, Some(&*node.attributes));
         }

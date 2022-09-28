@@ -12,11 +12,11 @@ use crate::{
     is_jsdoc_type_alias, is_named_declaration, is_private_identifier_class_element_declaration,
     is_static, is_string_literal_like, is_type_alias, node_is_missing, BaseInterfaceType,
     CharacterCodes, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, Node,
-    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, TypeReferenceInterface, TypeSystemPropertyName,
-    UnionReduction, __String,
+    HasTypeArgumentsInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    InternalSymbolName, Node, NodeFlags, NodeInterface, Number, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeReferenceInterface, TypeSystemPropertyName, UnionReduction, __String,
 };
 
 impl TypeChecker {
@@ -540,7 +540,11 @@ impl TypeChecker {
             | SyntaxKind::LiteralType => true,
             SyntaxKind::ArrayType => self.is_thisless_type(&node.as_array_type_node().element_type),
             SyntaxKind::TypeReference => {
-                match node.as_type_reference_node().type_arguments.as_deref() {
+                match node
+                    .as_type_reference_node()
+                    .maybe_type_arguments()
+                    .as_deref()
+                {
                     None => true,
                     Some(type_arguments) => every(type_arguments, |type_argument: &Rc<Node>, _| {
                         self.is_thisless_type(type_argument)

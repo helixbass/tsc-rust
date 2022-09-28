@@ -12,10 +12,10 @@ use crate::{
     get_effective_return_type_node, get_object_flags, has_context_sensitive_parameters,
     is_function_declaration, is_function_expression_or_arrow_function, is_in_js_file,
     is_jsx_opening_element, is_object_literal_method, is_part_of_type_node, map, some, Debug_,
-    DiagnosticMessage, Diagnostics, ElementFlags, IndexInfo, MappedType, Node, NodeArray,
-    NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeReferenceInterface, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    DiagnosticMessage, Diagnostics, ElementFlags, HasTypeArgumentsInterface, IndexInfo, MappedType,
+    Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
+    Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypeReferenceInterface, TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
     UnionReduction,
 };
 
@@ -24,16 +24,24 @@ impl TypeChecker {
         !(node.parent().kind() == SyntaxKind::TypeReference && {
             let node_parent = node.parent();
             let node_parent_as_type_reference_node = node_parent.as_type_reference_node();
-            node_parent_as_type_reference_node.type_arguments.is_some()
-                && ptr::eq(node, &*node_parent_as_type_reference_node.type_name)
+            ({
+                let value = node_parent_as_type_reference_node
+                    .maybe_type_arguments()
+                    .is_some();
+                value
+            }) && ptr::eq(node, &*node_parent_as_type_reference_node.type_name)
         } || node.parent().kind() == SyntaxKind::ImportType && {
             let node_parent = node.parent();
             let node_parent_as_import_type_node = node_parent.as_import_type_node();
-            node_parent_as_import_type_node.type_arguments.is_some()
-                && matches!(
-                    node_parent_as_import_type_node.qualifier.as_deref(),
-                    Some(qualifier) if ptr::eq(node, qualifier)
-                )
+            ({
+                let value = node_parent_as_import_type_node
+                    .maybe_type_arguments()
+                    .is_some();
+                value
+            }) && matches!(
+                node_parent_as_import_type_node.qualifier.as_deref(),
+                Some(qualifier) if ptr::eq(node, qualifier)
+            )
         })
     }
 

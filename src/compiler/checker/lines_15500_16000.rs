@@ -6,16 +6,16 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::{
-    __String, append, concatenate, create_symbol_table, declaration_name_to_string, every, find,
-    get_declaration_modifier_flags_from_symbol, is_identifier, is_jsdoc_type_expression,
-    is_jsdoc_type_literal, is_literal_import_type_node, is_optional_type_node,
-    is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node, is_type_alias,
-    is_type_operator_node, length, map, maybe_concatenate, maybe_filter, node_is_missing, same_map,
-    AccessFlags, CheckFlags, ConditionalRoot, ConditionalType, Diagnostics, IndexInfo,
-    InferenceFlags, InferencePriority, MappedType, ModifierFlags, Node, NodeFlags, NodeInterface,
-    NodeLinks, ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
+    HasTypeArgumentsInterface, __String, append, concatenate, create_symbol_table,
+    declaration_name_to_string, every, find, get_declaration_modifier_flags_from_symbol,
+    is_identifier, is_jsdoc_type_expression, is_jsdoc_type_literal, is_literal_import_type_node,
+    is_optional_type_node, is_parenthesized_type_node, is_rest_type_node, is_tuple_type_node,
+    is_type_alias, is_type_operator_node, length, map, maybe_concatenate, maybe_filter,
+    node_is_missing, same_map, AccessFlags, CheckFlags, ConditionalRoot, ConditionalType,
+    Diagnostics, IndexInfo, InferenceFlags, InferencePriority, MappedType, ModifierFlags, Node,
+    NodeFlags, NodeInterface, NodeLinks, ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -637,7 +637,7 @@ impl TypeChecker {
         if (*links).borrow().resolved_type.is_none() {
             let node_as_import_type_node = node.as_import_type_node();
             if node_as_import_type_node.is_type_of()
-                && node_as_import_type_node.type_arguments.is_some()
+                && node_as_import_type_node.maybe_type_arguments().is_some()
             {
                 self.error(
                     Some(node),
