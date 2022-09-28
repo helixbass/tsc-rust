@@ -716,7 +716,24 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         constraint_node: Option<Rc<Node>>,
     ) -> Rc<Node /*TypeParameterDeclaration*/> {
-        unimplemented!()
+        let saved_context_flags = context.flags();
+        context.set_flags(context.flags() & !NodeBuilderFlags::WriteTypeParametersInQualifiedName);
+        let name = self.type_parameter_to_name(type_, context);
+        let default_parameter = self.type_checker.get_default_from_type_parameter_(type_);
+        let default_parameter_node = default_parameter.as_ref().and_then(|default_parameter| {
+            self.type_to_type_node_helper(Some(&**default_parameter), context)
+        });
+        context.set_flags(saved_context_flags);
+        with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+            factory_
+                .create_type_parameter_declaration(
+                    synthetic_factory_,
+                    name,
+                    constraint_node,
+                    default_parameter_node,
+                )
+                .into()
+        })
     }
 
     pub(super) fn type_parameter_to_declaration_(
@@ -727,7 +744,10 @@ impl NodeBuilder {
     ) -> Rc<Node /*TypeParameterDeclaration*/> {
         let constraint =
             constraint.or_else(|| self.type_checker.get_constraint_of_type_parameter(type_));
-        unimplemented!()
+        let constraint_node = constraint
+            .as_ref()
+            .and_then(|constraint| self.type_to_type_node_helper(Some(&**constraint), context));
+        self.type_parameter_to_declaration_with_constraint(type_, context, constraint_node)
     }
 
     pub(super) fn symbol_to_parameter_declaration_<TPrivateSymbolVisitor: Fn(&Symbol)>(
