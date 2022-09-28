@@ -157,6 +157,7 @@ pub use compiler::module_name_resolver::{
     resolve_type_reference_directive, ModeAwareCache, ModuleResolutionCache,
     TypeReferenceDirectiveResolutionCache,
 };
+pub use compiler::module_specifiers;
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively,
     for_each_child_recursively_bool, for_each_child_returns, is_external_module,

@@ -2,6 +2,8 @@
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::cmp::Ordering;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
@@ -11,16 +13,16 @@ use crate::{
     factory, get_check_flags, get_declaration_of_kind, get_emit_script_target,
     get_first_identifier, get_name_from_index_info, get_text_of_jsdoc_comment, is_binding_element,
     is_computed_property_name, is_identifier, is_identifier_text, is_identifier_type_reference,
-    is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, modifiers_to_flags,
-    node_is_synthesized, null_transformation_context, set_comment_range, set_emit_flags,
-    set_synthetic_leading_comments, some, symbol_name, synthetic_factory,
-    unescape_leading_underscores, using_single_line_string_writer, visit_each_child,
-    with_synthetic_factory_and_factory, CheckFlags, Debug_, EmitFlags, EmitTextWriter, IndexInfo,
-    ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature,
-    SignatureFlags, StrOrNodeArrayRef, StringOrNodeArray, StringOrRcNode, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, SynthesizedComment, Type, TypeChecker,
-    TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, UnderscoreEscapedMultiMap,
-    VisitResult,
+    is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, length, maybe_for_each_bool,
+    modifiers_to_flags, module_specifiers, node_is_synthesized, null_transformation_context,
+    path_is_relative, set_comment_range, set_emit_flags, set_synthetic_leading_comments, some,
+    symbol_name, synthetic_factory, unescape_leading_underscores, using_single_line_string_writer,
+    visit_each_child, with_synthetic_factory_and_factory, CheckFlags, Debug_, EmitFlags,
+    EmitTextWriter, IndexInfo, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeBuilder,
+    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef,
+    StringOrNodeArray, StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, SynthesizedComment, Type, TypeChecker, TypeFormatFlags, TypeInterface,
+    TypePredicate, TypePredicateKind, UnderscoreEscapedMultiMap, VisitResult,
 };
 
 impl NodeBuilder {
@@ -1031,12 +1033,194 @@ impl NodeBuilder {
         yield_module_symbol: Option<bool>,
     ) -> Vec<Rc<Symbol>> {
         let chain: Vec<Rc<Symbol>>;
-        if false {
-            unimplemented!()
+        let is_type_parameter = symbol.flags().intersects(SymbolFlags::TypeParameter);
+        if !is_type_parameter
+            && (context.maybe_enclosing_declaration().is_some()
+                || context
+                    .flags()
+                    .intersects(NodeBuilderFlags::UseFullyQualifiedType))
+            && !context
+                .flags()
+                .intersects(NodeBuilderFlags::DoNotIncludeSymbolChain)
+        {
+            chain = Debug_.check_defined(
+                self.get_symbol_chain(context, yield_module_symbol, symbol, meaning, true),
+                None,
+            );
+            Debug_.assert(/*chain &&*/ !chain.is_empty(), None);
         } else {
             chain = vec![symbol.symbol_wrapper()];
         }
         chain
+    }
+
+    pub(super) fn get_symbol_chain(
+        &self,
+        context: &NodeBuilderContext,
+        yield_module_symbol: Option<bool>,
+        symbol: &Symbol,
+        meaning: Option<SymbolFlags>,
+        end_of_chain: bool,
+    ) -> Option<Vec<Rc<Symbol>>> {
+        let mut accessible_symbol_chain = self.type_checker.get_accessible_symbol_chain(
+            Some(symbol),
+            context.maybe_enclosing_declaration(),
+            // TODO: ...again here not sure where/how to "stop bubbling down" the actual
+            // Option<SymbolFlags> type
+            meaning.unwrap(),
+            context
+                .flags()
+                .intersects(NodeBuilderFlags::UseOnlyExternalAliasing),
+            None,
+        );
+        let parent_specifiers: Vec<Option<String>>;
+        if match accessible_symbol_chain.as_ref() {
+            None => true,
+            Some(accessible_symbol_chain) => self.type_checker.needs_qualification(
+                &accessible_symbol_chain[0],
+                context.maybe_enclosing_declaration(),
+                if accessible_symbol_chain.len() == 1 {
+                    // TODO: ...and here
+                    meaning.unwrap()
+                } else {
+                    self.type_checker.get_qualified_left_meaning(
+                        // TODO: ...and here
+                        meaning.unwrap(),
+                    )
+                },
+            ),
+        } {
+            let parents = self.type_checker.get_containers_of_symbol(
+                accessible_symbol_chain
+                    .as_ref()
+                    .map_or(symbol, |accessible_symbol_chain| {
+                        &*accessible_symbol_chain[0]
+                    }),
+                context.maybe_enclosing_declaration(),
+                // TODO: ...or here
+                meaning.unwrap(),
+            );
+            if length(parents.as_deref()) > 0 {
+                let parents = parents.as_ref().unwrap();
+                parent_specifiers = parents
+                    .into_iter()
+                    .map(|symbol| {
+                        if some(
+                            symbol.maybe_declarations().as_deref(),
+                            Some(|declaration: &Rc<Node>| {
+                                self.type_checker
+                                    .has_non_global_augmentation_external_module_symbol(declaration)
+                            }),
+                        ) {
+                            Some(self.get_specifier_for_module_symbol(symbol, context))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                let mut indices: Vec<usize> =
+                    parents.into_iter().enumerate().map(|(i, _)| i).collect();
+                indices.sort_by(|a, b| self.sort_by_best_name(&parent_specifiers, *a, *b));
+                let sorted_parents = indices.into_iter().map(|i| parents[i].clone());
+                for ref parent in sorted_parents {
+                    let parent_chain = self.get_symbol_chain(
+                        context,
+                        yield_module_symbol,
+                        parent,
+                        Some(self.type_checker.get_qualified_left_meaning(
+                            // TODO: ...or here
+                            meaning.unwrap(),
+                        )),
+                        false,
+                    );
+                    if let Some(mut parent_chain) = parent_chain {
+                        if matches!(
+                            parent.maybe_exports().as_ref(),
+                            Some(parent_exports) if matches!(
+                                (**parent_exports).borrow().get(&InternalSymbolName::ExportEquals()),
+                                Some(parent_exports_get) if self.type_checker.get_symbol_if_same_reference(
+                                    parent_exports_get,
+                                    symbol,
+                                ).is_some()
+                            )
+                        ) {
+                            accessible_symbol_chain = Some(parent_chain);
+                            break;
+                        }
+                        parent_chain.append(&mut accessible_symbol_chain.unwrap_or_else(|| {
+                            vec![self
+                                .type_checker
+                                .get_alias_for_symbol_in_container(parent, symbol)
+                                .unwrap_or_else(|| symbol.symbol_wrapper())]
+                        }));
+                        accessible_symbol_chain = Some(parent_chain);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if accessible_symbol_chain.is_some() {
+            return accessible_symbol_chain;
+        }
+        if end_of_chain
+            || !symbol
+                .flags()
+                .intersects(SymbolFlags::TypeLiteral | SymbolFlags::ObjectLiteral)
+        {
+            if !end_of_chain
+                && yield_module_symbol != Some(true)
+                && maybe_for_each_bool(
+                    symbol.maybe_declarations().as_ref(),
+                    |declaration: &Rc<Node>, _| {
+                        self.type_checker
+                            .has_non_global_augmentation_external_module_symbol(declaration)
+                    },
+                )
+            {
+                return None;
+            }
+            return Some(vec![symbol.symbol_wrapper()]);
+        }
+        None
+    }
+
+    pub(super) fn sort_by_best_name(
+        &self,
+        parent_specifiers: &[Option<String>],
+        a: usize,
+        b: usize,
+    ) -> Ordering {
+        let specifier_a = parent_specifiers[a].as_ref();
+        let specifier_b = parent_specifiers[b].as_ref();
+        if let (Some(specifier_a), Some(specifier_b)) = (
+            specifier_a.filter(|specifier_a| !specifier_a.is_empty()),
+            specifier_b.filter(|specifier_b| !specifier_b.is_empty()),
+        ) {
+            let is_b_relative = path_is_relative(specifier_b);
+            if path_is_relative(specifier_a) == is_b_relative {
+                let count_difference = TryInto::<isize>::try_into(
+                    module_specifiers::count_path_components(specifier_a),
+                )
+                .unwrap()
+                    - TryInto::<isize>::try_into(module_specifiers::count_path_components(
+                        specifier_b,
+                    ))
+                    .unwrap();
+                return if count_difference < 0 {
+                    Ordering::Less
+                } else if count_difference == 0 {
+                    Ordering::Equal
+                } else {
+                    Ordering::Greater
+                };
+            }
+            if is_b_relative {
+                return Ordering::Less;
+            }
+            return Ordering::Greater;
+        }
+        Ordering::Equal
     }
 
     pub(super) fn type_parameters_to_type_parameter_declarations(
@@ -1044,6 +1228,14 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
     ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_specifier_for_module_symbol(
+        &self,
+        symbol: &Symbol,
+        context: &NodeBuilderContext,
+    ) -> String {
         unimplemented!()
     }
 
