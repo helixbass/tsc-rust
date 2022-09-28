@@ -1800,7 +1800,7 @@ impl TypeChecker {
 
     pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         kind: SyntaxKind,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
@@ -1969,7 +1969,7 @@ impl TypeChecker {
 
     pub fn signature_to_string<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -2029,7 +2029,7 @@ impl TypeChecker {
 
     pub fn write_signature<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,

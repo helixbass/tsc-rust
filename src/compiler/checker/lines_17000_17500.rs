@@ -1498,7 +1498,7 @@ impl TypeChecker {
                         (error_reporter.as_mut().unwrap())(
                             Cow::Borrowed(&Diagnostics::Signature_0_must_be_a_type_predicate),
                             Some(vec![self.signature_to_string_(
-                                &source,
+                                source.clone(),
                                 Option::<&Node>::None,
                                 None,
                                 None,

@@ -193,7 +193,7 @@ impl ParserType {
     ) -> Rc<Node /*FunctionDeclaration*/> {
         let saved_await_context = self.in_await_context();
 
-        let modifier_flags = modifiers_to_flags(modifiers.as_ref());
+        let modifier_flags = modifiers_to_flags(modifiers.as_deref());
         self.parse_expected(SyntaxKind::FunctionKeyword, None, None);
         let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
         let name = if modifier_flags.intersects(ModifierFlags::Default) {

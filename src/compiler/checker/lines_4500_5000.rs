@@ -7,6 +7,7 @@ use std::io;
 use std::ptr;
 use std::rc::Rc;
 
+use super::SignatureToSignatureDeclarationOptions;
 use crate::{
     add_synthetic_leading_comment, append_if_unique_rc, contains_rc, create_printer,
     create_text_writer, default_maximum_truncation_length, every, factory, get_first_identifier,
@@ -304,7 +305,7 @@ impl TypeChecker {
 
     pub(super) fn signature_to_string_<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -335,7 +336,7 @@ impl TypeChecker {
 
     pub(super) fn signature_to_string_worker<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: TypeFormatFlags,
         kind: Option<SignatureKind>,
@@ -558,14 +559,19 @@ impl NodeBuilder {
 
     pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         kind: SyntaxKind,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Rc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
-            Some(self.signature_to_signature_declaration_helper(signature, kind, context, None))
+            Some(self.signature_to_signature_declaration_helper(
+                signature,
+                kind,
+                context,
+                Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
+            ))
         })
     }
 
@@ -619,7 +625,7 @@ impl NodeBuilder {
                 symbol,
                 context,
                 None,
-                Option::<fn(&Symbol)>::None,
+                Option::<&fn(&Symbol)>::None,
                 None,
             ))
         })

@@ -523,7 +523,7 @@ pub fn get_effective_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
 }
 
 fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
-    let mut flags = modifiers_to_flags(node.maybe_modifiers().as_ref());
+    let mut flags = modifiers_to_flags(node.maybe_modifiers().as_deref());
     if node.flags().intersects(NodeFlags::NestedNamespace)
         || node.kind() == SyntaxKind::Identifier
             && matches!(
@@ -536,10 +536,10 @@ fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
     flags
 }
 
-pub fn modifiers_to_flags(modifiers: Option<&NodeArray /*Modifier[]*/>) -> ModifierFlags {
+pub fn modifiers_to_flags(modifiers: Option<&[Rc<Node /*Modifier*/>]>) -> ModifierFlags {
     let mut flags = ModifierFlags::None;
     if let Some(modifiers) = modifiers {
-        for modifier in modifiers.iter() {
+        for modifier in modifiers {
             flags |= modifier_to_flag(modifier.kind());
         }
     }

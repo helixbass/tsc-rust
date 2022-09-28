@@ -317,7 +317,7 @@ impl TypeChecker {
             self.check_external_emit_helpers(node, ExternalEmitHelpers::MakeTemplateObject);
         }
         let signature = self.get_resolved_signature_(node, None, None);
-        self.check_deprecated_signature(&signature, node);
+        self.check_deprecated_signature(signature.clone(), node);
         self.get_return_type_of_signature(signature)
     }
 

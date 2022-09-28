@@ -1361,7 +1361,7 @@ impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageCha
                 (self.i.get() + 1).to_string(),
                 self.candidates_len.to_string(),
                 self.type_checker.signature_to_string_(
-                    &self.c,
+                    self.c.clone(),
                     Option::<&Node>::None,
                     None,
                     None,

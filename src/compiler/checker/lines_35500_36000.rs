@@ -172,7 +172,7 @@ impl TypeChecker {
 
     pub(super) fn check_decorator(&self, node: &Node /*Decorator*/) {
         let signature = self.get_resolved_signature_(node, None, None);
-        self.check_deprecated_signature(&signature, node);
+        self.check_deprecated_signature(signature.clone(), node);
         let return_type = self.get_return_type_of_signature(signature.clone());
         if return_type.flags().intersects(TypeFlags::Any) {
             return;

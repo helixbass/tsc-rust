@@ -1259,7 +1259,7 @@ impl CheckTypeRelatedTo {
                     Some(source_signature_declaration) if source_signature_declaration.kind() == SyntaxKind::Constructor
                 ))
             {
-                let construct_signature_to_string = |signature: &Signature| -> String {
+                let construct_signature_to_string = |signature: Rc<Signature>| -> String {
                     self.type_checker.signature_to_string_(
                         signature,
                         Option::<&Node>::None,
@@ -1271,8 +1271,8 @@ impl CheckTypeRelatedTo {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1),
                     Some(vec![
-                        construct_signature_to_string(source_signature),
-                        construct_signature_to_string(target_signature),
+                        construct_signature_to_string(source_signature.clone()),
+                        construct_signature_to_string(target_signature.clone()),
                     ]),
                 );
                 self.report_error(
@@ -1311,7 +1311,7 @@ impl CheckTypeRelatedTo {
                                 None,
                             ),
                             self.type_checker.signature_to_string_(
-                                t,
+                                t.clone(),
                                 Option::<&Node>::None,
                                 None,
                                 Some(kind),

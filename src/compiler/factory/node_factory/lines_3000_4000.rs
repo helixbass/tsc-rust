@@ -192,7 +192,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.declaration_list)));
-        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Ambient) {
+        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Ambient)
+        {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node
@@ -574,7 +575,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.asterisk_token = asterisk_token;
         let mut node = FunctionDeclaration::new(node);
         if node.maybe_body().is_none()
-            || modifiers_to_flags(node.maybe_modifiers().as_ref())
+            || modifiers_to_flags(node.maybe_modifiers().as_deref())
                 .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
@@ -583,7 +584,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 propagate_child_flags(node.maybe_asterisk_token())
                     | TransformFlags::ContainsHoistedDeclarationOrCompletion,
             );
-            if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Async)
+            if modifiers_to_flags(node.maybe_modifiers().as_deref())
+                .intersects(ModifierFlags::Async)
             {
                 match node.maybe_asterisk_token() {
                     Some(_) => {
@@ -628,7 +630,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             members,
         );
         let mut node = ClassDeclaration::new(node);
-        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Ambient) {
+        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Ambient)
+        {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(TransformFlags::ContainsES2015);
@@ -757,7 +760,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                         | NodeFlags::GlobalAugmentation)),
         );
         let mut node = ModuleDeclaration::new(node, name, body);
-        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Ambient) {
+        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Ambient)
+        {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(

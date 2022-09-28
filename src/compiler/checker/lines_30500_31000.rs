@@ -814,7 +814,7 @@ impl TypeChecker {
             return self.non_inferrable_type();
         }
 
-        self.check_deprecated_signature(&signature, node);
+        self.check_deprecated_signature(signature.clone(), node);
 
         if node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword {
             return self.void_type();
@@ -917,7 +917,7 @@ impl TypeChecker {
 
     pub(super) fn check_deprecated_signature(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         node: &Node, /*CallLikeExpression*/
     ) {
         if let Some(signature_declaration) =
@@ -937,7 +937,13 @@ impl TypeChecker {
                 &suggestion_node,
                 signature_declaration,
                 name.as_deref(),
-                &self.signature_to_string_(signature, Option::<&Node>::None, None, None, None),
+                &self.signature_to_string_(
+                    signature.clone(),
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                    None,
+                ),
             );
         }
     }

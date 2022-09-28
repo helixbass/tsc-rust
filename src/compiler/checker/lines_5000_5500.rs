@@ -516,10 +516,10 @@ impl NodeBuilder {
             {
                 let signature = &resolved_as_resolved_type.call_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
-                    signature,
+                    signature.clone(),
                     SyntaxKind::FunctionType,
                     context,
-                    None,
+                    Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
                 );
                 return signature_node;
             }
@@ -529,10 +529,10 @@ impl NodeBuilder {
             {
                 let signature = &resolved_as_resolved_type.construct_signatures()[0];
                 let signature_node = self.signature_to_signature_declaration_helper(
-                    signature,
+                    signature.clone(),
                     SyntaxKind::ConstructorType,
                     context,
-                    None,
+                    Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
                 );
                 return signature_node;
             }
@@ -1087,10 +1087,10 @@ impl NodeBuilder {
         let resolved_type_as_resolved_type = resolved_type.as_resolved_type();
         for signature in &*resolved_type_as_resolved_type.call_signatures() {
             type_elements.push(self.signature_to_signature_declaration_helper(
-                signature,
+                signature.clone(),
                 SyntaxKind::CallSignature,
                 context,
-                None,
+                Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
             ));
         }
         for signature in &*resolved_type_as_resolved_type.construct_signatures() {
@@ -1098,10 +1098,10 @@ impl NodeBuilder {
                 continue;
             }
             type_elements.push(self.signature_to_signature_declaration_helper(
-                signature,
+                signature.clone(),
                 SyntaxKind::ConstructSignature,
                 context,
-                None,
+                Option::<SignatureToSignatureDeclarationOptions<fn(&Symbol)>>::None,
             ));
         }
         for info in &*resolved_type_as_resolved_type.index_infos() {
@@ -1340,7 +1340,7 @@ impl NodeBuilder {
             );
             for signature in &signatures {
                 let method_declaration = self.signature_to_signature_declaration_helper(
-                    signature,
+                    signature.clone(),
                     SyntaxKind::MethodSignature,
                     context,
                     Some(SignatureToSignatureDeclarationOptions {
@@ -1348,6 +1348,7 @@ impl NodeBuilder {
                         name: Some(property_name.clone()),
                         question_token: optional_token.clone(),
                         bundled_imports: None,
+                        private_symbol_visitor: Option::<fn(&Symbol)>::None,
                     }),
                 );
                 type_elements.push(self.preserve_comments_on(property_symbol, method_declaration));
