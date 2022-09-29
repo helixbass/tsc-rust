@@ -12,16 +12,22 @@ use super::{
 };
 use crate::{
     every, find, find_ancestor, get_effective_return_type_node, get_effective_type_annotation_node,
-    get_emit_script_target, get_name_of_declaration, get_object_flags, get_source_file_of_node,
-    get_text_of_node, is_entity_name, is_function_like_declaration, is_get_accessor_declaration,
-    is_identifier_start, is_identifier_text, is_indexed_access_type_node,
-    is_single_or_double_quote, is_string_literal, is_type_reference_node, length,
-    node_is_synthesized, set_emit_flags, some, starts_with, unescape_leading_underscores,
-    using_single_line_string_writer, with_synthetic_factory_and_factory, CharacterCodes, Debug_,
-    EmitFlags, EmitTextWriter, HasTypeArgumentsInterface, InternalSymbolName, LiteralType, Node,
-    NodeArray, NodeBuilder, NodeInterface, Number, ObjectFlags, Signature, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, __String, for_each_entry_bool, NodeBuilderFlags,
+    get_emit_script_target, get_first_identifier, get_name_of_declaration, get_object_flags,
+    get_source_file_of_node, get_text_of_node, is_entity_name, is_exports_identifier,
+    is_function_like_declaration, is_get_accessor_declaration, is_identifier, is_identifier_start,
+    is_identifier_text, is_in_js_file, is_indexed_access_type_node, is_jsdoc_all_type,
+    is_jsdoc_non_nullable_type, is_jsdoc_nullable_type, is_jsdoc_optional_type,
+    is_jsdoc_type_literal, is_jsdoc_unknown_type, is_jsdoc_variadic_type,
+    is_module_exports_access_expression, is_module_identifier, is_qualified_name,
+    is_single_or_double_quote, is_string_literal, is_type_reference_node, length, maybe_map,
+    node_is_synthesized, set_emit_flags, set_original_node, set_text_range, some, starts_with,
+    unescape_leading_underscores, using_single_line_string_writer, visit_node,
+    with_synthetic_factory_and_factory, CharacterCodes, Debug_, EmitFlags, EmitTextWriter,
+    HasTypeArgumentsInterface, InternalSymbolName, LiteralType, Node, NodeArray, NodeBuilder,
+    NodeInterface, Number, ObjectFlags, Signature, Symbol, SymbolAccessibility, SymbolFlags,
+    SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypePredicate, VisitResult, __String, for_each_entry_bool,
+    NodeBuilderFlags,
 };
 
 impl NodeBuilder {
@@ -954,6 +960,88 @@ impl NodeBuilder {
         self.type_to_type_node_helper(Some(type_), context).unwrap()
     }
 
+    pub(super) fn track_existing_entity_name<TIncludePrivateSymbol: Fn(&Symbol)>(
+        &self,
+        node: &Node, /*EntityNameOrEntityNameExpression*/
+        context: &NodeBuilderContext,
+        include_private_symbol: Option<&TIncludePrivateSymbol>,
+    ) -> TrackExistingEntityNameReturn {
+        let mut introduces_error = false;
+        let ref leftmost = get_first_identifier(node);
+        let ref leftmost_parent = leftmost.parent();
+        if is_in_js_file(Some(node))
+            && (is_exports_identifier(leftmost)
+                || is_module_exports_access_expression(leftmost_parent)
+                || is_qualified_name(leftmost_parent) && {
+                    let leftmost_parent_as_qualified_name = leftmost_parent.as_qualified_name();
+                    is_module_identifier(&leftmost_parent_as_qualified_name.left)
+                        && is_exports_identifier(&leftmost_parent_as_qualified_name.right)
+                })
+        {
+            introduces_error = true;
+            return TrackExistingEntityNameReturn {
+                introduces_error,
+                node: node.node_wrapper(),
+            };
+        }
+        let sym = self.type_checker.resolve_entity_name(
+            leftmost,
+            SymbolFlags::All,
+            Some(true),
+            Some(true),
+            Option::<&Node>::None,
+        );
+        if let Some(sym) = sym.as_ref() {
+            if self
+                .type_checker
+                .is_symbol_accessible(
+                    Some(&**sym),
+                    context.maybe_enclosing_declaration(),
+                    SymbolFlags::All,
+                    false,
+                )
+                .accessibility
+                != SymbolAccessibility::Accessible
+            {
+                introduces_error = true;
+            } else {
+                context.tracker.track_symbol(
+                    sym,
+                    context.maybe_enclosing_declaration(),
+                    SymbolFlags::All,
+                );
+                if let Some(include_private_symbol) = include_private_symbol {
+                    include_private_symbol(sym);
+                }
+            }
+            if is_identifier(node) {
+                let name = if sym.flags().intersects(SymbolFlags::TypeParameter) {
+                    self.type_parameter_to_name(
+                        &self.type_checker.get_declared_type_of_symbol(sym),
+                        context,
+                    )
+                } else {
+                    with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                        factory.clone_node(synthetic_factory, node).wrap()
+                    })
+                };
+                name.set_symbol(sym.symbol_wrapper());
+                return TrackExistingEntityNameReturn {
+                    introduces_error,
+                    node: set_emit_flags(
+                        set_original_node(name, Some(node.node_wrapper())),
+                        EmitFlags::NoAsciiEscaping,
+                    ),
+                };
+            }
+        }
+
+        TrackExistingEntityNameReturn {
+            introduces_error,
+            node: node.node_wrapper(),
+        }
+    }
+
     pub(super) fn serialize_existing_type_node<TIncludePrivateSymbol: Fn(&Symbol)>(
         &self,
         context: &NodeBuilderContext,
@@ -961,6 +1049,195 @@ impl NodeBuilder {
         include_private_symbol: Option<&TIncludePrivateSymbol>,
         bundled: Option<bool>,
     ) -> Option<Rc<Node>> {
+        if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token() {
+            cancellation_token.throw_if_cancellation_requested();
+        }
+        let mut had_error = false;
+        let file = get_source_file_of_node(Some(existing)).unwrap();
+        let transformed = visit_node(
+            Some(existing),
+            Some(|node: &Node| self.visit_existing_node_tree_symbols(node)),
+            Option::<fn(&Node) -> bool>::None,
+            Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+        )
+        .unwrap();
+        if had_error {
+            return None;
+        }
+        if ptr::eq(&*transformed, existing) {
+            let ret = with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                factory.clone_node(synthetic_factory, existing).wrap()
+            });
+            set_text_range(&*ret, Some(existing));
+            Some(ret)
+        } else {
+            Some(transformed)
+        }
+    }
+
+    pub(super) fn visit_existing_node_tree_symbols(&self, node: &Node) -> VisitResult {
+        if is_jsdoc_all_type(node) || node.kind() == SyntaxKind::JSDocNamepathType {
+            return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                Some(vec![factory
+                    .create_keyword_type_node(synthetic_factory, SyntaxKind::AnyKeyword)
+                    .into()])
+            });
+        }
+        if is_jsdoc_unknown_type(node) {
+            return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                Some(vec![factory
+                    .create_keyword_type_node(synthetic_factory, SyntaxKind::UnknownKeyword)
+                    .into()])
+            });
+        }
+        if is_jsdoc_nullable_type(node) {
+            return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                Some(vec![factory
+                    .create_union_type_node(
+                        synthetic_factory,
+                        vec![
+                            visit_node(
+                                node.as_base_jsdoc_unary_type().type_.as_deref(),
+                                Some(|node: &Node| self.visit_existing_node_tree_symbols(node)),
+                                Option::<fn(&Node) -> bool>::None,
+                                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                            )
+                            .unwrap(),
+                            factory
+                                .create_literal_type_node(
+                                    synthetic_factory,
+                                    factory.create_null(synthetic_factory).into(),
+                                )
+                                .into(),
+                        ],
+                    )
+                    .into()])
+            });
+        }
+        if is_jsdoc_optional_type(node) {
+            return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                Some(vec![factory
+                    .create_union_type_node(
+                        synthetic_factory,
+                        vec![
+                            visit_node(
+                                node.as_base_jsdoc_unary_type().type_.as_deref(),
+                                Some(|node: &Node| self.visit_existing_node_tree_symbols(node)),
+                                Option::<fn(&Node) -> bool>::None,
+                                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                            )
+                            .unwrap(),
+                            factory
+                                .create_keyword_type_node(
+                                    synthetic_factory,
+                                    SyntaxKind::UndefinedKeyword,
+                                )
+                                .into(),
+                        ],
+                    )
+                    .into()])
+            });
+        }
+        if is_jsdoc_non_nullable_type(node) {
+            return Some(vec![visit_node(
+                node.as_base_jsdoc_unary_type().type_.as_deref(),
+                Some(|node: &Node| self.visit_existing_node_tree_symbols(node)),
+                Option::<fn(&Node) -> bool>::None,
+                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+            )
+            .unwrap()]);
+        }
+        if is_jsdoc_variadic_type(node) {
+            return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                Some(vec![factory
+                    .create_array_type_node(
+                        synthetic_factory,
+                        visit_node(
+                            node.as_base_jsdoc_unary_type().type_.as_deref(),
+                            Some(|node: &Node| self.visit_existing_node_tree_symbols(node)),
+                            Option::<fn(&Node) -> bool>::None,
+                            Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                        )
+                        .unwrap(),
+                    )
+                    .into()])
+            });
+        }
+        if is_jsdoc_type_literal(node) {
+            return with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                Some(vec![factory
+                    .create_type_literal_node(
+                        synthetic_factory,
+                        maybe_map(
+                            node.as_jsdoc_type_literal().js_doc_property_tags.as_deref(),
+                            |t: &Rc<Node>, _| -> Rc<Node> {
+                                let t_as_jsdoc_property_like_tag = t.as_jsdoc_property_like_tag();
+                                let name = if is_identifier(
+                                    &t_as_jsdoc_property_like_tag.name
+                                ) {
+                                    t_as_jsdoc_property_like_tag.name.clone()
+                                } else {
+                                    t_as_jsdoc_property_like_tag.name.as_qualified_name().right.clone()
+                                };
+                                let type_via_parent = self.type_checker.get_type_of_property_of_type_(
+                                    &self.type_checker.get_type_from_type_node_(
+                                        node
+                                    ),
+                                    &name.as_identifier().escaped_text
+                                );
+                                let override_type_node = type_via_parent.as_ref().filter(|type_via_parent| {
+                                    matches!(
+                                        t_as_jsdoc_property_like_tag.type_expression.as_ref(),
+                                        Some(t_type_expression) if !Rc::ptr_eq(
+                                            &self.type_checker.get_type_from_type_node_(&t_type_expression.as_jsdoc_type_expression().type_),
+                                            *type_via_parent
+                                        )
+                                    )
+                                }).and_then(|type_via_parent| {
+                                    self.type_to_type_node_helper(
+                                        Some(&**type_via_parent),
+                                        context,
+                                    )
+                                });
+
+                                factory.create_property_signature(
+                                    synthetic_factory,
+                                    Option::<NodeArray>::None,
+                                    name,
+                                    if t_as_jsdoc_property_like_tag.is_bracketed ||
+                                        matches!(
+                                            t_as_jsdoc_property_like_tag.type_expression.as_ref(),
+                                            Some(t_type_expression) if is_jsdoc_optional_type(t_type_expression)
+                                        ) {
+                                        Some(factory.create_token(
+                                            synthetic_factory,
+                                            SyntaxKind::QuestionToken,
+                                        ).into())
+                                    } else {
+                                        None
+                                    },
+                                    Some(override_type_node.or_else(|| {
+                                        t_as_jsdoc_property_like_tag.type_expression.as_ref().and_then(|t_type_expression| {
+                                            visit_node(
+                                                Some(&*t_type_expression.as_jsdoc_type_expression().type_),
+                                                Some(|node: &Node| self.visit_existing_node_tree_symbols(node)),
+                                                Option::<fn(&Node) -> bool>::None,
+                                                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                            )
+                                        })
+                                    }).unwrap_or_else(|| {
+                                        factory.create_keyword_type_node(
+                                            synthetic_factory,
+                                            SyntaxKind::AnyKeyword
+                                        ).into()
+                                    }))
+                                ).into()
+                            }
+                        )
+                    )
+                    .into()])
+            });
+        }
         unimplemented!()
     }
 
@@ -972,6 +1249,11 @@ impl NodeBuilder {
     ) -> Option<Vec<Rc<Node /*Statement*/>>> {
         unimplemented!()
     }
+}
+
+pub(super) struct TrackExistingEntityNameReturn {
+    pub introduces_error: bool,
+    pub node: Rc<Node>,
 }
 
 impl TypeChecker {

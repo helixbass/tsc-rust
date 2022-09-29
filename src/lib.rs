@@ -447,7 +447,7 @@ pub use compiler::utilities::{
     is_json_source_file, is_jsx_tag_name, is_keyword, is_known_symbol,
     is_late_visibility_painted_statement, is_let, is_literal_computed_property_declaration_name,
     is_literal_import_type_node, is_logical_or_coalescing_assignment_operator,
-    is_module_augmentation_external, is_module_exports_access_expression,
+    is_module_augmentation_external, is_module_exports_access_expression, is_module_identifier,
     is_module_with_string_literal_name, is_namespace_reexport_declaration, is_node_descendant_of,
     is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
     is_parameter_declaration, is_parameter_or_catch_clause_variable, is_part_of_type_node,
