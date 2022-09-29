@@ -25,15 +25,13 @@ use crate::{
     is_module_identifier, is_qualified_name, is_single_or_double_quote, is_string_literal,
     is_tuple_type_node, is_type_reference_node, length, map, map_defined, maybe_map,
     node_is_synthesized, null_transformation_context, set_emit_flags, set_original_node,
-    set_text_range, some, starts_with, unescape_leading_underscores,
-    using_single_line_string_writer, visit_each_child, visit_node, visit_nodes,
-    with_synthetic_factory_and_factory, CharacterCodes, Debug_, EmitFlags, EmitTextWriter,
+    set_text_range, some, starts_with, unescape_leading_underscores, visit_each_child, visit_node,
+    visit_nodes, with_synthetic_factory_and_factory, CharacterCodes, Debug_, EmitFlags,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InternalSymbolName,
     LiteralType, NamedDeclarationInterface, Node, NodeArray, NodeBuilder, NodeInterface, Number,
     ObjectFlags, ReadonlyTextRange, Signature, SignatureDeclarationInterface, Symbol,
-    SymbolAccessibility, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, VisitResult,
-    __String, for_each_entry_bool, NodeBuilderFlags,
+    SymbolAccessibility, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind, Type, TypeFlags,
+    TypeInterface, VisitResult, __String, for_each_entry_bool, NodeBuilderFlags,
 };
 
 impl NodeBuilder {
