@@ -17,6 +17,16 @@ pub fn visit_node<
     unimplemented!()
 }
 
+pub fn visit_nodes<TVisitor: FnMut(&Node) -> VisitResult, TTest: Fn(&Node) -> bool>(
+    nodes: Option<&NodeArray>,
+    visitor: Option<TVisitor>,
+    test: Option<TTest>,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Option<NodeArray> {
+    unimplemented!()
+}
+
 pub fn visit_each_child<
     TNode: Borrow<Node>,
     TVisitor: FnMut(&Node) -> VisitResult,

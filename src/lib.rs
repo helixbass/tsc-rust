@@ -558,7 +558,7 @@ use compiler::utilities_public::{
     is_unary_expression_with_write, needs_scope_marker, node_has_name,
     supported_locale_directories, text_range_contains_position_inclusive,
 };
-pub use compiler::visitor_public::{visit_each_child, visit_node};
+pub use compiler::visitor_public::{visit_each_child, visit_node, visit_nodes};
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
     create_watch_status_reporter, emit_files_and_report_errors_and_get_exit_status,
