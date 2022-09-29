@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use regex::{Captures, Regex};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -7,13 +8,15 @@ use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    factory, get_emit_script_target, is_entity_name, is_identifier_text,
-    is_indexed_access_type_node, set_emit_flags, synthetic_factory, unescape_leading_underscores,
-    using_single_line_string_writer, with_synthetic_factory_and_factory, Debug_, EmitFlags,
-    EmitTextWriter, HasTypeArgumentsInterface, InternalSymbolName, Node, NodeArray, NodeBuilder,
-    NodeInterface, Signature, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
-    TypeChecker, TypeFormatFlags, TypeInterface, TypePredicate, __String, for_each_entry_bool,
-    NodeBuilderFlags,
+    every, factory, get_emit_script_target, get_name_of_declaration, get_text_of_node,
+    is_entity_name, is_identifier_start, is_identifier_text, is_indexed_access_type_node,
+    is_single_or_double_quote, is_string_literal, length, node_is_synthesized, set_emit_flags,
+    some, starts_with, synthetic_factory, unescape_leading_underscores,
+    using_single_line_string_writer, with_synthetic_factory_and_factory, CharacterCodes, Debug_,
+    EmitFlags, EmitTextWriter, HasTypeArgumentsInterface, InternalSymbolName, LiteralType, Node,
+    NodeArray, NodeBuilder, NodeInterface, Number, Signature, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypePredicate, __String, for_each_entry_bool, NodeBuilderFlags,
 };
 
 impl NodeBuilder {
@@ -332,15 +335,51 @@ impl NodeBuilder {
         {
             context.encountered_error.set(true);
         }
-        self.create_entity_name_from_symbol_chain(&chain, chain.len() - 1)
+        self.create_entity_name_from_symbol_chain(context, &chain, chain.len() - 1)
     }
 
     pub(super) fn create_entity_name_from_symbol_chain(
         &self,
+        context: &NodeBuilderContext,
         chain: &[Rc<Symbol>],
         index: usize,
     ) -> Rc<Node /*EntityName*/> {
-        unimplemented!()
+        let type_parameter_nodes = self.lookup_type_parameter_nodes(chain, index, context);
+        let symbol = &chain[index];
+
+        if index == 0 {
+            context.set_flags(context.flags() | NodeBuilderFlags::InInitialEntityName);
+        }
+        let symbol_name = self
+            .type_checker
+            .get_name_of_symbol_as_written(symbol, Some(context));
+        if index == 0 {
+            context.set_flags(context.flags() ^ NodeBuilderFlags::InInitialEntityName);
+        }
+
+        let identifier = set_emit_flags(
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_identifier(synthetic_factory_, &symbol_name, type_parameter_nodes, None)
+                    .into()
+            }),
+            EmitFlags::NoAsciiEscaping,
+        );
+        identifier.set_symbol(symbol.clone());
+
+        if index > 0 {
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_qualified_name(
+                        synthetic_factory_,
+                        self.create_entity_name_from_symbol_chain(context, chain, index - 1),
+                        identifier,
+                    )
+                    .into()
+            })
+        } else {
+            identifier
+        }
     }
 
     pub(super) fn symbol_to_expression_(
@@ -350,8 +389,192 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
     ) -> Rc<Node> {
         let chain = self.lookup_symbol_chain(symbol, context, meaning, None);
-        let index = chain.len() - 1;
-        self.create_expression_from_symbol_chain(context, chain, index)
+
+        self.create_expression_from_symbol_chain(context, &chain, chain.len() - 1)
+    }
+
+    pub(super) fn create_expression_from_symbol_chain(
+        &self,
+        context: &NodeBuilderContext,
+        chain: &[Rc<Symbol>],
+        index: usize,
+    ) -> Rc<Node /*Expression*/> {
+        let type_parameter_nodes = self.lookup_type_parameter_nodes(chain, index, context);
+        let symbol = &chain[index];
+
+        if index == 0 {
+            context.set_flags(context.flags() | NodeBuilderFlags::InInitialEntityName);
+        }
+        let mut symbol_name = self
+            .type_checker
+            .get_name_of_symbol_as_written(symbol, Some(context))
+            .into_owned();
+        if index == 0 {
+            context.set_flags(context.flags() ^ NodeBuilderFlags::InInitialEntityName);
+        }
+        let mut first_char = symbol_name.chars().next().unwrap();
+
+        if is_single_or_double_quote(first_char)
+            && some(
+                symbol.maybe_declarations().as_deref(),
+                Some(|declaration: &Rc<Node>| {
+                    self.type_checker
+                        .has_non_global_augmentation_external_module_symbol(declaration)
+                }),
+            )
+        {
+            return with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_string_literal(
+                        synthetic_factory_,
+                        self.get_specifier_for_module_symbol(symbol, context),
+                        None,
+                        None,
+                    )
+                    .into()
+            });
+        }
+        let can_use_property_access = if first_char == CharacterCodes::hash {
+            symbol_name.len() > 1
+                && is_identifier_start(
+                    symbol_name.chars().skip(1).next().unwrap(),
+                    Some(self.type_checker.language_version),
+                )
+        } else {
+            is_identifier_start(first_char, Some(self.type_checker.language_version))
+        };
+
+        if index == 0 || can_use_property_access {
+            let identifier = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                set_emit_flags(
+                    factory_
+                        .create_identifier(
+                            synthetic_factory_,
+                            &symbol_name,
+                            type_parameter_nodes,
+                            None,
+                        )
+                        .into(),
+                    EmitFlags::NoAsciiEscaping,
+                )
+            });
+            identifier.set_symbol(symbol.symbol_wrapper());
+
+            if index > 0 {
+                with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                    factory_
+                        .create_property_access_expression(
+                            synthetic_factory_,
+                            self.create_expression_from_symbol_chain(context, chain, index - 1),
+                            identifier,
+                        )
+                        .into()
+                })
+            } else {
+                identifier
+            }
+        } else {
+            if first_char == CharacterCodes::open_bracket {
+                symbol_name = symbol_name[1..symbol_name.len() - 1].to_owned();
+                first_char = symbol_name.chars().next().unwrap();
+            }
+            let mut expression: Option<Rc<Node /*Expression*/>> = None;
+            if is_single_or_double_quote(first_char) {
+                expression = Some(with_synthetic_factory_and_factory(
+                    |synthetic_factory_, factory_| {
+                        factory_
+                            .create_string_literal(
+                                synthetic_factory_,
+                                {
+                                    lazy_static! {
+                                        static ref escaped_char_regex: Regex =
+                                            Regex::new(r"\\(.)").unwrap();
+                                    }
+                                    escaped_char_regex
+                                        .replace_all(
+                                            &symbol_name[1..symbol_name.len() - 1],
+                                            |captures: &Captures| {
+                                                captures.get(1).unwrap().as_str().to_owned()
+                                            },
+                                        )
+                                        .into_owned()
+                                },
+                                Some(first_char == CharacterCodes::single_quote),
+                                None,
+                            )
+                            .into()
+                    },
+                ));
+            } else if matches!(
+                symbol_name.parse::<f64>(),
+                Ok(symbol_name_parsed) if symbol_name_parsed.to_string() == symbol_name
+            ) {
+                expression = Some(with_synthetic_factory_and_factory(
+                    |synthetic_factory_, factory_| {
+                        factory_
+                            .create_numeric_literal(
+                                synthetic_factory_,
+                                Into::<Number>::into(&*symbol_name),
+                                None,
+                            )
+                            .into()
+                    },
+                ));
+            }
+            if expression.is_none() {
+                expression = Some(with_synthetic_factory_and_factory(
+                    |synthetic_factory_, factory_| {
+                        set_emit_flags(
+                            factory_
+                                .create_identifier(
+                                    synthetic_factory_,
+                                    &symbol_name,
+                                    type_parameter_nodes,
+                                    None,
+                                )
+                                .into(),
+                            EmitFlags::NoAsciiEscaping,
+                        )
+                    },
+                ));
+                expression.as_ref().unwrap().set_symbol(symbol.clone());
+            }
+            let expression = expression.unwrap();
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_element_access_expression(
+                        synthetic_factory_,
+                        self.create_expression_from_symbol_chain(context, chain, index - 1),
+                        expression,
+                    )
+                    .into()
+            })
+        }
+    }
+
+    pub(super) fn is_string_named(&self, d: &Node /*Declaration*/) -> bool {
+        let name = get_name_of_declaration(Some(d));
+        matches!(
+            name.as_ref(),
+            Some(name) if is_string_literal(name)
+        )
+    }
+
+    pub(super) fn is_single_quoted_string_named(&self, d: &Node /*Declaration*/) -> bool {
+        let name = get_name_of_declaration(Some(d));
+        matches!(
+            name.as_ref(),
+            Some(name) if is_string_literal(name) && (
+                name.as_string_literal().single_quote == Some(true) ||
+                !node_is_synthesized(&**name) && starts_with(
+                    &get_text_of_node(
+                        name,
+                        Some(false)
+                    ),
+                    "'"
+                )
+            )
+        )
     }
 
     pub(super) fn get_property_name_node_for_symbol(
@@ -359,14 +582,113 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
     ) -> Rc<Node> {
-        let single_quote = false;
-        let string_named = false;
+        let single_quote = length(symbol.maybe_declarations().as_deref()) > 0
+            && every(
+                symbol.maybe_declarations().as_deref().unwrap(),
+                |declaration: &Rc<Node>, _| self.is_single_quoted_string_named(declaration),
+            );
+        let from_name_type = self.get_property_name_node_for_symbol_from_name_type(
+            symbol,
+            context,
+            Some(single_quote),
+        );
+        if let Some(from_name_type) = from_name_type {
+            return from_name_type;
+        }
         let raw_name = unescape_leading_underscores(symbol.escaped_name());
+        let string_named = length(symbol.maybe_declarations().as_deref()) > 0
+            && every(
+                symbol.maybe_declarations().as_deref().unwrap(),
+                |declaration: &Rc<Node>, _| self.is_string_named(declaration),
+            );
         self.create_property_name_node_for_identifier_or_literal(
             raw_name,
             Some(string_named),
             Some(single_quote),
         )
+    }
+
+    pub(super) fn get_property_name_node_for_symbol_from_name_type(
+        &self,
+        symbol: &Symbol,
+        context: &NodeBuilderContext,
+        single_quote: Option<bool>,
+    ) -> Option<Rc<Node>> {
+        let name_type = (*self.type_checker.get_symbol_links(symbol))
+            .borrow()
+            .name_type
+            .clone()?;
+        if name_type
+            .flags()
+            .intersects(TypeFlags::StringOrNumberLiteral)
+        {
+            let name = match name_type.as_ref() {
+                Type::LiteralType(LiteralType::StringLiteralType(name_type)) => {
+                    name_type.value.clone()
+                }
+                Type::LiteralType(LiteralType::NumberLiteralType(name_type)) => {
+                    name_type.value.to_string()
+                }
+                _ => panic!("Expected string or number literal type"),
+            };
+            if !is_identifier_text(
+                &name,
+                Some(get_emit_script_target(&self.type_checker.compiler_options)),
+                None,
+            ) && !self.type_checker.is_numeric_literal_name(&name)
+            {
+                return Some(with_synthetic_factory_and_factory(
+                    |synthetic_factory_, factory_| {
+                        factory_
+                            .create_string_literal(
+                                synthetic_factory_,
+                                name,
+                                Some(single_quote == Some(true)),
+                                None,
+                            )
+                            .into()
+                    },
+                ));
+            }
+            if self.type_checker.is_numeric_literal_name(&name) && starts_with(&name, "-") {
+                return Some(with_synthetic_factory_and_factory(
+                    |synthetic_factory_, factory_| {
+                        factory_
+                            .create_computed_property_name(
+                                synthetic_factory_,
+                                factory_
+                                    .create_numeric_literal(
+                                        synthetic_factory_,
+                                        Into::<Number>::into(&*name),
+                                        None,
+                                    )
+                                    .into(),
+                            )
+                            .into()
+                    },
+                ));
+            }
+            return Some(
+                self.create_property_name_node_for_identifier_or_literal(name, None, None),
+            );
+        }
+        if name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
+            return Some(with_synthetic_factory_and_factory(
+                |synthetic_factory_, factory_| {
+                    factory_
+                        .create_computed_property_name(
+                            synthetic_factory_,
+                            self.symbol_to_expression_(
+                                &name_type.as_unique_es_symbol_type().symbol,
+                                context,
+                                Some(SymbolFlags::Value),
+                            ),
+                        )
+                        .into()
+                },
+            ));
+        }
+        None
     }
 
     pub(super) fn create_property_name_node_for_identifier_or_literal(
@@ -380,50 +702,31 @@ impl NodeBuilder {
             Some(get_emit_script_target(&self.type_checker.compiler_options)),
             None,
         ) {
-            synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_.create_identifier(
-                        synthetic_factory_,
-                        &name,
-                        Option::<NodeArray>::None,
-                        None,
-                    )
-                })
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_identifier(synthetic_factory_, &name, Option::<NodeArray>::None, None)
+                    .into()
+            })
+        } else if string_named != Some(true)
+            && self.type_checker.is_numeric_literal_name(&name)
+            && name.parse::<f64>().unwrap() >= 0.0
+        {
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_numeric_literal(synthetic_factory_, Into::<Number>::into(&*name), None)
+                    .into()
             })
         } else {
-            unimplemented!()
-        }
-        .into()
-    }
-
-    pub(super) fn create_expression_from_symbol_chain(
-        &self,
-        context: &NodeBuilderContext,
-        chain: Vec<Rc<Symbol>>,
-        index: usize,
-    ) -> Rc<Node> {
-        let type_parameter_nodes = Option::<NodeArray>::None; // TODO: this is wrong
-        let symbol = &*(&chain)[index];
-
-        let symbol_name = self
-            .type_checker
-            .get_name_of_symbol_as_written(symbol, Some(context));
-
-        if index == 0 || false {
-            let identifier = synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_.create_identifier(
+            with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
+                factory_
+                    .create_string_literal(
                         synthetic_factory_,
-                        &symbol_name,
-                        type_parameter_nodes,
+                        name,
+                        Some(single_quote == Some(true)),
                         None,
                     )
-                })
-            });
-            identifier.set_symbol(symbol.symbol_wrapper());
-            return identifier.into();
-        } else {
-            unimplemented!()
+                    .into()
+            })
         }
     }
 
