@@ -701,25 +701,21 @@ impl NodeBuilder {
         // context.borrow_mut().tracker = RcOrReferenceToDynSymbolTracker::Reference(&context_tracker);
         context.borrow_mut().tracker =
             RcOrReferenceToDynSymbolTracker::Rc(Rc::new(context_tracker));
-        let ret = {
-            let context = (*context).borrow();
-            let resulting_node = cb(&context);
-            if context.truncating.get() == Some(true)
-                && context
-                    .flags
-                    .get()
-                    .intersects(NodeBuilderFlags::NoTruncation)
-            {
-                context.tracker.report_truncation_error();
-            }
-            if context.encountered_error.get() {
-                None
-            } else {
-                resulting_node
-            }
-        };
-        drop(context);
-        ret
+        let context = (*context).borrow();
+        let resulting_node = cb(&context);
+        if context.truncating.get() == Some(true)
+            && context
+                .flags
+                .get()
+                .intersects(NodeBuilderFlags::NoTruncation)
+        {
+            context.tracker.report_truncation_error();
+        }
+        if context.encountered_error.get() {
+            None
+        } else {
+            resulting_node
+        }
     }
 
     pub(super) fn check_truncation_length(&self, context: &NodeBuilderContext) -> bool {
