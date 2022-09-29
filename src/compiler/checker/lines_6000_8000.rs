@@ -4,21 +4,24 @@ use regex::{Captures, Regex};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
     wrap_symbol_tracker_to_report_for_context, NodeBuilderContext, RcOrReferenceToDynSymbolTracker,
 };
 use crate::{
-    every, factory, get_emit_script_target, get_name_of_declaration, get_text_of_node,
-    is_entity_name, is_identifier_start, is_identifier_text, is_indexed_access_type_node,
-    is_single_or_double_quote, is_string_literal, length, node_is_synthesized, set_emit_flags,
-    some, starts_with, synthetic_factory, unescape_leading_underscores,
+    every, find, find_ancestor, get_effective_return_type_node, get_effective_type_annotation_node,
+    get_emit_script_target, get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    get_text_of_node, is_entity_name, is_function_like_declaration, is_get_accessor_declaration,
+    is_identifier_start, is_identifier_text, is_indexed_access_type_node,
+    is_single_or_double_quote, is_string_literal, is_type_reference_node, length,
+    node_is_synthesized, set_emit_flags, some, starts_with, unescape_leading_underscores,
     using_single_line_string_writer, with_synthetic_factory_and_factory, CharacterCodes, Debug_,
     EmitFlags, EmitTextWriter, HasTypeArgumentsInterface, InternalSymbolName, LiteralType, Node,
-    NodeArray, NodeBuilder, NodeInterface, Number, Signature, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypePredicate, __String, for_each_entry_bool, NodeBuilderFlags,
+    NodeArray, NodeBuilder, NodeInterface, Number, ObjectFlags, Signature, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypePredicate, __String, for_each_entry_bool, NodeBuilderFlags,
 };
 
 impl NodeBuilder {
@@ -769,6 +772,52 @@ impl NodeBuilder {
         initial
     }
 
+    pub(super) fn get_declaration_with_type_annotation<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+    ) -> Option<Rc<Node>> {
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
+        symbol
+            .maybe_declarations()
+            .as_deref()
+            .and_then(|symbol_declarations| {
+                find(symbol_declarations, |s: &Rc<Node>, _| {
+                    get_effective_type_annotation_node(s).is_some()
+                        && (match enclosing_declaration.as_ref() {
+                            None => true,
+                            Some(enclosing_declaration) => {
+                                find_ancestor(Some(&**s), |n| ptr::eq(n, &**enclosing_declaration))
+                                    .is_some()
+                            }
+                        })
+                })
+                .cloned()
+            })
+    }
+
+    pub(super) fn existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
+        &self,
+        existing: &Node, /*TypeNode*/
+        type_: &Type,
+    ) -> bool {
+        !get_object_flags(type_).intersects(ObjectFlags::Reference)
+            || !is_type_reference_node(existing)
+            || length(
+                existing
+                    .as_type_reference_node()
+                    .maybe_type_arguments()
+                    .as_deref(),
+            ) >= self.type_checker.get_min_type_argument_count(
+                type_
+                    .as_type_reference_interface()
+                    .target()
+                    .as_interface_type_interface()
+                    .maybe_type_parameters(),
+            )
+    }
+
     pub(super) fn serialize_type_for_declaration<
         TEnclosingDeclaration: Borrow<Node>,
         TIncludePrivateSymbol: Fn(&Symbol),
@@ -781,7 +830,69 @@ impl NodeBuilder {
         include_private_symbol: Option<&TIncludePrivateSymbol>,
         bundled: Option<bool>,
     ) -> Rc<Node> {
+        if !self.type_checker.is_error_type(type_) {
+            if let Some(enclosing_declaration) = enclosing_declaration {
+                let enclosing_declaration: &Node = enclosing_declaration.borrow();
+                let decl_with_existing_annotation =
+                    self.get_declaration_with_type_annotation(symbol, Some(enclosing_declaration));
+                if let Some(decl_with_existing_annotation) = decl_with_existing_annotation
+                    .as_ref()
+                    .filter(|decl_with_existing_annotation| {
+                        !is_function_like_declaration(decl_with_existing_annotation)
+                            && !is_get_accessor_declaration(decl_with_existing_annotation)
+                    })
+                {
+                    let ref existing =
+                        get_effective_type_annotation_node(decl_with_existing_annotation).unwrap();
+                    if ptr::eq(
+                        &*self.type_checker.get_type_from_type_node_(
+                            existing,
+                        ),
+                        type_,
+                    ) && self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
+                        existing,
+                        type_
+                    ) {
+                        let result = self.serialize_existing_type_node(
+                            context,
+                            existing,
+                            include_private_symbol,
+                            bundled,
+                        );
+                        if let Some(result) = result {
+                            return result;
+                        }
+                    }
+                }
+            }
+        }
+        let old_flags = context.flags();
+        if type_.flags().intersects(TypeFlags::UniqueESSymbol)
+            && matches!(
+                type_.maybe_symbol().as_ref(), Some(type_symbol) if ptr::eq(
+                    &**type_symbol,
+                    symbol,
+                )
+            )
+            && match context.maybe_enclosing_declaration().as_ref() {
+                None => true,
+                Some(context_enclosing_declaration) => some(
+                    symbol.maybe_declarations().as_deref(),
+                    Some(|d: &Rc<Node>| {
+                        Rc::ptr_eq(
+                            get_source_file_of_node(Some(&**d)).as_ref().unwrap(),
+                            get_source_file_of_node(Some(&**context_enclosing_declaration))
+                                .as_ref()
+                                .unwrap(),
+                        )
+                    }),
+                ),
+            }
+        {
+            context.set_flags(context.flags() | NodeBuilderFlags::AllowUniqueESSymbolType);
+        }
         let result = self.type_to_type_node_helper(Some(type_), context);
+        context.set_flags(old_flags);
         result.unwrap()
     }
 
@@ -793,6 +904,63 @@ impl NodeBuilder {
         include_private_symbol: Option<&TIncludePrivateSymbol>,
         bundled: Option<bool>,
     ) -> Rc<Node> {
+        if !self.type_checker.is_error_type(type_) {
+            if let Some(context_enclosing_declaration) =
+                context.maybe_enclosing_declaration().as_ref()
+            {
+                let annotation = signature
+                    .declaration
+                    .as_ref()
+                    .and_then(|signature_declaration| {
+                        get_effective_return_type_node(signature_declaration)
+                    });
+                if let Some(annotation) = annotation.as_ref() {
+                    if find_ancestor(Some(&**annotation), |n| {
+                        ptr::eq(n, &**context_enclosing_declaration)
+                    })
+                    .is_some()
+                    {
+                        let annotated = self.type_checker.get_type_from_type_node_(annotation);
+                        let this_instantiated =
+                            if annotated.flags().intersects(TypeFlags::TypeParameter)
+                                && annotated.as_type_parameter().is_this_type == Some(true)
+                            {
+                                self.type_checker
+                                    .instantiate_type(&annotated, signature.mapper.as_ref())
+                            } else {
+                                annotated
+                            };
+                        if ptr::eq(
+                            &*this_instantiated,
+                            type_
+                        ) && self.existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
+                            annotation,
+                            type_
+                        ) {
+                            let result = self.serialize_existing_type_node(
+                                context,
+                                annotation,
+                                include_private_symbol,
+                                bundled
+                            );
+                            if let Some(result) = result {
+                                return result;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        self.type_to_type_node_helper(Some(type_), context).unwrap()
+    }
+
+    pub(super) fn serialize_existing_type_node<TIncludePrivateSymbol: Fn(&Symbol)>(
+        &self,
+        context: &NodeBuilderContext,
+        existing: &Node, /*TypeNode*/
+        include_private_symbol: Option<&TIncludePrivateSymbol>,
+        bundled: Option<bool>,
+    ) -> Option<Rc<Node>> {
         unimplemented!()
     }
 
