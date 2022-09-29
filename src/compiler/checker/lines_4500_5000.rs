@@ -691,28 +691,35 @@ impl NodeBuilder {
         let tracker = tracker
             .filter(|tracker| tracker.is_track_symbol_supported())
             .unwrap_or_else(|| default_tracker.as_ref().unwrap());
+        let tracker = RcOrReferenceToDynSymbolTracker::Reference(tracker);
         let context = Rc::new(RefCell::new(NodeBuilderContext::new(
             enclosing_declaration,
             flags.unwrap_or(NodeBuilderFlags::None),
-            tracker,
+            tracker.clone(),
         )));
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
-        context.borrow_mut().tracker = &context_tracker;
-        let context = (*context).borrow();
-        let resulting_node = cb(&context);
-        if context.truncating.get() == Some(true)
-            && context
-                .flags
-                .get()
-                .intersects(NodeBuilderFlags::NoTruncation)
-        {
-            context.tracker.report_truncation_error();
-        }
-        if context.encountered_error.get() {
-            None
-        } else {
-            resulting_node
-        }
+        // context.borrow_mut().tracker = RcOrReferenceToDynSymbolTracker::Reference(&context_tracker);
+        context.borrow_mut().tracker =
+            RcOrReferenceToDynSymbolTracker::Rc(Rc::new(context_tracker));
+        let ret = {
+            let context = (*context).borrow();
+            let resulting_node = cb(&context);
+            if context.truncating.get() == Some(true)
+                && context
+                    .flags
+                    .get()
+                    .intersects(NodeBuilderFlags::NoTruncation)
+            {
+                context.tracker.report_truncation_error();
+            }
+            if context.encountered_error.get() {
+                None
+            } else {
+                resulting_node
+            }
+        };
+        drop(context);
+        ret
     }
 
     pub(super) fn check_truncation_length(&self, context: &NodeBuilderContext) -> bool {
@@ -1293,7 +1300,7 @@ impl NodeBuilder {
         {
             if type_.flags().intersects(TypeFlags::TypeParameter)
                 && contains_rc(
-                    context.infer_type_parameters.borrow().as_deref(),
+                    (*context.infer_type_parameters).borrow().as_deref(),
                     &type_.type_wrapper(),
                 )
             {
@@ -1687,15 +1694,15 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
     }
 }
 
-fn wrap_symbol_tracker_to_report_for_context<'symbol_tracker>(
+pub(super) fn wrap_symbol_tracker_to_report_for_context<'symbol_tracker>(
     context: Rc<RefCell<NodeBuilderContext<'symbol_tracker>>>,
-    tracker: &'symbol_tracker dyn SymbolTracker,
+    tracker: RcOrReferenceToDynSymbolTracker<'symbol_tracker>,
 ) -> NodeBuilderContextWrappedSymbolTracker<'symbol_tracker> {
     NodeBuilderContextWrappedSymbolTracker { tracker, context }
 }
 
-struct NodeBuilderContextWrappedSymbolTracker<'symbol_tracker> {
-    tracker: &'symbol_tracker dyn SymbolTracker,
+pub(super) struct NodeBuilderContextWrappedSymbolTracker<'symbol_tracker> {
+    tracker: RcOrReferenceToDynSymbolTracker<'symbol_tracker>,
     context: Rc<RefCell<NodeBuilderContext<'symbol_tracker>>>,
 }
 
@@ -1854,56 +1861,257 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker<'_> {
     }
 }
 
+#[derive(Clone)]
 pub struct NodeBuilderContext<'symbol_tracker> {
-    enclosing_declaration: RefCell<Option<Rc<Node>>>,
+    enclosing_declaration: Rc<RefCell<Option<Rc<Node>>>>,
     pub flags: Cell<NodeBuilderFlags>,
-    pub tracker: &'symbol_tracker dyn SymbolTracker,
+    pub tracker: RcOrReferenceToDynSymbolTracker<'symbol_tracker>,
 
     pub encountered_error: Cell<bool>,
     pub reported_diagnostic: Cell<bool>,
-    pub visited_types: RefCell<Option<HashSet<TypeId>>>,
-    pub symbol_depth: RefCell<Option<HashMap<String, usize>>>,
-    pub infer_type_parameters: RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>,
+    pub visited_types: Rc<RefCell<Option<HashSet<TypeId>>>>,
+    pub symbol_depth: Rc<RefCell<Option<HashMap<String, usize>>>>,
+    pub infer_type_parameters: Rc<RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>>,
     pub approximate_length: Cell<usize>,
     pub truncating: Cell<Option<bool>>,
-    pub type_parameter_symbol_list: RefCell<Option<HashSet<SymbolId>>>,
-    pub type_parameter_names: RefCell<Option<HashMap<TypeId, Rc<Node /*Identifier*/>>>>,
-    pub type_parameter_names_by_text: RefCell<Option<HashSet<String>>>,
-    pub type_parameter_names_by_text_next_name_count: RefCell<Option<HashMap<String, usize>>>,
-    pub used_symbol_names: RefCell<Option<HashSet<String>>>,
-    pub remapped_symbol_names: RefCell<Option<HashMap<SymbolId, String>>>,
-    pub reverse_mapped_stack: RefCell<Option<Vec<Rc<Symbol /*ReverseMappedSymbol*/>>>>,
+    pub type_parameter_symbol_list: Rc<RefCell<Option<HashSet<SymbolId>>>>,
+    pub type_parameter_names: Rc<RefCell<Option<HashMap<TypeId, Rc<Node /*Identifier*/>>>>>,
+    pub type_parameter_names_by_text: Rc<RefCell<Option<HashSet<String>>>>,
+    pub type_parameter_names_by_text_next_name_count: Rc<RefCell<Option<HashMap<String, usize>>>>,
+    pub used_symbol_names: Rc<RefCell<Option<HashSet<String>>>>,
+    pub remapped_symbol_names: Rc<RefCell<Option<HashMap<SymbolId, String>>>>,
+    pub reverse_mapped_stack: Rc<RefCell<Option<Vec<Rc<Symbol /*ReverseMappedSymbol*/>>>>>,
+}
+
+#[derive(Clone)]
+pub enum RcOrReferenceToDynSymbolTracker<'symbol_tracker> {
+    Rc(Rc<dyn SymbolTracker + 'symbol_tracker>),
+    Reference(&'symbol_tracker dyn SymbolTracker),
+}
+
+impl<'symbol_tracker> SymbolTracker for RcOrReferenceToDynSymbolTracker<'symbol_tracker> {
+    fn track_symbol(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<Rc<Node>>,
+        meaning: SymbolFlags,
+    ) -> Option<bool> {
+        match self {
+            Self::Rc(tracker) => tracker.track_symbol(symbol, enclosing_declaration, meaning),
+            Self::Reference(tracker) => {
+                tracker.track_symbol(symbol, enclosing_declaration, meaning)
+            }
+        }
+    }
+
+    fn is_track_symbol_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_track_symbol_supported(),
+            Self::Reference(tracker) => tracker.is_track_symbol_supported(),
+        }
+    }
+
+    fn report_inaccessible_this_error(&self) {
+        match self {
+            Self::Rc(tracker) => tracker.report_inaccessible_this_error(),
+            Self::Reference(tracker) => tracker.report_inaccessible_this_error(),
+        }
+    }
+
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_report_inaccessible_this_error_supported(),
+            Self::Reference(tracker) => tracker.is_report_inaccessible_this_error_supported(),
+        }
+    }
+
+    fn report_private_in_base_of_class_expression(&self, property_name: &str) {
+        match self {
+            Self::Rc(tracker) => tracker.report_private_in_base_of_class_expression(property_name),
+            Self::Reference(tracker) => {
+                tracker.report_private_in_base_of_class_expression(property_name)
+            }
+        }
+    }
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_report_private_in_base_of_class_expression_supported(),
+            Self::Reference(tracker) => {
+                tracker.is_report_private_in_base_of_class_expression_supported()
+            }
+        }
+    }
+
+    fn report_inaccessible_unique_symbol_error(&self) {
+        match self {
+            Self::Rc(tracker) => tracker.report_inaccessible_unique_symbol_error(),
+            Self::Reference(tracker) => tracker.report_inaccessible_unique_symbol_error(),
+        }
+    }
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_report_inaccessible_unique_symbol_error_supported(),
+            Self::Reference(tracker) => {
+                tracker.is_report_inaccessible_unique_symbol_error_supported()
+            }
+        }
+    }
+
+    fn report_cyclic_structure_error(&self) {
+        match self {
+            Self::Rc(tracker) => tracker.report_cyclic_structure_error(),
+            Self::Reference(tracker) => tracker.report_cyclic_structure_error(),
+        }
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_report_cyclic_structure_error_supported(),
+            Self::Reference(tracker) => tracker.is_report_cyclic_structure_error_supported(),
+        }
+    }
+
+    fn report_likely_unsafe_import_required_error(&self, specifier: &str) {
+        match self {
+            Self::Rc(tracker) => tracker.report_likely_unsafe_import_required_error(specifier),
+            Self::Reference(tracker) => {
+                tracker.report_likely_unsafe_import_required_error(specifier)
+            }
+        }
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_report_likely_unsafe_import_required_error_supported(),
+            Self::Reference(tracker) => {
+                tracker.is_report_likely_unsafe_import_required_error_supported()
+            }
+        }
+    }
+
+    fn report_truncation_error(&self) {
+        match self {
+            Self::Rc(tracker) => tracker.report_truncation_error(),
+            Self::Reference(tracker) => tracker.report_truncation_error(),
+        }
+    }
+
+    fn module_resolver_host(
+        &self,
+    ) -> Option<&dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
+        match self {
+            Self::Rc(tracker) => tracker.module_resolver_host(),
+            Self::Reference(tracker) => tracker.module_resolver_host(),
+        }
+    }
+
+    fn is_module_resolver_host_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_module_resolver_host_supported(),
+            Self::Reference(tracker) => tracker.is_module_resolver_host_supported(),
+        }
+    }
+
+    fn track_referenced_ambient_module(
+        &self,
+        decl: &Node, /*ModuleDeclaration*/
+        symbol: &Symbol,
+    ) {
+        match self {
+            Self::Rc(tracker) => tracker.track_referenced_ambient_module(decl, symbol),
+            Self::Reference(tracker) => tracker.track_referenced_ambient_module(decl, symbol),
+        }
+    }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_track_referenced_ambient_module_supported(),
+            Self::Reference(tracker) => tracker.is_track_referenced_ambient_module_supported(),
+        }
+    }
+
+    fn track_external_module_symbol_of_import_type_node(&self, symbol: &Symbol) {
+        match self {
+            Self::Rc(tracker) => tracker.track_external_module_symbol_of_import_type_node(symbol),
+            Self::Reference(tracker) => {
+                tracker.track_external_module_symbol_of_import_type_node(symbol)
+            }
+        }
+    }
+
+    fn report_nonlocal_augmentation(
+        &self,
+        containing_file: &Node, /*SourceFile*/
+        parent_symbol: &Symbol,
+        augmenting_symbol: &Symbol,
+    ) {
+        match self {
+            Self::Rc(tracker) => tracker.report_nonlocal_augmentation(
+                containing_file,
+                parent_symbol,
+                augmenting_symbol,
+            ),
+            Self::Reference(tracker) => tracker.report_nonlocal_augmentation(
+                containing_file,
+                parent_symbol,
+                augmenting_symbol,
+            ),
+        }
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_report_nonlocal_augmentation_supported(),
+            Self::Reference(tracker) => tracker.is_report_nonlocal_augmentation_supported(),
+        }
+    }
+
+    fn report_non_serializable_property(&self, property_name: &str) {
+        match self {
+            Self::Rc(tracker) => tracker.report_non_serializable_property(property_name),
+            Self::Reference(tracker) => tracker.report_non_serializable_property(property_name),
+        }
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        match self {
+            Self::Rc(tracker) => tracker.is_report_non_serializable_property_supported(),
+            Self::Reference(tracker) => tracker.is_report_non_serializable_property_supported(),
+        }
+    }
 }
 
 impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
     pub fn new(
         enclosing_declaration: Option<Rc<Node>>,
         flags: NodeBuilderFlags,
-        tracker: &'symbol_tracker dyn SymbolTracker,
+        tracker: RcOrReferenceToDynSymbolTracker<'symbol_tracker>,
     ) -> Self {
         Self {
-            enclosing_declaration: RefCell::new(enclosing_declaration),
+            enclosing_declaration: Rc::new(RefCell::new(enclosing_declaration)),
             flags: Cell::new(flags),
             tracker,
             encountered_error: Cell::new(false),
             reported_diagnostic: Cell::new(false),
-            visited_types: RefCell::new(None),
-            symbol_depth: RefCell::new(None),
-            infer_type_parameters: RefCell::new(None),
+            visited_types: Rc::new(RefCell::new(None)),
+            symbol_depth: Rc::new(RefCell::new(None)),
+            infer_type_parameters: Rc::new(RefCell::new(None)),
             approximate_length: Cell::new(0),
             truncating: Cell::new(None),
-            type_parameter_symbol_list: RefCell::new(None),
-            type_parameter_names: RefCell::new(None),
-            type_parameter_names_by_text: RefCell::new(None),
-            type_parameter_names_by_text_next_name_count: RefCell::new(None),
-            used_symbol_names: RefCell::new(None),
-            remapped_symbol_names: RefCell::new(None),
-            reverse_mapped_stack: RefCell::new(None),
+            type_parameter_symbol_list: Rc::new(RefCell::new(None)),
+            type_parameter_names: Rc::new(RefCell::new(None)),
+            type_parameter_names_by_text: Rc::new(RefCell::new(None)),
+            type_parameter_names_by_text_next_name_count: Rc::new(RefCell::new(None)),
+            used_symbol_names: Rc::new(RefCell::new(None)),
+            remapped_symbol_names: Rc::new(RefCell::new(None)),
+            reverse_mapped_stack: Rc::new(RefCell::new(None)),
         }
     }
 
     pub fn maybe_enclosing_declaration(&self) -> Option<Rc<Node>> {
-        self.enclosing_declaration.borrow().clone()
+        (*self.enclosing_declaration).borrow().clone()
     }
 
     pub fn set_enclosing_declaration(&self, enclosing_declaration: Option<Rc<Node>>) {

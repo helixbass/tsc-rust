@@ -23,8 +23,9 @@ use crate::{
     CompilerOptions, Debug_, EmitFlags, IndexInfo, InternalSymbolName, ModifierFlags,
     ModuleResolutionKind, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature,
     SignatureFlags, StrOrNodeArrayRef, StringOrNodeArray, StringOrRcNode, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type, TypeInterface,
-    TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder, VisitResult,
+    SymbolInterface, SymbolTracker, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type,
+    TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder,
+    VisitResult,
 };
 
 impl NodeBuilder {
@@ -1261,7 +1262,7 @@ impl NodeBuilder {
         let symbol = &chain[index];
         let symbol_id = get_symbol_id(symbol);
         if matches!(
-            context.type_parameter_symbol_list.borrow().as_ref(),
+            (*context.type_parameter_symbol_list).borrow().as_ref(),
             Some(context_type_parameter_symbol_list) if context_type_parameter_symbol_list.contains(
                 &symbol_id
             )

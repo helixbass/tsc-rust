@@ -6,7 +6,9 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use super::NodeBuilderContext;
+use super::{
+    wrap_symbol_tracker_to_report_for_context, NodeBuilderContext, RcOrReferenceToDynSymbolTracker,
+};
 use crate::{
     every, factory, get_emit_script_target, get_name_of_declaration, get_text_of_node,
     is_entity_name, is_identifier_start, is_identifier_text, is_indexed_access_type_node,
@@ -235,7 +237,7 @@ impl NodeBuilder {
             .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
         {
             if let Some(context_type_parameter_names) =
-                context.type_parameter_names.borrow().as_ref()
+                (*context.type_parameter_names).borrow().as_ref()
             {
                 let cached =
                     context_type_parameter_names.get(&self.type_checker.get_type_id(type_));
@@ -264,8 +266,7 @@ impl NodeBuilder {
             .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
         {
             let rawtext = (&*result.as_identifier().escaped_text).to_owned();
-            let mut i = context
-                .type_parameter_names_by_text_next_name_count
+            let mut i = (*context.type_parameter_names_by_text_next_name_count)
                 .borrow()
                 .as_ref()
                 .and_then(|context_type_parameter_names_by_text_next_name_count| {
@@ -276,7 +277,7 @@ impl NodeBuilder {
                 .unwrap_or(0);
             let mut text = rawtext.clone();
             while matches!(
-                context.type_parameter_names_by_text_next_name_count.borrow().as_ref(),
+                (*context.type_parameter_names_by_text_next_name_count).borrow().as_ref(),
                 Some(context_type_parameter_names_by_text_next_name_count) if context_type_parameter_names_by_text_next_name_count.contains_key(&text)
             ) || self.type_parameter_shadows_name_in_scope(
                 &__String::new(text.clone()),
@@ -728,6 +729,44 @@ impl NodeBuilder {
                     .into()
             })
         }
+    }
+
+    pub(super) fn clone_node_builder_context<'symbol_tracker>(
+        &self,
+        context: Rc<RefCell<NodeBuilderContext<'symbol_tracker>>>,
+    ) -> NodeBuilderContext<'symbol_tracker> {
+        let mut initial = (*context).borrow().clone();
+        {
+            let mut initial_type_parameter_names = initial.type_parameter_names.borrow_mut();
+            if initial_type_parameter_names.is_some() {
+                *initial_type_parameter_names =
+                    Some(initial_type_parameter_names.as_ref().unwrap().clone());
+            }
+        }
+        {
+            let mut initial_type_parameter_names_by_text =
+                initial.type_parameter_names_by_text.borrow_mut();
+            if initial_type_parameter_names_by_text.is_some() {
+                *initial_type_parameter_names_by_text = Some(
+                    initial_type_parameter_names_by_text
+                        .as_ref()
+                        .unwrap()
+                        .clone(),
+                );
+            }
+        }
+        {
+            let mut initial_type_parameter_symbol_list =
+                initial.type_parameter_symbol_list.borrow_mut();
+            if initial_type_parameter_symbol_list.is_some() {
+                *initial_type_parameter_symbol_list =
+                    Some(initial_type_parameter_symbol_list.as_ref().unwrap().clone());
+            }
+        }
+        let initial_tracker =
+            wrap_symbol_tracker_to_report_for_context(context.clone(), initial.tracker.clone());
+        initial.tracker = RcOrReferenceToDynSymbolTracker::Rc(Rc::new(initial_tracker));
+        initial
     }
 
     pub(super) fn serialize_type_for_declaration<

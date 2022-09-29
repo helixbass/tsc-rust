@@ -21,8 +21,8 @@ use crate::{
     ElementFlags, EmitFlags, HasTypeArgumentsInterface, InterfaceTypeInterface, KeywordTypeNode,
     ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
     NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId,
-    TypeInterface, VisitResult,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind, Type,
+    TypeFlags, TypeId, TypeInterface, VisitResult,
 };
 
 impl NodeBuilder {
