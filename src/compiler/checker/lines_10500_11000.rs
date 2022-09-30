@@ -577,13 +577,13 @@ impl TypeChecker {
         let type_as_type_reference = type_.as_type_reference_interface();
         let source = self.resolve_declared_members(&type_as_type_reference.target());
         let source_as_interface_type = source.as_interface_type();
-        let type_parameters = concatenate(
+        let type_parameters = maybe_concatenate(
             source_as_interface_type
                 .maybe_type_parameters()
-                .map(|type_parameters| type_parameters.to_owned())
-                .unwrap(),
-            vec![source_as_interface_type.maybe_this_type().unwrap()],
-        );
+                .map(|type_parameters| type_parameters.to_owned()),
+            Some(vec![source_as_interface_type.maybe_this_type().unwrap()]),
+        )
+        .unwrap();
         let type_arguments = self.get_type_arguments(type_);
         let padded_type_arguments = if type_arguments.len() == type_parameters.len() {
             type_arguments
