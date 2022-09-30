@@ -19,17 +19,18 @@ use crate::{
     get_allow_js_compiler_option, get_automatic_type_directive_names,
     get_common_source_directory_of_config, get_default_lib_file_name, get_directory_path,
     get_emit_script_target, get_line_and_character_of_position, get_new_line_character,
-    get_normalized_absolute_path, get_normalized_path_components, get_output_declaration_file_name,
+    get_normalized_absolute_path, get_normalized_absolute_path_without_root,
+    get_normalized_path_components, get_output_declaration_file_name,
     get_path_from_path_components, get_property_assignment, get_strict_option_value,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
     has_extension, has_js_file_extension, is_declaration_file_name, is_import_call,
     is_import_equals_declaration, is_rooted_disk_path, is_watch_set, map_defined, maybe_for_each,
-    missing_file_modified_time, normalize_path, options_have_changes, out_file,
-    remove_file_extension, resolve_config_file_project_name, resolve_module_name,
+    missing_file_modified_time, node_modules_path_part, normalize_path, options_have_changes,
+    out_file, remove_file_extension, resolve_config_file_project_name, resolve_module_name,
     resolve_type_reference_directive, source_file_affecting_compiler_options, stable_sort,
-    supported_js_extensions_flat, to_path as to_path_helper, walk_up_parenthesized_expressions,
-    write_file_ensuring_directories, AutomaticTypeDirectiveFile, CancellationTokenDebuggable,
-    Comparison, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
+    string_contains, supported_js_extensions_flat, to_path as to_path_helper,
+    walk_up_parenthesized_expressions, write_file_ensuring_directories, AutomaticTypeDirectiveFile,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
     ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
     DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
@@ -1353,6 +1354,16 @@ impl Program {
             .set(current_node_modules_depth);
     }
 
+    pub(super) fn modules_with_elided_imports(&self) -> RefMut<HashMap<String, bool>> {
+        self.modules_with_elided_imports.borrow_mut()
+    }
+
+    pub(super) fn source_files_found_searching_node_modules(
+        &self,
+    ) -> RefMut<HashMap<String, bool>> {
+        self.source_files_found_searching_node_modules.borrow_mut()
+    }
+
     pub(super) fn maybe_old_program(&self) -> Option<Rc<Program>> {
         self.old_program.borrow().clone()
     }
@@ -1975,14 +1986,149 @@ impl Program {
         );
     }
 
-    pub fn find_source_file(&self, file_name: &str) -> Option<Rc<Node>> {
-        self.find_source_file_worker(file_name)
+    pub fn report_file_names_differ_only_in_casing_error(
+        &self,
+        file_name: &str,
+        existing_file: &Node, /*SourceFile*/
+        reason: &FileIncludeReason,
+    ) {
+        unimplemented!()
     }
 
-    pub fn find_source_file_worker(&self, file_name: &str) -> Option<Rc<Node>> {
+    pub fn find_source_file(
+        &self,
+        file_name: &str,
+        is_default_lib: bool,
+        ignore_no_default_lib: bool,
+        reason: &FileIncludeReason,
+        package_id: Option<&PackageId>,
+    ) -> Option<Rc<Node>> {
+        // tracing?.push(tracing.Phase.Program, "findSourceFile", {
+        //     fileName,
+        //     isDefaultLib: isDefaultLib || undefined,
+        //     fileIncludeKind: (FileIncludeKind as any)[reason.kind],
+        // });
+        let result = self.find_source_file_worker(
+            file_name,
+            is_default_lib,
+            ignore_no_default_lib,
+            reason,
+            package_id,
+        );
+        // tracing?.pop();
+        result
+    }
+
+    pub fn find_source_file_worker(
+        &self,
+        file_name: &str,
+        is_default_lib: bool,
+        ignore_no_default_lib: bool,
+        reason: &FileIncludeReason,
+        package_id: Option<&PackageId>,
+    ) -> Option<Rc<Node>> {
         let path = self.to_path(file_name);
         if self.use_source_of_project_reference_redirect() {
-            let source = self.get_source_of_project_reference_redirect(&path);
+            let mut source = self.get_source_of_project_reference_redirect(&path);
+            if source.is_none()
+                && self.host().is_realpath_supported()
+                && self.options.preserve_symlinks == Some(true)
+                && is_declaration_file_name(file_name)
+                && string_contains(file_name, node_modules_path_part)
+            {
+                let real_path = self.to_path(&self.host().realpath(file_name).unwrap());
+                if real_path != path {
+                    source = self.get_source_of_project_reference_redirect(&real_path);
+                }
+            }
+            if let Some(source) = source.as_ref() {
+                let file = match source {
+                    SourceOfProjectReferenceRedirect::String(source) => self.find_source_file(
+                        source,
+                        is_default_lib,
+                        ignore_no_default_lib,
+                        reason,
+                        package_id,
+                    ),
+                    _ => None,
+                };
+                if let Some(file) = file.as_ref() {
+                    self.add_file_to_files_by_name(Some(&**file), &path, None);
+                    return Some(file.clone());
+                }
+            }
+        }
+        let original_file_name = file_name;
+        let mut file_name = file_name.to_owned();
+        if self.files_by_name().contains_key(&*path) {
+            let file = self.files_by_name().get(&*path).unwrap().clone();
+            let file = match file {
+                FilesByNameValue::SourceFile(file) => Some(file),
+                _ => None,
+            };
+            self.add_file_include_reason(file.as_deref(), reason);
+            if let Some(file) = file.as_ref() {
+                if self.options.force_consistent_casing_in_file_names == Some(true) {
+                    let ref checked_name = file.as_source_file().file_name();
+                    let is_redirect = self.to_path(checked_name) != self.to_path(&file_name);
+                    if is_redirect {
+                        file_name = self
+                            .get_project_reference_redirect_(&file_name)
+                            .unwrap_or(file_name);
+                    }
+                    let checked_absolute_path = get_normalized_absolute_path_without_root(
+                        checked_name,
+                        Some(&**self.current_directory()),
+                    );
+                    let input_absolute_path = get_normalized_absolute_path_without_root(
+                        file_name,
+                        Some(&**self.current_directory()),
+                    );
+                    if checked_absolute_path != input_absolute_path {
+                        self.report_file_names_differ_only_in_casing_error(
+                            &file_name, file, reason,
+                        );
+                    }
+                }
+            }
+
+            if let Some(file) = file.as_ref().filter(|file| {
+                matches!(
+                    self.source_files_found_searching_node_modules()
+                        .get(&**file.as_source_file().path())
+                        .cloned(),
+                    Some(true)
+                ) && self.current_node_modules_depth() == 0
+            }) {
+                self.source_files_found_searching_node_modules()
+                    .insert(file.as_source_file().path().to_string(), false);
+                if self.options.no_resolve != Some(true) {
+                    self.process_referenced_files(file, is_default_lib);
+                    self.process_type_reference_directives();
+                }
+                if self.options.no_lib != Some(true) {
+                    self.process_lib_reference_directives(file);
+                }
+
+                self.modules_with_elided_imports()
+                    .insert(file.as_source_file().path().to_string(), false);
+                self.process_imported_modules(file);
+            } else if let Some(file) = file.as_ref().filter(|file| {
+                matches!(
+                    self.modules_with_elided_imports()
+                        .get(&**file.as_source_file().path())
+                        .cloned(),
+                    Some(true)
+                )
+            }) {
+                if self.current_node_modules_depth() < self.max_node_module_js_depth {
+                    self.modules_with_elided_imports()
+                        .insert(file.as_source_file().path().to_string(), false);
+                    self.process_imported_modules(file);
+                }
+            }
+
+            return file;
         }
 
         let file = self.host().get_source_file(
@@ -2004,6 +2150,23 @@ impl Program {
                 .push(file.clone());
             file
         })
+    }
+
+    fn add_file_include_reason<TFile: Borrow<Node>>(
+        &self,
+        file: Option<TFile /*SourceFile*/>,
+        reason: &FileIncludeReason,
+    ) {
+        unimplemented!()
+    }
+
+    fn add_file_to_files_by_name<TFile: Borrow<Node>>(
+        &self,
+        file: Option<TFile /*SourceFile*/>,
+        path: &Path,
+        redirected_path: Option<&Path>,
+    ) {
+        unimplemented!()
     }
 
     pub fn get_project_reference_redirect_(&self, file_name: &str) -> Option<String> {
@@ -2102,6 +2265,14 @@ impl Program {
             })
             .get(path)
             .cloned()
+    }
+
+    pub fn process_referenced_files(&self, file: &Node /*SourceFile*/, is_default_lib: bool) {
+        unimplemented!()
+    }
+
+    pub fn process_type_reference_directives(&self, file: &Node /*SourceFile*/) {
+        unimplemented!()
     }
 
     pub fn process_type_reference_directive(
@@ -2271,6 +2442,10 @@ impl Program {
         combine_paths(&self.default_library_path(), &[Some(lib_file_name)])
     }
 
+    pub fn process_lib_reference_directives(&self, file: &Node /*SourceFile*/) {
+        unimplemented!()
+    }
+
     pub fn get_canonical_file_name(&self, file_name: &str) -> String {
         self.host().get_canonical_file_name(file_name)
     }
@@ -2278,6 +2453,10 @@ impl Program {
     pub fn get_canonical_file_name_rc(&self) -> Rc<dyn Fn(&str) -> String> {
         let host = self.host();
         Rc::new(move |file_name| host.get_canonical_file_name(file_name))
+    }
+
+    pub fn process_imported_modules(&self, file: &Node /*SourceFile*/) {
+        unimplemented!()
     }
 
     pub fn parse_project_reference_config_file(
@@ -2447,6 +2626,7 @@ impl Program {
     }
 }
 
+#[derive(Clone)]
 pub enum FilesByNameValue {
     SourceFile(Rc<Node /*SourceFile*/>),
     False,

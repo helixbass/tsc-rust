@@ -151,6 +151,7 @@ pub use compiler::factory::utilities::{
 pub use compiler::factory::utilities_public::set_text_range;
 use compiler::module_name_resolver::{
     create_mode_aware_cache, get_types_package_name, mangle_scoped_package_name,
+    node_modules_path_part,
 };
 pub use compiler::module_name_resolver::{
     create_module_resolution_cache, create_type_reference_directive_resolution_cache,
