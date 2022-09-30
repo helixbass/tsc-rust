@@ -482,7 +482,7 @@ impl TypeChecker {
                     _ => panic!("Expected IntrinsicType or LiteralType"),
                 }
             } else if get_object_flags(&type_).intersects(ObjectFlags::Reference)
-                && type_.as_type_reference().maybe_node().is_some()
+                && type_.as_type_reference_interface().maybe_node().is_some()
             {
                 self.create_type_reference(
                     &type_.as_type_reference().target,
