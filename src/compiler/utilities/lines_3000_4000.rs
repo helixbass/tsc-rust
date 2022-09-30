@@ -922,13 +922,13 @@ pub(crate) fn has_invalid_escape(template: &Node /*TemplateLiteral*/) -> bool {
 }
 
 lazy_static! {
-    static ref double_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\"\u0000-\u001f\t\v\f\b\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
+    static ref double_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\"\u0000-\u001f\t\v\f\u0008\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
 }
 lazy_static! {
-    static ref single_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\'\u0000-\u001f\t\v\f\b\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
+    static ref single_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\'\u0000-\u001f\t\v\f\u0008\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
 }
 lazy_static! {
-    static ref backtick_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"\r\n|[\\`\u0000-\u001f\t\v\f\b\r\u2028\u2029\u0085]"#/*/g*/).unwrap();
+    static ref backtick_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"\r\n|[\\`\u0000-\u001f\t\v\f\u0008\r\u2028\u2029\u0085]"#/*/g*/).unwrap();
 }
 lazy_static! {
     static ref escaped_chars_map: HashMap<&'static str, &'static str> =

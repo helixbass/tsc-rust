@@ -896,7 +896,12 @@ impl TypeChecker {
             if void_is_non_optional {
                 return min_argument_count;
             }
-            let mut i = min_argument_count - 1;
+            let mut i = if min_argument_count == 0 {
+                // avoid usize underflow
+                0
+            } else {
+                min_argument_count - 1
+            };
             while i >= 0 {
                 let type_ = self.get_type_at_position(signature, i);
                 if self
