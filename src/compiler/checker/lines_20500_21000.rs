@@ -596,8 +596,8 @@ impl TypeChecker {
     pub(super) fn is_generic_tuple_type(&self, type_: &Type) -> bool {
         self.is_tuple_type(type_)
             && type_
-                .as_type_reference()
-                .target
+                .as_type_reference_interface()
+                .target()
                 .as_tuple_type()
                 .combined_flags
                 .intersects(ElementFlags::Variadic)
