@@ -329,8 +329,8 @@ impl TypeChecker {
                 .or_else(|| {
                     if get_object_flags(&type_).intersects(ObjectFlags::Reference) {
                         type_
-                            .as_type_reference()
-                            .target
+                            .as_type_reference_interface()
+                            .target()
                             .as_interface_type_interface()
                             .maybe_local_type_parameters()
                             .map(ToOwned::to_owned)
