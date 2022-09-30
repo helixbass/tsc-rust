@@ -586,8 +586,8 @@ impl TypeChecker {
     pub(super) fn is_tuple_type(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Reference)
             && type_
-                .as_type_reference()
-                .target
+                .as_type_reference_interface()
+                .target()
                 .as_object_type()
                 .object_flags()
                 .intersects(ObjectFlags::Tuple)
