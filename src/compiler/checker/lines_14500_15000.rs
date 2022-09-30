@@ -146,7 +146,7 @@ impl TypeChecker {
         let object_flags = self.get_propagating_flags_of_types(&types, TypeFlags::Nullable);
         let result = BaseUnionOrIntersectionType::new(result, types, object_flags);
         let result: Rc<Type> = IntersectionType::new(result).into();
-        *result.maybe_alias_symbol() =
+        *result.maybe_alias_symbol_mut() =
             alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         *result.maybe_alias_type_arguments() = alias_type_arguments.map(ToOwned::to_owned);
         result

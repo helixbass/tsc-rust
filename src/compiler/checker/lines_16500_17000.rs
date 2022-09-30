@@ -404,7 +404,7 @@ impl TypeChecker {
             result.into()
         };
         let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
-        *result.maybe_alias_symbol() = alias_symbol
+        *result.maybe_alias_symbol_mut() = alias_symbol
             .clone()
             .or_else(|| type_.maybe_alias_symbol().clone());
         *result.maybe_alias_type_arguments() = if alias_symbol.is_some() {

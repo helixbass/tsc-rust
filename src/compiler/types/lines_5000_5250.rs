@@ -604,7 +604,8 @@ pub trait TypeInterface {
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Option<Rc<Symbol>>);
     fn maybe_pattern(&self) -> RefMut<Option<Rc<Node /*DestructuringPattern*/>>>;
-    fn maybe_alias_symbol(&self) -> RefMut<Option<Rc<Symbol>>>;
+    fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>>;
+    fn maybe_alias_symbol_mut(&self) -> RefMut<Option<Rc<Symbol>>>;
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
     fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool>;
     fn set_alias_type_arguments_contains_marker(
@@ -758,7 +759,11 @@ impl TypeInterface for BaseType {
         self.pattern.borrow_mut()
     }
 
-    fn maybe_alias_symbol(&self) -> RefMut<Option<Rc<Symbol>>> {
+    fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>> {
+        self.alias_symbol.borrow().clone()
+    }
+
+    fn maybe_alias_symbol_mut(&self) -> RefMut<Option<Rc<Symbol>>> {
         self.alias_symbol.borrow_mut()
     }
 

@@ -1223,8 +1223,12 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_pattern()
                     }
 
-                    fn maybe_alias_symbol(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Symbol>>> {
+                    fn maybe_alias_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         self.#first_field_name.maybe_alias_symbol()
+                    }
+
+                    fn maybe_alias_symbol_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Symbol>>> {
+                        self.#first_field_name.maybe_alias_symbol_mut()
                     }
 
                     fn maybe_alias_type_arguments(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Type>>>> {
@@ -1714,9 +1718,15 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_alias_symbol(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Symbol>>> {
+                    fn maybe_alias_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_alias_symbol()),*
+                        }
+                    }
+
+                    fn maybe_alias_symbol_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Symbol>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_alias_symbol_mut()),*
                         }
                     }
 

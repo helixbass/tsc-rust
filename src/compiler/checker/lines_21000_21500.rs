@@ -847,7 +847,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_non_generic_top_level_type(&self, type_: &Type) -> bool {
-        if let Some(ref type_alias_symbol) = type_.maybe_alias_symbol().clone() {
+        if let Some(ref type_alias_symbol) = type_.maybe_alias_symbol() {
             if type_.maybe_alias_type_arguments().is_none() {
                 let declaration =
                     get_declaration_of_kind(type_alias_symbol, SyntaxKind::TypeAliasDeclaration);

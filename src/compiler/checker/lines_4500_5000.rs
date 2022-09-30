@@ -776,7 +776,7 @@ impl NodeBuilder {
         }
 
         if type_.flags().intersects(TypeFlags::Any) {
-            if let Some(type_alias_symbol) = type_.maybe_alias_symbol().clone() {
+            if let Some(type_alias_symbol) = type_.maybe_alias_symbol() {
                 return Some(synthetic_factory.with(|synthetic_factory_| {
                     factory.with(|factory_| {
                         factory_
@@ -1233,7 +1233,7 @@ impl NodeBuilder {
         }
 
         if !in_type_alias {
-            if let Some(type_alias_symbol) = type_.maybe_alias_symbol().clone() {
+            if let Some(type_alias_symbol) = type_.maybe_alias_symbol() {
                 if context
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
