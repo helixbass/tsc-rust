@@ -181,7 +181,7 @@ pub struct SourceFile {
     resolved_modules:
         RefCell<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
-        RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
+        RefCell<Option<ModeAwareCache<Option<Rc<ResolvedTypeReferenceDirective>>>>>,
     imports: RefCell<Option<Vec<Rc<Node /*StringLiteralLike*/>>>>,
     module_augmentations: RefCell<Option<Vec<Rc<Node /*StringLiteral | Identifier*/>>>>,
     pattern_ambient_modules: RefCell<Option<Vec<Rc<PatternAmbientModule>>>>,
@@ -370,6 +370,10 @@ impl SourceFile {
         *self.referenced_files.borrow_mut() = Some(referenced_files);
     }
 
+    pub fn maybe_type_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
+        self.type_reference_directives.borrow()
+    }
+
     pub fn type_reference_directives(&self) -> Ref<Vec<FileReference>> {
         Ref::map(self.type_reference_directives.borrow(), |option| {
             option.as_ref().unwrap()
@@ -538,7 +542,7 @@ impl SourceFile {
 
     pub fn maybe_resolved_type_reference_directive_names(
         &self,
-    ) -> RefMut<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective>>>> {
+    ) -> RefMut<Option<ModeAwareCache<Option<Rc<ResolvedTypeReferenceDirective>>>>> {
         self.resolved_type_reference_directive_names.borrow_mut()
     }
 

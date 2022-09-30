@@ -25,27 +25,27 @@ use crate::{
     get_property_assignment, get_strict_option_value, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module, get_sys, has_extension,
     has_js_file_extension, is_declaration_file_name, is_import_call, is_import_equals_declaration,
-    is_rooted_disk_path, is_watch_set, map_defined, maybe_for_each, missing_file_modified_time,
-    node_modules_path_part, normalize_path, options_have_changes, out_file, package_id_to_string,
-    remove_file_extension, resolve_config_file_project_name, resolve_module_name,
-    resolve_type_reference_directive, source_file_affecting_compiler_options, stable_sort,
-    string_contains, supported_js_extensions_flat, to_file_name_lower_case,
-    to_path as to_path_helper, walk_up_parenthesized_expressions, write_file_ensuring_directories,
-    AutomaticTypeDirectiveFile, CancellationTokenDebuggable, Comparison, CompilerHost,
-    CompilerOptions, CompilerOptionsBuilder, ConfigFileDiagnosticsReporter, CreateProgramOptions,
-    CustomTransformers, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
-    DirectoryStructureHost, EmitResult, Extension, FileIncludeKind, FileIncludeReason,
-    FileReference, LibFile, LineAndCharacter, ModuleKind, ModuleResolutionCache,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, NodeInterface,
-    PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
-    Program, ProjectReference, RedirectTargetsMap, ReferencedFile, ResolvedConfigFileName,
-    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceFileLike,
-    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, System,
-    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    WriteFileCallback,
+    is_rooted_disk_path, is_watch_set, map_defined, maybe_for_each, maybe_map,
+    missing_file_modified_time, node_modules_path_part, normalize_path, options_have_changes,
+    out_file, package_id_to_string, remove_file_extension, resolve_config_file_project_name,
+    resolve_module_name, resolve_type_reference_directive, set_resolved_type_reference_directive,
+    source_file_affecting_compiler_options, stable_sort, string_contains,
+    supported_js_extensions_flat, to_file_name_lower_case, to_path as to_path_helper,
+    walk_up_parenthesized_expressions, write_file_ensuring_directories, AutomaticTypeDirectiveFile,
+    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
+    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
+    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
+    Extension, FileIncludeKind, FileIncludeReason, FileReference, LibFile, LineAndCharacter,
+    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
+    NodeInterface, PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParseConfigHost,
+    ParsedCommandLine, Path, Program, ProjectReference, RedirectTargetsMap, ReferencedFile,
+    ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, ScriptTarget, SortedArray,
+    SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect, StringOrRcNode,
+    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -2548,7 +2548,39 @@ impl Program {
     }
 
     pub fn process_type_reference_directives(&self, file: &Node /*SourceFile*/) {
-        unimplemented!()
+        let file_as_source_file = file.as_source_file();
+        let file_type_reference_directives = file_as_source_file.maybe_type_reference_directives();
+        let type_directives = maybe_map(
+            file_type_reference_directives.as_ref(),
+            |ref_: &FileReference, _| to_file_name_lower_case(&ref_.file_name),
+        );
+        if type_directives.is_none() {
+            return;
+        }
+        let type_directives = type_directives.unwrap();
+        let file_type_reference_directives = file_type_reference_directives.as_ref().unwrap();
+
+        let resolutions = self
+            .resolve_type_reference_directive_names_worker(&type_directives, file.node_wrapper());
+        for index in 0..type_directives.len() {
+            let ref_ = &file_type_reference_directives[index];
+            let resolved_type_reference_directive = &resolutions[index];
+            let file_name = to_file_name_lower_case(&ref_.file_name);
+            set_resolved_type_reference_directive(
+                file,
+                &file_name,
+                resolved_type_reference_directive.clone(),
+            );
+            self.process_type_reference_directive(
+                &file_name,
+                resolved_type_reference_directive.clone(),
+                &FileIncludeReason::ReferencedFile(ReferencedFile {
+                    kind: FileIncludeKind::TypeReferenceDirective,
+                    file: file_as_source_file.path().clone(),
+                    index,
+                }),
+            );
+        }
     }
 
     pub fn process_type_reference_directive(
