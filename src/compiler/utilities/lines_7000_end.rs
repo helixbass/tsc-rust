@@ -6,12 +6,13 @@ use std::rc::Rc;
 
 use crate::{
     find_ancestor, first_or_undefined, for_each_child_recursively,
-    get_effective_type_annotation_node, has_jsdoc_nodes, has_syntactic_modifier,
-    is_expression_node, is_identifier, is_jsdoc_node, is_part_of_type_query,
-    is_shorthand_property_assignment, is_type_reference_node, parameter_is_this_keyword, some,
-    CompilerOptions, FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    PseudoBigInt, ReadonlyTextRange, Symbol, SyntaxKind,
+    get_effective_type_annotation_node, get_root_declaration, has_jsdoc_nodes,
+    has_syntactic_modifier, is_expression_node, is_identifier, is_jsdoc_node, is_parameter,
+    is_part_of_type_query, is_shorthand_property_assignment, is_type_reference_node,
+    parameter_is_this_keyword, some, CompilerOptions, FindAncestorCallbackReturn,
+    ForEachChildRecursivelyCallbackReturn, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeArray, NodeFlags, NodeInterface, PseudoBigInt, ReadonlyTextRange, Symbol, SymbolInterface,
+    SyntaxKind,
 };
 
 pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
@@ -264,8 +265,21 @@ pub fn is_infinity_or_nan_string(name: &str) -> bool {
     unimplemented!()
 }
 
+pub fn is_catch_clause_variable_declaration(node: &Node) -> bool {
+    node.kind() == SyntaxKind::VariableDeclaration
+        && node.parent().kind() == SyntaxKind::CatchClause
+}
+
 pub fn is_parameter_or_catch_clause_variable(symbol: &Symbol) -> bool {
-    unimplemented!()
+    let declaration = symbol
+        .maybe_value_declaration()
+        .as_ref()
+        .map(|symbol_value_declaration| get_root_declaration(symbol_value_declaration));
+    matches!(
+        declaration.as_ref(),
+        Some(declaration) if is_parameter(declaration) ||
+            is_catch_clause_variable_declaration(declaration)
+    )
 }
 
 pub fn is_function_expression_or_arrow_function(node: &Node) -> bool {
