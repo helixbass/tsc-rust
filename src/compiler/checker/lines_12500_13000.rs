@@ -47,8 +47,8 @@ impl TypeChecker {
             let mut result = type_arguments
                 .as_ref()
                 .map_or_else(|| vec![], |type_arguments| type_arguments.clone());
-            for i in num_type_arguments..num_type_parameters {
-                result[i] = self.error_type();
+            for _i in num_type_arguments..num_type_parameters {
+                result.push(self.error_type());
             }
             let base_default_type =
                 self.get_default_type_argument_type(is_java_script_implicit_any);
