@@ -1555,7 +1555,7 @@ impl TypeChecker {
                                             || are_option_rcs_equal(
                                                 last_location.as_ref(),
                                                 location_unwrapped
-                                                    .as_function_like_declaration()
+                                                    .as_has_type()
                                                     .maybe_type()
                                                     .as_ref(),
                                             ) && find_ancestor(
