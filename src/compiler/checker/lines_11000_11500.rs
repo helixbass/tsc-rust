@@ -1220,17 +1220,16 @@ impl TypeChecker {
         type_: &Type, /*MappedType*/
     ) -> Rc<Type> {
         let type_as_mapped_type = type_.as_mapped_type();
-        type_as_mapped_type
-            .maybe_constraint_type()
-            .clone()
-            .unwrap_or_else(|| {
-                let ret = self
-                    .get_constraint_of_type_parameter(
-                        &self.get_type_parameter_from_mapped_type(type_),
-                    )
-                    .unwrap_or_else(|| self.error_type());
-                *type_as_mapped_type.maybe_constraint_type() = Some(ret.clone());
-                ret
-            })
+        {
+            let value = type_as_mapped_type.maybe_constraint_type().clone();
+            value
+        }
+        .unwrap_or_else(|| {
+            let ret = self
+                .get_constraint_of_type_parameter(&self.get_type_parameter_from_mapped_type(type_))
+                .unwrap_or_else(|| self.error_type());
+            *type_as_mapped_type.maybe_constraint_type() = Some(ret.clone());
+            ret
+        })
     }
 }
