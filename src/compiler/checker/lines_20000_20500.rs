@@ -466,7 +466,11 @@ impl TypeChecker {
                 let type_ = self.get_type_alias_instantiation(
                     symbol,
                     self.instantiate_types(
-                        (*links).borrow().type_parameters.clone().as_deref(),
+                        {
+                            let value = (*links).borrow().type_parameters.clone();
+                            value
+                        }
+                        .as_deref(),
                         &self.make_unary_type_mapper(param, marker),
                     )
                     .as_deref(),
