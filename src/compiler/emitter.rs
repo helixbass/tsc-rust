@@ -127,6 +127,7 @@ impl Printer {
                 SyntaxKind::TypeLiteral => return self.emit_type_literal(node),
                 SyntaxKind::TupleType => return self.emit_tuple_type(node),
                 SyntaxKind::UnionType => return self.emit_union_type(node),
+                SyntaxKind::ConditionalType => return self.emit_conditional_type(node),
                 SyntaxKind::TypeOperator => return self.emit_type_operator(node),
                 SyntaxKind::LiteralType => return self.emit_literal_type(node),
                 _ => (),
@@ -212,6 +213,11 @@ impl Printer {
             Some(&node.as_union_or_intersection_type_node().types()),
             ListFormat::UnionTypeConstituents,
         );
+    }
+
+    fn emit_conditional_type(&mut self, node: &Node /*ConditionalTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
     }
 
     fn emit_type_operator(&mut self, node: &Node /*TypeOperatorNode*/) {
