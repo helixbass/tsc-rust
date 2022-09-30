@@ -35,16 +35,17 @@ use crate::{
     CompilerOptions, CompilerOptionsBuilder, ConfigFileDiagnosticsReporter, CreateProgramOptions,
     CustomTransformers, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
     DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
-    DirectoryStructureHost, EmitResult, Extension, FileIncludeKind, FileIncludeReason, LibFile,
-    LineAndCharacter, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap,
-    NamedDeclarationInterface, Node, NodeInterface, PackageId, PackageJsonInfoCache,
-    ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
-    RedirectTargetsMap, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
-    ScriptTarget, SortedArray, SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect,
-    StringOrRcNode, StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
+    DirectoryStructureHost, EmitResult, Extension, FileIncludeKind, FileIncludeReason,
+    FileReference, LibFile, LineAndCharacter, ModuleKind, ModuleResolutionCache,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, NodeInterface,
+    PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
+    Program, ProjectReference, RedirectTargetsMap, ReferencedFile, ResolvedConfigFileName,
+    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceFileLike,
+    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, System,
+    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -2523,7 +2524,27 @@ impl Program {
     }
 
     pub fn process_referenced_files(&self, file: &Node /*SourceFile*/, is_default_lib: bool) {
-        unimplemented!()
+        let file_as_source_file = file.as_source_file();
+        for_each(
+            &*file_as_source_file.referenced_files(),
+            |ref_: &FileReference, index| -> Option<()> {
+                self.process_source_file(
+                    &resolve_tripleslash_reference(
+                        &ref_.file_name,
+                        &file_as_source_file.file_name(),
+                    ),
+                    is_default_lib,
+                    false,
+                    None,
+                    &FileIncludeReason::ReferencedFile(ReferencedFile {
+                        kind: FileIncludeKind::ReferenceFile,
+                        file: file_as_source_file.path().clone(),
+                        index,
+                    }),
+                );
+                None
+            },
+        );
     }
 
     pub fn process_type_reference_directives(&self, file: &Node /*SourceFile*/) {

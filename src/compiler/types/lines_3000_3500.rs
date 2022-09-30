@@ -445,7 +445,7 @@ impl HasExpressionInterface for ExportAssignment {
 pub struct FileReference {
     pos: Cell<isize>,
     end: Cell<isize>,
-    file_name: String,
+    pub file_name: String,
 }
 
 impl TextRange for FileReference {
