@@ -587,7 +587,7 @@ impl TypeChecker {
         (node.kind() == SyntaxKind::Constructor
             || matches!(return_type, Some(return_type) if self.is_thisless_type(&return_type)))
             && node
-                .as_function_like_declaration()
+                .as_signature_declaration()
                 .parameters()
                 .iter()
                 .all(|parameter: &Rc<Node>| self.is_thisless_variable_like_declaration(parameter))
