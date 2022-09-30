@@ -1355,10 +1355,10 @@ impl TypeChecker {
         last_location: &Node,
     ) -> bool {
         let target = get_emit_script_target(&self.compiler_options);
-        let function_location = location.as_function_like_declaration();
+        let function_location = location.maybe_as_function_like_declaration();
         if is_parameter(last_location)
             && match (
-                function_location.maybe_body(),
+                function_location.and_then(|function_location| function_location.maybe_body()),
                 result.maybe_value_declaration().as_ref(),
             ) {
                 (Some(function_location_body), Some(result_value_declaration)) => {
@@ -1373,9 +1373,10 @@ impl TypeChecker {
                 let mut links = links.borrow_mut();
                 if links.declaration_requires_scope_change.is_none() {
                     links.declaration_requires_scope_change = Some(
-                        for_each_bool(function_location.parameters(), |node: &Rc<Node>, _| {
-                            self.requires_scope_change(target, node)
-                        }) || false,
+                        for_each_bool(
+                            function_location.unwrap().parameters(),
+                            |node: &Rc<Node>, _| self.requires_scope_change(target, node),
+                        ) || false,
                     );
                 }
                 return !links.declaration_requires_scope_change.unwrap();
