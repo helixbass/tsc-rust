@@ -646,7 +646,7 @@ pub fn get_allow_synthetic_default_imports(compiler_options: &CompilerOptions) -
 }
 
 pub fn get_emit_declarations(compiler_options: &CompilerOptions) -> bool {
-    unimplemented!()
+    compiler_options.declaration == Some(true) || compiler_options.composite == Some(true)
 }
 
 pub fn should_preserve_const_enums(compiler_options: &CompilerOptions) -> bool {
