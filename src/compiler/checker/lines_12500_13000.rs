@@ -891,11 +891,11 @@ impl TypeChecker {
             });
             for _i in 0..type_parameters.len() - 1 {
                 base_constraints = self
-                    .instantiate_types(Some(&base_constraints), &base_constraint_mapper)
+                    .instantiate_types(Some(&base_constraints), Some(&base_constraint_mapper))
                     .unwrap();
             }
             base_constraints = self
-                .instantiate_types(Some(&base_constraints), &type_eraser)
+                .instantiate_types(Some(&base_constraints), Some(&type_eraser))
                 .unwrap();
             let ret = Rc::new(self.instantiate_signature(
                 signature.clone(),

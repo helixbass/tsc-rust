@@ -407,7 +407,7 @@ impl TypeChecker {
         *result.maybe_alias_type_arguments() = if alias_symbol.is_some() {
             alias_type_arguments.map(ToOwned::to_owned)
         } else {
-            self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), &mapper)
+            self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(&mapper))
         };
         result
     }
@@ -570,7 +570,7 @@ impl TypeChecker {
                         type_as_type_reference.maybe_resolved_type_arguments();
                     let resolved_type_arguments = resolved_type_arguments.as_deref();
                     let new_type_arguments =
-                        self.instantiate_types(resolved_type_arguments, mapper);
+                        self.instantiate_types(resolved_type_arguments, Some(mapper));
                     return if !match (resolved_type_arguments, new_type_arguments.as_deref()) {
                         (None, None) => true,
                         (Some(resolved_type_arguments), Some(new_type_arguments)) => {
@@ -619,7 +619,7 @@ impl TypeChecker {
                     .types()
                     .to_owned()
             };
-            let new_types = self.instantiate_types(Some(&types), mapper).unwrap();
+            let new_types = self.instantiate_types(Some(&types), Some(mapper)).unwrap();
             if are_rc_slices_equal(&new_types, &types)
                 && are_option_rcs_equal(alias_symbol.as_ref(), type_.maybe_alias_symbol().as_ref())
             {
@@ -631,7 +631,7 @@ impl TypeChecker {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
-                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), mapper)
+                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))
             };
             return if flags.intersects(TypeFlags::Intersection)
                 || matches!(
@@ -665,7 +665,7 @@ impl TypeChecker {
             return self.get_template_literal_type(
                 &type_as_template_literal_type.texts,
                 &self
-                    .instantiate_types(Some(&type_as_template_literal_type.types), mapper)
+                    .instantiate_types(Some(&type_as_template_literal_type.types), Some(mapper))
                     .unwrap(),
             );
         }
@@ -682,7 +682,7 @@ impl TypeChecker {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
-                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), mapper)
+                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))
             };
             let type_as_indexed_access_type = type_.as_indexed_access_type();
             return self.get_indexed_access_type(

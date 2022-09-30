@@ -388,7 +388,7 @@ impl TypeChecker {
             let local_alias_type_arguments =
                 self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
             alias_type_arguments = if let Some(mapper) = mapper.as_ref() {
-                self.instantiate_types(local_alias_type_arguments.as_deref(), mapper)
+                self.instantiate_types(local_alias_type_arguments.as_deref(), Some(mapper))
             } else {
                 local_alias_type_arguments
             };
@@ -457,7 +457,7 @@ impl TypeChecker {
             if self.pop_type_resolution() {
                 *type_as_type_reference.maybe_resolved_type_arguments() =
                     if let Some(type_mapper) = type_as_type_reference.maybe_mapper() {
-                        self.instantiate_types(Some(&type_arguments), type_mapper)
+                        self.instantiate_types(Some(&type_arguments), Some(type_mapper))
                     } else {
                         Some(type_arguments)
                     };

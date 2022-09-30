@@ -342,7 +342,7 @@ impl TypeChecker {
             } else {
                 self.instantiate_types(
                     (*root).borrow().alias_type_arguments.clone().as_deref(),
-                    mapper.as_ref().unwrap(),
+                    mapper.as_ref(),
                 )
             };
             break;

@@ -598,11 +598,11 @@ impl TypeChecker {
 
     pub(super) fn instantiate_list<
         TItem,
-        TInstantiator: FnMut(&Rc<TItem>, &TypeMapper) -> Rc<TItem>,
+        TInstantiator: FnMut(&Rc<TItem>, Option<&TypeMapper>) -> Rc<TItem>,
     >(
         &self,
         items: Option<&[Rc<TItem>]>,
-        mapper: &TypeMapper,
+        mapper: Option<&TypeMapper>,
         mut instantiator: TInstantiator,
     ) -> Option<Vec<Rc<TItem>>> {
         let items = items?;
@@ -635,10 +635,10 @@ impl TypeChecker {
     pub(super) fn instantiate_types(
         &self,
         types: Option<&[Rc<Type>]>,
-        mapper: &TypeMapper,
+        mapper: Option<&TypeMapper>,
     ) -> Option<Vec<Rc<Type>>> {
         self.instantiate_list(types, mapper, |type_: &Rc<Type>, mapper| {
-            self.instantiate_type(type_, Some(mapper))
+            self.instantiate_type(type_, mapper)
         })
     }
 
@@ -649,9 +649,9 @@ impl TypeChecker {
     ) -> Vec<Rc<Signature>> {
         self.instantiate_list(
             Some(signatures),
-            mapper,
+            Some(mapper),
             |signature: &Rc<Signature>, mapper| {
-                Rc::new(self.instantiate_signature(signature.clone(), mapper, None))
+                Rc::new(self.instantiate_signature(signature.clone(), mapper.unwrap(), None))
             },
         )
         .unwrap()
@@ -664,8 +664,10 @@ impl TypeChecker {
     ) -> Vec<Rc<IndexInfo>> {
         self.instantiate_list(
             Some(index_infos),
-            mapper,
-            |index_info: &Rc<IndexInfo>, mapper| self.instantiate_index_info(index_info, mapper),
+            Some(mapper),
+            |index_info: &Rc<IndexInfo>, mapper| {
+                self.instantiate_index_info(index_info, mapper.unwrap())
+            },
         )
         .unwrap()
     }
@@ -901,8 +903,8 @@ impl TypeChecker {
                 .map(|this_parameter| self.instantiate_symbol(this_parameter, &mapper)),
             self.instantiate_list(
                 Some(signature.parameters()),
-                &mapper,
-                |parameter, mapper| self.instantiate_symbol(parameter, mapper),
+                Some(&mapper),
+                |parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),
             )
             .unwrap(),
             None,
@@ -1050,7 +1052,7 @@ impl TypeChecker {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
-                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), mapper)
+                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))
             };
             let id = format!(
                 "{}{}",
