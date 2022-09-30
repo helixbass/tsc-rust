@@ -377,9 +377,16 @@ pub trait CompilerHost: ModuleResolutionHost {
     }
 }
 
+#[derive(Clone)]
 pub(crate) enum SourceOfProjectReferenceRedirect {
     String(String),
     True,
+}
+
+impl From<String> for SourceOfProjectReferenceRedirect {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
 }
 
 bitflags! {

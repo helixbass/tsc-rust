@@ -6,9 +6,27 @@ use std::rc::Rc;
 use crate::{
     get_literal_text, id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_,
     EmitHint, EmitTextWriter, GetLiteralTextFlags, HasTypeInterface, ListFormat,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, PrinterOptions, Symbol,
-    SyntaxKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine, Printer,
+    PrinterOptions, Symbol, SyntaxKind,
 };
+
+pub(crate) fn get_output_declaration_file_name<TGetCommonSourceDirectory: FnMut() -> String>(
+    input_file_name: &str,
+    config_file: &ParsedCommandLine,
+    ignore_case: bool,
+    get_common_source_directory: Option<&mut TGetCommonSourceDirectory>,
+) -> String {
+    unimplemented!()
+}
+
+pub(crate) fn get_common_source_directory_of_config(
+    command_line: &ParsedCommandLine,
+    ignore_case: bool,
+) -> String {
+    let options = &command_line.options;
+    let file_names = &command_line.file_names;
+    unimplemented!()
+}
 
 #[derive(PartialEq, Eq)]
 enum PipelinePhase {

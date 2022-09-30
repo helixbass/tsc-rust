@@ -9,16 +9,17 @@ use std::time;
 use std::time::SystemTime;
 
 use crate::{
-    clone, combine_paths, compare_paths, concatenate, contains_path, convert_to_relative_path,
-    create_diagnostic_collection, create_diagnostic_for_node_in_source_file,
-    create_get_canonical_file_name, create_module_resolution_cache, create_multi_map,
-    create_source_file, create_symlink_cache, create_type_checker,
-    create_type_reference_directive_resolution_cache, diagnostic_category_name,
-    extension_from_path, file_extension_is, file_extension_is_one_of, flatten, for_each,
-    for_each_ancestor_directory_str, for_each_bool, generate_djb2_hash,
-    get_allow_js_compiler_option, get_automatic_type_directive_names, get_default_lib_file_name,
-    get_directory_path, get_emit_script_target, get_line_and_character_of_position,
-    get_new_line_character, get_normalized_absolute_path, get_normalized_path_components,
+    change_extension, clone, combine_paths, compare_paths, concatenate, contains_path,
+    convert_to_relative_path, create_diagnostic_collection,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name,
+    create_module_resolution_cache, create_multi_map, create_source_file, create_symlink_cache,
+    create_type_checker, create_type_reference_directive_resolution_cache,
+    diagnostic_category_name, extension_from_path, file_extension_is, file_extension_is_one_of,
+    flatten, for_each, for_each_ancestor_directory_str, for_each_bool, generate_djb2_hash,
+    get_allow_js_compiler_option, get_automatic_type_directive_names,
+    get_common_source_directory_of_config, get_default_lib_file_name, get_directory_path,
+    get_emit_script_target, get_line_and_character_of_position, get_new_line_character,
+    get_normalized_absolute_path, get_normalized_path_components, get_output_declaration_file_name,
     get_path_from_path_components, get_property_assignment, get_strict_option_value,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
     has_extension, has_js_file_extension, is_declaration_file_name, is_import_call,
@@ -1263,6 +1264,26 @@ impl Program {
                 },
             ));
 
+            println!(
+                "processing_default_lib_files: {:?}",
+                self.processing_default_lib_files
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .into_iter()
+                    .map(|file| file.as_source_file().file_name().clone())
+                    .collect::<Vec<_>>()
+            );
+            println!(
+                "processing_other_files: {:?}",
+                self.processing_other_files
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .into_iter()
+                    .map(|file| file.as_source_file().file_name().clone())
+                    .collect::<Vec<_>>()
+            );
             *self.files.borrow_mut() = Some({
                 let mut files: Vec<Rc<Node>> = stable_sort(
                     self.processing_default_lib_files.borrow().as_ref().unwrap(),
@@ -1959,7 +1980,10 @@ impl Program {
     }
 
     pub fn find_source_file_worker(&self, file_name: &str) -> Option<Rc<Node>> {
-        let _path = self.to_path(file_name);
+        let path = self.to_path(file_name);
+        if self.use_source_of_project_reference_redirect() {
+            let source = self.get_source_of_project_reference_redirect(&path);
+        }
 
         let file = self.host().get_source_file(
             file_name,
@@ -1972,7 +1996,7 @@ impl Program {
         file.map(|file| {
             let file_as_source_file = file.as_source_file();
             file_as_source_file.set_file_name(file_name.to_string());
-            file_as_source_file.set_path(_path);
+            file_as_source_file.set_path(path);
             self.processing_other_files
                 .borrow_mut()
                 .as_mut()
@@ -2012,6 +2036,72 @@ impl Program {
                 },
             );
         })
+    }
+
+    fn get_source_of_project_reference_redirect(
+        &self,
+        path: &Path,
+    ) -> Option<SourceOfProjectReferenceRedirect> {
+        if !is_declaration_file_name(path) {
+            return None;
+        }
+        self.maybe_map_from_to_project_reference_redirect_source()
+            .get_or_insert_with(|| {
+                let mut map_from_to_project_reference_redirect_source = HashMap::new();
+                self.for_each_resolved_project_reference(
+                    |resolved_ref: &ResolvedProjectReference| -> Option<()> {
+                        let out = out_file(&resolved_ref.command_line.options);
+                        if let Some(out) = out {
+                            let output_dts = change_extension(out, Extension::Dts.to_str());
+                            map_from_to_project_reference_redirect_source.insert(
+                                self.to_path(&output_dts),
+                                SourceOfProjectReferenceRedirect::True,
+                            );
+                        } else {
+                            let mut got_common_source_directory: Option<String> = None;
+                            let mut get_common_source_directory = || {
+                                if let Some(got_common_source_directory) =
+                                    got_common_source_directory.as_ref()
+                                {
+                                    return got_common_source_directory.clone();
+                                }
+                                let got_common_source_directory =
+                                    Some(get_common_source_directory_of_config(
+                                        &resolved_ref.command_line,
+                                        !CompilerHost::use_case_sensitive_file_names(&*self.host()),
+                                    ));
+                                got_common_source_directory.clone().unwrap()
+                            };
+                            for_each(
+                                &resolved_ref.command_line.file_names,
+                                |file_name: &String, _| -> Option<()> {
+                                    if !file_extension_is(file_name, Extension::Dts.to_str())
+                                        && !file_extension_is(file_name, Extension::Json.to_str())
+                                    {
+                                        let output_dts = get_output_declaration_file_name(
+                                            file_name,
+                                            &resolved_ref.command_line,
+                                            !CompilerHost::use_case_sensitive_file_names(
+                                                &*self.host(),
+                                            ),
+                                            Some(&mut get_common_source_directory),
+                                        );
+                                        map_from_to_project_reference_redirect_source.insert(
+                                            self.to_path(&output_dts),
+                                            file_name.clone().into(),
+                                        );
+                                    }
+                                    None
+                                },
+                            );
+                        }
+                        None
+                    },
+                );
+                map_from_to_project_reference_redirect_source
+            })
+            .get(path)
+            .cloned()
     }
 
     pub fn process_type_reference_directive(

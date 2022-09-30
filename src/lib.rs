@@ -61,6 +61,7 @@ pub use compiler::core_public::{
 pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::create_printer;
+use compiler::emitter::{get_common_source_directory_of_config, get_output_declaration_file_name};
 pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
 };
