@@ -458,8 +458,9 @@ impl TypeChecker {
 
     pub(super) fn get_alias_variances(&self, symbol: &Symbol) -> Vec<VarianceFlags> {
         let links = self.get_symbol_links(symbol);
+        let links_type_parameters = (*links).borrow().type_parameters.clone();
         let ret = self.get_variances_worker(
-            (*links).borrow().type_parameters.clone().as_deref(),
+            links_type_parameters.as_deref(),
             links.clone(),
             |_links: &GetVariancesCache, param: &Type /*TypeParameter*/, marker: &Type| {
                 let type_ = self.get_type_alias_instantiation(
