@@ -591,7 +591,7 @@ impl TypeChecker {
 
     pub(super) fn is_non_deferred_type_reference(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Reference)
-            && type_.as_type_reference().maybe_node().is_none()
+            && type_.as_type_reference_interface().maybe_node().is_none()
     }
 
     pub(super) fn is_type_reference_with_generic_arguments(&self, type_: &Type) -> bool {
