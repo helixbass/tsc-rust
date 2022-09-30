@@ -407,7 +407,12 @@ impl TypeChecker {
             if !is_function_like(Some(&**decl)) {
                 continue;
             }
-            if i > 0 && decl.as_function_like_declaration().maybe_body().is_some() {
+            if i > 0
+                && decl
+                    .maybe_as_function_like_declaration()
+                    .and_then(|decl| decl.maybe_body())
+                    .is_some()
+            {
                 let previous = &symbol_declarations[i - 1];
                 if Rc::ptr_eq(&decl.parent(), &previous.parent())
                     && decl.kind() == previous.kind()
