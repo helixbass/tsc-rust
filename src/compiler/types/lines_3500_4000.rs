@@ -356,6 +356,10 @@ impl SourceFile {
         self.module_name.borrow_mut()
     }
 
+    pub fn maybe_referenced_files(&self) -> Ref<Option<Vec<FileReference>>> {
+        self.referenced_files.borrow()
+    }
+
     pub fn referenced_files(&self) -> Ref<Vec<FileReference>> {
         Ref::map(self.referenced_files.borrow(), |option| {
             option.as_ref().unwrap()

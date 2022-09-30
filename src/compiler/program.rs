@@ -2525,8 +2525,8 @@ impl Program {
 
     pub fn process_referenced_files(&self, file: &Node /*SourceFile*/, is_default_lib: bool) {
         let file_as_source_file = file.as_source_file();
-        for_each(
-            &*file_as_source_file.referenced_files(),
+        maybe_for_each(
+            file_as_source_file.maybe_referenced_files().as_ref(),
             |ref_: &FileReference, index| -> Option<()> {
                 self.process_source_file(
                     &resolve_tripleslash_reference(
