@@ -396,7 +396,7 @@ impl TypeChecker {
         let mut type_ = self.create_object_type(ObjectFlags::Reference, target.maybe_symbol());
         type_.mapper = mapper;
         let type_: Rc<Type> = TypeReference::new(type_, target.type_wrapper(), None).into();
-        *type_.as_type_reference().maybe_node() = Some(node.node_wrapper());
+        *type_.as_type_reference().maybe_node_mut() = Some(node.node_wrapper());
         *type_.maybe_alias_symbol() = alias_symbol;
         *type_.maybe_alias_type_arguments() = alias_type_arguments;
         type_

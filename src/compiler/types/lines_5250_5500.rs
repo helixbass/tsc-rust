@@ -724,7 +724,11 @@ impl TypeReferenceInterface for BaseInterfaceType {
         *self.target.borrow_mut() = Some(target);
     }
 
-    fn maybe_node(&self) -> RefMut<Option<Rc<Node>>> {
+    fn maybe_node(&self) -> Option<Rc<Node>> {
+        self.node.borrow().clone()
+    }
+
+    fn maybe_node_mut(&self) -> RefMut<Option<Rc<Node>>> {
         self.node.borrow_mut()
     }
 
@@ -775,7 +779,8 @@ impl TypeReference {
 pub trait TypeReferenceInterface: ObjectTypeInterface {
     fn target(&self) -> Rc<Type>;
     fn set_target(&self, target: Rc<Type>);
-    fn maybe_node(&self) -> RefMut<Option<Rc<Node>>>;
+    fn maybe_node(&self) -> Option<Rc<Node>>;
+    fn maybe_node_mut(&self) -> RefMut<Option<Rc<Node>>>;
     fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
     fn maybe_cached_equivalent_base_type(&self) -> RefMut<Option<Rc<Type>>>;
 }
@@ -789,7 +794,11 @@ impl TypeReferenceInterface for TypeReference {
         panic!("Shouldn't call set_target() on a TypeReference")
     }
 
-    fn maybe_node(&self) -> RefMut<Option<Rc<Node>>> {
+    fn maybe_node(&self) -> Option<Rc<Node>> {
+        self.node.borrow().clone()
+    }
+
+    fn maybe_node_mut(&self) -> RefMut<Option<Rc<Node>>> {
         self.node.borrow_mut()
     }
 

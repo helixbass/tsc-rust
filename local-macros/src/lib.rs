@@ -1618,8 +1618,12 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_target(target)
                     }
 
-                    fn maybe_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
+                    fn maybe_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
                         self.#first_field_name.maybe_node()
+                    }
+
+                    fn maybe_node_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
+                        self.#first_field_name.maybe_node_mut()
                     }
 
                     fn maybe_resolved_type_arguments(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Type>>>> {
@@ -2265,9 +2269,15 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
+                    fn maybe_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_node()),*
+                        }
+                    }
+
+                    fn maybe_node_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_node_mut()),*
                         }
                     }
 
