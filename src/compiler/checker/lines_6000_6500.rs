@@ -1026,7 +1026,7 @@ impl NodeBuilder {
                     )
                 } else {
                     with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                        factory.clone_node(synthetic_factory, node).wrap()
+                        factory.clone_node(synthetic_factory, node)
                     })
                 };
                 name.set_symbol(sym.symbol_wrapper());
@@ -1078,7 +1078,7 @@ impl NodeBuilder {
         }
         if ptr::eq(&*transformed, existing) {
             let ret = with_synthetic_factory_and_factory(|synthetic_factory, factory| {
-                factory.clone_node(synthetic_factory, existing).wrap()
+                factory.clone_node(synthetic_factory, existing)
             });
             set_text_range(&*ret, Some(existing));
             Some(ret)

@@ -818,7 +818,7 @@ impl NodeBuilder {
                                 parameter_declaration_modifiers
                                     .into_iter()
                                     .map(|modifier| {
-                                        factory_.clone_node(synthetic_factory_, modifier).wrap()
+                                        factory_.clone_node(synthetic_factory_, modifier)
                                     })
                                     .collect()
                             })
@@ -853,20 +853,16 @@ impl NodeBuilder {
                     match parameter_declaration_name.kind() {
                         SyntaxKind::Identifier => set_emit_flags(
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_
-                                    .clone_node(synthetic_factory_, parameter_declaration_name)
-                                    .wrap()
+                                factory_.clone_node(synthetic_factory_, parameter_declaration_name)
                             }),
                             EmitFlags::NoAsciiEscaping,
                         ),
                         SyntaxKind::QualifiedName => set_emit_flags(
                             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                                factory_
-                                    .clone_node(
-                                        synthetic_factory_,
-                                        &parameter_declaration_name.as_qualified_name().right,
-                                    )
-                                    .wrap()
+                                factory_.clone_node(
+                                    synthetic_factory_,
+                                    &parameter_declaration_name.as_qualified_name().right,
+                                )
                             }),
                             EmitFlags::NoAsciiEscaping,
                         ),
@@ -972,7 +968,7 @@ impl NodeBuilder {
         }
         if !node_is_synthesized(&*visited) {
             visited = with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
-                factory_.clone_node(synthetic_factory_, &visited).wrap()
+                factory_.clone_node(synthetic_factory_, &visited)
             });
         }
         Some(vec![set_emit_flags(

@@ -277,8 +277,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         unimplemented!()
     }
 
-    pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Node {
-        unimplemented!()
+    pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Rc<Node> {
+        // unimplemented!()
+        // TODO: this is definitely not right
+        node.node_wrapper()
     }
 
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {

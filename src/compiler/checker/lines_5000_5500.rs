@@ -435,37 +435,35 @@ impl NodeBuilder {
         {
             return node.node_wrapper();
         }
-        let ret: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
+        let ret = synthetic_factory.with(|synthetic_factory_| {
             factory.with(|factory_| {
-                factory_
-                    .clone_node(
-                        synthetic_factory_,
-                        &visit_each_child(
-                            Some(node),
-                            |node: &Node| Some(vec![self.deep_clone_or_reuse_node(node)]),
-                            &*null_transformation_context,
-                            Option::<
-                                fn(
-                                    Option<&NodeArray>,
-                                    Option<fn(&Node) -> VisitResult>,
-                                    Option<fn(&Node) -> bool>,
-                                    Option<usize>,
-                                    Option<usize>,
-                                ) -> NodeArray,
-                            >::None,
-                            Option::<fn(&Node) -> VisitResult>::None,
-                            Option::<
-                                fn(
-                                    Option<&Node>,
-                                    Option<fn(&Node) -> VisitResult>,
-                                    Option<fn(&Node) -> bool>,
-                                    Option<fn(&[Rc<Node>]) -> Rc<Node>>,
-                                ) -> Option<Rc<Node>>,
-                            >::None,
-                        )
-                        .unwrap(),
+                factory_.clone_node(
+                    synthetic_factory_,
+                    &visit_each_child(
+                        Some(node),
+                        |node: &Node| Some(vec![self.deep_clone_or_reuse_node(node)]),
+                        &*null_transformation_context,
+                        Option::<
+                            fn(
+                                Option<&NodeArray>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<usize>,
+                                Option<usize>,
+                            ) -> NodeArray,
+                        >::None,
+                        Option::<fn(&Node) -> VisitResult>::None,
+                        Option::<
+                            fn(
+                                Option<&Node>,
+                                Option<fn(&Node) -> VisitResult>,
+                                Option<fn(&Node) -> bool>,
+                                Option<fn(&[Rc<Node>]) -> Rc<Node>>,
+                            ) -> Option<Rc<Node>>,
+                        >::None,
                     )
-                    .wrap()
+                    .unwrap(),
+                )
             })
         });
         set_text_range(&*ret, Some(node));
