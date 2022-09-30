@@ -1504,8 +1504,10 @@ impl TypeChecker {
                                 && !are_option_rcs_equal(
                                     last_location.as_ref(),
                                     location_unwrapped
-                                        .as_function_like_declaration()
-                                        .maybe_body()
+                                        .maybe_as_function_like_declaration()
+                                        .and_then(|location_unwrapped| {
+                                            location_unwrapped.maybe_body()
+                                        })
                                         .as_ref(),
                                 )
                             {
@@ -1521,8 +1523,10 @@ impl TypeChecker {
                                         are_option_rcs_equal(
                                             last_location.as_ref(),
                                             location_unwrapped
-                                                .as_function_like_declaration()
-                                                .maybe_type()
+                                                .maybe_as_function_like_declaration()
+                                                .and_then(|location_unwrapped| {
+                                                    location_unwrapped.maybe_type()
+                                                })
                                                 .as_ref(),
                                         ) || matches!(
                                             last_location_unwrapped.kind(),
