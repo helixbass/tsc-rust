@@ -95,11 +95,14 @@ impl TypeChecker {
             }
             SyntaxKind::TypeQuery => true,
             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => {
-                let node_as_function_like_declaration = node.as_function_like_declaration();
-                node_as_function_like_declaration.maybe_type().is_none()
-                    && node_as_function_like_declaration.maybe_body().is_some()
+                let node_as_signature_declaration = node.as_signature_declaration();
+                node_as_signature_declaration.maybe_type().is_none()
+                    && node
+                        .maybe_as_function_like_declaration()
+                        .and_then(|node| node.maybe_body())
+                        .is_some()
                     || some(
-                        node_as_function_like_declaration
+                        node_as_signature_declaration
                             .maybe_type_parameters()
                             .as_deref(),
                         Some(|type_parameter: &Rc<Node>| {
@@ -107,11 +110,11 @@ impl TypeChecker {
                         }),
                     )
                     || some(
-                        Some(node_as_function_like_declaration.parameters()),
+                        Some(node_as_signature_declaration.parameters()),
                         Some(|parameter: &Rc<Node>| self.contains_reference(tp, parameter)),
                     )
                     || matches!(
-                        node_as_function_like_declaration.maybe_type(),
+                        node_as_signature_declaration.maybe_type(),
                         Some(type_) if self.contains_reference(tp, &type_)
                     )
             }
