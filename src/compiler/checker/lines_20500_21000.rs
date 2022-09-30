@@ -270,12 +270,12 @@ impl TypeChecker {
         type_: &Type,
     ) -> Option<Rc<Type>> {
         if !get_object_flags(type_).intersects(ObjectFlags::Reference)
-            || !get_object_flags(&type_.as_type_reference().target)
+            || !get_object_flags(&type_.as_type_reference_interface().target())
                 .intersects(ObjectFlags::ClassOrInterface)
         {
             return None;
         }
-        let type_as_type_reference = type_.as_type_reference();
+        let type_as_type_reference = type_.as_type_reference_interface();
         if get_object_flags(type_).intersects(ObjectFlags::IdenticalBaseTypeCalculated) {
             return if get_object_flags(type_).intersects(ObjectFlags::IdenticalBaseTypeExists) {
                 type_as_type_reference
@@ -288,7 +288,7 @@ impl TypeChecker {
         type_as_type_reference.set_object_flags(
             type_as_type_reference.object_flags() | ObjectFlags::IdenticalBaseTypeCalculated,
         );
-        let target = &type_as_type_reference.target;
+        let ref target = type_as_type_reference.target();
         if get_object_flags(target).intersects(ObjectFlags::Class) {
             let base_type_node = self.get_base_type_node_of_class(target);
             if matches!(

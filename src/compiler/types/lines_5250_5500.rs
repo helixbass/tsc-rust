@@ -556,6 +556,7 @@ pub struct BaseInterfaceType {
     pub target: RefCell<Option<Rc<Type /*GenericType*/>>>,
     pub node: RefCell<Option<Rc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>,
     pub resolved_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
+    cached_equivalent_base_type: RefCell<Option<Rc<Type>>>,
 }
 
 impl BaseInterfaceType {
@@ -584,6 +585,7 @@ impl BaseInterfaceType {
             target: RefCell::new(None),
             node: RefCell::new(None),
             resolved_type_arguments: RefCell::new(None),
+            cached_equivalent_base_type: RefCell::new(None),
         }
     }
 }
@@ -729,6 +731,10 @@ impl TypeReferenceInterface for BaseInterfaceType {
     fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.resolved_type_arguments.borrow_mut()
     }
+
+    fn maybe_cached_equivalent_base_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.cached_equivalent_base_type.borrow_mut()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -764,10 +770,6 @@ impl TypeReference {
     pub fn maybe_literal_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.literal_type.borrow_mut()
     }
-
-    pub fn maybe_cached_equivalent_base_type(&self) -> RefMut<Option<Rc<Type>>> {
-        self.cached_equivalent_base_type.borrow_mut()
-    }
 }
 
 pub trait TypeReferenceInterface: ObjectTypeInterface {
@@ -775,6 +777,7 @@ pub trait TypeReferenceInterface: ObjectTypeInterface {
     fn set_target(&self, target: Rc<Type>);
     fn maybe_node(&self) -> RefMut<Option<Rc<Node>>>;
     fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+    fn maybe_cached_equivalent_base_type(&self) -> RefMut<Option<Rc<Type>>>;
 }
 
 impl TypeReferenceInterface for TypeReference {
@@ -792,6 +795,10 @@ impl TypeReferenceInterface for TypeReference {
 
     fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.resolved_type_arguments.borrow_mut()
+    }
+
+    fn maybe_cached_equivalent_base_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.cached_equivalent_base_type.borrow_mut()
     }
 }
 
