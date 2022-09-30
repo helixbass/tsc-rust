@@ -579,12 +579,12 @@ impl TypeChecker {
         for t in types {
             if t.flags().intersects(TypeFlags::Instantiable) {
                 let mut constraint = self.get_constraint_of_type(t);
-                while let Some(constraint_present) = constraint.as_ref() {
-                    if constraint_present.flags().intersects(
+                while let Some(constraint_present) = constraint.as_ref().filter(|constraint| {
+                    constraint.flags().intersects(
                         TypeFlags::TypeParameter | TypeFlags::Index | TypeFlags::Conditional,
-                    ) {
-                        constraint = self.get_constraint_of_type(constraint_present);
-                    }
+                    )
+                }) {
+                    constraint = self.get_constraint_of_type(constraint_present);
                 }
                 if let Some(constraint) = constraint {
                     if constraints.is_none() {
