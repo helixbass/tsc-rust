@@ -205,25 +205,25 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> Rc<Type> {
         let links = self.get_symbol_links(symbol);
-        let mut links = links.borrow_mut();
-        if links.type_.is_none() {
+        if (*links).borrow().type_.is_none() {
             if !self.push_type_resolution(
                 &symbol.symbol_wrapper().into(),
                 TypeSystemPropertyName::Type,
             ) {
-                links.type_ = Some(self.error_type());
+                links.borrow_mut().type_ = Some(self.error_type());
                 return self.error_type();
             }
             let mut type_ = self.instantiate_type(
-                &self.get_type_of_symbol(links.target.as_ref().unwrap()),
-                links.mapper.as_ref(),
+                &self.get_type_of_symbol((*links).borrow().target.as_ref().unwrap()),
+                (*links).borrow().mapper.as_ref(),
             );
             if !self.pop_type_resolution() {
                 type_ = self.report_circularity_error(symbol);
             }
-            links.type_ = Some(type_);
+            links.borrow_mut().type_ = Some(type_);
         }
-        links.type_.clone().unwrap()
+        let ret = (*links).borrow().type_.clone().unwrap();
+        ret
     }
 
     pub(super) fn report_circularity_error(&self, symbol: &Symbol) -> Rc<Type> {

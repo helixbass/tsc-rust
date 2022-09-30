@@ -588,11 +588,10 @@ impl TypeChecker {
         property_name: TypeSystemPropertyName,
     ) -> bool {
         match property_name {
-            TypeSystemPropertyName::Type => {
-                RefCell::borrow(&self.get_symbol_links(target.as_symbol()))
-                    .type_
-                    .is_some()
-            }
+            TypeSystemPropertyName::Type => (*self.get_symbol_links(target.as_symbol()))
+                .borrow()
+                .type_
+                .is_some(),
             TypeSystemPropertyName::EnumTagType => {
                 RefCell::borrow(&self.get_node_links(target.as_node()))
                     .resolved_enum_type
