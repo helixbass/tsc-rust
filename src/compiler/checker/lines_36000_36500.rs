@@ -907,20 +907,20 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_block(&self, node: &Node /*Block*/) {
+    pub(super) fn check_block(&self, node: &Node /*Block (actually | ModuleBlock)*/) {
         if node.kind() == SyntaxKind::Block {
             self.check_grammar_statement_in_ambient_context(node);
         }
-        let node_as_block = node.as_block();
+        let node_as_has_statements = node.as_has_statements();
         if is_function_or_module_block(node) {
             let save_flow_analysis_disabled = self.flow_analysis_disabled();
-            for_each(&node_as_block.statements, |statement, _| {
+            for_each(node_as_has_statements.statements(), |statement, _| {
                 self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
             self.set_flow_analysis_disabled(save_flow_analysis_disabled);
         } else {
-            for_each(&node_as_block.statements, |statement, _| {
+            for_each(node_as_has_statements.statements(), |statement, _| {
                 self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
