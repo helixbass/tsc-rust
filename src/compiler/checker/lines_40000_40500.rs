@@ -6,15 +6,15 @@ use std::rc::Rc;
 
 use super::UnusedKind;
 use crate::{
-    clear, concatenate, contains_parse_error, for_each, for_each_child,
+    clear, compare_diagnostics, concatenate, contains_parse_error, for_each, for_each_child,
     get_host_signature_from_jsdoc, get_node_id, get_parameter_symbol_from_jsdoc,
     get_source_file_of_node, is_access_expression, is_exports_identifier, is_external_module,
     is_external_or_common_js_module, is_in_js_file, is_jsdoc_callback_tag, is_jsdoc_function_type,
     is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_module_exports_access_expression,
-    is_parameter, is_rest_parameter, last, last_or_undefined, maybe_for_each, skip_type_checking,
-    CancellationTokenDebuggable, Debug_, Diagnostic, Diagnostics, ImportsNotUsedAsValues, Node,
-    NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
-    Type, TypeChecker, TypeCheckerHost,
+    is_parameter, is_rest_parameter, last, last_or_undefined, maybe_for_each, relative_complement,
+    skip_type_checking, CancellationTokenDebuggable, Debug_, Diagnostic, Diagnostics,
+    ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
+    SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -716,15 +716,16 @@ impl TypeChecker {
                 .get_diagnostics(Some(&source_file.as_source_file().file_name()));
             let current_global_diagnostics = self.diagnostics().get_global_diagnostics();
             if current_global_diagnostics.len() != previous_global_diagnostics.len() {
-                // const deferredGlobalDiagnostics = relativeComplement(previousGlobalDiagnostics, currentGlobalDiagnostics, compareDiagnostics);
-                // this looks to me (vs the Typescript version above) like we only append to these global diagnostics so should just be the slice at the end?
-                let deferred_global_diagnostics =
-                    current_global_diagnostics[previous_global_diagnostics.len()..].to_owned();
+                let deferred_global_diagnostics = relative_complement(
+                    &previous_global_diagnostics,
+                    &current_global_diagnostics,
+                    |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| compare_diagnostics(&**a, &**b),
+                );
                 return concatenate(deferred_global_diagnostics, semantic_diagnostics);
+            } else if previous_global_diagnostics_size == 0 && current_global_diagnostics.len() > 0
+            {
+                return concatenate(current_global_diagnostics, semantic_diagnostics);
             }
-            // else if previousGlobalDiagnosticsSize === 0 && currentGlobalDiagnostics.length > 0 {
-            //     return concatenate(currentGlobalDiagnostics, semanticDiagnostics);
-            // }
             return semantic_diagnostics;
         }
 

@@ -48,11 +48,11 @@ pub use compiler::core::{
     maybe_first_defined, maybe_for_each, maybe_for_each_bool, maybe_map, maybe_same_map,
     not_implemented, ordered_remove_item_at, pad_left, pad_right, push_if_unique_rc,
     range_equals_rc, reduce_left, reduce_left_no_initial_value,
-    reduce_left_no_initial_value_optional, remove_prefix, replace_element, same_map, set_ui_locale,
-    single_element_array, single_or_undefined, some, sort, sort_and_deduplicate, stable_sort,
-    starts_with, string_contains, sum, to_file_name_lower_case, trim_string, trim_string_start,
-    try_add_to_set, try_cast, AssertionLevel, Cloneable, MultiMap, Pattern,
-    UnderscoreEscapedMultiMap,
+    reduce_left_no_initial_value_optional, relative_complement, remove_prefix, replace_element,
+    same_map, set_ui_locale, single_element_array, single_or_undefined, some, sort,
+    sort_and_deduplicate, stable_sort, starts_with, string_contains, sum, to_file_name_lower_case,
+    trim_string, trim_string_start, try_add_to_set, try_cast, AssertionLevel, Cloneable, MultiMap,
+    Pattern, UnderscoreEscapedMultiMap,
 };
 pub use compiler::core_public::{
     version, version_major_minor, Comparer, Comparison, MapLike, Push, ReadonlyCollection,

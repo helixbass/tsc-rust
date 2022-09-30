@@ -557,6 +557,56 @@ pub fn sort_and_deduplicate<
     )
 }
 
+pub fn relative_complement<TItem: Clone, TComparer: FnMut(&TItem, &TItem) -> Comparison>(
+    array_a: &[TItem],
+    array_b: &[TItem],
+    mut comparer: TComparer,
+) -> Vec<TItem> {
+    if array_b.is_empty() || array_a.is_empty() {
+        return array_b.to_owned();
+    }
+    let mut result: Vec<TItem> = vec![];
+    let mut offset_a = 0;
+    let mut offset_b = 0;
+    'loop_b: while offset_b < array_b.len() {
+        if offset_b > 0 {
+            Debug_.assert(
+                comparer(&array_b[offset_b], &array_b[offset_b - 1]) != Comparison::LessThan,
+                None,
+            );
+        }
+
+        let start_a = offset_a;
+        'loop_a: while offset_a < array_a.len() {
+            if offset_a > start_a {
+                Debug_.assert(
+                    comparer(&array_a[offset_a], &array_a[offset_a - 1]) != Comparison::LessThan,
+                    None,
+                );
+            }
+
+            match comparer(&array_b[offset_b], &array_a[offset_a]) {
+                Comparison::LessThan => {
+                    result.push(array_b[offset_b].clone());
+                    offset_a += 1;
+                    offset_b += 1;
+                    continue 'loop_b;
+                }
+                Comparison::EqualTo => {
+                    offset_a += 1;
+                    offset_b += 1;
+                    continue 'loop_b;
+                }
+                Comparison::GreaterThan => {
+                    offset_a += 1;
+                    continue 'loop_a;
+                }
+            }
+        }
+    }
+    result
+}
+
 pub fn sum<TItem, TGetValue: FnMut(&TItem) -> usize>(
     array: &[TItem],
     mut get_value: TGetValue,
