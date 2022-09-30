@@ -896,8 +896,10 @@ impl TypeChecker {
                     all_node_flags &= current_node_flags;
                     some_have_question_token = some_have_question_token || has_question_token(node);
                     all_have_question_token = all_have_question_token && has_question_token(node);
-                    let body_is_present =
-                        node_is_present(node.as_function_like_declaration().maybe_body());
+                    let body_is_present = node_is_present(
+                        node.maybe_as_function_like_declaration()
+                            .and_then(|node| node.maybe_body()),
+                    );
 
                     if body_is_present && body_declaration.is_some() {
                         if is_constructor {
