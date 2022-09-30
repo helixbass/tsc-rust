@@ -890,7 +890,9 @@ pub trait UnionOrIntersectionTypeInterface: TypeInterface {
 }
 
 #[derive(Clone, Debug)]
-#[type_type(interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface")]
+#[type_type(
+    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
+)]
 pub enum UnionOrIntersectionType {
     UnionType(UnionType),
     IntersectionType(IntersectionType),

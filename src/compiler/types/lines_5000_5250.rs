@@ -400,11 +400,17 @@ impl Type {
 
     pub fn as_resolved_type(&self) -> &dyn ResolvedTypeInterface {
         match self {
-            Type::ObjectType(object_type) => {
-                if !object_type.is_resolved() {
+            Type::ObjectType(type_) => {
+                if !type_.is_resolved() {
                     panic!("Not resolved")
                 }
-                object_type
+                type_
+            }
+            Type::UnionOrIntersectionType(type_) => {
+                if !type_.is_resolved() {
+                    panic!("Not resolved")
+                }
+                type_
             }
             _ => panic!("Expected resolved type"),
         }
@@ -424,7 +430,8 @@ impl Type {
 
     pub fn as_resolvable_type(&self) -> &dyn ResolvableTypeInterface {
         match self {
-            Type::ObjectType(object_type) => object_type,
+            Type::ObjectType(type_) => type_,
+            Type::UnionOrIntersectionType(type_) => type_,
             _ => panic!("Expected resolvable type"),
         }
     }
