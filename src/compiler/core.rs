@@ -842,17 +842,18 @@ fn binary_search_key<
         return -1;
     }
 
-    let mut low = offset.unwrap_or(0);
-    let mut high = array.len() - 1;
+    let mut low: isize = offset.unwrap_or(0).try_into().unwrap();
+    let mut high: isize = (array.len() - 1).try_into().unwrap();
     while low <= high {
         let middle = low + ((high - low) >> 1);
-        let mid_key = key_selector(&array[middle], Some(middle));
+        let middle_as_usize: usize = middle.try_into().unwrap();
+        let mid_key = key_selector(&array[middle_as_usize], Some(middle_as_usize));
         match key_comparer(mid_key, key) {
             Comparison::LessThan => {
                 low = middle + 1;
             }
             Comparison::EqualTo => {
-                return middle.try_into().unwrap();
+                return middle;
             }
             Comparison::GreaterThan => {
                 high = middle - 1;
@@ -860,7 +861,6 @@ fn binary_search_key<
         }
     }
 
-    let low: isize = low.try_into().unwrap();
     !low
 }
 
