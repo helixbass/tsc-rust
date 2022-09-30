@@ -6,11 +6,11 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find_index, maybe_add_range, maybe_filter, InferenceContext, InferenceInfo, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectTypeInterface, TypeMapperCallback, TypeReferenceInterface,
-    __String, get_assignment_declaration_kind, get_check_flags, get_host_signature_from_jsdoc,
-    get_symbol_id, get_this_container, is_binary_expression, is_class_like,
-    is_constructor_declaration, is_function_expression, is_node_descendant_of,
+    find_index, maybe_add_range, maybe_filter, InferenceContext, InferenceInfo, IntrinsicType,
+    ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, TypeMapperCallback,
+    TypeReferenceInterface, __String, get_assignment_declaration_kind, get_check_flags,
+    get_host_signature_from_jsdoc, get_symbol_id, get_this_container, is_binary_expression,
+    is_class_like, is_constructor_declaration, is_function_expression, is_node_descendant_of,
     is_object_literal_expression, is_private_identifier_class_element_declaration, is_static,
     is_valid_es_symbol_declaration, map, pseudo_big_int_to_string, some, AssignmentDeclarationKind,
     BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface,
@@ -163,7 +163,14 @@ impl TypeChecker {
 
     pub(super) fn get_regular_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
-            type_.as_literal_type().regular_type()
+            // TODO: this seems like it should be encapsulated behind an abstraction?
+            match type_ {
+                Type::LiteralType(type_) => type_.regular_type(),
+                Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
+                    type_.regular_type().upgrade().unwrap()
+                }
+                _ => unreachable!(),
+            }
         } else if type_.flags().intersects(TypeFlags::Union) {
             let type_as_union_type = type_.as_union_type();
             if type_as_union_type.maybe_regular_type().is_none() {
