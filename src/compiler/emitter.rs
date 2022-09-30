@@ -124,6 +124,7 @@ impl Printer {
                 SyntaxKind::Identifier => return self.emit_identifier(node),
                 SyntaxKind::PropertySignature => return self.emit_property_signature(node),
                 SyntaxKind::TypeReference => return self.emit_type_reference(node),
+                SyntaxKind::ConstructorType => return self.emit_constructor_type(node),
                 SyntaxKind::TypeLiteral => return self.emit_type_literal(node),
                 SyntaxKind::TupleType => return self.emit_tuple_type(node),
                 SyntaxKind::UnionType => return self.emit_union_type(node),
@@ -187,6 +188,11 @@ impl Printer {
 
     fn emit_type_reference(&mut self, node: &Node /*TypeReferenceNode*/) {
         self.emit(Some(&*node.as_type_reference_node().type_name));
+    }
+
+    fn emit_constructor_type(&mut self, node: &Node /*ConstructorTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
     }
 
     fn emit_type_literal(&mut self, node: &Node /*TypeLiteralNode*/) {
