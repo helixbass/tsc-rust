@@ -18,17 +18,18 @@ use crate::{
     flatten, for_each, for_each_ancestor_directory_str, for_each_bool, generate_djb2_hash,
     get_allow_js_compiler_option, get_automatic_type_directive_names,
     get_common_source_directory_of_config, get_default_lib_file_name, get_directory_path,
-    get_emit_script_target, get_line_and_character_of_position, get_new_line_character,
-    get_normalized_absolute_path, get_normalized_absolute_path_without_root,
-    get_normalized_path_components, get_output_declaration_file_name,
-    get_path_from_path_components, get_property_assignment, get_strict_option_value,
-    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
-    has_extension, has_js_file_extension, is_declaration_file_name, is_import_call,
-    is_import_equals_declaration, is_rooted_disk_path, is_watch_set, map_defined, maybe_for_each,
-    missing_file_modified_time, node_modules_path_part, normalize_path, options_have_changes,
-    out_file, package_id_to_string, remove_file_extension, resolve_config_file_project_name,
-    resolve_module_name, resolve_type_reference_directive, source_file_affecting_compiler_options,
-    stable_sort, string_contains, supported_js_extensions_flat, to_file_name_lower_case,
+    get_emit_module_resolution_kind, get_emit_script_target, get_line_and_character_of_position,
+    get_new_line_character, get_normalized_absolute_path,
+    get_normalized_absolute_path_without_root, get_normalized_path_components,
+    get_output_declaration_file_name, get_package_scope_for_path, get_path_from_path_components,
+    get_property_assignment, get_strict_option_value, get_supported_extensions,
+    get_supported_extensions_with_json_if_resolve_json_module, get_sys, has_extension,
+    has_js_file_extension, is_declaration_file_name, is_import_call, is_import_equals_declaration,
+    is_rooted_disk_path, is_watch_set, map_defined, maybe_for_each, missing_file_modified_time,
+    node_modules_path_part, normalize_path, options_have_changes, out_file, package_id_to_string,
+    remove_file_extension, resolve_config_file_project_name, resolve_module_name,
+    resolve_type_reference_directive, source_file_affecting_compiler_options, stable_sort,
+    string_contains, supported_js_extensions_flat, to_file_name_lower_case,
     to_path as to_path_helper, walk_up_parenthesized_expressions, write_file_ensuring_directories,
     AutomaticTypeDirectiveFile, CancellationTokenDebuggable, Comparison, CompilerHost,
     CompilerOptions, CompilerOptionsBuilder, ConfigFileDiagnosticsReporter, CreateProgramOptions,
@@ -903,11 +904,66 @@ pub fn get_config_file_parsing_diagnostics(
 
 pub fn get_implied_node_format_for_file(
     file_name: &Path,
-    package_json_info_cache: Option<Rc<dyn PackageJsonInfoCache>>,
+    package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
     host: &dyn ModuleResolutionHost,
     options: &CompilerOptions,
 ) -> Option<ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/> {
-    unimplemented!()
+    match get_emit_module_resolution_kind(options) {
+        ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext => {
+            if file_extension_is_one_of(
+                file_name,
+                &[Extension::Dmts, Extension::Mts, Extension::Mjs],
+            ) {
+                Some(ModuleKind::ESNext)
+            } else if file_extension_is_one_of(
+                file_name,
+                &[Extension::Dcts, Extension::Cts, Extension::Cjs],
+            ) {
+                Some(ModuleKind::CommonJS)
+            } else if file_extension_is_one_of(
+                file_name,
+                &[
+                    Extension::Dts,
+                    Extension::Ts,
+                    Extension::Tsx,
+                    Extension::Js,
+                    Extension::Jsx,
+                ],
+            ) {
+                Some(lookup_from_package_json(
+                    file_name,
+                    package_json_info_cache,
+                    host,
+                    options,
+                ))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+pub fn lookup_from_package_json(
+    file_name: &Path,
+    package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
+    host: &dyn ModuleResolutionHost,
+    options: &CompilerOptions,
+) -> ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/ {
+    let scope = get_package_scope_for_path(file_name, package_json_info_cache, host, options);
+    if matches!(
+        scope.as_ref(),
+        Some(scope) if matches!(
+            scope.package_json_content.as_object().and_then(|scope_package_json_content| {
+                scope_package_json_content.get("type_")
+            }),
+            Some(serde_json::Value::String(value)) if &**value == "module"
+        )
+    ) {
+        ModuleKind::ESNext
+    } else {
+        ModuleKind::CommonJS
+    }
 }
 
 fn should_program_create_new_source_files(
@@ -2247,7 +2303,8 @@ impl Program {
                     .as_ref()
                     .map(|module_resolution_cache| {
                         module_resolution_cache.get_package_json_info_cache()
-                    }),
+                    })
+                    .as_deref(),
                 self.host().as_dyn_module_resolution_host(),
                 &self.options,
             ));

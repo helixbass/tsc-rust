@@ -2370,6 +2370,15 @@ pub struct PackageJsonInfo {
     pub version_paths: Option<Rc<VersionPaths>>,
 }
 
+pub(crate) fn get_package_scope_for_path(
+    file_name: &Path,
+    package_json_info_cache: Option<&dyn PackageJsonInfoCache>,
+    host: &dyn ModuleResolutionHost,
+    options: &CompilerOptions,
+) -> Option<Rc<PackageJsonInfo>> {
+    unimplemented!()
+}
+
 pub(crate) fn get_package_json_info(
     package_directory: &str,
     only_record_failures: bool,
