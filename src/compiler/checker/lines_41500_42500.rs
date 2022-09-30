@@ -13,14 +13,17 @@ use crate::{
     for_each_entry_bool, get_all_accessor_declarations, get_declaration_of_kind,
     get_effective_modifier_flags, get_external_module_name, get_first_identifier,
     get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
-    is_binding_pattern, is_class_like, is_effective_external_module, is_entity_name, is_enum_const,
-    is_function_declaration, is_get_accessor, is_global_scope_augmentation, is_jsdoc_parameter_tag,
-    is_named_declaration, is_private_identifier_class_element_declaration,
-    is_property_access_expression, is_property_declaration, is_qualified_name, is_set_accessor,
-    is_string_literal, is_type_only_import_or_export_declaration, is_variable_like_or_accessor,
-    modifier_to_flag, node_can_be_decorated, node_is_present, should_preserve_const_enums, some,
-    token_to_string, try_cast, with_synthetic_factory_and_factory, Debug_, Diagnostics,
-    ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags,
+    is_binding_pattern, is_class_like, is_declaration, is_declaration_readonly,
+    is_effective_external_module, is_entity_name, is_enum_const, is_expression,
+    is_function_declaration, is_function_like, is_generated_identifier, is_get_accessor,
+    is_global_scope_augmentation, is_identifier, is_jsdoc_parameter_tag, is_named_declaration,
+    is_private_identifier_class_element_declaration, is_property_access_expression,
+    is_property_declaration, is_qualified_name, is_set_accessor, is_string_literal,
+    is_type_only_import_or_export_declaration, is_var_const, is_variable_declaration,
+    is_variable_like_or_accessor, modifier_to_flag, node_can_be_decorated, node_is_present,
+    parse_isolated_entity_name, should_preserve_const_enums, some, token_to_string, try_cast,
+    with_synthetic_factory_and_factory, Debug_, Diagnostics, ExternalEmitHelpers,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType, ModifierFlags,
     NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, ObjectFlags,
     Signature, SignatureKind, SymbolInterface, SymbolTracker, SyntaxKind, TypeFlags, TypeInterface,
     TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
@@ -463,26 +466,257 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn create_return_type_of_signature_declaration(
+        &self,
+        signature_declaration_in: &Node, /*SignatureDeclaration*/
+        enclosing_declaration: &Node,
+        flags: NodeBuilderFlags,
+        tracker: &dyn SymbolTracker,
+    ) -> Option<Rc<Node /*TypeNode*/>> {
+        let signature_declaration = get_parse_tree_node(
+            Some(signature_declaration_in),
+            Some(|node: &Node| is_function_like(Some(node))),
+        );
+        if signature_declaration.is_none() {
+            return Some(with_synthetic_factory_and_factory(
+                |synthetic_factory, factory| {
+                    factory
+                        .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
+                        .into()
+                },
+            ));
+        }
+        let signature_declaration = signature_declaration.as_ref().unwrap();
+        let signature = self.get_signature_from_declaration_(signature_declaration);
+        self.node_builder().type_to_type_node(
+            &self.get_return_type_of_signature(signature),
+            Some(enclosing_declaration),
+            Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
+            Some(tracker),
+        )
+    }
+
+    pub(super) fn create_type_of_expression(
+        &self,
+        expr_in: &Node, /*Expression*/
+        enclosing_declaration: &Node,
+        flags: NodeBuilderFlags,
+        tracker: &dyn SymbolTracker,
+    ) -> Option<Rc<Node /*TypeNode*/>> {
+        let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
+        if expr.is_none() {
+            return Some(with_synthetic_factory_and_factory(
+                |synthetic_factory, factory| {
+                    factory
+                        .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
+                        .into()
+                },
+            ));
+        }
+        let expr = expr.as_ref().unwrap();
+        let ref type_ = self.get_widened_type(&self.get_regular_type_of_expression(expr));
+        self.node_builder().type_to_type_node(
+            &type_,
+            Some(enclosing_declaration),
+            Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
+            Some(tracker),
+        )
+    }
+
+    pub(super) fn has_global_name(&self, name: &str) -> bool {
+        self.globals()
+            .contains_key(&escape_leading_underscores(name))
+    }
+
     pub(super) fn get_referenced_value_symbol(
         &self,
         reference: &Node, /*Identifier*/
         start_in_declaration_container: Option<bool>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let resolved_symbol = (*self.get_node_links(reference))
+            .borrow()
+            .resolved_symbol
+            .clone();
+        if resolved_symbol.is_some() {
+            return resolved_symbol;
+        }
+
+        let mut location = reference.node_wrapper();
+        if start_in_declaration_container == Some(true) {
+            let ref parent = reference.parent();
+            if is_declaration(parent)
+                && matches!(
+                    parent.as_named_declaration().maybe_name().as_ref(),
+                    Some(parent_name) if ptr::eq(
+                        reference,
+                        &**parent_name
+                    )
+                )
+            {
+                location = self.get_declaration_container(parent);
+            }
+        }
+
+        self.resolve_name_(
+            Some(location),
+            &reference.as_identifier().escaped_text,
+            SymbolFlags::Value | SymbolFlags::ExportValue | SymbolFlags::Alias,
+            None,
+            Option::<Rc<Node>>::None,
+            true,
+            None,
+        )
+    }
+
+    pub(super) fn get_referenced_value_declaration(
+        &self,
+        reference_in: &Node, /*Identifier*/
+    ) -> Option<Rc<Node /*Declaration*/>> {
+        if !is_generated_identifier(reference_in) {
+            let reference =
+                get_parse_tree_node(Some(reference_in), Some(|node: &Node| is_identifier(node)));
+            if let Some(reference) = reference.as_ref() {
+                let symbol = self.get_referenced_value_symbol(reference, None);
+                if let Some(symbol) = symbol.as_ref() {
+                    return self
+                        .get_export_symbol_of_value_symbol_if_exported(Some(&**symbol))
+                        .as_ref()
+                        .and_then(|export_symbol| export_symbol.maybe_value_declaration());
+                }
+            }
+        }
+
+        None
+    }
+
+    pub(super) fn is_literal_const_declaration(
+        &self,
+        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
+    ) -> bool {
+        if is_declaration_readonly(node) || is_variable_declaration(node) && is_var_const(node) {
+            return self.is_fresh_literal_type(
+                &self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap()),
+            );
+        }
+        false
+    }
+
+    pub(super) fn literal_type_to_node(
+        &self,
+        type_: &Type, /*FreshableType*/
+        enclosing: &Node,
+        tracker: &dyn SymbolTracker,
+    ) -> Rc<Node /*Expression*/> {
+        let enum_result = if type_.flags().intersects(TypeFlags::EnumLiteral) {
+            self.node_builder().symbol_to_expression(
+                &type_.symbol(),
+                Some(SymbolFlags::Value),
+                Some(enclosing),
+                None,
+                Some(tracker),
+            )
+        } else if ptr::eq(type_, &*self.true_type()) {
+            Some(with_synthetic_factory_and_factory(
+                |synthetic_factory, factory| factory.create_true(synthetic_factory).into(),
+            ))
+        } else if ptr::eq(type_, &*self.false_type()) {
+            Some(with_synthetic_factory_and_factory(
+                |synthetic_factory, factory| factory.create_false(synthetic_factory).into(),
+            ))
+        } else {
+            None
+        };
+        if let Some(enum_result) = enum_result {
+            return enum_result;
+        }
+        match type_ {
+            Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
+                with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                    factory
+                        .create_big_int_literal(synthetic_factory, type_.value.clone())
+                        .into()
+                })
+            }
+            Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
+                with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                    factory
+                        .create_numeric_literal(synthetic_factory, type_.value.clone(), None)
+                        .into()
+                })
+            }
+            Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
+                with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                    factory
+                        .create_string_literal(synthetic_factory, type_.value.clone(), None, None)
+                        .into()
+                })
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub(super) fn create_literal_const_value(
+        &self,
+        node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
+        tracker: &dyn SymbolTracker,
+    ) -> Rc<Node> {
+        let ref type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap());
+        self.literal_type_to_node(type_, node, tracker)
     }
 
     pub(super) fn get_jsx_factory_entity(
         &self,
         location: &Node,
     ) -> Option<Rc<Node /*EntityName*/>> {
-        unimplemented!()
+        /*location ?*/
+        self.get_jsx_namespace_(Some(location));
+        get_source_file_of_node(Some(location))
+            .unwrap()
+            .as_source_file()
+            .maybe_local_jsx_factory()
+            .clone()
+            .or_else(|| self._jsx_factory_entity.borrow().clone())
+        /*: _jsxFactoryEntity*/
     }
 
     pub(super) fn get_jsx_fragment_factory_entity(
         &self,
         location: &Node,
     ) -> Option<Rc<Node /*EntityName*/>> {
-        unimplemented!()
+        // if (location) {
+        let file = get_source_file_of_node(Some(location));
+        if let Some(file) = file.as_ref() {
+            let file_as_source_file = file.as_source_file();
+            if let Some(file_local_jsx_fragment_factory) = file_as_source_file
+                .maybe_local_jsx_fragment_factory()
+                .as_ref()
+            {
+                return Some(file_local_jsx_fragment_factory.clone());
+            }
+            let file_pragmas = file_as_source_file.pragmas();
+            let jsx_frag_pragmas = file_pragmas.get("jsxfrag");
+            let jsx_frag_pragma =
+                jsx_frag_pragmas.and_then(|jsx_frag_pragmas| jsx_frag_pragmas.get(0));
+            if let Some(jsx_frag_pragma) = jsx_frag_pragma {
+                let ret = parse_isolated_entity_name(
+                    jsx_frag_pragma.arguments.factory(),
+                    self.language_version,
+                );
+                *file_as_source_file.maybe_local_jsx_fragment_factory() = ret.clone();
+                return ret;
+            }
+        }
+        // }
+
+        if let Some(compiler_options_jsx_fragment_factory) =
+            self.compiler_options.jsx_fragment_factory.as_ref()
+        {
+            return parse_isolated_entity_name(
+                compiler_options_jsx_fragment_factory.clone(),
+                self.language_version,
+            );
+        }
+        None
     }
 
     pub(super) fn create_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
