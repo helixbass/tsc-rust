@@ -130,6 +130,7 @@ impl Printer {
                 SyntaxKind::UnionType => return self.emit_union_type(node),
                 SyntaxKind::IntersectionType => return self.emit_intersection_type(node),
                 SyntaxKind::ConditionalType => return self.emit_conditional_type(node),
+                SyntaxKind::ParenthesizedType => return self.emit_parenthesized_type(node),
                 SyntaxKind::TypeOperator => return self.emit_type_operator(node),
                 SyntaxKind::IndexedAccessType => return self.emit_indexed_access_type(node),
                 SyntaxKind::LiteralType => return self.emit_literal_type(node),
@@ -229,6 +230,11 @@ impl Printer {
     }
 
     fn emit_conditional_type(&mut self, node: &Node /*ConditionalTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
+    }
+
+    fn emit_parenthesized_type(&mut self, node: &Node /*ParenthesizedTypeNode*/) {
         // unimplemented!()
         self.write_punctuation("TODO");
     }
