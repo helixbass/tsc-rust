@@ -2773,7 +2773,7 @@ impl TypeChecker {
     }
 
     pub(super) fn keyof_constraint_type(&self) -> Rc<Type> {
-        unimplemented!()
+        self.keyof_constraint_type.clone().unwrap()
     }
 
     pub(super) fn number_or_big_int_type(&self) -> Rc<Type> {
