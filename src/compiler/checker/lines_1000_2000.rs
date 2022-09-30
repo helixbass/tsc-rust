@@ -1596,6 +1596,7 @@ impl TypeChecker {
                             .and_then(|symbol| symbol.maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols());
                         let module_exports = RefCell::borrow(&module_exports);
+                        let mut should_skip_rest_of_match_arm = false;
                         if location_unwrapped.kind() == SyntaxKind::SourceFile
                             || (is_module_declaration(&location_unwrapped)
                                 && location_unwrapped.flags().intersects(NodeFlags::Ambient)
@@ -1622,27 +1623,32 @@ impl TypeChecker {
                                 Some(module_export) if module_export.flags() == SymbolFlags::Alias &&
                                     (get_declaration_of_kind(module_export, SyntaxKind::ExportSpecifier).is_some() || get_declaration_of_kind(module_export, SyntaxKind::NamespaceExport).is_some())
                             ) {
-                                break;
+                                should_skip_rest_of_match_arm = true;
                             }
                         }
 
-                        if name != &InternalSymbolName::Default() {
-                            result =
-                                lookup(&module_exports, name, meaning & SymbolFlags::ModuleMember);
-                            if let Some(result_unwrapped) = result.as_ref() {
-                                if is_source_file(&location_unwrapped)
-                                    && location_unwrapped
-                                        .as_source_file()
-                                        .maybe_common_js_module_indicator()
-                                        .is_some()
-                                    && !some(
-                                        result_unwrapped.maybe_declarations().as_deref(),
-                                        Some(|node: &Rc<Node>| is_jsdoc_type_alias(node)),
-                                    )
-                                {
-                                    result = None;
-                                } else {
-                                    break;
+                        if !should_skip_rest_of_match_arm {
+                            if name != &InternalSymbolName::Default() {
+                                result = lookup(
+                                    &module_exports,
+                                    name,
+                                    meaning & SymbolFlags::ModuleMember,
+                                );
+                                if let Some(result_unwrapped) = result.as_ref() {
+                                    if is_source_file(&location_unwrapped)
+                                        && location_unwrapped
+                                            .as_source_file()
+                                            .maybe_common_js_module_indicator()
+                                            .is_some()
+                                        && !some(
+                                            result_unwrapped.maybe_declarations().as_deref(),
+                                            Some(|node: &Rc<Node>| is_jsdoc_type_alias(node)),
+                                        )
+                                    {
+                                        result = None;
+                                    } else {
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -1696,13 +1702,16 @@ impl TypeChecker {
                         name,
                         meaning & SymbolFlags::Type,
                     );
+                    let mut should_skip_rest_of_match_arm = false;
                     if let Some(result_unwrapped) = result.as_ref() {
                         if !self.is_type_parameter_symbol_declared_in_container(
                             &result_unwrapped,
                             &location_unwrapped,
                         ) {
                             result = None;
-                        } else if matches!(last_location.as_ref(), Some(last_location) if is_static(last_location))
+                            should_skip_rest_of_match_arm = true;
+                        }
+                        if matches!(last_location.as_ref(), Some(last_location) if is_static(last_location))
                         {
                             self.error(
                                 error_location.as_deref(),
@@ -1711,16 +1720,20 @@ impl TypeChecker {
                             );
                             return None;
                         }
-                        break;
-                    }
-                    if location_unwrapped.kind() == SyntaxKind::ClassExpression
-                        && meaning.intersects(SymbolFlags::Class)
-                    {
-                        let class_name = location_unwrapped.as_class_expression().maybe_name();
-                        if matches!(class_name, Some(class_name) if name == &class_name.as_identifier().escaped_text)
-                        {
-                            result = Some(location_unwrapped.symbol());
+                        if !should_skip_rest_of_match_arm {
                             break;
+                        }
+                    }
+                    if !should_skip_rest_of_match_arm {
+                        if location_unwrapped.kind() == SyntaxKind::ClassExpression
+                            && meaning.intersects(SymbolFlags::Class)
+                        {
+                            let class_name = location_unwrapped.as_class_expression().maybe_name();
+                            if matches!(class_name, Some(class_name) if name == &class_name.as_identifier().escaped_text)
+                            {
+                                result = Some(location_unwrapped.symbol());
+                                break;
+                            }
                         }
                     }
                 }
