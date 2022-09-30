@@ -1653,8 +1653,8 @@ impl CheckTypeRelatedTo {
             if get_object_flags(&source).intersects(ObjectFlags::Reference)
                 && get_object_flags(target).intersects(ObjectFlags::Reference)
                 && Rc::ptr_eq(
-                    &source.as_type_reference().target,
-                    &target.as_type_reference().target,
+                    &source.as_type_reference_interface().target(),
+                    &target.as_type_reference_interface().target(),
                 )
                 && !self.type_checker.is_tuple_type(&source)
                 && !(get_object_flags(&source).intersects(ObjectFlags::MarkerType)
