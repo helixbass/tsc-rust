@@ -502,7 +502,7 @@ pub enum StringOrUsize {
     Usize(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct EmitNode {
     pub annotated_nodes: Option<Vec<Rc<Node>>>,
     pub flags: Option<EmitFlags>,
@@ -517,26 +517,6 @@ pub struct EmitNode {
     pub helpers: Option<Vec<Rc<EmitHelper>>>,
     pub starts_on_new_line: Option<bool>,
     pub snippet_element: Option<SnippetElement>,
-}
-
-impl Default for EmitNode {
-    fn default() -> Self {
-        Self {
-            annotated_nodes: None,
-            flags: None,
-            leading_comments: None,
-            trailing_comments: None,
-            comment_range: None,
-            source_map_range: None,
-            token_source_map_ranges: None,
-            constant_value: None,
-            external_helpers_module_name: None,
-            external_helpers: None,
-            helpers: None,
-            starts_on_new_line: None,
-            snippet_element: None,
-        }
-    }
 }
 
 #[derive(Debug)]

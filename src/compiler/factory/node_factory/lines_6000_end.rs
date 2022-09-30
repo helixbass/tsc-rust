@@ -417,13 +417,11 @@ pub fn set_original_node(node: Rc<Node>, original: Option<Rc<Node>>) -> Rc<Node>
     if let Some(original) = original {
         let emit_node = original.maybe_emit_node();
         if let Some(emit_node) = emit_node.as_ref() {
-            let mut node_emit_node = node.maybe_emit_node();
-            if node_emit_node.is_none() {
-                *node_emit_node = Some(Default::default());
-            }
+            node.maybe_emit_node_mut()
+                .get_or_insert_with(|| Rc::new(RefCell::new(Default::default())));
             merge_emit_node(
-                emit_node,
-                &mut *RefMut::map(node_emit_node, |option| option.as_mut().unwrap()),
+                &(**emit_node).borrow(),
+                &mut (*node.maybe_emit_node().unwrap()).borrow_mut(),
             );
             // node.set_emit_node(node_emit_node);
         }

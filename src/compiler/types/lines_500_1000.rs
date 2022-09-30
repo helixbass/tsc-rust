@@ -201,8 +201,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>);
     fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>>;
     fn set_flow_node(&self, emit_node: Option<Rc<FlowNode>>);
-    fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>>;
-    fn set_emit_node(&self, emit_node: Option<EmitNode>);
+    fn maybe_emit_node(&self) -> Option<Rc<RefCell<EmitNode>>>;
+    fn maybe_emit_node_mut(&self) -> RefMut<Option<Rc<RefCell<EmitNode>>>>;
+    fn set_emit_node(&self, emit_node: Option<Rc<RefCell<EmitNode>>>);
     fn maybe_contextual_type(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_inference_context(&self) -> RefMut<Option<Rc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
@@ -1556,7 +1557,7 @@ pub struct BaseNode {
     pub locals: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     next_container: RefCell<Option<Rc<Node>>>,
     local_symbol: RefCell<Option<Rc<Symbol>>>,
-    emit_node: RefCell<Option<EmitNode>>,
+    emit_node: RefCell<Option<Rc<RefCell<EmitNode>>>>,
     contextual_type: RefCell<Option<Rc<Type>>>,
     inference_context: RefCell<Option<Rc<InferenceContext>>>,
     flow_node: RefCell<Option<Rc<FlowNode>>>,
@@ -1741,11 +1742,15 @@ impl NodeInterface for BaseNode {
         *self.local_symbol.borrow_mut() = local_symbol;
     }
 
-    fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>> {
+    fn maybe_emit_node(&self) -> Option<Rc<RefCell<EmitNode>>> {
+        self.emit_node.borrow().clone()
+    }
+
+    fn maybe_emit_node_mut(&self) -> RefMut<Option<Rc<RefCell<EmitNode>>>> {
         self.emit_node.borrow_mut()
     }
 
-    fn set_emit_node(&self, emit_node: Option<EmitNode>) {
+    fn set_emit_node(&self, emit_node: Option<Rc<RefCell<EmitNode>>>) {
         *self.emit_node.borrow_mut() = emit_node;
     }
 
