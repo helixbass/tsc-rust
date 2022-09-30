@@ -73,15 +73,13 @@ impl TypeChecker {
                         0,
                         SignatureFlags::None,
                     ));
-                    let return_only_type: Rc<Type> = self
-                        .create_anonymous_type(
-                            node.maybe_symbol(),
-                            self.empty_symbols(),
-                            vec![return_only_signature],
-                            vec![],
-                            vec![],
-                        )
-                        .into();
+                    let return_only_type = self.create_anonymous_type(
+                        node.maybe_symbol(),
+                        self.empty_symbols(),
+                        vec![return_only_signature],
+                        vec![],
+                        vec![],
+                    );
                     let return_only_type_as_object_flags_type =
                         return_only_type.as_object_flags_type();
                     return_only_type_as_object_flags_type.set_object_flags(

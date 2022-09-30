@@ -1166,17 +1166,13 @@ pub fn create_type_checker(
         type_checker.make_function_type_mapper(PermissiveMapperFunc::default()),
     ));
 
-    type_checker.empty_object_type = Some(
-        type_checker
-            .create_anonymous_type(
-                Option::<&Symbol>::None,
-                type_checker.empty_symbols(),
-                vec![],
-                vec![],
-                vec![],
-            )
-            .into(),
-    );
+    type_checker.empty_object_type = Some(type_checker.create_anonymous_type(
+        Option::<&Symbol>::None,
+        type_checker.empty_symbols(),
+        vec![],
+        vec![],
+        vec![],
+    ));
     let empty_jsx_object_type = type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
@@ -1184,28 +1180,26 @@ pub fn create_type_checker(
         vec![],
         vec![],
     );
-    empty_jsx_object_type
-        .set_object_flags(empty_jsx_object_type.object_flags() | ObjectFlags::JsxAttributes);
-    type_checker.empty_jsx_object_type = Some(empty_jsx_object_type.into());
+    let empty_jsx_object_type_as_object_flags_type = empty_jsx_object_type.as_object_flags_type();
+    empty_jsx_object_type_as_object_flags_type.set_object_flags(
+        empty_jsx_object_type_as_object_flags_type.object_flags() | ObjectFlags::JsxAttributes,
+    );
+    type_checker.empty_jsx_object_type = Some(empty_jsx_object_type);
 
     let empty_type_literal_symbol =
         type_checker.create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type(), None);
     *empty_type_literal_symbol.maybe_members() =
         Some(Rc::new(RefCell::new(create_symbol_table(None))));
     type_checker.empty_type_literal_symbol = Some(empty_type_literal_symbol.into());
-    type_checker.empty_type_literal_type = Some(
-        type_checker
-            .create_anonymous_type(
-                Some(type_checker.empty_type_literal_symbol()),
-                type_checker.empty_symbols(),
-                vec![],
-                vec![],
-                vec![],
-            )
-            .into(),
-    );
+    type_checker.empty_type_literal_type = Some(type_checker.create_anonymous_type(
+        Some(type_checker.empty_type_literal_symbol()),
+        type_checker.empty_symbols(),
+        vec![],
+        vec![],
+        vec![],
+    ));
 
-    let empty_generic_type = type_checker.create_anonymous_type(
+    let empty_generic_type = type_checker.create_anonymous_type_returning_base_object_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
         vec![],
@@ -1223,43 +1217,33 @@ pub fn create_type_checker(
         vec![],
         vec![],
     );
-    any_function_type
-        .set_object_flags(any_function_type.object_flags() | ObjectFlags::NonInferrableType);
-    type_checker.any_function_type = Some(any_function_type.into());
+    let any_function_type_as_object_flags_type = any_function_type.as_object_flags_type();
+    any_function_type_as_object_flags_type.set_object_flags(
+        any_function_type_as_object_flags_type.object_flags() | ObjectFlags::NonInferrableType,
+    );
+    type_checker.any_function_type = Some(any_function_type);
 
-    type_checker.no_constraint_type = Some(
-        type_checker
-            .create_anonymous_type(
-                Option::<&Symbol>::None,
-                type_checker.empty_symbols(),
-                vec![],
-                vec![],
-                vec![],
-            )
-            .into(),
-    );
-    type_checker.circular_constraint_type = Some(
-        type_checker
-            .create_anonymous_type(
-                Option::<&Symbol>::None,
-                type_checker.empty_symbols(),
-                vec![],
-                vec![],
-                vec![],
-            )
-            .into(),
-    );
-    type_checker.resolving_default_type = Some(
-        type_checker
-            .create_anonymous_type(
-                Option::<&Symbol>::None,
-                type_checker.empty_symbols(),
-                vec![],
-                vec![],
-                vec![],
-            )
-            .into(),
-    );
+    type_checker.no_constraint_type = Some(type_checker.create_anonymous_type(
+        Option::<&Symbol>::None,
+        type_checker.empty_symbols(),
+        vec![],
+        vec![],
+        vec![],
+    ));
+    type_checker.circular_constraint_type = Some(type_checker.create_anonymous_type(
+        Option::<&Symbol>::None,
+        type_checker.empty_symbols(),
+        vec![],
+        vec![],
+        vec![],
+    ));
+    type_checker.resolving_default_type = Some(type_checker.create_anonymous_type(
+        Option::<&Symbol>::None,
+        type_checker.empty_symbols(),
+        vec![],
+        vec![],
+        vec![],
+    ));
 
     type_checker.marker_super_type = Some(
         type_checker

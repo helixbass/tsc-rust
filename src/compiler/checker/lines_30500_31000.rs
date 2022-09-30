@@ -896,15 +896,13 @@ impl TypeChecker {
                 .and_then(|js_symbol| js_symbol.maybe_exports().clone())
                 .filter(|js_symbol_exports| !(**js_symbol_exports).borrow().is_empty())
             {
-                let js_assignment_type: Rc<Type> = self
-                    .create_anonymous_type(
-                        js_symbol.as_deref(),
-                        js_symbol_exports,
-                        vec![],
-                        vec![],
-                        vec![],
-                    )
-                    .into();
+                let js_assignment_type = self.create_anonymous_type(
+                    js_symbol.as_deref(),
+                    js_symbol_exports,
+                    vec![],
+                    vec![],
+                    vec![],
+                );
                 let js_assignment_type_as_object_flags_type =
                     js_assignment_type.as_object_flags_type();
                 js_assignment_type_as_object_flags_type.set_object_flags(

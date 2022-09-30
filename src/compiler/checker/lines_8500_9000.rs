@@ -1042,15 +1042,13 @@ impl TypeChecker {
                 }
             }
         }
-        let type_: Rc<Type> = self
-            .create_anonymous_type(
-                Some(symbol),
-                Rc::new(RefCell::new(exports)),
-                vec![],
-                vec![],
-                vec![],
-            )
-            .into();
+        let type_ = self.create_anonymous_type(
+            Some(symbol),
+            Rc::new(RefCell::new(exports)),
+            vec![],
+            vec![],
+            vec![],
+        );
         let type_as_object_type = type_.as_object_type();
         type_as_object_type
             .set_object_flags(type_as_object_type.object_flags() | ObjectFlags::JSLiteral);
@@ -1283,21 +1281,19 @@ impl TypeChecker {
                     members.insert(name.clone(), s.clone());
                 }
             }
-            let result: Rc<Type> = self
-                .create_anonymous_type(
-                    if initial_size != members.len() {
-                        None
-                    } else {
-                        exported_type.maybe_symbol()
-                    },
-                    Rc::new(RefCell::new(members)),
-                    exported_type_as_resolved_type.call_signatures().clone(),
-                    exported_type_as_resolved_type
-                        .construct_signatures()
-                        .clone(),
-                    exported_type_as_resolved_type.index_infos().clone(),
-                )
-                .into();
+            let result = self.create_anonymous_type(
+                if initial_size != members.len() {
+                    None
+                } else {
+                    exported_type.maybe_symbol()
+                },
+                Rc::new(RefCell::new(members)),
+                exported_type_as_resolved_type.call_signatures().clone(),
+                exported_type_as_resolved_type
+                    .construct_signatures()
+                    .clone(),
+                exported_type_as_resolved_type.index_infos().clone(),
+            );
             let result_as_object_type = result.as_object_type();
             result_as_object_type.set_object_flags(
                 result_as_object_type.object_flags()

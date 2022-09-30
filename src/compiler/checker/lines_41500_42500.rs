@@ -629,15 +629,12 @@ impl TypeChecker {
 
         self.auto_array_type = Some(self.create_array_type(&self.auto_type(), None));
         if Rc::ptr_eq(&self.auto_array_type(), &self.empty_object_type()) {
-            self.auto_array_type = Some(Rc::new(
-                self.create_anonymous_type(
-                    Option::<&Symbol>::None,
-                    self.empty_symbols(),
-                    vec![],
-                    vec![],
-                    vec![],
-                )
-                .into(),
+            self.auto_array_type = Some(self.create_anonymous_type(
+                Option::<&Symbol>::None,
+                self.empty_symbols(),
+                vec![],
+                vec![],
+                vec![],
             ));
         }
 

@@ -40,15 +40,13 @@ impl TypeChecker {
         let members = self.transform_type_of_members(type_, |type_: &Type| {
             self.get_regular_type_of_object_literal(type_)
         });
-        let regular_new: Rc<Type> = self
-            .create_anonymous_type(
-                resolved.maybe_symbol(),
-                Rc::new(RefCell::new(members)),
-                resolved_as_resolved_type.call_signatures().clone(),
-                resolved_as_resolved_type.construct_signatures().clone(),
-                resolved_as_resolved_type.index_infos().clone(),
-            )
-            .into();
+        let regular_new = self.create_anonymous_type(
+            resolved.maybe_symbol(),
+            Rc::new(RefCell::new(members)),
+            resolved_as_resolved_type.call_signatures().clone(),
+            resolved_as_resolved_type.construct_signatures().clone(),
+            resolved_as_resolved_type.index_infos().clone(),
+        );
         regular_new.set_flags(resolved.flags());
         let regular_new_as_object_flags_type = regular_new.as_object_flags_type();
         regular_new_as_object_flags_type.set_object_flags(
@@ -181,25 +179,23 @@ impl TypeChecker {
                 }
             }
         }
-        let result: Rc<Type> = self
-            .create_anonymous_type(
-                type_.maybe_symbol(),
-                Rc::new(RefCell::new(members)),
-                vec![],
-                vec![],
-                same_map(
-                    &self.get_index_infos_of_type(type_),
-                    |info: &Rc<IndexInfo>, _| {
-                        Rc::new(self.create_index_info(
-                            info.key_type.clone(),
-                            self.get_widened_type(&info.type_),
-                            info.is_readonly,
-                            None,
-                        ))
-                    },
-                ),
-            )
-            .into();
+        let result = self.create_anonymous_type(
+            type_.maybe_symbol(),
+            Rc::new(RefCell::new(members)),
+            vec![],
+            vec![],
+            same_map(
+                &self.get_index_infos_of_type(type_),
+                |info: &Rc<IndexInfo>, _| {
+                    Rc::new(self.create_index_info(
+                        info.key_type.clone(),
+                        self.get_widened_type(&info.type_),
+                        info.is_readonly,
+                        None,
+                    ))
+                },
+            ),
+        );
         let result_as_object_flags_type = result.as_object_flags_type();
         result_as_object_flags_type.set_object_flags(
             result_as_object_flags_type.object_flags()
@@ -939,7 +935,6 @@ impl TypeChecker {
             vec![],
             index_infos,
         )
-        .into()
     }
 
     pub(super) fn infer_type_for_homomorphic_mapped_type(

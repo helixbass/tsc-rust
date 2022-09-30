@@ -182,19 +182,17 @@ impl TypeChecker {
                 Option::<()>::None
             },
         );
-        let result: Rc<Type> = self
-            .create_anonymous_type(
-                Option::<&Symbol>::None,
-                Rc::new(RefCell::new(members)),
-                vec![],
-                vec![],
-                if let Some(string_index_info) = string_index_info {
-                    vec![string_index_info]
-                } else {
-                    vec![]
-                },
-            )
-            .into();
+        let result = self.create_anonymous_type(
+            Option::<&Symbol>::None,
+            Rc::new(RefCell::new(members)),
+            vec![],
+            vec![],
+            if let Some(string_index_info) = string_index_info {
+                vec![string_index_info]
+            } else {
+                vec![]
+            },
+        );
         let result_as_object_type = result.as_object_type();
         result_as_object_type.set_object_flags(result_as_object_type.object_flags() | object_flags);
         if include_pattern_in_type {
@@ -456,15 +454,13 @@ impl TypeChecker {
                 }
                 let mut members = create_symbol_table(None);
                 members.insert(__String::new("exports".to_owned()), result);
-                return self
-                    .create_anonymous_type(
-                        Some(symbol),
-                        Rc::new(RefCell::new(members)),
-                        vec![],
-                        vec![],
-                        vec![],
-                    )
-                    .into();
+                return self.create_anonymous_type(
+                    Some(symbol),
+                    Rc::new(RefCell::new(members)),
+                    vec![],
+                    vec![],
+                    vec![],
+                );
             }
         }
         Debug_.assert_is_defined(&symbol.maybe_value_declaration(), None);

@@ -356,10 +356,8 @@ impl TypeChecker {
             ]))));
             *symbol.maybe_members() = Some(members.clone());
 
-            *self.maybe_deferred_global_import_meta_expression_type() = Some(
-                self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
-                    .into(),
-            );
+            *self.maybe_deferred_global_import_meta_expression_type() =
+                Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![]));
         }
         self.maybe_deferred_global_import_meta_expression_type()
             .clone()

@@ -57,15 +57,13 @@ impl TypeChecker {
                 &self.es_symbol_type(),
             )));
         }
-        let result: Rc<Type> = self
-            .create_anonymous_type(
-                node.maybe_symbol(),
-                Rc::new(RefCell::new(properties_table.clone())),
-                vec![],
-                vec![],
-                index_infos,
-            )
-            .into();
+        let result = self.create_anonymous_type(
+            node.maybe_symbol(),
+            Rc::new(RefCell::new(properties_table.clone())),
+            vec![],
+            vec![],
+            index_infos,
+        );
         let result_as_object_flags_type = result.as_object_flags_type();
         result_as_object_flags_type.set_object_flags(
             result_as_object_flags_type.object_flags()
@@ -479,13 +477,13 @@ impl TypeChecker {
                     );
                     spread = self.get_spread_type(
                         &spread,
-                        &Into::<Rc<Type>>::into(self.create_anonymous_type(
+                        &self.create_anonymous_type(
                             attributes.maybe_symbol(),
                             Rc::new(RefCell::new(child_prop_map)),
                             vec![],
                             vec![],
                             vec![],
-                        )),
+                        ),
                         attributes.maybe_symbol(),
                         object_flags,
                         false,
@@ -526,15 +524,13 @@ impl TypeChecker {
         attributes_table: Rc<RefCell<SymbolTable>>,
     ) -> Rc<Type> {
         *object_flags |= self.fresh_object_literal_flag;
-        let result: Rc<Type> = self
-            .create_anonymous_type(
-                attributes.maybe_symbol(),
-                attributes_table,
-                vec![],
-                vec![],
-                vec![],
-            )
-            .into();
+        let result = self.create_anonymous_type(
+            attributes.maybe_symbol(),
+            attributes_table,
+            vec![],
+            vec![],
+            vec![],
+        );
         let result_as_object_flags_type = result.as_object_flags_type();
         result_as_object_flags_type.set_object_flags(
             result_as_object_flags_type.object_flags()

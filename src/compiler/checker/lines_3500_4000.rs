@@ -302,16 +302,13 @@ impl TypeChecker {
         }
         let resolved_module_type = self.resolve_structured_type_members(module_type);
         let resolved_module_type_as_resolved_type = resolved_module_type.as_resolved_type();
-        result_links.type_ = Some(
-            self.create_anonymous_type(
-                Some(result.clone()),
-                resolved_module_type_as_resolved_type.members(),
-                vec![],
-                vec![],
-                resolved_module_type_as_resolved_type.index_infos().clone(),
-            )
-            .into(),
-        );
+        result_links.type_ = Some(self.create_anonymous_type(
+            Some(result.clone()),
+            resolved_module_type_as_resolved_type.members(),
+            vec![],
+            vec![],
+            resolved_module_type_as_resolved_type.index_infos().clone(),
+        ));
         result
     }
 

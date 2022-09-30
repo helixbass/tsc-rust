@@ -1132,16 +1132,13 @@ impl TypeChecker {
                                 } else {
                                     vec![]
                                 };
-                                return Some(
-                                    self.create_anonymous_type(
-                                        Option::<&Symbol>::None,
-                                        self.empty_symbols(),
-                                        vec![],
-                                        vec![],
-                                        index_info,
-                                    )
-                                    .into(),
-                                );
+                                return Some(self.create_anonymous_type(
+                                    Option::<&Symbol>::None,
+                                    self.empty_symbols(),
+                                    vec![],
+                                    vec![],
+                                    index_info,
+                                ));
                             }
                             return Some(self.any_type());
                         }

@@ -164,7 +164,6 @@ impl TypeChecker {
             vec![],
             vec![],
         )
-        .into()
     }
 
     pub(super) fn get_type_with_synthetic_default_only(

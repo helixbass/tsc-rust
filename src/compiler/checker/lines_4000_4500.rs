@@ -12,9 +12,9 @@ use crate::{
     get_declaration_of_kind, is_ambient_module, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
     is_namespace_reexport_declaration, is_umd_export_symbol, length, maybe_for_each,
-    node_is_present, push_if_unique_rc, some, BaseIntrinsicType, BaseObjectType, BaseType,
-    CharacterCodes, FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, Node,
-    NodeInterface, ObjectFlags, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
+    node_is_present, push_if_unique_rc, some, BaseInterfaceType, BaseIntrinsicType, BaseObjectType,
+    BaseType, CharacterCodes, FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName,
+    Node, NodeInterface, ObjectFlags, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
     SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
     SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeParameter, __String, get_source_file_of_node,
@@ -259,7 +259,11 @@ impl TypeChecker {
         // type_
     }
 
-    pub(super) fn create_anonymous_type<TSymbol: Borrow<Symbol>>(
+    // extracted this because it's easy to do BaseObjectType.into() -> Rc<Type> to incorrectly wrap
+    // this return type (should be wrapped in a BaseInterfaceType) (so only "knowing" consumers
+    // should call this instead of the "default" .create_anonymous_type() which does the correct
+    // wrapping for you)
+    pub(super) fn create_anonymous_type_returning_base_object_type<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,
         members: Rc<RefCell<SymbolTable>>,
@@ -276,6 +280,30 @@ impl TypeChecker {
             index_infos,
         );
         type_
+    }
+
+    pub(super) fn create_anonymous_type<TSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: Option<TSymbol>,
+        members: Rc<RefCell<SymbolTable>>,
+        call_signatures: Vec<Rc<Signature>>,
+        construct_signatures: Vec<Rc<Signature>>,
+        index_infos: Vec<Rc<IndexInfo>>,
+    ) -> Rc<Type> {
+        BaseInterfaceType::new(
+            self.create_anonymous_type_returning_base_object_type(
+                symbol,
+                members,
+                call_signatures,
+                construct_signatures,
+                index_infos,
+            ),
+            None,
+            None,
+            None,
+            None,
+        )
+        .into()
     }
 
     pub(super) fn get_resolved_type_without_abstract_construct_signatures(
@@ -299,15 +327,13 @@ impl TypeChecker {
         if type_construct_signatures.len() == construct_signatures.len() {
             return type_.type_wrapper();
         }
-        let type_copy: Rc<Type> = self
-            .create_anonymous_type(
-                type_.maybe_symbol(),
-                type_as_resolved_type.members(),
-                type_as_resolved_type.call_signatures().clone(),
-                construct_signatures,
-                type_as_resolved_type.index_infos().clone(),
-            )
-            .into();
+        let type_copy = self.create_anonymous_type(
+            type_.maybe_symbol(),
+            type_as_resolved_type.members(),
+            type_as_resolved_type.call_signatures().clone(),
+            construct_signatures,
+            type_as_resolved_type.index_infos().clone(),
+        );
         type_as_resolved_type
             .set_object_type_without_abstract_construct_signatures(Some(type_copy.clone()));
         type_copy

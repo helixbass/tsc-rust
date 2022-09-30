@@ -782,15 +782,13 @@ impl TypeChecker {
                 );
             }
         }
-        let result: Rc<Type> = self
-            .create_anonymous_type(
-                symbol,
-                Rc::new(RefCell::new(members)),
-                vec![],
-                vec![],
-                self.get_index_infos_of_type(&source),
-            )
-            .into();
+        let result = self.create_anonymous_type(
+            symbol,
+            Rc::new(RefCell::new(members)),
+            vec![],
+            vec![],
+            self.get_index_infos_of_type(&source),
+        );
         let result_as_interface_type = result.as_interface_type();
         result_as_interface_type.set_object_flags(
             result_as_interface_type.object_flags() | ObjectFlags::ObjectRestType,

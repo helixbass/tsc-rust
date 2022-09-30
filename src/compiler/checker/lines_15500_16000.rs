@@ -956,15 +956,13 @@ impl TypeChecker {
                 members.insert(prop.escaped_name().clone(), result);
             }
         }
-        let spread: Rc<Type> = self
-            .create_anonymous_type(
-                type_.maybe_symbol(),
-                Rc::new(RefCell::new(members)),
-                vec![],
-                vec![],
-                self.get_index_infos_of_type(type_),
-            )
-            .into();
+        let spread = self.create_anonymous_type(
+            type_.maybe_symbol(),
+            Rc::new(RefCell::new(members)),
+            vec![],
+            vec![],
+            self.get_index_infos_of_type(type_),
+        );
         let spread_as_object_type = spread.as_object_type();
         spread_as_object_type.set_object_flags(
             spread_as_object_type.object_flags()
@@ -1150,17 +1148,15 @@ impl TypeChecker {
             }
         }
 
-        let spread: Rc<Type> = self
-            .create_anonymous_type(
-                symbol.as_deref(),
-                Rc::new(RefCell::new(members)),
-                vec![],
-                vec![],
-                same_map(&index_infos, |info: &Rc<IndexInfo>, _| {
-                    self.get_index_info_with_readonly(info, readonly)
-                }),
-            )
-            .into();
+        let spread = self.create_anonymous_type(
+            symbol.as_deref(),
+            Rc::new(RefCell::new(members)),
+            vec![],
+            vec![],
+            same_map(&index_infos, |info: &Rc<IndexInfo>, _| {
+                self.get_index_info_with_readonly(info, readonly)
+            }),
+        );
         let spread_as_object_type = spread.as_object_type();
         spread_as_object_type.set_object_flags(
             spread_as_object_type.object_flags()

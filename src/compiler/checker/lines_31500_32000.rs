@@ -288,7 +288,6 @@ impl TypeChecker {
         ]))));
         *symbol.maybe_members() = Some(members.clone());
         self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
-            .into()
     }
 
     pub(super) fn get_return_type_from_body(
