@@ -850,7 +850,7 @@ impl TypeChecker {
                         },
                     );
                 }
-                SyntaxKind::KeyOfKeyword => {
+                SyntaxKind::ReadonlyKeyword => {
                     links.borrow_mut().resolved_type =
                         Some(self.get_type_from_type_node_(&node_as_type_operator_node.type_));
                 }
