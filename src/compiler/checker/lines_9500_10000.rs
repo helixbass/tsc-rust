@@ -740,7 +740,10 @@ impl TypeChecker {
                 None,
                 None,
             );
-            if let Some(extended) = extended.as_ref() {
+            if let Some(extended) = extended
+                .as_ref()
+                .filter(|extended| !Rc::ptr_eq(&base_type_node, *extended))
+            {
                 Debug_.assert(
                     extended
                         .as_expression_with_type_arguments()
