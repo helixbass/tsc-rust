@@ -129,6 +129,7 @@ impl Printer {
                 SyntaxKind::UnionType => return self.emit_union_type(node),
                 SyntaxKind::ConditionalType => return self.emit_conditional_type(node),
                 SyntaxKind::TypeOperator => return self.emit_type_operator(node),
+                SyntaxKind::IndexedAccessType => return self.emit_indexed_access_type(node),
                 SyntaxKind::LiteralType => return self.emit_literal_type(node),
                 _ => (),
             }
@@ -232,6 +233,11 @@ impl Printer {
             Some(&*node_as_type_operator_node.type_),
             // parenthesizer.parenthesizeMemberOfElementType
         );
+    }
+
+    fn emit_indexed_access_type(&mut self, node: &Node /*IndexedAccessType*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
     }
 
     fn emit_literal_type(&mut self, node: &Node /*LiteralTypeNode*/) {
