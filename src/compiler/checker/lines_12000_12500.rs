@@ -612,11 +612,7 @@ impl TypeChecker {
         vec![]
     }
 
-    pub(super) fn get_signatures_of_type(
-        &self,
-        type_: &Type,
-        kind: SignatureKind,
-    ) -> Vec<Rc<Signature>> {
+    pub fn get_signatures_of_type(&self, type_: &Type, kind: SignatureKind) -> Vec<Rc<Signature>> {
         self.get_signatures_of_structured_type(&self.get_reduced_apparent_type(type_), kind)
     }
 

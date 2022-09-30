@@ -20,10 +20,10 @@ use crate::{
     BaseSymbol, BaseType, CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface,
     DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, MapLike, ModifierFlags,
-    NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
-    PrefixUnaryExpression, Signature, SignatureFlags, SourceFileLike, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TransformFlags, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, __String,
+    NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, Signature,
+    SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransformFlags, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface, __String,
 };
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
@@ -415,7 +415,12 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
 }
 
 pub fn type_has_call_or_construct_signatures(type_: &Type, checker: &TypeChecker) -> bool {
-    unimplemented!()
+    !checker
+        .get_signatures_of_type(type_, SignatureKind::Call)
+        .is_empty()
+        || !checker
+            .get_signatures_of_type(type_, SignatureKind::Construct)
+            .is_empty()
 }
 
 pub fn is_umd_export_symbol<TSymbol: Borrow<Symbol>>(symbol: Option<TSymbol>) -> bool {
