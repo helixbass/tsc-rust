@@ -148,7 +148,7 @@ impl TypeChecker {
         let result: Rc<Type> = IntersectionType::new(result).into();
         *result.maybe_alias_symbol_mut() =
             alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
-        *result.maybe_alias_type_arguments() = alias_type_arguments.map(ToOwned::to_owned);
+        *result.maybe_alias_type_arguments_mut() = alias_type_arguments.map(ToOwned::to_owned);
         result
     }
 

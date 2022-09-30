@@ -407,7 +407,7 @@ impl TypeChecker {
         *result.maybe_alias_symbol_mut() = alias_symbol
             .clone()
             .or_else(|| type_.maybe_alias_symbol().clone());
-        *result.maybe_alias_type_arguments() = if alias_symbol.is_some() {
+        *result.maybe_alias_type_arguments_mut() = if alias_symbol.is_some() {
             alias_type_arguments.map(ToOwned::to_owned)
         } else {
             self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(&mapper))

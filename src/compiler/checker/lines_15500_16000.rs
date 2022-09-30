@@ -66,7 +66,7 @@ impl TypeChecker {
             let type_: Rc<Type> = MappedType::new(type_, node.node_wrapper()).into();
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
             *type_.maybe_alias_symbol_mut() = alias_symbol.clone();
-            *type_.maybe_alias_type_arguments() =
+            *type_.maybe_alias_type_arguments_mut() =
                 self.get_type_arguments_for_alias_symbol(alias_symbol);
             links.borrow_mut().resolved_type = Some(type_.clone());
             self.get_constraint_type_from_mapped_type(&type_);
@@ -337,7 +337,7 @@ impl TypeChecker {
             *result.maybe_alias_symbol_mut() = alias_symbol
                 .clone()
                 .or_else(|| (*root).borrow().alias_symbol.clone());
-            *result.maybe_alias_type_arguments() = if alias_symbol.is_some() {
+            *result.maybe_alias_type_arguments_mut() = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
                 self.instantiate_types(
@@ -823,7 +823,7 @@ impl TypeChecker {
                     .create_object_type(ObjectFlags::Anonymous, node.maybe_symbol())
                     .into();
                 *type_.maybe_alias_symbol_mut() = alias_symbol.clone();
-                *type_.maybe_alias_type_arguments() =
+                *type_.maybe_alias_type_arguments_mut() =
                     self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
                 if is_jsdoc_type_literal(node) && node.as_jsdoc_type_literal().is_array_type {
                     type_ = self.create_array_type(&type_, None);

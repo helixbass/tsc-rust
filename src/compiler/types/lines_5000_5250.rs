@@ -606,7 +606,8 @@ pub trait TypeInterface {
     fn maybe_pattern(&self) -> RefMut<Option<Rc<Node /*DestructuringPattern*/>>>;
     fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>>;
     fn maybe_alias_symbol_mut(&self) -> RefMut<Option<Rc<Symbol>>>;
-    fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+    fn maybe_alias_type_arguments(&self) -> Option<Vec<Rc<Type>>>;
+    fn maybe_alias_type_arguments_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
     fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool>;
     fn set_alias_type_arguments_contains_marker(
         &self,
@@ -767,7 +768,11 @@ impl TypeInterface for BaseType {
         self.alias_symbol.borrow_mut()
     }
 
-    fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    fn maybe_alias_type_arguments(&self) -> Option<Vec<Rc<Type>>> {
+        self.alias_type_arguments.borrow().clone()
+    }
+
+    fn maybe_alias_type_arguments_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.alias_type_arguments.borrow_mut()
     }
 

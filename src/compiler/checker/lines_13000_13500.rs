@@ -398,7 +398,7 @@ impl TypeChecker {
         let type_: Rc<Type> = TypeReference::new(type_, target.type_wrapper(), None).into();
         *type_.as_type_reference().maybe_node_mut() = Some(node.node_wrapper());
         *type_.maybe_alias_symbol_mut() = alias_symbol;
-        *type_.maybe_alias_type_arguments() = alias_type_arguments;
+        *type_.maybe_alias_type_arguments_mut() = alias_type_arguments;
         type_
     }
 
@@ -688,7 +688,7 @@ impl TypeChecker {
                 );
                 let error_type = error_type.as_ref().unwrap();
                 *error_type.maybe_alias_symbol_mut() = Some(symbol.symbol_wrapper());
-                *error_type.maybe_alias_type_arguments() = type_arguments;
+                *error_type.maybe_alias_type_arguments_mut() = type_arguments;
                 self.error_types().insert(id, error_type.clone());
             }
             return error_type.unwrap();

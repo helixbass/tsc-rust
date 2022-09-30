@@ -935,7 +935,7 @@ impl TypeChecker {
             type_ = Some(union_type.into());
             let type_ = type_.as_ref().unwrap();
             *type_.maybe_alias_symbol_mut() = alias_symbol;
-            *type_.maybe_alias_type_arguments() = alias_type_arguments.map(ToOwned::to_owned);
+            *type_.maybe_alias_type_arguments_mut() = alias_type_arguments.map(ToOwned::to_owned);
             // TODO: also treat union type as intrinsic type with intrinsic_name = "boolean" if
             // is_boolean - should expose maybe_intrinsic_name on UnionType or something?
             self.union_types().insert(id, type_.clone());
