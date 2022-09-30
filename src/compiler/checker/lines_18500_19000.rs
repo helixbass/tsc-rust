@@ -1662,7 +1662,7 @@ impl CheckTypeRelatedTo {
             {
                 let variances = self
                     .type_checker
-                    .get_variances(&source.as_type_reference().target);
+                    .get_variances(&source.as_type_reference_interface().target());
                 if variances.is_empty() {
                     return Ternary::Unknown;
                 }
