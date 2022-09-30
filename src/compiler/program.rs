@@ -26,24 +26,24 @@ use crate::{
     has_extension, has_js_file_extension, is_declaration_file_name, is_import_call,
     is_import_equals_declaration, is_rooted_disk_path, is_watch_set, map_defined, maybe_for_each,
     missing_file_modified_time, node_modules_path_part, normalize_path, options_have_changes,
-    out_file, remove_file_extension, resolve_config_file_project_name, resolve_module_name,
-    resolve_type_reference_directive, source_file_affecting_compiler_options, stable_sort,
-    string_contains, supported_js_extensions_flat, to_path as to_path_helper,
-    walk_up_parenthesized_expressions, write_file_ensuring_directories, AutomaticTypeDirectiveFile,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
-    ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
-    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
-    Extension, FileIncludeKind, FileIncludeReason, LibFile, LineAndCharacter, ModuleKind,
-    ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
-    NodeInterface, PackageId, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path,
-    Program, ProjectReference, RedirectTargetsMap, ReferencedFile, ResolvedConfigFileName,
-    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, SourceFileLike,
-    SourceOfProjectReferenceRedirect, StringOrRcNode, StructureIsReused, SymlinkCache, System,
-    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    WriteFileCallback,
+    out_file, package_id_to_string, remove_file_extension, resolve_config_file_project_name,
+    resolve_module_name, resolve_type_reference_directive, source_file_affecting_compiler_options,
+    stable_sort, string_contains, supported_js_extensions_flat, to_file_name_lower_case,
+    to_path as to_path_helper, walk_up_parenthesized_expressions, write_file_ensuring_directories,
+    AutomaticTypeDirectiveFile, CancellationTokenDebuggable, Comparison, CompilerHost,
+    CompilerOptions, CompilerOptionsBuilder, ConfigFileDiagnosticsReporter, CreateProgramOptions,
+    CustomTransformers, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
+    DirectoryStructureHost, EmitResult, Extension, FileIncludeKind, FileIncludeReason, LibFile,
+    LineAndCharacter, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap,
+    NamedDeclarationInterface, Node, NodeInterface, PackageId, PackageJsonInfoCache,
+    ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
+    RedirectTargetsMap, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
+    ScriptTarget, SortedArray, SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect,
+    StringOrRcNode, StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -901,6 +901,15 @@ pub fn get_config_file_parsing_diagnostics(
     vec![]
 }
 
+pub fn get_implied_node_format_for_file(
+    file_name: &Path,
+    package_json_info_cache: Option<Rc<dyn PackageJsonInfoCache>>,
+    host: &dyn ModuleResolutionHost,
+    options: &CompilerOptions,
+) -> Option<ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/> {
+    unimplemented!()
+}
+
 fn should_program_create_new_source_files(
     program: Option<&Program>,
     new_options: &CompilerOptions,
@@ -1337,6 +1346,10 @@ impl Program {
 
     pub(super) fn maybe_skip_default_lib(&self) -> Option<bool> {
         self.skip_default_lib.get()
+    }
+
+    pub(super) fn set_skip_default_lib(&self, skip_default_lib: Option<bool>) {
+        self.skip_default_lib.set(skip_default_lib);
     }
 
     pub(super) fn default_library_path(&self) -> Ref<String> {
@@ -1971,7 +1984,15 @@ impl Program {
     ) {
         self.get_source_file_from_reference_worker(
             file_name,
-            |file_name| self.find_source_file(file_name),
+            |file_name| {
+                self.find_source_file(
+                    file_name,
+                    is_default_lib,
+                    ignore_no_default_lib,
+                    reason,
+                    package_id,
+                )
+            },
             Some(
                 |diagnostic: &DiagnosticMessage, args: Option<Vec<String>>| {
                     self.add_file_preprocessing_file_explaining_diagnostic(
@@ -1992,6 +2013,18 @@ impl Program {
         existing_file: &Node, /*SourceFile*/
         reason: &FileIncludeReason,
     ) {
+        unimplemented!()
+    }
+
+    pub fn create_redirect_source_file(
+        &self,
+        redirect_target: &Node, /*SourceFile*/
+        unredirected: &Node,    /*SourceFile*/
+        file_name: &str,
+        path: &Path,
+        resolved_path: &Path,
+        original_file_name: &str,
+    ) -> Rc<Node /*SourceFile*/> {
         unimplemented!()
     }
 
@@ -2081,7 +2114,7 @@ impl Program {
                         Some(&**self.current_directory()),
                     );
                     let input_absolute_path = get_normalized_absolute_path_without_root(
-                        file_name,
+                        &file_name,
                         Some(&**self.current_directory()),
                     );
                     if checked_absolute_path != input_absolute_path {
@@ -2104,7 +2137,7 @@ impl Program {
                     .insert(file.as_source_file().path().to_string(), false);
                 if self.options.no_resolve != Some(true) {
                     self.process_referenced_files(file, is_default_lib);
-                    self.process_type_reference_directives();
+                    self.process_type_reference_directives(file);
                 }
                 if self.options.no_lib != Some(true) {
                     self.process_lib_reference_directives(file);
@@ -2131,25 +2164,143 @@ impl Program {
             return file;
         }
 
+        let mut redirected_path: Option<Path> = None;
+        if is_referenced_file(Some(reason)) && !self.use_source_of_project_reference_redirect() {
+            let redirect_project = self.get_project_reference_redirect_project(&file_name);
+            if let Some(redirect_project) = redirect_project.as_ref() {
+                if matches!(
+                    out_file(&redirect_project.command_line.options),
+                    Some(out_file) if !out_file.is_empty()
+                ) {
+                    return None;
+                }
+                let redirect = self.get_project_reference_output_name(redirect_project, &file_name);
+                file_name = redirect.clone();
+                redirected_path = Some(self.to_path(&redirect));
+            }
+        }
+
         let file = self.host().get_source_file(
-            file_name,
+            &file_name,
             get_emit_script_target(&self.options),
             // TODO: this is wrong
-            None,
-            None,
+            Some(&mut |host_error_message| {
+                self.add_file_preprocessing_file_explaining_diagnostic(
+                    Option::<&Node>::None,
+                    reason,
+                    &Diagnostics::Cannot_read_file_0_Colon_1,
+                    Some(vec![file_name.clone(), host_error_message.to_owned()]),
+                );
+            }),
+            Some(self.should_create_new_source_file()),
         );
 
-        file.map(|file| {
+        if let Some(package_id) = package_id {
+            let package_id_key = package_id_to_string(package_id);
+            let file_from_package_id = self
+                .package_id_to_source_file()
+                .get(&package_id_key)
+                .cloned();
+            if let Some(file_from_package_id) = file_from_package_id.as_ref() {
+                let dup_file = self.create_redirect_source_file(
+                    file_from_package_id,
+                    file.as_ref().unwrap(),
+                    &file_name,
+                    &path,
+                    &self.to_path(&file_name),
+                    original_file_name,
+                );
+                self.redirect_targets_map().add(
+                    file_from_package_id.as_source_file().path().clone(),
+                    file_name.clone(),
+                );
+                self.add_file_to_files_by_name(Some(&*dup_file), &path, redirected_path.as_ref());
+                self.add_file_include_reason(Some(&*dup_file), reason);
+                self.source_file_to_package_name()
+                    .insert(path.clone(), package_id.name.clone());
+                self.processing_other_files
+                    .borrow_mut()
+                    .as_mut()
+                    .unwrap()
+                    .push(dup_file.clone());
+                return Some(dup_file);
+            } else if let Some(file) = file.as_ref() {
+                self.package_id_to_source_file()
+                    .insert(package_id_key, file.clone());
+                self.source_file_to_package_name()
+                    .insert(path.clone(), package_id.name.clone());
+            }
+        }
+        self.add_file_to_files_by_name(file.as_deref(), &path, redirected_path.as_ref());
+
+        if let Some(file) = file.as_ref() {
+            self.source_files_found_searching_node_modules()
+                .insert(path.to_string(), self.current_node_modules_depth() > 0);
             let file_as_source_file = file.as_source_file();
-            file_as_source_file.set_file_name(file_name.to_string());
-            file_as_source_file.set_path(path);
-            self.processing_other_files
-                .borrow_mut()
-                .as_mut()
-                .unwrap()
-                .push(file.clone());
-            file
-        })
+            file_as_source_file.set_file_name(file_name.clone());
+            file_as_source_file.set_path(path.clone());
+            file_as_source_file.set_resolved_path(Some(self.to_path(&file_name)));
+            file_as_source_file.set_original_file_name(Some(original_file_name.to_owned()));
+            file_as_source_file.set_implied_node_format(get_implied_node_format_for_file(
+                file_as_source_file.maybe_resolved_path().as_ref().unwrap(),
+                self.maybe_module_resolution_cache()
+                    .as_ref()
+                    .map(|module_resolution_cache| {
+                        module_resolution_cache.get_package_json_info_cache()
+                    }),
+                self.host().as_dyn_module_resolution_host(),
+                &self.options,
+            ));
+            self.add_file_include_reason(Some(&**file), reason);
+
+            if CompilerHost::use_case_sensitive_file_names(&*self.host()) {
+                let path_lower_case = to_file_name_lower_case(&path);
+                let existing_file = self
+                    .files_by_name_ignore_case()
+                    .get(&path_lower_case)
+                    .cloned();
+                if let Some(existing_file) = existing_file.as_ref() {
+                    self.report_file_names_differ_only_in_casing_error(
+                        &file_name,
+                        existing_file,
+                        reason,
+                    );
+                } else {
+                    self.files_by_name_ignore_case()
+                        .insert(path_lower_case, file.clone());
+                }
+            }
+
+            self.set_skip_default_lib(Some(
+                self.maybe_skip_default_lib() == Some(true)
+                    || file_as_source_file.has_no_default_lib() && !ignore_no_default_lib,
+            ));
+
+            if self.options.no_resolve != Some(true) {
+                self.process_referenced_files(file, is_default_lib);
+                self.process_type_reference_directives(file);
+            }
+            if self.options.no_lib != Some(true) {
+                self.process_lib_reference_directives(file);
+            }
+
+            self.process_imported_modules(file);
+
+            if is_default_lib {
+                self.processing_default_lib_files
+                    .borrow_mut()
+                    .as_mut()
+                    .unwrap()
+                    .push(file.clone());
+            } else {
+                self.processing_other_files
+                    .borrow_mut()
+                    .as_mut()
+                    .unwrap()
+                    .push(file.clone());
+            }
+        }
+        file
     }
 
     fn add_file_include_reason<TFile: Borrow<Node>>(
@@ -2170,6 +2321,21 @@ impl Program {
     }
 
     pub fn get_project_reference_redirect_(&self, file_name: &str) -> Option<String> {
+        unimplemented!()
+    }
+
+    pub fn get_project_reference_redirect_project(
+        &self,
+        file_name: &str,
+    ) -> Option<Rc<ResolvedProjectReference>> {
+        unimplemented!()
+    }
+
+    pub fn get_project_reference_output_name(
+        &self,
+        referenced_project: &ResolvedProjectReference,
+        file_name: &str,
+    ) -> String {
         unimplemented!()
     }
 

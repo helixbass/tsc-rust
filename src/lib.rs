@@ -156,7 +156,7 @@ use compiler::module_name_resolver::{
 pub use compiler::module_name_resolver::{
     create_module_resolution_cache, create_type_reference_directive_resolution_cache,
     get_automatic_type_directive_names, node_module_name_resolver, resolve_module_name,
-    resolve_type_reference_directive, ModeAwareCache, ModuleResolutionCache,
+    resolve_type_reference_directive, ModeAwareCache, ModuleResolutionCache, PackageJsonInfoCache,
     TypeReferenceDirectiveResolutionCache,
 };
 pub use compiler::module_specifiers;

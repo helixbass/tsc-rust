@@ -406,6 +406,10 @@ impl SourceFile {
         self.implied_node_format.get()
     }
 
+    pub(crate) fn set_implied_node_format(&self, implied_node_format: Option<ModuleKind>) {
+        self.implied_node_format.set(implied_node_format);
+    }
+
     pub(crate) fn maybe_external_module_indicator(&self) -> Option<Rc<Node>> {
         self.external_module_indicator.borrow().clone()
     }
