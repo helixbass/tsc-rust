@@ -2317,7 +2317,31 @@ impl Program {
         path: &Path,
         redirected_path: Option<&Path>,
     ) {
-        unimplemented!()
+        let file = file.map(|file| file.borrow().node_wrapper());
+        if let Some(redirected_path) = redirected_path {
+            self.files_by_name().insert(
+                redirected_path.to_string(),
+                match file.as_ref() {
+                    None => FilesByNameValue::Undefined,
+                    Some(file) => FilesByNameValue::SourceFile(file.clone()),
+                },
+            );
+            self.files_by_name().insert(
+                path.to_string(),
+                match file.as_ref() {
+                    None => FilesByNameValue::False,
+                    Some(file) => FilesByNameValue::SourceFile(file.clone()),
+                },
+            );
+        } else {
+            self.files_by_name().insert(
+                path.to_string(),
+                match file.as_ref() {
+                    None => FilesByNameValue::Undefined,
+                    Some(file) => FilesByNameValue::SourceFile(file.clone()),
+                },
+            );
+        }
     }
 
     pub fn get_project_reference_redirect_(&self, file_name: &str) -> Option<String> {
