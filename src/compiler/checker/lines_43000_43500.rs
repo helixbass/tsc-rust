@@ -17,10 +17,10 @@ use crate::{
     is_string_or_numeric_literal_like, is_var_const, is_variable_declaration,
     is_variable_declaration_in_variable_statement, last, token_to_string,
     walk_up_parenthesized_types, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformation, Diagnostics, FunctionFlags, HasInitializerInterface,
-    HasTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeFlags,
-    NodeInterface, ReadonlyTextRange, ScriptTarget, SyntaxKind, TypeChecker, TypeFlags,
-    TypeInterface, __String,
+    DiagnosticRelatedInformation, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, HasQuestionTokenInterface, HasTypeInterface, ModifierFlags,
+    ModuleKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ReadonlyTextRange,
+    ScriptTarget, SyntaxKind, TypeChecker, TypeFlags, TypeInterface, __String,
 };
 
 impl TypeChecker {
@@ -573,11 +573,11 @@ impl TypeChecker {
             return true;
         }
 
-        let node_as_function_like_declaration = node.as_function_like_declaration();
         if node.kind() == SyntaxKind::MethodDeclaration {
+            let node_as_method_declaration = node.as_method_declaration();
             if node.parent().kind() == SyntaxKind::ObjectLiteralExpression {
                 if matches!(
-                    node_as_function_like_declaration.maybe_modifiers().as_ref(),
+                    node_as_method_declaration.maybe_modifiers().as_ref(),
                     Some(node_modifiers) if !(
                         node_modifiers.len() == 1 && first(&*node_modifiers).kind() == SyntaxKind::AsyncKeyword
                     )
@@ -588,18 +588,18 @@ impl TypeChecker {
                         None,
                     );
                 } else if self.check_grammar_for_invalid_question_mark(
-                    node_as_function_like_declaration.maybe_question_token(),
+                    node_as_method_declaration.maybe_question_token(),
                     &Diagnostics::An_object_member_cannot_be_declared_optional,
                 ) {
                     return true;
                 } else if self.check_grammar_for_invalid_exclamation_token(
-                    node_as_function_like_declaration
+                    node_as_method_declaration
                         .maybe_exclamation_token()
                         .as_deref(),
                     &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
                 ) {
                     return true;
-                } else if node_as_function_like_declaration.maybe_body().is_none() {
+                } else if node_as_method_declaration.maybe_body().is_none() {
                     return self.grammar_error_at_pos(
                         node,
                         node.end() - 1,
@@ -614,37 +614,38 @@ impl TypeChecker {
             }
         }
 
+        let node_as_named_declaration = node.as_named_declaration();
         if is_class_like(&node.parent()) {
             if self.language_version < ScriptTarget::ES2015
-                && is_private_identifier(&node_as_function_like_declaration.name())
+                && is_private_identifier(&node_as_named_declaration.name())
             {
                 return self.grammar_error_on_node(
-                    &node_as_function_like_declaration.name(),
+                    &node_as_named_declaration.name(),
                     &Diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
                     None,
                 );
             }
             if node.flags().intersects(NodeFlags::Ambient) {
                 return self.check_grammar_for_invalid_dynamic_name(
-                    &node_as_function_like_declaration.name(),
+                    &node_as_named_declaration.name(),
                     &Diagnostics::A_computed_property_name_in_an_ambient_context_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
                 );
             } else if node.kind() == SyntaxKind::MethodDeclaration
-                && node_as_function_like_declaration.maybe_body().is_none()
+                && node.as_method_declaration().maybe_body().is_none()
             {
                 return self.check_grammar_for_invalid_dynamic_name(
-                    &node_as_function_like_declaration.name(),
+                    &node_as_named_declaration.name(),
                     &Diagnostics::A_computed_property_name_in_a_method_overload_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
                 );
             }
         } else if node.parent().kind() == SyntaxKind::InterfaceDeclaration {
             return self.check_grammar_for_invalid_dynamic_name(
-                &node_as_function_like_declaration.name(),
+                &node_as_named_declaration.name(),
                 &Diagnostics::A_computed_property_name_in_an_interface_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
             );
         } else if node.parent().kind() == SyntaxKind::TypeLiteral {
             return self.check_grammar_for_invalid_dynamic_name(
-                &node_as_function_like_declaration.name(),
+                &node_as_named_declaration.name(),
                 &Diagnostics::A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type
             );
         }
