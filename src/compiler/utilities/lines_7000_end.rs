@@ -106,7 +106,17 @@ pub fn array_is_homogeneous<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
     array: &[TItem],
     mut comparer: TComparer, /*= equateValues*/
 ) -> bool {
-    unimplemented!()
+    if array.len() < 2 {
+        return true;
+    }
+    let first = &array[0];
+    for i in 1..array.len() {
+        let target = &array[i];
+        if !comparer(first, target) {
+            return false;
+        }
+    }
+    true
 }
 
 pub fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
