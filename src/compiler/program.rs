@@ -1445,6 +1445,10 @@ impl Program {
         self.symlinks.borrow_mut()
     }
 
+    pub(super) fn file_reasons(&self) -> RefMut<MultiMap<Path, FileIncludeReason>> {
+        self.file_reasons.borrow_mut()
+    }
+
     pub(super) fn resolved_type_reference_directives(
         &self,
     ) -> RefMut<HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>> {
@@ -2365,7 +2369,11 @@ impl Program {
         file: Option<TFile /*SourceFile*/>,
         reason: &FileIncludeReason,
     ) {
-        unimplemented!()
+        if let Some(file) = file {
+            let file = file.borrow();
+            self.file_reasons()
+                .add(file.as_source_file().path().clone(), reason.clone());
+        }
     }
 
     fn add_file_to_files_by_name<TFile: Borrow<Node>>(
