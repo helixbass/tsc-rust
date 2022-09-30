@@ -22,12 +22,12 @@ use crate::{
     is_property_access_expression, is_property_signature, is_qualified_name,
     is_require_variable_declaration, is_shorthand_ambient_module_symbol, is_source_file,
     is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
-    is_valid_type_only_alias_use_site, is_variable_declaration, map, should_preserve_const_enums,
-    some, AssignmentDeclarationKind, Diagnostic, Diagnostics, Extension,
-    FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, InterfaceTypeInterface,
-    InternalSymbolName, ModifierFlags, ModuleKind, NodeFlags, SyntaxKind, TypeFlags, TypeInterface,
-    __String, declaration_name_to_string, unescape_leading_underscores, Debug_, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    is_valid_type_only_alias_use_site, is_variable_declaration, map, maybe_is_class_like,
+    should_preserve_const_enums, some, AssignmentDeclarationKind, Diagnostic, Diagnostics,
+    Extension, FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface,
+    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, ModuleKind, NodeFlags, SyntaxKind,
+    TypeFlags, TypeInterface, __String, declaration_name_to_string, unescape_leading_underscores,
+    Debug_, Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -185,7 +185,7 @@ impl TypeChecker {
         let container = get_this_container(error_location, false);
         let mut location: Option<Rc<Node>> = Some(container.clone());
         while let Some(location_present) = location {
-            if is_class_like(&location_present.parent()) {
+            if maybe_is_class_like(location_present.maybe_parent()) {
                 let class_symbol = self.get_symbol_of_node(&location_present.parent());
                 if class_symbol.is_none() {
                     break;

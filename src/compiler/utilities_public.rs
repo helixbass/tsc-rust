@@ -1536,11 +1536,18 @@ pub fn is_class_element(node: &Node) -> bool {
 }
 
 pub fn is_class_like(node: &Node) -> bool {
-    /*node &&*/
     matches!(
         node.kind(),
         SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
     )
+}
+
+pub fn maybe_is_class_like<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+    node.is_some()
+        && matches!(
+            node.unwrap().borrow().kind(),
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+        )
 }
 
 pub fn is_accessor(node: &Node) -> bool {

@@ -555,7 +555,7 @@ use compiler::utilities_public::{
     is_property_access_or_qualified_name_or_import_type_node, is_scope_marker, is_statement,
     is_statement_but_not_declaration, is_statement_or_block, is_string_literal_or_jsx_expression,
     is_template_literal_kind, is_type_reference_type, is_unary_expression,
-    is_unary_expression_with_write, needs_scope_marker, node_has_name,
+    is_unary_expression_with_write, maybe_is_class_like, needs_scope_marker, node_has_name,
     supported_locale_directories, text_range_contains_position_inclusive,
 };
 pub use compiler::visitor_public::{visit_each_child, visit_node, visit_nodes};
