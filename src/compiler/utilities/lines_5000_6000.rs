@@ -13,8 +13,8 @@ use crate::{
     entity_name_to_string, file_extension_is, find, get_combined_modifier_flags,
     get_element_or_property_access_name, get_property_name_for_property_name_node, get_sys,
     has_syntactic_modifier, is_assignment_operator, is_bindable_static_access_expression,
-    is_element_access_expression, is_entity_name_expression, is_identifier, is_jsdoc_member_name,
-    is_property_access_expression, is_property_name, is_qualified_name,
+    is_class_like, is_element_access_expression, is_entity_name_expression, is_identifier,
+    is_jsdoc_member_name, is_property_access_expression, is_property_name, is_qualified_name,
     parse_config_file_text_to_json, unescape_leading_underscores,
     walk_up_parenthesized_expressions, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode,
     BaseSymbol, BaseType, CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface,
@@ -403,7 +403,15 @@ fn reverse_access_kind(a: AccessKind) -> AccessKind {
 pub fn get_class_like_declaration_of_symbol(
     symbol: &Symbol,
 ) -> Option<Rc<Node /*ClassLikeDeclaration*/>> {
-    unimplemented!()
+    symbol
+        .maybe_declarations()
+        .as_ref()
+        .and_then(|symbol_declarations| {
+            symbol_declarations
+                .into_iter()
+                .find(|declaration| is_class_like(declaration))
+                .cloned()
+        })
 }
 
 pub fn get_object_flags(type_: &Type) -> ObjectFlags {
