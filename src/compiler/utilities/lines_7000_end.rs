@@ -8,10 +8,10 @@ use crate::{
     find_ancestor, first_or_undefined, for_each_child_recursively,
     get_effective_type_annotation_node, has_jsdoc_nodes, has_syntactic_modifier,
     is_expression_node, is_identifier, is_jsdoc_node, is_part_of_type_query,
-    is_shorthand_property_assignment, parameter_is_this_keyword, some, CompilerOptions,
-    FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
-    ReadonlyTextRange, Symbol, SyntaxKind,
+    is_shorthand_property_assignment, is_type_reference_node, parameter_is_this_keyword, some,
+    CompilerOptions, FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    PseudoBigInt, ReadonlyTextRange, Symbol, SyntaxKind,
 };
 
 pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
@@ -98,7 +98,7 @@ fn is_identifier_in_non_emitting_heritage_clause(node: &Node) -> bool {
 }
 
 pub fn is_identifier_type_reference(node: &Node) -> bool {
-    unimplemented!()
+    is_type_reference_node(node) && is_identifier(&node.as_type_reference_node().type_name)
 }
 
 pub fn array_is_homogeneous<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
