@@ -8,23 +8,24 @@ use std::rc::Rc;
 
 use super::EmitResolverCreateResolver;
 use crate::{
-    add_related_info, concatenate, create_diagnostic_for_node, escape_leading_underscores,
-    external_helpers_module_name_text, for_each_child_bool, for_each_entry_bool,
-    get_all_accessor_declarations, get_declaration_of_kind, get_effective_modifier_flags,
-    get_external_module_name, get_first_identifier, get_parse_tree_node, get_source_file_of_node,
-    has_syntactic_modifier, is_ambient_module, is_binding_pattern, is_class_like,
-    is_effective_external_module, is_entity_name, is_enum_const, is_function_declaration,
-    is_get_accessor, is_global_scope_augmentation, is_jsdoc_parameter_tag, is_named_declaration,
-    is_private_identifier_class_element_declaration, is_property_access_expression,
-    is_property_declaration, is_qualified_name, is_set_accessor, is_string_literal,
-    is_type_only_import_or_export_declaration, modifier_to_flag, node_can_be_decorated,
-    node_is_present, should_preserve_const_enums, some, token_to_string, try_cast, Debug_,
-    Diagnostics, ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags,
-    NodeFlags, ObjectFlags, Signature, SignatureKind, SymbolInterface, SyntaxKind, TypeFlags,
-    TypeInterface, TypeReferenceSerializationKind, __String, bind_source_file,
-    is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, Node, NodeInterface,
-    StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    add_related_info, are_option_rcs_equal, concatenate, create_diagnostic_for_node,
+    escape_leading_underscores, external_helpers_module_name_text, for_each_child_bool,
+    for_each_entry_bool, get_all_accessor_declarations, get_declaration_of_kind,
+    get_effective_modifier_flags, get_external_module_name, get_first_identifier,
+    get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
+    is_binding_pattern, is_class_like, is_effective_external_module, is_entity_name, is_enum_const,
+    is_function_declaration, is_get_accessor, is_global_scope_augmentation, is_jsdoc_parameter_tag,
+    is_named_declaration, is_private_identifier_class_element_declaration,
+    is_property_access_expression, is_property_declaration, is_qualified_name, is_set_accessor,
+    is_string_literal, is_type_only_import_or_export_declaration, is_variable_like_or_accessor,
+    modifier_to_flag, node_can_be_decorated, node_is_present, should_preserve_const_enums, some,
+    token_to_string, try_cast, with_synthetic_factory_and_factory, Debug_, Diagnostics,
+    ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags,
+    NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, ObjectFlags,
+    Signature, SignatureKind, SymbolInterface, SymbolTracker, SyntaxKind, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
+    Diagnostic, EmitResolverDebuggable, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
+    Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -414,12 +415,53 @@ impl TypeChecker {
         }
     }
 
-    // pub(super) fn create_type_of_declaration(
-    //     &self,
-    //     declaration_in: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
-    //     enclosing_declaration: &Node,
-    //     flags: NodeBuilderFlags,
-    // ) -> Option<Rc<Symbol>> {
+    pub(super) fn create_type_of_declaration(
+        &self,
+        declaration_in: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
+        enclosing_declaration: &Node,
+        mut flags: NodeBuilderFlags,
+        tracker: &dyn SymbolTracker,
+        add_undefined: Option<bool>,
+    ) -> Option<Rc<Node /*TypeNode*/>> {
+        let declaration = get_parse_tree_node(
+            Some(declaration_in),
+            Some(|node: &Node| is_variable_like_or_accessor(node)),
+        );
+        if declaration.is_none() {
+            return Some(with_synthetic_factory_and_factory(
+                |synthetic_factory, factory| {
+                    factory
+                        .create_token(synthetic_factory, SyntaxKind::AnyKeyword)
+                        .into()
+                },
+            ));
+        }
+        let declaration = declaration.as_ref().unwrap();
+        let symbol = self.get_symbol_of_node(declaration);
+        let mut type_ = if let Some(symbol) = symbol.as_ref().filter(|symbol| {
+            !symbol
+                .flags()
+                .intersects(SymbolFlags::TypeLiteral | SymbolFlags::Signature)
+        }) {
+            self.get_widened_literal_type(&self.get_type_of_symbol(symbol))
+        } else {
+            self.error_type()
+        };
+        if type_.flags().intersects(TypeFlags::UniqueESSymbol)
+            && are_option_rcs_equal(type_.maybe_symbol().as_ref(), symbol.as_ref())
+        {
+            flags |= NodeBuilderFlags::AllowUniqueESSymbolType;
+        }
+        if add_undefined == Some(true) {
+            type_ = self.get_optional_type_(&type_, None);
+        }
+        self.node_builder().type_to_type_node(
+            &type_,
+            Some(enclosing_declaration),
+            Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
+            Some(tracker),
+        )
+    }
 
     pub(super) fn get_referenced_value_symbol(
         &self,
