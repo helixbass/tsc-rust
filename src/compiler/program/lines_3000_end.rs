@@ -363,7 +363,8 @@ pub(super) struct HostForUseSourceOfProjectReferenceRedirect {
     pub to_path: Rc<dyn Fn(&str) -> Path>,
     pub get_resolved_project_references:
         Rc<dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
-    pub for_each_resolved_project_reference: Rc<dyn Fn(&mut dyn FnMut(&ResolvedProjectReference))>,
+    pub for_each_resolved_project_reference:
+        Rc<dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>))>,
 }
 
 pub(super) fn update_host_for_use_source_of_project_reference_redirect(
@@ -426,7 +427,7 @@ struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_get_resolved_project_references:
         Rc<dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
     pub host_for_each_resolved_project_reference:
-        Rc<dyn Fn(&mut dyn FnMut(&ResolvedProjectReference))>,
+        Rc<dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>))>,
     set_of_declaration_directories: RefCell<Option<HashSet<Path>>>,
 }
 
@@ -439,7 +440,7 @@ impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
             dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
         >,
         host_for_each_resolved_project_reference: Rc<
-            dyn Fn(&mut dyn FnMut(&ResolvedProjectReference)),
+            dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>)),
         >,
     ) -> Self {
         Self {

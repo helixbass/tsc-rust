@@ -719,7 +719,7 @@ impl Program {
             map_from_file_to_project_reference_redirects.get_or_insert_with(|| {
                 let mut map_from_file_to_project_reference_redirects = HashMap::new();
                 self.for_each_resolved_project_reference(
-                    |referenced_project: &ResolvedProjectReference| -> Option<()> {
+                    |referenced_project: Rc<ResolvedProjectReference>| -> Option<()> {
                         let referenced_project_source_file_path =
                             referenced_project.source_file.as_source_file().path();
                         if &self.to_path(self.options.config_file_path.as_ref().unwrap())
@@ -751,7 +751,7 @@ impl Program {
 
     pub fn for_each_resolved_project_reference<
         TReturn,
-        TCallback: FnMut(&ResolvedProjectReference) -> Option<TReturn>,
+        TCallback: FnMut(Rc<ResolvedProjectReference>) -> Option<TReturn>,
     >(
         &self,
         mut cb: TCallback,
@@ -764,7 +764,7 @@ impl Program {
 
     pub fn for_each_resolved_project_reference_rc(
         &self,
-    ) -> Rc<dyn Fn(&mut dyn FnMut(&ResolvedProjectReference))> {
+    ) -> Rc<dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>))> {
         let self_clone = self.rc_wrapper();
         Rc::new(move |cb| {
             for_each_resolved_project_reference(
@@ -788,7 +788,7 @@ impl Program {
             .get_or_insert_with(|| {
                 let mut map_from_to_project_reference_redirect_source = HashMap::new();
                 self.for_each_resolved_project_reference(
-                    |resolved_ref: &ResolvedProjectReference| -> Option<()> {
+                    |resolved_ref: Rc<ResolvedProjectReference>| -> Option<()> {
                         let out = out_file(&resolved_ref.command_line.options);
                         if let Some(out) = out {
                             let output_dts = change_extension(out, Extension::Dts.to_str());

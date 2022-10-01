@@ -254,7 +254,7 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
 
 pub fn for_each_resolved_project_reference<
     TReturn,
-    TCallback: FnMut(&ResolvedProjectReference, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+    TCallback: FnMut(Rc<ResolvedProjectReference>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
 >(
     resolved_project_references: Option<&[Option<Rc<ResolvedProjectReference>>]>,
     mut cb: TCallback,
@@ -262,7 +262,7 @@ pub fn for_each_resolved_project_reference<
     for_each_project_reference(
         None,
         resolved_project_references,
-        |resolved_ref: Option<&ResolvedProjectReference>,
+        |resolved_ref: Option<Rc<ResolvedProjectReference>>,
          parent: Option<&ResolvedProjectReference>,
          _| { resolved_ref.and_then(|resolved_ref| cb(resolved_ref, parent)) },
         Option::<
@@ -277,7 +277,7 @@ pub fn for_each_resolved_project_reference<
 pub fn for_each_project_reference<
     TReturn,
     TCallbackResolvedRef: FnMut(
-        Option<&ResolvedProjectReference>,
+        Option<Rc<ResolvedProjectReference>>,
         Option<&ResolvedProjectReference>,
         usize,
     ) -> Option<TReturn>,
@@ -303,7 +303,7 @@ pub fn for_each_project_reference<
 fn for_each_project_reference_worker<
     TReturn,
     TCallbackResolvedRef: FnMut(
-        Option<&ResolvedProjectReference>,
+        Option<Rc<ResolvedProjectReference>>,
         Option<&ResolvedProjectReference>,
         usize,
     ) -> Option<TReturn>,
@@ -338,7 +338,7 @@ fn for_each_project_reference_worker<
                 return None;
             }
 
-            let result = cb_resolved_ref(resolved_ref.as_deref(), parent, index);
+            let result = cb_resolved_ref(resolved_ref.clone(), parent, index);
             if result.is_some() || resolved_ref.is_none() {
                 return result;
             }

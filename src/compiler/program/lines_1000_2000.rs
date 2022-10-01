@@ -4,11 +4,11 @@ use std::rc::Rc;
 use super::filter_semantic_diagnostics;
 use crate::{
     concatenate, create_type_checker, file_extension_is_one_of, get_normalized_absolute_path,
-    node_modules_path_part, string_contains, to_path as to_path_helper,
+    node_modules_path_part, out_file, string_contains, to_path as to_path_helper,
     CancellationTokenDebuggable, Comparison, CompilerOptions, CustomTransformers, Diagnostic,
     EmitResult, Extension, FileIncludeReason, MultiMap, Node, Path, Program, ResolvedModuleFull,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, StringOrRcNode, StructureIsReused,
-    TypeChecker, TypeCheckerHost, WriteFileCallback,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, SourceOfProjectReferenceRedirect,
+    StringOrRcNode, StructureIsReused, TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -141,7 +141,24 @@ impl Program {
         &self,
         file_path: &Path,
     ) -> Option<Rc<ResolvedProjectReference>> {
-        unimplemented!()
+        let source = self.get_source_of_project_reference_redirect(file_path);
+        if let Some(SourceOfProjectReferenceRedirect::String(source)) = source.as_ref() {
+            return self.get_resolved_project_reference_to_redirect(source);
+        }
+        if source.is_none() {
+            return None;
+        }
+        self.for_each_resolved_project_reference(|resolved_ref: Rc<ResolvedProjectReference>| {
+            let out = out_file(&resolved_ref.command_line.options)?;
+            if out.is_empty() {
+                return None;
+            }
+            if &self.to_path(out) == file_path {
+                Some(resolved_ref)
+            } else {
+                None
+            }
+        })
     }
 
     pub(super) fn compare_default_lib_files(
