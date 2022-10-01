@@ -22,9 +22,9 @@ use crate::{
     FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics, LibFile, ModuleKind,
     ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
     ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId,
-    PackageJsonInfoCache, ParsedCommandLine, Path, Program, RedirectTargetsMap, ReferencedFile,
-    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
-    ScriptReferenceHost, SourceFile, SourceOfProjectReferenceRedirect, StructureIsReused,
+    PackageJsonInfoCache, ParsedCommandLine, Path, Program, ProjectReference, RedirectTargetsMap,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    RootFile, ScriptReferenceHost, SourceFile, SourceOfProjectReferenceRedirect, StructureIsReused,
     SymlinkCache, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeReferenceDirectiveResolutionCache,
 };
@@ -216,7 +216,36 @@ pub fn for_each_resolved_project_reference<
     TCallback: FnMut(&ResolvedProjectReference, Option<&ResolvedProjectReference>) -> Option<TReturn>,
 >(
     resolved_project_references: Option<&[Option<Rc<ResolvedProjectReference>>]>,
-    cb: TCallback,
+    mut cb: TCallback,
+) -> Option<TReturn> {
+    for_each_project_reference(
+        None,
+        resolved_project_references,
+        |resolved_ref: Option<&ResolvedProjectReference>,
+         parent: Option<&ResolvedProjectReference>,
+         _| { resolved_ref.and_then(|resolved_ref| cb(resolved_ref, parent)) },
+        Option::<
+            fn(
+                Option<&[Rc<ProjectReference>]>,
+                Option<&ResolvedProjectReference>,
+            ) -> Option<TReturn>,
+        >::None,
+    )
+}
+
+pub fn for_each_project_reference<
+    TReturn,
+    TCallbackResolvedRef: FnMut(
+        Option<&ResolvedProjectReference>,
+        Option<&ResolvedProjectReference>,
+        usize,
+    ) -> Option<TReturn>,
+    TCallbackRef: FnMut(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+>(
+    project_references: Option<&[Rc<ProjectReference>]>,
+    resolved_project_references: Option<&[Option<Rc<ResolvedProjectReference>>]>,
+    cb_resolved_ref: TCallbackResolvedRef,
+    cb_ref: Option<TCallbackRef>,
 ) -> Option<TReturn> {
     unimplemented!()
 }
