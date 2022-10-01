@@ -108,7 +108,10 @@ impl TypeChecker {
         }
         if node_as_parameter_declaration.question_token.is_some()
             && is_binding_pattern(node_as_parameter_declaration.maybe_name())
-            && func.as_function_like_declaration().maybe_body().is_some()
+            && func
+                .maybe_as_function_like_declaration()
+                .and_then(|func| func.maybe_body())
+                .is_some()
         {
             self.error(
                 Some(node),
