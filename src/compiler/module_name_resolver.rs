@@ -1,5 +1,6 @@
 use bitflags::bitflags;
 use std::cell::RefCell;
+use std::cmp;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::rc::Rc;
@@ -9,8 +10,9 @@ use crate::{
     directory_separator, directory_separator_str, extension_is_ts, file_extension_is,
     first_defined, for_each, for_each_ancestor_directory, format_message, get_base_file_name,
     get_directory_path, get_emit_module_kind, get_paths_base_path,
-    get_relative_path_from_directory, has_js_file_extension, has_trailing_directory_separator,
-    is_external_module_name_relative, normalize_path, normalize_path_and_parts, normalize_slashes,
+    get_relative_path_from_directory, get_root_length, has_js_file_extension,
+    has_trailing_directory_separator, is_external_module_name_relative, last_index_of,
+    normalize_path, normalize_path_and_parts, normalize_slashes,
     options_have_module_resolution_changes, package_id_to_string, path_is_relative, read_json,
     remove_file_extension, starts_with, string_contains, to_path, try_get_extension_from_path,
     try_parse_patterns, try_remove_extension, version, version_major_minor, CharacterCodes,
@@ -1252,7 +1254,39 @@ impl PerModuleNameCache {
     }
 
     fn get_common_prefix(&self, directory: &Path, resolution: &str) -> Option<String> {
-        unimplemented!()
+        let resolution_directory = to_path(
+            &get_directory_path(resolution),
+            Some(&self.current_directory),
+            |file_name: &str| (self.get_canonical_file_name)(file_name),
+        );
+
+        let mut i = 0;
+        let directory_as_chars = directory.chars().collect::<Vec<_>>();
+        let resolution_directory_as_chars = resolution_directory.chars().collect::<Vec<_>>();
+        let limit = cmp::min(
+            directory_as_chars.len(),
+            resolution_directory_as_chars.len(),
+        );
+        while i < limit && directory_as_chars[i] == resolution_directory_as_chars[i] {
+            i += 1;
+        }
+        if i == directory_as_chars.len()
+            && (resolution_directory_as_chars.len() == i
+                || resolution_directory_as_chars[i] == directory_separator)
+        {
+            return Some(directory.to_string());
+        }
+        let root_length = get_root_length(directory);
+        if i < root_length {
+            return None;
+        }
+        let sep = last_index_of(
+            &directory_as_chars,
+            &directory_separator,
+            |ch1, ch2| ch1 == ch2,
+            Some(i - 1),
+        )?;
+        Some(directory[0..cmp::max(sep, root_length)].to_owned())
     }
 }
 

@@ -14,16 +14,33 @@ pub fn last_index_of<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
     slice: &[TItem],
     item: &TItem,
     mut comparer: TComparer,
-    position: usize,
-) -> isize {
-    let mut index = position;
-    while index >= 0 {
+    position: Option<usize>,
+) -> Option<usize> {
+    if slice.is_empty() {
+        return None;
+    }
+    let mut index = position.unwrap_or_else(|| slice.len() - 1);
+    loop {
         if comparer(&slice[index], item) {
-            return index.try_into().unwrap();
+            return Some(index);
+        }
+        if index == 0 {
+            return None;
         }
         index -= 1;
     }
-    -1
+}
+
+pub fn last_index_of_returns_isize<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
+    slice: &[TItem],
+    item: &TItem,
+    comparer: TComparer,
+    position: Option<usize>,
+) -> isize {
+    match last_index_of(slice, item, comparer, position) {
+        None => -1,
+        Some(value) => value.try_into().unwrap(),
+    }
 }
 
 pub fn index_of<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(

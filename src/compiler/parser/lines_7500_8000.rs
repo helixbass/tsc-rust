@@ -10,10 +10,10 @@ use super::ParserType;
 use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
     is_export_declaration, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property, last_index_of, set_parent,
-    some, BaseNode, BaseNodeFactory, Debug_, Diagnostic, JSDoc, LanguageVariant, Node, NodeArray,
-    NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceTextAsChars, StringOrNodeArray,
-    SyntaxKind,
+    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property,
+    last_index_of_returns_isize, set_parent, some, BaseNode, BaseNodeFactory, Debug_, Diagnostic,
+    JSDoc, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget,
+    SourceTextAsChars, StringOrNodeArray, SyntaxKind,
 };
 
 impl ParserType {
@@ -403,7 +403,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 let mut state = JSDocState::SawAsterisk;
                 let mut margin: Option<usize> = None;
                 let mut indent: usize = self.start
-                    - usize::try_from(last_index_of(self.content, &'\n', |a, b| a == b, self.start) + 1).unwrap()
+                    - usize::try_from(last_index_of_returns_isize(self.content, &'\n', |a, b| a == b, Some(self.start)) + 1).unwrap()
                     + 4;
 
                 self.parser.next_token_jsdoc();

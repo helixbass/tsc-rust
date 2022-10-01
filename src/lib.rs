@@ -584,5 +584,6 @@ pub use rust_helpers::sys::{
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
     are_option_rcs_equal, are_rc_slices_equal, capitalize, index_of, index_of_rc, is_same_variant,
-    last_index_of, push_or_replace, uncapitalize, UsizeOrNegativeInfinity,
+    last_index_of, last_index_of_returns_isize, push_or_replace, uncapitalize,
+    UsizeOrNegativeInfinity,
 };
