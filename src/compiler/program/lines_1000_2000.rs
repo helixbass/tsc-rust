@@ -17,7 +17,37 @@ impl Program {
         containing_file: &Node, /*SourceFile*/
         reused_names: Option<&[String]>,
     ) -> Vec<Rc<ResolvedModuleFull>> {
-        unimplemented!()
+        if module_names.is_empty() {
+            return vec![];
+        }
+        let containing_file_as_source_file = containing_file.as_source_file();
+        let containing_file_name = get_normalized_absolute_path(
+            &containing_file_as_source_file.original_file_name(),
+            Some(&self.current_directory()),
+        );
+        let redirected_reference = self.get_redirect_reference_for_resolution(containing_file);
+        // tracing?.push(tracing.Phase.Program, "resolveModuleNamesWorker", { containingFileName });
+        // performance.mark("beforeResolveModule");
+        let result = self
+            .actual_resolve_module_names_worker()
+            .call(
+                module_names,
+                containing_file,
+                &containing_file_name,
+                reused_names,
+                redirected_reference.as_deref(),
+            )
+            // TODO: it looked like actual_resolve_module_names_worker needs to "tell the truth"
+            // and return Vec<Option<Rc<ResolvedModuleFull>>> so this should likely "bubble that
+            // truth up" as the return type of .resolve_module_names_worker() here but for the
+            // moment panicking if it finds a None
+            .into_iter()
+            .map(Option::unwrap)
+            .collect();
+        // performance.mark("afterResolveModule");
+        // performance.measure("ResolveModule", "beforeResolveModule", "afterResolveModule");
+        // tracing?.pop();
+        result
     }
 
     pub(super) fn resolve_type_reference_directive_names_worker<
