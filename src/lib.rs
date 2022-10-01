@@ -67,8 +67,8 @@ pub use compiler::factory::base_node_factory::{
 };
 pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
 pub use compiler::factory::emit_node::{
-    add_synthetic_leading_comment, dispose_emit_nodes, set_comment_range, set_emit_flags,
-    set_synthetic_leading_comments,
+    add_emit_flags, add_synthetic_leading_comment, dispose_emit_nodes, set_comment_range,
+    set_emit_flags, set_synthetic_leading_comments,
 };
 use compiler::factory::emit_node::{get_starts_on_new_line, set_starts_on_new_line};
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};

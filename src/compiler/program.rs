@@ -10,8 +10,8 @@ use std::time;
 use std::time::SystemTime;
 
 use crate::{
-    append, change_extension, clone, combine_paths, compare_paths, concatenate, contains_path,
-    convert_to_relative_path, create_diagnostic_collection,
+    add_emit_flags, append, change_extension, clone, combine_paths, compare_paths, concatenate,
+    contains_path, convert_to_relative_path, create_diagnostic_collection,
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name,
     create_module_resolution_cache, create_multi_map, create_source_file, create_symlink_cache,
     create_type_checker, create_type_reference_directive_resolution_cache,
@@ -36,16 +36,17 @@ use crate::{
     maybe_for_each, maybe_map, missing_file_modified_time, node_modules_path_part, normalize_path,
     options_have_changes, out_file, package_id_to_string, remove_file_extension, remove_prefix,
     remove_suffix, resolution_extension_is_ts_or_json, resolve_config_file_project_name,
-    resolve_module_name, resolve_type_reference_directive, set_parent_recursive,
+    resolve_module_name, resolve_type_reference_directive, set_parent, set_parent_recursive,
     set_resolved_module, set_resolved_type_reference_directive,
     source_file_affecting_compiler_options, stable_sort, starts_with, string_contains,
     supported_js_extensions_flat, to_file_name_lower_case, to_path as to_path_helper,
-    walk_up_parenthesized_expressions, write_file_ensuring_directories, AutomaticTypeDirectiveFile,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
+    walk_up_parenthesized_expressions, with_synthetic_factory_and_factory,
+    write_file_ensuring_directories, AutomaticTypeDirectiveFile, CancellationTokenDebuggable,
+    Comparison, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
     ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
     DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
-    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
-    Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
+    DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitFlags,
+    EmitResult, Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
     FilePreprocessingDiagnosticsKind, FilePreprocessingFileExplainingDiagnostic,
     FilePreprocessingReferencedDiagnostic, FileReference, LibFile, LineAndCharacter,
     LiteralLikeNodeInterface, ModifierFlags, ModuleKind, ModuleResolutionCache,
@@ -1958,7 +1959,32 @@ impl Program {
     }
 
     pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Rc<Node> {
-        unimplemented!()
+        let external_helpers_module_reference: Rc<Node> =
+            with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                factory
+                    .create_string_literal(synthetic_factory, text.to_owned(), None, None)
+                    .into()
+            });
+        let import_decl: Rc<Node> =
+            with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                factory
+                    .create_import_declaration(
+                        synthetic_factory,
+                        Option::<NodeArray>::None,
+                        Option::<NodeArray>::None,
+                        None,
+                        external_helpers_module_reference.clone(),
+                        None,
+                    )
+                    .into()
+            });
+        add_emit_flags(import_decl.clone(), EmitFlags::NeverApplyImportHelper);
+        set_parent(&external_helpers_module_reference, Some(&*import_decl));
+        set_parent(&import_decl, Some(file));
+        external_helpers_module_reference
+            .set_flags(external_helpers_module_reference.flags() & !NodeFlags::Synthesized);
+        import_decl.set_flags(import_decl.flags() & !NodeFlags::Synthesized);
+        external_helpers_module_reference
     }
 
     pub fn collect_external_module_references(&self, file: &Node /*SourceFile*/) {

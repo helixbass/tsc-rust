@@ -59,6 +59,13 @@ pub fn set_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
     node
 }
 
+pub fn add_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
+    let emit_node = get_or_create_emit_node(&node);
+    let mut emit_node = emit_node.borrow_mut();
+    emit_node.flags = Some(emit_node.flags.unwrap_or(EmitFlags::None) | emit_flags);
+    node
+}
+
 pub(crate) fn get_starts_on_new_line(node: &Node) -> bool {
     node.maybe_emit_node()
         .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
