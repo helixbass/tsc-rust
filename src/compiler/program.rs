@@ -25,11 +25,12 @@ use crate::{
     get_property_assignment, get_spelling_suggestion, get_strict_option_value,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
     has_extension, has_js_file_extension, is_declaration_file_name, is_import_call,
-    is_import_equals_declaration, is_rooted_disk_path, is_watch_set, lib_map, libs, map_defined,
-    maybe_for_each, maybe_map, missing_file_modified_time, node_modules_path_part, normalize_path,
-    options_have_changes, out_file, package_id_to_string, remove_file_extension, remove_prefix,
-    remove_suffix, resolve_config_file_project_name, resolve_module_name,
-    resolve_type_reference_directive, set_resolved_type_reference_directive,
+    is_import_equals_declaration, is_in_js_file, is_rooted_disk_path, is_watch_set, lib_map, libs,
+    map_defined, maybe_for_each, maybe_map, missing_file_modified_time, node_modules_path_part,
+    normalize_path, options_have_changes, out_file, package_id_to_string, remove_file_extension,
+    remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
+    resolve_config_file_project_name, resolve_module_name, resolve_type_reference_directive,
+    set_resolved_module, set_resolved_type_reference_directive,
     source_file_affecting_compiler_options, stable_sort, string_contains,
     supported_js_extensions_flat, to_file_name_lower_case, to_path as to_path_helper,
     walk_up_parenthesized_expressions, write_file_ensuring_directories, AutomaticTypeDirectiveFile,
@@ -41,7 +42,7 @@ use crate::{
     FilePreprocessingDiagnosticsKind, FilePreprocessingReferencedDiagnostic, FileReference,
     LibFile, LineAndCharacter, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap,
-    NamedDeclarationInterface, Node, NodeInterface, PackageId, PackageJsonInfoCache,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, PackageId, PackageJsonInfoCache,
     ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
     RedirectTargetsMap, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
@@ -1763,6 +1764,14 @@ impl Program {
         Rc::new(move |file_name| self_clone.to_path(file_name))
     }
 
+    fn resolve_module_names_reusing_old_state(
+        &self,
+        module_names: &[String],
+        file: &Node, /*SourceFile*/
+    ) -> Vec<Rc<ResolvedModuleFull>> {
+        unimplemented!()
+    }
+
     pub fn try_reuse_structure_from_old_program(&self) -> StructureIsReused {
         if self.maybe_old_program().is_none() {
             return StructureIsReused::Not;
@@ -1929,6 +1938,10 @@ impl Program {
             None,
             reason,
         );
+    }
+
+    pub fn collect_external_module_references(&self, file: &Node /*SourceFile*/) {
+        unimplemented!()
     }
 
     fn get_source_file_from_reference_worker<
@@ -2831,7 +2844,90 @@ impl Program {
     }
 
     pub fn process_imported_modules(&self, file: &Node /*SourceFile*/) {
-        unimplemented!()
+        self.collect_external_module_references(file);
+        let file_as_source_file = file.as_source_file();
+        if !file_as_source_file
+            .maybe_imports()
+            .as_ref()
+            .unwrap()
+            .is_empty()
+            || !file_as_source_file
+                .maybe_module_augmentations()
+                .as_ref()
+                .unwrap()
+                .is_empty()
+        {
+            let module_names = get_module_names(file);
+            let resolutions = self.resolve_module_names_reusing_old_state(&module_names, file);
+            Debug_.assert(resolutions.len() == module_names.len(), None);
+            let options_for_file = if self.use_source_of_project_reference_redirect() {
+                self.get_redirect_reference_for_resolution(file)
+                    .map(|value| value.command_line.options.clone())
+            } else {
+                None
+            }
+            .unwrap_or_else(|| self.options.clone());
+            for index in 0..module_names.len() {
+                let resolution = &resolutions[index];
+                set_resolved_module(
+                    file,
+                    &module_names[index],
+                    resolution.clone(),
+                    get_mode_for_resolution_at_index(file_as_source_file, index),
+                );
+
+                // if (!resolution) {
+                //     continue;
+                // }
+
+                let is_from_node_modules_search = resolution.is_external_library_import;
+                let is_js_file = !resolution_extension_is_ts_or_json(resolution.extension());
+                let is_js_file_from_node_modules =
+                    is_from_node_modules_search == Some(true) && is_js_file;
+                let resolved_file_name = &resolution.resolved_file_name;
+
+                if is_from_node_modules_search == Some(true) {
+                    self.set_current_node_modules_depth(self.current_node_modules_depth() + 1);
+                }
+
+                let elide_import = is_js_file_from_node_modules
+                    && self.current_node_modules_depth() > self.max_node_module_js_depth;
+                let should_add_file = !resolved_file_name.is_empty()
+                    && get_resolution_diagnostic(&options_for_file, resolution).is_none()
+                    && options_for_file.no_resolve != Some(true)
+                    && index < file_as_source_file.maybe_imports().as_ref().unwrap().len()
+                    && !elide_import
+                    && !(is_js_file && !get_allow_js_compiler_option(&options_for_file))
+                    && (is_in_js_file(Some(
+                        &*file_as_source_file.maybe_imports().as_ref().unwrap()[index],
+                    )) || !file_as_source_file.maybe_imports().as_ref().unwrap()[index]
+                        .flags()
+                        .intersects(NodeFlags::JSDoc));
+
+                if elide_import {
+                    self.modules_with_elided_imports()
+                        .insert(file_as_source_file.path().to_string(), true);
+                } else if should_add_file {
+                    self.find_source_file(
+                        resolved_file_name,
+                        false,
+                        false,
+                        &FileIncludeReason::ReferencedFile(ReferencedFile {
+                            kind: FileIncludeKind::Import,
+                            file: file_as_source_file.path().clone(),
+                            index,
+                        }),
+                        resolution.package_id.as_ref(),
+                    );
+                }
+
+                if is_from_node_modules_search == Some(true) {
+                    self.set_current_node_modules_depth(self.current_node_modules_depth() - 1);
+                }
+            }
+        } else {
+            *file_as_source_file.maybe_resolved_modules() = None;
+        }
     }
 
     pub fn parse_project_reference_config_file(
@@ -3738,4 +3834,13 @@ fn need_resolve_json_module(options: &CompilerOptions) -> Option<&'static Diagno
     } else {
         Some(&Diagnostics::Module_0_was_resolved_to_1_but_resolveJsonModule_is_not_used)
     }
+}
+
+fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
+    let file_as_source_file = file.as_source_file();
+    let imports = file_as_source_file.maybe_imports();
+    let imports = imports.as_ref().unwrap();
+    let module_augmentations = file_as_source_file.maybe_module_augmentations();
+    let module_augmentations = module_augmentations.as_ref().unwrap();
+    unimplemented!()
 }
