@@ -185,6 +185,7 @@ pub struct SourceFile {
     imports: RefCell<Option<Vec<Rc<Node /*StringLiteralLike*/>>>>,
     module_augmentations: RefCell<Option<Vec<Rc<Node /*StringLiteral | Identifier*/>>>>,
     pattern_ambient_modules: RefCell<Option<Vec<Rc<PatternAmbientModule>>>>,
+    ambient_module_names: RefCell<Option<Vec<String>>>,
     check_js_directive: RefCell<Option<CheckJsDirective>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
     local_jsx_namespace: RefCell<Option<__String>>,
@@ -255,6 +256,7 @@ impl SourceFile {
             imports: RefCell::new(None),
             module_augmentations: RefCell::new(None),
             pattern_ambient_modules: RefCell::new(None),
+            ambient_module_names: RefCell::new(None),
             pragmas: RefCell::new(None),
             check_js_directive: RefCell::new(None),
             local_jsx_namespace: RefCell::new(None),
@@ -560,6 +562,10 @@ impl SourceFile {
 
     pub fn maybe_pattern_ambient_modules(&self) -> RefMut<Option<Vec<Rc<PatternAmbientModule>>>> {
         self.pattern_ambient_modules.borrow_mut()
+    }
+
+    pub fn maybe_ambient_module_names(&self) -> RefMut<Option<Vec<String>>> {
+        self.ambient_module_names.borrow_mut()
     }
 
     pub fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>> {
