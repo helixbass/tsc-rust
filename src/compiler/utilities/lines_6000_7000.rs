@@ -1755,11 +1755,25 @@ pub enum StringOrPattern {
 }
 
 pub fn try_parse_pattern(pattern: &str) -> Option<StringOrPattern> {
-    unimplemented!()
+    let index_of_star = pattern.find("*");
+    if index_of_star.is_none() {
+        return Some(StringOrPattern::String(pattern.to_owned()));
+    }
+    let index_of_star = index_of_star.unwrap();
+    if pattern[index_of_star + 1..].find("*").is_some() {
+        None
+    } else {
+        Some(StringOrPattern::Pattern(Pattern {
+            prefix: pattern[0..index_of_star].to_owned(),
+            suffix: pattern[index_of_star + 1..].to_owned(),
+        }))
+    }
 }
 
 pub fn try_parse_patterns(paths: &MapLike<Vec<String>>) -> Vec<StringOrPattern> {
-    unimplemented!()
+    map_defined(Some(paths.keys()), |path: &String, _| {
+        try_parse_pattern(path)
+    })
 }
 
 pub fn position_is_synthesized(pos: isize) -> bool {
