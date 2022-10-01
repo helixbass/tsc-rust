@@ -185,12 +185,12 @@ pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
 
 #[derive(Clone, Debug)]
 pub struct PatternAmbientModule {
-    pub pattern: Pattern,
+    pub pattern: Rc<Pattern>,
     pub symbol: Rc<Symbol>,
 }
 
 impl PatternAmbientModule {
-    pub fn new(pattern: Pattern, symbol: Rc<Symbol>) -> Self {
+    pub fn new(pattern: Rc<Pattern>, symbol: Rc<Symbol>) -> Self {
         Self { pattern, symbol }
     }
 }
