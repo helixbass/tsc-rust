@@ -46,18 +46,18 @@ use crate::{
     DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
     Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
-    FilePreprocessingDiagnosticsKind, FilePreprocessingReferencedDiagnostic, FileReference,
-    LibFile, LineAndCharacter, LiteralLikeNodeInterface, ModifierFlags, ModuleKind,
-    ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
-    NodeArray, NodeFlags, NodeInterface, PackageId, PackageJsonInfoCache, ParseConfigFileHost,
-    ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference, ReadonlyTextRange,
-    RedirectTargetsMap, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
-    ScriptTarget, SortedArray, SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect,
-    StringOrRcNode, StructureIsReused, SymlinkCache, SyntaxKind, System, TypeChecker,
-    TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    WriteFileCallback,
+    FilePreprocessingDiagnosticsKind, FilePreprocessingFileExplainingDiagnostic,
+    FilePreprocessingReferencedDiagnostic, FileReference, LibFile, LineAndCharacter,
+    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, ModuleResolutionCache,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParseConfigHost,
+    ParsedCommandLine, Path, Program, ProjectReference, ReadonlyTextRange, RedirectTargetsMap,
+    ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, ScriptTarget, SortedArray,
+    SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect, StringOrRcNode,
+    StructureIsReused, SymlinkCache, SyntaxKind, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -2193,7 +2193,7 @@ impl Program {
 
     fn get_source_file_from_reference_worker<
         TGetSourceFile: FnMut(&str) -> Option<Rc<Node>>,
-        TFail: FnMut(&DiagnosticMessage, Option<Vec<String>>),
+        TFail: FnMut(&'static DiagnosticMessage, Option<Vec<String>>),
     >(
         &self,
         file_name: &str,
@@ -2323,7 +2323,7 @@ impl Program {
                 )
             },
             Some(
-                |diagnostic: &DiagnosticMessage, args: Option<Vec<String>>| {
+                |diagnostic: &'static DiagnosticMessage, args: Option<Vec<String>>| {
                     self.add_file_preprocessing_file_explaining_diagnostic(
                         Option::<&Node>::None,
                         reason,
@@ -3203,10 +3203,16 @@ impl Program {
         &self,
         file: Option<TFile>,
         file_processing_reason: &FileIncludeReason,
-        diagnostic: &DiagnosticMessage,
+        diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        unimplemented!()
+        self.maybe_file_processing_diagnostics().get_or_insert_with(|| vec![]).push(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
+            kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
+            file: file.map(|file| file.borrow().as_source_file().path().clone()),
+            file_processing_reason: file_processing_reason.clone(),
+            diagnostic,
+            args,
+        }))
     }
 
     pub fn create_option_diagnostic_in_object_literal_syntax(
