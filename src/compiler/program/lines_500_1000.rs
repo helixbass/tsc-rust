@@ -912,6 +912,8 @@ impl Program {
             *self.processing_other_files.borrow_mut() = None;
         }
 
+        // unimplemented!()
+
         // performance.mark("afterProgram");
         // performance.measure("Program", "beforeProgram", "afterProgram");
         // tracing?.pop();

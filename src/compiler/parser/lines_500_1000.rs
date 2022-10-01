@@ -648,6 +648,7 @@ impl ParserType {
         set_parent_nodes: Option<bool>,
         script_kind: Option<ScriptKind>,
     ) -> Rc<Node /*SourceFile*/> {
+        println!("parsing source file: {}", file_name,);
         let set_parent_nodes = set_parent_nodes.unwrap_or(false);
         let script_kind = ensure_script_kind(file_name, script_kind);
         if script_kind == ScriptKind::JSON {
