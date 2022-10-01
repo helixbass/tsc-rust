@@ -3,11 +3,12 @@ use std::rc::Rc;
 
 use super::filter_semantic_diagnostics;
 use crate::{
-    concatenate, create_type_checker, get_normalized_absolute_path, to_path as to_path_helper,
+    concatenate, create_type_checker, file_extension_is_one_of, get_normalized_absolute_path,
+    node_modules_path_part, string_contains, to_path as to_path_helper,
     CancellationTokenDebuggable, Comparison, CompilerOptions, CustomTransformers, Diagnostic,
-    EmitResult, FileIncludeReason, MultiMap, Node, Path, Program, ResolvedModuleFull,
+    EmitResult, Extension, FileIncludeReason, MultiMap, Node, Path, Program, ResolvedModuleFull,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, StringOrRcNode, StructureIsReused,
-    TypeChecker, TypeCheckerHost, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
+    TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -92,6 +93,53 @@ impl Program {
     pub(super) fn get_redirect_reference_for_resolution(
         &self,
         file: &Node, /*SourceFile*/
+    ) -> Option<Rc<ResolvedProjectReference>> {
+        let file_as_source_file = file.as_source_file();
+        let redirect = self
+            .get_resolved_project_reference_to_redirect(&file_as_source_file.original_file_name());
+        if redirect.is_some()
+            || !file_extension_is_one_of(
+                &file_as_source_file.original_file_name(),
+                &[Extension::Dts, Extension::Dcts, Extension::Dmts],
+            )
+        {
+            return redirect;
+        }
+
+        let result_from_dts = self.get_redirect_reference_for_resolution_from_source_of_project(
+            &file_as_source_file.path(),
+        );
+        if result_from_dts.is_some() {
+            return result_from_dts;
+        }
+
+        if !self.host().is_realpath_supported()
+            || self.options.preserve_symlinks != Some(true)
+            || !string_contains(
+                &file_as_source_file.original_file_name(),
+                node_modules_path_part,
+            )
+        {
+            return None;
+        }
+        let real_declaration_path = self.to_path(
+            &self
+                .host()
+                .realpath(&file_as_source_file.original_file_name())
+                .unwrap(),
+        );
+        if &real_declaration_path == &*file_as_source_file.path() {
+            None
+        } else {
+            self.get_redirect_reference_for_resolution_from_source_of_project(
+                &real_declaration_path,
+            )
+        }
+    }
+
+    pub(super) fn get_redirect_reference_for_resolution_from_source_of_project(
+        &self,
+        file_path: &Path,
     ) -> Option<Rc<ResolvedProjectReference>> {
         unimplemented!()
     }

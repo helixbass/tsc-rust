@@ -700,6 +700,13 @@ impl Program {
         unimplemented!()
     }
 
+    pub fn get_resolved_project_reference_to_redirect(
+        &self,
+        file_name: &str,
+    ) -> Option<Rc<ResolvedProjectReference>> {
+        unimplemented!()
+    }
+
     pub fn for_each_resolved_project_reference<
         TReturn,
         TCallback: FnMut(&ResolvedProjectReference) -> Option<TReturn>,
