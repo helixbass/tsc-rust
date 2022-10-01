@@ -819,7 +819,10 @@ impl TypeChecker {
             }
         }
         if type_.flags().intersects(TypeFlags::TypeParameter) {
-            return type_.symbol().into();
+            return match type_.maybe_symbol() {
+                None => RecursionIdentity::None,
+                Some(type_symbol) => type_symbol.into(),
+            };
         }
         if type_.flags().intersects(TypeFlags::IndexedAccess) {
             let mut type_ = type_.type_wrapper();
@@ -946,6 +949,7 @@ pub(super) enum RecursionIdentity {
     Symbol(Rc<Symbol>),
     Type(Rc<Type>),
     ConditionalRoot(Rc<RefCell<ConditionalRoot>>),
+    None,
 }
 
 impl PartialEq for RecursionIdentity {
@@ -955,6 +959,7 @@ impl PartialEq for RecursionIdentity {
             (Self::Symbol(a), Self::Symbol(b)) => Rc::ptr_eq(a, b),
             (Self::Type(a), Self::Type(b)) => Rc::ptr_eq(a, b),
             (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Rc::ptr_eq(a, b),
+            (Self::None, Self::None) => true,
             _ => false,
         }
     }
