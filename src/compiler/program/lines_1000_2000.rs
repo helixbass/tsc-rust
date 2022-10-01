@@ -11,6 +11,15 @@ use crate::{
 };
 
 impl Program {
+    pub(super) fn resolve_module_names_worker(
+        &self,
+        module_names: &[String],
+        containing_file: &Node, /*SourceFile*/
+        reused_names: Option<&[String]>,
+    ) -> Vec<Rc<ResolvedModuleFull>> {
+        unimplemented!()
+    }
+
     pub(super) fn resolve_type_reference_directive_names_worker<
         TContainingFile: Into<StringOrRcNode>,
     >(
@@ -151,6 +160,17 @@ impl Program {
         module_names: &[String],
         file: &Node, /*SourceFile*/
     ) -> Vec<Rc<ResolvedModuleFull>> {
+        let file_as_source_file = file.as_source_file();
+        if self.structure_is_reused() == StructureIsReused::Not
+            && file_as_source_file
+                .maybe_ambient_module_names()
+                .as_ref()
+                .unwrap()
+                .is_empty()
+        {
+            return self.resolve_module_names_worker(module_names, file, None);
+        }
+
         unimplemented!()
     }
 

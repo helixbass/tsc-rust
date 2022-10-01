@@ -30,7 +30,7 @@ pub struct ResolvedProjectReference {
     pub references: Option<Vec<Option<ResolvedProjectReference>>>,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StructureIsReused {
     Not,
     Completely,

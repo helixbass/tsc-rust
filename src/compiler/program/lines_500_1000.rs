@@ -460,6 +460,7 @@ impl Program {
             file_exists_rc: RefCell::new(None),
             directory_exists_rc: RefCell::new(None),
             should_create_new_source_file: Cell::new(None),
+            structure_is_reused: Cell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
         rc
@@ -613,11 +614,10 @@ impl Program {
                 &self.options,
             )));
         // tracing?.pop();
-        let structure_is_reused: StructureIsReused;
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});
-        structure_is_reused = self.try_reuse_structure_from_old_program();
+        self.set_structure_is_reused(self.try_reuse_structure_from_old_program());
         // tracing?.pop();
-        if structure_is_reused != StructureIsReused::Completely {
+        if self.structure_is_reused() != StructureIsReused::Completely {
             *self.processing_default_lib_files.borrow_mut() = Some(vec![]);
             *self.processing_other_files.borrow_mut() = Some(vec![]);
 
@@ -1039,6 +1039,14 @@ impl Program {
 
     pub(super) fn should_create_new_source_file(&self) -> bool {
         self.should_create_new_source_file.get().unwrap()
+    }
+
+    pub(super) fn structure_is_reused(&self) -> StructureIsReused {
+        self.structure_is_reused.get().unwrap()
+    }
+
+    pub(super) fn set_structure_is_reused(&self, structure_is_reused: StructureIsReused) {
+        self.structure_is_reused.set(Some(structure_is_reused));
     }
 }
 

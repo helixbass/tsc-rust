@@ -19,8 +19,8 @@ use crate::{
     DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue, ModeAwareCache,
     ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
     MultiMap, PackageId, ParseConfigFileHost, PragmaContext, ResolvedProjectReference,
-    SourceOfProjectReferenceRedirect, SymlinkCache, Type, TypeFlags, TypeInterface,
-    TypeReferenceDirectiveResolutionCache, __String,
+    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type, TypeFlags,
+    TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1090,6 +1090,7 @@ pub struct Program {
     pub(crate) directory_exists_rc: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
 
     pub(crate) should_create_new_source_file: Cell<Option<bool>>,
+    pub(crate) structure_is_reused: Cell<Option<StructureIsReused>>,
 }
 
 impl fmt::Debug for Program {
