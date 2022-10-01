@@ -2291,7 +2291,13 @@ pub(crate) fn parse_node_module_from_path(resolved: &str) -> Option<String> {
 }
 
 fn move_to_next_directory_separator_if_available(path: &str, prev_separator_index: usize) -> usize {
-    unimplemented!()
+    let next_separator_index = path[prev_separator_index + 1..]
+        .find(directory_separator)
+        .map(|index| index + prev_separator_index + 1);
+    match next_separator_index {
+        None => prev_separator_index,
+        Some(next_separator_index) => next_separator_index,
+    }
 }
 
 fn load_module_from_file(
