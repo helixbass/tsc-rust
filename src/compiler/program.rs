@@ -4121,5 +4121,14 @@ fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
     let imports = imports.as_ref().unwrap();
     let module_augmentations = file_as_source_file.maybe_module_augmentations();
     let module_augmentations = module_augmentations.as_ref().unwrap();
-    unimplemented!()
+    let mut res: Vec<String> = imports
+        .into_iter()
+        .map(|i| i.as_literal_like_node().text().clone())
+        .collect();
+    for aug in module_augmentations {
+        if aug.kind() == SyntaxKind::StringLiteral {
+            res.push(aug.as_literal_like_node().text().clone());
+        }
+    }
+    res
 }
