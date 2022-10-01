@@ -201,14 +201,43 @@ impl LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>
     }
 }
 
-pub(crate) fn load_with_mode_aware_cache<TValue>(
+pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     names: &[String],
     containing_file: &Node, /*SourceFile*/
     containing_file_name: &str,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
     loader: &dyn LoadWithModeAwareCacheLoader<TValue>,
 ) -> Vec<TValue> {
-    unimplemented!()
+    if names.is_empty() {
+        return vec![];
+    }
+    let mut resolutions: Vec<TValue> = vec![];
+    let mut cache: HashMap<String, TValue> = HashMap::new();
+    let mut i = 0;
+    let containing_file_as_source_file = containing_file.as_source_file();
+    for name in names {
+        let result: TValue;
+        let mode = get_mode_for_resolution_at_index(containing_file_as_source_file, i);
+        i += 1;
+        let cache_key = if let Some(mode) = mode {
+            format!("{:?}|{}", mode, name)
+        } else {
+            name.clone()
+        };
+        if cache.contains_key(&cache_key) {
+            result = cache.get(&cache_key).unwrap().clone();
+        } else {
+            result = loader.call(
+                name,
+                mode,
+                containing_file_name,
+                redirected_reference.clone(),
+            );
+            cache.insert(cache_key, result.clone());
+        }
+        resolutions.push(result);
+    }
+    resolutions
 }
 
 pub fn for_each_resolved_project_reference<
@@ -1161,7 +1190,7 @@ pub trait ActualResolveModuleNamesWorker {
         containing_file: &Node, /*SourceFile*/
         containing_file_name: &str,
         reused_names: Option<&[String]>,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Vec<Option<Rc<ResolvedModuleFull>>>;
 }
 
@@ -1183,14 +1212,14 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
         containing_file: &Node, /*SourceFile*/
         containing_file_name: &str,
         reused_names: Option<&[String]>,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
         self.host
             .resolve_module_names(
                 /*Debug.checkEachDefined(*/ module_names, /*)*/
                 containing_file_name,
                 reused_names,
-                redirected_reference,
+                redirected_reference.as_deref(),
                 &self.options,
                 Some(containing_file),
             )
@@ -1229,7 +1258,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
         containing_file: &Node, /*SourceFile*/
         containing_file_name: &str,
         reused_names: Option<&[String]>,
-        redirected_reference: Option<&ResolvedProjectReference>,
+        redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
         load_with_mode_aware_cache(
             /*Debug.checkEachDefined(*/ module_names, /*)*/

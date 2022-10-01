@@ -36,7 +36,7 @@ impl Program {
                 containing_file,
                 &containing_file_name,
                 reused_names,
-                redirected_reference.as_deref(),
+                redirected_reference.clone(),
             )
             // TODO: it looked like actual_resolve_module_names_worker needs to "tell the truth"
             // and return Vec<Option<Rc<ResolvedModuleFull>>> so this should likely "bubble that
