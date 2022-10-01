@@ -552,7 +552,11 @@ impl SourceFile {
         self.resolved_type_reference_directive_names.borrow_mut()
     }
 
-    pub fn maybe_imports(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    pub fn maybe_imports(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+        self.imports.borrow()
+    }
+
+    pub fn maybe_imports_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
         self.imports.borrow_mut()
     }
 

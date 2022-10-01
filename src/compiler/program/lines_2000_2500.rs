@@ -172,7 +172,7 @@ impl Program {
             self.collect_dynamic_import_or_require_calls(is_java_script_file, &mut imports, file);
         }
 
-        *file_as_source_file.maybe_imports() = Some(imports.unwrap_or_else(|| vec![]));
+        *file_as_source_file.maybe_imports_mut() = Some(imports.unwrap_or_else(|| vec![]));
         *file_as_source_file.maybe_module_augmentations() =
             Some(module_augmentations.unwrap_or_else(|| vec![]));
         *file_as_source_file.maybe_ambient_module_names() =
