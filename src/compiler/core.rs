@@ -1514,7 +1514,8 @@ pub fn pattern_text(pattern: &Pattern) -> String {
 }
 
 pub fn matched_text(pattern: &Pattern, candidate: &str) -> String {
-    unimplemented!()
+    Debug_.assert(is_pattern_match(pattern, candidate), None);
+    candidate[pattern.prefix.len()..candidate.len() - pattern.suffix.len()].to_owned()
 }
 
 pub fn find_best_pattern_match<'array, TItem, TGetPattern: Fn(&TItem) -> &Pattern>(
