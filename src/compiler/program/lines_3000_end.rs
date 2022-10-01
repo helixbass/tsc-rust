@@ -121,17 +121,18 @@ impl Program {
             }
             .unwrap_or_else(|| self.options.clone());
             for index in 0..module_names.len() {
-                let resolution = &resolutions[index];
+                let resolution = resolutions[index].as_ref();
                 set_resolved_module(
                     file,
                     &module_names[index],
-                    resolution.clone(),
+                    resolution.cloned(),
                     get_mode_for_resolution_at_index(file_as_source_file, index),
                 );
 
-                // if (!resolution) {
-                //     continue;
-                // }
+                if (resolution.is_none()) {
+                    continue;
+                }
+                let resolution = resolution.unwrap();
 
                 let is_from_node_modules_search = resolution.is_external_library_import;
                 let is_js_file = !resolution_extension_is_ts_or_json(resolution.extension());

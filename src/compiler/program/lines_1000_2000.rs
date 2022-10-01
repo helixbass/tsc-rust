@@ -17,7 +17,7 @@ impl Program {
         module_names: &[String],
         containing_file: &Node, /*SourceFile*/
         reused_names: Option<&[String]>,
-    ) -> Vec<Rc<ResolvedModuleFull>> {
+    ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
         if module_names.is_empty() {
             return vec![];
         }
@@ -29,22 +29,13 @@ impl Program {
         let redirected_reference = self.get_redirect_reference_for_resolution(containing_file);
         // tracing?.push(tracing.Phase.Program, "resolveModuleNamesWorker", { containingFileName });
         // performance.mark("beforeResolveModule");
-        let result = self
-            .actual_resolve_module_names_worker()
-            .call(
-                module_names,
-                containing_file,
-                &containing_file_name,
-                reused_names,
-                redirected_reference.clone(),
-            )
-            // TODO: it looked like actual_resolve_module_names_worker needs to "tell the truth"
-            // and return Vec<Option<Rc<ResolvedModuleFull>>> so this should likely "bubble that
-            // truth up" as the return type of .resolve_module_names_worker() here but for the
-            // moment panicking if it finds a None
-            .into_iter()
-            .map(Option::unwrap)
-            .collect();
+        let result = self.actual_resolve_module_names_worker().call(
+            module_names,
+            containing_file,
+            &containing_file_name,
+            reused_names,
+            redirected_reference.clone(),
+        );
         // performance.mark("afterResolveModule");
         // performance.measure("ResolveModule", "beforeResolveModule", "afterResolveModule");
         // tracing?.pop();
@@ -254,7 +245,7 @@ impl Program {
         &self,
         module_names: &[String],
         file: &Node, /*SourceFile*/
-    ) -> Vec<Rc<ResolvedModuleFull>> {
+    ) -> Vec<Option<Rc<ResolvedModuleFull>>> {
         let file_as_source_file = file.as_source_file();
         if self.structure_is_reused() == StructureIsReused::Not
             && file_as_source_file

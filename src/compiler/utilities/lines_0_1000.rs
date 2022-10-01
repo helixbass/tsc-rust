@@ -463,7 +463,7 @@ pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
 pub fn set_resolved_module(
     source_file: &Node, /*SourceFile*/
     module_name_text: &str,
-    resolved_module: Rc<ResolvedModuleFull>,
+    resolved_module: Option<Rc<ResolvedModuleFull>>,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) {
     let mut source_file_resolved_modules = source_file.as_source_file().maybe_resolved_modules();
@@ -471,11 +471,10 @@ pub fn set_resolved_module(
         *source_file_resolved_modules = Some(create_mode_aware_cache());
     }
 
-    source_file_resolved_modules.as_ref().unwrap().set(
-        module_name_text,
-        mode,
-        Some(resolved_module),
-    );
+    source_file_resolved_modules
+        .as_ref()
+        .unwrap()
+        .set(module_name_text, mode, resolved_module);
 }
 
 pub fn set_resolved_type_reference_directive(
