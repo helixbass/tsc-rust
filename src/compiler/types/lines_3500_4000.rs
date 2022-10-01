@@ -384,6 +384,10 @@ impl SourceFile {
         *self.type_reference_directives.borrow_mut() = Some(type_reference_directives);
     }
 
+    pub fn maybe_lib_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
+        self.lib_reference_directives.borrow()
+    }
+
     pub fn lib_reference_directives(&self) -> Ref<Vec<FileReference>> {
         Ref::map(self.lib_reference_directives.borrow(), |option| {
             option.as_ref().unwrap()
@@ -1025,7 +1029,7 @@ pub struct Program {
 
     pub(crate) resolved_type_reference_directives:
         RefCell<HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>>,
-    pub(crate) file_preprocessing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
+    pub(crate) file_processing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
 
     pub(crate) max_node_module_js_depth: usize,
     pub(crate) current_node_modules_depth: Cell<usize>,

@@ -1439,6 +1439,14 @@ pub fn ends_with(str_: &str, suffix: &str) -> bool {
     str_.ends_with(suffix)
 }
 
+pub fn remove_suffix<'str>(str_: &'str str, suffix: &str) -> &'str str {
+    if ends_with(str_, suffix) {
+        &str_[0..str_.len() - suffix.len()]
+    } else {
+        str_
+    }
+}
+
 pub fn string_contains(str_: &str, substring: &str) -> bool {
     str_.find(substring).is_some()
 }

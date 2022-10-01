@@ -22,13 +22,14 @@ use crate::{
     get_new_line_character, get_normalized_absolute_path,
     get_normalized_absolute_path_without_root, get_normalized_path_components,
     get_output_declaration_file_name, get_package_scope_for_path, get_path_from_path_components,
-    get_property_assignment, get_strict_option_value, get_supported_extensions,
-    get_supported_extensions_with_json_if_resolve_json_module, get_sys, has_extension,
-    has_js_file_extension, is_declaration_file_name, is_import_call, is_import_equals_declaration,
-    is_rooted_disk_path, is_watch_set, map_defined, maybe_for_each, maybe_map,
-    missing_file_modified_time, node_modules_path_part, normalize_path, options_have_changes,
-    out_file, package_id_to_string, remove_file_extension, resolve_config_file_project_name,
-    resolve_module_name, resolve_type_reference_directive, set_resolved_type_reference_directive,
+    get_property_assignment, get_spelling_suggestion, get_strict_option_value,
+    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, get_sys,
+    has_extension, has_js_file_extension, is_declaration_file_name, is_import_call,
+    is_import_equals_declaration, is_rooted_disk_path, is_watch_set, lib_map, libs, map_defined,
+    maybe_for_each, maybe_map, missing_file_modified_time, node_modules_path_part, normalize_path,
+    options_have_changes, out_file, package_id_to_string, remove_file_extension, remove_prefix,
+    remove_suffix, resolve_config_file_project_name, resolve_module_name,
+    resolve_type_reference_directive, set_resolved_type_reference_directive,
     source_file_affecting_compiler_options, stable_sort, string_contains,
     supported_js_extensions_flat, to_file_name_lower_case, to_path as to_path_helper,
     walk_up_parenthesized_expressions, write_file_ensuring_directories, AutomaticTypeDirectiveFile,
@@ -36,15 +37,16 @@ use crate::{
     ConfigFileDiagnosticsReporter, CreateProgramOptions, CustomTransformers, Debug_, Diagnostic,
     DiagnosticCollection, DiagnosticMessage, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Diagnostics, DirectoryStructureHost, EmitResult,
-    Extension, FileIncludeKind, FileIncludeReason, FileReference, LibFile, LineAndCharacter,
-    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, NamedDeclarationInterface, Node,
-    NodeInterface, PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParseConfigHost,
-    ParsedCommandLine, Path, Program, ProjectReference, RedirectTargetsMap, ReferencedFile,
-    ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, ScriptTarget, SortedArray,
-    SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect, StringOrRcNode,
-    StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
+    Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
+    FilePreprocessingDiagnosticsKind, FilePreprocessingReferencedDiagnostic, FileReference,
+    LibFile, LineAndCharacter, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap,
+    NamedDeclarationInterface, Node, NodeInterface, PackageId, PackageJsonInfoCache,
+    ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
+    RedirectTargetsMap, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
+    ScriptTarget, SortedArray, SourceFile, SourceFileLike, SourceOfProjectReferenceRedirect,
+    StringOrRcNode, StructureIsReused, SymlinkCache, System, TypeChecker, TypeCheckerHost,
     TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, WriteFileCallback,
 };
 
@@ -1012,7 +1014,7 @@ impl Program {
             cached_declaration_diagnostics_for_file: RefCell::new(Default::default()),
 
             resolved_type_reference_directives: RefCell::new(HashMap::new()),
-            file_preprocessing_diagnostics: RefCell::new(None),
+            file_processing_diagnostics: RefCell::new(None),
 
             max_node_module_js_depth,
             current_node_modules_depth: Cell::new(0),
@@ -1448,6 +1450,12 @@ impl Program {
 
     pub(super) fn file_reasons(&self) -> RefMut<MultiMap<Path, FileIncludeReason>> {
         self.file_reasons.borrow_mut()
+    }
+
+    pub(super) fn maybe_file_processing_diagnostics(
+        &self,
+    ) -> RefMut<Option<Vec<FilePreprocessingDiagnostics>>> {
+        self.file_processing_diagnostics.borrow_mut()
     }
 
     pub(super) fn resolved_type_reference_directives(
@@ -2751,7 +2759,66 @@ impl Program {
     }
 
     pub fn process_lib_reference_directives(&self, file: &Node /*SourceFile*/) {
-        unimplemented!()
+        let file_as_source_file = file.as_source_file();
+        maybe_for_each(
+            file_as_source_file
+                .maybe_lib_reference_directives()
+                .as_ref(),
+            |lib_reference: &FileReference, index| -> Option<()> {
+                let lib_name = to_file_name_lower_case(&lib_reference.file_name);
+                let lib_file_name = lib_map.with(|lib_map_| lib_map_.get(&&*lib_name).copied());
+                if let Some(lib_file_name) = lib_file_name {
+                    self.process_root_file(
+                        &self.path_for_lib_file(lib_file_name),
+                        true,
+                        true,
+                        &FileIncludeReason::ReferencedFile(ReferencedFile {
+                            kind: FileIncludeKind::LibReferenceDirective,
+                            file: file_as_source_file.path().clone(),
+                            index,
+                        }),
+                    );
+                } else {
+                    let unqualified_lib_name =
+                        remove_suffix(remove_prefix(&lib_name, "lib."), ".d.ts");
+                    let suggestion = libs.with(|libs_| {
+                        get_spelling_suggestion(unqualified_lib_name, libs_, |lib| {
+                            Some((*lib).to_owned())
+                        })
+                        .map(|suggestion| (*suggestion).to_owned())
+                    });
+                    let diagnostic = if suggestion.is_some() {
+                        &*Diagnostics::Cannot_find_lib_definition_for_0_Did_you_mean_1
+                    } else {
+                        &*Diagnostics::Cannot_find_lib_definition_for_0
+                    };
+                    self.maybe_file_processing_diagnostics().get_or_insert_with(|| {
+                        vec![]
+                    }).push(
+                        FilePreprocessingDiagnostics::FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic {
+                            kind: FilePreprocessingDiagnosticsKind::FilePreprocessingReferencedDiagnostic,
+                            reason: ReferencedFile {
+                                kind: FileIncludeKind::LibReferenceDirective,
+                                file: file_as_source_file.path().clone(),
+                                index,
+                            },
+                            diagnostic,
+                            args: if let Some(suggestion) = suggestion {
+                                Some(vec![
+                                    lib_name,
+                                    suggestion,
+                                ])
+                            } else {
+                                Some(vec![
+                                    lib_name,
+                                ])
+                            }
+                        })
+                    );
+                }
+                None
+            },
+        );
     }
 
     pub fn get_canonical_file_name(&self, file_name: &str) -> String {
