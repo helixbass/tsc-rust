@@ -704,7 +704,40 @@ impl Program {
         &self,
         file_name: &str,
     ) -> Option<Rc<ResolvedProjectReference>> {
-        unimplemented!()
+        let mut map_from_file_to_project_reference_redirects =
+            self.maybe_map_from_file_to_project_reference_redirects();
+        let map_from_file_to_project_reference_redirects =
+            map_from_file_to_project_reference_redirects.get_or_insert_with(|| {
+                let mut map_from_file_to_project_reference_redirects = HashMap::new();
+                self.for_each_resolved_project_reference(
+                    |referenced_project: &ResolvedProjectReference| -> Option<()> {
+                        let referenced_project_source_file_path =
+                            referenced_project.source_file.as_source_file().path();
+                        if &self.to_path(self.options.config_file_path.as_ref().unwrap())
+                            != &*referenced_project_source_file_path
+                        {
+                            referenced_project
+                                .command_line
+                                .file_names
+                                .iter()
+                                .for_each(|f| {
+                                    map_from_file_to_project_reference_redirects.insert(
+                                        self.to_path(f),
+                                        referenced_project_source_file_path.clone(),
+                                    );
+                                });
+                        }
+                        None
+                    },
+                );
+                map_from_file_to_project_reference_redirects
+            });
+
+        let referenced_project_path =
+            map_from_file_to_project_reference_redirects.get(&self.to_path(file_name));
+        referenced_project_path.and_then(|referenced_project_path| {
+            self.get_resolved_project_reference_by_path(referenced_project_path)
+        })
     }
 
     pub fn for_each_resolved_project_reference<
@@ -799,6 +832,13 @@ impl Program {
             })
             .get(path)
             .cloned()
+    }
+
+    pub(super) fn get_resolved_project_reference_by_path(
+        &self,
+        project_reference_path: &Path,
+    ) -> Option<Rc<ResolvedProjectReference>> {
+        unimplemented!()
     }
 
     pub fn process_referenced_files(&self, file: &Node /*SourceFile*/, is_default_lib: bool) {
