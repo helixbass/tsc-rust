@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::io;
 use std::rc::Rc;
 
-use super::get_mode_for_resolution_at_index;
+use super::{get_mode_for_resolution_at_index, SourceFileImportsList};
 use crate::{
     compare_paths, contains_path, create_diagnostic_for_node_in_source_file, create_symlink_cache,
     file_extension_is, file_extension_is_one_of, get_allow_js_compiler_option, get_directory_path,
@@ -853,4 +853,11 @@ fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
         }
     }
     res
+}
+
+pub(crate) fn get_module_name_string_literal_at<TFile: SourceFileImportsList>(
+    file: &TFile,
+    index: usize,
+) -> Rc<Node /*StringLiteralLike*/> {
+    unimplemented!()
 }

@@ -4,7 +4,8 @@ use std::io;
 use std::rc::Rc;
 
 use super::{
-    create_compiler_host, parse_config_host_from_compiler_host_like,
+    create_compiler_host, get_module_name_string_literal_at,
+    parse_config_host_from_compiler_host_like,
     update_host_for_use_source_of_project_reference_redirect, CompilerHostLikeRcDynCompilerHost,
     HostForUseSourceOfProjectReferenceRedirect,
     UpdateHostForUseSourceOfProjectReferenceRedirectReturn,
@@ -107,15 +108,27 @@ pub(crate) fn load_with_local_cache<TValue: Clone>(
     resolutions
 }
 
-pub(crate) trait SourceFileImportsList {}
+pub(crate) trait SourceFileImportsList {
+    fn maybe_implied_node_format(&self) -> Option<ModuleKind>;
+}
 
-impl SourceFileImportsList for SourceFile {}
+impl SourceFileImportsList for SourceFile {
+    fn maybe_implied_node_format(&self) -> Option<ModuleKind> {
+        self.maybe_implied_node_format()
+    }
+}
 
 pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
     file: &TFile,
     index: usize,
 ) -> Option<ModuleKind> {
-    unimplemented!()
+    if file.maybe_implied_node_format().is_none() {
+        return None;
+    }
+    get_mode_for_usage_location(
+        file.maybe_implied_node_format(),
+        &get_module_name_string_literal_at(file, index),
+    )
 }
 
 pub(crate) fn get_mode_for_usage_location(
