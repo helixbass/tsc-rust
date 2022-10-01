@@ -325,8 +325,8 @@ impl ParserType {
         } else {
             name = self.parse_literal_node().wrap();
             let name_as_literal_like_node = name.as_literal_like_node();
-            name_as_literal_like_node
-                .set_text(self.intern_identifier(&name_as_literal_like_node.text()));
+            let text = self.intern_identifier(&name_as_literal_like_node.text());
+            name_as_literal_like_node.set_text(text);
         }
         let mut body: Option<Rc<Node>> = None;
         if self.token() == SyntaxKind::OpenBraceToken {
