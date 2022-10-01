@@ -189,7 +189,7 @@ impl LoadWithModeAwareCacheLoaderResolveModuleName {
     }
 }
 
-impl LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>
+impl LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>
     for LoadWithModeAwareCacheLoaderResolveModuleName
 {
     fn call(
@@ -198,7 +198,7 @@ impl LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>
         resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         containing_file_name: &str,
         redirected_reference: Option<Rc<ResolvedProjectReference>>,
-    ) -> Rc<ResolvedModuleFull> {
+    ) -> Option<Rc<ResolvedModuleFull>> {
         resolve_module_name(
             module_name,
             containing_file_name,
@@ -210,7 +210,6 @@ impl LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>
         )
         .resolved_module
         .clone()
-        .unwrap()
     }
 }
 
@@ -1255,11 +1254,13 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
 }
 
 struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
-    loader: Rc<dyn LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>>,
+    loader: Rc<dyn LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>>,
 }
 
 impl ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
-    pub fn new(loader: Rc<dyn LoadWithModeAwareCacheLoader<Rc<ResolvedModuleFull>>>) -> Self {
+    pub fn new(
+        loader: Rc<dyn LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>>,
+    ) -> Self {
         Self { loader }
     }
 }
@@ -1280,9 +1281,6 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
             redirected_reference,
             &*self.loader,
         )
-        .into_iter()
-        .map(Some)
-        .collect()
     }
 }
 
