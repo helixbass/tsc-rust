@@ -2275,6 +2275,21 @@ fn path_contains_node_modules(path: &str) -> bool {
 }
 
 pub(crate) fn parse_node_module_from_path(resolved: &str) -> Option<String> {
+    let path = normalize_path(resolved);
+    let idx = path.rfind(node_modules_path_part)?;
+
+    let index_after_node_modules = idx + node_modules_path_part.len();
+    let mut index_after_package_name =
+        move_to_next_directory_separator_if_available(&path, index_after_node_modules);
+    // TODO: this should probably use character-awareness?
+    if &path[index_after_node_modules..index_after_node_modules + 1] == "@" {
+        index_after_package_name =
+            move_to_next_directory_separator_if_available(&path, index_after_package_name);
+    }
+    Some(path[0..index_after_package_name].to_owned())
+}
+
+fn move_to_next_directory_separator_if_available(path: &str, prev_separator_index: usize) -> usize {
     unimplemented!()
 }
 
