@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use crate::{
     combine_paths, compare_paths, contains, contains_path, directory_probably_exists,
-    directory_separator, directory_separator_str, extension_is_ts, file_extension_is,
+    directory_separator, directory_separator_str, ends_with, extension_is_ts, file_extension_is,
     first_defined, for_each, for_each_ancestor_directory, format_message, get_base_file_name,
     get_directory_path, get_emit_module_kind, get_paths_base_path,
     get_relative_path_from_directory, get_root_length, has_js_file_extension,
@@ -1725,7 +1725,133 @@ fn try_load_module_using_root_dirs(
     loader: ResolutionKindSpecificLoader,
     state: &ModuleResolutionState,
 ) -> Option<Resolved> {
-    unimplemented!()
+    if state.compiler_options.root_dirs.is_none() {
+        return None;
+    }
+
+    if state.trace_enabled {
+        trace(
+            state.host,
+            &Diagnostics::rootDirs_option_is_set_using_it_to_resolve_relative_module_name_0,
+            Some(vec![module_name.to_owned()]),
+        );
+    }
+
+    let candidate = normalize_path(&combine_paths(containing_directory, &[Some(module_name)]));
+
+    let mut matched_root_dir: Option<String> = None;
+    let mut matched_normalized_prefix: Option<String> = None;
+    for root_dir in state.compiler_options.root_dirs.as_ref().unwrap() {
+        let mut normalized_root = normalize_path(root_dir);
+        if !ends_with(&normalized_root, directory_separator_str) {
+            normalized_root.push_str(directory_separator_str);
+        }
+        let is_longest_matching_prefix = starts_with(&candidate, &normalized_root)
+            && match matched_normalized_prefix.as_ref() {
+                None => true,
+                Some(matched_normalized_prefix) => {
+                    matched_normalized_prefix.len() < normalized_root.len()
+                }
+            };
+
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::Checking_if_0_is_the_longest_matching_prefix_for_1_2,
+                Some(vec![
+                    normalized_root.clone(),
+                    candidate.clone(),
+                    is_longest_matching_prefix.to_string(),
+                ]),
+            );
+        }
+
+        if is_longest_matching_prefix {
+            matched_normalized_prefix = Some(normalized_root);
+            matched_root_dir = Some(root_dir.clone());
+        }
+    }
+    if let Some(matched_normalized_prefix) = matched_normalized_prefix {
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::Longest_matching_prefix_for_0_is_1,
+                Some(vec![candidate.clone(), matched_normalized_prefix.clone()]),
+            );
+        }
+        let suffix = &candidate[matched_normalized_prefix.len()..];
+
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::Loading_0_from_the_root_dir_1_candidate_location_2,
+                Some(vec![
+                    suffix.to_owned(),
+                    matched_normalized_prefix.clone(),
+                    candidate.clone(),
+                ]),
+            );
+        }
+        let resolved_file_name = loader(
+            extensions,
+            &candidate,
+            !directory_probably_exists(
+                containing_directory,
+                |directory_name: &str| state.host.directory_exists(directory_name),
+                || state.host.is_directory_exists_supported(),
+            ),
+            state,
+        );
+        if resolved_file_name.is_some() {
+            return resolved_file_name;
+        }
+
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::Trying_other_entries_in_rootDirs,
+                None,
+            );
+        }
+        for root_dir in state.compiler_options.root_dirs.as_ref().unwrap() {
+            if matches!(
+                matched_root_dir.as_ref(),
+                Some(matched_root_dir) if root_dir == matched_root_dir
+            ) {
+                continue;
+            }
+            let candidate = combine_paths(&normalize_path(root_dir), &[Some(suffix)]);
+            if state.trace_enabled {
+                trace(
+                    state.host,
+                    &Diagnostics::Loading_0_from_the_root_dir_1_candidate_location_2,
+                    Some(vec![suffix.to_owned(), root_dir.clone(), candidate.clone()]),
+                );
+            }
+            let base_directory = get_directory_path(&candidate);
+            let resolved_file_name = loader(
+                extensions,
+                &candidate,
+                !directory_probably_exists(
+                    &base_directory,
+                    |directory_name: &str| state.host.directory_exists(directory_name),
+                    || state.host.is_directory_exists_supported(),
+                ),
+                state,
+            );
+            if resolved_file_name.is_some() {
+                return resolved_file_name;
+            }
+        }
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::Module_resolution_using_rootDirs_has_failed,
+                None,
+            );
+        }
+    }
+    None
 }
 
 fn try_load_module_using_base_url(
