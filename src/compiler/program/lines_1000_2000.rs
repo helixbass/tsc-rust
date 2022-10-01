@@ -6,10 +6,10 @@ use super::filter_semantic_diagnostics;
 use crate::{
     concatenate, contains, create_type_checker, file_extension_is_one_of,
     get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
-    is_trace_enabled, node_modules_path_part, out_file, package_id_to_string, string_contains,
-    to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison, CompilerOptions,
-    CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension, FileIncludeReason,
-    MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
+    is_trace_enabled, length, node_modules_path_part, out_file, package_id_to_string,
+    string_contains, to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison,
+    CompilerOptions, CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension,
+    FileIncludeReason, MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, SourceOfProjectReferenceRedirect, StringOrRcNode,
     StructureIsReused, TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
@@ -375,7 +375,11 @@ impl Program {
                 }
             } else {
                 resolves_to_ambient_module_in_non_modified_file = self
-                    .module_name_resolves_to_ambient_module_in_non_modified_file(module_name, i);
+                    .module_name_resolves_to_ambient_module_in_non_modified_file(
+                        old_source_file.as_deref(),
+                        module_name,
+                        i,
+                    );
             }
 
             if resolves_to_ambient_module_in_non_modified_file {
@@ -421,10 +425,71 @@ impl Program {
 
     pub(super) fn module_name_resolves_to_ambient_module_in_non_modified_file(
         &self,
+        old_source_file: Option<&Node>,
         module_name: &str,
         index: usize,
     ) -> bool {
-        unimplemented!()
+        if index
+            >= old_source_file
+                .and_then(|old_source_file| {
+                    old_source_file
+                        .as_source_file()
+                        .maybe_imports()
+                        .as_ref()
+                        .map(|old_source_file_imports| old_source_file_imports.len())
+                })
+                .unwrap_or(0)
+                + old_source_file
+                    .and_then(|old_source_file| {
+                        old_source_file
+                            .as_source_file()
+                            .maybe_module_augmentations()
+                            .as_ref()
+                            .map(|old_source_file_module_augmentations| {
+                                old_source_file_module_augmentations.len()
+                            })
+                    })
+                    .unwrap_or(0)
+        {
+            return false;
+        }
+        let resolution_to_file = get_resolved_module(
+            old_source_file,
+            module_name,
+            old_source_file.and_then(|old_source_file| {
+                get_mode_for_resolution_at_index(old_source_file.as_source_file(), index)
+            }),
+        );
+        let resolved_file = resolution_to_file.as_ref().and_then(|resolution_to_file| {
+            self.maybe_old_program()
+                .unwrap()
+                .get_source_file(&resolution_to_file.resolved_file_name)
+        });
+        if resolution_to_file.is_some() && resolved_file.is_some() {
+            return false;
+        }
+
+        let unmodified_file = self
+            .ambient_module_name_to_unmodified_file_name()
+            .get(module_name)
+            .cloned();
+
+        if unmodified_file.is_none() {
+            return false;
+        }
+        let unmodified_file = unmodified_file.unwrap();
+
+        if is_trace_enabled(&self.options, self.host().as_dyn_module_resolution_host()) {
+            trace(
+                self.host().as_dyn_module_resolution_host(),
+                &Diagnostics::Module_0_was_resolved_as_ambient_module_declared_in_1_since_this_file_was_not_modified,
+                Some(vec![
+                    module_name.to_owned(),
+                    unmodified_file,
+                ])
+            );
+        }
+        true
     }
 
     pub fn try_reuse_structure_from_old_program(&self) -> StructureIsReused {

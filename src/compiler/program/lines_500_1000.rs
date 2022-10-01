@@ -991,6 +991,13 @@ impl Program {
         self.symlinks.borrow_mut()
     }
 
+    pub(super) fn ambient_module_name_to_unmodified_file_name(
+        &self,
+    ) -> RefMut<HashMap<String, String>> {
+        self.ambient_module_name_to_unmodified_file_name
+            .borrow_mut()
+    }
+
     pub(super) fn file_reasons(&self) -> RefMut<MultiMap<Path, FileIncludeReason>> {
         self.file_reasons.borrow_mut()
     }
