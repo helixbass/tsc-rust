@@ -4,9 +4,10 @@ use std::rc::Rc;
 
 use super::filter_semantic_diagnostics;
 use crate::{
-    concatenate, contains, create_type_checker, file_extension_is_one_of,
-    get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
-    is_trace_enabled, length, node_modules_path_part, out_file, package_id_to_string,
+    compare_values, concatenate, contains, contains_path, create_type_checker,
+    file_extension_is_one_of, get_base_file_name, get_mode_for_resolution_at_index,
+    get_normalized_absolute_path, get_resolved_module, is_trace_enabled, libs,
+    node_modules_path_part, out_file, package_id_to_string, remove_prefix, remove_suffix,
     string_contains, to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison,
     CompilerOptions, CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension,
     FileIncludeReason, MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
@@ -160,7 +161,31 @@ impl Program {
         a: &Node, /*SourceFile*/
         b: &Node, /*SourceFile*/
     ) -> Comparison {
-        unimplemented!()
+        compare_values(
+            Some(self.get_default_lib_file_priority(a)),
+            Some(self.get_default_lib_file_priority(b)),
+        )
+    }
+
+    pub(super) fn get_default_lib_file_priority(&self, a: &Node /*SourceFile*/) -> usize {
+        let a_file_name = a.as_source_file().file_name();
+        if contains_path(
+            &self.default_library_path(),
+            &a_file_name,
+            Option::<String>::None,
+            Some(false),
+        ) {
+            let basename = get_base_file_name(&a_file_name, None, None);
+            if matches!(&*basename, "lib.d.ts" | "lib.es6.d.ts") {
+                return 0;
+            }
+            let name = remove_suffix(remove_prefix(&basename, "lib."), ".d.ts");
+            let index = libs.with(|libs_| libs_.into_iter().position(|lib| *lib == name));
+            if let Some(index) = index {
+                return index + 1;
+            }
+        }
+        libs.with(|libs_| libs_.len() + 2)
     }
 
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
