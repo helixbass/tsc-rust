@@ -1,5 +1,5 @@
 use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::rc::Rc;
 
@@ -240,14 +240,82 @@ pub fn for_each_project_reference<
         Option<&ResolvedProjectReference>,
         usize,
     ) -> Option<TReturn>,
-    TCallbackRef: FnMut(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+    TCallbackRef: Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
 >(
     project_references: Option<&[Rc<ProjectReference>]>,
     resolved_project_references: Option<&[Option<Rc<ResolvedProjectReference>>]>,
-    cb_resolved_ref: TCallbackResolvedRef,
+    mut cb_resolved_ref: TCallbackResolvedRef,
     cb_ref: Option<TCallbackRef>,
 ) -> Option<TReturn> {
-    unimplemented!()
+    let mut seen_resolved_refs: Option<HashSet<Path>> = None;
+
+    for_each_project_reference_worker(
+        cb_ref.as_ref(),
+        &mut cb_resolved_ref,
+        &mut seen_resolved_refs,
+        project_references,
+        resolved_project_references,
+        None,
+    )
+}
+
+fn for_each_project_reference_worker<
+    TReturn,
+    TCallbackResolvedRef: FnMut(
+        Option<&ResolvedProjectReference>,
+        Option<&ResolvedProjectReference>,
+        usize,
+    ) -> Option<TReturn>,
+    TCallbackRef: Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+>(
+    cb_ref: Option<&TCallbackRef>,
+    cb_resolved_ref: &mut TCallbackResolvedRef,
+    seen_resolved_refs: &mut Option<HashSet<Path>>,
+    project_references: Option<&[Rc<ProjectReference>]>,
+    resolved_project_references: Option<&[Option<Rc<ResolvedProjectReference>>]>,
+    parent: Option<&ResolvedProjectReference>,
+) -> Option<TReturn> {
+    if let Some(cb_ref) = cb_ref {
+        let result = cb_ref(project_references, parent);
+        if result.is_some() {
+            return result;
+        }
+    }
+
+    maybe_for_each(
+        resolved_project_references,
+        |resolved_ref: &Option<Rc<ResolvedProjectReference>>, index| {
+            if matches!(
+                resolved_ref.as_ref(),
+                Some(resolved_ref) if matches!(
+                    seen_resolved_refs,
+                    Some(seen_resolved_refs) if seen_resolved_refs.contains(
+                        &*resolved_ref.source_file.as_source_file().path()
+                    )
+                )
+            ) {
+                return None;
+            }
+
+            let result = cb_resolved_ref(resolved_ref.as_deref(), parent, index);
+            if result.is_some() || resolved_ref.is_none() {
+                return result;
+            }
+            let resolved_ref = resolved_ref.as_ref().unwrap();
+
+            seen_resolved_refs
+                .get_or_insert_with(|| HashSet::new())
+                .insert(resolved_ref.source_file.as_source_file().path().clone());
+            for_each_project_reference_worker(
+                cb_ref,
+                cb_resolved_ref,
+                seen_resolved_refs,
+                resolved_ref.command_line.project_references.as_deref(),
+                resolved_ref.references.as_deref(),
+                Some(&**resolved_ref),
+            )
+        },
+    )
 }
 
 pub(crate) const inferred_types_containing_file: &str = "__inferred type names__.ts";

@@ -27,7 +27,7 @@ pub type RedirectTargetsMap = HashMap<Path, Vec<String>>;
 pub struct ResolvedProjectReference {
     pub command_line: ParsedCommandLine,
     pub source_file: Rc<Node /*SourceFile*/>,
-    pub references: Option<Vec<Option<ResolvedProjectReference>>>,
+    pub references: Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
