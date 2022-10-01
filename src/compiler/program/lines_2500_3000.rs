@@ -689,7 +689,16 @@ impl Program {
         &self,
         file_name: &str,
     ) -> Option<Rc<ResolvedProjectReference>> {
-        unimplemented!()
+        if match self.maybe_resolved_project_references().as_ref() {
+            None => true,
+            Some(resolved_project_references) => resolved_project_references.is_empty(),
+        } || file_extension_is(file_name, Extension::Dts.to_str())
+            || file_extension_is(file_name, Extension::Json.to_str())
+        {
+            return None;
+        }
+
+        self.get_resolved_project_reference_to_redirect(file_name)
     }
 
     pub fn get_project_reference_output_name(
