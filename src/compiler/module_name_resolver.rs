@@ -12,15 +12,16 @@ use crate::{
     get_directory_path, get_emit_module_kind, get_paths_base_path,
     get_relative_path_from_directory, get_root_length, has_js_file_extension,
     has_trailing_directory_separator, is_external_module_name_relative, last_index_of,
-    normalize_path, normalize_path_and_parts, normalize_slashes,
-    options_have_module_resolution_changes, package_id_to_string, path_is_relative, read_json,
-    remove_file_extension, starts_with, string_contains, to_path, try_get_extension_from_path,
-    try_parse_patterns, try_remove_extension, version, version_major_minor, CharacterCodes,
-    Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension, MapLike,
-    ModuleKind, ModuleResolutionHost, ModuleResolutionKind, PackageId, Path, PathAndParts,
-    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
-    StringOrBool, StringOrPattern, Version, VersionRange,
+    match_pattern_or_exact, matched_text, maybe_for_each, normalize_path, normalize_path_and_parts,
+    normalize_slashes, options_have_module_resolution_changes, package_id_to_string,
+    path_is_relative, pattern_text, read_json, remove_file_extension, starts_with, string_contains,
+    to_path, try_get_extension_from_path, try_parse_patterns, try_remove_extension, version,
+    version_major_minor, CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage,
+    Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
+    PackageId, Path, PathAndParts, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
+    Version, VersionRange,
 };
 
 pub(crate) fn trace(
@@ -3196,7 +3197,67 @@ fn try_load_module_using_paths(
     only_record_failures: bool,
     state: &ModuleResolutionState,
 ) -> SearchResult<Resolved> {
-    unimplemented!()
+    let path_patterns = path_patterns
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| try_parse_patterns(paths));
+    let matched_pattern = match_pattern_or_exact(&path_patterns, module_name);
+    if let Some(matched_pattern) = matched_pattern {
+        let matched_star = match &matched_pattern {
+            StringOrPattern::String(_) => None,
+            StringOrPattern::Pattern(matched_pattern) => {
+                Some(matched_text(matched_pattern, module_name))
+            }
+        };
+        let matched_pattern_text = match matched_pattern {
+            StringOrPattern::String(matched_pattern) => matched_pattern,
+            StringOrPattern::Pattern(matched_pattern) => pattern_text(&matched_pattern),
+        };
+        if state.trace_enabled {
+            trace(
+                state.host,
+                &Diagnostics::Module_name_0_matched_pattern_1,
+                Some(vec![module_name.to_owned(), matched_pattern_text.clone()]),
+            );
+        }
+        let resolved = maybe_for_each(paths.get(&matched_pattern_text), |subst: &String, _| {
+            let path = if let Some(matched_star) = matched_star.as_ref() {
+                subst.replace("*", matched_star)
+            } else {
+                subst.clone()
+            };
+            let candidate = normalize_path(&combine_paths(base_directory, &[Some(&path)]));
+            if state.trace_enabled {
+                trace(
+                    state.host,
+                    &Diagnostics::Trying_substitution_0_candidate_module_location_Colon_1,
+                    Some(vec![subst.clone(), path.clone()]),
+                );
+            }
+            let extension = try_get_extension_from_path(subst);
+            if let Some(extension) = extension {
+                let path = try_file(&candidate, only_record_failures, state);
+                if let Some(path) = path {
+                    return no_package_id(Some(&PathAndExtension {
+                        path,
+                        ext: extension,
+                    }));
+                }
+            }
+            loader(
+                extensions,
+                &candidate,
+                only_record_failures
+                    || !directory_probably_exists(
+                        &get_directory_path(&candidate),
+                        |directory_name: &str| state.host.directory_exists(directory_name),
+                        || state.host.is_directory_exists_supported(),
+                    ),
+                state,
+            )
+        });
+        return Some(SearchResultPresent { value: resolved });
+    }
+    None
 }
 
 static mangled_scoped_package_separator: &str = "__";

@@ -1509,6 +1509,14 @@ impl Pattern {
     }
 }
 
+pub fn pattern_text(pattern: &Pattern) -> String {
+    format!("{}*{}", pattern.prefix, pattern.suffix)
+}
+
+pub fn matched_text(pattern: &Pattern, candidate: &str) -> String {
+    unimplemented!()
+}
+
 pub fn find_best_pattern_match<'array, TItem, TGetPattern: Fn(&TItem) -> &Pattern>(
     values: &'array [TItem],
     get_pattern: TGetPattern,

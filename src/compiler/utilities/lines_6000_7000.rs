@@ -1808,6 +1808,13 @@ lazy_static! {
     };
 }
 
+pub fn match_pattern_or_exact(
+    pattern_or_strings: &[StringOrPattern],
+    candidate: &str,
+) -> Option<StringOrPattern> {
+    unimplemented!()
+}
+
 pub fn slice_after<'arr, TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
     arr: &'arr [TItem],
     value: &TItem,
