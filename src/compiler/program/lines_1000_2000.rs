@@ -11,8 +11,8 @@ use crate::{
     string_contains, to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison,
     CompilerOptions, CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension,
     FileIncludeReason, MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, SourceOfProjectReferenceRedirect, StringOrRcNode,
-    StructureIsReused, TypeChecker, TypeCheckerHost, WriteFileCallback,
+    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceOfProjectReferenceRedirect,
+    StringOrRcNode, StructureIsReused, TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -211,7 +211,7 @@ impl Program {
     }
 
     pub fn get_source_file_(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
-        unimplemented!()
+        self.get_source_file_by_path(&self.to_path(file_name))
     }
 
     pub fn get_syntactic_diagnostics(
@@ -288,7 +288,7 @@ impl Program {
         let old_source_file = self
             .maybe_old_program()
             .as_ref()
-            .and_then(|old_program| old_program.get_source_file(&file_as_source_file.file_name()));
+            .and_then(|old_program| old_program.get_source_file_(&file_as_source_file.file_name()));
         if !matches!(
             old_source_file.as_deref(),
             Some(old_source_file) if ptr::eq(
@@ -488,7 +488,7 @@ impl Program {
         let resolved_file = resolution_to_file.as_ref().and_then(|resolution_to_file| {
             self.maybe_old_program()
                 .unwrap()
-                .get_source_file(&resolution_to_file.resolved_file_name)
+                .get_source_file_(&resolution_to_file.resolved_file_name)
         });
         if resolution_to_file.is_some() && resolved_file.is_some() {
             return false;

@@ -1374,7 +1374,12 @@ impl ScriptReferenceHost for Program {
     }
 
     fn get_source_file_by_path(&self, path: &Path) -> Option<Rc<Node /*SourceFile*/>> {
-        unimplemented!()
+        self.files_by_name()
+            .get(&**path)
+            .and_then(|value| match value {
+                FilesByNameValue::SourceFile(value) => Some(value.clone()),
+                _ => None,
+            })
     }
 
     fn get_current_directory(&self) -> String {
