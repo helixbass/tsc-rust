@@ -1,14 +1,17 @@
 use std::cell::Ref;
+use std::ptr;
 use std::rc::Rc;
 
 use super::filter_semantic_diagnostics;
 use crate::{
-    concatenate, create_type_checker, file_extension_is_one_of, get_normalized_absolute_path,
-    node_modules_path_part, out_file, string_contains, to_path as to_path_helper,
-    CancellationTokenDebuggable, Comparison, CompilerOptions, CustomTransformers, Diagnostic,
-    EmitResult, Extension, FileIncludeReason, MultiMap, Node, Path, Program, ResolvedModuleFull,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, SourceOfProjectReferenceRedirect,
-    StringOrRcNode, StructureIsReused, TypeChecker, TypeCheckerHost, WriteFileCallback,
+    concatenate, contains, create_type_checker, file_extension_is_one_of,
+    get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
+    is_trace_enabled, node_modules_path_part, out_file, package_id_to_string, string_contains,
+    to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison, CompilerOptions,
+    CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension, FileIncludeReason,
+    MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, SourceOfProjectReferenceRedirect, StringOrRcNode,
+    StructureIsReused, TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
 
 impl Program {
@@ -257,6 +260,170 @@ impl Program {
             return self.resolve_module_names_worker(module_names, file, None);
         }
 
+        let old_source_file = self
+            .maybe_old_program()
+            .as_ref()
+            .and_then(|old_program| old_program.get_source_file(&file_as_source_file.file_name()));
+        if !matches!(
+            old_source_file.as_deref(),
+            Some(old_source_file) if ptr::eq(
+                old_source_file,
+                file,
+            )
+        ) {
+            if let Some(file_resolved_modules) =
+                file_as_source_file.maybe_resolved_modules().as_ref()
+            {
+                let mut result: Vec<Option<Rc<ResolvedModuleFull>>> = vec![];
+                let mut i = 0;
+                for module_name in module_names {
+                    let resolved_module = file_resolved_modules
+                        .get(
+                            module_name,
+                            get_mode_for_resolution_at_index(file_as_source_file, i),
+                        )
+                        .flatten();
+                    i += 1;
+                    result.push(resolved_module);
+                }
+                return result;
+            }
+        }
+        let mut unknown_module_names: Option<Vec<String>> = None;
+        let mut result: Option<Vec<Option<ResolveModuleNamesReusingOldStateResultItem>>> = None;
+        let mut reused_names: Option<Vec<String>> = None;
+
+        for i in 0..module_names.len() {
+            let module_name = &module_names[i];
+            if let Some(old_source_file) = old_source_file
+                .as_ref()
+                .filter(|old_source_file| ptr::eq(file, &***old_source_file))
+            {
+                let old_source_file_as_source_file = old_source_file.as_source_file();
+                if !self.has_invalidated_resolution(&old_source_file_as_source_file.path()) {
+                    let old_resolved_module = get_resolved_module(
+                        Some(&**old_source_file),
+                        module_name,
+                        get_mode_for_resolution_at_index(old_source_file_as_source_file, i),
+                    );
+                    if let Some(old_resolved_module) = old_resolved_module.as_ref() {
+                        if is_trace_enabled(
+                            &self.options,
+                            self.host().as_dyn_module_resolution_host(),
+                        ) {
+                            trace(
+                                self.host().as_dyn_module_resolution_host(),
+                                if old_resolved_module.package_id.is_some() {
+                                    &*Diagnostics::Reusing_resolution_of_module_0_from_1_of_old_program_it_was_successfully_resolved_to_2_with_Package_ID_3
+                                } else {
+                                    &*Diagnostics::Reusing_resolution_of_module_0_from_1_of_old_program_it_was_successfully_resolved_to_2
+                                },
+                                if let Some(old_resolved_module_package_id) =
+                                    old_resolved_module.package_id.as_ref()
+                                {
+                                    Some(vec![
+                                        module_name.clone(),
+                                        get_normalized_absolute_path(
+                                            &file_as_source_file.original_file_name(),
+                                            Some(&self.current_directory()),
+                                        ),
+                                        old_resolved_module.resolved_file_name.clone(),
+                                        package_id_to_string(old_resolved_module_package_id),
+                                    ])
+                                } else {
+                                    Some(vec![
+                                        module_name.clone(),
+                                        get_normalized_absolute_path(
+                                            &file_as_source_file.original_file_name(),
+                                            Some(&self.current_directory()),
+                                        ),
+                                        old_resolved_module.resolved_file_name.clone(),
+                                    ])
+                                },
+                            );
+                        }
+                        result.get_or_insert_with(|| vec![None; module_names.len()])[i] = Some(
+                            ResolveModuleNamesReusingOldStateResultItem::ResolvedModuleFull(
+                                old_resolved_module.clone(),
+                            ),
+                        );
+                        reused_names
+                            .get_or_insert_with(|| vec![])
+                            .push(module_name.clone());
+                        continue;
+                    }
+                }
+            }
+            let mut resolves_to_ambient_module_in_non_modified_file = false;
+            if contains(
+                file_as_source_file.maybe_ambient_module_names().as_deref(),
+                module_name,
+            ) {
+                resolves_to_ambient_module_in_non_modified_file = true;
+                if is_trace_enabled(&self.options, self.host().as_dyn_module_resolution_host()) {
+                    trace(
+                        self.host().as_dyn_module_resolution_host(),
+                        &Diagnostics::Module_0_was_resolved_as_locally_declared_ambient_module_in_file_1,
+                        Some(vec![
+                            module_name.clone(),
+                            get_normalized_absolute_path(
+                                &file_as_source_file.original_file_name(),
+                                Some(&self.current_directory()),
+                            )
+                        ])
+                    );
+                }
+            } else {
+                resolves_to_ambient_module_in_non_modified_file = self
+                    .module_name_resolves_to_ambient_module_in_non_modified_file(module_name, i);
+            }
+
+            if resolves_to_ambient_module_in_non_modified_file {
+                result.get_or_insert_with(|| vec![None; module_names.len()])[i] = Some(ResolveModuleNamesReusingOldStateResultItem::PredictedToResolveToAmbientModuleMarker);
+            } else {
+                unknown_module_names
+                    .get_or_insert_with(|| vec![])
+                    .push(module_name.clone());
+            }
+        }
+
+        let resolutions = if let Some(unknown_module_names) = unknown_module_names
+            .as_ref()
+            .filter(|unknown_module_names| !unknown_module_names.is_empty())
+        {
+            self.resolve_module_names_worker(unknown_module_names, file, reused_names.as_deref())
+        } else {
+            vec![]
+        };
+
+        if result.is_none() {
+            Debug_.assert(resolutions.len() == module_names.len(), None);
+            return resolutions;
+        }
+        let result = result.unwrap();
+
+        let mut j = 0;
+        let result = result.into_iter().map(|value| {
+            match value {
+                Some(ResolveModuleNamesReusingOldStateResultItem::PredictedToResolveToAmbientModuleMarker) => None,
+                Some(ResolveModuleNamesReusingOldStateResultItem::ResolvedModuleFull(value)) => Some(value),
+                None => {
+                    let value = resolutions[j].clone();
+                    j += 1;
+                    value
+                }
+            }
+        }).collect::<Vec<_>>();
+        Debug_.assert(j == resolutions.len(), None);
+
+        result
+    }
+
+    pub(super) fn module_name_resolves_to_ambient_module_in_non_modified_file(
+        &self,
+        module_name: &str,
+        index: usize,
+    ) -> bool {
         unimplemented!()
     }
 
@@ -348,4 +515,10 @@ impl Program {
             self.get_program_diagnostics(source_file),
         )
     }
+}
+
+#[derive(Clone)]
+pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
+    ResolvedModuleFull(Rc<ResolvedModuleFull>),
+    PredictedToResolveToAmbientModuleMarker,
 }
