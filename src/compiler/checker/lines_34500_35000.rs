@@ -254,7 +254,7 @@ impl TypeChecker {
     pub(super) fn get_effective_type_arguments(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
     ) -> Vec<Rc<Type>> {
         self.fill_missing_type_arguments(
             Some(map(
@@ -264,8 +264,8 @@ impl TypeChecker {
                     .unwrap(),
                 |type_argument, _| self.get_type_from_type_node_(type_argument),
             )),
-            Some(type_parameters),
-            self.get_min_type_argument_count(Some(type_parameters)),
+            type_parameters,
+            self.get_min_type_argument_count(type_parameters),
             is_in_js_file(Some(node)),
         )
         .unwrap()
@@ -283,7 +283,8 @@ impl TypeChecker {
             let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);
             if let Some(constraint) = constraint.as_ref() {
                 if type_arguments.is_none() {
-                    type_arguments = Some(self.get_effective_type_arguments(node, type_parameters));
+                    type_arguments =
+                        Some(self.get_effective_type_arguments(node, Some(type_parameters)));
                     mapper = Some(
                         self.create_type_mapper(type_parameters.to_owned(), type_arguments.clone()),
                     );
@@ -445,7 +446,9 @@ impl TypeChecker {
             &constraint,
             Some(&self.create_type_mapper(
                 type_parameters.clone(),
-                Some(self.get_effective_type_arguments(&type_reference_node, &type_parameters)),
+                Some(
+                    self.get_effective_type_arguments(&type_reference_node, Some(&type_parameters)),
+                ),
             )),
         ))
     }

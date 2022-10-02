@@ -62,7 +62,7 @@ impl TypeChecker {
                                             type_parameters.clone(),
                                             Some(self.get_effective_type_arguments(
                                                 type_reference,
-                                                &type_parameters,
+                                                Some(&type_parameters),
                                             )),
                                         );
                                         let constraint = self
@@ -440,9 +440,7 @@ impl TypeChecker {
                             .map_or_else(|| vec![], ToOwned::to_owned),
                         self.get_effective_type_arguments(
                             &node,
-                            target_as_interface_type
-                                .maybe_local_type_parameters()
-                                .unwrap(),
+                            target_as_interface_type.maybe_local_type_parameters(),
                         ),
                     )
                 } else if node.kind() == SyntaxKind::ArrayType {
