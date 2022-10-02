@@ -914,7 +914,7 @@ pub struct BaseSymbol {
     flags: Cell<SymbolFlags>,
     escaped_name: __String,
     declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
-    value_declaration: RefCell<Option<Weak<Node>>>,
+    value_declaration: RefCell<Option<Rc<Node>>>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     global_exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
@@ -992,14 +992,11 @@ impl SymbolInterface for BaseSymbol {
     }
 
     fn maybe_value_declaration(&self) -> Option<Rc<Node>> {
-        self.value_declaration
-            .borrow()
-            .as_ref()
-            .map(|weak| weak.upgrade().unwrap())
+        self.value_declaration.borrow().clone()
     }
 
     fn set_value_declaration(&self, node: Rc<Node>) {
-        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node));
+        *self.value_declaration.borrow_mut() = Some(node);
     }
 
     fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
