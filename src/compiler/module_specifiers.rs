@@ -1,12 +1,17 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    get_source_file_of_module, is_external_module_augmentation, is_non_global_ambient_module,
-    starts_with, CharacterCodes, CompilerOptions, ModulePath, ModuleSpecifierCache,
-    ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path, Symbol, SymbolFlags,
-    SymbolInterface, TypeChecker, UserPreferences, __String, get_text_of_identifier_or_literal,
-    is_ambient_module, is_external_module_name_relative, is_module_block, is_module_declaration,
-    is_source_file, map_defined, LiteralLikeNodeInterface,
+    comparison_to_ordering, contains_ignored_path, ensure_trailing_directory_separator, every,
+    for_each, for_each_ancestor_directory, get_directory_path, get_normalized_absolute_path,
+    get_relative_path_from_directory, get_source_file_of_module, host_get_canonical_file_name,
+    is_external_module_augmentation, is_non_global_ambient_module, path_contains_node_modules,
+    resolve_path, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison,
+    CompilerOptions, ModulePath, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node,
+    NodeFlags, NodeInterface, Path, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    UserPreferences, __String, get_text_of_identifier_or_literal, is_ambient_module,
+    is_external_module_name_relative, is_module_block, is_module_declaration, is_source_file,
+    map_defined, LiteralLikeNodeInterface,
 };
 
 fn try_get_module_specifiers_from_cache_worker(
@@ -163,12 +168,234 @@ pub fn count_path_components(path: &str) -> usize {
     count
 }
 
+fn compare_paths_by_redirect_and_number_of_directory_separators(
+    a: &ModulePath,
+    b: &ModulePath,
+) -> Comparison {
+    unimplemented!()
+}
+
+pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Option<TReturn>>(
+    importing_file_name: &str,
+    imported_file_name: &str,
+    host: &dyn ModuleSpecifierResolutionHost,
+    prefer_sym_links: bool,
+    mut cb: TCallback,
+) -> Option<TReturn> {
+    let get_canonical_file_name =
+        host_get_canonical_file_name(|| host.use_case_sensitive_file_names());
+    let cwd = host.get_current_directory();
+    let reference_redirect = if host.is_source_of_project_reference_redirect(imported_file_name) {
+        host.get_project_reference_redirect(imported_file_name)
+    } else {
+        None
+    };
+    let imported_path = to_path(imported_file_name, Some(&cwd), get_canonical_file_name);
+    let mut redirects = (*host.redirect_targets_map())
+        .borrow()
+        .get(&imported_path)
+        .cloned()
+        .unwrap_or_else(|| vec![]);
+    let mut imported_file_names = if let Some(reference_redirect) = reference_redirect.as_ref() {
+        vec![reference_redirect.clone()]
+    } else {
+        vec![]
+    };
+    imported_file_names.push(imported_file_name.to_owned());
+    imported_file_names.append(&mut redirects);
+    let targets = imported_file_names
+        .iter()
+        .map(|f| get_normalized_absolute_path(f, Some(&cwd)))
+        .collect::<Vec<_>>();
+    let mut should_filter_ignored_paths =
+        !every(&targets, |target: &String, _| contains_ignored_path(target));
+
+    if !prefer_sym_links {
+        let result = for_each(&targets, |p: &String, _| {
+            if !(should_filter_ignored_paths && contains_ignored_path(p)) {
+                cb(
+                    p,
+                    matches!(
+                        reference_redirect.as_ref(),
+                        Some(reference_redirect) if reference_redirect == p
+                    ),
+                )
+            } else {
+                None
+            }
+        });
+        if result.is_some() {
+            return result;
+        }
+    }
+
+    let symlink_cache = host.get_symlink_cache();
+    let symlinked_directories = symlink_cache
+        .as_ref()
+        .map(|symlink_cache| symlink_cache.get_symlinked_directories_by_realpath());
+    let ref full_imported_file_name = get_normalized_absolute_path(imported_file_name, Some(&cwd));
+    let result = symlinked_directories.and_then(|symlinked_directories| {
+        symlinked_directories
+            .as_ref()
+            .and_then(|symlinked_directories| {
+                for_each_ancestor_directory(
+                    &get_directory_path(full_imported_file_name).into(),
+                    |real_path_directory: &Path| -> Option<Option<TReturn>> {
+                        let symlink_directories = symlinked_directories.get(
+                            &Into::<Path>::into(ensure_trailing_directory_separator(&to_path(
+                                real_path_directory,
+                                Some(&cwd),
+                                get_canonical_file_name,
+                            ))),
+                        )?;
+
+                        if starts_with_directory(
+                            importing_file_name,
+                            real_path_directory,
+                            get_canonical_file_name,
+                        ) {
+                            return Some(None);
+                        }
+
+                        for_each(&targets, |target: &String, _| -> Option<Option<TReturn>> {
+                            if !starts_with_directory(
+                                target,
+                                real_path_directory,
+                                get_canonical_file_name,
+                            ) {
+                                return None;
+                            }
+
+                            let relative = get_relative_path_from_directory(
+                                real_path_directory,
+                                target,
+                                Some(get_canonical_file_name),
+                                None,
+                            );
+                            for symlink_directory in symlink_directories {
+                                let option = resolve_path(symlink_directory, &[Some(&relative)]);
+                                let result = cb(
+                                    &option,
+                                    matches!(
+                                        reference_redirect.as_ref(),
+                                        Some(reference_redirect) if target == reference_redirect
+                                    ),
+                                );
+                                should_filter_ignored_paths = true;
+                                if result.is_some() {
+                                    return Some(result);
+                                }
+                            }
+                            None
+                        })
+                    },
+                )
+                .flatten()
+            })
+    });
+    result.or_else(|| {
+        if prefer_sym_links {
+            for_each(&targets, |p: &String, _| {
+                if should_filter_ignored_paths && contains_ignored_path(p) {
+                    None
+                } else {
+                    cb(
+                        p,
+                        matches!(
+                            reference_redirect.as_ref(),
+                            Some(reference_redirect) if p == reference_redirect
+                        ),
+                    )
+                }
+            })
+        } else {
+            None
+        }
+    })
+}
+
 fn get_all_module_paths_worker(
     importing_file_name: &Path,
     imported_file_name: &str,
     host: &dyn ModuleSpecifierResolutionHost,
 ) -> Vec<ModulePath> {
-    unimplemented!()
+    let get_canonical_file_name =
+        host_get_canonical_file_name(|| host.use_case_sensitive_file_names());
+    let mut all_file_names: HashMap<String, ModulePath> = HashMap::new();
+    let mut imported_file_from_node_modules = false;
+    for_each_file_name_of_module(
+        importing_file_name,
+        imported_file_name,
+        host,
+        true,
+        |path: &str, is_redirect| -> Option<()> {
+            let is_in_node_modules = path_contains_node_modules(path);
+            all_file_names.insert(
+                path.to_owned(),
+                ModulePath {
+                    path: get_canonical_file_name(path),
+                    is_redirect,
+                    is_in_node_modules,
+                },
+            );
+            imported_file_from_node_modules = imported_file_from_node_modules || is_in_node_modules;
+            None
+        },
+    );
+
+    let mut sorted_paths: Vec<ModulePath> = vec![];
+    let mut directory = get_directory_path(importing_file_name);
+    while !all_file_names.is_empty() {
+        let directory_start = ensure_trailing_directory_separator(&directory);
+        let mut paths_in_directory: Option<Vec<ModulePath>> = None;
+        let mut keys_to_remove: Vec<String> = vec![];
+        for (file_name, value) in &all_file_names {
+            let path = &value.path;
+            let is_redirect = value.is_redirect;
+            let is_in_node_modules = value.is_in_node_modules;
+            if starts_with(path, &directory_start) {
+                paths_in_directory
+                    .get_or_insert_with(|| vec![])
+                    .push(ModulePath {
+                        path: file_name.clone(),
+                        is_in_node_modules,
+                        is_redirect,
+                    });
+                keys_to_remove.push(file_name.clone());
+            }
+        }
+        for key_to_remove in &keys_to_remove {
+            all_file_names.remove(key_to_remove);
+        }
+        if let Some(mut paths_in_directory) = paths_in_directory {
+            if paths_in_directory.len() > 1 {
+                paths_in_directory.sort_by(|a, b| {
+                    comparison_to_ordering(
+                        compare_paths_by_redirect_and_number_of_directory_separators(a, b),
+                    )
+                });
+            }
+            sorted_paths.append(&mut paths_in_directory);
+        }
+        let new_directory = get_directory_path(&directory);
+        if new_directory == directory {
+            break;
+        }
+        directory = new_directory;
+    }
+    if !all_file_names.is_empty() {
+        let mut remaining_paths = all_file_names.into_values().collect::<Vec<_>>();
+        if remaining_paths.len() > 1 {
+            remaining_paths.sort_by(|a, b| {
+                comparison_to_ordering(
+                    compare_paths_by_redirect_and_number_of_directory_separators(a, b),
+                )
+            });
+        }
+        sorted_paths.append(&mut remaining_paths);
+    }
+
+    sorted_paths
 }
 
 fn try_get_module_name_from_ambient_module(

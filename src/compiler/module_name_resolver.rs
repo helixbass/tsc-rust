@@ -2271,7 +2271,7 @@ fn node_load_module_by_relative_name(
 
 pub(crate) const node_modules_path_part: &str = "/node_modules/";
 
-fn path_contains_node_modules(path: &str) -> bool {
+pub(crate) fn path_contains_node_modules(path: &str) -> bool {
     string_contains(path, node_modules_path_part)
 }
 

@@ -153,6 +153,7 @@ impl Printer {
                 SyntaxKind::TypeOperator => return self.emit_type_operator(node),
                 SyntaxKind::IndexedAccessType => return self.emit_indexed_access_type(node),
                 SyntaxKind::LiteralType => return self.emit_literal_type(node),
+                SyntaxKind::ImportType => return self.emit_import_type(node),
                 _ => (),
             }
             if is_expression(node) {
@@ -284,6 +285,11 @@ impl Printer {
 
     fn emit_literal_type(&mut self, node: &Node /*LiteralTypeNode*/) {
         self.emit_expression(&*node.as_literal_type_node().literal);
+    }
+
+    fn emit_import_type(&mut self, node: &Node /*ImportTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
     }
 
     fn emit_node_with_writer(&mut self, node: Option<&Node>, writer: fn(&Printer, &str)) {
