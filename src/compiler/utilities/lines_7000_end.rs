@@ -7,9 +7,9 @@ use std::rc::Rc;
 use crate::{
     find_ancestor, first_or_undefined, for_each_child_recursively,
     get_effective_type_annotation_node, get_root_declaration, has_jsdoc_nodes,
-    has_syntactic_modifier, is_expression_node, is_identifier, is_jsdoc_node, is_parameter,
-    is_part_of_type_query, is_shorthand_property_assignment, is_type_reference_node,
-    parameter_is_this_keyword, some, CompilerOptions, FindAncestorCallbackReturn,
+    has_syntactic_modifier, ignored_paths, is_expression_node, is_identifier, is_jsdoc_node,
+    is_parameter, is_part_of_type_query, is_shorthand_property_assignment, is_type_reference_node,
+    parameter_is_this_keyword, some, string_contains, CompilerOptions, FindAncestorCallbackReturn,
     ForEachChildRecursivelyCallbackReturn, ModifierFlags, NamedDeclarationInterface, Node,
     NodeArray, NodeFlags, NodeInterface, PseudoBigInt, ReadonlyTextRange, Symbol, SymbolInterface,
     SyntaxKind,
@@ -243,7 +243,10 @@ pub fn expression_result_is_unused(node: &Node /*Expression*/) -> bool {
 }
 
 pub fn contains_ignored_path(path: &str) -> bool {
-    unimplemented!()
+    some(
+        Some(&**ignored_paths),
+        Some(|p: &&str| string_contains(path, *p)),
+    )
 }
 
 pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/) -> bool {

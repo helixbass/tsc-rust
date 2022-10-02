@@ -36,6 +36,11 @@ pub(crate) fn missing_file_modified_time() -> SystemTime {
     UNIX_EPOCH
 }
 
+lazy_static! {
+    pub(crate) static ref ignored_paths: Vec<&'static str> =
+        vec!["/node_modules/.", "/.git", "/.#"];
+}
+
 pub(crate) enum FileSystemEntryKind {
     File,
     Directory,
