@@ -4,20 +4,20 @@ use std::rc::Rc;
 
 use crate::{
     append, comparison_to_ordering, contains_ignored_path, create_get_canonical_file_name,
-    ensure_trailing_directory_separator, every, first_defined, for_each,
+    directory_separator_str, ensure_trailing_directory_separator, every, first_defined, for_each,
     for_each_ancestor_directory, get_directory_path, get_emit_module_resolution_kind,
     get_implied_node_format_for_file, get_module_name_string_literal_at,
-    get_normalized_absolute_path, get_relative_path_from_directory, get_source_file_of_module,
-    has_js_file_extension, host_get_canonical_file_name, is_external_module_augmentation,
-    is_non_global_ambient_module, maybe_for_each, path_contains_node_modules,
-    path_is_bare_specifier, path_is_relative, resolve_path, some, starts_with,
-    starts_with_directory, to_path, CharacterCodes, Comparison, CompilerOptions, Debug_,
-    FileIncludeKind, FileIncludeReason, ModuleKind, ModulePath, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
-    ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path, Symbol, SymbolFlags,
-    SymbolInterface, TypeChecker, UserPreferences, __String, get_text_of_identifier_or_literal,
-    is_ambient_module, is_external_module_name_relative, is_module_block, is_module_declaration,
-    is_source_file, map_defined, LiteralLikeNodeInterface,
+    get_normalized_absolute_path, get_package_name_from_types_package_name,
+    get_relative_path_from_directory, get_source_file_of_module, has_js_file_extension,
+    host_get_canonical_file_name, is_external_module_augmentation, is_non_global_ambient_module,
+    maybe_for_each, path_contains_node_modules, path_is_bare_specifier, path_is_relative,
+    resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison,
+    CompilerOptions, Debug_, FileIncludeKind, FileIncludeReason, ModuleKind, ModulePath,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path,
+    Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences, __String,
+    get_text_of_identifier_or_literal, is_ambient_module, is_external_module_name_relative,
+    is_module_block, is_module_declaration, is_source_file, map_defined, LiteralLikeNodeInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -851,6 +851,116 @@ fn try_get_module_name_as_node_module(
     options: &CompilerOptions,
     package_name_only: Option<bool>,
 ) -> Option<String> {
+    let path = &module_path.path;
+    let is_redirect = module_path.is_redirect;
+    let get_canonical_file_name = info.get_canonical_file_name;
+    let source_directory = &info.source_directory;
+    if
+    /* !host.fileExists ||*/
+    !host.is_read_file_supported() {
+        return None;
+    }
+    let parts = get_node_module_path_parts(path)?;
+
+    let mut module_specifier = path.clone();
+    let mut is_package_root_path = false;
+    if package_name_only != Some(true) {
+        let mut package_root_index = parts.package_root_index;
+        let mut module_file_name_for_extensionless: Option<String> = None;
+        loop {
+            let TryDirectoryWithPackageJsonReturn {
+                module_file_to_try,
+                package_root_path,
+                blocked_by_exports,
+                verbatim_from_exports,
+            } = try_directory_with_package_json(package_root_index);
+            if get_emit_module_resolution_kind(options) != ModuleResolutionKind::Classic {
+                if blocked_by_exports == Some(true) {
+                    return None;
+                }
+                if verbatim_from_exports == Some(true) {
+                    return Some(module_file_to_try);
+                }
+            }
+            if let Some(package_root_path) = package_root_path {
+                module_specifier = package_root_path;
+                is_package_root_path = true;
+                break;
+            }
+            if module_file_name_for_extensionless.is_none() {
+                module_file_name_for_extensionless = Some(module_file_to_try);
+            }
+
+            let maybe_package_root_index = path[package_root_index + 1..]
+                .find(directory_separator_str)
+                .map(|index| index + package_root_index + 1);
+            match maybe_package_root_index {
+                None => {
+                    module_specifier = get_extensionless_file_name(
+                        module_file_name_for_extensionless.as_ref().unwrap(),
+                    );
+                    break;
+                }
+                Some(maybe_package_root_index) => {
+                    package_root_index = maybe_package_root_index;
+                }
+            }
+        }
+    }
+
+    if is_redirect && !is_package_root_path {
+        return None;
+    }
+
+    let global_typings_cache_location = host.get_global_typings_cache_location();
+    let path_to_top_level_node_modules =
+        get_canonical_file_name(&module_specifier[0..parts.top_level_node_modules_index]);
+    if !(starts_with(source_directory, &path_to_top_level_node_modules)
+        || matches!(
+            global_typings_cache_location.as_ref(),
+            Some(global_typings_cache_location) if starts_with(
+                &get_canonical_file_name(global_typings_cache_location),
+                &path_to_top_level_node_modules
+            )
+        ))
+    {
+        return None;
+    }
+
+    let node_modules_directory_name = &module_specifier[parts.top_level_package_name_index + 1..];
+    let package_name = get_package_name_from_types_package_name(node_modules_directory_name);
+    if get_emit_module_resolution_kind(options) == ModuleResolutionKind::Classic
+        && package_name == node_modules_directory_name
+    {
+        None
+    } else {
+        Some(package_name)
+    }
+}
+
+fn try_directory_with_package_json(package_root_index: usize) -> TryDirectoryWithPackageJsonReturn {
+    unimplemented!()
+}
+
+struct TryDirectoryWithPackageJsonReturn {
+    pub module_file_to_try: String,
+    pub package_root_path: Option<String>,
+    pub blocked_by_exports: Option<bool>,
+    pub verbatim_from_exports: Option<bool>,
+}
+
+fn get_extensionless_file_name(path: &str) -> String {
+    unimplemented!()
+}
+
+struct NodeModulePathParts {
+    pub top_level_node_modules_index: usize,
+    pub top_level_package_name_index: usize,
+    pub package_root_index: usize,
+    pub file_name_index: usize,
+}
+
+fn get_node_module_path_parts(full_path: &str) -> Option<NodeModulePathParts> {
     unimplemented!()
 }
 

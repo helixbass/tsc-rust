@@ -1411,6 +1411,10 @@ impl ModuleSpecifierResolutionHost for Program {
         Some(self.host().read_file(path))
     }
 
+    fn is_read_file_supported(&self) -> bool {
+        true
+    }
+
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
         self.redirect_targets_map_rc()
     }

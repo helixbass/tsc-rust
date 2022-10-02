@@ -3298,6 +3298,10 @@ pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
     package_name.to_owned()
 }
 
+pub(crate) fn get_package_name_from_types_package_name(mangled_name: &str) -> String {
+    unimplemented!()
+}
+
 fn try_find_non_relative_module_name_in_cache(
     cache: Option<&PerModuleNameCache>,
     module_name: &str,

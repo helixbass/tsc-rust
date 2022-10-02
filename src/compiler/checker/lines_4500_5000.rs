@@ -1690,6 +1690,10 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
     fn read_file(&self, file_name: &str) -> Option<io::Result<String>> {
         self.host.read_file(file_name)
     }
+
+    fn is_read_file_supported(&self) -> bool {
+        self.host.is_read_file_supported()
+    }
 }
 
 pub(super) fn wrap_symbol_tracker_to_report_for_context<'symbol_tracker>(

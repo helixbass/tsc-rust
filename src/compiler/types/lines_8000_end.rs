@@ -91,6 +91,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn read_file(&self, path: &str) -> Option<io::Result<String>> {
         None
     }
+    fn is_read_file_supported(&self) -> bool;
     fn realpath(&self, path: &str) -> Option<String> {
         None
     }
