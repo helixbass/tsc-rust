@@ -566,9 +566,9 @@ impl TypeChecker {
                 .intersects(ObjectFlags::Reference | ObjectFlags::Anonymous | ObjectFlags::Mapped)
             {
                 if object_flags.intersects(ObjectFlags::Reference)
-                    && type_.as_type_reference().maybe_node().is_none()
+                    && type_.as_type_reference_interface().maybe_node().is_none()
                 {
-                    let type_as_type_reference = type_.as_type_reference();
+                    let type_as_type_reference = type_.as_type_reference_interface();
                     let resolved_type_arguments =
                         type_as_type_reference.maybe_resolved_type_arguments();
                     let resolved_type_arguments = resolved_type_arguments.as_deref();
@@ -582,7 +582,7 @@ impl TypeChecker {
                         _ => false,
                     } {
                         self.create_normalized_type_reference(
-                            &type_as_type_reference.target,
+                            &type_as_type_reference.target(),
                             new_type_arguments,
                         )
                     } else {
