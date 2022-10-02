@@ -9,11 +9,11 @@ use std::rc::Rc;
 use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, ConditionalRoot, SymbolLinks,
-    TransientSymbolInterface, TypeReferenceInterface, __String, every, for_each_bool,
-    get_check_flags, get_selected_effective_modifier_flags, maybe_map, some, CheckFlags,
-    Diagnostics, IndexInfo, ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface,
-    RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
+    TransientSymbolInterface, __String, every, for_each_bool, get_check_flags,
+    get_selected_effective_modifier_flags, maybe_map, some, CheckFlags, Diagnostics, IndexInfo,
+    ModifierFlags, Node, ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult,
+    Signature, Symbol, SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
 impl CheckTypeRelatedTo {

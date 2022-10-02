@@ -1701,6 +1701,13 @@ pub fn has_js_file_extension(file_name: &str) -> bool {
     )
 }
 
+pub fn has_ts_file_extension(file_name: &str) -> bool {
+    some(
+        Some(&**supported_ts_extensions_flat),
+        Some(|extension: &Extension| file_extension_is(file_name, extension.to_str())),
+    )
+}
+
 lazy_static! {
     static ref extensions_to_remove: Vec<Extension> = vec![
         Extension::Dts,

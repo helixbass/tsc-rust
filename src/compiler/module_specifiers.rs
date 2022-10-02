@@ -4,22 +4,23 @@ use std::io;
 use std::rc::Rc;
 
 use crate::{
-    append, comparison_to_ordering, contains_ignored_path, create_get_canonical_file_name,
-    directory_separator_str, ensure_trailing_directory_separator, every, first_defined, for_each,
-    for_each_ancestor_directory, get_directory_path, get_emit_module_resolution_kind,
-    get_implied_node_format_for_file, get_module_name_string_literal_at,
-    get_normalized_absolute_path, get_package_name_from_types_package_name,
+    append, combine_paths, comparison_to_ordering, contains_ignored_path,
+    create_get_canonical_file_name, directory_separator_str, ensure_trailing_directory_separator,
+    every, first_defined, for_each, for_each_ancestor_directory, get_directory_path,
+    get_emit_module_resolution_kind, get_implied_node_format_for_file,
+    get_module_name_string_literal_at, get_normalized_absolute_path,
+    get_package_json_types_version_paths, get_package_name_from_types_package_name,
     get_relative_path_from_directory, get_source_file_of_module, has_js_file_extension,
-    host_get_canonical_file_name, is_external_module_augmentation, is_non_global_ambient_module,
-    maybe_for_each, node_modules_path_part, path_contains_node_modules, path_is_bare_specifier,
-    path_is_relative, resolve_path, some, starts_with, starts_with_directory, to_path,
-    CharacterCodes, Comparison, CompilerOptions, Debug_, FileIncludeKind, FileIncludeReason,
-    ModuleKind, ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags,
-    NodeInterface, Path, Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
-    __String, get_text_of_identifier_or_literal, is_ambient_module,
-    is_external_module_name_relative, is_module_block, is_module_declaration, is_source_file,
-    map_defined, LiteralLikeNodeInterface,
+    has_ts_file_extension, host_get_canonical_file_name, is_external_module_augmentation,
+    is_non_global_ambient_module, maybe_for_each, node_modules_path_part,
+    path_contains_node_modules, path_is_bare_specifier, path_is_relative, remove_file_extension,
+    resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison,
+    CompilerOptions, Debug_, Extension, FileIncludeKind, FileIncludeReason, ModuleKind, ModulePath,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path,
+    Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences, __String,
+    get_text_of_identifier_or_literal, is_ambient_module, is_external_module_name_relative,
+    is_module_block, is_module_declaration, is_source_file, map_defined, LiteralLikeNodeInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -846,6 +847,49 @@ fn try_get_module_name_from_ambient_module(
     None
 }
 
+fn try_get_module_name_from_paths(
+    relative_to_base_url_with_index: &str,
+    relative_to_base_url: &str,
+    paths: &serde_json::Value,
+) -> Option<String> {
+    unimplemented!()
+}
+
+fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Rc<Node> {
+    let mut namespace_declaration = namespace_declaration.node_wrapper();
+    while namespace_declaration
+        .flags()
+        .intersects(NodeFlags::NestedNamespace)
+    {
+        namespace_declaration = namespace_declaration.parent();
+    }
+    namespace_declaration
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum MatchingMode {
+    Exact,
+    Directory,
+    Pattern,
+}
+
+fn try_get_module_name_from_exports(
+    options: &CompilerOptions,
+    target_file_path: &str,
+    package_directory: &str,
+    package_name: &str,
+    exports: &serde_json::Value,
+    conditions: &[&str],
+    mode: Option<MatchingMode>,
+) -> Option<TryGetModuleNameFromExportsReturn> {
+    let mode = mode.unwrap_or(MatchingMode::Exact);
+    unimplemented!()
+}
+
+struct TryGetModuleNameFromExportsReturn {
+    pub module_file_to_try: String,
+}
+
 fn try_get_module_name_as_node_module(
     module_path: &ModulePath,
     info: &Info,
@@ -875,7 +919,13 @@ fn try_get_module_name_as_node_module(
                 package_root_path,
                 blocked_by_exports,
                 verbatim_from_exports,
-            } = try_directory_with_package_json(package_root_index);
+            } = try_directory_with_package_json(
+                path,
+                host,
+                options,
+                get_canonical_file_name,
+                package_root_index,
+            );
             if get_emit_module_resolution_kind(options) != ModuleResolutionKind::Classic {
                 if blocked_by_exports == Some(true) {
                     return None;
@@ -941,8 +991,127 @@ fn try_get_module_name_as_node_module(
     }
 }
 
-fn try_directory_with_package_json(package_root_index: isize) -> TryDirectoryWithPackageJsonReturn {
-    unimplemented!()
+fn try_directory_with_package_json(
+    path: &String,
+    host: &dyn ModuleSpecifierResolutionHost,
+    options: &CompilerOptions,
+    get_canonical_file_name: fn(&str) -> String,
+    package_root_index: isize,
+) -> TryDirectoryWithPackageJsonReturn {
+    let package_root_path = if package_root_index == -1 {
+        ""
+    } else {
+        let package_root_index: usize = package_root_index.try_into().unwrap();
+        &path[0..package_root_index]
+    };
+    let package_json_path = combine_paths(package_root_path, &[Some("package.json")]);
+    let mut module_file_to_try = path.clone();
+    if host.file_exists(&package_json_path) {
+        let package_json_content: serde_json::Value =
+            serde_json::from_str(&host.read_file(&package_json_path).unwrap().unwrap()).unwrap();
+        let package_json_content = package_json_content.as_object().unwrap();
+        if matches!(
+            get_emit_module_resolution_kind(options),
+            ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext
+        ) {
+            let from_exports = if package_json_content.get("exports").is_some()
+                && package_json_content
+                    .get("name")
+                    .map(|value| value.as_str())
+                    .is_some()
+            {
+                try_get_module_name_from_exports(
+                    options,
+                    path,
+                    package_root_path,
+                    package_json_content.get("name").unwrap().as_str().unwrap(),
+                    package_json_content.get("exports").unwrap(),
+                    &["node", "types"],
+                    None,
+                )
+            } else {
+                None
+            };
+            if let Some(from_exports) = from_exports {
+                let mut with_js_extension =
+                    if !has_ts_file_extension(&from_exports.module_file_to_try) {
+                        from_exports
+                    } else {
+                        TryGetModuleNameFromExportsReturn {
+                            module_file_to_try: format!(
+                                "{}{}",
+                                remove_file_extension(&from_exports.module_file_to_try),
+                                match try_get_js_extension_for_file(
+                                    &from_exports.module_file_to_try,
+                                    options,
+                                ) {
+                                    Some(extension) => extension.to_str(),
+                                    None => "undefined",
+                                }
+                            ),
+                        }
+                    };
+                return TryDirectoryWithPackageJsonReturn {
+                    module_file_to_try: with_js_extension.module_file_to_try,
+                    package_root_path: None,
+                    blocked_by_exports: None,
+                    verbatim_from_exports: Some(true),
+                };
+            }
+            if package_json_content.get("exports").is_some() {
+                return TryDirectoryWithPackageJsonReturn {
+                    module_file_to_try: path.clone(),
+                    package_root_path: None,
+                    blocked_by_exports: Some(true),
+                    verbatim_from_exports: None,
+                };
+            }
+        }
+        let version_paths = package_json_content
+            .get("typesVersions")
+            .and_then(|value| value.as_object())
+            .and_then(|value| get_package_json_types_version_paths(value));
+        if let Some(version_paths) = version_paths {
+            let sub_module_name = &path[package_root_path.len() + 1..];
+            let from_paths = try_get_module_name_from_paths(
+                remove_file_extension(sub_module_name),
+                &remove_extension_and_index_post_fix(sub_module_name, Ending::Minimal, options),
+                &version_paths.paths,
+            );
+            if let Some(from_paths) = from_paths {
+                module_file_to_try = combine_paths(package_root_path, &[Some(&from_paths)]);
+            }
+        }
+        let main_file_relative = package_json_content
+            .get("typings")
+            .or_else(|| package_json_content.get("types"))
+            .or_else(|| package_json_content.get("main"));
+        if let Some(main_file_relative) =
+            main_file_relative.and_then(|main_file_relative| main_file_relative.as_str())
+        {
+            let main_export_file = to_path(
+                main_file_relative,
+                Some(package_root_path),
+                get_canonical_file_name,
+            );
+            if remove_file_extension(&main_export_file)
+                == remove_file_extension(&get_canonical_file_name(&module_file_to_try))
+            {
+                return TryDirectoryWithPackageJsonReturn {
+                    module_file_to_try,
+                    package_root_path: Some(package_root_path.to_owned()),
+                    blocked_by_exports: None,
+                    verbatim_from_exports: None,
+                };
+            }
+        }
+    }
+    TryDirectoryWithPackageJsonReturn {
+        module_file_to_try,
+        package_root_path: None,
+        blocked_by_exports: None,
+        verbatim_from_exports: None,
+    }
 }
 
 struct TryDirectoryWithPackageJsonReturn {
@@ -1043,13 +1212,14 @@ enum States {
     PackageContent,
 }
 
-fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Rc<Node> {
-    let mut namespace_declaration = namespace_declaration.node_wrapper();
-    while namespace_declaration
-        .flags()
-        .intersects(NodeFlags::NestedNamespace)
-    {
-        namespace_declaration = namespace_declaration.parent();
-    }
-    namespace_declaration
+fn remove_extension_and_index_post_fix(
+    file_name: &str,
+    ending: Ending,
+    options: &CompilerOptions,
+) -> String {
+    unimplemented!()
+}
+
+fn try_get_js_extension_for_file(file_name: &str, options: &CompilerOptions) -> Option<Extension> {
+    unimplemented!()
 }
