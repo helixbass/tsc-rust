@@ -1590,7 +1590,7 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
-        true
+        self.module_resolver_host.as_ref().is_some()
     }
 
     // TODO: are these correct?
