@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::io;
 use std::rc::Rc;
 
@@ -10,14 +11,15 @@ use crate::{
     get_normalized_absolute_path, get_package_name_from_types_package_name,
     get_relative_path_from_directory, get_source_file_of_module, has_js_file_extension,
     host_get_canonical_file_name, is_external_module_augmentation, is_non_global_ambient_module,
-    maybe_for_each, path_contains_node_modules, path_is_bare_specifier, path_is_relative,
-    resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison,
-    CompilerOptions, Debug_, FileIncludeKind, FileIncludeReason, ModuleKind, ModulePath,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path,
-    Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences, __String,
-    get_text_of_identifier_or_literal, is_ambient_module, is_external_module_name_relative,
-    is_module_block, is_module_declaration, is_source_file, map_defined, LiteralLikeNodeInterface,
+    maybe_for_each, node_modules_path_part, path_contains_node_modules, path_is_bare_specifier,
+    path_is_relative, resolve_path, some, starts_with, starts_with_directory, to_path,
+    CharacterCodes, Comparison, CompilerOptions, Debug_, FileIncludeKind, FileIncludeReason,
+    ModuleKind, ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags,
+    NodeInterface, Path, Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
+    __String, get_text_of_identifier_or_literal, is_ambient_module,
+    is_external_module_name_relative, is_module_block, is_module_declaration, is_source_file,
+    map_defined, LiteralLikeNodeInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -891,9 +893,10 @@ fn try_get_module_name_as_node_module(
                 module_file_name_for_extensionless = Some(module_file_to_try);
             }
 
-            let maybe_package_root_index = path[package_root_index + 1..]
+            let maybe_package_root_index = path
+                [TryInto::<usize>::try_into(package_root_index + 1).unwrap()..]
                 .find(directory_separator_str)
-                .map(|index| index + package_root_index + 1);
+                .map(|index| index + TryInto::<usize>::try_into(package_root_index + 1).unwrap());
             match maybe_package_root_index {
                 None => {
                     module_specifier = get_extensionless_file_name(
@@ -902,7 +905,7 @@ fn try_get_module_name_as_node_module(
                     break;
                 }
                 Some(maybe_package_root_index) => {
-                    package_root_index = maybe_package_root_index;
+                    package_root_index = maybe_package_root_index.try_into().unwrap();
                 }
             }
         }
@@ -938,7 +941,7 @@ fn try_get_module_name_as_node_module(
     }
 }
 
-fn try_directory_with_package_json(package_root_index: usize) -> TryDirectoryWithPackageJsonReturn {
+fn try_directory_with_package_json(package_root_index: isize) -> TryDirectoryWithPackageJsonReturn {
     unimplemented!()
 }
 
@@ -956,12 +959,88 @@ fn get_extensionless_file_name(path: &str) -> String {
 struct NodeModulePathParts {
     pub top_level_node_modules_index: usize,
     pub top_level_package_name_index: usize,
-    pub package_root_index: usize,
+    pub package_root_index: isize,
     pub file_name_index: usize,
 }
 
 fn get_node_module_path_parts(full_path: &str) -> Option<NodeModulePathParts> {
-    unimplemented!()
+    let mut top_level_node_modules_index = 0;
+    let mut top_level_package_name_index = 0;
+    let mut package_root_index: isize = 0;
+    let mut file_name_index = 0;
+
+    let mut part_start = 0;
+    let mut part_end = Some(0);
+    let mut state = States::BeforeNodeModules;
+
+    while let Some(part_end_present) = part_end {
+        part_start = part_end_present;
+        part_end = full_path[part_start + 1..]
+            .find("/")
+            .map(|index| index + part_start + 1);
+        match state {
+            States::BeforeNodeModules => {
+                if full_path[part_start..]
+                    .find(node_modules_path_part)
+                    .map(|index| index + part_start)
+                    == Some(part_start)
+                {
+                    top_level_node_modules_index = part_start;
+                    match part_end {
+                        None => break,
+                        Some(part_end) => {
+                            top_level_package_name_index = part_end;
+                        }
+                    }
+                    state = States::NodeModules;
+                }
+            }
+            States::NodeModules | States::Scope => {
+                if state == States::NodeModules && &full_path[part_start + 1..part_start + 2] == "@"
+                {
+                    state = States::Scope;
+                } else {
+                    package_root_index = match part_end {
+                        None => -1,
+                        Some(part_end) => part_end.try_into().unwrap(),
+                    };
+                    state = States::PackageContent;
+                }
+            }
+            States::PackageContent => {
+                if full_path[part_start..]
+                    .find(node_modules_path_part)
+                    .map(|index| index + part_start)
+                    == Some(part_start)
+                {
+                    state = States::NodeModules;
+                } else {
+                    state = States::PackageContent;
+                }
+            }
+        }
+    }
+
+    file_name_index = part_start;
+
+    if matches!(state, States::Scope | States::PackageContent) {
+        Some(NodeModulePathParts {
+            top_level_node_modules_index,
+            top_level_package_name_index,
+            package_root_index,
+            file_name_index,
+        })
+    } else {
+        None
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum States {
+    BeforeNodeModules,
+    NodeModules,
+    Scope,
+    PackageContent,
 }
 
 fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Rc<Node> {
