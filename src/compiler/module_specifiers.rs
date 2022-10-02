@@ -1,5 +1,6 @@
 use crate::{
-    CompilerOptions, ModuleSpecifierResolutionHost, Node, Symbol, TypeChecker, UserPreferences,
+    starts_with, CharacterCodes, CompilerOptions, ModuleSpecifierResolutionHost, Node, Symbol,
+    TypeChecker, UserPreferences,
 };
 
 pub fn get_module_specifiers(
@@ -14,5 +15,14 @@ pub fn get_module_specifiers(
 }
 
 pub fn count_path_components(path: &str) -> usize {
-    unimplemented!()
+    let mut count = 0;
+    for ch in path
+        .chars()
+        .skip(if starts_with(path, "./") { 2 } else { 0 })
+    {
+        if ch == CharacterCodes::slash {
+            count += 1;
+        }
+    }
+    count
 }
