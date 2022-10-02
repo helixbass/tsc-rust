@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
-use crate::{Node, NodeArray, TransformationContext, VisitResult};
+use crate::{Node, NodeArray, NodeInterface, SyntaxKind, TransformationContext, VisitResult};
 
 pub fn visit_node<
     TNode: Borrow<Node>,
@@ -59,5 +59,19 @@ pub fn visit_each_child<
     token_visitor: Option<TTokenVisitor>,
     node_visitor: Option<TNodeVisitor>,
 ) -> Option<Rc<Node>> {
-    unimplemented!()
+    let node = node?;
+    let node: &Node = node.borrow();
+
+    let kind = node.kind();
+
+    if kind > SyntaxKind::FirstToken && kind <= SyntaxKind::LastToken
+        || kind == SyntaxKind::ThisType
+    {
+        return Some(node.node_wrapper());
+    }
+
+    let factory = context.factory();
+
+    // unimplemented!()
+    Some(node.node_wrapper())
 }

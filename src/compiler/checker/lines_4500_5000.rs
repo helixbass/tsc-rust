@@ -1283,13 +1283,15 @@ impl NodeBuilder {
 
         if object_flags.intersects(ObjectFlags::Reference) {
             Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
-            return Some(if type_.as_type_reference().node.borrow().is_some() {
-                self.visit_and_transform_type(context, &type_, |type_| {
-                    self.type_reference_to_type_node(context, type_).unwrap()
-                })
-            } else {
-                self.type_reference_to_type_node(context, &type_).unwrap()
-            });
+            return Some(
+                if type_.as_type_reference_interface().maybe_node().is_some() {
+                    self.visit_and_transform_type(context, &type_, |type_| {
+                        self.type_reference_to_type_node(context, type_).unwrap()
+                    })
+                } else {
+                    self.type_reference_to_type_node(context, &type_).unwrap()
+                },
+            );
         }
         if type_.flags().intersects(TypeFlags::TypeParameter)
             || object_flags.intersects(ObjectFlags::ClassOrInterface)

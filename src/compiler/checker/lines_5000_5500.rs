@@ -614,14 +614,14 @@ impl NodeBuilder {
         type_: &Type, /*TypeReference*/
     ) -> Option<Rc<Node>> {
         let type_arguments = self.type_checker.get_type_arguments(type_);
-        let type_as_type_reference = type_.as_type_reference();
-        if Rc::ptr_eq(
-            &type_as_type_reference.target,
-            &self.type_checker.global_array_type(),
-        ) || Rc::ptr_eq(
-            &type_as_type_reference.target,
-            &self.type_checker.global_readonly_array_type(),
-        ) {
+        let type_as_type_reference = type_.as_type_reference_interface();
+        let type_target = type_as_type_reference.target();
+        if Rc::ptr_eq(&type_target, &self.type_checker.global_array_type())
+            || Rc::ptr_eq(
+                &type_target,
+                &self.type_checker.global_readonly_array_type(),
+            )
+        {
             if context
                 .flags()
                 .intersects(NodeBuilderFlags::WriteArrayAsGenericType)
@@ -634,10 +634,8 @@ impl NodeBuilder {
                         factory_
                             .create_type_reference_node(
                                 synthetic_factory_,
-                                if Rc::ptr_eq(
-                                    &type_as_type_reference.target,
-                                    &self.type_checker.global_array_type(),
-                                ) {
+                                if Rc::ptr_eq(&type_target, &self.type_checker.global_array_type())
+                                {
                                     "Array"
                                 } else {
                                     "ReadonlyArray"
@@ -660,10 +658,7 @@ impl NodeBuilder {
                 })
             });
             Some(
-                if Rc::ptr_eq(
-                    &type_as_type_reference.target,
-                    &self.type_checker.global_array_type(),
-                ) {
+                if Rc::ptr_eq(&type_target, &self.type_checker.global_array_type()) {
                     array_type
                 } else {
                     synthetic_factory.with(|synthetic_factory_| {
@@ -679,13 +674,12 @@ impl NodeBuilder {
                     })
                 },
             )
-        } else if type_as_type_reference
-            .target
+        } else if type_target
             .as_object_type()
             .object_flags()
             .intersects(ObjectFlags::Tuple)
         {
-            let type_target_as_tuple_type = type_as_type_reference.target.as_tuple_type();
+            let type_target_as_tuple_type = type_target.as_tuple_type();
             let type_arguments = same_map(&type_arguments, |t: &Rc<Type>, i| {
                 self.type_checker.remove_missing_type(
                     t,
@@ -855,8 +849,7 @@ impl NodeBuilder {
         {
             Some(self.create_anonymous_type_node(context, type_))
         } else {
-            let outer_type_parameters = type_as_type_reference
-                .target
+            let outer_type_parameters = type_target
                 .as_interface_type()
                 .maybe_outer_type_parameters();
             let mut i = 0;
@@ -899,8 +892,7 @@ impl NodeBuilder {
             }
             let mut type_argument_nodes: Option<Vec<Rc<Node /*TypeNode*/>>> = None;
             if !type_arguments.is_empty() {
-                let type_parameter_count = type_as_type_reference
-                    .target
+                let type_parameter_count = type_target
                     .as_interface_type()
                     .maybe_type_parameters()
                     .map_or(0, |type_parameters| type_parameters.len());
