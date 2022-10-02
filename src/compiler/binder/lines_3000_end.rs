@@ -561,10 +561,12 @@ impl BinderType {
 
         let symbol = node.symbol();
 
-        let prototype_symbol = Rc::new(self.create_symbol(
-            SymbolFlags::Property | SymbolFlags::Prototype,
-            __String::new("prototype".to_owned()),
-        ));
+        let prototype_symbol = self
+            .create_symbol(
+                SymbolFlags::Property | SymbolFlags::Prototype,
+                __String::new("prototype".to_owned()),
+            )
+            .wrap();
         let symbol_exports = symbol.exports();
         let mut symbol_exports = symbol_exports.borrow_mut();
         let symbol_export = symbol_exports.get(prototype_symbol.escaped_name());

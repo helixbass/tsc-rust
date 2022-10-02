@@ -319,8 +319,8 @@ impl InferTypes {
         if get_object_flags(source).intersects(ObjectFlags::Reference)
             && get_object_flags(target).intersects(ObjectFlags::Reference)
             && (Rc::ptr_eq(
-                &source.as_type_reference().target,
-                &target.as_type_reference().target,
+                &source.as_type_reference_interface().target(),
+                &target.as_type_reference_interface().target(),
             ) || self.type_checker.is_array_type(source)
                 && self.type_checker.is_array_type(target))
         {
@@ -329,7 +329,7 @@ impl InferTypes {
                 &self.type_checker.get_type_arguments(target),
                 &self
                     .type_checker
-                    .get_variances(&source.as_type_reference().target),
+                    .get_variances(&source.as_type_reference_interface().target()),
             );
             return;
         }
