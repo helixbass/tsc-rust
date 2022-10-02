@@ -18,9 +18,9 @@ use crate::{
     CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
     DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue, ModeAwareCache,
     ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    MultiMap, PackageId, ParseConfigFileHost, PragmaContext, ResolvedProjectReference,
-    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type, TypeFlags,
-    TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    MultiMap, PackageId, ParseConfigFileHost, PragmaContext, RedirectTargetsMap,
+    ResolvedProjectReference, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
+    Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1074,7 +1074,7 @@ pub struct Program {
 
     pub(crate) package_id_to_source_file: RefCell<Option<HashMap<String, Rc<Node /*SourceFile*/>>>>,
     pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
-    pub(crate) redirect_targets_map: RefCell<Option<MultiMap<Path, String>>>,
+    pub(crate) redirect_targets_map: Rc<RefCell<RedirectTargetsMap>>,
     pub(crate) uses_uri_style_node_core_modules: Cell<Option<bool>>,
 
     pub(crate) files_by_name: RefCell<Option<HashMap<String, FilesByNameValue>>>,

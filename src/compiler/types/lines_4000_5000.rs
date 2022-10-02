@@ -16,13 +16,13 @@ use super::{
 };
 use crate::{
     CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
-    IterationTypes, IterationTypesResolver, MappedSymbol, NodeBuilder, Number,
+    IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
     PatternAmbientModule, ReverseMappedSymbol, StringOrNumber, TypeId, TypeSystemEntity,
     TypeSystemPropertyName, VarianceFlags,
 };
 use local_macros::{enum_unwrapped, symbol_type};
 
-pub type RedirectTargetsMap = HashMap<Path, Vec<String>>;
+pub type RedirectTargetsMap = MultiMap<Path, String>;
 
 pub struct ResolvedProjectReference {
     pub command_line: ParsedCommandLine,

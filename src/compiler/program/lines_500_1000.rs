@@ -585,7 +585,7 @@ impl Program {
             actual_resolve_type_reference_directive_names_worker: RefCell::new(None),
             package_id_to_source_file: RefCell::new(None),
             source_file_to_package_name: RefCell::new(None),
-            redirect_targets_map: RefCell::new(None),
+            redirect_targets_map: Rc::new(RefCell::new(create_multi_map())),
             uses_uri_style_node_core_modules: Cell::new(None),
             files_by_name: RefCell::new(None),
             missing_file_paths: RefCell::new(None),
@@ -709,7 +709,6 @@ impl Program {
 
         *self.package_id_to_source_file.borrow_mut() = Some(HashMap::new());
         *self.source_file_to_package_name.borrow_mut() = Some(HashMap::new());
-        *self.redirect_targets_map.borrow_mut() = Some(create_multi_map());
         self.uses_uri_style_node_core_modules.set(Some(false));
 
         *self.files_by_name.borrow_mut() = Some(HashMap::new());
@@ -1108,11 +1107,12 @@ impl Program {
         )
     }
 
-    pub(super) fn redirect_targets_map(&self) -> RefMut<MultiMap<Path, String>> {
-        RefMut::map(
-            self.redirect_targets_map.borrow_mut(),
-            |redirect_targets_map| redirect_targets_map.as_mut().unwrap(),
-        )
+    pub(super) fn redirect_targets_map(&self) -> RefMut<RedirectTargetsMap> {
+        self.redirect_targets_map.borrow_mut()
+    }
+
+    pub(super) fn redirect_targets_map_rc(&self) -> Rc<RefCell<RedirectTargetsMap>> {
+        self.redirect_targets_map.clone()
     }
 
     pub(super) fn uses_uri_style_node_core_modules(&self) -> bool {
@@ -1408,7 +1408,7 @@ impl ModuleSpecifierResolutionHost for Program {
     }
 
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
-        unimplemented!()
+        self.redirect_targets_map_rc()
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
