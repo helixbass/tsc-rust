@@ -14,12 +14,13 @@ use crate::{
     has_question_token, has_syntactic_modifier, is_assignment_target, is_global_scope_augmentation,
     is_in_js_file, is_in_jsdoc, is_module_block, is_module_declaration, is_named_tuple_member,
     is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
-    is_super_call, is_type_reference_type, map, maybe_for_each, node_is_missing, node_is_present,
-    some, symbol_name, try_cast, unescape_leading_underscores, DiagnosticRelatedInformation,
-    Diagnostics, ElementFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags,
-    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    is_super_call, is_type_reference_type, map, maybe_for_each, maybe_map, node_is_missing,
+    node_is_present, some, symbol_name, try_cast, unescape_leading_underscores,
+    DiagnosticRelatedInformation, Diagnostics, ElementFlags, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper,
 };
 
 impl TypeChecker {
@@ -257,13 +258,10 @@ impl TypeChecker {
         type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
     ) -> Vec<Rc<Type>> {
         self.fill_missing_type_arguments(
-            Some(map(
-                node.as_has_type_arguments()
-                    .maybe_type_arguments()
-                    .as_ref()
-                    .unwrap(),
+            maybe_map(
+                node.as_has_type_arguments().maybe_type_arguments().as_ref(),
                 |type_argument, _| self.get_type_from_type_node_(type_argument),
-            )),
+            ),
             type_parameters,
             self.get_min_type_argument_count(type_parameters),
             is_in_js_file(Some(node)),
