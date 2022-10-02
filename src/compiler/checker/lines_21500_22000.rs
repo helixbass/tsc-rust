@@ -846,11 +846,11 @@ impl InferTypes {
         if get_object_flags(&source).intersects(ObjectFlags::Reference)
             && get_object_flags(&target).intersects(ObjectFlags::Reference)
             && {
-                let source_as_type_reference = source.as_type_reference();
-                let target_as_type_reference = target.as_type_reference();
+                let source_as_type_reference = source.as_type_reference_interface();
+                let target_as_type_reference = target.as_type_reference_interface();
                 (Rc::ptr_eq(
-                    &source_as_type_reference.target,
-                    &target_as_type_reference.target,
+                    &source_as_type_reference.target(),
+                    &target_as_type_reference.target(),
                 ) || self.type_checker.is_array_type(&source)
                     && self.type_checker.is_array_type(&target))
                     && !(source_as_type_reference.maybe_node().is_some()

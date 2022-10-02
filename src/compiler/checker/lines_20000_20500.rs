@@ -804,7 +804,7 @@ impl TypeChecker {
             && !self.is_object_or_array_literal_type(type_)
         {
             if get_object_flags(type_).intersects(ObjectFlags::Reference) {
-                if let Some(type_node) = type_.as_type_reference().maybe_node().clone() {
+                if let Some(type_node) = type_.as_type_reference_interface().maybe_node().clone() {
                     return type_node.into();
                 }
             }

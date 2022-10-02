@@ -354,7 +354,7 @@ impl TypeChecker {
     pub(super) fn is_reference_to_type(&self, type_: &Type, target: &Type) -> bool {
         /*type !== undefined && target !== undefined &&*/
         get_object_flags(type_).intersects(ObjectFlags::Reference)
-            && ptr::eq(&*type_.as_type_reference().target, target)
+            && ptr::eq(&*type_.as_type_reference_interface().target(), target)
     }
 
     pub(super) fn get_target_type(&self, type_: &Type) -> Rc<Type> {
