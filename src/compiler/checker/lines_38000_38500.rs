@@ -641,8 +641,8 @@ impl TypeChecker {
                 return false;
             }
 
-            let target_parameters = target_parameters.unwrap();
             for i in 0..num_type_parameters {
+                let target_parameters = target_parameters.unwrap();
                 let source = &source_parameters[i];
                 let target = &target_parameters[i];
 
