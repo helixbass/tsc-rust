@@ -132,7 +132,6 @@ pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .map(|(_, value)| value)
 }
 
-// TODO: make this signature symmetrical with find_last_index()? (ie return -1 instead of Option)
 pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array: &[TItem],
     mut predicate: TCallback,
@@ -149,15 +148,32 @@ pub fn find_last_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array: &[TItem],
     mut predicate: TCallback,
     start_index: Option<usize>,
-) -> isize {
+) -> Option<usize> {
+    if array.is_empty() {
+        return None;
+    }
     let mut i = start_index.unwrap_or_else(|| array.len() - 1);
-    while i >= 0 {
+    loop {
         if predicate(&array[i], i) {
-            return i.try_into().unwrap();
+            return Some(i);
+        }
+        if i == 0 {
+            break;
         }
         i -= 1;
     }
-    -1
+    None
+}
+
+pub fn find_last_index_returns_isize<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    predicate: TCallback,
+    start_index: Option<usize>,
+) -> isize {
+    match find_last_index(array, predicate, start_index) {
+        None => -1,
+        Some(index) => index.try_into().unwrap(),
+    }
 }
 
 pub fn contains<TItem: Eq>(array: Option<&[TItem]>, value: &TItem) -> bool {

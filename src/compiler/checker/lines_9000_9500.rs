@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use super::CheckMode;
 use crate::{
-    create_symbol_table, find_last_index, for_each, for_each_child_recursively_bool,
+    create_symbol_table, find_last_index_returns_isize, for_each, for_each_child_recursively_bool,
     get_check_flags, get_declaration_of_kind, get_effective_return_type_node,
     get_effective_set_accessor_type_annotation_node, get_effective_type_annotation_node,
     get_root_declaration, get_source_file_of_node, get_this_container, is_accessor,
@@ -237,7 +237,7 @@ impl TypeChecker {
                 )
             }
         });
-        let min_length: usize = (find_last_index(
+        let min_length: usize = (find_last_index_returns_isize(
             &**elements,
             |e: &Rc<Node>, _| {
                 !(matches!(rest_element.as_ref(), Some(rest_element) if Rc::ptr_eq(e, rest_element))

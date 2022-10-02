@@ -7,13 +7,13 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    array_of, binary_search_copy_key, compare_values, filter, find, find_index, find_last_index,
-    for_each, get_object_flags, is_part_of_type_node, map, ordered_remove_item_at,
-    push_if_unique_rc, reduce_left, replace_element, same_map, some, BaseUnionOrIntersectionType,
-    Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface, Node, ObjectFlags,
-    Signature, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    TypePredicate, TypePredicateKind, TypeReferenceInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction, UnionType,
+    array_of, binary_search_copy_key, compare_values, filter, find, find_index,
+    find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
+    ordered_remove_item_at, push_if_unique_rc, reduce_left, replace_element, same_map, some,
+    BaseUnionOrIntersectionType, Diagnostics, ElementFlags, IntersectionType, LiteralTypeInterface,
+    Node, ObjectFlags, Signature, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags, TypeId,
+    TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
 };
 
 impl TypeChecker {
@@ -359,7 +359,7 @@ impl TypeChecker {
     ) -> usize {
         let type_as_tuple_type = type_.as_tuple_type();
         let ret: isize = isize::try_from(type_as_tuple_type.element_flags.len()).unwrap()
-            - find_last_index(
+            - find_last_index_returns_isize(
                 &*type_as_tuple_type.element_flags,
                 |f: &ElementFlags, _| !f.intersects(flags),
                 None,
