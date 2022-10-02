@@ -3284,7 +3284,7 @@ pub(crate) fn mangle_scoped_package_name_with_trace(
 }
 
 pub(crate) fn get_types_package_name(package_name: &str) -> String {
-    unimplemented!()
+    format!("@types/{}", mangle_scoped_package_name(package_name))
 }
 
 pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
