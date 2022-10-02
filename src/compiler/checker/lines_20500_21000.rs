@@ -242,7 +242,7 @@ impl TypeChecker {
     pub(super) fn is_readonly_array_type(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Reference)
             && Rc::ptr_eq(
-                &type_.as_type_reference().target,
+                &type_.as_type_reference_interface().target(),
                 &self.global_readonly_array_type(),
             )
     }
