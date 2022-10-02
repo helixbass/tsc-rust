@@ -117,7 +117,22 @@ pub trait ModuleSpecifierResolutionHost {
     fn get_file_include_reasons(&self) -> Rc<MultiMap<Path, FileIncludeReason>>;
 }
 
-pub trait ModuleSpecifierCache {}
+pub struct ModulePath {
+    pub path: String,
+    pub is_in_node_modules: bool,
+    pub is_redirect: bool,
+}
+
+pub trait ModuleSpecifierCache {
+    fn set(
+        &self,
+        from_file_name: &Path,
+        to_file_name: &Path,
+        preferences: &UserPreferences,
+        module_paths: &[ModulePath],
+        module_specifiers: &[String],
+    );
+}
 
 pub trait SymbolTracker {
     fn track_symbol(

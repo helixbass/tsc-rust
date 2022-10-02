@@ -1419,7 +1419,7 @@ impl NodeBuilder {
                     &specifier_compiler_options,
                     &context_file,
                     module_resolver_host.as_dyn_module_specifier_resolution_host(),
-                    UserPreferencesBuilder::default()
+                    &UserPreferencesBuilder::default()
                         .import_module_specifier_preference(Some(if is_bundle {
                             "non-relative".to_owned()
                         } else {
