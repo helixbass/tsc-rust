@@ -3,9 +3,10 @@ use std::rc::Rc;
 
 use crate::{
     append, comparison_to_ordering, contains_ignored_path, create_get_canonical_file_name,
-    ensure_trailing_directory_separator, every, for_each, for_each_ancestor_directory,
-    get_directory_path, get_emit_module_resolution_kind, get_module_name_string_literal_at,
-    get_normalized_absolute_path, get_relative_path_from_directory, get_source_file_of_module,
+    ensure_trailing_directory_separator, every, first_defined, for_each,
+    for_each_ancestor_directory, get_directory_path, get_emit_module_resolution_kind,
+    get_module_name_string_literal_at, get_normalized_absolute_path,
+    get_relative_path_from_directory, get_source_file_of_module, has_js_file_extension,
     host_get_canonical_file_name, is_external_module_augmentation, is_non_global_ambient_module,
     maybe_for_each, path_contains_node_modules, path_is_bare_specifier, path_is_relative,
     resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison,
@@ -370,7 +371,20 @@ pub fn count_path_components(path: &str) -> usize {
 }
 
 fn uses_js_extensions_on_imports(node: &Node /*SourceFile*/) -> bool {
-    unimplemented!()
+    let imports = node.as_source_file().maybe_imports();
+    imports
+        .as_ref()
+        .and_then(|imports| {
+            first_defined(imports, |node: &Rc<Node>, _| {
+                let text = node.as_literal_like_node().text();
+                if path_is_relative(&text) {
+                    Some(has_js_file_extension(&text))
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or(false)
 }
 
 fn compare_paths_by_redirect_and_number_of_directory_separators(
