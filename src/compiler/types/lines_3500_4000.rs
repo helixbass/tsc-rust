@@ -989,6 +989,16 @@ pub enum FileIncludeReason {
 }
 
 impl FileIncludeReason {
+    pub fn kind(&self) -> FileIncludeKind {
+        match self {
+            Self::RootFile(value) => value.kind,
+            Self::LibFile(value) => value.kind,
+            Self::ProjectReferenceFile(value) => value.kind,
+            Self::ReferencedFile(value) => value.kind,
+            Self::AutomaticTypeDirectiveFile(value) => value.kind,
+        }
+    }
+
     pub fn as_referenced_file(&self) -> &ReferencedFile {
         enum_unwrapped!(self, [FileIncludeReason, ReferencedFile])
     }

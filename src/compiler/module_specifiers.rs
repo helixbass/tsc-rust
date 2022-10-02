@@ -2,17 +2,103 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    comparison_to_ordering, contains_ignored_path, ensure_trailing_directory_separator, every,
-    for_each, for_each_ancestor_directory, get_directory_path, get_normalized_absolute_path,
-    get_relative_path_from_directory, get_source_file_of_module, host_get_canonical_file_name,
-    is_external_module_augmentation, is_non_global_ambient_module, path_contains_node_modules,
-    resolve_path, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison,
-    CompilerOptions, ModulePath, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node,
-    NodeFlags, NodeInterface, Path, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
-    UserPreferences, __String, get_text_of_identifier_or_literal, is_ambient_module,
-    is_external_module_name_relative, is_module_block, is_module_declaration, is_source_file,
-    map_defined, LiteralLikeNodeInterface,
+    append, comparison_to_ordering, contains_ignored_path, create_get_canonical_file_name,
+    ensure_trailing_directory_separator, every, for_each, for_each_ancestor_directory,
+    get_directory_path, get_emit_module_resolution_kind, get_module_name_string_literal_at,
+    get_normalized_absolute_path, get_relative_path_from_directory, get_source_file_of_module,
+    host_get_canonical_file_name, is_external_module_augmentation, is_non_global_ambient_module,
+    maybe_for_each, path_contains_node_modules, path_is_bare_specifier, path_is_relative,
+    resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison,
+    CompilerOptions, Debug_, FileIncludeKind, FileIncludeReason, ModulePath, ModuleResolutionKind,
+    ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path,
+    Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences, __String,
+    get_text_of_identifier_or_literal, is_ambient_module, is_external_module_name_relative,
+    is_module_block, is_module_declaration, is_source_file, map_defined, LiteralLikeNodeInterface,
 };
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum RelativePreference {
+    Relative,
+    NonRelative,
+    Shortest,
+    ExternalNonRelative,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum Ending {
+    Minimal,
+    Index,
+    JsExtension,
+}
+
+struct Preferences {
+    pub relative_preference: RelativePreference,
+    pub ending: Ending,
+}
+
+fn get_preferences(
+    host: &dyn ModuleSpecifierResolutionHost,
+    user_preferences: &UserPreferences,
+    compiler_options: &CompilerOptions,
+    importing_source_file: &Node, /*SourceFile*/
+) -> Preferences {
+    let import_module_specifier_preference = user_preferences
+        .import_module_specifier_preference
+        .as_deref();
+    let import_module_specifier_ending = user_preferences.import_module_specifier_ending.as_deref();
+    Preferences {
+        relative_preference: match import_module_specifier_preference {
+            Some("relative") => RelativePreference::Relative,
+            Some("non-relative") => RelativePreference::NonRelative,
+            Some("project-relative") => RelativePreference::ExternalNonRelative,
+            _ => RelativePreference::Shortest,
+        },
+        ending: get_ending(
+            import_module_specifier_ending,
+            importing_source_file,
+            compiler_options,
+            host,
+        ),
+    }
+}
+
+fn get_ending(
+    import_module_specifier_ending: Option<&str>,
+    importing_source_file: &Node, /*SourceFile*/
+    compiler_options: &CompilerOptions,
+    host: &dyn ModuleSpecifierResolutionHost,
+) -> Ending {
+    match import_module_specifier_ending {
+        Some("minimal") => Ending::Minimal,
+        Some("index") => Ending::Index,
+        Some("js") => Ending::JsExtension,
+        _ => {
+            if uses_js_extensions_on_imports(importing_source_file)
+                || is_format_requiring_extensions(
+                    compiler_options,
+                    &importing_source_file.as_source_file().path(),
+                    host,
+                )
+            {
+                Ending::JsExtension
+            } else if get_emit_module_resolution_kind(compiler_options)
+                != ModuleResolutionKind::NodeJs
+            {
+                Ending::Index
+            } else {
+                Ending::Minimal
+            }
+        }
+    }
+}
+
+fn is_format_requiring_extensions(
+    compiler_options: &CompilerOptions,
+    importing_source_file_name: &Path,
+    host: &dyn ModuleSpecifierResolutionHost,
+) -> bool {
+    unimplemented!()
+}
 
 fn try_get_module_specifiers_from_cache_worker(
     module_symbol: &Symbol,
@@ -147,6 +233,121 @@ fn compute_module_specifiers(
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
 ) -> Vec<String> {
+    let importing_source_file_as_source_file = importing_source_file.as_source_file();
+    let info = get_info(&importing_source_file_as_source_file.path(), host);
+    let preferences = get_preferences(
+        host,
+        user_preferences,
+        compiler_options,
+        importing_source_file,
+    );
+    let existing_specifier = for_each(module_paths, |module_path: &ModulePath, _| {
+        maybe_for_each(
+            host.get_file_include_reasons().get(&to_path(
+                &module_path.path,
+                Some(&host.get_current_directory()),
+                info.get_canonical_file_name,
+            )),
+            |reason: &FileIncludeReason, _| {
+                if reason.kind() != FileIncludeKind::Import
+                    || reason.as_referenced_file().file
+                        != *importing_source_file_as_source_file.path()
+                {
+                    return None;
+                }
+                let specifier = get_module_name_string_literal_at(
+                    importing_source_file_as_source_file,
+                    reason.as_referenced_file().index,
+                )
+                .as_literal_like_node()
+                .text()
+                .clone();
+                if preferences.relative_preference != RelativePreference::NonRelative
+                    || !path_is_relative(&specifier)
+                {
+                    Some(specifier)
+                } else {
+                    None
+                }
+            },
+        )
+    });
+
+    let imported_file_is_in_node_modules = some(
+        Some(module_paths),
+        Some(|p: &ModulePath| p.is_in_node_modules),
+    );
+
+    let mut node_modules_specifiers: Option<Vec<String>> = None;
+    let mut paths_specifiers: Option<Vec<String>> = None;
+    let mut relative_specifiers: Option<Vec<String>> = None;
+    for module_path in module_paths {
+        let specifier =
+            try_get_module_name_as_node_module(module_path, &info, host, compiler_options, None);
+        if let Some(specifier) = specifier.as_ref() {
+            append(
+                node_modules_specifiers.get_or_insert_with(|| vec![]),
+                Some(specifier.clone()),
+            );
+        }
+        if let Some(specifier) = specifier.as_ref() {
+            if module_path.is_redirect {
+                return node_modules_specifiers.unwrap();
+            }
+        }
+
+        if specifier.is_none() && !module_path.is_redirect {
+            let local = get_local_module_specifier(
+                &module_path.path,
+                &info,
+                compiler_options,
+                host,
+                &preferences,
+            );
+            if path_is_bare_specifier(&local) {
+                append(paths_specifiers.get_or_insert_with(|| vec![]), Some(local));
+            } else if !imported_file_is_in_node_modules || module_path.is_in_node_modules {
+                append(
+                    relative_specifiers.get_or_insert_with(|| vec![]),
+                    Some(local),
+                );
+            }
+        }
+    }
+
+    paths_specifiers
+        .filter(|paths_specifiers| !paths_specifiers.is_empty())
+        .or_else(|| {
+            node_modules_specifiers
+                .filter(|node_modules_specifiers| !node_modules_specifiers.is_empty())
+        })
+        .unwrap_or_else(|| Debug_.check_defined(relative_specifiers, None))
+}
+
+struct Info {
+    pub get_canonical_file_name: fn(&str) -> String,
+    pub importing_source_file_name: Path,
+    pub source_directory: Path,
+}
+
+fn get_info(importing_source_file_name: &Path, host: &dyn ModuleSpecifierResolutionHost) -> Info {
+    let get_canonical_file_name =
+        create_get_canonical_file_name(host.use_case_sensitive_file_names().unwrap_or(true));
+    let source_directory: Path = get_directory_path(importing_source_file_name).into();
+    Info {
+        get_canonical_file_name,
+        importing_source_file_name: importing_source_file_name.clone(),
+        source_directory,
+    }
+}
+
+fn get_local_module_specifier(
+    module_file_name: &str,
+    info: &Info,
+    compiler_options: &CompilerOptions,
+    host: &dyn ModuleSpecifierResolutionHost,
+    preferences: &Preferences,
+) -> String {
     unimplemented!()
 }
 
@@ -166,6 +367,10 @@ pub fn count_path_components(path: &str) -> usize {
         }
     }
     count
+}
+
+fn uses_js_extensions_on_imports(node: &Node /*SourceFile*/) -> bool {
+    unimplemented!()
 }
 
 fn compare_paths_by_redirect_and_number_of_directory_separators(
@@ -499,6 +704,16 @@ fn try_get_module_name_from_ambient_module(
         );
     }
     None
+}
+
+fn try_get_module_name_as_node_module(
+    module_path: &ModulePath,
+    info: &Info,
+    host: &dyn ModuleSpecifierResolutionHost,
+    options: &CompilerOptions,
+    package_name_only: Option<bool>,
+) -> Option<String> {
+    unimplemented!()
 }
 
 fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Rc<Node> {
