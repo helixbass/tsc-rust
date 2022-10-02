@@ -117,13 +117,26 @@ pub trait ModuleSpecifierResolutionHost {
     fn get_file_include_reasons(&self) -> Rc<MultiMap<Path, FileIncludeReason>>;
 }
 
+#[derive(Clone)]
 pub struct ModulePath {
     pub path: String,
     pub is_in_node_modules: bool,
     pub is_redirect: bool,
 }
 
+pub struct ResolvedModuleSpecifierInfo {
+    pub module_paths: Option<Vec<ModulePath>>,
+    pub module_specifiers: Option<Vec<String>>,
+    pub is_auto_importable: Option<bool>,
+}
+
 pub trait ModuleSpecifierCache {
+    fn get(
+        &self,
+        from_file_name: &Path,
+        to_file_name: &Path,
+        preferences: &UserPreferences,
+    ) -> Option<Rc<ResolvedModuleSpecifierInfo>>;
     fn set(
         &self,
         from_file_name: &Path,

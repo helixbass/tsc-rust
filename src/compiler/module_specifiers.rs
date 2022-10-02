@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use crate::{
-    is_external_module_augmentation, is_non_global_ambient_module, starts_with, CharacterCodes,
-    CompilerOptions, ModulePath, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node,
-    NodeFlags, NodeInterface, Path, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
-    UserPreferences, __String, get_text_of_identifier_or_literal, is_ambient_module,
-    is_external_module_name_relative, is_module_block, is_module_declaration, is_source_file,
-    map_defined, LiteralLikeNodeInterface,
+    get_source_file_of_module, is_external_module_augmentation, is_non_global_ambient_module,
+    starts_with, CharacterCodes, CompilerOptions, ModulePath, ModuleSpecifierCache,
+    ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path, Symbol, SymbolFlags,
+    SymbolInterface, TypeChecker, UserPreferences, __String, get_text_of_identifier_or_literal,
+    is_ambient_module, is_external_module_name_relative, is_module_block, is_module_declaration,
+    is_source_file, map_defined, LiteralLikeNodeInterface,
 };
 
 fn try_get_module_specifiers_from_cache_worker(
@@ -20,7 +20,30 @@ fn try_get_module_specifiers_from_cache_worker(
     Option<Vec<ModulePath>>,
     Option<Rc<dyn ModuleSpecifierCache>>,
 ) {
-    unimplemented!()
+    let module_source_file = get_source_file_of_module(module_symbol);
+    if module_source_file.is_none() {
+        return (None, None, None, None);
+    }
+    let module_source_file = module_source_file.unwrap();
+
+    let cache = host.get_module_specifier_cache();
+    let cached = cache.as_ref().and_then(|cache| {
+        cache.get(
+            &importing_source_file.as_source_file().path(),
+            &module_source_file.as_source_file().path(),
+            user_preferences,
+        )
+    });
+    (
+        cached
+            .as_ref()
+            .and_then(|cached| cached.module_specifiers.clone()),
+        Some(module_source_file),
+        cached
+            .as_ref()
+            .and_then(|cached| cached.module_paths.clone()),
+        cache,
+    )
 }
 
 pub fn get_module_specifiers(
