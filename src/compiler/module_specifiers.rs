@@ -6,7 +6,7 @@ use std::rc::Rc;
 use crate::{
     append, combine_paths, comparison_to_ordering, contains_ignored_path,
     create_get_canonical_file_name, directory_separator_str, ensure_path_is_non_module_name,
-    ensure_trailing_directory_separator, every, first_defined, for_each,
+    ensure_trailing_directory_separator, every, file_extension_is_one_of, first_defined, for_each,
     for_each_ancestor_directory, get_directory_path, get_emit_module_resolution_kind,
     get_implied_node_format_for_file, get_module_name_string_literal_at,
     get_normalized_absolute_path, get_package_json_types_version_paths,
@@ -15,9 +15,9 @@ use crate::{
     has_ts_file_extension, host_get_canonical_file_name, is_external_module_augmentation,
     is_non_global_ambient_module, maybe_for_each, node_modules_path_part,
     path_contains_node_modules, path_is_bare_specifier, path_is_relative, remove_file_extension,
-    resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison,
-    CompilerOptions, Debug_, Extension, FileIncludeKind, FileIncludeReason, ModuleKind, ModulePath,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    remove_suffix, resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes,
+    Comparison, CompilerOptions, Debug_, Extension, FileIncludeKind, FileIncludeReason, ModuleKind,
+    ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
     ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path,
     Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences, __String,
     get_text_of_identifier_or_literal, is_ambient_module, is_external_module_name_relative,
@@ -1334,6 +1334,40 @@ fn remove_extension_and_index_post_fix(
     ending: Ending,
     options: &CompilerOptions,
 ) -> String {
+    if file_extension_is_one_of(
+        file_name,
+        &[Extension::Json, Extension::Mjs, Extension::Cjs],
+    ) {
+        return file_name.to_owned();
+    }
+    let no_extension = remove_file_extension(file_name);
+    if file_extension_is_one_of(
+        file_name,
+        &[
+            Extension::Dmts,
+            Extension::Mts,
+            Extension::Dcts,
+            Extension::Cts,
+        ],
+    ) {
+        return format!(
+            "{}{}",
+            no_extension,
+            get_js_extension_for_file(file_name, options).to_str()
+        );
+    }
+    match ending {
+        Ending::Minimal => remove_suffix(no_extension, "/index").to_owned(),
+        Ending::Index => no_extension.to_owned(),
+        Ending::JsExtension => format!(
+            "{}{}",
+            no_extension,
+            get_js_extension_for_file(file_name, options).to_str()
+        ),
+    }
+}
+
+fn get_js_extension_for_file(file_name: &str, options: &CompilerOptions) -> Extension {
     unimplemented!()
 }
 
