@@ -558,7 +558,7 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
         SyntaxKind::ConstKeyword => ModifierFlags::Const,
         SyntaxKind::DefaultKeyword => ModifierFlags::Default,
         SyntaxKind::AsyncKeyword => ModifierFlags::Async,
-        SyntaxKind::ReadonlyKeyword => ModifierFlags::Static,
+        SyntaxKind::ReadonlyKeyword => ModifierFlags::Readonly,
         SyntaxKind::OverrideKeyword => ModifierFlags::Override,
         _ => ModifierFlags::None,
     }
