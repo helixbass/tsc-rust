@@ -1,20 +1,23 @@
 use std::collections::HashMap;
+use std::io;
 use std::rc::Rc;
 
 use crate::{
     append, comparison_to_ordering, contains_ignored_path, create_get_canonical_file_name,
     ensure_trailing_directory_separator, every, first_defined, for_each,
     for_each_ancestor_directory, get_directory_path, get_emit_module_resolution_kind,
-    get_module_name_string_literal_at, get_normalized_absolute_path,
-    get_relative_path_from_directory, get_source_file_of_module, has_js_file_extension,
-    host_get_canonical_file_name, is_external_module_augmentation, is_non_global_ambient_module,
-    maybe_for_each, path_contains_node_modules, path_is_bare_specifier, path_is_relative,
-    resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes, Comparison,
-    CompilerOptions, Debug_, FileIncludeKind, FileIncludeReason, ModulePath, ModuleResolutionKind,
-    ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path,
-    Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences, __String,
-    get_text_of_identifier_or_literal, is_ambient_module, is_external_module_name_relative,
-    is_module_block, is_module_declaration, is_source_file, map_defined, LiteralLikeNodeInterface,
+    get_implied_node_format_for_file, get_module_name_string_literal_at,
+    get_normalized_absolute_path, get_relative_path_from_directory, get_source_file_of_module,
+    has_js_file_extension, host_get_canonical_file_name, is_external_module_augmentation,
+    is_non_global_ambient_module, maybe_for_each, path_contains_node_modules,
+    path_is_bare_specifier, path_is_relative, resolve_path, some, starts_with,
+    starts_with_directory, to_path, CharacterCodes, Comparison, CompilerOptions, Debug_,
+    FileIncludeKind, FileIncludeReason, ModuleKind, ModulePath, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
+    ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path, Symbol, SymbolFlags,
+    SymbolInterface, TypeChecker, UserPreferences, __String, get_text_of_identifier_or_literal,
+    is_ambient_module, is_external_module_name_relative, is_module_block, is_module_declaration,
+    is_source_file, map_defined, LiteralLikeNodeInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -98,7 +101,124 @@ fn is_format_requiring_extensions(
     importing_source_file_name: &Path,
     host: &dyn ModuleSpecifierResolutionHost,
 ) -> bool {
-    unimplemented!()
+    if !matches!(
+        get_emit_module_resolution_kind(compiler_options),
+        ModuleResolutionKind::Node12 | ModuleResolutionKind::NodeNext
+    ) {
+        return false;
+    }
+    get_implied_node_format_for_file(
+        importing_source_file_name,
+        None,
+        &get_module_resolution_host(host),
+        compiler_options,
+    ) != Some(ModuleKind::CommonJS)
+}
+
+fn get_module_resolution_host<'host>(
+    host: &'host dyn ModuleSpecifierResolutionHost,
+) -> ModuleResolutionHostFromModuleSpecifierResolutionHost<'host> {
+    ModuleResolutionHostFromModuleSpecifierResolutionHost::new(host)
+}
+
+struct ModuleResolutionHostFromModuleSpecifierResolutionHost<'host> {
+    pub host: &'host dyn ModuleSpecifierResolutionHost,
+}
+
+impl<'host> ModuleResolutionHostFromModuleSpecifierResolutionHost<'host> {
+    pub fn new(host: &'host dyn ModuleSpecifierResolutionHost) -> Self {
+        Self { host }
+    }
+}
+
+impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionHost<'_> {
+    fn file_exists(&self, file_name: &str) -> bool {
+        self.host.file_exists(file_name)
+    }
+
+    fn file_exists_non_overridden(&self, file_name: &str) -> bool {
+        unreachable!()
+    }
+
+    fn set_overriding_file_exists(
+        &self,
+        overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn read_file(&self, file_name: &str) -> io::Result<String> {
+        self.host.read_file(file_name).unwrap()
+    }
+
+    fn is_trace_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+        self.host.directory_exists(directory_name)
+    }
+
+    fn is_directory_exists_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn directory_exists_non_overridden(&self, directory_name: &str) -> Option<bool> {
+        unreachable!()
+    }
+
+    fn set_overriding_directory_exists(
+        &self,
+        overriding_directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn realpath(&self, path: &str) -> Option<String> {
+        self.host.realpath(path)
+    }
+
+    fn realpath_non_overridden(&self, path: &str) -> Option<String> {
+        unreachable!()
+    }
+
+    fn is_realpath_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn set_overriding_realpath(
+        &self,
+        overriding_realpath: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn get_current_directory(&self) -> Option<String> {
+        Some(self.host.get_current_directory())
+    }
+
+    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+        unreachable!()
+    }
+
+    fn is_get_directories_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn get_directories_non_overridden(&self, path: &str) -> Option<Vec<String>> {
+        unreachable!()
+    }
+
+    fn set_overriding_get_directories(
+        &self,
+        overriding_get_directories: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        self.host.use_case_sensitive_file_names()
+    }
 }
 
 fn try_get_module_specifiers_from_cache_worker(
