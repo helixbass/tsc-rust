@@ -287,8 +287,12 @@ fn get_ast_struct_interface_impl(
         "HasTypeParametersInterface" => {
             quote! {
                 impl crate::HasTypeParametersInterface for #ast_type_name {
-                    fn maybe_type_parameters(&self) -> ::std::cell::RefMut<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_type_parameters(&self) -> ::std::cell::Ref<::std::option::Option<crate::NodeArray>> {
                         self.#first_field_name.maybe_type_parameters()
+                    }
+
+                    fn maybe_type_parameters_mut(&self) -> ::std::cell::RefMut<::std::option::Option<crate::NodeArray>> {
+                        self.#first_field_name.maybe_type_parameters_mut()
                     }
                 }
             }
@@ -848,9 +852,15 @@ fn get_ast_enum_interface_impl(
         "HasTypeParametersInterface" => {
             quote! {
                 impl crate::HasTypeParametersInterface for #ast_type_name {
-                    fn maybe_type_parameters(&self) -> ::std::cell::RefMut<::std::option::Option<crate::NodeArray>> {
+                    fn maybe_type_parameters(&self) -> ::std::cell::Ref<::std::option::Option<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters()),*
+                        }
+                    }
+
+                    fn maybe_type_parameters_mut(&self) -> ::std::cell::RefMut<::std::option::Option<crate::NodeArray>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters_mut()),*
                         }
                     }
                 }

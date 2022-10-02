@@ -1323,7 +1323,8 @@ impl HasElementsInterface for ArrayBindingPattern {
 }
 
 pub trait HasTypeParametersInterface {
-    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>>;
+    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>>;
+    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>>;
 }
 
 pub trait GenericNamedDeclarationInterface:
@@ -1351,7 +1352,11 @@ impl BaseGenericNamedDeclaration {
 }
 
 impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
-    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>> {
+    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>> {
+        self.type_parameters.borrow()
+    }
+
+    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>> {
         self.type_parameters.borrow_mut()
     }
 }

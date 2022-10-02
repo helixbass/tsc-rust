@@ -271,7 +271,7 @@ impl ParserType {
                 let mut node = self
                     .factory
                     .create_constructor_declaration(self, decorators, modifiers, parameters, body);
-                *node.maybe_type_parameters() = type_parameters;
+                *node.maybe_type_parameters_mut() = type_parameters;
                 node.set_type(type_);
                 return Some(self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc));
             }
@@ -425,7 +425,7 @@ impl ParserType {
             }
             node_as_set_accessor_declaration.into()
         };
-        *node.as_has_type_parameters().maybe_type_parameters() = type_parameters;
+        *node.as_has_type_parameters().maybe_type_parameters_mut() = type_parameters;
         self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 

@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
@@ -962,7 +962,12 @@ impl JSDocTemplateTag {
 }
 
 impl HasTypeParametersInterface for JSDocTemplateTag {
-    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>> {
+    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>> {
+        self.type_parameters_for_has_type_parameters_interface
+            .borrow()
+    }
+
+    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>> {
         self.type_parameters_for_has_type_parameters_interface
             .borrow_mut()
     }
@@ -1156,7 +1161,11 @@ impl HasTypeInterface for JSDocSignature {
 }
 
 impl HasTypeParametersInterface for JSDocSignature {
-    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>> {
+    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>> {
+        self.type_parameters.borrow()
+    }
+
+    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>> {
         self.type_parameters.borrow_mut()
     }
 }
