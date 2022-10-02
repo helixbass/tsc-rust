@@ -552,7 +552,7 @@ impl Program {
             no_diagnostics_type_checker: RefCell::new(None),
             classifiable_names: RefCell::new(None),
             ambient_module_name_to_unmodified_file_name: RefCell::new(HashMap::new()),
-            file_reasons: RefCell::new(create_multi_map()),
+            file_reasons: Rc::new(RefCell::new(create_multi_map())),
             cached_bind_and_check_diagnostics_for_file: RefCell::new(Default::default()),
             cached_declaration_diagnostics_for_file: RefCell::new(Default::default()),
 
@@ -1003,6 +1003,10 @@ impl Program {
         self.file_reasons.borrow_mut()
     }
 
+    pub(super) fn file_reasons_rc(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
+        self.file_reasons.clone()
+    }
+
     pub(super) fn maybe_file_processing_diagnostics(
         &self,
     ) -> RefMut<Option<Vec<FilePreprocessingDiagnostics>>> {
@@ -1419,8 +1423,8 @@ impl ModuleSpecifierResolutionHost for Program {
         self.is_source_of_project_reference_redirect_(file_name)
     }
 
-    fn get_file_include_reasons(&self) -> Rc<MultiMap<Path, FileIncludeReason>> {
-        unimplemented!()
+    fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
+        self.file_reasons_rc()
     }
 }
 

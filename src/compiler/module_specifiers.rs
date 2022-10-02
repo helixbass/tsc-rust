@@ -364,7 +364,7 @@ fn compute_module_specifiers(
     );
     let existing_specifier = for_each(module_paths, |module_path: &ModulePath, _| {
         maybe_for_each(
-            host.get_file_include_reasons().get(&to_path(
+            (*host.get_file_include_reasons()).borrow().get(&to_path(
                 &module_path.path,
                 Some(&host.get_current_directory()),
                 info.get_canonical_file_name,
@@ -393,6 +393,10 @@ fn compute_module_specifiers(
             },
         )
     });
+    if let Some(existing_specifier) = existing_specifier {
+        let module_specifiers = vec![existing_specifier];
+        return module_specifiers;
+    }
 
     let imported_file_is_in_node_modules = some(
         Some(module_paths),

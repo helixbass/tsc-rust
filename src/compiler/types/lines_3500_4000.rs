@@ -1043,7 +1043,7 @@ pub struct Program {
     pub(crate) no_diagnostics_type_checker: RefCell<Option<Rc<TypeChecker>>>,
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
     pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
-    pub(crate) file_reasons: RefCell<MultiMap<Path, FileIncludeReason>>,
+    pub(crate) file_reasons: Rc<RefCell<MultiMap<Path, FileIncludeReason>>>,
     pub(crate) cached_bind_and_check_diagnostics_for_file: RefCell<DiagnosticCache>,
     pub(crate) cached_declaration_diagnostics_for_file: RefCell<DiagnosticCache>,
 

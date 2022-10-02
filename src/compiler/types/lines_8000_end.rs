@@ -114,7 +114,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>>;
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
-    fn get_file_include_reasons(&self) -> Rc<MultiMap<Path, FileIncludeReason>>;
+    fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>>;
 }
 
 #[derive(Clone)]

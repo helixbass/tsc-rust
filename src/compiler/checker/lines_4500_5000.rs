@@ -1683,7 +1683,7 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
         self.host.file_exists(file_name)
     }
 
-    fn get_file_include_reasons(&self) -> Rc<MultiMap<Path, FileIncludeReason>> {
+    fn get_file_include_reasons(&self) -> Rc<RefCell<MultiMap<Path, FileIncludeReason>>> {
         self.host.get_file_include_reasons()
     }
 
