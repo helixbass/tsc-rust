@@ -5,11 +5,12 @@ use std::rc::Rc;
 
 use crate::{
     append, combine_paths, comparison_to_ordering, contains_ignored_path,
-    create_get_canonical_file_name, directory_separator_str, ensure_trailing_directory_separator,
-    every, first_defined, for_each, for_each_ancestor_directory, get_directory_path,
-    get_emit_module_resolution_kind, get_implied_node_format_for_file,
-    get_module_name_string_literal_at, get_normalized_absolute_path,
-    get_package_json_types_version_paths, get_package_name_from_types_package_name,
+    create_get_canonical_file_name, directory_separator_str, ensure_path_is_non_module_name,
+    ensure_trailing_directory_separator, every, first_defined, for_each,
+    for_each_ancestor_directory, get_directory_path, get_emit_module_resolution_kind,
+    get_implied_node_format_for_file, get_module_name_string_literal_at,
+    get_normalized_absolute_path, get_package_json_types_version_paths,
+    get_package_name_from_types_package_name, get_paths_base_path,
     get_relative_path_from_directory, get_source_file_of_module, has_js_file_extension,
     has_ts_file_extension, host_get_canonical_file_name, is_external_module_augmentation,
     is_non_global_ambient_module, maybe_for_each, node_modules_path_part,
@@ -38,6 +39,7 @@ enum Ending {
     JsExtension,
 }
 
+#[derive(Copy, Clone)]
 struct Preferences {
     pub relative_preference: RelativePreference,
     pub ending: Ending,
@@ -430,7 +432,7 @@ fn compute_module_specifiers(
                 &info,
                 compiler_options,
                 host,
-                &preferences,
+                preferences,
             );
             if path_is_bare_specifier(&local) {
                 append(paths_specifiers.get_or_insert_with(|| vec![]), Some(local));
@@ -474,9 +476,107 @@ fn get_local_module_specifier(
     info: &Info,
     compiler_options: &CompilerOptions,
     host: &dyn ModuleSpecifierResolutionHost,
-    preferences: &Preferences,
+    preferences: Preferences,
 ) -> String {
-    unimplemented!()
+    let ending = preferences.ending;
+    let relative_preference = preferences.relative_preference;
+    let base_url = compiler_options.base_url.as_ref();
+    let paths = compiler_options.paths.as_ref();
+    let root_dirs = compiler_options.root_dirs.as_ref();
+    let source_directory = &info.source_directory;
+    let get_canonical_file_name = info.get_canonical_file_name;
+    let relative_path = if let Some(root_dirs) = root_dirs {
+        try_get_module_name_from_root_dirs(
+            root_dirs,
+            module_file_name,
+            source_directory,
+            get_canonical_file_name,
+            ending,
+            compiler_options,
+        )
+    } else {
+        None
+    }
+    .unwrap_or_else(|| {
+        remove_extension_and_index_post_fix(
+            &ensure_path_is_non_module_name(&get_relative_path_from_directory(
+                source_directory,
+                module_file_name,
+                Some(get_canonical_file_name),
+                None,
+            )),
+            ending,
+            compiler_options,
+        )
+    });
+    if match base_url {
+        None => true,
+        Some(base_url) => base_url.is_empty(),
+    } && paths.is_none()
+        || relative_preference == RelativePreference::Relative
+    {
+        return relative_path;
+    }
+
+    let base_directory = get_normalized_absolute_path(
+        &get_paths_base_path(compiler_options, || Some(host.get_current_directory()))
+            .unwrap_or_else(|| base_url.unwrap().clone()),
+        Some(&host.get_current_directory()),
+    );
+    let relative_to_base_url = get_relative_path_if_in_directory(
+        module_file_name,
+        &base_directory,
+        get_canonical_file_name,
+    );
+    if relative_to_base_url.is_none() {
+        return relative_path;
+    }
+    let relative_to_base_url = relative_to_base_url.unwrap();
+    if relative_to_base_url.is_empty() {
+        return relative_path;
+    }
+
+    let import_relative_to_base_url =
+        remove_extension_and_index_post_fix(&relative_to_base_url, ending, compiler_options);
+    let from_paths = paths.and_then(|paths| {
+        try_get_module_name_from_paths(
+            remove_file_extension(&relative_to_base_url),
+            &import_relative_to_base_url,
+            paths,
+        )
+    });
+    let non_relative = if from_paths.is_none() && base_url.is_some() {
+        Some(import_relative_to_base_url)
+    } else {
+        from_paths
+    };
+    if non_relative.is_none() {
+        return relative_path;
+    }
+    let non_relative = non_relative.unwrap();
+    if non_relative.is_empty() {
+        return relative_path;
+    }
+
+    if relative_preference == RelativePreference::NonRelative {
+        return non_relative;
+    }
+
+    if relative_preference == RelativePreference::ExternalNonRelative {
+        unimplemented!()
+    }
+
+    if relative_preference != RelativePreference::Shortest {
+        Debug_.assert_never(relative_preference, None);
+    }
+
+    if is_path_relative_to_parent(&non_relative)
+        || count_path_components(&relative_path) < count_path_components(&non_relative)
+    {
+        relative_path
+    } else {
+        non_relative
+    }
 }
 
 pub struct ModuleSpecifiersWithCacheInfo {
@@ -850,7 +950,7 @@ fn try_get_module_name_from_ambient_module(
 fn try_get_module_name_from_paths(
     relative_to_base_url_with_index: &str,
     relative_to_base_url: &str,
-    paths: &serde_json::Value,
+    paths: &HashMap<String, Vec<String>>,
 ) -> Option<String> {
     unimplemented!()
 }
@@ -888,6 +988,17 @@ fn try_get_module_name_from_exports(
 
 struct TryGetModuleNameFromExportsReturn {
     pub module_file_to_try: String,
+}
+
+fn try_get_module_name_from_root_dirs(
+    root_dirs: &[String],
+    module_file_name: &str,
+    source_directory: &str,
+    get_canonical_file_name: fn(&str) -> String,
+    ending: Ending,
+    compiler_options: &CompilerOptions,
+) -> Option<String> {
+    unimplemented!()
 }
 
 fn try_get_module_name_as_node_module(
@@ -1076,7 +1187,7 @@ fn try_directory_with_package_json(
             let from_paths = try_get_module_name_from_paths(
                 remove_file_extension(sub_module_name),
                 &remove_extension_and_index_post_fix(sub_module_name, Ending::Minimal, options),
-                &version_paths.paths,
+                &serde_json_value_to_map_like_vec_string(&version_paths.paths),
             );
             if let Some(from_paths) = from_paths {
                 module_file_to_try = combine_paths(package_root_path, &[Some(&from_paths)]);
@@ -1112,6 +1223,12 @@ fn try_directory_with_package_json(
         blocked_by_exports: None,
         verbatim_from_exports: None,
     }
+}
+
+fn serde_json_value_to_map_like_vec_string(
+    value: &serde_json::Value,
+) -> HashMap<String, Vec<String>> {
+    unimplemented!()
 }
 
 struct TryDirectoryWithPackageJsonReturn {
@@ -1222,4 +1339,16 @@ fn remove_extension_and_index_post_fix(
 
 fn try_get_js_extension_for_file(file_name: &str, options: &CompilerOptions) -> Option<Extension> {
     unimplemented!()
+}
+
+fn get_relative_path_if_in_directory(
+    path: &str,
+    directory_path: &str,
+    get_canonical_file_name: fn(&str) -> String,
+) -> Option<String> {
+    unimplemented!()
+}
+
+fn is_path_relative_to_parent(path: &str) -> bool {
+    starts_with(path, "..")
 }
