@@ -843,6 +843,13 @@ impl Program {
             .cloned()
     }
 
+    pub(super) fn is_source_of_project_reference_redirect_(&self, file_name: &str) -> bool {
+        self.use_source_of_project_reference_redirect()
+            && self
+                .get_resolved_project_reference_to_redirect(file_name)
+                .is_some()
+    }
+
     pub(super) fn get_resolved_project_reference_by_path(
         &self,
         project_reference_path: &Path,

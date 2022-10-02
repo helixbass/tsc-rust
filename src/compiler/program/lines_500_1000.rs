@@ -1395,7 +1395,7 @@ impl ModuleSpecifierResolutionHost for Program {
     }
 
     fn get_current_directory(&self) -> String {
-        unimplemented!()
+        self.get_current_directory()
     }
 
     fn directory_exists(&self, path: &str) -> Option<bool> {
@@ -1416,7 +1416,7 @@ impl ModuleSpecifierResolutionHost for Program {
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
-        unimplemented!()
+        self.is_source_of_project_reference_redirect_(file_name)
     }
 
     fn get_file_include_reasons(&self) -> Rc<MultiMap<Path, FileIncludeReason>> {
