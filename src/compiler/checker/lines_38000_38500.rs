@@ -610,10 +610,7 @@ impl TypeChecker {
             let type_ = self.get_declared_type_of_symbol(symbol);
             if !self.are_type_parameters_identical(
                 &declarations,
-                type_
-                    .as_interface_type()
-                    .maybe_local_type_parameters()
-                    .unwrap(),
+                type_.as_interface_type().maybe_local_type_parameters(),
             ) {
                 let name = self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None);
                 for declaration in &declarations {
@@ -630,10 +627,10 @@ impl TypeChecker {
     pub(super) fn are_type_parameters_identical(
         &self,
         declarations: &[Rc<Node /*ClassDeclaration | InterfaceDeclaration*/>],
-        target_parameters: &[Rc<Type /*TypeParameter*/>],
+        target_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
     ) -> bool {
-        let max_type_argument_count = length(Some(target_parameters));
-        let min_type_argument_count = self.get_min_type_argument_count(Some(target_parameters));
+        let max_type_argument_count = length(target_parameters);
+        let min_type_argument_count = self.get_min_type_argument_count(target_parameters);
 
         for declaration in declarations {
             let source_parameters = get_effective_type_parameter_declarations(declaration);
@@ -644,6 +641,7 @@ impl TypeChecker {
                 return false;
             }
 
+            let target_parameters = target_parameters.unwrap();
             for i in 0..num_type_parameters {
                 let source = &source_parameters[i];
                 let target = &target_parameters[i];
