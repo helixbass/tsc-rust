@@ -141,7 +141,9 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
             {
-                let types = contextual_type.as_union_type().types();
+                let types = contextual_type
+                    .as_union_or_intersection_type_interface()
+                    .types();
                 return some(
                     Some(types),
                     Some(|t: &Rc<Type>| {
