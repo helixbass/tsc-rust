@@ -239,10 +239,12 @@ pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
     let mut pragmas: Vec<PragmaPseudoMapEntry> = vec![];
 
     for range in &get_leading_comment_ranges(source_text_as_chars, 0).unwrap_or_else(|| vec![]) {
-        // TODO: this needs chars/bytes-awareness
-        let comment = &source_text[TryInto::<usize>::try_into(range.pos()).unwrap()
-            ..TryInto::<usize>::try_into(range.end()).unwrap()];
-        extract_pragmas(&mut pragmas, range, comment);
+        // TODO: should we really be passing a slice of chars into extract_pragmas() instead?
+        let comment: String = source_text_as_chars[TryInto::<usize>::try_into(range.pos()).unwrap()
+            ..TryInto::<usize>::try_into(range.end()).unwrap()]
+            .into_iter()
+            .collect();
+        extract_pragmas(&mut pragmas, range, &comment);
     }
 
     let mut context_pragmas = context.maybe_pragmas();
