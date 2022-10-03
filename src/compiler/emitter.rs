@@ -145,6 +145,7 @@ impl Printer {
                 SyntaxKind::FunctionType => return self.emit_function_type(node),
                 SyntaxKind::ConstructorType => return self.emit_constructor_type(node),
                 SyntaxKind::TypeLiteral => return self.emit_type_literal(node),
+                SyntaxKind::ArrayType => return self.emit_array_type(node),
                 SyntaxKind::TupleType => return self.emit_tuple_type(node),
                 SyntaxKind::UnionType => return self.emit_union_type(node),
                 SyntaxKind::IntersectionType => return self.emit_intersection_type(node),
@@ -234,6 +235,11 @@ impl Printer {
             flags | ListFormat::NoSpaceIfEmpty,
         );
         self.write_punctuation("}");
+    }
+
+    fn emit_array_type(&mut self, node: &Node /*ArrayTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
     }
 
     fn emit_tuple_type(&mut self, node: &Node /*TupleTypeNode*/) {
