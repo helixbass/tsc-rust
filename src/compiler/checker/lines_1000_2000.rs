@@ -1527,7 +1527,7 @@ impl TypeChecker {
                                         are_option_rcs_equal(
                                             last_location.as_ref(),
                                             location_unwrapped
-                                                .maybe_as_function_like_declaration()
+                                                .maybe_as_has_type()
                                                 .and_then(|location_unwrapped| {
                                                     location_unwrapped.maybe_type()
                                                 })
