@@ -141,6 +141,7 @@ impl Printer {
             match node.kind() {
                 SyntaxKind::Identifier => return self.emit_identifier(node),
                 SyntaxKind::PropertySignature => return self.emit_property_signature(node),
+                SyntaxKind::CallSignature => return self.emit_call_signature(node),
                 SyntaxKind::TypeReference => return self.emit_type_reference(node),
                 SyntaxKind::FunctionType => return self.emit_function_type(node),
                 SyntaxKind::ConstructorType => return self.emit_constructor_type(node),
@@ -206,6 +207,11 @@ impl Printer {
         );
         self.emit_type_annotation(node_as_property_signature.maybe_type());
         self.write_trailing_semicolon();
+    }
+
+    fn emit_call_signature(&mut self, node: &Node /*CallSignature*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
     }
 
     fn emit_type_reference(&mut self, node: &Node /*TypeReferenceNode*/) {
