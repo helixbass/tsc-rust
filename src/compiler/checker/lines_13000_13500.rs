@@ -509,8 +509,8 @@ impl TypeChecker {
     pub(super) fn get_type_reference_arity(&self, type_: &Type /*TypeReference*/) -> usize {
         length(
             type_
-                .as_type_reference()
-                .target
+                .as_type_reference_interface()
+                .target()
                 .as_interface_type()
                 .maybe_type_parameters(),
         )

@@ -623,8 +623,8 @@ impl TypeChecker {
         self.get_element_type_of_slice_of_tuple_type(
             type_,
             type_
-                .as_type_reference()
-                .target
+                .as_type_reference_interface()
+                .target()
                 .as_tuple_type()
                 .fixed_length,
             None,
