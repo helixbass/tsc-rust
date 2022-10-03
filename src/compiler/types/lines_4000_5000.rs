@@ -895,6 +895,13 @@ impl Symbol {
         rc
     }
 
+    pub fn maybe_as_transient_symbol(&self) -> Option<&TransientSymbol> {
+        match self {
+            Self::TransientSymbol(value) => Some(value),
+            _ => None,
+        }
+    }
+
     pub fn as_transient_symbol(&self) -> &TransientSymbol {
         enum_unwrapped!(self, [Symbol, TransientSymbol])
     }

@@ -218,9 +218,11 @@ impl TypeChecker {
             if merged_instantiations {
                 let clone = self.create_symbol_with_type(
                     &single_prop,
-                    (*single_prop.as_transient_symbol().symbol_links())
-                        .borrow()
-                        .type_
+                    single_prop
+                        .maybe_as_transient_symbol()
+                        .and_then(|single_prop| {
+                            (*single_prop.symbol_links()).borrow().type_.clone()
+                        })
                         .as_deref(),
                 );
                 clone.set_parent(
