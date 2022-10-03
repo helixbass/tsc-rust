@@ -713,20 +713,20 @@ pub fn create_type_checker(
         pattern_ambient_modules: RefCell::new(None),
         pattern_ambient_module_augmentations: RefCell::new(None),
 
-        global_object_type: None,
-        global_function_type: None,
-        global_callable_function_type: None,
-        global_newable_function_type: None,
-        global_array_type: None,
-        global_readonly_array_type: None,
-        global_string_type: None,
-        global_number_type: None,
-        global_boolean_type: None,
-        global_reg_exp_type: None,
-        global_this_type: None,
-        any_array_type: None,
-        auto_array_type: None,
-        any_readonly_array_type: None,
+        global_object_type: RefCell::new(None),
+        global_function_type: RefCell::new(None),
+        global_callable_function_type: RefCell::new(None),
+        global_newable_function_type: RefCell::new(None),
+        global_array_type: RefCell::new(None),
+        global_readonly_array_type: RefCell::new(None),
+        global_string_type: RefCell::new(None),
+        global_number_type: RefCell::new(None),
+        global_boolean_type: RefCell::new(None),
+        global_reg_exp_type: RefCell::new(None),
+        global_this_type: RefCell::new(None),
+        any_array_type: RefCell::new(None),
+        auto_array_type: RefCell::new(None),
+        any_readonly_array_type: RefCell::new(None),
         deferred_global_non_nullable_type_alias: RefCell::new(None),
 
         deferred_global_es_symbol_constructor_symbol: RefCell::new(None),
@@ -1353,15 +1353,15 @@ pub fn create_type_checker(
     );
     *type_checker.builtin_globals.borrow_mut() = Some(builtin_globals);
 
-    type_checker.initialize_type_checker();
-
     let rc_wrapped = Rc::new(type_checker);
     rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
 
+    *rc_wrapped.node_builder.borrow_mut() = Some(Rc::new(rc_wrapped.create_node_builder()));
+
+    rc_wrapped.initialize_type_checker();
+
     *rc_wrapped.check_binary_expression.borrow_mut() =
         Some(Rc::new(rc_wrapped.create_check_binary_expression()));
-
-    *rc_wrapped.node_builder.borrow_mut() = Some(Rc::new(rc_wrapped.create_node_builder()));
 
     rc_wrapped
 }
@@ -2911,63 +2911,79 @@ impl TypeChecker {
     }
 
     pub(super) fn maybe_global_object_type(&self) -> Option<Rc<Type>> {
-        self.global_object_type.clone()
+        self.global_object_type.borrow().clone()
     }
 
     pub(super) fn global_object_type(&self) -> Rc<Type> {
-        self.global_object_type.clone().unwrap()
+        self.global_object_type.borrow().clone().unwrap()
     }
 
     pub(super) fn global_function_type(&self) -> Rc<Type> {
-        self.global_function_type.as_ref().unwrap().clone()
+        self.global_function_type.borrow().as_ref().unwrap().clone()
     }
 
     pub(super) fn global_callable_function_type(&self) -> Rc<Type> {
-        self.global_callable_function_type.as_ref().unwrap().clone()
+        self.global_callable_function_type
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .clone()
     }
 
     pub(super) fn global_newable_function_type(&self) -> Rc<Type> {
-        self.global_newable_function_type.as_ref().unwrap().clone()
+        self.global_newable_function_type
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .clone()
     }
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {
-        self.global_array_type.as_ref().unwrap().clone()
+        self.global_array_type.borrow().as_ref().unwrap().clone()
     }
 
     pub(super) fn global_readonly_array_type(&self) -> Rc<Type> {
-        self.global_readonly_array_type.as_ref().unwrap().clone()
+        self.global_readonly_array_type
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .clone()
     }
 
     pub(super) fn global_string_type(&self) -> Rc<Type> {
-        self.global_string_type.as_ref().unwrap().clone()
+        self.global_string_type.borrow().as_ref().unwrap().clone()
     }
 
     pub(super) fn global_number_type(&self) -> Rc<Type> {
-        self.global_number_type.as_ref().unwrap().clone()
+        self.global_number_type.borrow().as_ref().unwrap().clone()
     }
 
     pub(super) fn global_boolean_type(&self) -> Rc<Type> {
-        self.global_boolean_type.as_ref().unwrap().clone()
+        self.global_boolean_type.borrow().as_ref().unwrap().clone()
     }
 
     pub(super) fn global_reg_exp_type(&self) -> Rc<Type> {
-        self.global_reg_exp_type.as_ref().unwrap().clone()
+        self.global_reg_exp_type.borrow().as_ref().unwrap().clone()
     }
 
     pub(super) fn global_this_type(&self) -> Rc<Type> {
-        self.global_this_type.as_ref().unwrap().clone()
+        self.global_this_type.borrow().as_ref().unwrap().clone()
     }
 
     pub(super) fn any_array_type(&self) -> Rc<Type> {
-        self.any_array_type.as_ref().unwrap().clone()
+        self.any_array_type.borrow().as_ref().unwrap().clone()
     }
 
     pub(super) fn auto_array_type(&self) -> Rc<Type> {
-        self.auto_array_type.as_ref().unwrap().clone()
+        self.auto_array_type.borrow().as_ref().unwrap().clone()
     }
 
     pub(super) fn any_readonly_array_type(&self) -> Rc<Type> {
-        self.any_readonly_array_type.as_ref().unwrap().clone()
+        self.any_readonly_array_type
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .clone()
     }
 
     pub(super) fn maybe_deferred_global_non_nullable_type_alias(

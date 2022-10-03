@@ -749,7 +749,7 @@ impl TypeChecker {
         get_declaration_of_kind(&module_symbol, SyntaxKind::SourceFile)
     }
 
-    pub(super) fn initialize_type_checker(&mut self) {
+    pub(super) fn initialize_type_checker(&self) {
         for file in &*self.host.get_source_files() {
             bind_source_file(file, self.compiler_options.clone());
             // println!("post-binding: {:#?}", file);
@@ -877,12 +877,13 @@ impl TypeChecker {
                 .into(),
         ));
 
-        self.global_array_type = self.get_global_type(&__String::new("Array".to_owned()), 1, true);
-        self.global_object_type =
+        *self.global_array_type.borrow_mut() =
+            self.get_global_type(&__String::new("Array".to_owned()), 1, true);
+        *self.global_object_type.borrow_mut() =
             self.get_global_type(&__String::new("Object".to_owned()), 0, true);
-        self.global_function_type =
+        *self.global_function_type.borrow_mut() =
             self.get_global_type(&__String::new("Function".to_owned()), 0, true);
-        self.global_callable_function_type = Some(
+        *self.global_callable_function_type.borrow_mut() = Some(
             if self.strict_bind_call_apply {
                 self.get_global_type(&__String::new("CallableFunction".to_owned()), 0, true)
             } else {
@@ -890,7 +891,7 @@ impl TypeChecker {
             }
             .unwrap_or_else(|| self.global_function_type()),
         );
-        self.global_newable_function_type = Some(
+        *self.global_newable_function_type.borrow_mut() = Some(
             if self.strict_bind_call_apply {
                 self.get_global_type(&__String::new("NewableFunction".to_owned()), 0, true)
             } else {
@@ -898,19 +899,19 @@ impl TypeChecker {
             }
             .unwrap_or_else(|| self.global_function_type()),
         );
-        self.global_string_type =
+        *self.global_string_type.borrow_mut() =
             self.get_global_type(&__String::new("String".to_owned()), 0, true);
-        self.global_number_type =
+        *self.global_number_type.borrow_mut() =
             self.get_global_type(&__String::new("Number".to_owned()), 0, true);
-        self.global_boolean_type =
+        *self.global_boolean_type.borrow_mut() =
             self.get_global_type(&__String::new("Boolean".to_owned()), 0, true);
-        self.global_reg_exp_type =
+        *self.global_reg_exp_type.borrow_mut() =
             self.get_global_type(&__String::new("RegExp".to_owned()), 0, true);
-        self.any_array_type = Some(self.create_array_type(&self.any_type(), None));
+        *self.any_array_type.borrow_mut() = Some(self.create_array_type(&self.any_type(), None));
 
-        self.auto_array_type = Some(self.create_array_type(&self.auto_type(), None));
+        *self.auto_array_type.borrow_mut() = Some(self.create_array_type(&self.auto_type(), None));
         if Rc::ptr_eq(&self.auto_array_type(), &self.empty_object_type()) {
-            self.auto_array_type = Some(self.create_anonymous_type(
+            *self.auto_array_type.borrow_mut() = Some(self.create_anonymous_type(
                 Option::<&Symbol>::None,
                 self.empty_symbols(),
                 vec![],
@@ -919,11 +920,13 @@ impl TypeChecker {
             ));
         }
 
-        self.global_readonly_array_type = self
+        *self.global_readonly_array_type.borrow_mut() = self
             .get_global_type_or_undefined(&__String::new("ReadonlyArray".to_owned()), Some(1))
-            .or_else(|| self.global_array_type.clone());
-        self.any_readonly_array_type = Some(
-            if let Some(global_readonly_array_type) = self.global_readonly_array_type.as_ref() {
+            .or_else(|| self.global_array_type.borrow().clone());
+        *self.any_readonly_array_type.borrow_mut() = Some(
+            if let Some(global_readonly_array_type) =
+                self.global_readonly_array_type.borrow().as_ref()
+            {
                 self.create_type_from_generic_global_type(
                     global_readonly_array_type,
                     vec![self.any_type()],
@@ -932,7 +935,7 @@ impl TypeChecker {
                 self.any_array_type()
             },
         );
-        self.global_this_type =
+        *self.global_this_type.borrow_mut() =
             self.get_global_type_or_undefined(&__String::new("ThisType".to_owned()), Some(1));
 
         if let Some(augmentations) = augmentations.as_ref() {
