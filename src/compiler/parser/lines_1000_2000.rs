@@ -137,7 +137,7 @@ impl ParserType {
         }
         if self.has_deprecated_tag() {
             self.set_has_deprecated_tag(false);
-            node.set_flags(NodeFlags::Deprecated);
+            node.set_flags(node.flags() | NodeFlags::Deprecated);
         }
         node
     }
