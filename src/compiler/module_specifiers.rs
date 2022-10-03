@@ -1061,6 +1061,9 @@ fn try_get_module_name_as_node_module(
             match maybe_package_root_index {
                 None => {
                     module_specifier = get_extensionless_file_name(
+                        get_canonical_file_name,
+                        &parts,
+                        host,
                         module_file_name_for_extensionless.as_ref().unwrap(),
                     );
                     break;
@@ -1100,6 +1103,37 @@ fn try_get_module_name_as_node_module(
     } else {
         Some(package_name)
     }
+}
+
+fn get_extensionless_file_name(
+    get_canonical_file_name: fn(&str) -> String,
+    parts: &NodeModulePathParts,
+    host: &dyn ModuleSpecifierResolutionHost,
+    path: &str,
+) -> String {
+    let full_module_path_without_extension = remove_file_extension(path);
+
+    if get_canonical_file_name(&full_module_path_without_extension[parts.file_name_index..])
+        == "/index"
+        && match try_get_any_file_from_path(
+            host,
+            &full_module_path_without_extension[0..parts.file_name_index],
+        ) {
+            None => true,
+            Some(value) => value.is_empty(),
+        }
+    {
+        return full_module_path_without_extension[0..parts.file_name_index].to_owned();
+    }
+
+    full_module_path_without_extension.to_owned()
+}
+
+fn try_get_any_file_from_path(
+    host: &dyn ModuleSpecifierResolutionHost,
+    path: &str,
+) -> Option<String> {
+    unimplemented!()
 }
 
 fn try_directory_with_package_json(
@@ -1236,10 +1270,6 @@ struct TryDirectoryWithPackageJsonReturn {
     pub package_root_path: Option<String>,
     pub blocked_by_exports: Option<bool>,
     pub verbatim_from_exports: Option<bool>,
-}
-
-fn get_extensionless_file_name(path: &str) -> String {
-    unimplemented!()
 }
 
 struct NodeModulePathParts {
