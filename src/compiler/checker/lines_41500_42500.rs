@@ -872,10 +872,10 @@ impl TypeChecker {
             .type_ = Some(self.error_type());
         self.get_symbol_links(&self.global_this_symbol())
             .borrow_mut()
-            .type_ = Some(Rc::new(
+            .type_ = Some(
             self.create_object_type(ObjectFlags::Anonymous, Some(self.global_this_symbol()))
                 .into(),
-        ));
+        );
 
         *self.global_array_type.borrow_mut() =
             self.get_global_type(&__String::new("Array".to_owned()), 1, true);

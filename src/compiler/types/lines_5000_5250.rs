@@ -651,7 +651,7 @@ pub trait TypeInterface {
 
 #[derive(Clone, Debug)]
 pub struct BaseType {
-    _type_wrapper: RefCell<Option<Weak<Type>>>,
+    _type_wrapper: RefCell<Option<Rc<Type>>>,
     flags: Cell<TypeFlags>,
     pub id: Option<TypeId>,
     symbol: RefCell<Option<Rc<Symbol>>>,
@@ -720,16 +720,11 @@ impl BaseType {
 
 impl TypeInterface for BaseType {
     fn type_wrapper(&self) -> Rc<Type> {
-        self._type_wrapper
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .upgrade()
-            .unwrap()
+        self._type_wrapper.borrow().clone().unwrap()
     }
 
     fn set_type_wrapper(&self, wrapper: Rc<Type>) {
-        *self._type_wrapper.borrow_mut() = Some(Rc::downgrade(&wrapper));
+        *self._type_wrapper.borrow_mut() = Some(wrapper);
     }
 
     fn flags(&self) -> TypeFlags {
