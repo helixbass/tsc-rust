@@ -216,11 +216,11 @@ impl TypeChecker {
             |heritage_element: &Rc<Node>, _| -> Option<()> {
                 let heritage_element_as_expression_with_type_arguments =
                     heritage_element.as_expression_with_type_arguments();
-                if !is_entity_name_expression(heritage_element)
-                    || is_optional_chain(
-                        &heritage_element_as_expression_with_type_arguments.expression,
-                    )
-                {
+                if !is_entity_name_expression(
+                    &heritage_element_as_expression_with_type_arguments.expression,
+                ) || is_optional_chain(
+                    &heritage_element_as_expression_with_type_arguments.expression,
+                ) {
                     self.error(
                         Some(&*heritage_element_as_expression_with_type_arguments.expression),
                         &Diagnostics::An_interface_can_only_extend_an_identifier_Slashqualified_name_with_optional_type_arguments,
