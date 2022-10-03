@@ -1,12 +1,15 @@
+use regex::{Captures, Regex};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    file_extension_is_one_of, for_each_child_bool, Debug_, DiagnosticMessage, Extension,
-    IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
-    NodeInterface, ParserType, ReadonlyPragmaMap, ReadonlyTextRange, SyntaxKind,
+    file_extension_is_one_of, for_each_child_bool, get_pragma_spec, to_pragma_name, CommentRange,
+    Debug_, DiagnosticMessage, Extension, IncrementalParserSyntaxCursorReparseTopLevelAwait,
+    IncrementalParserType, Node, NodeArray, NodeInterface, ParserType, PragmaArgument,
+    PragmaArgumentName, PragmaArgumentWithCapturedSpan, PragmaArguments, PragmaKindFlags,
+    PragmaPseudoMapEntry, PragmaValue, ReadonlyPragmaMap, ReadonlyTextRange, SyntaxKind, TextRange,
 };
 
 impl IncrementalParserType {
@@ -221,7 +224,7 @@ pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
     context: &TContext,
     source_text: &str,
 ) {
-    // TODO
+    let mut pragmas: Vec<PragmaPseudoMapEntry> = vec![];
     *context.maybe_pragmas() = Some(HashMap::new());
     // TODO
 }
@@ -233,6 +236,132 @@ pub(crate) fn process_pragmas_into_fields<
     context: &TContext,
     report_diagnostic: TReportDiagnostic,
 ) {
+}
+
+thread_local! {
+    static named_arg_reg_ex_cache: RefCell<HashMap<PragmaArgumentName, Rc<Regex>>> = RefCell::new(HashMap::new());
+}
+fn get_named_arg_reg_ex(name: PragmaArgumentName) -> Rc<Regex> {
+    named_arg_reg_ex_cache.with(|named_arg_reg_ex_cache_| {
+        let mut named_arg_reg_ex_cache_ = named_arg_reg_ex_cache_.borrow_mut();
+        if named_arg_reg_ex_cache_.contains_key(&name) {
+            return named_arg_reg_ex_cache_.get(&name).unwrap().clone();
+        }
+        let result = Rc::new(
+            Regex::new(&format!(
+                r#"(?i)(?m)(\s{}\s*=\s*)(?:(?:'([^']*)')|(?:"([^"]*)"))"#,
+                name.to_str()
+            ))
+            .unwrap(),
+        );
+        named_arg_reg_ex_cache_.insert(name, result.clone());
+        result
+    })
+}
+
+lazy_static! {
+    static ref triple_slash_xml_comment_start_reg_ex: Regex =
+        Regex::new(r"(?i)(?m)///\s*<(\S+)\s*?/>").unwrap();
+    static ref single_line_pragma_reg_ex: Regex =
+        Regex::new(r"(?i)(?m)///?\s*@(\S+)\s*(.*)\s*$").unwrap();
+}
+
+fn extract_pragmas(pragmas: &mut Vec<PragmaPseudoMapEntry>, range: &CommentRange, text: &str) {
+    let triple_slash = if range.kind == SyntaxKind::SingleLineCommentTrivia {
+        triple_slash_xml_comment_start_reg_ex.captures(text)
+    } else {
+        None
+    };
+    if let Some(triple_slash) = triple_slash {
+        let name = to_pragma_name(&triple_slash[1].to_lowercase());
+        if name.is_none() {
+            return;
+        }
+        let name = name.unwrap();
+        let pragma = get_pragma_spec(name);
+        if !pragma.kind.intersects(PragmaKindFlags::TripleSlashXML) {
+            return;
+        }
+        if let Some(pragma_args) = pragma.args.as_ref() {
+            let mut argument = PragmaArguments::new();
+            for arg in pragma_args {
+                let matcher = get_named_arg_reg_ex(arg.name);
+                let match_result = matcher.captures(text);
+                if match_result.is_none() && !arg.optional {
+                    return;
+                } else if let Some(match_result) = match_result {
+                    let value = match_result
+                        .get(2)
+                        .unwrap_or_else(|| match_result.get(3).unwrap())
+                        .as_str()
+                        .to_owned();
+                    if arg.capture_span {
+                        // TODO: this is mixing chars + bytes?
+                        let start_pos = TryInto::<usize>::try_into(range.pos())
+                            + match_result[0].start()
+                            + match_result[1].len()
+                            + 1;
+                        let value_len = value.len();
+                        argument.insert(
+                            arg.name,
+                            PragmaArgument::WithCapturedSpan(PragmaArgumentWithCapturedSpan {
+                                value,
+                                pos: start_pos,
+                                end: start_pos + value_len,
+                            }),
+                        );
+                    } else {
+                        argument.insert(arg.name, PragmaArgument::WithoutCapturedSpan(value));
+                    }
+                }
+            }
+            pragmas.push(PragmaPseudoMapEntry {
+                name,
+                args: PragmaValue {
+                    arguments: argument,
+                    range: range.clone(),
+                },
+            });
+        } else {
+            pragmas.push(PragmaPseudoMapEntry {
+                name,
+                args: PragmaValue {
+                    arguments: PragmaArguments::new(),
+                    range: range.clone(),
+                },
+            });
+        }
+        return;
+    }
+
+    let single_line = if range.kind == SyntaxKind::SingleLineCommentTrivia {
+        single_line_pragma_reg_ex.captures(text)
+    } else {
+        None
+    };
+    if let Some(single_line) = single_line {
+        add_pragma_for_match(pragmas, range, PragmaKindFlags::SingleLine, single_line);
+        return;
+    }
+
+    if range.kind == SyntaxKind::MultiLineCommentTrivia {
+        lazy_static! {
+            static ref multi_line_pragma_reg_ex: Regex =
+                Regex::new(r"(?i)(?m)@(\S+)(\s+.*)?$").unwrap();
+        }
+        for multi_line_match in multi_line_pragma_reg_ex.captures_iter(text) {
+            add_pragma_for_match(pragmas, range, PragmaKindFlags::MultiLine, multi_line_match);
+        }
+    }
+}
+
+fn add_pragma_for_match(
+    pragmas: &mut Vec<PragmaPseudoMapEntry>,
+    range: &CommentRange,
+    kind: PragmaKindFlags,
+    match_: Captures,
+) {
+    unimplemented!()
 }
 
 pub(crate) fn tag_names_are_equivalent(

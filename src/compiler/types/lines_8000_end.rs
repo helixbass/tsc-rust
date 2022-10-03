@@ -5,6 +5,7 @@ use derive_builder::Builder;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
+use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
@@ -253,35 +254,157 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
-pub struct PragmaArgumentTypeFactory {
-    pub factory: String,
-}
-
-#[derive(Debug)]
-pub enum PragmaArgumentType {
-    PragmaArgumentTypeFactory(PragmaArgumentTypeFactory),
-}
-
-impl PragmaArgumentType {
-    pub fn as_pragma_argument_type_factory(&self) -> &PragmaArgumentTypeFactory {
-        enum_unwrapped!(self, [PragmaArgumentType, PragmaArgumentTypeFactory])
+bitflags! {
+    pub struct PragmaKindFlags: u32 {
+        const None = 0;
+        const TripleSlashXML = 1 << 0;
+        const SingleLine = 1 << 1;
+        const MultiLine = 1 << 2;
+        const All = Self::TripleSlashXML.bits | Self::SingleLine.bits | Self::MultiLine.bits;
+        const Default = Self::All.bits;
     }
+}
 
-    pub fn factory(&self) -> String {
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+pub enum PragmaName {
+    Reference,
+    AmdDependency,
+    AmdModule,
+    TsCheck,
+    TsNocheck,
+    Jsx,
+    Jsxfrag,
+    Jsximportsource,
+    Jsxruntime,
+}
+
+// impl PragmaName {
+//     pub fn to_str(&self) -> &'static str {
+//         match self {
+//             Self::Reference => "reference",
+//             Self::AmdDependency => "amd-dependency",
+//             Self::AmdModule => "amd-module",
+//             Self::TsCheck => "ts-check",
+//             Self::TsNocheck => "ts-nocheck",
+//             Self::Jsx => "jsx",
+//             Self::Jsxfrag => "jsxfrag",
+//             Self::Jsximportsource => "jsximportsource",
+//             Self::Jsxruntime => "jsxruntime",
+//         }
+//     }
+// }
+
+pub fn to_pragma_name(name: &str) -> Option<PragmaName> {
+    match name {
+        "reference" => Some(PragmaName::Reference),
+        "amd-dependency" => Some(PragmaName::AmdDependency),
+        "amd-module" => Some(PragmaName::AmdModule),
+        "ts-check" => Some(PragmaName::TsCheck),
+        "ts-nocheck" => Some(PragmaName::TsNocheck),
+        "jsx" => Some(PragmaName::Jsx),
+        "jsxfrag" => Some(PragmaName::Jsxfrag),
+        "jsximportsource" => Some(PragmaName::Jsximportsource),
+        "jsxruntime" => Some(PragmaName::Jsxruntime),
+        _ => None,
+    }
+}
+
+pub struct PragmaSpec {
+    pub kind: PragmaKindFlags,
+    pub args: Option<Vec<PragmaArgumentSpec>>,
+}
+
+pub struct PragmaArgumentSpec {
+    pub name: PragmaArgumentName,
+    pub optional: bool,
+    pub capture_span: bool,
+}
+
+lazy_static! {
+    pub static ref comment_pragmas: HashMap<PragmaName, PragmaSpec> = HashMap::from_iter(IntoIterator::into_iter([
+        (
+            PragmaName::Reference,
+            PragmaSpec {
+                args: Some(vec![
+                    PragmaArgumentSpec {
+                        name: PragmaArgumentName::Types,
+                        optional: true,
+                        capture_span: true,
+                    },
+                    PragmaArgumentSpec {
+                        name: PragmaArgumentName::Lib,
+                        optional: true,
+                        capture_span: true,
+                    },
+                    PragmaArgumentSpec {
+                        name: PragmaArgumentName::Path,
+                        optional: true,
+                        capture_span: true,
+                    },
+                    PragmaArgumentSpec {
+                        name: PragmaArgumentName::NoDefaultLib,
+                        optional: true,
+                        capture_span: false,
+                    },
+                ]),
+                kind: PragmaKindFlags::TripleSlashXML,
+            }
+        ),
+        // TODO
+    ]));
+}
+
+pub fn get_pragma_spec(name: PragmaName) -> &'static PragmaSpec {
+    comment_pragmas.get(&name).unwrap()
+}
+
+pub type PragmaArguments = HashMap<PragmaArgumentName, PragmaArgument>;
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum PragmaArgumentName {
+    Types,
+    Lib,
+    Path,
+    NoDefaultLib,
+    Name,
+    Factory,
+}
+
+impl PragmaArgumentName {
+    pub fn to_str(&self) -> &'static str {
         match self {
-            Self::PragmaArgumentTypeFactory(value) => value.factory.clone(),
+            Self::Types => "types",
+            Self::Lib => "lib",
+            Self::Path => "path",
+            Self::NoDefaultLib => "no-default-lib",
+            Self::Name => "name",
+            Self::Factory => "factory",
         }
     }
 }
 
-#[derive(Debug)]
-pub struct PragmaPseudoMapValue {
-    pub arguments: PragmaArgumentType,
+pub enum PragmaArgument {
+    WithoutCapturedSpan(String),
+    WithCapturedSpan(PragmaArgumentWithCapturedSpan),
+}
+
+pub struct PragmaArgumentWithCapturedSpan {
+    pub value: String,
+    pub pos: usize,
+    pub end: usize,
+}
+
+pub struct PragmaValue {
+    pub arguments: PragmaArguments,
     pub range: CommentRange,
 }
 
-pub type ReadonlyPragmaMap = HashMap<String, Vec<Rc<PragmaPseudoMapValue>>>;
+pub struct PragmaPseudoMapEntry {
+    pub name: PragmaName,
+    pub args: PragmaValue,
+}
+
+pub type ReadonlyPragmaMap = HashMap<PragmaName, Vec<Rc<PragmaValue>>>;
 
 pub struct CommentDirectivesMap {
     pub directives_by_line: HashMap<String, Rc<CommentDirective>>,
