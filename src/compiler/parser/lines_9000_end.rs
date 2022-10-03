@@ -410,7 +410,7 @@ fn get_named_arg_reg_ex(name: PragmaArgumentName) -> Rc<Regex> {
 
 lazy_static! {
     static ref triple_slash_xml_comment_start_reg_ex: Regex =
-        Regex::new(r"(?i)(?m)///\s*<(\S+)\s*?/>").unwrap();
+        Regex::new(r"(?i)(?m)///\s*<(\S+)\s.*?/>").unwrap();
     static ref single_line_pragma_reg_ex: Regex =
         Regex::new(r"(?i)(?m)///?\s*@(\S+)\s*(.*)\s*$").unwrap();
 }
