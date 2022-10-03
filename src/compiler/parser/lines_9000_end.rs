@@ -6,11 +6,11 @@ use std::rc::Rc;
 
 use crate::{
     file_extension_is_one_of, for_each_child_bool, get_leading_comment_ranges, get_pragma_spec,
-    to_pragma_name, CommentRange, Debug_, DiagnosticMessage, Extension,
+    to_pragma_name, trim_string, CommentRange, Debug_, DiagnosticMessage, Extension,
     IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
     NodeInterface, ParserType, PragmaArgument, PragmaArgumentName, PragmaArgumentWithCapturedSpan,
-    PragmaArguments, PragmaKindFlags, PragmaPseudoMapEntry, PragmaValue, ReadonlyPragmaMap,
-    ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
+    PragmaArguments, PragmaKindFlags, PragmaPseudoMapEntry, PragmaSpec, PragmaValue,
+    ReadonlyPragmaMap, ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 impl IncrementalParserType {
@@ -381,7 +381,68 @@ fn add_pragma_for_match(
     kind: PragmaKindFlags,
     match_: Captures,
 ) {
-    unimplemented!()
+    // if (!match) return;
+    let name = to_pragma_name(&match_[1].to_lowercase());
+    if name.is_none() {
+        return;
+    }
+    let name = name.unwrap();
+    let pragma = get_pragma_spec(name);
+    if !pragma.kind.intersects(kind) {
+        return;
+    }
+    let args = match_.get(2).map(|value| value.as_str());
+    let argument = get_named_pragma_arguments(pragma, args);
+    if argument.is_none() {
+        return;
+    }
+    let argument = argument.unwrap();
+    pragmas.push(PragmaPseudoMapEntry {
+        name,
+        args: Rc::new(PragmaValue {
+            arguments: argument,
+            range: range.clone(),
+        }),
+    });
+}
+
+fn get_named_pragma_arguments(pragma: &PragmaSpec, text: Option<&str>) -> Option<PragmaArguments> {
+    let mut arg_map = PragmaArguments::new();
+    if text.is_none() {
+        return Some(arg_map);
+    }
+    let text = text.unwrap();
+    let pragma_args = pragma.args.as_ref();
+    if pragma_args.is_none() {
+        return Some(arg_map);
+    }
+    let pragma_args = pragma_args.unwrap();
+    lazy_static! {
+        static ref whitespace_regex: Regex = Regex::new(r"\s+").unwrap();
+    }
+    let args = whitespace_regex
+        .split(trim_string(text))
+        .collect::<Vec<_>>();
+    for i in 0..pragma_args.len() {
+        let argument = &pragma_args[i];
+        if match args.get(i) {
+            None => true,
+            Some(arg) => arg.is_empty(),
+        } && !argument.optional
+        {
+            return None;
+        }
+        if argument.capture_span {
+            Debug_.fail(Some(
+                "Capture spans not yet implemented for non-xml pragmas",
+            ));
+        }
+        arg_map.insert(
+            argument.name,
+            PragmaArgument::WithoutCapturedSpan(args.get(i).copied().unwrap().to_owned()),
+        );
+    }
+    Some(arg_map)
 }
 
 pub(crate) fn tag_names_are_equivalent(

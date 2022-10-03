@@ -329,7 +329,7 @@ pub use compiler::types::{
     ParenthesizerRules, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions,
     PartiallyEmittedExpression, Path, PatternAmbientModule, PluginImport, PollingWatchKind,
     PostfixUnaryExpression, PragmaArgument, PragmaArgumentName, PragmaArgumentWithCapturedSpan,
-    PragmaArguments, PragmaKindFlags, PragmaName, PragmaPseudoMapEntry, PragmaValue,
+    PragmaArguments, PragmaKindFlags, PragmaName, PragmaPseudoMapEntry, PragmaSpec, PragmaValue,
     PrefixUnaryExpression, PrintHandlers, Printer, PrinterOptions, PrinterOptionsBuilder,
     PrivateIdentifier, Program, ProjectReference, PropertyAccessExpression, PropertyAssignment,
     PropertyDeclaration, PropertySignature, PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec,
