@@ -448,6 +448,17 @@ pub(super) fn iterate_comment_ranges<
         }
     }
 
+    if has_pending_comment_range {
+        accumulator = Some(cb(
+            pending_pos.unwrap(),
+            pending_end.unwrap(),
+            pending_kind.unwrap(),
+            pending_has_trailing_new_line.unwrap(),
+            state,
+            accumulator,
+        ));
+    }
+
     accumulator
 }
 
