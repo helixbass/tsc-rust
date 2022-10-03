@@ -12,9 +12,9 @@ use crate::{
     get_jsx_transform_enabled, get_source_file_of_node, id_text, is_identifier,
     is_intrinsic_jsx_name, is_jsx_attribute, set_parent, string_contains, synthetic_factory,
     unescape_leading_underscores, Debug_, Diagnostics, IndexInfo, JsxFlags, ModuleResolutionKind,
-    NodeArray, SymbolFlags, SymbolTable, TransientSymbolInterface, __String, get_object_flags,
-    Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    NodeArray, PragmaName, SymbolFlags, SymbolTable, TransientSymbolInterface, __String,
+    get_object_flags, Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -176,11 +176,11 @@ impl TypeChecker {
             && (self.compiler_options.jsx_factory.is_some()
                 || node_source_file_as_source_file
                     .pragmas()
-                    .contains_key("jsx"))
+                    .contains_key(&PragmaName::Jsx))
             && self.compiler_options.jsx_fragment_factory.is_none()
             && !node_source_file_as_source_file
                 .pragmas()
-                .contains_key("jsxfrag")
+                .contains_key(&PragmaName::Jsxfrag)
         {
             self.error(
                 Some(node),

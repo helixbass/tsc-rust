@@ -36,12 +36,13 @@ use crate::{
     DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
     DuplicateInfoForSymbol, EmitResolverDebuggable, FindAncestorCallbackReturn,
     HasInitializerInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray,
-    NodeFlags, PatternAmbientModule, ReadonlyTextRange, ScriptTarget, VisitResult, __String,
-    create_diagnostic_for_node, escape_leading_underscores, factory, get_first_identifier,
-    get_source_file_of_node, is_jsx_opening_fragment, parse_isolated_entity_name,
-    unescape_leading_underscores, visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
-    DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
-    SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
+    NodeFlags, PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange,
+    ScriptTarget, VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores,
+    factory, get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
+    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
+    TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -62,7 +63,7 @@ impl TypeChecker {
                         return file_local_jsx_fragment_namespace.clone();
                     }
                     let file_pragmas = file_as_source_file.pragmas();
-                    let jsx_fragment_pragma = file_pragmas.get("jsxfrag");
+                    let jsx_fragment_pragma = file_pragmas.get(&PragmaName::Jsxfrag);
                     if let Some(jsx_fragment_pragma) = jsx_fragment_pragma {
                         let chosen_pragma = &jsx_fragment_pragma[0];
                         let mut file_local_jsx_fragment_factory =
@@ -70,8 +71,9 @@ impl TypeChecker {
                         *file_local_jsx_fragment_factory = parse_isolated_entity_name(
                             chosen_pragma
                                 .arguments
-                                .as_pragma_argument_type_factory()
-                                .factory
+                                .get(&PragmaArgumentName::Factory)
+                                .unwrap()
+                                .as_without_captured_span()
                                 .clone(),
                             self.language_version,
                         );
@@ -183,15 +185,16 @@ impl TypeChecker {
             return Some(file_local_jsx_namespace.clone());
         }
         let file_pragmas = file_as_source_file.pragmas();
-        let jsx_pragma = file_pragmas.get("jsx");
+        let jsx_pragma = file_pragmas.get(&PragmaName::Jsx);
         if let Some(jsx_pragma) = jsx_pragma {
             let chosen_pragma = &jsx_pragma[0];
             let mut file_local_jsx_factory = file_as_source_file.maybe_local_jsx_factory();
             *file_local_jsx_factory = parse_isolated_entity_name(
                 chosen_pragma
                     .arguments
-                    .as_pragma_argument_type_factory()
-                    .factory
+                    .get(&PragmaArgumentName::Factory)
+                    .unwrap()
+                    .as_without_captured_span()
                     .clone(),
                 self.language_version,
             );

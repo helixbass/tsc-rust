@@ -383,17 +383,30 @@ impl PragmaArgumentName {
     }
 }
 
+#[derive(Debug)]
 pub enum PragmaArgument {
     WithoutCapturedSpan(String),
     WithCapturedSpan(PragmaArgumentWithCapturedSpan),
 }
 
+impl PragmaArgument {
+    pub fn as_without_captured_span(&self) -> &String {
+        enum_unwrapped!(self, [PragmaArgument, WithoutCapturedSpan])
+    }
+
+    pub fn as_with_captured_span(&self) -> &PragmaArgumentWithCapturedSpan {
+        enum_unwrapped!(self, [PragmaArgument, WithCapturedSpan])
+    }
+}
+
+#[derive(Debug)]
 pub struct PragmaArgumentWithCapturedSpan {
     pub value: String,
     pub pos: usize,
     pub end: usize,
 }
 
+#[derive(Debug)]
 pub struct PragmaValue {
     pub arguments: PragmaArguments,
     pub range: CommentRange,
@@ -401,7 +414,7 @@ pub struct PragmaValue {
 
 pub struct PragmaPseudoMapEntry {
     pub name: PragmaName,
-    pub args: PragmaValue,
+    pub args: Rc<PragmaValue>,
 }
 
 pub type ReadonlyPragmaMap = HashMap<PragmaName, Vec<Rc<PragmaValue>>>;

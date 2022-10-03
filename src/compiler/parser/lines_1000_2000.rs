@@ -74,7 +74,11 @@ impl ParserType {
         );
         let source_file_as_source_file = source_file.as_source_file();
 
-        process_comment_pragmas(source_file_as_source_file, self.source_text());
+        process_comment_pragmas(
+            source_file_as_source_file,
+            self.source_text(),
+            self.source_text_as_chars(),
+        );
         let report_pragma_diagnostic = |pos: isize, end: isize, diagnostic: &DiagnosticMessage| {
             self.parse_diagnostics().push(Rc::new(
                 create_detached_diagnostic(self.file_name(), pos, end, diagnostic, None).into(),

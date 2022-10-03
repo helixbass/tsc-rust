@@ -25,10 +25,10 @@ use crate::{
     with_synthetic_factory_and_factory, Debug_, Diagnostics, ExternalEmitHelpers,
     FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType, ModifierFlags,
     NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, ObjectFlags,
-    Signature, SignatureKind, SymbolInterface, SymbolTracker, SyntaxKind, TypeFlags, TypeInterface,
-    TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
-    Diagnostic, EmitResolverDebuggable, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
-    Type, TypeChecker,
+    PragmaArgumentName, PragmaName, Signature, SignatureKind, SymbolInterface, SymbolTracker,
+    SyntaxKind, TypeFlags, TypeInterface, TypeReferenceSerializationKind, __String,
+    bind_source_file, is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, Node,
+    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -694,12 +694,17 @@ impl TypeChecker {
                 return Some(file_local_jsx_fragment_factory.clone());
             }
             let file_pragmas = file_as_source_file.pragmas();
-            let jsx_frag_pragmas = file_pragmas.get("jsxfrag");
+            let jsx_frag_pragmas = file_pragmas.get(&PragmaName::Jsxfrag);
             let jsx_frag_pragma =
                 jsx_frag_pragmas.and_then(|jsx_frag_pragmas| jsx_frag_pragmas.get(0));
             if let Some(jsx_frag_pragma) = jsx_frag_pragma {
                 let ret = parse_isolated_entity_name(
-                    jsx_frag_pragma.arguments.factory(),
+                    jsx_frag_pragma
+                        .arguments
+                        .get(&PragmaArgumentName::Factory)
+                        .unwrap()
+                        .as_without_captured_span()
+                        .clone(),
                     self.language_version,
                 );
                 *file_as_source_file.maybe_local_jsx_fragment_factory() = ret.clone();

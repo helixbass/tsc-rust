@@ -25,8 +25,9 @@ use crate::{
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
     FileExtensionInfo, JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind,
-    MultiMap, Node, NodeArray, NodeInterface, Path, Pattern, PluginImport, ResolvedModuleFull,
-    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, TypeAcquisition, WatchOptions,
+    MultiMap, Node, NodeArray, NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName,
+    PragmaName, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget,
+    TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -702,7 +703,7 @@ pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
     let jsx_import_source_pragmas = file.as_ref().and_then(|file| {
         file.as_source_file()
             .pragmas()
-            .get("jsximportsource")
+            .get(&PragmaName::Jsximportsource)
             .cloned()
     });
     let jsx_import_source_pragma = jsx_import_source_pragmas
@@ -720,7 +721,14 @@ pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
         Some(
             jsx_import_source_pragma
                 .as_ref()
-                .map(|jsx_import_source_pragma| jsx_import_source_pragma.arguments.factory())
+                .map(|jsx_import_source_pragma| {
+                    jsx_import_source_pragma
+                        .arguments
+                        .get(&PragmaArgumentName::Factory)
+                        .unwrap()
+                        .as_without_captured_span()
+                        .clone()
+                })
                 .or_else(|| compiler_options.jsx_import_source.clone())
                 .unwrap_or_else(|| "react".to_owned()),
         )

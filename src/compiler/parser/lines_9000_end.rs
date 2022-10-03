@@ -5,11 +5,12 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    file_extension_is_one_of, for_each_child_bool, get_pragma_spec, to_pragma_name, CommentRange,
-    Debug_, DiagnosticMessage, Extension, IncrementalParserSyntaxCursorReparseTopLevelAwait,
-    IncrementalParserType, Node, NodeArray, NodeInterface, ParserType, PragmaArgument,
-    PragmaArgumentName, PragmaArgumentWithCapturedSpan, PragmaArguments, PragmaKindFlags,
-    PragmaPseudoMapEntry, PragmaValue, ReadonlyPragmaMap, ReadonlyTextRange, SyntaxKind, TextRange,
+    file_extension_is_one_of, for_each_child_bool, get_leading_comment_ranges, get_pragma_spec,
+    to_pragma_name, CommentRange, Debug_, DiagnosticMessage, Extension,
+    IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
+    NodeInterface, ParserType, PragmaArgument, PragmaArgumentName, PragmaArgumentWithCapturedSpan,
+    PragmaArguments, PragmaKindFlags, PragmaPseudoMapEntry, PragmaValue, ReadonlyPragmaMap,
+    ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 impl IncrementalParserType {
@@ -223,10 +224,28 @@ pub(crate) trait PragmaContext {
 pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
     context: &TContext,
     source_text: &str,
+    source_text_as_chars: &SourceTextAsChars,
 ) {
     let mut pragmas: Vec<PragmaPseudoMapEntry> = vec![];
-    *context.maybe_pragmas() = Some(HashMap::new());
-    // TODO
+
+    for range in &get_leading_comment_ranges(source_text_as_chars, 0).unwrap_or_else(|| vec![]) {
+        // TODO: this needs chars/bytes-awareness
+        let comment = &source_text[TryInto::<usize>::try_into(range.pos()).unwrap()
+            ..TryInto::<usize>::try_into(range.end()).unwrap()];
+        extract_pragmas(&mut pragmas, range, comment);
+    }
+
+    let mut context_pragmas = context.maybe_pragmas();
+    *context_pragmas = Some(HashMap::new());
+    let context_pragmas = context_pragmas.as_mut().unwrap();
+    for pragma in pragmas {
+        if context_pragmas.contains_key(&pragma.name) {
+            let current_value = context_pragmas.get_mut(&pragma.name).unwrap();
+            current_value.push(pragma.args.clone());
+            continue;
+        }
+        context_pragmas.insert(pragma.name, vec![pragma.args.clone()]);
+    }
 }
 
 pub(crate) fn process_pragmas_into_fields<
@@ -297,9 +316,10 @@ fn extract_pragmas(pragmas: &mut Vec<PragmaPseudoMapEntry>, range: &CommentRange
                         .to_owned();
                     if arg.capture_span {
                         // TODO: this is mixing chars + bytes?
-                        let start_pos = TryInto::<usize>::try_into(range.pos())
-                            + match_result[0].start()
-                            + match_result[1].len()
+                        let start_pos = TryInto::<usize>::try_into(range.pos()).unwrap()
+                            + match_result.get(0).unwrap().start()
+                            + (match_result.get(1).unwrap().end()
+                                - match_result.get(1).unwrap().start())
                             + 1;
                         let value_len = value.len();
                         argument.insert(
@@ -317,18 +337,18 @@ fn extract_pragmas(pragmas: &mut Vec<PragmaPseudoMapEntry>, range: &CommentRange
             }
             pragmas.push(PragmaPseudoMapEntry {
                 name,
-                args: PragmaValue {
+                args: Rc::new(PragmaValue {
                     arguments: argument,
                     range: range.clone(),
-                },
+                }),
             });
         } else {
             pragmas.push(PragmaPseudoMapEntry {
                 name,
-                args: PragmaValue {
+                args: Rc::new(PragmaValue {
                     arguments: PragmaArguments::new(),
                     range: range.clone(),
-                },
+                }),
             });
         }
         return;
