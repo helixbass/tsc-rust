@@ -6,11 +6,12 @@ use std::rc::Rc;
 
 use crate::{
     file_extension_is_one_of, for_each_child_bool, get_leading_comment_ranges, get_pragma_spec,
-    to_pragma_name, trim_string, CommentRange, Debug_, DiagnosticMessage, Extension,
+    map, to_pragma_name, trim_string, AmdDependency, CheckJsDirective, CommentRange, Debug_,
+    DiagnosticMessage, Diagnostics, Extension, FileReference,
     IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
     NodeInterface, ParserType, PragmaArgument, PragmaArgumentName, PragmaArgumentWithCapturedSpan,
-    PragmaArguments, PragmaKindFlags, PragmaPseudoMapEntry, PragmaSpec, PragmaValue,
-    ReadonlyPragmaMap, ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
+    PragmaArguments, PragmaKindFlags, PragmaName, PragmaPseudoMapEntry, PragmaSpec, PragmaValue,
+    ReadonlyPragmaMap, ReadonlyTextRange, ScriptTarget, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 impl IncrementalParserType {
@@ -218,7 +219,16 @@ pub(crate) fn is_declaration_file_name(file_name: &str) -> bool {
 }
 
 pub(crate) trait PragmaContext {
+    fn language_version(&self) -> ScriptTarget;
     fn maybe_pragmas(&self) -> RefMut<Option<ReadonlyPragmaMap>>;
+    fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>>;
+    fn maybe_referenced_files(&self) -> RefMut<Option<Vec<FileReference>>>;
+    fn maybe_type_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>>;
+    fn maybe_lib_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>>;
+    fn maybe_amd_dependencies(&self) -> RefMut<Option<Vec<AmdDependency>>>;
+    fn maybe_has_no_default_lib(&self) -> Option<bool>;
+    fn set_has_no_default_lib(&self, has_no_default_lib: bool);
+    fn maybe_module_name(&self) -> RefMut<Option<String>>;
 }
 
 pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
@@ -253,8 +263,126 @@ pub(crate) fn process_pragmas_into_fields<
     TReportDiagnostic: FnMut(isize, isize, &DiagnosticMessage),
 >(
     context: &TContext,
-    report_diagnostic: TReportDiagnostic,
+    mut report_diagnostic: TReportDiagnostic,
 ) {
+    let mut context_check_js_directive = context.maybe_check_js_directive();
+    *context_check_js_directive = None;
+    let mut context_referenced_files = context.maybe_referenced_files();
+    *context_referenced_files = Some(vec![]);
+    let mut context_type_reference_directives = context.maybe_type_reference_directives();
+    *context_type_reference_directives = Some(vec![]);
+    let mut context_lib_reference_directives = context.maybe_lib_reference_directives();
+    *context_lib_reference_directives = Some(vec![]);
+    let mut context_amd_dependencies = context.maybe_amd_dependencies();
+    *context_amd_dependencies = Some(vec![]);
+    context.set_has_no_default_lib(false);
+    for (key, entry_or_list) in context.maybe_pragmas().as_ref().unwrap() {
+        match key {
+            PragmaName::Reference => {
+                let referenced_files = context_referenced_files.as_mut().unwrap();
+                let type_reference_directives = context_type_reference_directives.as_mut().unwrap();
+                let lib_reference_directives = context_lib_reference_directives.as_mut().unwrap();
+                for arg in entry_or_list {
+                    let types = arg.arguments.get(&PragmaArgumentName::Types);
+                    let lib = arg.arguments.get(&PragmaArgumentName::Lib);
+                    let path = arg.arguments.get(&PragmaArgumentName::Path);
+                    if matches!(
+                        arg.arguments.get(&PragmaArgumentName::NoDefaultLib),
+                        Some(value) if !matches!(
+                            value,
+                            PragmaArgument::WithoutCapturedSpan(value) if value.is_empty()
+                        )
+                    ) {
+                        context.set_has_no_default_lib(true);
+                    } else if let Some(types) = types.map(|types| types.as_with_captured_span()) {
+                        type_reference_directives.push(FileReference::new(
+                            types.pos.try_into().unwrap(),
+                            types.end.try_into().unwrap(),
+                            types.value.clone(),
+                        ));
+                    } else if let Some(lib) = lib.map(|lib| lib.as_with_captured_span()) {
+                        lib_reference_directives.push(FileReference::new(
+                            lib.pos.try_into().unwrap(),
+                            lib.end.try_into().unwrap(),
+                            lib.value.clone(),
+                        ));
+                    } else if let Some(path) = path.map(|path| path.as_with_captured_span()) {
+                        referenced_files.push(FileReference::new(
+                            path.pos.try_into().unwrap(),
+                            path.end.try_into().unwrap(),
+                            path.value.clone(),
+                        ));
+                    } else {
+                        report_diagnostic(
+                            arg.range.pos(),
+                            arg.range.end() - arg.range.pos(),
+                            &Diagnostics::Invalid_reference_directive_syntax,
+                        );
+                    }
+                }
+            }
+            PragmaName::AmdDependency => {
+                *context_amd_dependencies =
+                    Some(map(entry_or_list, |x: &Rc<PragmaValue>, _| AmdDependency {
+                        name: x
+                            .arguments
+                            .get(&PragmaArgumentName::Name)
+                            .map(|value| value.as_without_captured_span().clone()),
+                        path: x
+                            .arguments
+                            .get(&PragmaArgumentName::Path)
+                            .unwrap()
+                            .as_without_captured_span()
+                            .clone(),
+                    }));
+            }
+            PragmaName::AmdModule => {
+                let mut context_module_name = context.maybe_module_name();
+                for entry in entry_or_list {
+                    if matches!(
+                        context_module_name.as_ref(),
+                        Some(context_module_name) if !context_module_name.is_empty()
+                    ) {
+                        report_diagnostic(
+                            entry.range.pos(),
+                            entry.range.end() - entry.range.pos(),
+                            &Diagnostics::An_AMD_module_cannot_have_multiple_name_assignments,
+                        );
+                    }
+                    *context_module_name = Some(
+                        entry
+                            .arguments
+                            .get(&PragmaArgumentName::Name)
+                            .unwrap()
+                            .as_without_captured_span()
+                            .clone(),
+                    );
+                }
+            }
+            PragmaName::TsNocheck | PragmaName::TsCheck => {
+                for entry in entry_or_list {
+                    if match context_check_js_directive.as_ref() {
+                        None => true,
+                        Some(context_check_js_directive) => {
+                            entry.range.pos() > context_check_js_directive.pos()
+                        }
+                    } {
+                        *context_check_js_directive = Some(CheckJsDirective::new(
+                            entry.range.pos(),
+                            entry.range.end(),
+                            *key == PragmaName::TsCheck,
+                        ));
+                    }
+                }
+            }
+            PragmaName::Jsx
+            | PragmaName::Jsxfrag
+            | PragmaName::Jsximportsource
+            | PragmaName::Jsxruntime => {
+                return;
+            }
+        }
+    }
 }
 
 thread_local! {

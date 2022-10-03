@@ -99,8 +99,8 @@ pub fn text_str_num_chars(text: &str, start: usize, end: usize) -> usize {
 
 #[derive(Debug)]
 pub struct AmdDependency {
-    path: String,
-    name: Option<String>,
+    pub path: String,
+    pub name: Option<String>,
 }
 
 pub trait SourceFileLike {
@@ -657,8 +657,44 @@ impl SourceFileLike for SourceFile {
 }
 
 impl PragmaContext for SourceFile {
+    fn language_version(&self) -> ScriptTarget {
+        self.language_version()
+    }
+
     fn maybe_pragmas(&self) -> RefMut<Option<ReadonlyPragmaMap>> {
         self.pragmas.borrow_mut()
+    }
+
+    fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>> {
+        self.check_js_directive.borrow_mut()
+    }
+
+    fn maybe_referenced_files(&self) -> RefMut<Option<Vec<FileReference>>> {
+        self.referenced_files.borrow_mut()
+    }
+
+    fn maybe_type_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
+        self.type_reference_directives.borrow_mut()
+    }
+
+    fn maybe_lib_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
+        self.lib_reference_directives.borrow_mut()
+    }
+
+    fn maybe_amd_dependencies(&self) -> RefMut<Option<Vec<AmdDependency>>> {
+        self.amd_dependencies.borrow_mut()
+    }
+
+    fn maybe_has_no_default_lib(&self) -> Option<bool> {
+        Some(self.has_no_default_lib.get())
+    }
+
+    fn set_has_no_default_lib(&self, has_no_default_lib: bool) {
+        self.has_no_default_lib.set(has_no_default_lib);
+    }
+
+    fn maybe_module_name(&self) -> RefMut<Option<String>> {
+        self.module_name.borrow_mut()
     }
 }
 

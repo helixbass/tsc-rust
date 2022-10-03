@@ -448,6 +448,16 @@ pub struct FileReference {
     pub file_name: String,
 }
 
+impl FileReference {
+    pub fn new(pos: isize, end: isize, file_name: String) -> Self {
+        Self {
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            file_name,
+        }
+    }
+}
+
 impl TextRange for FileReference {
     fn pos(&self) -> isize {
         self.pos.get()
@@ -470,7 +480,17 @@ impl TextRange for FileReference {
 pub struct CheckJsDirective {
     pos: Cell<isize>,
     end: Cell<isize>,
-    enabled: bool,
+    pub enabled: bool,
+}
+
+impl CheckJsDirective {
+    pub fn new(pos: isize, end: isize, enabled: bool) -> Self {
+        Self {
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            enabled,
+        }
+    }
 }
 
 impl TextRange for CheckJsDirective {
