@@ -66,7 +66,14 @@ pub fn concatenate_diagnostic_message_chains(
     head_chain: &mut DiagnosticMessageChain,
     tail_chain: DiagnosticMessageChain,
 ) {
-    unimplemented!()
+    let mut next = &mut head_chain.next;
+    loop {
+        if next.is_none() {
+            *next = Some(vec![tail_chain]);
+            return;
+        }
+        next = &mut next.as_mut().unwrap()[0].next;
+    }
 }
 
 fn get_diagnostic_file_path<
