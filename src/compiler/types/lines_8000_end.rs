@@ -321,37 +321,124 @@ pub struct PragmaArgumentSpec {
 }
 
 lazy_static! {
-    pub static ref comment_pragmas: HashMap<PragmaName, PragmaSpec> = HashMap::from_iter(IntoIterator::into_iter([
-        (
-            PragmaName::Reference,
-            PragmaSpec {
-                args: Some(vec![
-                    PragmaArgumentSpec {
-                        name: PragmaArgumentName::Types,
-                        optional: true,
-                        capture_span: true,
-                    },
-                    PragmaArgumentSpec {
-                        name: PragmaArgumentName::Lib,
-                        optional: true,
-                        capture_span: true,
-                    },
-                    PragmaArgumentSpec {
-                        name: PragmaArgumentName::Path,
-                        optional: true,
-                        capture_span: true,
-                    },
-                    PragmaArgumentSpec {
-                        name: PragmaArgumentName::NoDefaultLib,
-                        optional: true,
+    pub static ref comment_pragmas: HashMap<PragmaName, PragmaSpec> =
+        HashMap::from_iter(IntoIterator::into_iter([
+            (
+                PragmaName::Reference,
+                PragmaSpec {
+                    args: Some(vec![
+                        PragmaArgumentSpec {
+                            name: PragmaArgumentName::Types,
+                            optional: true,
+                            capture_span: true,
+                        },
+                        PragmaArgumentSpec {
+                            name: PragmaArgumentName::Lib,
+                            optional: true,
+                            capture_span: true,
+                        },
+                        PragmaArgumentSpec {
+                            name: PragmaArgumentName::Path,
+                            optional: true,
+                            capture_span: true,
+                        },
+                        PragmaArgumentSpec {
+                            name: PragmaArgumentName::NoDefaultLib,
+                            optional: true,
+                            capture_span: false,
+                        },
+                    ]),
+                    kind: PragmaKindFlags::TripleSlashXML,
+                }
+            ),
+            (
+                PragmaName::AmdDependency,
+                PragmaSpec {
+                    args: Some(vec![
+                        PragmaArgumentSpec {
+                            name: PragmaArgumentName::Path,
+                            optional: false,
+                            capture_span: false,
+                        },
+                        PragmaArgumentSpec {
+                            name: PragmaArgumentName::Name,
+                            optional: true,
+                            capture_span: false,
+                        },
+                    ]),
+                    kind: PragmaKindFlags::TripleSlashXML,
+                }
+            ),
+            (
+                PragmaName::AmdModule,
+                PragmaSpec {
+                    args: Some(vec![PragmaArgumentSpec {
+                        name: PragmaArgumentName::Name,
+                        optional: false,
                         capture_span: false,
-                    },
-                ]),
-                kind: PragmaKindFlags::TripleSlashXML,
-            }
-        ),
-        // TODO
-    ]));
+                    },]),
+                    kind: PragmaKindFlags::TripleSlashXML,
+                }
+            ),
+            (
+                PragmaName::TsCheck,
+                PragmaSpec {
+                    args: None,
+                    kind: PragmaKindFlags::SingleLine,
+                }
+            ),
+            (
+                PragmaName::TsNocheck,
+                PragmaSpec {
+                    args: None,
+                    kind: PragmaKindFlags::SingleLine,
+                }
+            ),
+            (
+                PragmaName::Jsx,
+                PragmaSpec {
+                    args: Some(vec![PragmaArgumentSpec {
+                        name: PragmaArgumentName::Factory,
+                        optional: false,
+                        capture_span: false,
+                    },]),
+                    kind: PragmaKindFlags::MultiLine,
+                }
+            ),
+            (
+                PragmaName::Jsxfrag,
+                PragmaSpec {
+                    args: Some(vec![PragmaArgumentSpec {
+                        name: PragmaArgumentName::Factory,
+                        optional: false,
+                        capture_span: false,
+                    },]),
+                    kind: PragmaKindFlags::MultiLine,
+                }
+            ),
+            (
+                PragmaName::Jsximportsource,
+                PragmaSpec {
+                    args: Some(vec![PragmaArgumentSpec {
+                        name: PragmaArgumentName::Factory,
+                        optional: false,
+                        capture_span: false,
+                    },]),
+                    kind: PragmaKindFlags::MultiLine,
+                }
+            ),
+            (
+                PragmaName::Jsxruntime,
+                PragmaSpec {
+                    args: Some(vec![PragmaArgumentSpec {
+                        name: PragmaArgumentName::Factory,
+                        optional: false,
+                        capture_span: false,
+                    },]),
+                    kind: PragmaKindFlags::MultiLine,
+                }
+            ),
+        ]));
 }
 
 pub fn get_pragma_spec(name: PragmaName) -> &'static PragmaSpec {
