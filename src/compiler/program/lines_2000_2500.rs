@@ -68,6 +68,7 @@ impl Program {
     }
 
     pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+        // unimplemented!()
         vec![]
     }
 

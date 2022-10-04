@@ -202,9 +202,9 @@ use compiler::program::{
 };
 pub use compiler::program::{
     create_compiler_host_worker, create_program, find_config_file, flatten_diagnostic_message_text,
-    format_diagnostic, format_diagnostics_with_color_and_context,
+    format_diagnostic, format_diagnostics, format_diagnostics_with_color_and_context,
     get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
-    get_resolution_diagnostic, ActualResolveModuleNamesWorker,
+    get_pre_emit_diagnostics, get_resolution_diagnostic, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, FilesByNameValue, FormatDiagnosticsHost,
 };
 use compiler::scanner::{
