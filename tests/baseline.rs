@@ -8,10 +8,17 @@ use typescript_rust::{
 
 #[test]
 fn run_compiler_baselines() {
+    let names = vec!["yieldStringLiteral"];
+    for name in &names {
+        run_compiler_baseline(name);
+    }
+}
+
+fn run_compiler_baseline(name: &str) {
     let options: Rc<CompilerOptions> = Rc::new(Default::default());
     let host = create_compiler_host_worker(options.clone(), None, Some(get_sys()));
     let program = create_program(CreateProgramOptions {
-        root_names: vec!["typescript_src/tests/cases/compiler/yieldStringLiteral.ts".to_owned()],
+        root_names: vec![format!("typescript_src/tests/cases/compiler/{name}.ts")],
         options,
         host: Some(Rc::new(host)),
         project_references: None,
@@ -20,7 +27,7 @@ fn run_compiler_baselines() {
     });
     // let emit_result = program.emit(None, None, None, None, None, None);
     let errors = get_pre_emit_diagnostics(&program.clone().into(), Option::<&Node>::None, None);
-    compare_baselines("yieldStringLiteral", &errors)
+    compare_baselines(name, &errors)
 }
 
 fn compare_baselines(name: &str, diagnostics: &[Rc<Diagnostic>]) {
