@@ -8,8 +8,8 @@ use std::convert::{TryFrom, TryInto};
 use crate::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, compare_values, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, get_string_comparer,
-    last_or_undefined, some, starts_with, string_contains, CharacterCodes, Comparison, Debug_,
-    GetCanonicalFileName, Path,
+    identity_str_to_owned, last_or_undefined, some, starts_with, string_contains, CharacterCodes,
+    Comparison, Debug_, Path,
 };
 
 pub const directory_separator: char = '/';
@@ -64,8 +64,12 @@ pub fn file_extension_is(path: &str, extension: &str) -> bool {
     path.len() > extension.len() && ends_with(path, extension)
 }
 
-pub fn file_extension_is_one_of(path: &str, extensions: &[&str]) -> bool {
+pub fn file_extension_is_one_of<TExtension: AsRef<str>>(
+    path: &str,
+    extensions: &[TExtension],
+) -> bool {
     for extension in extensions {
+        let extension = extension.as_ref();
         if file_extension_is(path, extension) {
             return true;
         }
@@ -256,15 +260,19 @@ fn try_get_extension_from_path<TStringEqualityComparer: FnOnce(&str, &str) -> bo
     None
 }
 
-fn get_any_extension_from_path_worker<TStringEqualityComparer: Fn(&str, &str) -> bool + Copy>(
+fn get_any_extension_from_path_worker<
+    TExtension: AsRef<str>,
+    TStringEqualityComparer: Fn(&str, &str) -> bool + Copy,
+>(
     path: &str,
-    extensions: &[&str],
+    extensions: &[TExtension],
     string_equality_comparer: TStringEqualityComparer,
 ) -> String {
     // if (typeof extensions === "string") {
     // }
     for extension in extensions {
-        let result = try_get_extension_from_path(path, extension, string_equality_comparer);
+        let result =
+            try_get_extension_from_path(path, extension.as_ref(), string_equality_comparer);
         if let Some(result) = result {
             return result;
         }
@@ -272,9 +280,9 @@ fn get_any_extension_from_path_worker<TStringEqualityComparer: Fn(&str, &str) ->
     "".to_string()
 }
 
-pub fn get_any_extension_from_path(
+pub fn get_any_extension_from_path<TExtension: AsRef<str>>(
     path: &str,
-    extensions: Option<&[&str]>,
+    extensions: Option<&[TExtension]>,
     ignore_case: Option<bool>,
 ) -> String {
     let ignore_case = ignore_case.unwrap_or(false);
@@ -353,7 +361,7 @@ pub fn reduce_path_components(components: &[String]) -> Vec<String> {
         return vec![];
     }
     let mut reduced = vec![components[0].clone()];
-    for component in components.iter().take(1) {
+    for component in components.iter().skip(1) {
         if component.is_empty() {
             continue;
         }
@@ -473,10 +481,10 @@ pub fn get_normalized_absolute_path_without_root(
     ))
 }
 
-pub fn to_path<TGetCanonicalFileName: FnMut(&str) -> String>(
+pub fn to_path<TGetCanonicalFileName: Fn(&str) -> String>(
     file_name: &str,
     base_path: Option<&str>,
-    mut get_canonical_file_name: TGetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> Path {
     let non_canonicalized_path = if is_rooted_disk_path(file_name) {
         normalize_path(file_name)
@@ -534,17 +542,17 @@ pub fn ensure_path_is_non_module_name(path: &str) -> String {
     }
 }
 
-pub fn change_any_extension(
+pub fn change_any_extension<TExtension: AsRef<str>>(
     path: &str,
     ext: &str,
-    extensions: Option<&[&str]>,
+    extensions: Option<&[TExtension]>,
     ignore_case: Option<bool>,
 ) -> String {
     let pathext = match (extensions, ignore_case) {
         (Some(extensions), Some(ignore_case)) => {
             get_any_extension_from_path(path, Some(extensions), Some(ignore_case))
         }
-        _ => get_any_extension_from_path(path, None, None),
+        _ => get_any_extension_from_path(path, Option::<&[&str]>::None, None),
     };
     if !pathext.is_empty() {
         format!(
@@ -602,6 +610,7 @@ pub fn compare_paths_case_insensitive(a: &str, b: &str) -> Comparison {
     compare_paths_worker(a, b, compare_strings_case_insensitive)
 }
 
+#[derive(Clone)]
 pub enum StringOrBool {
     String(String),
     Bool(bool),
@@ -682,10 +691,10 @@ pub fn contains_path<TCurrentDirectory: Into<StringOrBool>>(
     true
 }
 
-pub fn starts_with_directory(
+pub fn starts_with_directory<TGetCanonicalFileName: Fn(&str) -> String>(
     file_name: &str,
     directory_name: &str,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> bool {
     let canonical_file_name = get_canonical_file_name(file_name);
     let canonical_directory_name = get_canonical_file_name(directory_name);
@@ -698,11 +707,11 @@ pub fn starts_with_directory(
     )
 }
 
-pub fn get_path_components_relative_to(
+pub fn get_path_components_relative_to<TGetCanonicalFileName: Fn(&str) -> String>(
     from: &str,
     to: &str,
     string_equality_comparer: fn(&str, &str) -> bool,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> Vec<String> {
     let from_components = reduce_path_components(&get_path_components(from, None));
     let to_components = reduce_path_components(&get_path_components(to, None));
@@ -738,55 +747,24 @@ pub fn get_path_components_relative_to(
     ret
 }
 
-fn str_to_string(str_: &str) -> String {
-    str_.to_string()
-}
-
-pub enum GetCanonicalFileNameOrBool {
-    GetCanonicalFileName(GetCanonicalFileName),
-    Bool(bool),
-}
-
-impl From<GetCanonicalFileName> for GetCanonicalFileNameOrBool {
-    fn from(value: GetCanonicalFileName) -> Self {
-        Self::GetCanonicalFileName(value)
-    }
-}
-
-impl From<bool> for GetCanonicalFileNameOrBool {
-    fn from(value: bool) -> Self {
-        Self::Bool(value)
-    }
-}
-
-pub fn get_relative_path_from_directory<
-    TGetCanonicalFileNameOrIgnoreCase: Into<GetCanonicalFileNameOrBool>,
->(
+pub fn get_relative_path_from_directory<TGetCanonicalFileName: Fn(&str) -> String>(
     from_directory: &str,
     to: &str,
-    get_canonical_file_name_or_ignore_case: TGetCanonicalFileNameOrIgnoreCase,
+    get_canonical_file_name: Option<TGetCanonicalFileName>,
+    ignore_case: Option<bool>,
 ) -> String {
-    let get_canonical_file_name_or_ignore_case = get_canonical_file_name_or_ignore_case.into();
     Debug_.assert(
         (get_root_length(from_directory) > 0) == (get_root_length(to) > 0),
         Some("Paths must either both be absolute or both be relative"),
     );
-    let get_canonical_file_name = match get_canonical_file_name_or_ignore_case {
-        GetCanonicalFileNameOrBool::GetCanonicalFileName(
-            get_canonical_file_name_or_ignore_case,
-        ) => get_canonical_file_name_or_ignore_case,
-        _ =>
-        /*identity*/
-        {
-            str_to_string
+    let get_canonical_file_name = |file_name: &str| {
+        if let Some(get_canonical_file_name) = get_canonical_file_name.as_ref() {
+            get_canonical_file_name(file_name)
+        } else {
+            identity_str_to_owned(file_name)
         }
     };
-    let ignore_case = match get_canonical_file_name_or_ignore_case {
-        GetCanonicalFileNameOrBool::Bool(get_canonical_file_name_or_ignore_case) => {
-            get_canonical_file_name_or_ignore_case
-        }
-        _ => false,
-    };
+    let ignore_case = ignore_case.unwrap_or(false);
     let path_components = get_path_components_relative_to(
         from_directory,
         to,
@@ -800,10 +778,10 @@ pub fn get_relative_path_from_directory<
     get_path_from_path_components(&path_components)
 }
 
-pub fn convert_to_relative_path(
+pub fn convert_to_relative_path<TGetCanonicalFileName: Fn(&str) -> String>(
     absolute_or_relative_path: &str,
     base_path: &str,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> String {
     if !is_rooted_disk_path(absolute_or_relative_path) {
         absolute_or_relative_path.to_string()
@@ -818,23 +796,24 @@ pub fn convert_to_relative_path(
     }
 }
 
-pub fn get_relative_path_from_file(
+pub fn get_relative_path_from_file<TGetCanonicalFileName: Fn(&str) -> String>(
     from: &str,
     to: &str,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> String {
     ensure_path_is_non_module_name(&get_relative_path_from_directory(
         &get_directory_path(from),
         to,
-        get_canonical_file_name,
+        Some(get_canonical_file_name),
+        None,
     ))
 }
 
-pub fn get_relative_path_to_directory_or_url(
+pub fn get_relative_path_to_directory_or_url<TGetCanonicalFileName: Fn(&str) -> String>(
     directory_path_or_url: &str,
     relative_or_absolute_path: &str,
     current_directory: &str,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
     is_absolute_path_an_url: bool,
 ) -> String {
     let mut path_components = get_path_components_relative_to(
@@ -869,6 +848,26 @@ pub fn for_each_ancestor_directory<TReturn, TCallback: FnMut(&Path) -> Option<TR
         }
 
         let parent_path = Path::new(get_directory_path(&directory));
+        if parent_path == directory {
+            return None;
+        }
+
+        directory = parent_path;
+    }
+}
+
+pub fn for_each_ancestor_directory_str<TReturn, TCallback: FnMut(&str) -> Option<TReturn>>(
+    directory: &str,
+    mut callback: TCallback,
+) -> Option<TReturn> {
+    let mut directory = directory.to_owned();
+    loop {
+        let result = callback(&directory);
+        if result.is_some() {
+            return result;
+        }
+
+        let parent_path = get_directory_path(&directory);
         if parent_path == directory {
             return None;
         }

@@ -1,21 +1,260 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use serde::Serialize;
+use std::borrow::Cow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
-use std::ops::BitAndAssign;
+use std::ops::{BitAnd, BitAndAssign};
 use std::rc::{Rc, Weak};
+use std::sync::{Arc, Mutex};
 
-use super::{BaseType, Node, Symbol, SymbolTable, Type, TypeChecker, TypePredicate};
+use super::{
+    BaseObjectType, BaseType, BaseUnionOrIntersectionType, Node, ObjectFlagsTypeInterface,
+    ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
+    TypePredicate,
+};
+use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String};
 use local_macros::{enum_unwrapped, type_type};
 
-pub trait ResolvedTypeInterface {
+#[derive(Clone, Debug)]
+#[type_type(
+    ancestors = "UnionOrIntersectionType",
+    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
+)]
+pub struct IntersectionType {
+    _union_or_intersection_type: BaseUnionOrIntersectionType,
+    resolved_apparent_type: RefCell<Option<Rc<Type>>>,
+}
+
+impl IntersectionType {
+    pub fn new(union_or_intersection_type: BaseUnionOrIntersectionType) -> Self {
+        Self {
+            _union_or_intersection_type: union_or_intersection_type,
+            resolved_apparent_type: RefCell::new(None),
+        }
+    }
+
+    pub(crate) fn maybe_resolved_apparent_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_apparent_type.borrow_mut()
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type(
+    ancestors = "ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
+)]
+pub struct MappedType {
+    _object_type: BaseObjectType,
+    pub declaration: Rc<Node /*MappedTypeNode*/>,
+    type_parameter: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
+    constraint_type: RefCell<Option<Rc<Type>>>,
+    name_type: RefCell<Option<Rc<Type>>>,
+    template_type: RefCell<Option<Rc<Type>>>,
+    modifiers_type: RefCell<Option<Rc<Type>>>,
+    resolved_apparent_type: RefCell<Option<Rc<Type>>>,
+    contains_error: Cell<Option<bool>>,
+}
+
+impl MappedType {
+    pub fn new(object_type: BaseObjectType, declaration: Rc<Node>) -> Self {
+        Self {
+            _object_type: object_type,
+            declaration,
+            type_parameter: RefCell::new(None),
+            constraint_type: RefCell::new(None),
+            name_type: RefCell::new(None),
+            template_type: RefCell::new(None),
+            modifiers_type: RefCell::new(None),
+            resolved_apparent_type: RefCell::new(None),
+            contains_error: Cell::new(None),
+        }
+    }
+
+    pub fn maybe_type_parameter(&self) -> RefMut<Option<Rc<Type>>> {
+        self.type_parameter.borrow_mut()
+    }
+
+    pub fn maybe_constraint_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.constraint_type.borrow_mut()
+    }
+
+    pub fn maybe_name_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.name_type.borrow_mut()
+    }
+
+    pub fn maybe_template_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.template_type.borrow_mut()
+    }
+
+    pub fn maybe_modifiers_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.modifiers_type.borrow_mut()
+    }
+
+    pub fn maybe_resolved_apparent_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_apparent_type.borrow_mut()
+    }
+
+    pub fn maybe_contains_error(&self) -> Option<bool> {
+        self.contains_error.get()
+    }
+
+    pub fn set_contains_error(&self, contains_error: Option<bool>) {
+        self.contains_error.set(contains_error);
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type(
+    ancestors = "ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
+)]
+pub struct EvolvingArrayType {
+    _object_type: BaseObjectType,
+    pub element_type: Rc<Type>,
+    final_array_type: RefCell<Option<Rc<Type>>>,
+}
+
+impl EvolvingArrayType {
+    pub fn new(base_object_type: BaseObjectType, element_type: Rc<Type>) -> Self {
+        Self {
+            _object_type: base_object_type,
+            element_type,
+            final_array_type: RefCell::new(None),
+        }
+    }
+
+    pub fn maybe_final_array_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.final_array_type.borrow_mut()
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type(
+    ancestors = "ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
+)]
+pub struct ReverseMappedType {
+    _object_type: BaseObjectType,
+    pub source: Rc<Type>,
+    pub mapped_type: Rc<Type /*MappedType*/>,
+    pub constraint_type: Rc<Type /*IndexType*/>,
+}
+
+impl ReverseMappedType {
+    pub fn new(
+        base_object_type: BaseObjectType,
+        source: Rc<Type>,
+        mapped_type: Rc<Type /*MappedType*/>,
+        constraint_type: Rc<Type /*IndexType*/>,
+    ) -> Self {
+        Self {
+            _object_type: base_object_type,
+            source,
+            mapped_type,
+            constraint_type,
+        }
+    }
+}
+
+pub trait ResolvedTypeInterface:
+    ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
+{
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
     fn properties(&self) -> RefMut<Vec<Rc<Symbol>>>;
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);
     fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn set_call_signatures(&self, call_signatures: Vec<Rc<Signature>>);
     fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn set_construct_signatures(&self, construct_signatures: Vec<Rc<Signature>>);
+    fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>>;
+    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Rc<Type>>;
+    fn set_object_type_without_abstract_construct_signatures(
+        &self,
+        object_type_without_abstract_construct_signatures: Option<Rc<Type>>,
+    );
+}
+
+pub trait FreshObjectLiteralTypeInterface: ResolvedTypeInterface {
+    fn maybe_regular_type(&self) -> RefMut<Option<Rc<Type /*ResolvedType*/>>>;
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum IterationTypesKey {
+    YieldType,
+    ReturnType,
+    NextType,
+}
+
+#[derive(Debug)]
+pub struct IterationTypes {
+    yield_type: Option<Rc<Type>>,
+    return_type: Option<Rc<Type>>,
+    next_type: Option<Rc<Type>>,
+}
+
+impl IterationTypes {
+    pub fn new(yield_type: Rc<Type>, return_type: Rc<Type>, next_type: Rc<Type>) -> Self {
+        Self {
+            yield_type: Some(yield_type),
+            return_type: Some(return_type),
+            next_type: Some(next_type),
+        }
+    }
+
+    pub fn new_no_iteration_types() -> Self {
+        Self {
+            yield_type: None,
+            return_type: None,
+            next_type: None,
+        }
+    }
+
+    pub fn yield_type(&self) -> Rc<Type> {
+        let cloned = self.yield_type.clone();
+        if cloned.is_none() {
+            Debug_.fail(Some("Not supported"));
+        }
+        cloned.unwrap()
+    }
+
+    pub fn return_type(&self) -> Rc<Type> {
+        let cloned = self.return_type.clone();
+        if cloned.is_none() {
+            Debug_.fail(Some("Not supported"));
+        }
+        cloned.unwrap()
+    }
+
+    pub fn next_type(&self) -> Rc<Type> {
+        let cloned = self.next_type.clone();
+        if cloned.is_none() {
+            Debug_.fail(Some("Not supported"));
+        }
+        cloned.unwrap()
+    }
+
+    pub fn get_by_key(&self, key: IterationTypesKey) -> Rc<Type> {
+        match key {
+            IterationTypesKey::YieldType => self.yield_type(),
+            IterationTypesKey::ReturnType => self.return_type(),
+            IterationTypesKey::NextType => self.next_type(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum IterationTypeCacheKey {
+    IterationTypesOfGeneratorReturnType,
+    IterationTypesOfAsyncGeneratorReturnType,
+    IterationTypesOfIterable,
+    IterationTypesOfIterator,
+    IterationTypesOfAsyncIterable,
+    IterationTypesOfAsyncIterator,
+    IterationTypesOfIteratorResult,
 }
 
 #[derive(Clone, Debug)]
@@ -23,6 +262,7 @@ pub trait ResolvedTypeInterface {
 pub struct TypeParameter {
     _type: BaseType,
     pub constraint: RefCell<Option<Weak<Type>>>, // TODO: is it correct that this is weak?
+    pub default: RefCell<Option<Rc<Type>>>,
     pub target: Option<Rc<Type /*TypeParameter*/>>,
     pub mapper: RefCell<Option<TypeMapper>>,
     pub is_this_type: Option<bool>,
@@ -33,6 +273,7 @@ impl TypeParameter {
         Self {
             _type: base_type,
             constraint: RefCell::new(None),
+            default: RefCell::new(None),
             target: None,
             mapper: RefCell::new(None),
             is_this_type: None,
@@ -50,6 +291,10 @@ impl TypeParameter {
         *self.constraint.borrow_mut() = Some(Rc::downgrade(&constraint));
     }
 
+    pub fn maybe_default(&self) -> RefMut<Option<Rc<Type>>> {
+        self.default.borrow_mut()
+    }
+
     pub fn maybe_mapper(&self) -> Ref<Option<TypeMapper>> {
         self.mapper.borrow()
     }
@@ -59,7 +304,250 @@ impl TypeParameter {
     }
 }
 
-#[derive(PartialEq, Eq)]
+bitflags! {
+    pub/*(crate)*/ struct AccessFlags: u32 {
+        const None = 0;
+        const IncludeUndefined = 1 << 0;
+        const NoIndexSignatures = 1 << 1;
+        const Writing = 1 << 2;
+        const CacheSymbol = 1 << 3;
+        const NoTupleBoundsCheck = 1 << 4;
+        const ExpressionPosition = 1 << 5;
+        const ReportDeprecated = 1 << 6;
+        const SuppressNoImplicitAnyError = 1 << 7;
+        const Contextual = 1 << 8;
+        const Persistent = Self::IncludeUndefined.bits;
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct IndexedAccessType {
+    _type: BaseType,
+    pub object_type: Rc<Type>,
+    pub index_type: Rc<Type>,
+    pub(crate) access_flags: AccessFlags,
+    pub(crate) constraint: Option<Rc<Type>>,
+    simplified_for_reading: RefCell<Option<Rc<Type>>>,
+    simplified_for_writing: RefCell<Option<Rc<Type>>>,
+}
+
+impl IndexedAccessType {
+    pub fn new(
+        base_type: BaseType,
+        object_type: Rc<Type>,
+        index_type: Rc<Type>,
+        access_flags: AccessFlags,
+    ) -> Self {
+        Self {
+            _type: base_type,
+            object_type,
+            index_type,
+            access_flags,
+            constraint: None,
+            simplified_for_reading: RefCell::new(None),
+            simplified_for_writing: RefCell::new(None),
+        }
+    }
+
+    pub fn maybe_simplified_for_reading(&self) -> RefMut<Option<Rc<Type>>> {
+        self.simplified_for_reading.borrow_mut()
+    }
+
+    pub fn maybe_simplified_for_writing(&self) -> RefMut<Option<Rc<Type>>> {
+        self.simplified_for_writing.borrow_mut()
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct IndexType {
+    _type: BaseType,
+    pub type_: Rc<Type /*InstantiableType | UnionOrIntersectionType*/>,
+    pub(crate) strings_only: bool,
+}
+
+impl IndexType {
+    pub fn new(_type: BaseType, type_: Rc<Type>, strings_only: bool) -> Self {
+        Self {
+            _type,
+            type_,
+            strings_only,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ConditionalRoot {
+    pub node: Rc<Node /*ConditionalTypeNode*/>,
+    pub check_type: Rc<Type>,
+    pub extends_type: Rc<Type>,
+    pub is_distributive: bool,
+    pub infer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    instantiations: RefCell<Option<HashMap<String, Rc<Type>>>>,
+    pub alias_symbol: Option<Rc<Symbol>>,
+    pub alias_type_arguments: Option<Vec<Rc<Type>>>,
+}
+
+impl ConditionalRoot {
+    pub fn new(
+        node: Rc<Node>,
+        check_type: Rc<Type>,
+        extends_type: Rc<Type>,
+        is_distributive: bool,
+        infer_type_parameters: Option<Vec<Rc<Type>>>,
+        outer_type_parameters: Option<Vec<Rc<Type>>>,
+        alias_symbol: Option<Rc<Symbol>>,
+        alias_type_arguments: Option<Vec<Rc<Type>>>,
+    ) -> Self {
+        Self {
+            node,
+            check_type,
+            extends_type,
+            is_distributive,
+            infer_type_parameters,
+            outer_type_parameters,
+            instantiations: RefCell::new(None),
+            alias_symbol,
+            alias_type_arguments,
+        }
+    }
+
+    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Rc<Type>>>> {
+        self.instantiations.borrow_mut()
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct ConditionalType {
+    _type: BaseType,
+    pub root: Rc<RefCell<ConditionalRoot>>,
+    pub check_type: Rc<Type>,
+    pub extends_type: Rc<Type>,
+    resolved_true_type: RefCell<Option<Rc<Type>>>,
+    resolved_false_type: RefCell<Option<Rc<Type>>>,
+    resolved_inferred_true_type: RefCell<Option<Rc<Type>>>,
+    resolved_default_constraint: RefCell<Option<Rc<Type>>>,
+    pub(crate) mapper: Option<TypeMapper>,
+    pub(crate) combined_mapper: Option<TypeMapper>,
+}
+
+impl ConditionalType {
+    pub fn new(
+        base_type: BaseType,
+        root: Rc<RefCell<ConditionalRoot>>,
+        check_type: Rc<Type>,
+        extends_type: Rc<Type>,
+        mapper: Option<TypeMapper>,
+        combined_mapper: Option<TypeMapper>,
+    ) -> Self {
+        Self {
+            _type: base_type,
+            root,
+            check_type,
+            extends_type,
+            resolved_true_type: RefCell::new(None),
+            resolved_false_type: RefCell::new(None),
+            resolved_inferred_true_type: RefCell::new(None),
+            resolved_default_constraint: RefCell::new(None),
+            mapper,
+            combined_mapper,
+        }
+    }
+
+    pub(crate) fn maybe_resolved_true_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_true_type.borrow_mut()
+    }
+
+    pub(crate) fn maybe_resolved_false_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_false_type.borrow_mut()
+    }
+
+    pub(crate) fn maybe_resolved_inferred_true_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_inferred_true_type.borrow_mut()
+    }
+
+    pub(crate) fn maybe_resolved_default_constraint(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_default_constraint.borrow_mut()
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct TemplateLiteralType {
+    _type: BaseType,
+    pub texts: Vec<String>,
+    pub types: Vec<Rc<Type>>,
+}
+
+impl TemplateLiteralType {
+    pub fn new(_type: BaseType, texts: Vec<String>, types: Vec<Rc<Type>>) -> Self {
+        Self {
+            _type,
+            texts,
+            types,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct StringMappingType {
+    _type: BaseType,
+    pub type_: Rc<Type>,
+}
+
+impl StringMappingType {
+    pub fn new(base_type: BaseType, type_: Rc<Type>) -> Self {
+        Self {
+            _type: base_type,
+            type_,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct SubstitutionType {
+    _type: BaseType,
+    object_flags: Cell<ObjectFlags>,
+    pub base_type: Rc<Type>,
+    pub substitute: Rc<Type>,
+}
+
+impl SubstitutionType {
+    pub fn new(_type: BaseType, base_type: Rc<Type>, substitute: Rc<Type>) -> Self {
+        Self {
+            _type,
+            object_flags: Cell::new(
+                ObjectFlags::None, // this is made up
+            ),
+            base_type,
+            substitute,
+        }
+    }
+}
+
+impl ObjectFlagsTypeInterface for SubstitutionType {
+    fn object_flags(&self) -> ObjectFlags {
+        self.object_flags.get()
+    }
+
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
+        self.object_flags.set(object_flags);
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum JsxReferenceKind {
+    Component,
+    Function,
+    Mixed,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum SignatureKind {
     Call,
     Construct,
@@ -87,15 +575,23 @@ bitflags! {
 pub struct Signature {
     pub flags: SignatureFlags,
     pub declaration: Option<Rc<Node /*SignatureDeclaration | JSDocSignature*/>>,
-    pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    type_parameters: RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>,
     parameters: Option<Vec<Rc<Symbol>>>,
-    pub this_parameter: Option<Rc<Symbol>>,
-    pub resolved_return_type: RefCell<Option<Rc<Type>>>,
-    pub resolved_type_predicate: Option<TypePredicate>,
+    this_parameter: RefCell<Option<Rc<Symbol>>>,
+    resolved_return_type: RefCell<Option<Rc<Type>>>,
+    resolved_type_predicate: RefCell<Option<Rc<TypePredicate>>>,
     min_argument_count: Option<usize>,
-    pub resolved_min_argument_count: Cell<Option<usize>>,
+    resolved_min_argument_count: Cell<Option<usize>>,
     pub target: Option<Rc<Signature>>,
-    pub mapper: Option<TypeMapper>,
+    pub mapper: Option<TypeMapper>, // TODO: should this be Rc-wrapped since it gets cloned eg in clone_signature()?
+    pub composite_signatures: Option<Vec<Rc<Signature>>>,
+    pub composite_kind: Option<TypeFlags>,
+    erased_signature_cache: RefCell<Option<Rc<Signature>>>,
+    canonical_signature_cache: RefCell<Option<Rc<Signature>>>,
+    base_signature_cache: RefCell<Option<Rc<Signature>>>,
+    optional_call_signature_cache: RefCell<Option<SignatureOptionalCallSignatureCache>>,
+    isolated_signature_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    instantiations: RefCell<Option<HashMap<String, Rc<Signature>>>>,
 }
 
 impl Signature {
@@ -103,16 +599,32 @@ impl Signature {
         Self {
             flags,
             declaration: None,
-            type_parameters: None,
+            type_parameters: RefCell::new(None),
             parameters: None,
-            this_parameter: None,
+            this_parameter: RefCell::new(None),
             resolved_return_type: RefCell::new(None),
-            resolved_type_predicate: None,
+            resolved_type_predicate: RefCell::new(None),
             min_argument_count: None,
             resolved_min_argument_count: Cell::new(None),
             target: None,
             mapper: None,
+            composite_signatures: None,
+            composite_kind: None,
+            erased_signature_cache: RefCell::new(None),
+            canonical_signature_cache: RefCell::new(None),
+            base_signature_cache: RefCell::new(None),
+            optional_call_signature_cache: RefCell::new(None),
+            isolated_signature_type: RefCell::new(None),
+            instantiations: RefCell::new(None),
         }
+    }
+
+    pub fn maybe_type_parameters(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.type_parameters.borrow()
+    }
+
+    pub fn maybe_type_parameters_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.type_parameters.borrow_mut()
     }
 
     pub fn parameters(&self) -> &[Rc<Symbol>] {
@@ -121,6 +633,22 @@ impl Signature {
 
     pub fn set_parameters(&mut self, parameters: Vec<Rc<Symbol>>) {
         self.parameters = Some(parameters);
+    }
+
+    pub fn maybe_this_parameter(&self) -> Ref<Option<Rc<Symbol>>> {
+        self.this_parameter.borrow()
+    }
+
+    pub fn maybe_this_parameter_mut(&self) -> RefMut<Option<Rc<Symbol>>> {
+        self.this_parameter.borrow_mut()
+    }
+
+    pub fn maybe_resolved_return_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_return_type.borrow_mut()
+    }
+
+    pub fn maybe_resolved_type_predicate(&self) -> RefMut<Option<Rc<TypePredicate>>> {
+        self.resolved_type_predicate.borrow_mut()
     }
 
     pub fn min_argument_count(&self) -> usize {
@@ -143,8 +671,56 @@ impl Signature {
         self.resolved_min_argument_count
             .set(Some(min_argument_count));
     }
+
+    pub fn maybe_erased_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
+        self.erased_signature_cache.borrow_mut()
+    }
+
+    pub fn maybe_canonical_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
+        self.canonical_signature_cache.borrow_mut()
+    }
+
+    pub fn maybe_base_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
+        self.base_signature_cache.borrow_mut()
+    }
+
+    pub fn maybe_optional_call_signature_cache(
+        &self,
+    ) -> RefMut<Option<SignatureOptionalCallSignatureCache>> {
+        self.optional_call_signature_cache.borrow_mut()
+    }
+
+    pub fn maybe_isolated_signature_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.isolated_signature_type.borrow_mut()
+    }
+
+    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Rc<Signature>>>> {
+        self.instantiations.borrow_mut()
+    }
 }
 
+#[derive(Debug)]
+pub struct SignatureOptionalCallSignatureCache {
+    pub inner: Option<Rc<Signature>>,
+    pub outer: Option<Rc<Signature>>,
+}
+
+impl SignatureOptionalCallSignatureCache {
+    pub fn new() -> Self {
+        Self {
+            inner: None,
+            outer: None,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum IndexKind {
+    String,
+    Number,
+}
+
+#[derive(Debug)]
 pub struct IndexInfo {
     pub key_type: Rc<Type>,
     pub type_: Rc<Type>,
@@ -173,9 +749,14 @@ pub struct TypeMapperArray {
     pub targets: Option<Vec<Rc<Type>>>,
 }
 
+pub trait TypeMapperCallback {
+    // TODO: now that TypeChecker is wrapped in Rc should remove the checker argument here?
+    fn call(&self, checker: &TypeChecker, type_: &Type) -> Rc<Type>;
+}
+
 #[derive(Clone)]
 pub struct TypeMapperFunction {
-    pub func: fn(&TypeChecker, &Type) -> Rc<Type>,
+    pub func: Rc<dyn TypeMapperCallback>,
 }
 
 impl fmt::Debug for TypeMapperFunction {
@@ -199,8 +780,10 @@ impl TypeMapper {
         Self::Array(TypeMapperArray { sources, targets })
     }
 
-    pub fn new_function(func: fn(&TypeChecker, &Type) -> Rc<Type>) -> Self {
-        Self::Function(TypeMapperFunction { func })
+    pub fn new_function<TFunc: 'static + TypeMapperCallback>(func: TFunc) -> Self {
+        Self::Function(TypeMapperFunction {
+            func: Rc::new(func),
+        })
     }
 
     pub fn new_composite(mapper1: TypeMapper, mapper2: TypeMapper) -> Self {
@@ -215,6 +798,116 @@ impl TypeMapper {
             mapper1: Box::new(mapper1),
             mapper2: Box::new(mapper2),
         })
+    }
+}
+
+bitflags! {
+    pub struct InferencePriority: i32 {
+        const None = 0;
+        const NakedTypeVariable = 1 << 0;
+        const SpeculativeTuple = 1 << 1;
+        const SubstituteSource = 1 << 2;
+        const HomomorphicMappedType = 1 << 3;
+        const PartialHomomorphicMappedType = 1 << 4;
+        const MappedTypeConstraint = 1 << 5;
+        const ContravariantConditional = 1 << 6;
+        const ReturnType = 1 << 7;
+        const LiteralKeyof = 1 << 8;
+        const NoConstraints = 1 << 9;
+        const AlwaysStrict = 1 << 10;
+        const MaxValue = 1 << 11;
+
+        const PriorityImpliesCombination = Self::ReturnType.bits | Self::MappedTypeConstraint.bits | Self::LiteralKeyof.bits;
+        const Circularity = -1;
+    }
+}
+
+#[derive(Debug)]
+pub struct InferenceInfo {
+    pub type_parameter: Rc<Type /*TypeParameter*/>,
+    candidates: RefCell<Option<Vec<Rc<Type>>>>,
+    contra_candidates: RefCell<Option<Vec<Rc<Type>>>>,
+    inferred_type: RefCell<Option<Rc<Type>>>,
+    priority: Cell<Option<InferencePriority>>,
+    top_level: Cell<bool>,
+    is_fixed: Cell<bool>,
+    implied_arity: Cell<Option<usize>>,
+}
+
+impl InferenceInfo {
+    pub fn new(
+        type_parameter: Rc<Type /*TypeParameter*/>,
+        candidates: Option<Vec<Rc<Type>>>,
+        contra_candidates: Option<Vec<Rc<Type>>>,
+        inferred_type: Option<Rc<Type>>,
+        priority: Option<InferencePriority>,
+        top_level: bool,
+        is_fixed: bool,
+        implied_arity: Option<usize>,
+    ) -> Self {
+        Self {
+            type_parameter,
+            candidates: RefCell::new(candidates),
+            contra_candidates: RefCell::new(contra_candidates),
+            inferred_type: RefCell::new(inferred_type),
+            priority: Cell::new(priority),
+            top_level: Cell::new(top_level),
+            is_fixed: Cell::new(is_fixed),
+            implied_arity: Cell::new(implied_arity),
+        }
+    }
+
+    pub fn maybe_candidates(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.candidates.borrow_mut()
+    }
+
+    pub fn maybe_contra_candidates(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.contra_candidates.borrow_mut()
+    }
+
+    pub fn maybe_inferred_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.inferred_type.borrow_mut()
+    }
+
+    pub fn maybe_priority(&self) -> Option<InferencePriority> {
+        self.priority.get()
+    }
+
+    pub fn set_priority(&self, priority: Option<InferencePriority>) {
+        self.priority.set(priority);
+    }
+
+    pub fn top_level(&self) -> bool {
+        self.top_level.get()
+    }
+
+    pub fn set_top_level(&self, top_level: bool) {
+        self.top_level.set(top_level);
+    }
+
+    pub fn is_fixed(&self) -> bool {
+        self.is_fixed.get()
+    }
+
+    pub fn set_is_fixed(&self, is_fixed: bool) {
+        self.is_fixed.set(is_fixed);
+    }
+
+    pub fn maybe_implied_arity(&self) -> Option<usize> {
+        self.implied_arity.get()
+    }
+
+    pub fn set_implied_arity(&self, implied_arity: Option<usize>) {
+        self.implied_arity.set(implied_arity);
+    }
+}
+
+bitflags! {
+    pub struct InferenceFlags: u32 {
+        const None = 0;
+        const NoDefault = 1 << 0;
+        const AnyDefault = 1 << 1;
+        const SkippedGenericFunction = 1 << 2;
     }
 }
 
@@ -240,10 +933,124 @@ impl TryFrom<i32> for Ternary {
     }
 }
 
+impl BitAnd for Ternary {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        (self as i32 & rhs as i32).try_into().unwrap()
+    }
+}
+
 impl BitAndAssign for Ternary {
     fn bitand_assign(&mut self, rhs: Self) {
-        *self = (*self as i32 & rhs as i32).try_into().unwrap();
+        *self = *self & rhs;
     }
+}
+
+pub trait TypeComparer {
+    fn call(&self, s: &Type, t: &Type, report_errors: Option<bool>) -> Ternary;
+}
+
+pub struct InferenceContext {
+    inferences: RefCell<Vec<Rc<InferenceInfo>>>,
+    pub signature: Option<Rc<Signature>>,
+    flags: Cell<InferenceFlags>,
+    pub compare_types: Rc<dyn TypeComparer>,
+    mapper: RefCell<Option<TypeMapper>>,
+    non_fixing_mapper: RefCell<Option<TypeMapper>>,
+    return_mapper: RefCell<Option<TypeMapper>>,
+    inferred_type_parameters: RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>,
+}
+
+impl InferenceContext {
+    pub fn new(
+        inferences: Vec<Rc<InferenceInfo>>,
+        signature: Option<Rc<Signature>>,
+        flags: InferenceFlags,
+        compare_types: Rc<dyn TypeComparer>,
+        mapper: Option<TypeMapper>,
+        non_fixing_mapper: Option<TypeMapper>,
+        return_mapper: Option<TypeMapper>,
+        inferred_type_parameters: Option<Vec<Rc<Type>>>,
+    ) -> Self {
+        Self {
+            inferences: RefCell::new(inferences),
+            signature,
+            flags: Cell::new(flags),
+            compare_types,
+            mapper: RefCell::new(mapper),
+            non_fixing_mapper: RefCell::new(non_fixing_mapper),
+            return_mapper: RefCell::new(return_mapper),
+            inferred_type_parameters: RefCell::new(inferred_type_parameters),
+        }
+    }
+
+    pub fn inferences(&self) -> Ref<Vec<Rc<InferenceInfo>>> {
+        self.inferences.borrow()
+    }
+
+    pub fn inferences_mut(&self) -> RefMut<Vec<Rc<InferenceInfo>>> {
+        self.inferences.borrow_mut()
+    }
+
+    pub fn flags(&self) -> InferenceFlags {
+        self.flags.get()
+    }
+
+    pub fn set_flags(&self, flags: InferenceFlags) {
+        self.flags.set(flags);
+    }
+
+    pub fn mapper(&self) -> Ref<TypeMapper> {
+        Ref::map(self.mapper.borrow(), |mapper| mapper.as_ref().unwrap())
+    }
+
+    pub fn set_mapper(&self, mapper: TypeMapper) {
+        *self.mapper.borrow_mut() = Some(mapper);
+    }
+
+    pub fn non_fixing_mapper(&self) -> Ref<TypeMapper> {
+        Ref::map(self.non_fixing_mapper.borrow(), |non_fixing_mapper| {
+            non_fixing_mapper.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_non_fixing_mapper(&self, non_fixing_mapper: TypeMapper) {
+        *self.non_fixing_mapper.borrow_mut() = Some(non_fixing_mapper);
+    }
+
+    pub fn maybe_return_mapper(&self) -> RefMut<Option<TypeMapper>> {
+        self.return_mapper.borrow_mut()
+    }
+
+    pub fn maybe_inferred_type_parameters(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.inferred_type_parameters.borrow()
+    }
+
+    pub fn maybe_inferred_type_parameters_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.inferred_type_parameters.borrow_mut()
+    }
+}
+
+impl fmt::Debug for InferenceContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("InferenceContext")
+            .field("inference", &self.inferences)
+            .field("signature", &self.signature)
+            .field("flags", &self.flags)
+            .field("mapper", &self.mapper)
+            .field("non_fixing_mapper", &self.non_fixing_mapper)
+            .field("return_mapper", &self.return_mapper)
+            .field("inferred_type_parameters", &self.inferred_type_parameters)
+            .finish()
+    }
+}
+
+pub(crate) struct WideningContext {
+    pub parent: Option<Rc<RefCell<WideningContext>>>,
+    pub property_name: Option<__String>,
+    pub siblings: Option<Vec<Rc<Type>>>,
+    pub resolved_properties: Option<Vec<Rc<Symbol>>>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -260,13 +1067,56 @@ pub enum AssignmentDeclarationKind {
     ObjectDefinePrototypeProperty,
 }
 
+pub struct FileExtensionInfo {
+    pub extension: String,
+    pub is_mixed_content: bool,
+    pub script_kind: Option<ScriptKind>,
+}
+
 #[derive(Clone, Debug)]
 pub struct DiagnosticMessage {
     pub key: &'static str,
     pub category: DiagnosticCategory,
     pub code: u32,
-    pub message: &'static str,
+    pub message: Cow<'static, str>,
+    pub(crate) elided_in_compatability_pyramid: Arc<Mutex<Option<bool>>>,
 }
+
+impl DiagnosticMessage {
+    pub fn new(
+        code: u32,
+        category: DiagnosticCategory,
+        key: &'static str,
+        message: Cow<'static, str>,
+    ) -> Self {
+        Self {
+            code,
+            category,
+            key,
+            message,
+            elided_in_compatability_pyramid: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    pub fn maybe_elided_in_compatability_pyramid(&self) -> Option<bool> {
+        self.elided_in_compatability_pyramid.lock().unwrap().clone()
+    }
+
+    pub fn set_elided_in_compatability_pyramid(
+        &self,
+        elided_in_compatability_pyramid: Option<bool>,
+    ) {
+        *self.elided_in_compatability_pyramid.lock().unwrap() = elided_in_compatability_pyramid;
+    }
+}
+
+impl PartialEq for DiagnosticMessage {
+    fn eq(&self, other: &DiagnosticMessage) -> bool {
+        self.code == other.code
+    }
+}
+
+impl Eq for DiagnosticMessage {}
 
 #[derive(Clone, Debug)]
 pub struct DiagnosticMessageChain {
@@ -306,13 +1156,17 @@ impl Diagnostic {
 }
 
 pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>>;
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>>;
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>>;
+    fn maybe_skipped_on(&self) -> Ref<Option<String>>;
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>>;
 }
 
 #[derive(Clone, Debug)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
     related_information: RefCell<Option<Vec<Rc<DiagnosticRelatedInformation>>>>,
+    skipped_on: RefCell<Option<String /*keyof CompilerOptions*/>>,
 }
 
 impl BaseDiagnostic {
@@ -323,6 +1177,7 @@ impl BaseDiagnostic {
         Self {
             _diagnostic_related_information: diagnostic_related_information,
             related_information: RefCell::new(related_information),
+            skipped_on: RefCell::new(None),
         }
     }
 }
@@ -356,6 +1211,10 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.start()
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        self._diagnostic_related_information.set_start(start);
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         self._diagnostic_related_information.maybe_length()
     }
@@ -364,14 +1223,30 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.length()
     }
 
+    fn set_length(&self, length: Option<isize>) {
+        self._diagnostic_related_information.set_length(length);
+    }
+
     fn message_text(&self) -> &DiagnosticMessageText {
         self._diagnostic_related_information.message_text()
     }
 }
 
 impl DiagnosticInterface for BaseDiagnostic {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        self.related_information.borrow()
+    }
+
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
         self.related_information.borrow_mut()
+    }
+
+    fn maybe_skipped_on(&self) -> Ref<Option<String>> {
+        self.skipped_on.borrow()
+    }
+
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>> {
+        self.skipped_on.borrow_mut()
     }
 }
 
@@ -442,6 +1317,14 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.set_start(start),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.set_start(start),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.set_start(start),
+        }
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_length(),
@@ -458,6 +1341,14 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
+    fn set_length(&self, length: Option<isize>) {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.set_length(length),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.set_length(length),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.set_length(length),
+        }
+    }
+
     fn message_text(&self) -> &DiagnosticMessageText {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.message_text(),
@@ -468,13 +1359,41 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 }
 
 impl DiagnosticInterface for Diagnostic {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.related_information(),
             Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
                 diagnostic.related_information()
             }
             Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.related_information(),
+        }
+    }
+
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.related_information_mut(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
+                diagnostic.related_information_mut()
+            }
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.related_information_mut(),
+        }
+    }
+
+    fn maybe_skipped_on(&self) -> Ref<Option<String>> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_skipped_on(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.maybe_skipped_on(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.maybe_skipped_on(),
+        }
+    }
+
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_skipped_on_mut(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
+                diagnostic.maybe_skipped_on_mut()
+            }
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.maybe_skipped_on_mut(),
         }
     }
 }
@@ -505,8 +1424,10 @@ pub trait DiagnosticRelatedInformationInterface {
     fn maybe_file(&self) -> Option<Rc<Node>>;
     fn maybe_start(&self) -> Option<isize>;
     fn start(&self) -> isize;
+    fn set_start(&self, start: Option<isize>);
     fn maybe_length(&self) -> Option<isize>;
     fn length(&self) -> isize;
+    fn set_length(&self, length: Option<isize>);
     fn message_text(&self) -> &DiagnosticMessageText;
 }
 
@@ -597,6 +1518,15 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
         }
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.set_start(start),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.set_start(start),
+        }
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         match self {
             DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
@@ -615,6 +1545,15 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
         }
     }
 
+    fn set_length(&self, length: Option<isize>) {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.set_length(length),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.set_length(length),
+        }
+    }
+
     fn message_text(&self) -> &DiagnosticMessageText {
         match self {
             DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
@@ -630,8 +1569,8 @@ pub struct BaseDiagnosticRelatedInformation {
     category: Cell<DiagnosticCategory>,
     code: u32,
     file: Option<Weak<Node /*SourceFile*/>>,
-    start: Option<isize>,
-    length: Option<isize>,
+    start: Cell<Option<isize>>,
+    length: Cell<Option<isize>>,
     message_text: DiagnosticMessageText,
 }
 
@@ -648,8 +1587,8 @@ impl BaseDiagnosticRelatedInformation {
             category: Cell::new(category),
             code,
             file: file.map(|file| Rc::downgrade(&file)),
-            start,
-            length,
+            start: Cell::new(start),
+            length: Cell::new(length),
             message_text: message_text.into(),
         }
     }
@@ -677,19 +1616,27 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
     }
 
     fn maybe_start(&self) -> Option<isize> {
-        self.start
+        self.start.get()
     }
 
     fn start(&self) -> isize {
-        self.start.unwrap()
+        self.start.get().unwrap()
+    }
+
+    fn set_start(&self, start: Option<isize>) {
+        self.start.set(start);
     }
 
     fn maybe_length(&self) -> Option<isize> {
-        self.length
+        self.length.get()
     }
 
     fn length(&self) -> isize {
-        self.length.unwrap()
+        self.length.get().unwrap()
+    }
+
+    fn set_length(&self, length: Option<isize>) {
+        self.length.set(length);
     }
 
     fn message_text(&self) -> &DiagnosticMessageText {
@@ -743,6 +1690,10 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.start()
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        self._diagnostic.set_start(start)
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         self._diagnostic.maybe_length()
     }
@@ -751,14 +1702,30 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.length()
     }
 
+    fn set_length(&self, length: Option<isize>) {
+        self._diagnostic.set_length(length)
+    }
+
     fn message_text(&self) -> &DiagnosticMessageText {
         self._diagnostic.message_text()
     }
 }
 
 impl DiagnosticInterface for DiagnosticWithLocation {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
         self._diagnostic.related_information()
+    }
+
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        self._diagnostic.related_information_mut()
+    }
+
+    fn maybe_skipped_on(&self) -> Ref<Option<String>> {
+        self._diagnostic.maybe_skipped_on()
+    }
+
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>> {
+        self._diagnostic.maybe_skipped_on_mut()
     }
 }
 
@@ -820,6 +1787,10 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.start()
     }
 
+    fn set_start(&self, start: Option<isize>) {
+        self._diagnostic.set_start(start)
+    }
+
     fn maybe_length(&self) -> Option<isize> {
         self._diagnostic.maybe_length()
     }
@@ -828,14 +1799,30 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.length()
     }
 
+    fn set_length(&self, length: Option<isize>) {
+        self._diagnostic.set_length(length)
+    }
+
     fn message_text(&self) -> &DiagnosticMessageText {
         self._diagnostic.message_text()
     }
 }
 
 impl DiagnosticInterface for DiagnosticWithDetachedLocation {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
         self._diagnostic.related_information()
+    }
+
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        self._diagnostic.related_information_mut()
+    }
+
+    fn maybe_skipped_on(&self) -> Ref<Option<String>> {
+        self._diagnostic.maybe_skipped_on()
+    }
+
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>> {
+        self._diagnostic.maybe_skipped_on_mut()
     }
 }
 
@@ -853,7 +1840,7 @@ impl From<DiagnosticWithDetachedLocation> for DiagnosticRelatedInformation {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DiagnosticCategory {
     Warning,
     Error,
@@ -861,7 +1848,25 @@ pub enum DiagnosticCategory {
     Message,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) fn diagnostic_category_name(
+    category: DiagnosticCategory,
+    lower_case: Option<bool>,
+) -> String {
+    let lower_case = lower_case.unwrap_or(true);
+    let name = match category {
+        DiagnosticCategory::Warning => "Warning",
+        DiagnosticCategory::Error => "Error",
+        DiagnosticCategory::Suggestion => "Suggestion",
+        DiagnosticCategory::Message => "Message",
+    };
+    if lower_case {
+        name.to_lowercase()
+    } else {
+        name.to_owned()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum ModuleResolutionKind {
     Classic = 1,
     NodeJs = 2,

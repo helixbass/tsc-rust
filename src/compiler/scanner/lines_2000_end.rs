@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use regex::Regex;
-use std::cell::RefMut;
+use std::cell::{Ref, RefMut};
 use std::convert::TryInto;
 
 use super::{
@@ -21,7 +21,7 @@ impl Scanner {
         self.set_pos(self.start_pos());
         self.set_token_pos(self.start_pos());
         self.set_token_flags(TokenFlags::None);
-        let ch = code_point_at(self.text(), self.pos());
+        let ch = code_point_at(&self.text(), self.pos());
         let identifier_kind = self.scan_identifier(on_error, ch, ScriptTarget::ESNext);
         if let Some(identifier_kind) = identifier_kind {
             return self.set_token(identifier_kind);
@@ -43,7 +43,7 @@ impl Scanner {
                 if !(self.pos() < self.end()) {
                     break;
                 }
-                ch = code_point_at(self.text(), self.pos());
+                ch = code_point_at(&self.text(), self.pos());
                 if !is_identifier_part(ch, Some(language_version), None) {
                     break;
                 }
@@ -323,9 +323,9 @@ impl Scanner {
                 break;
             }
             if char_ == CharacterCodes::less_than {
-                if is_conflict_marker_trivia(self.text(), self.pos()) {
+                if is_conflict_marker_trivia(&self.text(), self.pos()) {
                     self.set_pos(scan_conflict_marker_trivia(
-                        self.text(),
+                        &self.text(),
                         self.pos(),
                         |diag, pos, len| self.error(on_error, diag, pos, len),
                     ));
@@ -437,7 +437,7 @@ impl Scanner {
             return self.set_token(SyntaxKind::EndOfFileToken);
         }
 
-        let ch = code_point_at(self.text(), self.pos());
+        let ch = code_point_at(&self.text(), self.pos());
         self.increment_pos_by(char_size(ch));
         match ch {
             CharacterCodes::tab
@@ -542,7 +542,7 @@ impl Scanner {
             let mut char_ = ch;
             loop {
                 if self.pos() < self.end() {
-                    char_ = code_point_at(self.text(), self.pos());
+                    char_ = code_point_at(&self.text(), self.pos());
                     if !is_identifier_part(char_, Some(self.language_version), None) {
                         break;
                     }
@@ -594,7 +594,7 @@ impl Scanner {
     }
 
     pub fn scan_range<TReturn, TCallback: FnOnce() -> TReturn>(
-        &mut self,
+        &self,
         start: usize,
         length: usize,
         callback: TCallback,
@@ -604,16 +604,11 @@ impl Scanner {
         let save_start_pos = self.start_pos();
         let save_token_pos = self.token_pos();
         let save_token = self.token();
-        let save_token_value = self.token_value();
+        let save_token_value = self.maybe_token_value();
         let save_token_flags = self.token_flags();
         let save_error_expectations = (*self.maybe_comment_directives()).clone();
 
-        self.set_text(
-            Some(self.text().clone()),
-            Some(self.text_str().to_string()),
-            Some(start),
-            Some(length),
-        );
+        self.set_text_start_and_length(start, length);
         let result = callback();
 
         self.set_end(save_end);
@@ -621,7 +616,7 @@ impl Scanner {
         self.set_start_pos(save_start_pos);
         self.set_token_pos(save_token_pos);
         self.set_token(save_token);
-        self.set_token_value(save_token_value);
+        self.set_maybe_token_value(save_token_value);
         self.set_token_flags(save_token_flags);
         *self.maybe_comment_directives() = save_error_expectations;
 
@@ -642,7 +637,7 @@ impl Scanner {
         self.speculation_helper(callback, false)
     }
 
-    pub fn get_text(&self) -> &str {
+    pub fn get_text(&self) -> Ref<String> {
         self.text_str()
     }
 
@@ -651,7 +646,7 @@ impl Scanner {
     }
 
     pub fn set_text(
-        &mut self,
+        &self,
         new_text_as_chars: Option<SourceTextAsChars>,
         new_text: Option<String>,
         start: Option<usize>,
@@ -659,10 +654,15 @@ impl Scanner {
     ) {
         let text = new_text.unwrap_or_else(|| "".to_string());
         let text_as_chars = new_text_as_chars.unwrap_or_else(|| vec![]);
-        let text_len = text.len();
+        let text_as_chars_len = text_as_chars.len();
         self.set_text_(text_as_chars, text);
-        self.set_end(length.map_or(text_len, |length| start.unwrap() + length));
+        self.set_end(length.map_or(text_as_chars_len, |length| start.unwrap() + length));
         self.set_text_pos(start.unwrap_or(0));
+    }
+
+    pub fn set_text_start_and_length(&self, start: usize, length: usize) {
+        self.set_end(length);
+        self.set_text_pos(start);
     }
 
     // pub fn set_on_error(&mut self, error_callback: Option<ErrorCallback<'on_error>>) {
@@ -677,7 +677,7 @@ impl Scanner {
         self.language_variant = Some(variant);
     }
 
-    pub fn set_text_pos(&mut self, text_pos: usize) {
+    pub fn set_text_pos(&self, text_pos: usize) {
         // Debug_.assert(text_pos >= 0);
         self.set_pos(text_pos);
         self.set_start_pos(text_pos);

@@ -2,7 +2,6 @@
 
 use bitflags::bitflags;
 use regex::{Captures, Regex};
-use std::array::IntoIter;
 use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -31,7 +30,7 @@ use crate::{
     DiagnosticRelatedInformationInterface,
 };
 
-pub fn is_literal_computed_property_name_declaration_name(node: &Node) -> bool {
+pub fn is_literal_computed_property_declaration_name(node: &Node) -> bool {
     is_string_or_numeric_literal_like(node)
         && node.parent().kind() == SyntaxKind::ComputedPropertyName
         && is_declaration(&node.parent().parent())
@@ -782,12 +781,11 @@ pub fn get_binary_operator_precedence(kind: SyntaxKind) -> OperatorPrecedence {
 }
 
 pub fn get_semantic_jsx_children(children: &[Rc<Node /*JsxChild*/>]) -> Vec<Rc<Node>> {
-    filter(Some(children), |i| match i.kind() {
+    filter(children, |i: &Rc<Node>| match i.kind() {
         SyntaxKind::JsxExpression => i.as_jsx_expression().expression.is_some(),
         SyntaxKind::JsxText => !i.as_jsx_text().contains_only_trivia_white_spaces,
         _ => true,
     })
-    .unwrap()
 }
 
 pub fn create_diagnostic_collection() -> DiagnosticCollection {
@@ -924,17 +922,17 @@ pub(crate) fn has_invalid_escape(template: &Node /*TemplateLiteral*/) -> bool {
 }
 
 lazy_static! {
-    static ref double_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\"\u0000-\u001f\t\v\f\b\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
+    static ref double_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\"\u0000-\u001f\t\v\f\u0008\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
 }
 lazy_static! {
-    static ref single_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\'\u0000-\u001f\t\v\f\b\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
+    static ref single_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\'\u0000-\u001f\t\v\f\u0008\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
 }
 lazy_static! {
-    static ref backtick_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"\r\n|[\\`\u0000-\u001f\t\v\f\b\r\u2028\u2029\u0085]"#/*/g*/).unwrap();
+    static ref backtick_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"\r\n|[\\`\u0000-\u001f\t\v\f\u0008\r\u2028\u2029\u0085]"#/*/g*/).unwrap();
 }
 lazy_static! {
     static ref escaped_chars_map: HashMap<&'static str, &'static str> =
-        HashMap::from_iter(IntoIter::new([
+        HashMap::from_iter(IntoIterator::into_iter([
             ("\t", "\\t"),
             ("\u{000b}", "\\v"),
             ("\u{000c}", "\\f"),
@@ -1026,7 +1024,7 @@ lazy_static! {
 }
 lazy_static! {
     static ref jsx_escaped_chars_map: HashMap<&'static str, &'static str> =
-        HashMap::from_iter(IntoIter::new([("\"", "&quot;"), ("'", "&apos;")]));
+        HashMap::from_iter(IntoIterator::into_iter([("\"", "&quot;"), ("'", "&apos;")]));
 }
 
 fn encode_jsx_character_entity(char_code: u32) -> String {

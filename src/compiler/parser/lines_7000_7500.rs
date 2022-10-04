@@ -325,8 +325,8 @@ impl ParserType {
         } else {
             name = self.parse_literal_node().wrap();
             let name_as_literal_like_node = name.as_literal_like_node();
-            name_as_literal_like_node
-                .set_text(self.intern_identifier(&name_as_literal_like_node.text()));
+            let text = self.intern_identifier(&name_as_literal_like_node.text());
+            name_as_literal_like_node.set_text(text);
         }
         let mut body: Option<Rc<Node>> = None;
         if self.token() == SyntaxKind::OpenBraceToken {
@@ -637,8 +637,8 @@ impl ParserType {
         if self.token() == SyntaxKind::StringLiteral {
             let result = self.parse_literal_node();
             let result_as_literal_like_node = result.as_literal_like_node();
-            result_as_literal_like_node
-                .set_text(self.intern_identifier(&result_as_literal_like_node.text()));
+            let text = self.intern_identifier(&result_as_literal_like_node.text());
+            result_as_literal_like_node.set_text(text);
             result.wrap()
         } else {
             self.parse_expression()
@@ -705,7 +705,7 @@ impl ParserType {
         let mut check_identifier_end = self.scanner().get_text_pos();
         let mut is_type_only = false;
         let mut property_name: Option<Rc<Node>> = None;
-        let mut can_parse_as_keyword = false;
+        let mut can_parse_as_keyword = true;
         let mut name: Rc<Node> = self.parse_identifier_name(None).wrap();
         let mut parse_name_with_keyword_check = || {
             check_identifier_is_keyword = is_keyword(self.token()) && !self.is_identifier();

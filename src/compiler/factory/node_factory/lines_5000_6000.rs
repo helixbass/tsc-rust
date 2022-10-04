@@ -9,8 +9,8 @@ use crate::{
     InputFiles, LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind,
     ScriptTarget, ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode,
-    SyntaxKind, TransformFlags, UnparsedPrepend, UnparsedPrologue, UnparsedSource,
-    UnparsedTextLike,
+    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -47,7 +47,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
             base_factory,
-            SyntaxKind::PropertyAssignment,
+            SyntaxKind::ShorthandPropertyAssignment,
             Option::<NodeArray>::None,
             Option::<NodeArray>::None,
             Some(name),
@@ -266,6 +266,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         InputFiles::new(node, "".to_owned(), "".to_owned())
     }
 
+    pub fn create_synthetic_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Rc<Type>,
+        is_spread: Option<bool>,
+        tuple_name_source: Option<Rc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
+    ) -> SyntheticExpression {
+        let is_spread = is_spread.unwrap_or(false);
+        unimplemented!()
+    }
+
+    pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Rc<Node> {
+        // unimplemented!()
+        // TODO: this is definitely not right
+        node.node_wrapper()
+    }
+
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
         unimplemented!()
     }
@@ -285,5 +302,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             unimplemented!()
         }
         inner_expression.node_wrapper()
+    }
+
+    pub fn get_declaration_name<TNode: Borrow<Node>>(
+        &self,
+        node: Option<TNode /*Declaration*/>,
+        allow_comments: Option<bool>,
+        allow_source_maps: Option<bool>,
+    ) -> Rc<Node /*Identifier*/> {
+        unimplemented!()
     }
 }

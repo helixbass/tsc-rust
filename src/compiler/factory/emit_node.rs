@@ -1,31 +1,51 @@
 use std::borrow::Borrow;
-use std::cell::RefMut;
+use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::{is_parse_tree_node, Debug_, EmitFlags, EmitNode, Node, NodeInterface};
+use crate::{
+    get_parse_tree_node, get_source_file_of_node, is_parse_tree_node, Debug_, EmitFlags, EmitNode,
+    Node, NodeInterface, ReadonlyTextRange, SyntaxKind, SynthesizedComment,
+};
 
-pub(crate) fn get_or_create_emit_node(node: &Node) -> RefMut<EmitNode> {
-    let mut node_emit_node = node.maybe_emit_node();
-    match &*node_emit_node {
+pub(crate) fn get_or_create_emit_node(node: &Node) -> Rc<RefCell<EmitNode>> {
+    match node.maybe_emit_node() {
         None => {
             if is_parse_tree_node(node) {
-                unimplemented!()
+                if node.kind() == SyntaxKind::SourceFile {
+                    let ret = Rc::new(RefCell::new(EmitNode {
+                        annotated_nodes: Some(vec![node.node_wrapper()]),
+                        ..Default::default()
+                    }));
+                    *node.maybe_emit_node_mut() = Some(ret.clone());
+                    return ret;
+                }
+
+                let ref source_file = get_source_file_of_node(get_parse_tree_node(
+                    get_source_file_of_node(Some(node)),
+                    Option::<fn(&Node) -> bool>::None,
+                ))
+                .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
+                get_or_create_emit_node(source_file)
+                    .borrow_mut()
+                    .annotated_nodes
+                    .as_mut()
+                    .unwrap()
+                    .push(node.node_wrapper());
             }
 
-            *node_emit_node = Some(Default::default());
+            *node.maybe_emit_node_mut() = Some(Rc::new(RefCell::new(Default::default())));
         }
         Some(node_emit_node) => {
             Debug_.assert(
-                !node_emit_node
+                !(*node_emit_node)
+                    .borrow()
                     .flags
                     .map_or(false, |flags| flags.intersects(EmitFlags::Immutable)),
                 Some("Invalid attempt to mutate an immutable node."),
             );
         }
     }
-    RefMut::map(node_emit_node, |node_emit_node| {
-        node_emit_node.as_mut().unwrap()
-    })
+    node.maybe_emit_node().unwrap()
 }
 
 pub fn dispose_emit_nodes<TSourceFile: Borrow<Node>>(
@@ -35,19 +55,49 @@ pub fn dispose_emit_nodes<TSourceFile: Borrow<Node>>(
 }
 
 pub fn set_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
-    get_or_create_emit_node(&node).flags = Some(emit_flags);
+    get_or_create_emit_node(&node).borrow_mut().flags = Some(emit_flags);
+    node
+}
+
+pub fn add_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
+    let emit_node = get_or_create_emit_node(&node);
+    let mut emit_node = emit_node.borrow_mut();
+    emit_node.flags = Some(emit_node.flags.unwrap_or(EmitFlags::None) | emit_flags);
     node
 }
 
 pub(crate) fn get_starts_on_new_line(node: &Node) -> bool {
     node.maybe_emit_node()
-        .as_ref()
-        .and_then(|emit_node| emit_node.starts_on_new_line)
+        .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
         .unwrap_or(false)
 }
 
 pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Rc<Node>*/
 {
-    get_or_create_emit_node(node).starts_on_new_line = Some(new_line);
+    get_or_create_emit_node(node)
+        .borrow_mut()
+        .starts_on_new_line = Some(new_line);
     // node
+}
+
+pub fn set_comment_range<TRange: ReadonlyTextRange /*TextRange*/>(node: &Node, range: &TRange)
+/*-> Rc<Node>*/
+{
+    // unimplemented!()
+}
+
+pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
+/*-> Rc<Node>*/
+{
+    unimplemented!()
+}
+
+pub fn add_synthetic_leading_comment(
+    node: &Node,
+    kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
+    text: &str,
+    has_trailing_new_line: Option<bool>,
+) /*-> Rc<Node>*/
+{
+    unimplemented!()
 }

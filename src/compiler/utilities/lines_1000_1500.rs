@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use crate::{
     concatenate, contains_rc, create_file_diagnostic, create_scanner, create_text_span,
-    create_text_span_from_bounds, every, filter, for_each_child, for_each_child_bool,
+    create_text_span_from_bounds, every, for_each_child, for_each_child_bool,
     get_combined_modifier_flags, get_combined_node_flags, get_emit_flags, get_end_line_position,
     get_leading_comment_ranges, get_line_and_character_of_position, get_source_file_of_node,
     get_trailing_comment_ranges, has_effective_readonly_modifier, has_static_modifier, is_accessor,
@@ -15,13 +15,14 @@ use crate::{
     is_function_like, is_identifier, is_import_type_node, is_jsdoc, is_jsx_text,
     is_literal_type_node, is_meta_property, is_parameter_property_declaration,
     is_property_declaration, is_property_signature, is_string_literal, is_variable_declaration,
-    is_variable_statement, maybe_text_char_at_index, node_is_missing, single_or_undefined,
-    skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation, CharacterCodes,
-    ClassLikeDeclarationInterface, CommentRange, Debug_, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticWithLocation, EmitFlags,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange,
-    ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange, TextSpan,
+    is_variable_statement, maybe_filter, maybe_text_char_at_index, node_is_missing,
+    single_or_undefined, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    CharacterCodes, ClassLikeDeclarationInterface, CommentRange, Debug_, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticWithLocation, EmitFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars,
+    SyntaxKind, TextRange, TextSpan,
 };
 
 pub fn create_diagnostic_for_node(
@@ -130,7 +131,7 @@ fn create_file_diagnostic_from_message_chain(
     ))
 }
 
-fn create_diagnostic_for_file_from_message_chain(
+pub fn create_diagnostic_for_file_from_message_chain(
     source_file: &Node, /*SourceFile*/
     message_chain: DiagnosticMessageChain,
     related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
@@ -164,7 +165,7 @@ fn create_diagnostic_for_range<TRange: TextRange>(
             Some(source_file.node_wrapper()),
             Some(range.pos()),
             Some(range.end() - range.pos()),
-            message.message.to_owned(),
+            message.message.clone().into_owned(),
         ),
         None,
     ))
@@ -492,7 +493,7 @@ pub fn get_jsdoc_comment_ranges<TNode: NodeInterface>(
     } else {
         get_leading_comment_ranges(text, node.pos().try_into().unwrap())
     };
-    filter(comment_ranges.as_deref(), |comment| {
+    maybe_filter(comment_ranges.as_deref(), |comment| {
         matches!(maybe_text_char_at_index(text, (comment.pos() + 1).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
             && matches!(maybe_text_char_at_index(text, (comment.pos() + 2).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
             && match maybe_text_char_at_index(text, (comment.pos() + 3).try_into().unwrap()) {
@@ -572,7 +573,7 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                 return false;
             }
             if parent.kind() == SyntaxKind::ImportType {
-                return !parent.as_import_type_node().is_type_of;
+                return !parent.as_import_type_node().is_type_of();
             }
             if SyntaxKind::FirstTypeNode <= parent.kind()
                 && parent.kind() <= SyntaxKind::LastTypeNode
@@ -615,13 +616,16 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                 }
                 SyntaxKind::CallExpression => {
                     return contains_rc(
-                        parent.as_call_expression().type_arguments.as_deref(),
+                        parent
+                            .as_call_expression()
+                            .maybe_type_arguments()
+                            .as_deref(),
                         &node,
                     );
                 }
                 SyntaxKind::NewExpression => {
                     return contains_rc(
-                        parent.as_new_expression().type_arguments.as_deref(),
+                        parent.as_new_expression().maybe_type_arguments().as_deref(),
                         &node,
                     );
                 }
@@ -776,10 +780,12 @@ pub fn get_rest_parameter_element_type<TNode: Borrow<Node>>(
     let node = node.borrow();
     match node.kind() {
         SyntaxKind::ArrayType => Some(node.as_array_type_node().element_type.clone()),
-        SyntaxKind::TypeReference => {
-            single_or_undefined(node.as_type_reference_node().type_arguments.as_deref())
-                .map(Clone::clone)
-        }
+        SyntaxKind::TypeReference => single_or_undefined(
+            node.as_type_reference_node()
+                .maybe_type_arguments()
+                .as_deref(),
+        )
+        .cloned(),
         _ => None,
     }
 }

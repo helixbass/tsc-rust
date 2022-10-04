@@ -1,9 +1,10 @@
 use super::{visit_node, visit_nodes};
 use crate::{
     for_each, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
-    InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
+    HasInitializerInterface, HasQuestionTokenInterface, HasTypeArgumentsInterface,
+    HasTypeInterface, HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
+    JSDocTagInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
 };
 
 pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeArray)>(
@@ -296,7 +297,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 node.maybe_modifiers().as_ref(),
             );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
-            visit_node(&mut cb_node, Some(node.name()));
+            visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.maybe_question_token());
             visit_node(&mut cb_node, node.maybe_exclamation_token().clone());
             visit_nodes(
@@ -416,7 +417,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 node.maybe_modifiers().as_ref(),
             );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
-            visit_node(&mut cb_node, Some(node.name()));
+            visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.maybe_question_token());
             visit_node(&mut cb_node, node.maybe_exclamation_token().clone());
             visit_nodes(
@@ -447,7 +448,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             )
         }
         Node::TypePredicateNode(node) => {
@@ -484,7 +485,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             )
         }
         Node::ParenthesizedTypeNode(node) => visit_node(&mut cb_node, Some(&*node.type_)),
@@ -536,7 +537,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.arguments));
         }
@@ -545,7 +546,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.arguments.as_ref());
         }
@@ -555,7 +556,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_node(&mut cb_node, Some(&*node.template));
         }
@@ -953,7 +954,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             )
         }
         Node::ExternalModuleReference(node) => {
@@ -984,7 +985,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_node(&mut cb_node, Some(&*node.attributes));
         }
@@ -993,7 +994,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
-                node.type_arguments.as_ref(),
+                node.maybe_type_arguments().as_ref(),
             );
             visit_node(&mut cb_node, Some(&*node.attributes));
         }
@@ -1127,12 +1128,14 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             }
         }
         Node::JSDocSignature(node) => {
-            node.type_parameters.as_ref().map(|type_parameters| {
-                for_each(type_parameters, |node, _| {
-                    cb_node(node);
-                    Option::<()>::None
-                })
-            });
+            node.maybe_type_parameters()
+                .as_ref()
+                .map(|type_parameters| {
+                    for_each(type_parameters, |node, _| {
+                        cb_node(node);
+                        Option::<()>::None
+                    })
+                });
             for_each(&node.parameters, |node, _| {
                 cb_node(node);
                 Option::<()>::None
@@ -1148,6 +1151,6 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
         Node::PartiallyEmittedExpression(node) => {
             visit_node(&mut cb_node, Some(&*node.expression));
         }
-        _ => unimplemented!(),
+        _ => (),
     }
 }

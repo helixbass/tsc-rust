@@ -16,13 +16,14 @@ use crate::{
     is_module_block, is_named_declaration, is_private_identifier, is_signed_numeric_literal,
     is_source_file, is_string_or_numeric_literal_like, is_type_alias_declaration, length,
     maybe_for_each, maybe_set_parent, node_has_name, node_is_missing, set_parent_recursive,
-    token_to_string, unescape_leading_underscores, AssignmentDeclarationKind, CompilerOptions,
-    Debug_, Diagnostic, DiagnosticRelatedInformation, Diagnostics, FlowFlags, FlowNode, FlowStart,
-    ModifierFlags, NodeFlags, NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol,
-    SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table,
-    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_property_name_literal,
-    object_allocator, set_parent, set_value_declaration, BaseSymbol, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    token_to_string, unescape_leading_underscores, AssignmentDeclarationKind,
+    BindBinaryExpressionFlow, CompilerOptions, Debug_, Diagnostic, DiagnosticRelatedInformation,
+    Diagnostics, FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
+    SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_rc,
+    create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
+    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
+    InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags,
+    SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -290,7 +291,8 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Rc<CompilerOptions>
 }
 
 #[allow(non_snake_case)]
-pub(super) struct BinderType {
+pub(crate) struct BinderType {
+    pub(super) _rc_wrapper: RefCell<Option<Rc<BinderType>>>,
     pub(super) file: RefCell<Option<Rc</*SourceFile*/ Node>>>,
     pub(super) options: RefCell<Option<Rc<CompilerOptions>>>,
     pub(super) language_version: Cell<Option<ScriptTarget>>,
@@ -327,11 +329,12 @@ pub(super) struct BinderType {
 
     pub(super) unreachable_flow: RefCell<Rc<FlowNode>>,
     pub(super) reported_unreachable_flow: RefCell<Rc<FlowNode>>,
-    // bind_binary_expression_flow: RefCell<...>,
+    pub(super) bind_binary_expression_flow: RefCell<Option<Rc<BindBinaryExpressionFlow>>>,
 }
 
-pub(super) fn create_binder() -> BinderType {
-    BinderType {
+pub(super) fn create_binder() -> Rc<BinderType> {
+    let wrapped = Rc::new(BinderType {
+        _rc_wrapper: RefCell::new(None),
         file: RefCell::new(None),
         options: RefCell::new(None),
         language_version: Cell::new(None),
@@ -365,12 +368,21 @@ pub(super) fn create_binder() -> BinderType {
         reported_unreachable_flow: RefCell::new(Rc::new(
             FlowStart::new(FlowFlags::Unreachable, None).into(),
         )),
-    }
+        bind_binary_expression_flow: RefCell::new(None),
+    });
+    *wrapped._rc_wrapper.borrow_mut() = Some(wrapped.clone());
+    *wrapped.bind_binary_expression_flow.borrow_mut() =
+        Some(Rc::new(wrapped.create_bind_binary_expression_flow()));
+    wrapped
 }
 
 impl BinderType {
     pub(super) fn call(&self, f: &Node, opts: Rc<CompilerOptions>) {
         self.bind_source_file(f, opts);
+    }
+
+    pub(super) fn rc_wrapper(&self) -> Rc<Self> {
+        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     pub(super) fn file(&self) -> Rc<Node> {
@@ -676,6 +688,10 @@ impl BinderType {
         self.reported_unreachable_flow.borrow().clone()
     }
 
+    pub(super) fn bind_binary_expression_flow(&self) -> Rc<BindBinaryExpressionFlow> {
+        self.bind_binary_expression_flow.borrow().clone().unwrap()
+    }
+
     pub(super) fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Rc<CompilerOptions>) {
         self.set_file(Some(f.node_wrapper()));
         self.set_options(Some(opts.clone()));
@@ -727,7 +743,7 @@ impl BinderType {
         opts: &CompilerOptions,
     ) -> bool {
         let file_as_source_file = file.as_source_file();
-        if get_strict_option_value(opts, "always_strict")
+        if get_strict_option_value(opts, "alwaysStrict")
             && !file_as_source_file.is_declaration_file()
         {
             true
@@ -752,16 +768,16 @@ impl BinderType {
         symbol.set_flags(symbol.flags() | symbol_flags);
 
         node.set_symbol(symbol.symbol_wrapper());
-        let declarations = append_if_unique(
-            symbol.maybe_declarations().as_ref().map(Clone::clone),
-            node.node_wrapper(),
-        );
-        symbol.set_declarations(declarations);
+        let mut symbol_declarations = symbol.maybe_declarations_mut();
+        if symbol_declarations.is_none() {
+            *symbol_declarations = Some(vec![]);
+        }
+        append_if_unique_rc(symbol_declarations.as_mut().unwrap(), &node.node_wrapper());
 
         if symbol_flags.intersects(
             SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,
         ) {
-            let mut exports = symbol.maybe_exports();
+            let mut exports = symbol.maybe_exports_mut();
             if exports.is_none() {
                 *exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
             }
@@ -982,7 +998,7 @@ impl BinderType {
                             {
                                 &Diagnostics::Cannot_redeclare_block_scoped_variable_0
                             } else {
-                                &Diagnostics::Duplicate_identifier_0
+                                &*Diagnostics::Duplicate_identifier_0
                             };
                             let mut message_needs_name = true;
 
@@ -997,7 +1013,7 @@ impl BinderType {
                             if length(symbol_present.maybe_declarations().as_deref()) > 0 {
                                 if is_default_export {
                                     message =
-                                        &Diagnostics::A_module_cannot_have_multiple_default_exports;
+                                        &*Diagnostics::A_module_cannot_have_multiple_default_exports;
                                     message_needs_name = false;
                                     multiple_default_exports = true;
                                 } else {
@@ -1008,7 +1024,7 @@ impl BinderType {
                                                 Some(true)
                                             ))
                                     {
-                                        message = &Diagnostics::A_module_cannot_have_multiple_default_exports;
+                                        message = &*Diagnostics::A_module_cannot_have_multiple_default_exports;
                                         message_needs_name = false;
                                         multiple_default_exports = true;
                                     }

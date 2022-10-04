@@ -1,18 +1,18 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::RefCell;
+use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
     BaseSignatureDeclaration, BaseVariableLikeDeclaration, FlowNode, HasExpressionInterface,
-    HasTypeInterface, Node, NodeArray, SyntaxKind,
+    HasQuestionTokenInterface, HasTypeInterface, Node, NodeArray, SyntaxKind, Type,
 };
 use local_macros::ast_type;
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct ConstructorDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -40,7 +40,7 @@ impl SemicolonClassElement {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct GetAccessorDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -56,7 +56,7 @@ impl GetAccessorDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct SetAccessorDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -185,6 +185,22 @@ impl ParameterDeclaration {
     }
 }
 
+pub trait HasDotDotDotTokenInterface {
+    fn maybe_dot_dot_dot_token(&self) -> Option<Rc<Node>>;
+}
+
+impl HasDotDotDotTokenInterface for ParameterDeclaration {
+    fn maybe_dot_dot_dot_token(&self) -> Option<Rc<Node>> {
+        self.dot_dot_dot_token.clone()
+    }
+}
+
+impl HasQuestionTokenInterface for ParameterDeclaration {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct KeywordTypeNode {
@@ -207,8 +223,8 @@ impl From<BaseNode> for KeywordTypeNode {
 #[ast_type]
 pub struct ImportTypeNode {
     _node: BaseNode,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
-    pub is_type_of: bool,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
+    is_type_of: Cell<bool>,
     pub argument: Rc<Node /*<TypeNode>*/>,
     pub qualifier: Option<Rc<Node /*<EntityName>*/>>,
 }
@@ -223,11 +239,25 @@ impl ImportTypeNode {
     ) -> Self {
         Self {
             _node: base_node,
-            type_arguments,
-            is_type_of,
+            type_arguments: RefCell::new(type_arguments),
+            is_type_of: Cell::new(is_type_of),
             argument,
             qualifier,
         }
+    }
+
+    pub fn is_type_of(&self) -> bool {
+        self.is_type_of.get()
+    }
+
+    pub fn set_is_type_of(&self, is_type_of: bool) {
+        self.is_type_of.set(is_type_of)
+    }
+}
+
+impl HasTypeArgumentsInterface for ImportTypeNode {
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -276,7 +306,10 @@ impl ConstructorTypeNode {
 }
 
 pub trait HasTypeArgumentsInterface {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray>;
+    // TODO: changed this from Option<&NodeArray> to Ref<Option<NodeArray>> (and changed everything
+    // except Identifier to have an unnecessary RefCell wrapper) because Identifier needs to mutate
+    // its type_arguments, don't know if there's "a better way"?
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>>;
 }
 
 #[derive(Debug)]
@@ -284,7 +317,7 @@ pub trait HasTypeArgumentsInterface {
 pub struct TypeReferenceNode {
     _node: BaseNode,
     pub type_name: Rc<Node /*EntityName*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
 }
 
 impl TypeReferenceNode {
@@ -296,14 +329,14 @@ impl TypeReferenceNode {
         Self {
             _node: base_node,
             type_name,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
         }
     }
 }
 
 impl HasTypeArgumentsInterface for TypeReferenceNode {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -332,6 +365,16 @@ impl TypePredicateNode {
     }
 }
 
+impl HasTypeInterface for TypePredicateNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_;
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct TypeQueryNode {
@@ -348,6 +391,10 @@ impl TypeQueryNode {
     }
 }
 
+pub trait HasMembersInterface {
+    fn members(&self) -> &NodeArray;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct TypeLiteralNode {
@@ -361,6 +408,12 @@ impl TypeLiteralNode {
             _node: base_node,
             members,
         }
+    }
+}
+
+impl HasMembersInterface for TypeLiteralNode {
+    fn members(&self) -> &NodeArray {
+        &self.members
     }
 }
 
@@ -434,6 +487,18 @@ impl HasTypeInterface for NamedTupleMember {
     }
 }
 
+impl HasDotDotDotTokenInterface for NamedTupleMember {
+    fn maybe_dot_dot_dot_token(&self) -> Option<Rc<Node>> {
+        self.dot_dot_dot_token.clone()
+    }
+}
+
+impl HasQuestionTokenInterface for NamedTupleMember {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct OptionalTypeNode {
@@ -447,6 +512,16 @@ impl OptionalTypeNode {
             _node: base_node,
             type_,
         }
+    }
+}
+
+impl HasTypeInterface for OptionalTypeNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 
@@ -684,6 +759,12 @@ impl HasTypeInterface for MappedTypeNode {
     }
 }
 
+impl HasQuestionTokenInterface for MappedTypeNode {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct LiteralTypeNode {
@@ -799,6 +880,11 @@ impl HasExpressionInterface for PartiallyEmittedExpression {
     }
 }
 
+pub trait UnaryExpressionInterface {
+    fn operator(&self) -> SyntaxKind;
+    fn operand(&self) -> Rc<Node>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct PrefixUnaryExpression {
@@ -817,6 +903,15 @@ impl PrefixUnaryExpression {
     }
 }
 
+impl UnaryExpressionInterface for PrefixUnaryExpression {
+    fn operator(&self) -> SyntaxKind {
+        self.operator
+    }
+    fn operand(&self) -> Rc<Node> {
+        self.operand.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct PostfixUnaryExpression {
@@ -832,6 +927,15 @@ impl PostfixUnaryExpression {
             operand,
             operator,
         }
+    }
+}
+
+impl UnaryExpressionInterface for PostfixUnaryExpression {
+    fn operator(&self) -> SyntaxKind {
+        self.operator
+    }
+    fn operand(&self) -> Rc<Node> {
+        self.operand.clone()
     }
 }
 
@@ -943,4 +1047,23 @@ impl YieldExpression {
             asterisk_token,
         }
     }
+}
+
+impl HasExpressionInterface for YieldExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone().unwrap()
+    }
+
+    fn maybe_expression(&self) -> Option<Rc<Node>> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct SyntheticExpression {
+    _node: BaseNode,
+    pub is_spread: bool,
+    pub type_: Rc<Type>,
+    pub tuple_name_source: Option<Rc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
 }

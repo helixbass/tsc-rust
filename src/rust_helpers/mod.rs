@@ -1,9 +1,9 @@
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::mem;
-
-use crate::SourceTextAsChars;
+use std::rc::Rc;
 
 pub mod number;
+pub mod sys;
 pub mod weak_self;
 
 pub fn is_same_variant<TEnum>(value: &TEnum, other_value: &TEnum) -> bool {
@@ -14,16 +14,33 @@ pub fn last_index_of<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
     slice: &[TItem],
     item: &TItem,
     mut comparer: TComparer,
-    position: usize,
-) -> isize {
-    let mut index = position;
-    while index >= 0 {
+    position: Option<usize>,
+) -> Option<usize> {
+    if slice.is_empty() {
+        return None;
+    }
+    let mut index = position.unwrap_or_else(|| slice.len() - 1);
+    loop {
         if comparer(&slice[index], item) {
-            return index.try_into().unwrap();
+            return Some(index);
+        }
+        if index == 0 {
+            return None;
         }
         index -= 1;
     }
-    -1
+}
+
+pub fn last_index_of_returns_isize<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
+    slice: &[TItem],
+    item: &TItem,
+    comparer: TComparer,
+    position: Option<usize>,
+) -> isize {
+    match last_index_of(slice, item, comparer, position) {
+        None => -1,
+        Some(value) => value.try_into().unwrap(),
+    }
 }
 
 pub fn index_of<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
@@ -31,12 +48,67 @@ pub fn index_of<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
     item: &TItem,
     mut comparer: TComparer,
 ) -> isize {
-    let mut index = 0;
-    while index <= slice.len() - 1 {
-        if comparer(&slice[index], item) {
-            return index.try_into().unwrap();
+    let mut index: isize = 0;
+    while index <= isize::try_from(slice.len()).unwrap() - 1 {
+        if comparer(&slice[usize::try_from(index).unwrap()], item) {
+            return index;
         }
         index += 1;
     }
     -1
+}
+
+pub fn index_of_rc<TItem>(slice: &[Rc<TItem>], item: &Rc<TItem>) -> isize {
+    index_of(slice, item, |a: &Rc<TItem>, b: &Rc<TItem>| Rc::ptr_eq(a, b))
+}
+
+pub fn are_option_rcs_equal<TItem>(a: Option<&Rc<TItem>>, b: Option<&Rc<TItem>>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => Rc::ptr_eq(a, b),
+        _ => false,
+    }
+}
+
+pub fn are_rc_slices_equal<TItem>(a: &[Rc<TItem>], b: &[Rc<TItem>]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    for (index, a_item) in a.iter().enumerate() {
+        if !Rc::ptr_eq(a_item, &b[index]) {
+            return false;
+        }
+    }
+    true
+}
+
+// https://stackoverflow.com/a/38406885
+pub fn capitalize(string: &str) -> String {
+    let mut c = string.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
+pub fn uncapitalize(string: &str) -> String {
+    let mut c = string.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_lowercase().collect::<String>() + c.as_str(),
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum UsizeOrNegativeInfinity {
+    Usize(usize),
+    NegativeInfinity,
+}
+
+pub fn push_or_replace<TValue>(vec: &mut Vec<TValue>, index: usize, value: TValue) {
+    if index >= vec.len() {
+        vec.push(value);
+    } else {
+        vec[index] = value;
+    }
 }

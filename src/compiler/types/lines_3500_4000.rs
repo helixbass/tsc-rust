@@ -2,16 +2,74 @@
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::io;
+use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
     BaseNode, BaseTextRange, BuildInfo, CompilerOptions, Diagnostic, EmitHelper, FileReference,
     FlowNode, LanguageVariant, Node, NodeArray, Path, PatternAmbientModule, ReadonlyPragmaMap,
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
-    SymbolTable, TypeCheckerHost,
+    SymbolTable, TypeChecker,
 };
-use crate::{ModeAwareCache, PragmaContext, __String};
-use local_macros::ast_type;
+use crate::{
+    ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
+    CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
+    DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue, ModeAwareCache,
+    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    MultiMap, PackageId, ParseConfigFileHost, PragmaContext, RedirectTargetsMap,
+    ResolvedProjectReference, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
+    Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+};
+use local_macros::{ast_type, enum_unwrapped};
+
+#[derive(Clone, Debug)]
+pub enum FlowType {
+    Type(Rc<Type>),
+    IncompleteType(IncompleteType),
+}
+
+impl FlowType {
+    pub fn flags(&self) -> TypeFlags {
+        match self {
+            Self::Type(value) => value.flags(),
+            Self::IncompleteType(value) => value.flags,
+        }
+    }
+
+    pub fn as_incomplete_type(&self) -> &IncompleteType {
+        enum_unwrapped!(self, [FlowType, IncompleteType])
+    }
+
+    pub fn as_type(&self) -> &Rc<Type> {
+        enum_unwrapped!(self, [FlowType, Type])
+    }
+}
+
+impl From<Rc<Type>> for FlowType {
+    fn from(value: Rc<Type>) -> Self {
+        Self::Type(value)
+    }
+}
+
+impl From<IncompleteType> for FlowType {
+    fn from(value: IncompleteType) -> Self {
+        Self::IncompleteType(value)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct IncompleteType {
+    pub flags: TypeFlags,
+    pub type_: Rc<Type>,
+}
+
+impl IncompleteType {
+    pub fn new(flags: TypeFlags, type_: Rc<Type>) -> Self {
+        Self { flags, type_ }
+    }
+}
 
 pub type SourceTextAsChars = Vec<char>;
 
@@ -41,8 +99,8 @@ pub fn text_str_num_chars(text: &str, start: usize, end: usize) -> usize {
 
 #[derive(Debug)]
 pub struct AmdDependency {
-    path: String,
-    name: Option<String>,
+    pub path: String,
+    pub name: Option<String>,
 }
 
 pub trait SourceFileLike {
@@ -58,8 +116,14 @@ pub trait SourceFileLike {
     ) -> Option<usize>;
 }
 
+#[derive(Debug)]
+pub struct RedirectInfo {
+    pub redirect_target: Rc<Node /*SourceFile*/>,
+    pub undirected: Rc<Node /*SourceFile*/>,
+}
+
 pub trait HasStatementsInterface {
-    fn statements(&self) -> &[Rc<Node>];
+    fn statements(&self) -> &NodeArray;
 }
 
 #[derive(Debug)]
@@ -74,8 +138,13 @@ pub struct SourceFile {
     path: RefCell<Option<Path>>,
     text: RefCell<String>,
     text_as_chars: RefCell<SourceTextAsChars>,
+    resolved_path: RefCell<Option<Path>>,
+    original_file_name: RefCell<Option<String>>,
+
+    redirect_info: RefCell<Option<RedirectInfo>>,
 
     amd_dependencies: RefCell<Option<Vec<AmdDependency>>>,
+    module_name: RefCell<Option<String>>,
     referenced_files: RefCell<Option<Vec<FileReference>>>,
     type_reference_directives: RefCell<Option<Vec<FileReference>>>,
     lib_reference_directives: RefCell<Option<Vec<FileReference>>>,
@@ -85,6 +154,8 @@ pub struct SourceFile {
     has_no_default_lib: Cell<bool>,
 
     language_version: Cell<ScriptTarget>,
+
+    implied_node_format: Cell<Option<ModuleKind>>,
 
     script_kind: Cell<ScriptKind>,
 
@@ -107,13 +178,26 @@ pub struct SourceFile {
     line_map: RefCell<Option<Vec<usize>>>,
     classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
     comment_directives: RefCell<Option<Vec<CommentDirective>>>,
-    resolved_modules: RefCell<Option<ModeAwareCache<Rc<ResolvedModuleFull /*| undefined*/>>>>,
+    resolved_modules:
+        RefCell<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
-        RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
-    pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
+        RefCell<Option<ModeAwareCache<Option<Rc<ResolvedTypeReferenceDirective>>>>>,
+    imports: RefCell<Option<Vec<Rc<Node /*StringLiteralLike*/>>>>,
+    module_augmentations: RefCell<Option<Vec<Rc<Node /*StringLiteral | Identifier*/>>>>,
+    pattern_ambient_modules: RefCell<Option<Vec<Rc<PatternAmbientModule>>>>,
+    ambient_module_names: RefCell<Option<Vec<String>>>,
+    check_js_directive: RefCell<Option<CheckJsDirective>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
+    local_jsx_namespace: RefCell<Option<__String>>,
+    local_jsx_fragment_namespace: RefCell<Option<__String>>,
+    local_jsx_factory: RefCell<Option<Rc<Node>>>,
+    local_jsx_fragment_factory: RefCell<Option<Rc<Node>>>,
 
     end_flow_node: RefCell<Option<Rc<FlowNode>>>,
+
+    // TsConfigSourceFile
+    extended_source_files: RefCell<Option<Vec<String>>>,
+    config_file_specs: RefCell<Option<Rc<ConfigFileSpecs>>>,
 }
 
 impl SourceFile {
@@ -139,7 +223,11 @@ impl SourceFile {
             path: RefCell::new(None),
             text: RefCell::new(text),
             text_as_chars: RefCell::new(text_as_chars),
+            resolved_path: RefCell::new(None),
+            original_file_name: RefCell::new(None),
+            redirect_info: RefCell::new(None),
             amd_dependencies: RefCell::new(None),
+            module_name: RefCell::new(None),
             referenced_files: RefCell::new(None),
             type_reference_directives: RefCell::new(None),
             lib_reference_directives: RefCell::new(None),
@@ -154,6 +242,7 @@ impl SourceFile {
             line_map: RefCell::new(None),
             classifiable_names: RefCell::new(None),
             language_version: Cell::new(language_version),
+            implied_node_format: Cell::new(None),
             language_variant: Cell::new(language_variant),
             script_kind: Cell::new(script_kind),
             external_module_indicator: RefCell::new(None),
@@ -164,9 +253,19 @@ impl SourceFile {
             comment_directives: RefCell::new(None),
             resolved_modules: RefCell::new(None),
             resolved_type_reference_directive_names: RefCell::new(None),
+            imports: RefCell::new(None),
+            module_augmentations: RefCell::new(None),
             pattern_ambient_modules: RefCell::new(None),
+            ambient_module_names: RefCell::new(None),
             pragmas: RefCell::new(None),
+            check_js_directive: RefCell::new(None),
+            local_jsx_namespace: RefCell::new(None),
+            local_jsx_fragment_namespace: RefCell::new(None),
+            local_jsx_factory: RefCell::new(None),
+            local_jsx_fragment_factory: RefCell::new(None),
             end_flow_node: RefCell::new(None),
+            extended_source_files: RefCell::new(None),
+            config_file_specs: RefCell::new(None),
         }
     }
 
@@ -182,6 +281,10 @@ impl SourceFile {
         self.path.borrow()
     }
 
+    pub fn path(&self) -> Ref<Path> {
+        Ref::map(self.path.borrow(), |option| option.as_ref().unwrap())
+    }
+
     pub fn set_path(&self, path: Path) {
         *self.path.borrow_mut() = Some(path);
     }
@@ -189,6 +292,32 @@ impl SourceFile {
     pub fn set_text(&self, text: String) {
         *self.text_as_chars.borrow_mut() = text.chars().collect();
         *self.text.borrow_mut() = text;
+    }
+
+    pub fn maybe_resolved_path(&self) -> Ref<Option<Path>> {
+        self.resolved_path.borrow()
+    }
+
+    pub fn set_resolved_path(&self, resolved_path: Option<Path>) {
+        *self.resolved_path.borrow_mut() = resolved_path;
+    }
+
+    pub fn maybe_original_file_name(&self) -> Ref<Option<String>> {
+        self.original_file_name.borrow()
+    }
+
+    pub fn original_file_name(&self) -> Ref<String> {
+        Ref::map(self.original_file_name.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_original_file_name(&self, original_file_name: Option<String>) {
+        *self.original_file_name.borrow_mut() = original_file_name;
+    }
+
+    pub fn maybe_redirect_info(&self) -> RefMut<Option<RedirectInfo>> {
+        self.redirect_info.borrow_mut()
     }
 
     pub fn has_no_default_lib(&self) -> bool {
@@ -225,6 +354,14 @@ impl SourceFile {
         *self.amd_dependencies.borrow_mut() = Some(amd_dependencies);
     }
 
+    pub fn maybe_module_name(&self) -> RefMut<Option<String>> {
+        self.module_name.borrow_mut()
+    }
+
+    pub fn maybe_referenced_files(&self) -> Ref<Option<Vec<FileReference>>> {
+        self.referenced_files.borrow()
+    }
+
     pub fn referenced_files(&self) -> Ref<Vec<FileReference>> {
         Ref::map(self.referenced_files.borrow(), |option| {
             option.as_ref().unwrap()
@@ -235,6 +372,10 @@ impl SourceFile {
         *self.referenced_files.borrow_mut() = Some(referenced_files);
     }
 
+    pub fn maybe_type_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
+        self.type_reference_directives.borrow()
+    }
+
     pub fn type_reference_directives(&self) -> Ref<Vec<FileReference>> {
         Ref::map(self.type_reference_directives.borrow(), |option| {
             option.as_ref().unwrap()
@@ -243,6 +384,10 @@ impl SourceFile {
 
     pub fn set_type_reference_directives(&self, type_reference_directives: Vec<FileReference>) {
         *self.type_reference_directives.borrow_mut() = Some(type_reference_directives);
+    }
+
+    pub fn maybe_lib_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
+        self.lib_reference_directives.borrow()
     }
 
     pub fn lib_reference_directives(&self) -> Ref<Vec<FileReference>> {
@@ -269,6 +414,14 @@ impl SourceFile {
 
     pub fn set_is_declaration_file(&self, is_declaration_file: bool) {
         self.is_declaration_file.set(is_declaration_file);
+    }
+
+    pub(crate) fn maybe_implied_node_format(&self) -> Option<ModuleKind> {
+        self.implied_node_format.get()
+    }
+
+    pub(crate) fn set_implied_node_format(&self, implied_node_format: Option<ModuleKind>) {
+        self.implied_node_format.set(implied_node_format);
     }
 
     pub(crate) fn maybe_external_module_indicator(&self) -> Option<Rc<Node>> {
@@ -387,18 +540,40 @@ impl SourceFile {
         *self.comment_directives.borrow_mut() = comment_directives;
     }
 
-    pub fn maybe_resolved_modules(&self) -> RefMut<Option<ModeAwareCache<Rc<ResolvedModuleFull>>>> {
+    pub fn maybe_resolved_modules(
+        &self,
+    ) -> RefMut<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull>>>>> {
         self.resolved_modules.borrow_mut()
     }
 
     pub fn maybe_resolved_type_reference_directive_names(
         &self,
-    ) -> RefMut<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective>>>> {
+    ) -> RefMut<Option<ModeAwareCache<Option<Rc<ResolvedTypeReferenceDirective>>>>> {
         self.resolved_type_reference_directive_names.borrow_mut()
     }
 
-    pub fn pattern_ambient_modules_mut(&self) -> RefMut<Option<Vec<PatternAmbientModule>>> {
+    pub fn maybe_imports(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+        self.imports.borrow()
+    }
+
+    pub fn maybe_imports_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.imports.borrow_mut()
+    }
+
+    pub fn maybe_module_augmentations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.module_augmentations.borrow_mut()
+    }
+
+    pub fn maybe_pattern_ambient_modules(&self) -> RefMut<Option<Vec<Rc<PatternAmbientModule>>>> {
         self.pattern_ambient_modules.borrow_mut()
+    }
+
+    pub fn maybe_ambient_module_names(&self) -> RefMut<Option<Vec<String>>> {
+        self.ambient_module_names.borrow_mut()
+    }
+
+    pub fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>> {
+        self.check_js_directive.borrow_mut()
     }
 
     pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {
@@ -409,8 +584,40 @@ impl SourceFile {
         *self.pragmas.borrow_mut() = Some(pragmas);
     }
 
+    pub fn maybe_local_jsx_namespace(&self) -> RefMut<Option<__String>> {
+        self.local_jsx_namespace.borrow_mut()
+    }
+
+    pub fn maybe_local_jsx_fragment_namespace(&self) -> RefMut<Option<__String>> {
+        self.local_jsx_fragment_namespace.borrow_mut()
+    }
+
+    pub fn maybe_local_jsx_factory(&self) -> RefMut<Option<Rc<Node>>> {
+        self.local_jsx_factory.borrow_mut()
+    }
+
+    pub fn maybe_local_jsx_fragment_factory(&self) -> RefMut<Option<Rc<Node>>> {
+        self.local_jsx_fragment_factory.borrow_mut()
+    }
+
     pub fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
         *self.end_flow_node.borrow_mut() = end_flow_node;
+    }
+
+    pub fn maybe_extended_source_files(&self) -> RefMut<Option<Vec<String>>> {
+        self.extended_source_files.borrow_mut()
+    }
+
+    pub fn maybe_config_file_specs(&self) -> Ref<Option<Rc<ConfigFileSpecs>>> {
+        self.config_file_specs.borrow()
+    }
+
+    pub fn set_config_file_specs(&self, config_file_specs: Option<Rc<ConfigFileSpecs>>) {
+        *self.config_file_specs.borrow_mut() = config_file_specs;
+    }
+
+    pub fn maybe_end_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
+        self.end_flow_node.borrow_mut()
     }
 
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
@@ -449,10 +656,50 @@ impl SourceFileLike for SourceFile {
     }
 }
 
-impl PragmaContext for SourceFile {}
+impl PragmaContext for SourceFile {
+    fn language_version(&self) -> ScriptTarget {
+        self.language_version()
+    }
+
+    fn maybe_pragmas(&self) -> RefMut<Option<ReadonlyPragmaMap>> {
+        self.pragmas.borrow_mut()
+    }
+
+    fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>> {
+        self.check_js_directive.borrow_mut()
+    }
+
+    fn maybe_referenced_files(&self) -> RefMut<Option<Vec<FileReference>>> {
+        self.referenced_files.borrow_mut()
+    }
+
+    fn maybe_type_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
+        self.type_reference_directives.borrow_mut()
+    }
+
+    fn maybe_lib_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
+        self.lib_reference_directives.borrow_mut()
+    }
+
+    fn maybe_amd_dependencies(&self) -> RefMut<Option<Vec<AmdDependency>>> {
+        self.amd_dependencies.borrow_mut()
+    }
+
+    fn maybe_has_no_default_lib(&self) -> Option<bool> {
+        Some(self.has_no_default_lib.get())
+    }
+
+    fn set_has_no_default_lib(&self, has_no_default_lib: bool) {
+        self.has_no_default_lib.set(has_no_default_lib);
+    }
+
+    fn maybe_module_name(&self) -> RefMut<Option<String>> {
+        self.module_name.borrow_mut()
+    }
+}
 
 impl HasStatementsInterface for SourceFile {
-    fn statements(&self) -> &[Rc<Node>] {
+    fn statements(&self) -> &NodeArray {
         &self.statements
     }
 }
@@ -468,6 +715,8 @@ pub enum CommentDirectiveType {
     ExpectError,
     Ignore,
 }
+
+pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Rc<Symbol>>;
 
 #[derive(Debug)]
 #[ast_type]
@@ -660,7 +909,242 @@ pub trait ScriptReferenceHost {
     fn get_current_directory(&self) -> String;
 }
 
-pub trait Program: TypeCheckerHost {
-    fn get_syntactic_diagnostics(&mut self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>;
-    fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>>;
+pub trait ParseConfigHost {
+    fn use_case_sensitive_file_names(&self) -> bool;
+
+    fn read_directory(
+        &self,
+        root_dir: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: &[String],
+        depth: Option<usize>,
+    ) -> Vec<String>;
+
+    fn file_exists(&self, path: &str) -> bool;
+
+    fn read_file(&self, path: &str) -> io::Result<String>;
+    fn trace(&self, s: &str) {}
+    fn is_trace_supported(&self) -> bool;
+    fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
+}
+
+pub struct ResolvedConfigFileName(String);
+
+impl ResolvedConfigFileName {
+    pub fn new(string: String) -> Self {
+        string.into()
+    }
+}
+
+impl Deref for ResolvedConfigFileName {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<String> for ResolvedConfigFileName {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+pub trait WriteFileCallback {
+    fn call(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&dyn FnMut(String)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    );
+}
+
+pub trait CancellationToken {
+    fn is_cancellation_requested(&self) -> bool;
+
+    fn throw_if_cancellation_requested(&self);
+}
+
+pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug {}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum FileIncludeKind {
+    RootFile,
+    SourceFromProjectReference,
+    OutputFromProjectReference,
+    Import,
+    ReferenceFile,
+    TypeReferenceDirective,
+    LibFile,
+    LibReferenceDirective,
+    AutomaticTypeDirectiveFile,
+}
+
+#[derive(Clone, Debug)]
+pub struct RootFile {
+    pub kind: FileIncludeKind, /*FileIncludeKind.RootFile*/
+    pub index: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct LibFile {
+    pub kind: FileIncludeKind, /*FileIncludeKind.LibFile*/
+    pub index: Option<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ProjectReferenceFile {
+    pub kind: FileIncludeKind, /*ProjectReferenceFileKind*/
+    pub index: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct ReferencedFile {
+    pub kind: FileIncludeKind, /*ReferencedFileKind*/
+    pub file: Path,
+    pub index: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct AutomaticTypeDirectiveFile {
+    pub kind: FileIncludeKind, /*FileIncludeKind.AutomaticTypeDirectiveFile*/
+    pub type_reference: String,
+    pub package_id: Option<PackageId>,
+}
+
+#[derive(Clone, Debug)]
+pub enum FileIncludeReason {
+    RootFile(RootFile),
+    LibFile(LibFile),
+    ProjectReferenceFile(ProjectReferenceFile),
+    ReferencedFile(ReferencedFile),
+    AutomaticTypeDirectiveFile(AutomaticTypeDirectiveFile),
+}
+
+impl FileIncludeReason {
+    pub fn kind(&self) -> FileIncludeKind {
+        match self {
+            Self::RootFile(value) => value.kind,
+            Self::LibFile(value) => value.kind,
+            Self::ProjectReferenceFile(value) => value.kind,
+            Self::ReferencedFile(value) => value.kind,
+            Self::AutomaticTypeDirectiveFile(value) => value.kind,
+        }
+    }
+
+    pub fn as_referenced_file(&self) -> &ReferencedFile {
+        enum_unwrapped!(self, [FileIncludeReason, ReferencedFile])
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum FilePreprocessingDiagnosticsKind {
+    FilePreprocessingReferencedDiagnostic,
+    FilePreprocessingFileExplainingDiagnostic,
+}
+
+pub struct FilePreprocessingReferencedDiagnostic {
+    pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic*/
+    pub reason: ReferencedFile,
+    pub diagnostic: &'static DiagnosticMessage,
+    pub args: Option<Vec<String>>,
+}
+
+pub struct FilePreprocessingFileExplainingDiagnostic {
+    pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic*/
+    pub file: Option<Path>,
+    pub file_processing_reason: FileIncludeReason,
+    pub diagnostic: &'static DiagnosticMessage,
+    pub args: Option<Vec<String>>,
+}
+
+pub enum FilePreprocessingDiagnostics {
+    FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic),
+    FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic),
+}
+
+pub struct Program {
+    pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
+    pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
+    pub(crate) options: Rc<CompilerOptions>,
+    pub(crate) processing_default_lib_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
+    pub(crate) processing_other_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
+    pub(crate) files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
+    pub(crate) symlinks: RefCell<Option<Rc<SymlinkCache>>>,
+    pub(crate) common_source_directory: RefCell<Option<String>>,
+    pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
+    pub(crate) no_diagnostics_type_checker: RefCell<Option<Rc<TypeChecker>>>,
+    pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
+    pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
+    pub(crate) file_reasons: Rc<RefCell<MultiMap<Path, FileIncludeReason>>>,
+    pub(crate) cached_bind_and_check_diagnostics_for_file: RefCell<DiagnosticCache>,
+    pub(crate) cached_declaration_diagnostics_for_file: RefCell<DiagnosticCache>,
+
+    pub(crate) resolved_type_reference_directives:
+        RefCell<HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>>,
+    pub(crate) file_processing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
+
+    pub(crate) max_node_module_js_depth: usize,
+    pub(crate) current_node_modules_depth: Cell<usize>,
+
+    pub(crate) modules_with_elided_imports: RefCell<HashMap<String, bool>>,
+
+    pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
+
+    pub(crate) old_program: RefCell<Option<Rc<Program>>>,
+    pub(crate) host: RefCell<Option<Rc<dyn CompilerHost>>>,
+    pub(crate) config_parsing_host: RefCell<Option<Rc<dyn ParseConfigFileHost>>>,
+
+    pub(crate) skip_default_lib: Cell<Option<bool>>,
+    pub(crate) get_default_library_file_name_memoized: RefCell<Option<String>>,
+    pub(crate) default_library_path: RefCell<Option<String>>,
+    pub(crate) program_diagnostics: RefCell<Option<DiagnosticCollection>>,
+    pub(crate) current_directory: RefCell<Option<String>>,
+    pub(crate) supported_extensions: RefCell<Option<Vec<Vec<Extension>>>>,
+    pub(crate) supported_extensions_with_json_if_resolve_json_module:
+        RefCell<Option<Vec<Vec<Extension>>>>,
+
+    pub(crate) has_emit_blocking_diagnostics: RefCell<Option<HashMap<Path, bool>>>,
+    pub(crate) _compiler_options_object_literal_syntax:
+        RefCell<Option<Option<Rc<Node /*ObjectLiteralExpression*/>>>>,
+    pub(crate) module_resolution_cache: RefCell<Option<Rc<ModuleResolutionCache>>>,
+    pub(crate) type_reference_directive_resolution_cache:
+        RefCell<Option<Rc<TypeReferenceDirectiveResolutionCache>>>,
+    pub(crate) actual_resolve_module_names_worker:
+        RefCell<Option<Rc<dyn ActualResolveModuleNamesWorker>>>,
+    pub(crate) actual_resolve_type_reference_directive_names_worker:
+        RefCell<Option<Rc<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>,
+
+    pub(crate) package_id_to_source_file: RefCell<Option<HashMap<String, Rc<Node /*SourceFile*/>>>>,
+    pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
+    pub(crate) redirect_targets_map: Rc<RefCell<RedirectTargetsMap>>,
+    pub(crate) uses_uri_style_node_core_modules: Cell<Option<bool>>,
+
+    pub(crate) files_by_name: RefCell<Option<HashMap<String, FilesByNameValue>>>,
+    pub(crate) missing_file_paths: RefCell<Option<Vec<Path>>>,
+    pub(crate) files_by_name_ignore_case: RefCell<Option<HashMap<String, Rc<Node /*SourceFile*/>>>>,
+
+    pub(crate) resolved_project_references:
+        RefCell<Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+    pub(crate) project_reference_redirects:
+        RefCell<Option<HashMap<Path, Option<Rc<ResolvedProjectReference>>>>>,
+    pub(crate) map_from_file_to_project_reference_redirects: RefCell<Option<HashMap<Path, Path>>>,
+    pub(crate) map_from_to_project_reference_redirect_source:
+        RefCell<Option<HashMap<Path, SourceOfProjectReferenceRedirect>>>,
+    pub(crate) use_source_of_project_reference_redirect: Cell<Option<bool>>,
+
+    pub(crate) file_exists_rc: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+    pub(crate) directory_exists_rc: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+
+    pub(crate) should_create_new_source_file: Cell<Option<bool>>,
+    pub(crate) structure_is_reused: Cell<Option<StructureIsReused>>,
+}
+
+impl fmt::Debug for Program {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Program").finish()
+    }
 }

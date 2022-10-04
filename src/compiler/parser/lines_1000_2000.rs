@@ -74,7 +74,11 @@ impl ParserType {
         );
         let source_file_as_source_file = source_file.as_source_file();
 
-        process_comment_pragmas(source_file_as_source_file, self.source_text());
+        process_comment_pragmas(
+            source_file_as_source_file,
+            self.source_text(),
+            self.source_text_as_chars(),
+        );
         let report_pragma_diagnostic = |pos: isize, end: isize, diagnostic: &DiagnosticMessage| {
             self.parse_diagnostics().push(Rc::new(
                 create_detached_diagnostic(self.file_name(), pos, end, diagnostic, None).into(),
@@ -133,7 +137,7 @@ impl ParserType {
         }
         if self.has_deprecated_tag() {
             self.set_has_deprecated_tag(false);
-            node.set_flags(NodeFlags::Deprecated);
+            node.set_flags(node.flags() | NodeFlags::Deprecated);
         }
         node
     }
@@ -1262,9 +1266,9 @@ impl ParserType {
         let msg_arg = self.scanner().get_token_text();
 
         let default_message = if is_reserved_word {
-            &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here
+            &*Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here
         } else {
-            &Diagnostics::Identifier_expected
+            &*Diagnostics::Identifier_expected
         };
 
         self.create_missing_node(
@@ -1329,8 +1333,8 @@ impl ParserType {
         ) {
             let node = self.parse_literal_node();
             let node_as_literal_like_node = node.as_literal_like_node();
-            node_as_literal_like_node
-                .set_text(self.intern_identifier(&*node_as_literal_like_node.text()));
+            let text = self.intern_identifier(&*node_as_literal_like_node.text());
+            node_as_literal_like_node.set_text(text);
             return node;
         }
         if allow_computed_property_names && self.token() == SyntaxKind::OpenBracketToken {

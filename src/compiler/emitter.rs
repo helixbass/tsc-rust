@@ -1,12 +1,32 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::{RefCell, RefMut};
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
     get_literal_text, id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_,
     EmitHint, EmitTextWriter, GetLiteralTextFlags, HasTypeInterface, ListFormat,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, PrinterOptions, Symbol,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine, Printer,
+    PrinterOptions, Symbol, SyntaxKind,
 };
+
+pub(crate) fn get_output_declaration_file_name<TGetCommonSourceDirectory: FnMut() -> String>(
+    input_file_name: &str,
+    config_file: &ParsedCommandLine,
+    ignore_case: bool,
+    get_common_source_directory: Option<&mut TGetCommonSourceDirectory>,
+) -> String {
+    unimplemented!()
+}
+
+pub(crate) fn get_common_source_directory_of_config(
+    command_line: &ParsedCommandLine,
+    ignore_case: bool,
+) -> String {
+    let options = &command_line.options;
+    let file_names = &command_line.file_names;
+    unimplemented!()
+}
 
 #[derive(PartialEq, Eq)]
 enum PipelinePhase {
@@ -118,13 +138,24 @@ impl Printer {
 
     fn pipeline_emit_with_hint_worker(&mut self, mut hint: EmitHint, node: &Node) {
         if hint == EmitHint::Unspecified {
-            match node {
-                Node::Identifier(_) => return self.emit_identifier(node),
-                Node::PropertySignature(_) => return self.emit_property_signature(node),
-                Node::TypeReferenceNode(_) => return self.emit_type_reference(node),
-                Node::TypeLiteralNode(_) => return self.emit_type_literal(node),
-                Node::UnionTypeNode(_) => return self.emit_union_type(node),
-                Node::LiteralTypeNode(_) => return self.emit_literal_type(node),
+            match node.kind() {
+                SyntaxKind::Identifier => return self.emit_identifier(node),
+                SyntaxKind::PropertySignature => return self.emit_property_signature(node),
+                SyntaxKind::CallSignature => return self.emit_call_signature(node),
+                SyntaxKind::TypeReference => return self.emit_type_reference(node),
+                SyntaxKind::FunctionType => return self.emit_function_type(node),
+                SyntaxKind::ConstructorType => return self.emit_constructor_type(node),
+                SyntaxKind::TypeLiteral => return self.emit_type_literal(node),
+                SyntaxKind::ArrayType => return self.emit_array_type(node),
+                SyntaxKind::TupleType => return self.emit_tuple_type(node),
+                SyntaxKind::UnionType => return self.emit_union_type(node),
+                SyntaxKind::IntersectionType => return self.emit_intersection_type(node),
+                SyntaxKind::ConditionalType => return self.emit_conditional_type(node),
+                SyntaxKind::ParenthesizedType => return self.emit_parenthesized_type(node),
+                SyntaxKind::TypeOperator => return self.emit_type_operator(node),
+                SyntaxKind::IndexedAccessType => return self.emit_indexed_access_type(node),
+                SyntaxKind::LiteralType => return self.emit_literal_type(node),
+                SyntaxKind::ImportType => return self.emit_import_type(node),
                 _ => (),
             }
             if is_expression(node) {
@@ -147,7 +178,7 @@ impl Printer {
         if is_keyword(node.kind()) {
             return self.write_token_node(node, Printer::write_keyword);
         }
-        unimplemented!();
+        unimplemented!("hint: {:?}, kind: {:?}", hint, node.kind());
     }
 
     fn emit_literal(&self, node: &Node /*LiteralLikeNode*/, jsx_attribute_escape: bool) {
@@ -178,8 +209,23 @@ impl Printer {
         self.write_trailing_semicolon();
     }
 
+    fn emit_call_signature(&mut self, node: &Node /*CallSignature*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
+    }
+
     fn emit_type_reference(&mut self, node: &Node /*TypeReferenceNode*/) {
         self.emit(Some(&*node.as_type_reference_node().type_name));
+    }
+
+    fn emit_function_type(&mut self, node: &Node /*FunctionTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
+    }
+
+    fn emit_constructor_type(&mut self, node: &Node /*ConstructorTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
     }
 
     fn emit_type_literal(&mut self, node: &Node /*TypeLiteralNode*/) {
@@ -197,6 +243,16 @@ impl Printer {
         self.write_punctuation("}");
     }
 
+    fn emit_array_type(&mut self, node: &Node /*ArrayTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
+    }
+
+    fn emit_tuple_type(&mut self, node: &Node /*TupleTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
+    }
+
     fn emit_union_type(&mut self, node: &Node /*UnionTypeNode*/) {
         self.emit_list(
             Some(node),
@@ -205,8 +261,47 @@ impl Printer {
         );
     }
 
+    fn emit_intersection_type(&mut self, node: &Node /*IntersectionTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
+    }
+
+    fn emit_conditional_type(&mut self, node: &Node /*ConditionalTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
+    }
+
+    fn emit_parenthesized_type(&mut self, node: &Node /*ParenthesizedTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
+    }
+
+    fn emit_type_operator(&mut self, node: &Node /*TypeOperatorNode*/) {
+        let node_as_type_operator_node = node.as_type_operator_node();
+        self.write_token_text(
+            node_as_type_operator_node.operator,
+            |text| self.write_keyword(text),
+            None,
+        );
+        self.write_space();
+        self.emit(
+            Some(&*node_as_type_operator_node.type_),
+            // parenthesizer.parenthesizeMemberOfElementType
+        );
+    }
+
+    fn emit_indexed_access_type(&mut self, node: &Node /*IndexedAccessType*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
+    }
+
     fn emit_literal_type(&mut self, node: &Node /*LiteralTypeNode*/) {
         self.emit_expression(&*node.as_literal_type_node().literal);
+    }
+
+    fn emit_import_type(&mut self, node: &Node /*ImportTypeNode*/) {
+        // unimplemented!()
+        self.write_punctuation("TODO");
     }
 
     fn emit_node_with_writer(&mut self, node: Option<&Node>, writer: fn(&Printer, &str)) {
@@ -347,6 +442,23 @@ impl Printer {
 
     fn write_token_node(&self, node: &Node, writer: fn(&Printer, &str)) {
         writer(self, token_to_string(node.kind()).unwrap());
+    }
+
+    fn write_token_text<TWriter: FnMut(&str)>(
+        &self,
+        token: SyntaxKind,
+        mut writer: TWriter,
+        pos: Option<isize>,
+    ) -> Option<isize> {
+        let token_string = token_to_string(token).unwrap();
+        writer(token_string);
+        pos.map(|pos| {
+            if pos < 0 {
+                pos
+            } else {
+                pos + TryInto::<isize>::try_into(token_string.len()).unwrap()
+            }
+        })
     }
 
     fn get_text_of_node(&self, node: &Node, include_trivia: Option<bool>) -> String {

@@ -3,26 +3,34 @@
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
+use std::fmt;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseType, CompilerOptions, DiagnosticCollection, ModuleSpecifierResolutionHost, Node,
-    NodeCheckFlags, NodeId, NodeLinks, ObjectFlags, ParsedCommandLine, Path,
-    RelationComparisonResult, SymbolTable, SymbolTracker, TransformationContext,
-    TransformerFactory, Type, TypeFlags, TypeMapper, __String,
+    BaseType, CancellationTokenDebuggable, CompilerOptions, DiagnosticCollection,
+    ExportedModulesFromDeclarationEmit, ExternalEmitHelpers, ModuleKind,
+    ModuleSpecifierResolutionHost, Node, NodeCheckFlags, NodeId, NodeLinks, ObjectFlags,
+    ParsedCommandLine, Path, RawSourceMap, RelationComparisonResult, ScriptTarget, Signature,
+    SignatureFlags, SymbolTable, SymbolTracker, TransformationContext, TransformerFactory, Type,
+    TypeFlags, TypeMapper, __String,
 };
-use crate::{NodeBuilder, Number, StringOrNumber};
-use local_macros::symbol_type;
+use crate::{
+    CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
+    IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
+    PatternAmbientModule, ReverseMappedSymbol, StringOrNumber, TypeId, TypeSystemEntity,
+    TypeSystemPropertyName, VarianceFlags,
+};
+use local_macros::{enum_unwrapped, symbol_type};
 
-pub type RedirectTargetsMap = HashMap<Path, Vec<String>>;
+pub type RedirectTargetsMap = MultiMap<Path, String>;
 
 pub struct ResolvedProjectReference {
     pub command_line: ParsedCommandLine,
     pub source_file: Rc<Node /*SourceFile*/>,
-    pub references: Option<Vec<Option<ResolvedProjectReference>>>,
+    pub references: Option<Vec<Option<Rc<ResolvedProjectReference>>>>,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StructureIsReused {
     Not,
     Completely,
@@ -76,59 +84,324 @@ impl EmitTransformers {
     }
 }
 
+pub(crate) struct SourceMapEmitResult {
+    pub input_source_file_names: Vec<String>,
+    pub source_map: RawSourceMap,
+}
+
 #[allow(non_camel_case_types)]
 pub enum ExitStatus {
-    Success,
-    DiagnosticsPresent_OutputsGenerated,
+    Success = 0,
+
+    DiagnosticsPresent_OutputsSkipped = 1,
+
+    DiagnosticsPresent_OutputsGenerated = 2,
+
+    InvalidProject_OutputsSkipped = 3,
+
+    ProjectReferenceCycle_OutputsSkipped = 4,
+}
+
+impl ExitStatus {
+    pub const ProjectReferenceCycle_OutputsSkupped: ExitStatus =
+        ExitStatus::ProjectReferenceCycle_OutputsSkipped;
+}
+
+pub struct EmitResult {
+    pub emit_skipped: bool,
+    pub diagnostics: Vec<Rc<Diagnostic>>,
+    pub emitted_files: Option<Vec<String>>,
+    pub(crate) source_maps: Option<Vec<SourceMapEmitResult>>,
+    pub(crate) exported_modules_from_declaration_emit: Option<ExportedModulesFromDeclarationEmit>,
 }
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_compiler_options(&self) -> Rc<CompilerOptions>;
-    fn get_source_files(&self) -> Vec<Rc<Node>>;
+
+    fn get_source_files(&self) -> Ref<Vec<Rc<Node /*SourceFile*/>>>;
+    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
+
+    // this is to support createNodeBuilder() withContext() casting host as Program
+    fn get_common_source_directory(&self) -> Option<String> {
+        None
+    }
 }
+
+pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
 
 #[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct TypeChecker {
-    pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
-    pub Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
-    pub Type: fn(TypeFlags) -> BaseType,
+    pub(crate) host: Rc<dyn TypeCheckerHostDebuggable>,
+    pub(crate) produce_diagnostics: bool,
+    pub(crate) _rc_wrapper: RefCell<Option<Rc<TypeChecker>>>,
+    pub(crate) _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
+    pub(crate) _packages_map: RefCell<Option<HashMap<String, bool>>>,
+    pub(crate) cancellation_token: RefCell<Option<Rc<dyn CancellationTokenDebuggable>>>,
+    pub(crate) requested_external_emit_helpers: Cell<ExternalEmitHelpers>,
+    pub(crate) external_helpers_module: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
+    pub(crate) Type: fn(TypeFlags) -> BaseType,
+    pub(crate) Signature: fn(SignatureFlags) -> Signature,
     pub(crate) type_count: Cell<u32>,
+    pub(crate) symbol_count: Cell<usize>,
+    pub(crate) enum_count: Cell<usize>,
+    pub(crate) total_instantiation_count: Cell<usize>,
+    pub(crate) instantiation_count: Cell<usize>,
+    pub(crate) instantiation_depth: Cell<usize>,
+    pub(crate) inline_level: Cell<usize>,
+    pub(crate) current_node: RefCell<Option<Rc<Node>>>,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
     pub(crate) compiler_options: Rc<CompilerOptions>,
-    pub strict_null_checks: bool,
-    pub fresh_object_literal_flag: ObjectFlags,
-    pub exact_optional_property_types: bool,
-    pub node_builder: NodeBuilder,
-    pub globals: RefCell<SymbolTable>,
-    pub string_literal_types: RefCell<HashMap<String, Rc</*StringLiteralType*/ Type>>>,
-    pub number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
-    pub big_int_literal_types: RefCell<HashMap<String, Rc</*BigIntLiteralType*/ Type>>>,
-    pub unknown_symbol: Option<Rc<Symbol>>,
-    pub any_type: Option<Rc<Type>>,
-    pub error_type: Option<Rc<Type>>,
-    pub undefined_type: Option<Rc<Type>>,
-    pub null_type: Option<Rc<Type>>,
-    pub string_type: Option<Rc<Type>>,
-    pub number_type: Option<Rc<Type>>,
-    pub bigint_type: Option<Rc<Type>>,
-    pub true_type: Option<Rc<Type>>,
-    pub regular_true_type: Option<Rc<Type>>,
-    pub false_type: Option<Rc<Type>>,
-    pub regular_false_type: Option<Rc<Type>>,
-    pub boolean_type: Option<Rc<Type>>,
-    pub never_type: Option<Rc<Type>>,
-    pub number_or_big_int_type: Option<Rc<Type>>,
-    pub template_constraint_type: Option<Rc<Type>>,
-    pub global_array_type: Option<Rc<Type /*GenericType*/>>,
-    pub symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
-    pub node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
-    pub diagnostics: RefCell<DiagnosticCollection>,
-    pub assignable_relation: HashMap<String, RelationComparisonResult>,
-    pub comparable_relation: HashMap<String, RelationComparisonResult>,
+    pub(crate) language_version: ScriptTarget,
+    pub(crate) module_kind: ModuleKind,
+    pub(crate) use_define_for_class_fields: bool,
+    pub(crate) allow_synthetic_default_imports: bool,
+    pub(crate) strict_null_checks: bool,
+    pub(crate) strict_function_types: bool,
+    pub(crate) strict_bind_call_apply: bool,
+    pub(crate) strict_property_initialization: bool,
+    pub(crate) no_implicit_any: bool,
+    pub(crate) no_implicit_this: bool,
+    pub(crate) use_unknown_in_catch_variables: bool,
+    pub(crate) keyof_strings_only: bool,
+    pub(crate) fresh_object_literal_flag: ObjectFlags,
+    pub(crate) exact_optional_property_types: Option<bool>,
+    pub(crate) check_binary_expression: RefCell<Option<Rc<CheckBinaryExpression>>>,
+    pub(crate) emit_resolver: Option<Rc<dyn EmitResolverDebuggable>>,
+    pub(crate) node_builder: RefCell<Option<Rc<NodeBuilder>>>,
+    pub(crate) globals: Rc<RefCell<SymbolTable>>,
+    pub(crate) undefined_symbol: Option<Rc<Symbol>>,
+    pub(crate) global_this_symbol: Option<Rc<Symbol>>,
+    pub(crate) arguments_symbol: Option<Rc<Symbol>>,
+    pub(crate) require_symbol: Option<Rc<Symbol>>,
+    pub(crate) apparent_argument_count: Cell<Option<usize>>,
+
+    pub(crate) tuple_types: RefCell<HashMap<String, Rc</*GenericType*/ Type>>>,
+    pub(crate) union_types: RefCell<HashMap<String, Rc</*UnionType*/ Type>>>,
+    pub(crate) intersection_types: RefCell<HashMap<String, Rc<Type>>>,
+    pub(crate) string_literal_types: RefCell<HashMap<String, Rc</*StringLiteralType*/ Type>>>,
+    pub(crate) number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
+    pub(crate) big_int_literal_types: RefCell<HashMap<String, Rc</*BigIntLiteralType*/ Type>>>,
+    pub(crate) enum_literal_types: RefCell<HashMap<String, Rc</*LiteralType*/ Type>>>,
+    pub(crate) indexed_access_types: RefCell<HashMap<String, Rc</*IndexedAccessType*/ Type>>>,
+    pub(crate) template_literal_types: RefCell<HashMap<String, Rc</*TemplateLiteralType*/ Type>>>,
+    pub(crate) string_mapping_types: RefCell<HashMap<String, Rc</*StringMappingType*/ Type>>>,
+    pub(crate) substitution_types: RefCell<HashMap<String, Rc</*SubstitutionType*/ Type>>>,
+    pub(crate) subtype_reduction_cache: RefCell<HashMap<String, Vec<Rc<Type>>>>,
+    pub(crate) evolving_array_types: RefCell<HashMap<TypeId, Rc<Type /*EvolvingArrayType*/>>>,
+    pub(crate) undefined_properties: RefCell<SymbolTable>,
+
+    pub(crate) unknown_symbol: Option<Rc<Symbol>>,
+    pub(crate) resolving_symbol: Option<Rc<Symbol>>,
+    pub(crate) unresolved_symbols: RefCell<HashMap<String, Rc<Symbol /*TransientSymbol*/>>>,
+    pub(crate) error_types: RefCell<HashMap<String, Rc<Type>>>,
+
+    pub(crate) any_type: Option<Rc<Type>>,
+    pub(crate) auto_type: Option<Rc<Type>>,
+    pub(crate) wildcard_type: Option<Rc<Type>>,
+    pub(crate) error_type: Option<Rc<Type>>,
+    pub(crate) unresolved_type: Option<Rc<Type>>,
+    pub(crate) non_inferrable_any_type: Option<Rc<Type>>,
+    pub(crate) intrinsic_marker_type: Option<Rc<Type>>,
+    pub(crate) unknown_type: Option<Rc<Type>>,
+    pub(crate) non_null_unknown_type: Option<Rc<Type>>,
+    pub(crate) undefined_type: Option<Rc<Type>>,
+    pub(crate) undefined_widening_type: Option<Rc<Type>>,
+    pub(crate) optional_type: Option<Rc<Type>>,
+    pub(crate) missing_type: Option<Rc<Type>>,
+    pub(crate) null_type: Option<Rc<Type>>,
+    pub(crate) null_widening_type: Option<Rc<Type>>,
+    pub(crate) string_type: Option<Rc<Type>>,
+    pub(crate) number_type: Option<Rc<Type>>,
+    pub(crate) bigint_type: Option<Rc<Type>>,
+    pub(crate) false_type: Option<Rc<Type>>,
+    pub(crate) regular_false_type: Option<Rc<Type>>,
+    pub(crate) true_type: Option<Rc<Type>>,
+    pub(crate) regular_true_type: Option<Rc<Type>>,
+    pub(crate) boolean_type: Option<Rc<Type>>,
+    pub(crate) es_symbol_type: Option<Rc<Type>>,
+    pub(crate) void_type: Option<Rc<Type>>,
+    pub(crate) never_type: Option<Rc<Type>>,
+    pub(crate) silent_never_type: Option<Rc<Type>>,
+    pub(crate) non_inferrable_type: Option<Rc<Type>>,
+    pub(crate) implicit_never_type: Option<Rc<Type>>,
+    pub(crate) unreachable_never_type: Option<Rc<Type>>,
+    pub(crate) non_primitive_type: Option<Rc<Type>>,
+    pub(crate) string_or_number_type: Option<Rc<Type>>,
+    pub(crate) string_number_symbol_type: Option<Rc<Type>>,
+    pub(crate) keyof_constraint_type: Option<Rc<Type>>,
+    pub(crate) number_or_big_int_type: Option<Rc<Type>>,
+    pub(crate) template_constraint_type: Option<Rc<Type>>,
+
+    pub(crate) restrictive_mapper: Option<Rc<TypeMapper>>,
+    pub(crate) permissive_mapper: Option<Rc<TypeMapper>>,
+
+    pub(crate) empty_object_type: Option<Rc<Type>>,
+    pub(crate) empty_jsx_object_type: Option<Rc<Type>>,
+    pub(crate) empty_type_literal_symbol: Option<Rc<Symbol>>,
+    pub(crate) empty_type_literal_type: Option<Rc<Type>>,
+
+    pub(crate) empty_generic_type: Option<Rc<Type /*GenericType*/>>,
+
+    pub(crate) any_function_type: Option<Rc<Type>>,
+
+    pub(crate) no_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
+    pub(crate) circular_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
+    pub(crate) resolving_default_type: Option<Rc<Type>>,
+
+    pub(crate) marker_super_type: Option<Rc<Type>>,
+    pub(crate) marker_sub_type: Option<Rc<Type>>,
+    pub(crate) marker_other_type: Option<Rc<Type>>,
+
+    pub(crate) no_type_predicate: Option<Rc<TypePredicate>>,
+
+    pub(crate) any_signature: Option<Rc<Signature>>,
+    pub(crate) unknown_signature: Option<Rc<Signature>>,
+    pub(crate) resolving_signature: Option<Rc<Signature>>,
+    pub(crate) silent_never_signature: Option<Rc<Signature>>,
+
+    pub(crate) enum_number_index_info: Option<Rc<IndexInfo>>,
+
+    pub(crate) iteration_types_cache: RefCell<HashMap<String, Rc<IterationTypes>>>,
+    pub(crate) no_iteration_types: Rc<IterationTypes>,
+
+    pub(crate) any_iteration_types: Option<Rc<IterationTypes>>,
+    pub(crate) any_iteration_types_except_next: Option<Rc<IterationTypes>>,
+    pub(crate) default_iteration_types: Option<Rc<IterationTypes>>,
+
+    pub(crate) async_iteration_types_resolver: IterationTypesResolver,
+    pub(crate) sync_iteration_types_resolver: IterationTypesResolver,
+
+    pub(crate) amalgamated_duplicates: RefCell<Option<HashMap<String, DuplicateInfoForFiles>>>,
+
+    pub(crate) reverse_mapped_cache: RefCell<HashMap<String, Option<Rc<Type>>>>,
+    pub(crate) in_infer_type_for_homomorphic_mapped_type: Cell<bool>,
+    pub(crate) ambient_modules_cache: RefCell<Option<Vec<Rc<Symbol>>>>,
+
+    pub(crate) pattern_ambient_modules: RefCell<Option<Vec<Rc<PatternAmbientModule>>>>,
+    pub(crate) pattern_ambient_module_augmentations: RefCell<Option<HashMap<String, Rc<Symbol>>>>,
+
+    pub(crate) global_object_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) global_function_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) global_callable_function_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) global_newable_function_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) global_array_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) global_readonly_array_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) global_string_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) global_number_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) global_boolean_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) global_reg_exp_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) global_this_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) any_array_type: RefCell<Option<Rc<Type>>>,
+    pub(crate) auto_array_type: RefCell<Option<Rc<Type>>>,
+    pub(crate) any_readonly_array_type: RefCell<Option<Rc<Type>>>,
+    pub(crate) deferred_global_non_nullable_type_alias: RefCell<Option<Rc<Symbol>>>,
+
+    pub(crate) deferred_global_es_symbol_constructor_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_es_symbol_constructor_type_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_es_symbol_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_typed_property_descriptor_type:
+        RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_promise_like_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_promise_constructor_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_promise_constructor_like_type:
+        RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_iterable_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterable_iterator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_generator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_yield_result_type:
+        RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_return_result_type:
+        RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterable_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterable_iterator_type:
+        RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_generator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_template_strings_array_type:
+        RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_meta_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_meta_expression_type:
+        RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_call_options_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_extract_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_omit_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_awaited_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_big_int_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+
+    pub(crate) all_potentially_unused_identifiers:
+        RefCell<HashMap<Path, Vec<Rc<Node /*PotentiallyUnusedIdentifier*/>>>>,
+
+    pub(crate) flow_loop_start: Cell<usize>,
+    pub(crate) flow_loop_count: Cell<usize>,
+    pub(crate) shared_flow_count: Cell<usize>,
+    pub(crate) flow_analysis_disabled: Cell<bool>,
+    pub(crate) flow_invocation_count: Cell<usize>,
+    pub(crate) last_flow_node: RefCell<Option<Rc<FlowNode>>>,
+    pub(crate) last_flow_node_reachable: Cell<bool>,
+    pub(crate) flow_type_cache: RefCell<Option<HashMap<NodeId, Rc<Type>>>>,
+
+    pub(crate) empty_string_type: Option<Rc<Type>>,
+    pub(crate) zero_type: Option<Rc<Type>>,
+    pub(crate) zero_big_int_type: Option<Rc<Type>>,
+
+    pub(crate) resolution_targets: RefCell<Vec<TypeSystemEntity>>,
+    pub(crate) resolution_results: RefCell<Vec<bool>>,
+    pub(crate) resolution_property_names: RefCell<Vec<TypeSystemPropertyName>>,
+
+    pub(crate) suggestion_count: Cell<usize>,
+    pub(crate) maximum_suggestion_count: usize,
+    pub(crate) merged_symbols: RefCell<HashMap<u32, Rc<Symbol>>>,
+    pub(crate) symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
+    pub(crate) node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
+    pub(crate) flow_loop_caches: RefCell<HashMap<usize, Rc<RefCell<HashMap<String, Rc<Type>>>>>>,
+    pub(crate) flow_loop_nodes: RefCell<HashMap<usize, Rc<FlowNode>>>,
+    pub(crate) flow_loop_keys: RefCell<HashMap<usize, String>>,
+    pub(crate) flow_loop_types: RefCell<HashMap<usize, Vec<Rc<Type>>>>,
+    pub(crate) shared_flow_nodes: RefCell<HashMap<usize, Rc<FlowNode>>>,
+    pub(crate) shared_flow_types: RefCell<HashMap<usize, FlowType>>,
+    pub(crate) flow_node_reachable: RefCell<HashMap<usize, bool>>,
+    pub(crate) flow_node_post_super: RefCell<HashMap<usize, bool>>,
+    pub(crate) potential_this_collisions: RefCell<Vec<Rc<Node>>>,
+    pub(crate) potential_new_target_collisions: RefCell<Vec<Rc<Node>>>,
+    pub(crate) potential_weak_map_set_collisions: RefCell<Vec<Rc<Node>>>,
+    pub(crate) potential_reflect_collisions: RefCell<Vec<Rc<Node>>>,
+    pub(crate) awaited_type_stack: RefCell<Vec<TypeId>>,
+
+    pub(crate) diagnostics: RefCell<DiagnosticCollection>,
+    pub(crate) suggestion_diagnostics: RefCell<DiagnosticCollection>,
+
+    pub(crate) typeof_types_by_name: Option<HashMap<&'static str, Rc<Type>>>,
+    pub(crate) typeof_type: Option<Rc<Type>>,
+
+    pub(crate) _jsx_namespace: RefCell<Option<__String>>,
+    pub(crate) _jsx_factory_entity: RefCell<Option<Rc<Node /*EntityName*/>>>,
+
+    pub(crate) subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) strict_subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) assignable_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) comparable_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) identity_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+    pub(crate) enum_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
+
+    pub(crate) builtin_globals: RefCell<Option<SymbolTable>>,
+
+    pub(crate) suggested_extensions: Vec<(&'static str, &'static str)>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum MemberOverrideStatus {
+    Ok,
+    NeedsOverride,
+    HasInvalidOverride,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnionReduction {
     None,
     Literal,
@@ -141,7 +414,7 @@ bitflags! {
         const Signature = 1 << 0;
         const NoConstraints = 1 << 1;
         const Completions = 1 << 2;
-        const SkipBindingPatters = 1 << 3;
+        const SkipBindingPatterns = 1 << 3;
     }
 }
 
@@ -150,7 +423,9 @@ bitflags! {
         const None = 0;
         const NoTruncation = 1 << 0;
         const WriteArrayAsGenericType = 1 << 1;
+        const GenerateNamesForShadowedTypeParams = 1 << 2;
         const UseStructuralFallback = 1 << 3;
+        const ForbidIndexedAccessSymbolReferences = 1 << 4;
         const WriteTypeArgumentsOfSignature = 1 << 5;
         const UseFullyQualifiedType = 1 << 6;
         const UseOnlyExternalAliasing = 1 << 7;
@@ -163,9 +438,11 @@ bitflags! {
         const UseAliasDefinedOutsideCurrentScope = 1 << 14;
         const UseSingleQuotesForStringLiteralType = 1 << 28;
         const NoTypeReduction = 1 << 29;
+        const NoUndefinedOptionalParameterType = 1 << 30;
 
         const AllowThisInObjectLiteral = 1 << 15;
         const AllowQualifiedNameInPlaceOfIdentifier = 1 << 16;
+        // const AllowQualifedNameInPlaceOfIdentifier = Self::AllowQualifiedNameInPlaceOfIdentifier.bits;
         const AllowAnonymousIdentifier = 1 << 17;
         const AllowEmptyUnionOrIntersection = 1 << 18;
         const AllowEmptyTuple = 1 << 19;
@@ -175,9 +452,11 @@ bitflags! {
         const AllowNodeModulesRelativePaths = 1 << 26;
         const DoNotIncludeSymbolChain = 1 << 27;
 
-        const InTypeAlias = 1 << 23;
-
         const IgnoreErrors = Self::AllowThisInObjectLiteral.bits | Self::AllowQualifiedNameInPlaceOfIdentifier.bits | Self::AllowAnonymousIdentifier.bits | Self::AllowEmptyUnionOrIntersection.bits | Self::AllowEmptyTuple.bits | Self::AllowEmptyIndexInfoType.bits | Self::AllowNodeModulesRelativePaths.bits;
+
+        const InObjectTypeLiteral = 1 << 22;
+        const InTypeAlias = 1 << 23;
+        const InInitialEntityName = 1 << 24;
     }
 }
 
@@ -201,7 +480,15 @@ bitflags! {
 
         const AllowUniqueESSymbolType = 1 << 20;
 
+        const AddUndefined = 1 << 17;
+        const WriteArrowStyleSignature = 1 << 18;
+
+        const InArrayType = 1 << 19;
+        const InElementType = 1 << 21;
+        const InFirstTypeArgument = 1 << 22;
         const InTypeAlias = 1 << 23;
+
+        // const WriteOwnNameForAnyLike = 0;
 
         const NodeBuilderFlagsMask = Self::NoTruncation.bits | Self::WriteArrayAsGenericType.bits | Self::UseStructuralFallback.bits | Self::WriteTypeArgumentsOfSignature.bits | Self::UseFullyQualifiedType.bits | Self::SuppressAnyReturnType.bits | Self::MultilineObjectLiterals.bits | Self::WriteClassExpressionAsTypeLiteral.bits | Self::UseTypeOfFunction.bits | Self::OmitParameterModifiers.bits | Self::UseAliasDefinedOutsideCurrentScope.bits | Self::AllowUniqueESSymbolType.bits | Self::InTypeAlias.bits | Self::UseSingleQuotesForStringLiteralType.bits | Self::NoTypeReduction.bits;
     }
@@ -218,6 +505,8 @@ bitflags! {
     }
 }
 
+pub struct SymbolWalker {}
+
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
     fn write_operator(&mut self, text: &str);
@@ -231,8 +520,10 @@ pub trait SymbolWriter: SymbolTracker {
     fn increase_indent(&mut self);
     fn decrease_indent(&mut self);
     fn clear(&mut self);
+    fn as_symbol_tracker(&self) -> &dyn SymbolTracker;
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SymbolAccessibility {
     Accessible,
     NotAccessible,
@@ -260,6 +551,24 @@ pub struct SymbolVisibilityResult {
     pub aliases_to_make_visible: Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
     pub error_symbol_name: Option<String>,
     pub error_node: Option<Rc<Node>>,
+}
+
+impl SymbolVisibilityResult {
+    pub fn into_symbol_accessibility_result(self) -> SymbolAccessibilityResult {
+        let SymbolVisibilityResult {
+            accessibility,
+            aliases_to_make_visible,
+            error_symbol_name,
+            error_node,
+        } = self;
+        SymbolAccessibilityResult {
+            accessibility,
+            aliases_to_make_visible,
+            error_symbol_name,
+            error_node,
+            error_module_name: None,
+        }
+    }
 }
 
 pub struct SymbolAccessibilityResult {
@@ -446,6 +755,8 @@ pub trait EmitResolver {
     fn is_import_required_by_augmentation(&self, decl: &Node /*ImportDeclaration*/) -> bool;
 }
 
+pub trait EmitResolverDebuggable: EmitResolver + fmt::Debug {}
+
 bitflags! {
     pub struct SymbolFlags: u32 {
         const None = 0;
@@ -538,25 +849,33 @@ pub trait SymbolInterface {
     fn set_flags(&self, flags: SymbolFlags);
     fn escaped_name(&self) -> &__String;
     fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>>;
+    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>>;
     fn set_declarations(&self, declarations: Vec<Rc<Node>>);
     fn maybe_value_declaration(&self) -> Option<Rc<Node>>;
     fn set_value_declaration(&self, node: Rc<Node>);
     fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
-    fn maybe_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
+    fn maybe_exports(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>>;
+    fn maybe_exports_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn exports(&self) -> Rc<RefCell<SymbolTable>>;
     fn maybe_global_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
+    fn maybe_merge_id(&self) -> Option<u32>;
+    fn set_merge_id(&self, merge_id: u32);
     fn maybe_parent(&self) -> Option<Rc<Symbol>>;
     fn set_parent(&self, parent: Option<Rc<Symbol>>);
     fn maybe_export_symbol(&self) -> Option<Rc<Symbol>>;
     fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>);
     fn maybe_const_enum_only_module(&self) -> Option<bool>;
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>);
+    fn maybe_is_referenced(&self) -> Option<SymbolFlags>;
+    fn set_is_referenced(&self, is_referenced: Option<SymbolFlags>);
     fn maybe_is_replaceable_by_method(&self) -> Option<bool>;
     fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>);
+    fn maybe_is_assigned(&self) -> Option<bool>;
+    fn set_is_assigned(&self, is_assigned: Option<bool>);
     fn maybe_assignment_declaration_members(
         &self,
     ) -> RefMut<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>;
@@ -575,6 +894,25 @@ impl Symbol {
         rc.set_symbol_wrapper(rc.clone());
         rc
     }
+
+    pub fn maybe_as_transient_symbol(&self) -> Option<&TransientSymbol> {
+        match self {
+            Self::TransientSymbol(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub fn as_transient_symbol(&self) -> &TransientSymbol {
+        enum_unwrapped!(self, [Symbol, TransientSymbol])
+    }
+
+    pub fn as_reverse_mapped_symbol(&self) -> &ReverseMappedSymbol {
+        enum_unwrapped!(self, [Symbol, TransientSymbol, ReverseMappedSymbol])
+    }
+
+    pub fn as_mapped_symbol(&self) -> &MappedSymbol {
+        enum_unwrapped!(self, [Symbol, TransientSymbol, MappedSymbol])
+    }
 }
 
 #[derive(Debug)]
@@ -583,15 +921,18 @@ pub struct BaseSymbol {
     flags: Cell<SymbolFlags>,
     escaped_name: __String,
     declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
-    value_declaration: RefCell<Option<Weak<Node>>>,
+    value_declaration: RefCell<Option<Rc<Node>>>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     global_exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     id: Cell<Option<SymbolId>>,
+    merge_id: Cell<Option<u32>>,
     parent: RefCell<Option<Rc<Symbol>>>,
     export_symbol: RefCell<Option<Rc<Symbol>>>,
     const_enum_only_module: Cell<Option<bool>>,
+    is_referenced: Cell<Option<SymbolFlags>>,
     is_replaceable_by_method: Cell<Option<bool>>,
+    is_assigned: Cell<Option<bool>>,
     assignment_declaration_members: RefCell<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>,
 }
 
@@ -607,10 +948,13 @@ impl BaseSymbol {
             exports: RefCell::new(None),
             global_exports: RefCell::new(None),
             id: Cell::new(None),
+            merge_id: Cell::new(None),
             parent: RefCell::new(None),
             export_symbol: RefCell::new(None),
             const_enum_only_module: Cell::new(None),
+            is_referenced: Cell::new(None),
             is_replaceable_by_method: Cell::new(None),
+            is_assigned: Cell::new(None),
             assignment_declaration_members: RefCell::new(None),
         }
     }
@@ -646,19 +990,20 @@ impl SymbolInterface for BaseSymbol {
         self.declarations.borrow()
     }
 
+    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.declarations.borrow_mut()
+    }
+
     fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
         *self.declarations.borrow_mut() = Some(declarations);
     }
 
     fn maybe_value_declaration(&self) -> Option<Rc<Node>> {
-        self.value_declaration
-            .borrow()
-            .as_ref()
-            .map(|weak| weak.upgrade().unwrap())
+        self.value_declaration.borrow().clone()
     }
 
     fn set_value_declaration(&self, node: Rc<Node>) {
-        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node));
+        *self.value_declaration.borrow_mut() = Some(node);
     }
 
     fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
@@ -669,12 +1014,16 @@ impl SymbolInterface for BaseSymbol {
         self.members.borrow_mut().as_ref().unwrap().clone()
     }
 
-    fn maybe_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_exports(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>> {
+        self.exports.borrow()
+    }
+
+    fn maybe_exports_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
         self.exports.borrow_mut()
     }
 
     fn exports(&self) -> Rc<RefCell<SymbolTable>> {
-        self.exports.borrow_mut().as_ref().unwrap().clone()
+        self.exports.borrow().as_ref().unwrap().clone()
     }
 
     fn maybe_global_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
@@ -691,6 +1040,14 @@ impl SymbolInterface for BaseSymbol {
 
     fn set_id(&self, id: SymbolId) {
         self.id.set(Some(id));
+    }
+
+    fn maybe_merge_id(&self) -> Option<u32> {
+        self.merge_id.get()
+    }
+
+    fn set_merge_id(&self, merge_id: u32) {
+        self.merge_id.set(Some(merge_id));
     }
 
     fn maybe_parent(&self) -> Option<Rc<Symbol>> {
@@ -717,12 +1074,28 @@ impl SymbolInterface for BaseSymbol {
         self.const_enum_only_module.set(const_enum_only_module);
     }
 
+    fn maybe_is_referenced(&self) -> Option<SymbolFlags> {
+        self.is_referenced.get()
+    }
+
+    fn set_is_referenced(&self, is_referenced: Option<SymbolFlags>) {
+        self.is_referenced.set(is_referenced);
+    }
+
     fn maybe_is_replaceable_by_method(&self) -> Option<bool> {
         self.is_replaceable_by_method.get()
     }
 
     fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>) {
         self.is_replaceable_by_method.set(is_replaceable_by_method);
+    }
+
+    fn maybe_is_assigned(&self) -> Option<bool> {
+        self.is_assigned.get()
+    }
+
+    fn set_is_assigned(&self, is_assigned: Option<bool>) {
+        self.is_assigned.set(is_assigned);
     }
 
     fn maybe_assignment_declaration_members(&self) -> RefMut<Option<HashMap<NodeId, Rc<Node>>>> {
@@ -738,21 +1111,97 @@ impl From<BaseSymbol> for Symbol {
 
 #[derive(Debug)]
 pub struct SymbolLinks {
+    pub immediate_target: Option<Rc<Symbol>>,
     pub target: Option<Rc<Symbol>>,
     pub type_: Option<Rc<Type>>,
+    pub write_type: Option<Rc<Type>>,
+    pub name_type: Option<Rc<Type>>,
+    pub unique_es_symbol_type: Option<Rc<Type>>,
     pub declared_type: Option<Rc<Type>>,
+    pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub instantiations: Option<HashMap<String, Rc<Type>>>,
+    pub inferred_class_symbol: Option<HashMap<SymbolId, Rc<Symbol /*TransientSymbol*/>>>,
     pub mapper: Option<TypeMapper>,
+    pub referenced: Option<bool>,
+    pub const_enum_referenced: Option<bool>,
+    pub containing_type: Option<Rc<Type>>,
+    pub left_spread: Option<Rc<Symbol>>,
+    pub right_spread: Option<Rc<Symbol>>,
+    pub synthetic_origin: Option<Rc<Symbol>>,
+    pub is_discriminant_property: Option<bool>,
+    pub resolved_exports: Option<Rc<RefCell<SymbolTable>>>,
+    pub resolved_members: Option<Rc<RefCell<SymbolTable>>>,
+    pub exports_checked: Option<bool>,
+    pub type_parameters_checked: Option<bool>,
+    pub is_declaration_with_colliding_name: Option<bool>,
+    pub binding_element: Option<Rc<Node /*BindingElement*/>>,
+    pub exports_some_value: Option<bool>,
+    pub enum_kind: Option<EnumKind>,
+    pub originating_import: Option<Rc<Node /*ImportDeclaration | ImportCall*/>>,
+    pub late_symbol: Option<Rc<Symbol>>,
+    pub specifier_cache: Option<HashMap<String, String>>,
+    pub extended_containers: Option<Vec<Rc<Symbol>>>,
+    pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Rc<Symbol>>>>,
+    pub variances: Option<Vec<VarianceFlags>>,
+    pub deferral_constituents: Option<Vec<Rc<Type>>>,
+    pub deferral_parent: Option<Rc<Type>>,
+    pub cjs_export_merged: Option<Rc<Symbol>>,
+    pub type_only_declaration: Option<Option<Rc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
+    pub is_constructor_declared_property: Option<bool>,
+    pub tuple_label_declaration: Option<Rc<Node /*NamedTupleMember | ParameterDeclaration*/>>,
+    pub accessible_chain_cache: Option<HashMap<String, Option<Vec<Rc<Symbol>>>>>,
 }
 
 impl SymbolLinks {
     pub fn new() -> Self {
         Self {
+            immediate_target: None,
             target: None,
             type_: None,
+            write_type: None,
+            name_type: None,
+            unique_es_symbol_type: None,
             declared_type: None,
+            type_parameters: None,
+            instantiations: None,
+            inferred_class_symbol: None,
             mapper: None,
+            referenced: None,
+            const_enum_referenced: None,
+            containing_type: None,
+            left_spread: None,
+            right_spread: None,
+            synthetic_origin: None,
+            is_discriminant_property: None,
+            resolved_exports: None,
+            resolved_members: None,
+            exports_checked: None,
+            type_parameters_checked: None,
+            is_declaration_with_colliding_name: None,
+            binding_element: None,
+            exports_some_value: None,
+            enum_kind: None,
+            originating_import: None,
+            late_symbol: None,
+            specifier_cache: None,
+            extended_containers: None,
+            extended_containers_by_file: None,
+            variances: None,
+            deferral_constituents: None,
+            deferral_parent: None,
+            cjs_export_merged: None,
+            type_only_declaration: None,
+            is_constructor_declared_property: None,
+            tuple_label_declaration: None,
+            accessible_chain_cache: None,
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum EnumKind {
+    Numeric,
+    Literal,
 }
 
 bitflags! {
@@ -762,23 +1211,66 @@ bitflags! {
         const SyntheticProperty = 1 << 1;
         const SyntheticMethod = 1 << 2;
         const Readonly = 1 << 3;
+        const ReadPartial = 1 << 4;
+        const WritePartial = 1 << 5;
+        const HasNonUniformType = 1 << 6;
+        const HasLiteralType = 1 << 7;
+        const ContainsPublic = 1 << 8;
+        const ContainsProtected = 1 << 3;
+        const ContainsPrivate = 1 << 10;
+        const ContainsStatic = 1 << 11;
         const Late = 1 << 12;
+        const ReverseMapped = 1 << 13;
         const OptionalParameter = 1 << 14;
         const RestParameter = 1 << 15;
-
+        const DeferredType = 1 << 16;
+        const HasNeverType = 1 << 17;
+        const Mapped = 1 << 18;
+        const StripOptional = 1 << 19;
+        const Unresolved = 1 << 20;
         const Synthetic = Self::SyntheticProperty.bits | Self::SyntheticMethod.bits;
+        const Discriminant = Self::HasNonUniformType.bits | Self::HasLiteralType.bits;
+        const Partial = Self::ReadPartial.bits | Self::WritePartial.bits;
     }
 }
 
 pub trait TransientSymbolInterface: SymbolInterface {
     fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>>;
     fn check_flags(&self) -> CheckFlags;
+    fn set_check_flags(&self, check_flags: CheckFlags);
 }
 
 #[derive(Debug)]
 #[symbol_type(interfaces = "TransientSymbolInterface")]
 pub enum TransientSymbol {
     BaseTransientSymbol(BaseTransientSymbol),
+    ReverseMappedSymbol(ReverseMappedSymbol),
+    MappedSymbol(MappedSymbol),
+}
+
+impl TransientSymbol {
+    pub fn into_reverse_mapped_symbol(
+        self,
+        property_type: Rc<Type>,
+        mapped_type: Rc<Type>,
+        constraint_type: Rc<Type>,
+    ) -> Self {
+        match self {
+            Self::BaseTransientSymbol(symbol) => Self::ReverseMappedSymbol(
+                ReverseMappedSymbol::new(symbol, property_type, mapped_type, constraint_type),
+            ),
+            _ => panic!("Should only call into_reverse_mapped_symbol() on BaseTransientSymbol"),
+        }
+    }
+
+    pub fn into_mapped_symbol(self, mapped_type: Rc<Type>, key_type: Rc<Type>) -> Self {
+        match self {
+            Self::BaseTransientSymbol(symbol) => {
+                Self::MappedSymbol(MappedSymbol::new(symbol, mapped_type, key_type))
+            }
+            _ => panic!("Should only call into_mapped_symbol() on BaseTransientSymbol"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -786,7 +1278,7 @@ pub enum TransientSymbol {
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
     _symbol_links: Rc<RefCell<SymbolLinks>>,
-    check_flags: CheckFlags,
+    check_flags: Cell<CheckFlags>,
 }
 
 impl BaseTransientSymbol {
@@ -794,7 +1286,7 @@ impl BaseTransientSymbol {
         Self {
             _symbol: base_symbol,
             _symbol_links: Rc::new(RefCell::new(SymbolLinks::new())),
-            check_flags,
+            check_flags: Cell::new(check_flags),
         }
     }
 }
@@ -805,6 +1297,10 @@ impl TransientSymbolInterface for BaseTransientSymbol {
     }
 
     fn check_flags(&self) -> CheckFlags {
-        self.check_flags
+        self.check_flags.get()
+    }
+
+    fn set_check_flags(&self, check_flags: CheckFlags) {
+        self.check_flags.set(check_flags);
     }
 }

@@ -4,13 +4,20 @@ use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
+use crate::{
+    CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
+    HasChildrenInterface, HasDotDotDotTokenInterface, HasLeftAndRightInterface,
+    HasMembersInterface, HasModuleSpecifierInterface, HasTagNameInterface, InferenceContext,
+    JsxOpeningLikeElementInterface, SyntheticExpression,
+};
+
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
     AssertClause, AssertEntry, AwaitExpression, BaseJSDocTag, BaseJSDocTypeLikeTag,
     BaseJSDocUnaryType, BigIntLiteral, BinaryExpression, BindingElement, Block, BreakStatement,
     Bundle, CallExpression, CallSignatureDeclaration, CaseBlock, CaseClause, CatchClause,
-    ClassDeclaration, ClassExpression, ClassStaticBlockDeclaration, CommaListExpression,
-    ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
+    ClassDeclaration, ClassExpression, ClassLikeDeclarationInterface, ClassStaticBlockDeclaration,
+    CommaListExpression, ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
     DebuggerStatement, Decorator, DefaultClause, DeleteExpression, DoStatement,
     ElementAccessExpression, EmitNode, EmptyStatement, EnumDeclaration, EnumMember,
@@ -19,18 +26,18 @@ use super::{
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
     FunctionTypeNode, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,
     HasExpressionInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,
-    HasQuestionDotTokenInterface, HasQuestionTokenInterface, HasStatementInterface,
-    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause,
-    Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
-    ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
-    InferTypeNode, InputFiles, InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface,
-    IntersectionTypeNode, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
-    JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration, JSDocPropertyLikeTag,
-    JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
-    JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute, JsxAttributes,
-    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
+    HasPropertiesInterface, HasPropertyNameInterface, HasQuestionDotTokenInterface,
+    HasQuestionTokenInterface, HasStatementInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause, Identifier, IfStatement,
+    ImportClause, ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
+    IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
+    InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, IntersectionTypeNode, JSDoc,
+    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
+    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
+    JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
+    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
+    JSDocTypeLiteral, JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute,
+    JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
     MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
@@ -47,12 +54,13 @@ use super::{
     SwitchStatement, Symbol, SymbolTable, SyntaxKind, SyntaxList, TaggedTemplateExpression,
     TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface,
     TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, ThrowStatement,
-    TransformFlags, TryStatement, TupleTypeNode, TypeAliasDeclaration, TypeAssertion,
+    TransformFlags, TryStatement, TupleTypeNode, Type, TypeAliasDeclaration, TypeAssertion,
     TypeLiteralNode, TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration,
-    TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
-    UnionTypeNode, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
-    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression, WhileStatement, WithStatement, YieldExpression,
+    TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnaryExpressionInterface,
+    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike, VariableDeclaration, VariableDeclarationList,
+    VariableLikeDeclarationInterface, VariableStatement, VoidExpression, WhileStatement,
+    WithStatement, YieldExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -134,13 +142,29 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct RelationComparisonResult: u32 {
-        const Succeeded = 1 << 0;
-        const Failed = 1 << 1;
+    pub struct JsxFlags: u32 {
+        const None = 0;
+        const IntrinsicNamedElement = 1 << 0;
+        const IntrinsicIndexedElement = 1 << 1;
+
+        const IntrinsicElement = Self::IntrinsicNamedElement.bits | Self::IntrinsicIndexedElement.bits;
     }
 }
 
-pub type NodeId = u32;
+bitflags! {
+    pub struct RelationComparisonResult: u32 {
+        const None = 0;
+        const Succeeded = 1 << 0;
+        const Failed = 1 << 1;
+        const Reported = 1 << 2;
+
+        const ReportsUnmeasurable = 1 << 3;
+        const ReportsUnreliable = 1 << 4;
+        const ReportsMask = Self::ReportsUnmeasurable.bits | Self::ReportsUnreliable.bits;
+    }
+}
+
+pub type NodeId = usize;
 
 pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Rc<Node>;
@@ -151,8 +175,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn flags(&self) -> NodeFlags;
     fn set_flags(&self, flags: NodeFlags);
     fn transform_flags(&self) -> TransformFlags;
-    fn set_transform_flags(&mut self, flags: TransformFlags);
-    fn add_transform_flags(&mut self, flags: TransformFlags);
+    fn set_transform_flags(&self, flags: TransformFlags);
+    fn add_transform_flags(&self, flags: TransformFlags);
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
     fn set_decorators(&self, decorators: Option<NodeArray>);
     fn maybe_modifiers(&self) -> Ref<Option<NodeArray>>;
@@ -168,17 +192,20 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
-    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
-    fn locals(&self) -> RefMut<SymbolTable>;
-    fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_locals(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
+    fn locals(&self) -> RefMut<Rc<RefCell<SymbolTable>>>;
+    fn set_locals(&self, locals: Option<Rc<RefCell<SymbolTable>>>);
     fn maybe_next_container(&self) -> Option<Rc<Node>>;
     fn set_next_container(&self, next_container: Option<Rc<Node>>);
     fn maybe_local_symbol(&self) -> Option<Rc<Symbol>>;
     fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>);
     fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>>;
     fn set_flow_node(&self, emit_node: Option<Rc<FlowNode>>);
-    fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>>;
-    fn set_emit_node(&self, emit_node: Option<EmitNode>);
+    fn maybe_emit_node(&self) -> Option<Rc<RefCell<EmitNode>>>;
+    fn maybe_emit_node_mut(&self) -> RefMut<Option<Rc<RefCell<EmitNode>>>>;
+    fn set_emit_node(&self, emit_node: Option<Rc<RefCell<EmitNode>>>);
+    fn maybe_contextual_type(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_inference_context(&self) -> RefMut<Option<Rc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
@@ -321,6 +348,7 @@ pub enum Node {
     TypeOfExpression(TypeOfExpression),
     AwaitExpression(AwaitExpression),
     YieldExpression(YieldExpression),
+    SyntheticExpression(SyntheticExpression),
     ClassExpression(ClassExpression),
     OmittedExpression(OmittedExpression),
     ExpressionWithTypeArguments(ExpressionWithTypeArguments),
@@ -387,14 +415,51 @@ impl Node {
 
     pub fn maybe_as_named_declaration(&self) -> Option<&dyn NamedDeclarationInterface> {
         match self {
+            Node::ImportClause(node) => Some(node),
+            Node::NamespaceExportDeclaration(node) => Some(node),
+            Node::ImportSpecifier(node) => Some(node),
+            Node::ExportSpecifier(node) => Some(node),
+            Node::JSDocNameReference(node) => Some(node),
+            Node::JSDocFunctionType(node) => Some(node),
+            Node::JSDocTypedefTag(node) => Some(node),
+            Node::JSDocCallbackTag(node) => Some(node),
+            Node::JSDocSignature(node) => Some(node),
+            Node::JSDocPropertyLikeTag(node) => Some(node),
             Node::TypeParameterDeclaration(node) => Some(node),
+            Node::CallSignatureDeclaration(node) => Some(node),
+            Node::ConstructSignatureDeclaration(node) => Some(node),
+            Node::FunctionDeclaration(node) => Some(node),
+            Node::MethodSignature(node) => Some(node),
+            Node::MethodDeclaration(node) => Some(node),
+            Node::ConstructorDeclaration(node) => Some(node),
+            Node::GetAccessorDeclaration(node) => Some(node),
+            Node::SetAccessorDeclaration(node) => Some(node),
+            Node::IndexSignatureDeclaration(node) => Some(node),
+            Node::ClassStaticBlockDeclaration(node) => Some(node),
             Node::VariableDeclaration(node) => Some(node),
+            Node::ParameterDeclaration(node) => Some(node),
+            Node::FunctionTypeNode(node) => Some(node),
+            Node::ConstructorTypeNode(node) => Some(node),
+            Node::JsxAttribute(node) => Some(node),
+            Node::BindingElement(node) => Some(node),
+            Node::PropertySignature(node) => Some(node),
+            Node::PropertyDeclaration(node) => Some(node),
+            Node::PropertyAssignment(node) => Some(node),
+            Node::ShorthandPropertyAssignment(node) => Some(node),
+            Node::ClassDeclaration(node) => Some(node),
+            Node::ClassExpression(node) => Some(node),
             Node::InterfaceDeclaration(node) => Some(node),
             Node::TypeAliasDeclaration(node) => Some(node),
-            Node::PropertySignature(node) => Some(node),
-            Node::PropertyAssignment(node) => Some(node),
-            Node::FunctionDeclaration(node) => Some(node),
-            Node::ParameterDeclaration(node) => Some(node),
+            Node::EnumMember(node) => Some(node),
+            Node::EnumDeclaration(node) => Some(node),
+            Node::ModuleDeclaration(node) => Some(node),
+            Node::JSDocNamespaceDeclaration(node) => Some(node),
+            Node::ImportEqualsDeclaration(node) => Some(node),
+            Node::FunctionExpression(node) => Some(node),
+            Node::ArrowFunction(node) => Some(node),
+            Node::PropertyAccessExpression(node) => Some(node),
+            Node::NamespaceImport(node) => Some(node),
+            Node::SpreadAssignment(node) => Some(node),
             _ => None,
         }
     }
@@ -423,16 +488,6 @@ impl Node {
         }
     }
 
-    pub fn maybe_as_has_type(&self) -> Option<&dyn HasTypeInterface> {
-        match self {
-            Node::VariableDeclaration(variable_declaration) => Some(variable_declaration),
-            Node::PropertySignature(property_signature) => Some(property_signature),
-            Node::FunctionDeclaration(function_declaration) => Some(function_declaration),
-            Node::ParameterDeclaration(parameter_declaration) => Some(parameter_declaration),
-            _ => None,
-        }
-    }
-
     pub fn maybe_as_has_initializer(&self) -> Option<&dyn HasInitializerInterface> {
         match self {
             Node::VariableDeclaration(node) => Some(node),
@@ -457,16 +512,43 @@ impl Node {
 
     pub fn as_has_type_parameters(&self) -> &dyn HasTypeParametersInterface {
         match self {
-            Node::InterfaceDeclaration(interface_declaration) => interface_declaration,
-            Node::TypeAliasDeclaration(type_alias_declaration) => type_alias_declaration,
-            _ => panic!("Expected has type parameters"),
+            Node::ConstructorDeclaration(node) => node,
+            Node::GetAccessorDeclaration(node) => node,
+            Node::SetAccessorDeclaration(node) => node,
+            Node::IndexSignatureDeclaration(node) => node,
+            Node::ClassStaticBlockDeclaration(node) => node,
+            Node::FunctionTypeNode(node) => node,
+            Node::ConstructorTypeNode(node) => node,
+            Node::JSDocFunctionType(node) => node,
+            Node::JSDocTemplateTag(node) => node,
+            Node::JSDocSignature(node) => node,
+            Node::CallSignatureDeclaration(node) => node,
+            Node::ConstructSignatureDeclaration(node) => node,
+            Node::FunctionDeclaration(node) => node,
+            Node::MethodSignature(node) => node,
+            Node::MethodDeclaration(node) => node,
+            Node::FunctionExpression(node) => node,
+            Node::ArrowFunction(node) => node,
+            Node::ClassDeclaration(node) => node,
+            Node::ClassExpression(node) => node,
+            Node::InterfaceDeclaration(node) => node,
+            Node::TypeAliasDeclaration(node) => node,
+            _ => panic!("Expected has type parameters, got {:?}", self.kind()),
         }
     }
 
     pub fn as_has_type_arguments(&self) -> &dyn HasTypeArgumentsInterface {
         match self {
-            Node::TypeReferenceNode(type_reference_node) => type_reference_node,
-            _ => panic!("Expected has type arguments"),
+            Node::TaggedTemplateExpression(node) => node,
+            Node::TypeReferenceNode(node) => node,
+            Node::JsxOpeningElement(node) => node,
+            Node::JsxSelfClosingElement(node) => node,
+            Node::Identifier(node) => node,
+            Node::ImportTypeNode(node) => node,
+            Node::CallExpression(node) => node,
+            Node::ExpressionWithTypeArguments(node) => node,
+            Node::NewExpression(node) => node,
+            _ => panic!("Expected has type arguments, got {:?}", self.kind()),
         }
     }
 
@@ -480,19 +562,102 @@ impl Node {
 
     pub fn as_has_expression(&self) -> &dyn HasExpressionInterface {
         match self {
+            Node::TemplateSpan(node) => node,
             Node::ParenthesizedExpression(node) => node,
-            Node::TypeAssertion(node) => node,
+            Node::SpreadElement(node) => node,
+            Node::PropertyAccessExpression(node) => node,
+            Node::ElementAccessExpression(node) => node,
+            Node::CallExpression(node) => node,
+            Node::ExpressionWithTypeArguments(node) => node,
+            Node::NewExpression(node) => node,
             Node::AsExpression(node) => node,
+            Node::TypeAssertion(node) => node,
             Node::NonNullExpression(node) => node,
+            Node::ExternalModuleReference(node) => node,
+            Node::ExportAssignment(node) => node,
             Node::PartiallyEmittedExpression(node) => node,
+            Node::DeleteExpression(node) => node,
+            Node::TypeOfExpression(node) => node,
+            Node::VoidExpression(node) => node,
+            Node::AwaitExpression(node) => node,
+            Node::YieldExpression(node) => node,
+            Node::ComputedPropertyName(node) => node,
+            Node::Decorator(node) => node,
+            Node::TypeParameterDeclaration(node) => node,
+            Node::JsxSpreadAttribute(node) => node,
+            Node::JsxExpression(node) => node,
+            Node::ExpressionStatement(node) => node,
+            Node::IfStatement(node) => node,
+            Node::DoStatement(node) => node,
+            Node::WhileStatement(node) => node,
+            Node::ForInStatement(node) => node,
+            Node::ForOfStatement(node) => node,
+            Node::ReturnStatement(node) => node,
+            Node::WithStatement(node) => node,
+            Node::SwitchStatement(node) => node,
+            Node::CaseClause(node) => node,
+            Node::ThrowStatement(node) => node,
+            Node::SpreadAssignment(node) => node,
             _ => panic!("Expected has expression"),
         }
     }
 
     pub fn as_signature_declaration(&self) -> &dyn SignatureDeclarationInterface {
         match self {
+            Node::ConstructorDeclaration(node) => node,
+            Node::GetAccessorDeclaration(node) => node,
+            Node::SetAccessorDeclaration(node) => node,
+            Node::IndexSignatureDeclaration(node) => node,
+            Node::FunctionTypeNode(node) => node,
+            Node::ConstructorTypeNode(node) => node,
+            Node::FunctionExpression(node) => node,
+            Node::ArrowFunction(node) => node,
+            Node::JSDocFunctionType(node) => node,
+            Node::JSDocSignature(node) => node,
+            Node::CallSignatureDeclaration(node) => node,
+            Node::ConstructSignatureDeclaration(node) => node,
             Node::FunctionDeclaration(node) => node,
+            Node::MethodSignature(node) => node,
+            Node::MethodDeclaration(node) => node,
             _ => panic!("Expected signature declaration"),
+        }
+    }
+
+    pub fn maybe_as_has_type(&self) -> Option<&dyn HasTypeInterface> {
+        match self {
+            Node::FunctionExpression(node) => Some(node),
+            Node::ArrowFunction(node) => Some(node),
+            Node::AsExpression(node) => Some(node),
+            Node::TypeAssertion(node) => Some(node),
+            Node::PropertySignature(node) => Some(node),
+            Node::PropertyDeclaration(node) => Some(node),
+            Node::TypeAliasDeclaration(node) => Some(node),
+            Node::JSDocTypeExpression(node) => Some(node),
+            Node::BaseJSDocUnaryType(node) => Some(node),
+            Node::JSDocFunctionType(node) => Some(node),
+            Node::JSDocSignature(node) => Some(node),
+            Node::ConstructorDeclaration(node) => Some(node),
+            Node::GetAccessorDeclaration(node) => Some(node),
+            Node::SetAccessorDeclaration(node) => Some(node),
+            Node::IndexSignatureDeclaration(node) => Some(node),
+            Node::VariableDeclaration(node) => Some(node),
+            Node::ParameterDeclaration(node) => Some(node),
+            Node::FunctionTypeNode(node) => Some(node),
+            Node::ConstructorTypeNode(node) => Some(node),
+            Node::TypePredicateNode(node) => Some(node),
+            Node::NamedTupleMember(node) => Some(node),
+            Node::OptionalTypeNode(node) => Some(node),
+            Node::RestTypeNode(node) => Some(node),
+            Node::ParenthesizedTypeNode(node) => Some(node),
+            Node::TypeOperatorNode(node) => Some(node),
+            Node::MappedTypeNode(node) => Some(node),
+            Node::TemplateLiteralTypeSpan(node) => Some(node),
+            Node::CallSignatureDeclaration(node) => Some(node),
+            Node::ConstructSignatureDeclaration(node) => Some(node),
+            Node::FunctionDeclaration(node) => Some(node),
+            Node::MethodSignature(node) => Some(node),
+            Node::MethodDeclaration(node) => Some(node),
+            _ => None,
         }
     }
 
@@ -504,7 +669,13 @@ impl Node {
         &self,
     ) -> Option<&dyn FunctionLikeDeclarationInterface> {
         match self {
-            Node::FunctionDeclaration(function_declaration) => Some(function_declaration),
+            Node::ConstructorDeclaration(node) => Some(node),
+            Node::GetAccessorDeclaration(node) => Some(node),
+            Node::SetAccessorDeclaration(node) => Some(node),
+            Node::FunctionDeclaration(node) => Some(node),
+            Node::MethodDeclaration(node) => Some(node),
+            Node::FunctionExpression(node) => Some(node),
+            Node::ArrowFunction(node) => Some(node),
             _ => None,
         }
     }
@@ -518,6 +689,8 @@ impl Node {
         match self {
             Node::ObjectBindingPattern(node) => node,
             Node::ArrayBindingPattern(node) => node,
+            Node::NamedImports(node) => node,
+            Node::NamedExports(node) => node,
             _ => panic!("Expected has elements"),
         }
     }
@@ -553,10 +726,11 @@ impl Node {
 
     pub fn as_variable_like_declaration(&self) -> &dyn VariableLikeDeclarationInterface {
         match self {
+            Node::PropertySignature(node) => node,
             Node::PropertyDeclaration(node) => node,
             Node::VariableDeclaration(node) => node,
             Node::ParameterDeclaration(node) => node,
-            _ => panic!("Expected variable like declaration"),
+            _ => panic!("Expected variable like declaration, got {:?}", self.kind()),
         }
     }
 
@@ -613,6 +787,8 @@ impl Node {
             Node::Block(node) => node,
             Node::ModuleBlock(node) => node,
             Node::SourceFile(node) => node,
+            Node::CaseClause(node) => node,
+            Node::DefaultClause(node) => node,
             _ => panic!("Expected has statements"),
         }
     }
@@ -653,7 +829,136 @@ impl Node {
         match self {
             Node::PropertySignature(node) => node,
             Node::PropertyDeclaration(node) => node,
-            _ => panic!("Expected has question token"),
+            Node::PropertyAssignment(node) => node,
+            Node::ShorthandPropertyAssignment(node) => node,
+            Node::ConstructorDeclaration(node) => node,
+            Node::GetAccessorDeclaration(node) => node,
+            Node::SetAccessorDeclaration(node) => node,
+            Node::ParameterDeclaration(node) => node,
+            Node::NamedTupleMember(node) => node,
+            Node::MappedTypeNode(node) => node,
+            Node::ConditionalExpression(node) => node,
+            Node::FunctionExpression(node) => node,
+            Node::ArrowFunction(node) => node,
+            Node::FunctionDeclaration(node) => node,
+            Node::MethodSignature(node) => node,
+            Node::MethodDeclaration(node) => node,
+            _ => panic!("Expected has question token, got {:?}", self.kind()),
+        }
+    }
+
+    pub fn as_class_like_declaration(&self) -> &dyn ClassLikeDeclarationInterface {
+        match self {
+            Node::ClassExpression(node) => node,
+            Node::ClassDeclaration(node) => node,
+            _ => panic!("Expected class like declaration"),
+        }
+    }
+
+    pub fn as_has_property_name(&self) -> &dyn HasPropertyNameInterface {
+        match self {
+            Node::ImportSpecifier(node) => node,
+            Node::ExportSpecifier(node) => node,
+            Node::BindingElement(node) => node,
+            _ => panic!("Expected has property name"),
+        }
+    }
+
+    pub fn as_has_properties(&self) -> &dyn HasPropertiesInterface {
+        match self {
+            Node::ObjectLiteralExpression(node) => node,
+            Node::JsxAttributes(node) => node,
+            _ => panic!("Expected has properties"),
+        }
+    }
+
+    pub fn as_jsx_opening_like_element(&self) -> &dyn JsxOpeningLikeElementInterface {
+        match self {
+            Node::JsxOpeningElement(node) => node,
+            Node::JsxSelfClosingElement(node) => node,
+            _ => panic!("Expected JSX opening like element"),
+        }
+    }
+
+    pub fn as_has_arguments(&self) -> &dyn HasArgumentsInterface {
+        match self {
+            Node::CallExpression(node) => node,
+            Node::NewExpression(node) => node,
+            _ => panic!("Expected has arguments"),
+        }
+    }
+
+    pub fn as_unary_expression(&self) -> &dyn UnaryExpressionInterface {
+        match self {
+            Node::PrefixUnaryExpression(node) => node,
+            Node::PostfixUnaryExpression(node) => node,
+            _ => panic!("Expected unary expression"),
+        }
+    }
+
+    pub fn as_has_children(&self) -> &dyn HasChildrenInterface {
+        match self {
+            Node::JsxElement(node) => node,
+            Node::JsxFragment(node) => node,
+            _ => panic!("Expected has children"),
+        }
+    }
+
+    pub fn as_has_tag_name(&self) -> &dyn HasTagNameInterface {
+        match self {
+            Node::JsxOpeningElement(node) => node,
+            Node::JsxSelfClosingElement(node) => node,
+            Node::JsxClosingElement(node) => node,
+            _ => panic!("Expected has tag name"),
+        }
+    }
+
+    pub fn as_has_dot_dot_dot_token(&self) -> &dyn HasDotDotDotTokenInterface {
+        match self {
+            Node::ParameterDeclaration(node) => node,
+            Node::NamedTupleMember(node) => node,
+            _ => panic!("Expected has dot dot dot token"),
+        }
+    }
+
+    pub fn as_has_members(&self) -> &dyn HasMembersInterface {
+        match self {
+            Node::TypeLiteralNode(node) => node,
+            Node::InterfaceDeclaration(node) => node,
+            _ => panic!("Expected has members"),
+        }
+    }
+
+    pub fn as_case_or_default_clause(&self) -> &dyn CaseOrDefaultClauseInterface {
+        match self {
+            Node::CaseClause(node) => node,
+            Node::DefaultClause(node) => node,
+            _ => panic!("Expected case or default clause"),
+        }
+    }
+
+    pub fn as_has_assert_clause(&self) -> &dyn HasAssertClauseInterface {
+        match self {
+            Node::ImportDeclaration(node) => node,
+            Node::ExportDeclaration(node) => node,
+            _ => panic!("Expected has assert clause"),
+        }
+    }
+
+    pub fn as_has_left_and_right(&self) -> &dyn HasLeftAndRightInterface {
+        match self {
+            Node::BinaryExpression(node) => node,
+            Node::QualifiedName(node) => node,
+            Node::JSDocMemberName(node) => node,
+            _ => panic!("Expected has left and right"),
+        }
+    }
+
+    pub fn as_has_module_specifier(&self) -> &dyn HasModuleSpecifierInterface {
+        match self {
+            Node::ExportDeclaration(node) => node,
+            Node::ImportDeclaration(node) => node,
+            _ => panic!("Expected has module specifier"),
         }
     }
 
@@ -957,6 +1262,10 @@ impl Node {
         enum_unwrapped!(self, [Node, YieldExpression])
     }
 
+    pub fn as_synthetic_expression(&self) -> &SyntheticExpression {
+        enum_unwrapped!(self, [Node, SyntheticExpression])
+    }
+
     pub fn as_class_declaration(&self) -> &ClassDeclaration {
         enum_unwrapped!(self, [Node, ClassDeclaration])
     }
@@ -1124,6 +1433,110 @@ impl Node {
     pub fn as_conditional_type_node(&self) -> &ConditionalTypeNode {
         enum_unwrapped!(self, [Node, ConditionalTypeNode])
     }
+
+    pub fn as_constructor_declaration(&self) -> &ConstructorDeclaration {
+        enum_unwrapped!(self, [Node, ConstructorDeclaration])
+    }
+
+    pub fn as_set_accessor_declaration(&self) -> &SetAccessorDeclaration {
+        enum_unwrapped!(self, [Node, SetAccessorDeclaration])
+    }
+
+    pub fn as_infer_type_node(&self) -> &InferTypeNode {
+        enum_unwrapped!(self, [Node, InferTypeNode])
+    }
+
+    pub fn as_mapped_type_node(&self) -> &MappedTypeNode {
+        enum_unwrapped!(self, [Node, MappedTypeNode])
+    }
+
+    pub fn as_enum_member(&self) -> &EnumMember {
+        enum_unwrapped!(self, [Node, EnumMember])
+    }
+
+    pub fn as_enum_declaration(&self) -> &EnumDeclaration {
+        enum_unwrapped!(self, [Node, EnumDeclaration])
+    }
+
+    pub fn as_type_operator_node(&self) -> &TypeOperatorNode {
+        enum_unwrapped!(self, [Node, TypeOperatorNode])
+    }
+
+    pub fn as_type_predicate_node(&self) -> &TypePredicateNode {
+        enum_unwrapped!(self, [Node, TypePredicateNode])
+    }
+
+    pub fn as_named_tuple_member(&self) -> &NamedTupleMember {
+        enum_unwrapped!(self, [Node, NamedTupleMember])
+    }
+
+    pub fn as_tuple_type_node(&self) -> &TupleTypeNode {
+        enum_unwrapped!(self, [Node, TupleTypeNode])
+    }
+
+    pub fn as_type_query_node(&self) -> &TypeQueryNode {
+        enum_unwrapped!(self, [Node, TypeQueryNode])
+    }
+
+    pub fn as_rest_type_node(&self) -> &RestTypeNode {
+        enum_unwrapped!(self, [Node, RestTypeNode])
+    }
+
+    pub fn as_indexed_access_type_node(&self) -> &IndexedAccessTypeNode {
+        enum_unwrapped!(self, [Node, IndexedAccessTypeNode])
+    }
+
+    pub fn as_optional_type_node(&self) -> &OptionalTypeNode {
+        enum_unwrapped!(self, [Node, OptionalTypeNode])
+    }
+
+    pub fn as_intersection_type_node(&self) -> &IntersectionTypeNode {
+        enum_unwrapped!(self, [Node, IntersectionTypeNode])
+    }
+
+    pub fn as_template_literal_type_node(&self) -> &TemplateLiteralTypeNode {
+        enum_unwrapped!(self, [Node, TemplateLiteralTypeNode])
+    }
+
+    pub fn as_template_literal_type_span(&self) -> &TemplateLiteralTypeSpan {
+        enum_unwrapped!(self, [Node, TemplateLiteralTypeSpan])
+    }
+
+    pub fn as_jsdoc_type_literal(&self) -> &JSDocTypeLiteral {
+        enum_unwrapped!(self, [Node, JSDocTypeLiteral])
+    }
+
+    pub fn as_jsx_attributes(&self) -> &JsxAttributes {
+        enum_unwrapped!(self, [Node, JsxAttributes])
+    }
+
+    pub fn as_jsx_attribute(&self) -> &JsxAttribute {
+        enum_unwrapped!(self, [Node, JsxAttribute])
+    }
+
+    pub fn as_jsx_fragment(&self) -> &JsxFragment {
+        enum_unwrapped!(self, [Node, JsxFragment])
+    }
+
+    pub fn as_jsx_spread_attribute(&self) -> &JsxSpreadAttribute {
+        enum_unwrapped!(self, [Node, JsxSpreadAttribute])
+    }
+
+    pub fn as_decorator(&self) -> &Decorator {
+        enum_unwrapped!(self, [Node, Decorator])
+    }
+
+    pub fn as_await_expression(&self) -> &AwaitExpression {
+        enum_unwrapped!(self, [Node, AwaitExpression])
+    }
+
+    pub fn as_big_int_literal(&self) -> &BigIntLiteral {
+        enum_unwrapped!(self, [Node, BigIntLiteral])
+    }
+
+    pub fn as_jsdoc_callback_tag(&self) -> &JSDocCallbackTag {
+        enum_unwrapped!(self, [Node, JSDocCallbackTag])
+    }
 }
 
 #[derive(Debug)]
@@ -1132,7 +1545,7 @@ pub struct BaseNode {
     pub kind: SyntaxKind,
     flags: Cell<NodeFlags>,
     modifier_flags_cache: Cell<ModifierFlags>,
-    transform_flags: TransformFlags,
+    transform_flags: Cell<TransformFlags>,
     pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
     pub modifiers: RefCell<Option<ModifiersArray>>,
     pub id: Cell<Option<NodeId>>,
@@ -1140,13 +1553,15 @@ pub struct BaseNode {
     pub original: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
     pub end: Cell<isize>,
-    pub symbol: RefCell<Option<Weak<Symbol>>>,
-    pub locals: RefCell<Option<SymbolTable>>,
+    pub symbol: RefCell<Option<Rc<Symbol>>>,
+    pub locals: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     next_container: RefCell<Option<Rc<Node>>>,
     local_symbol: RefCell<Option<Rc<Symbol>>>,
-    emit_node: RefCell<Option<EmitNode>>,
+    emit_node: RefCell<Option<Rc<RefCell<EmitNode>>>>,
+    contextual_type: RefCell<Option<Rc<Type>>>,
+    inference_context: RefCell<Option<Rc<InferenceContext>>>,
     flow_node: RefCell<Option<Rc<FlowNode>>>,
-    js_doc: RefCell<Option<Vec<Weak<Node>>>>,
+    js_doc: RefCell<Option<Vec<Rc<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
     intersects_change: Cell<Option<bool>>,
 }
@@ -1164,7 +1579,7 @@ impl BaseNode {
             kind,
             flags: Cell::new(flags),
             modifier_flags_cache: Cell::new(ModifierFlags::None),
-            transform_flags,
+            transform_flags: Cell::new(transform_flags),
             decorators: RefCell::new(None),
             modifiers: RefCell::new(None),
             id: Cell::new(None),
@@ -1177,6 +1592,8 @@ impl BaseNode {
             next_container: RefCell::new(None),
             local_symbol: RefCell::new(None),
             emit_node: RefCell::new(None),
+            contextual_type: RefCell::new(None),
+            inference_context: RefCell::new(None),
             flow_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
@@ -1220,15 +1637,15 @@ impl NodeInterface for BaseNode {
     }
 
     fn transform_flags(&self) -> TransformFlags {
-        self.transform_flags
+        self.transform_flags.get()
     }
 
-    fn set_transform_flags(&mut self, flags: TransformFlags) {
-        self.transform_flags = flags;
+    fn set_transform_flags(&self, flags: TransformFlags) {
+        self.transform_flags.set(flags);
     }
 
-    fn add_transform_flags(&mut self, flags: TransformFlags) {
-        self.transform_flags |= flags;
+    fn add_transform_flags(&self, flags: TransformFlags) {
+        self.transform_flags.set(self.transform_flags.get() | flags);
     }
 
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>> {
@@ -1286,29 +1703,26 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
-        self.symbol
-            .borrow()
-            .as_ref()
-            .map(|weak| weak.upgrade().unwrap())
+        self.symbol.borrow().clone()
     }
 
     fn symbol(&self) -> Rc<Symbol> {
-        self.symbol.borrow().as_ref().unwrap().upgrade().unwrap()
+        self.symbol.borrow().clone().unwrap()
     }
 
     fn set_symbol(&self, symbol: Rc<Symbol>) {
-        *self.symbol.borrow_mut() = Some(Rc::downgrade(&symbol));
+        *self.symbol.borrow_mut() = Some(symbol);
     }
 
-    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>> {
+    fn maybe_locals(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
         self.locals.borrow_mut()
     }
 
-    fn locals(&self) -> RefMut<SymbolTable> {
+    fn locals(&self) -> RefMut<Rc<RefCell<SymbolTable>>> {
         RefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 
-    fn set_locals(&self, locals: Option<SymbolTable>) {
+    fn set_locals(&self, locals: Option<Rc<RefCell<SymbolTable>>>) {
         *self.locals.borrow_mut() = locals;
     }
 
@@ -1328,12 +1742,24 @@ impl NodeInterface for BaseNode {
         *self.local_symbol.borrow_mut() = local_symbol;
     }
 
-    fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>> {
+    fn maybe_emit_node(&self) -> Option<Rc<RefCell<EmitNode>>> {
+        self.emit_node.borrow().clone()
+    }
+
+    fn maybe_emit_node_mut(&self) -> RefMut<Option<Rc<RefCell<EmitNode>>>> {
         self.emit_node.borrow_mut()
     }
 
-    fn set_emit_node(&self, emit_node: Option<EmitNode>) {
+    fn set_emit_node(&self, emit_node: Option<Rc<RefCell<EmitNode>>>) {
         *self.emit_node.borrow_mut() = emit_node;
+    }
+
+    fn maybe_contextual_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.contextual_type.borrow_mut()
+    }
+
+    fn maybe_inference_context(&self) -> RefMut<Option<Rc<InferenceContext>>> {
+        self.inference_context.borrow_mut()
     }
 
     fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
@@ -1345,14 +1771,11 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node>>> {
-        self.js_doc
-            .borrow()
-            .clone()
-            .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
+        self.js_doc.borrow().clone()
     }
 
     fn set_js_doc(&self, js_doc: Vec<Rc<Node>>) {
-        *self.js_doc.borrow_mut() = Some(js_doc.iter().map(|rc| Rc::downgrade(rc)).collect());
+        *self.js_doc.borrow_mut() = Some(js_doc);
     }
 
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node>>> {

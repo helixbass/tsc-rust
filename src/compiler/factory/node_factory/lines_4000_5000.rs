@@ -5,15 +5,16 @@ use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, is_variable_declaration, AssertClause,
     AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory,
     CaseClause, CatchClause, Debug_, DefaultClause, ExportAssignment, ExportDeclaration,
-    ExportSpecifier, ExternalModuleReference, HeritageClause, ImportSpecifier, JSDoc,
-    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
-    JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
-    JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
-    JsxClosingFragment, JsxElement, JsxExpression, JsxFragment, JsxOpeningElement,
-    JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText, MissingDeclaration,
-    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    ExportSpecifier, ExternalModuleReference, HasTypeArgumentsInterface, HeritageClause,
+    ImportSpecifier, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
+    JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkPlain, JSDocMemberName,
+    JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTemplateTag,
+    JSDocText, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes,
+    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
+    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
+    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -712,11 +713,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag_name))
-                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_ref())
                 | propagate_child_flags(Some(&*node.attributes))
                 | TransformFlags::ContainsJsx,
         );
-        if node.type_arguments.is_some() {
+        if node.maybe_type_arguments().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node
@@ -738,11 +739,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag_name))
-                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(node.maybe_type_arguments().as_ref())
                 | propagate_child_flags(Some(&*node.attributes))
                 | TransformFlags::ContainsJsx,
         );
-        if node.type_arguments.is_some() {
+        if node.maybe_type_arguments().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node

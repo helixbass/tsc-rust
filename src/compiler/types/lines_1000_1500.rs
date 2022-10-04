@@ -1,14 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
-    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, ReadonlyTextRange, SyntaxKind,
-    TransformFlags, __String,
+    HasInitializerInterface, HasLeftAndRightInterface, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
+    ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
 use local_macros::ast_type;
 
@@ -50,6 +51,10 @@ impl NodeArray {
 
     pub fn to_vec(&self) -> Vec<Rc<Node>> {
         self._nodes.clone()
+    }
+
+    pub fn into_vec(self) -> Vec<Rc<Node>> {
+        self._nodes
     }
 }
 
@@ -196,8 +201,9 @@ pub struct Identifier {
     pub original_keyword_kind: Option<SyntaxKind>,
     pub(crate) auto_generate_flags: Option<GeneratedIdentifierFlags>,
     pub(crate) auto_generate_id: Option<usize>,
+    generated_import_reference: RefCell<Option<Rc<Node /*ImportSpecifier*/>>>,
     is_in_jsdoc_namespace: Cell<Option<bool>>,
-    pub(crate) type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>>,
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
 
@@ -209,8 +215,9 @@ impl Identifier {
             original_keyword_kind: None,
             auto_generate_flags: None,
             auto_generate_id: None,
+            generated_import_reference: RefCell::new(None),
             is_in_jsdoc_namespace: Cell::new(None),
-            type_arguments: None,
+            type_arguments: RefCell::new(None),
             jsdoc_dot_pos: Cell::new(None),
         }
     }
@@ -219,12 +226,20 @@ impl Identifier {
         self.auto_generate_flags.clone()
     }
 
+    pub fn maybe_generated_import_reference(&self) -> RefMut<Option<Rc<Node>>> {
+        self.generated_import_reference.borrow_mut()
+    }
+
     pub fn maybe_is_in_jsdoc_namespace(&self) -> Option<bool> {
         self.is_in_jsdoc_namespace.get()
     }
 
     pub fn set_is_in_jsdoc_namespace(&self, is_in_jsdoc_namespace: Option<bool>) {
         self.is_in_jsdoc_namespace.set(is_in_jsdoc_namespace);
+    }
+
+    pub fn maybe_type_arguments_mut(&self) -> RefMut<Option<NodeArray>> {
+        self.type_arguments.borrow_mut()
     }
 }
 
@@ -246,6 +261,12 @@ impl HasJSDocDotPosInterface for Identifier {
 
     fn set_jsdoc_dot_pos(&self, jsdoc_dot_pos: Option<isize>) {
         self.jsdoc_dot_pos.set(jsdoc_dot_pos);
+    }
+}
+
+impl HasTypeArgumentsInterface for Identifier {
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -278,6 +299,16 @@ impl HasJSDocDotPosInterface for QualifiedName {
 
     fn set_jsdoc_dot_pos(&self, jsdoc_dot_pos: Option<isize>) {
         self.jsdoc_dot_pos.set(jsdoc_dot_pos);
+    }
+}
+
+impl HasLeftAndRightInterface for QualifiedName {
+    fn left(&self) -> Rc<Node> {
+        self.left.clone()
+    }
+
+    fn right(&self) -> Rc<Node> {
+        self.right.clone()
     }
 }
 
@@ -480,15 +511,27 @@ impl TypeParameterDeclaration {
     }
 }
 
+impl HasExpressionInterface for TypeParameterDeclaration {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone().unwrap()
+    }
+
+    fn maybe_expression(&self) -> Option<Rc<Node>> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, HasTypeParametersInterface"
 )]
 pub enum SignatureDeclarationBase {
     FunctionLikeDeclarationBase(FunctionLikeDeclarationBase),
 }
 
-pub trait SignatureDeclarationInterface: NamedDeclarationInterface + HasTypeInterface {
+pub trait SignatureDeclarationInterface:
+    NamedDeclarationInterface + HasTypeInterface + HasTypeParametersInterface
+{
     fn parameters(&self) -> &NodeArray /*<ParameterDeclaration>*/;
 }
 
@@ -568,16 +611,17 @@ impl ConstructSignatureDeclaration {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "SignatureDeclarationBase",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub enum FunctionLikeDeclarationBase {
     BaseFunctionLikeDeclaration(BaseFunctionLikeDeclaration),
 }
 
-pub trait FunctionLikeDeclarationInterface: SignatureDeclarationInterface {
+pub trait FunctionLikeDeclarationInterface:
+    SignatureDeclarationInterface + HasQuestionTokenInterface
+{
     fn maybe_body(&self) -> Option<Rc<Node>>;
     fn maybe_asterisk_token(&self) -> Option<Rc<Node>>;
-    fn maybe_question_token(&self) -> Option<Rc<Node>>;
     fn maybe_exclamation_token(&self) -> RefMut<Option<Rc<Node>>>;
     fn maybe_end_flow_node(&self) -> Option<Rc<FlowNode>>;
     fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>);
@@ -623,10 +667,6 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
         self.asterisk_token.clone()
     }
 
-    fn maybe_question_token(&self) -> Option<Rc<Node>> {
-        self.question_token.clone()
-    }
-
     fn maybe_exclamation_token(&self) -> RefMut<Option<Rc<Node>>> {
         self.exclamation_token.borrow_mut()
     }
@@ -648,9 +688,15 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
     }
 }
 
+impl HasQuestionTokenInterface for BaseFunctionLikeDeclaration {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct FunctionDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -685,9 +731,15 @@ impl MethodSignature {
     }
 }
 
+impl HasQuestionTokenInterface for MethodSignature {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct MethodDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,

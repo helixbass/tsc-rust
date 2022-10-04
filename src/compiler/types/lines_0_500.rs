@@ -3,12 +3,12 @@
 use std::cell::Cell;
 use std::ops::Deref;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Path(String);
 
 impl Path {
     pub fn new(string: String) -> Self {
-        Self(string)
+        string.into()
     }
 }
 
@@ -23,6 +23,12 @@ impl Deref for Path {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl From<String> for Path {
+    fn from(value: String) -> Self {
+        Self(value)
     }
 }
 

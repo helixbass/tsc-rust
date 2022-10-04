@@ -5,7 +5,10 @@ use std::cell::{Cell, RefCell};
 use std::fmt;
 use std::rc::Rc;
 
-use crate::{AssertionLevel, Node, NodeArray, NodeInterface, SyntaxKind};
+use crate::{
+    maybe_map, unescape_leading_underscores, AssertionLevel, Node, NodeArray, NodeInterface,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum LogLevel {
@@ -31,6 +34,9 @@ thread_local! {
     pub static current_log_level: Cell<LogLevel> = Cell::new(LogLevel::Warning);
 }
 thread_local! {
+    pub static is_debugging: Cell<bool> = Cell::new(false);
+}
+thread_local! {
     pub static logging_host: RefCell<Option<Rc<dyn LoggingHost>>> = RefCell::new(None);
 }
 
@@ -47,9 +53,18 @@ impl DebugType {
     pub fn current_log_level(&self) -> LogLevel {
         current_log_level.with(|current_log_level_| current_log_level_.get())
     }
+    pub fn is_debugging(&self) -> bool {
+        is_debugging.with(|is_debugging_| is_debugging_.get())
+    }
 
     pub fn should_log(&self, level: LogLevel) -> bool {
         self.current_log_level() <= level
+    }
+
+    pub fn set_logging_host(&self, host: Option<Rc<dyn LoggingHost>>) {
+        logging_host.with(|logging_host_| {
+            *logging_host_.borrow_mut() = host;
+        });
     }
 
     pub fn log_message(&self, level: LogLevel, s: &str) {
@@ -67,7 +82,7 @@ impl DebugType {
         self.log_message(LogLevel::Info, s)
     }
 
-    fn should_assert(&self, level: AssertionLevel) -> bool {
+    pub fn should_assert(&self, level: AssertionLevel) -> bool {
         self.current_assertion_level() >= level
     }
 
@@ -167,12 +182,32 @@ impl DebugType {
         }
     }
 
+    pub fn format_symbol(&self, symbol: &Symbol) -> String {
+        format!(
+            "{{ name: {}; flags: {}; declarations: {:?} }}",
+            unescape_leading_underscores(symbol.escaped_name()),
+            self.format_symbol_flags(Some(symbol.flags())),
+            maybe_map(
+                symbol.maybe_declarations().as_deref(),
+                |node: &Rc<Node>, _| self.format_syntax_kind(Some(node.kind()))
+            )
+        )
+    }
+
     pub fn format_syntax_kind(&self, kind: Option<SyntaxKind>) -> String {
         format!("{:?}", kind)
     }
 
+    pub fn format_symbol_flags(&self, flags: Option<SymbolFlags>) -> String {
+        unimplemented!()
+    }
+
     pub fn attach_node_array_debug_info(&self, array: &mut NodeArray) {
         // TODO: implement this?
+    }
+
+    pub fn enable_debug_info(&self) {
+        unimplemented!()
     }
 }
 

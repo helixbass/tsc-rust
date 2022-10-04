@@ -289,7 +289,7 @@ impl BinderType {
             }
             namespace_symbol_members
         } else {
-            let mut namespace_symbol_exports = namespace_symbol.maybe_exports();
+            let mut namespace_symbol_exports = namespace_symbol.maybe_exports_mut();
             if namespace_symbol_exports.is_none() {
                 *namespace_symbol_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
             }
@@ -561,10 +561,12 @@ impl BinderType {
 
         let symbol = node.symbol();
 
-        let prototype_symbol = Rc::new(self.create_symbol(
-            SymbolFlags::Property | SymbolFlags::Prototype,
-            __String::new("prototype".to_owned()),
-        ));
+        let prototype_symbol = self
+            .create_symbol(
+                SymbolFlags::Property | SymbolFlags::Prototype,
+                __String::new("prototype".to_owned()),
+            )
+            .wrap();
         let symbol_exports = symbol.exports();
         let mut symbol_exports = symbol_exports.borrow_mut();
         let symbol_export = symbol_exports.get(prototype_symbol.escaped_name());
@@ -732,7 +734,7 @@ impl BinderType {
 
     pub(super) fn bind_function_expression(
         &self,
-        node: &Node, /*FunctionExpression*/
+        node: &Node, /*FunctionExpression (actually also ArrowFunction)*/
     ) -> Rc<Symbol> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
@@ -745,7 +747,7 @@ impl BinderType {
             node.set_flow_node(Some(current_flow));
         }
         self.check_strict_mode_function_name(node);
-        let binding_name = match node.as_function_expression().maybe_name() {
+        let binding_name = match node.as_named_declaration().maybe_name() {
             Some(name) => name.as_identifier().escaped_text.clone(),
             None => InternalSymbolName::Function(),
         };
@@ -799,10 +801,10 @@ impl BinderType {
             if let Some(container) = container {
                 let mut container_locals = container.maybe_locals();
                 if container_locals.is_none() {
-                    *container_locals = Some(create_symbol_table(None));
+                    *container_locals = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }
                 self.declare_symbol(
-                    container_locals.as_mut().unwrap(),
+                    &mut container_locals.as_ref().unwrap().borrow_mut(),
                     Option::<&Symbol>::None,
                     node,
                     SymbolFlags::TypeParameter,
@@ -822,10 +824,10 @@ impl BinderType {
             if let Some(container) = container {
                 let mut container_locals = container.maybe_locals();
                 if container_locals.is_none() {
-                    *container_locals = Some(create_symbol_table(None));
+                    *container_locals = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }
                 self.declare_symbol(
-                    container_locals.as_mut().unwrap(),
+                    &mut container_locals.as_ref().unwrap().borrow_mut(),
                     Option::<&Symbol>::None,
                     node,
                     SymbolFlags::TypeParameter,
@@ -997,7 +999,7 @@ pub(super) fn lookup_symbol_for_name(container: &Node, name: &__String) -> Optio
     let container_locals = container.maybe_locals();
     let local = container_locals
         .as_ref()
-        .and_then(|locals| locals.get(name));
+        .and_then(|locals| RefCell::borrow(locals).get(name).map(Clone::clone));
     if let Some(local) = local {
         return Some(local.maybe_export_symbol().unwrap_or_else(|| local.clone()));
     }

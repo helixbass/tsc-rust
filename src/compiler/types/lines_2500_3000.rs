@@ -6,8 +6,10 @@ use std::rc::Rc;
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
     BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
-    HasStatementsInterface, HasTypeInterface, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, SyntaxKind, VariableLikeDeclarationInterface,
+    HasMembersInterface, HasPropertiesInterface, HasPropertyNameInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SyntaxKind,
+    VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 
@@ -27,6 +29,10 @@ impl MetaProperty {
             name,
         }
     }
+}
+
+pub trait HasChildrenInterface {
+    fn children(&self) -> &NodeArray;
 }
 
 #[derive(Debug)]
@@ -54,6 +60,12 @@ impl JsxElement {
     }
 }
 
+impl HasChildrenInterface for JsxElement {
+    fn children(&self) -> &NodeArray {
+        &self.children
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct JsxAttributes {
@@ -70,12 +82,18 @@ impl JsxAttributes {
     }
 }
 
+impl HasPropertiesInterface for JsxAttributes {
+    fn properties(&self) -> &NodeArray {
+        &self.properties
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct JsxOpeningElement {
     _node: BaseNode,
     pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub attributes: Rc<Node /*JsxAttributes*/>,
 }
 
@@ -89,9 +107,35 @@ impl JsxOpeningElement {
         Self {
             _node: base_node,
             tag_name,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             attributes,
         }
+    }
+}
+
+pub trait HasTagNameInterface {
+    fn tag_name(&self) -> Rc<Node>;
+}
+
+pub trait JsxOpeningLikeElementInterface: HasTagNameInterface + HasTypeArgumentsInterface {
+    fn attributes(&self) -> Rc<Node>;
+}
+
+impl HasTagNameInterface for JsxOpeningElement {
+    fn tag_name(&self) -> Rc<Node> {
+        self.tag_name.clone()
+    }
+}
+
+impl JsxOpeningLikeElementInterface for JsxOpeningElement {
+    fn attributes(&self) -> Rc<Node> {
+        self.attributes.clone()
+    }
+}
+
+impl HasTypeArgumentsInterface for JsxOpeningElement {
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -100,7 +144,7 @@ impl JsxOpeningElement {
 pub struct JsxSelfClosingElement {
     _node: BaseNode,
     pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub attributes: Rc<Node /*JsxAttributes*/>,
 }
 
@@ -114,9 +158,27 @@ impl JsxSelfClosingElement {
         Self {
             _node: base_node,
             tag_name,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             attributes,
         }
+    }
+}
+
+impl HasTagNameInterface for JsxSelfClosingElement {
+    fn tag_name(&self) -> Rc<Node> {
+        self.tag_name.clone()
+    }
+}
+
+impl JsxOpeningLikeElementInterface for JsxSelfClosingElement {
+    fn attributes(&self) -> Rc<Node> {
+        self.attributes.clone()
+    }
+}
+
+impl HasTypeArgumentsInterface for JsxSelfClosingElement {
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -142,6 +204,12 @@ impl JsxFragment {
             children,
             closing_fragment,
         }
+    }
+}
+
+impl HasChildrenInterface for JsxFragment {
+    fn children(&self) -> &NodeArray {
+        &self.children
     }
 }
 
@@ -249,6 +317,12 @@ impl JsxClosingElement {
     }
 }
 
+impl HasTagNameInterface for JsxClosingElement {
+    fn tag_name(&self) -> Rc<Node> {
+        self.tag_name.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct JsxExpression {
@@ -268,6 +342,16 @@ impl JsxExpression {
             dot_dot_dot_token,
             expression,
         }
+    }
+}
+
+impl HasExpressionInterface for JsxExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone().unwrap()
+    }
+
+    fn maybe_expression(&self) -> Option<Rc<Node>> {
+        self.expression.clone()
     }
 }
 
@@ -391,7 +475,7 @@ impl Block {
 }
 
 impl HasStatementsInterface for Block {
-    fn statements(&self) -> &[Rc<Node>] {
+    fn statements(&self) -> &NodeArray {
         &self.statements
     }
 }
@@ -428,6 +512,12 @@ impl ExpressionStatement {
     }
 }
 
+impl HasExpressionInterface for ExpressionStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct IfStatement {
@@ -453,6 +543,12 @@ impl IfStatement {
     }
 }
 
+impl HasExpressionInterface for IfStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct DoStatement {
@@ -471,6 +567,12 @@ impl DoStatement {
     }
 }
 
+impl HasExpressionInterface for DoStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct WhileStatement {
@@ -486,6 +588,12 @@ impl WhileStatement {
             expression,
             statement,
         }
+    }
+}
+
+impl HasExpressionInterface for WhileStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -582,6 +690,12 @@ impl HasStatementInterface for ForInStatement {
     }
 }
 
+impl HasExpressionInterface for ForInStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ForOfStatement {
@@ -623,6 +737,12 @@ impl HasInitializerInterface for ForOfStatement {
 impl HasStatementInterface for ForOfStatement {
     fn statement(&self) -> Rc<Node> {
         self.statement.clone()
+    }
+}
+
+impl HasExpressionInterface for ForOfStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -690,6 +810,16 @@ impl ReturnStatement {
     }
 }
 
+impl HasExpressionInterface for ReturnStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone().unwrap()
+    }
+
+    fn maybe_expression(&self) -> Option<Rc<Node>> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct WithStatement {
@@ -705,6 +835,12 @@ impl WithStatement {
             expression,
             statement,
         }
+    }
+}
+
+impl HasExpressionInterface for WithStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -729,6 +865,12 @@ impl SwitchStatement {
 
     pub fn set_possibly_exhaustive(&self, possibly_exhaustive: Option<bool>) {
         self.possibly_exhaustive.set(possibly_exhaustive);
+    }
+}
+
+impl HasExpressionInterface for SwitchStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -772,12 +914,34 @@ impl CaseClause {
     }
 }
 
+impl HasStatementsInterface for CaseClause {
+    fn statements(&self) -> &NodeArray {
+        &self.statements
+    }
+}
+
+pub trait CaseOrDefaultClauseInterface: HasStatementsInterface {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>>;
+}
+
+impl CaseOrDefaultClauseInterface for CaseClause {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>> {
+        self.fallthrough_flow_node.borrow().clone()
+    }
+}
+
+impl HasExpressionInterface for CaseClause {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct DefaultClause {
     _node: BaseNode,
     pub statements: NodeArray, /*<Statement>*/
-    pub(crate) fallthrough_flow_node: Option<FlowNode>,
+    pub(crate) fallthrough_flow_node: Option<Rc<FlowNode>>,
 }
 
 impl DefaultClause {
@@ -787,6 +951,18 @@ impl DefaultClause {
             statements,
             fallthrough_flow_node: None,
         }
+    }
+}
+
+impl HasStatementsInterface for DefaultClause {
+    fn statements(&self) -> &NodeArray {
+        &self.statements
+    }
+}
+
+impl CaseOrDefaultClauseInterface for DefaultClause {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>> {
+        self.fallthrough_flow_node.clone()
     }
 }
 
@@ -898,6 +1074,12 @@ impl BindingElement {
             property_name,
             dot_dot_dot_token,
         }
+    }
+}
+
+impl HasPropertyNameInterface for BindingElement {
+    fn maybe_property_name(&self) -> Option<Rc<Node>> {
+        self.property_name.clone()
     }
 }
 
@@ -1019,6 +1201,12 @@ impl HasInitializerInterface for PropertyAssignment {
     }
 }
 
+impl HasQuestionTokenInterface for PropertyAssignment {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct ShorthandPropertyAssignment {
@@ -1044,6 +1232,12 @@ impl ShorthandPropertyAssignment {
     }
 }
 
+impl HasQuestionTokenInterface for ShorthandPropertyAssignment {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct SpreadAssignment {
@@ -1051,8 +1245,6 @@ pub struct SpreadAssignment {
     pub expression: Rc<Node /*Expression*/>,
 }
 
-// TODO: should implement NamedDeclarationInterface for SpreadAssignment since it extends
-// NamedDeclaration (even though it appears to never have a populated name field?
 impl SpreadAssignment {
     pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
         Self {
@@ -1065,6 +1257,20 @@ impl SpreadAssignment {
 impl HasExpressionInterface for SpreadAssignment {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl NamedDeclarationInterface for SpreadAssignment {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        None
+    }
+
+    fn name(&self) -> Rc<Node> {
+        unreachable!()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        unreachable!()
     }
 }
 
@@ -1117,7 +1323,8 @@ impl HasElementsInterface for ArrayBindingPattern {
 }
 
 pub trait HasTypeParametersInterface {
-    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>>;
+    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>>;
+    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>>;
 }
 
 pub trait GenericNamedDeclarationInterface:
@@ -1145,7 +1352,11 @@ impl BaseGenericNamedDeclaration {
 }
 
 impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
-    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>> {
+    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>> {
+        self.type_parameters.borrow()
+    }
+
+    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>> {
         self.type_parameters.borrow_mut()
     }
 }
@@ -1184,7 +1395,12 @@ impl InterfaceOrClassLikeDeclarationInterface for BaseInterfaceOrClassLikeDeclar
     }
 }
 
-pub trait ClassLikeDeclarationInterface {
+pub trait ClassLikeDeclarationInterface:
+    NamedDeclarationInterface
+    + HasTypeParametersInterface
+    + GenericNamedDeclarationInterface
+    + InterfaceOrClassLikeDeclarationInterface
+{
     fn members(&self) -> &NodeArray;
 }
 
@@ -1269,6 +1485,12 @@ impl InterfaceDeclaration {
     }
 }
 
+impl HasMembersInterface for InterfaceDeclaration {
+    fn members(&self) -> &NodeArray {
+        &self.members
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct HeritageClause {
@@ -1305,6 +1527,16 @@ impl TypeAliasDeclaration {
             _generic_named_declaration: base_generic_named_declaration,
             type_,
         }
+    }
+}
+
+impl HasTypeInterface for TypeAliasDeclaration {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 
@@ -1447,7 +1679,7 @@ impl ModuleBlock {
 }
 
 impl HasStatementsInterface for ModuleBlock {
-    fn statements(&self) -> &[Rc<Node>] {
+    fn statements(&self) -> &NodeArray {
         &self.statements
     }
 }

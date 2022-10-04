@@ -485,14 +485,17 @@ impl ParserType {
         &self,
     ) -> Option<Rc<Node /*ArrowFunction*/>> {
         let token_pos = self.scanner().get_token_pos();
-        let mut not_parenthesized_arrow = self.maybe_not_parenthesized_arrow();
-        if matches!(&*not_parenthesized_arrow, Some(not_parenthesized_arrow) if not_parenthesized_arrow.contains(&token_pos))
         {
-            return None;
+            let not_parenthesized_arrow = self.maybe_not_parenthesized_arrow();
+            if matches!(&*not_parenthesized_arrow, Some(not_parenthesized_arrow) if not_parenthesized_arrow.contains(&token_pos))
+            {
+                return None;
+            }
         }
 
         let result = self.parse_parenthesized_arrow_function_expression(false);
         if result.is_none() {
+            let mut not_parenthesized_arrow = self.maybe_not_parenthesized_arrow();
             if not_parenthesized_arrow.is_none() {
                 *not_parenthesized_arrow = Some(HashSet::new());
             }
@@ -750,16 +753,16 @@ impl ParserType {
                         .make_as_expression(left_operand, self.parse_type())
                         .into();
                 }
+            } else {
+                left_operand = self
+                    .make_binary_expression(
+                        left_operand,
+                        self.parse_token_node().into(),
+                        self.parse_binary_expression_or_higher(new_precedence),
+                        pos,
+                    )
+                    .into();
             }
-
-            left_operand = self
-                .make_binary_expression(
-                    left_operand,
-                    self.parse_token_node().into(),
-                    self.parse_binary_expression_or_higher(new_precedence),
-                    pos,
-                )
-                .into();
         }
 
         left_operand

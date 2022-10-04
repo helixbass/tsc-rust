@@ -675,8 +675,8 @@ impl ParserType {
             let argument = self.allow_in_and(|| self.parse_expression());
             if is_string_or_numeric_literal_like(&argument) {
                 let argument_as_literal_like_node = argument.as_literal_like_node();
-                argument_as_literal_like_node
-                    .set_text(self.intern_identifier(&argument_as_literal_like_node.text()));
+                let text = self.intern_identifier(&argument_as_literal_like_node.text());
+                argument_as_literal_like_node.set_text(text);
             }
             argument_expression = argument;
         }

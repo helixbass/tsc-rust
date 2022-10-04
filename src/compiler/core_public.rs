@@ -2,6 +2,10 @@ use std::collections::{hash_map, hash_set, HashMap, HashSet};
 use std::hash::Hash;
 use std::ops::Deref;
 
+pub const version_major_minor: &str = "4.5";
+
+pub const version: &str = "4.5.2";
+
 pub type MapLike<TValue> = HashMap<String, TValue>;
 
 #[derive(Clone, Debug)]
@@ -42,6 +46,12 @@ impl<TItem: Clone> From<SortedArray<TItem>> for Vec<TItem> {
 impl<TItem: Clone> From<&SortedArray<TItem>> for Vec<TItem> {
     fn from(sorted_array: &SortedArray<TItem>) -> Self {
         sorted_array._vec.clone()
+    }
+}
+
+impl<TItem> From<Vec<TItem>> for SortedArray<TItem> {
+    fn from(value: Vec<TItem>) -> Self {
+        Self::new(value)
     }
 }
 

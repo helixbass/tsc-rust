@@ -2,20 +2,161 @@
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::{Parser, ParsingContext};
 use crate::{
     attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
-    ensure_script_kind, get_language_variant, normalize_path, object_allocator, BaseNode, Debug_,
-    Diagnostic, DiagnosticMessage, Diagnostics, Identifier, IncrementalParser,
-    IncrementalParserSyntaxCursor, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
+    ensure_script_kind, for_each_child, get_language_variant, normalize_path, object_allocator,
+    BaseNode, Debug_, Diagnostic, Diagnostics, IncrementalParser, IncrementalParserSyntaxCursor,
+    JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
     NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
     ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
-    TemplateLiteralLikeNode, TextChangeRange,
+    TextChangeRange,
 };
-use local_macros::ast_type;
+
+pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
+    Skip,
+    Value(TValue),
+}
+
+pub fn for_each_child_recursively<
+    TValue,
+    TCBNode: FnMut(&Node, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
+    TCBNodes: FnMut(&NodeArray, &Node) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
+>(
+    root_node: &Node,
+    mut cb_node: TCBNode,
+    mut cb_nodes: Option<TCBNodes>,
+) -> Option<TValue> {
+    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
+    let mut parents: Vec<Rc<Node>> = vec![];
+    while parents.len() < queue.len() {
+        parents.push(root_node.node_wrapper());
+    }
+    while !queue.is_empty() {
+        let current = queue.pop().unwrap();
+        let parent = parents.pop().unwrap();
+        match current {
+            RcNodeOrNodeArray::NodeArray(current) => {
+                if let Some(cb_nodes) = cb_nodes.as_mut() {
+                    let res = cb_nodes(&current, &parent);
+                    if let Some(res) = res {
+                        match res {
+                            ForEachChildRecursivelyCallbackReturn::Skip => {
+                                continue;
+                            }
+                            ForEachChildRecursivelyCallbackReturn::Value(res) => {
+                                return Some(res);
+                            }
+                        }
+                    }
+                }
+                for current_child in current.into_vec().iter().rev() {
+                    queue.push(current_child.clone().into());
+                    parents.push(parent.clone());
+                }
+            }
+            RcNodeOrNodeArray::RcNode(current) => {
+                let res = cb_node(&current, &parent);
+                if let Some(res) = res {
+                    match res {
+                        ForEachChildRecursivelyCallbackReturn::Skip => {
+                            continue;
+                        }
+                        ForEachChildRecursivelyCallbackReturn::Value(res) => {
+                            return Some(res);
+                        }
+                    }
+                }
+                if current.kind() >= SyntaxKind::FirstNode {
+                    for child in gather_possible_children(&current) {
+                        queue.push(child);
+                        parents.push(current.clone());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+pub fn for_each_child_recursively_bool<
+    TCBNode: FnMut(&Node, &Node) -> bool,
+    TCBNodes: FnMut(&NodeArray, &Node) -> bool,
+>(
+    root_node: &Node,
+    mut cb_node: TCBNode,
+    mut cb_nodes: Option<TCBNodes>,
+) -> bool {
+    let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node);
+    let mut parents: Vec<Rc<Node>> = vec![];
+    while parents.len() < queue.len() {
+        parents.push(root_node.node_wrapper());
+    }
+    while !queue.is_empty() {
+        let current = queue.pop().unwrap();
+        let parent = parents.pop().unwrap();
+        match current {
+            RcNodeOrNodeArray::NodeArray(current) => {
+                if let Some(cb_nodes) = cb_nodes.as_mut() {
+                    let res = cb_nodes(&current, &parent);
+                    if res {
+                        return true;
+                    }
+                }
+                for current_child in current.into_vec().iter().rev() {
+                    queue.push(current_child.clone().into());
+                    parents.push(parent.clone());
+                }
+            }
+            RcNodeOrNodeArray::RcNode(current) => {
+                let res = cb_node(&current, &parent);
+                if res {
+                    return true;
+                }
+                if current.kind() >= SyntaxKind::FirstNode {
+                    for child in gather_possible_children(&current) {
+                        queue.push(child);
+                        parents.push(current.clone());
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+enum RcNodeOrNodeArray {
+    RcNode(Rc<Node>),
+    NodeArray(NodeArray),
+}
+
+impl From<Rc<Node>> for RcNodeOrNodeArray {
+    fn from(value: Rc<Node>) -> Self {
+        Self::RcNode(value)
+    }
+}
+
+impl From<NodeArray> for RcNodeOrNodeArray {
+    fn from(value: NodeArray) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
+fn gather_possible_children(node: &Node) -> Vec<RcNodeOrNodeArray> {
+    let children: RefCell<Vec<RcNodeOrNodeArray>> = RefCell::new(vec![]);
+    for_each_child(
+        node,
+        |child| {
+            children.borrow_mut().insert(0, child.node_wrapper().into());
+        },
+        Some(|node_array: &NodeArray| {
+            children.borrow_mut().insert(0, node_array.clone().into());
+        }),
+    );
+    children.into_inner()
+}
 
 pub fn create_source_file(
     file_name: &str,
@@ -507,6 +648,7 @@ impl ParserType {
         set_parent_nodes: Option<bool>,
         script_kind: Option<ScriptKind>,
     ) -> Rc<Node /*SourceFile*/> {
+        println!("parsing source file: {}", file_name,);
         let set_parent_nodes = set_parent_nodes.unwrap_or(false);
         let script_kind = ensure_script_kind(file_name, script_kind);
         if script_kind == ScriptKind::JSON {
@@ -524,10 +666,10 @@ impl ParserType {
                     .statements
                     .get(0)
                     .map(|statement| statement.as_expression_statement().expression.clone()),
-                &mut *result_as_source_file.parse_diagnostics(),
+                &RefCell::new(&mut *result_as_source_file.parse_diagnostics()),
                 false,
                 None,
-                None,
+                Option::<&JsonConversionNotifierDummy>::None,
             );
             result_as_source_file.set_referenced_files(vec![]);
             result_as_source_file.set_type_reference_directives(vec![]);

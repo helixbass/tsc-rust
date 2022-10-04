@@ -8,10 +8,10 @@ use std::rc::Rc;
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
-    add_range, append_if_unique, create_base_node_factory, create_scanner, is_named_declaration,
-    is_property_name, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, Debug_,
-    EmitFlags, EmitNode, LanguageVariant, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange,
+    add_range, create_base_node_factory, create_scanner, is_named_declaration, is_property_name,
+    maybe_append_if_unique_rc, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    Debug_, EmitFlags, EmitNode, LanguageVariant, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange,
     StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
@@ -330,6 +330,25 @@ thread_local! {
 //     BaseNodeFactorySynthetic::new()
 // }
 
+pub fn with_synthetic_factory_and_factory<
+    TReturn,
+    TCallback: FnOnce(&BaseNodeFactorySynthetic, &Rc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
+>(
+    callback: TCallback,
+) -> TReturn {
+    synthetic_factory
+        .with(|synthetic_factory_| factory.with(|factory_| callback(synthetic_factory_, factory_)))
+}
+
+pub fn with_factory<
+    TReturn,
+    TCallback: FnOnce(&Rc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
+>(
+    callback: TCallback,
+) -> TReturn {
+    factory.with(|factory_| callback(factory_))
+}
+
 #[derive(Debug)]
 pub struct BaseNodeFactorySynthetic {}
 
@@ -398,13 +417,11 @@ pub fn set_original_node(node: Rc<Node>, original: Option<Rc<Node>>) -> Rc<Node>
     if let Some(original) = original {
         let emit_node = original.maybe_emit_node();
         if let Some(emit_node) = emit_node.as_ref() {
-            let mut node_emit_node = node.maybe_emit_node();
-            if node_emit_node.is_none() {
-                *node_emit_node = Some(Default::default());
-            }
+            node.maybe_emit_node_mut()
+                .get_or_insert_with(|| Rc::new(RefCell::new(Default::default())));
             merge_emit_node(
-                emit_node,
-                &mut *RefMut::map(node_emit_node, |option| option.as_mut().unwrap()),
+                &(**emit_node).borrow(),
+                &mut (*node.maybe_emit_node().unwrap()).borrow_mut(),
             );
             // node.set_emit_node(node_emit_node);
         }
@@ -468,7 +485,8 @@ pub(super) fn merge_emit_node(
     if let Some(helpers) = helpers {
         let mut dest_emit_node_helpers = dest_emit_node.helpers.clone();
         for helper in helpers {
-            dest_emit_node_helpers = Some(append_if_unique(dest_emit_node_helpers, helper.clone()));
+            dest_emit_node_helpers =
+                Some(maybe_append_if_unique_rc(dest_emit_node_helpers, helper));
         }
         dest_emit_node.helpers = dest_emit_node_helpers;
     }

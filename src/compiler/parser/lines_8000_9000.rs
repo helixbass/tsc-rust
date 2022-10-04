@@ -6,11 +6,11 @@ use crate::{
     add_related_info, append, concatenate, create_detached_diagnostic, is_identifier,
     is_jsdoc_return_tag, is_jsdoc_type_tag, is_type_reference_node, last_or_undefined,
     node_is_missing, some, token_is_identifier_or_keyword, BaseJSDocTag, BaseJSDocTypeLikeTag,
-    Debug_, DiagnosticMessage, Diagnostics, ExpressionWithTypeArguments, Identifier,
-    JSDocAugmentsTag, JSDocCallbackTag, JSDocImplementsTag, JSDocPropertyLikeTag, JSDocSeeTag,
-    JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypedefTag, Node, NodeArray, NodeFlags,
-    NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind, TextChangeRange,
-    TypeParameterDeclaration,
+    Debug_, DiagnosticMessage, Diagnostics, ExpressionWithTypeArguments, HasTypeArgumentsInterface,
+    Identifier, JSDocAugmentsTag, JSDocCallbackTag, JSDocImplementsTag, JSDocPropertyLikeTag,
+    JSDocSeeTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypedefTag, Node,
+    NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind,
+    TextChangeRange, TypeParameterDeclaration,
 };
 
 impl<'parser> ParseJSDocCommentWorker<'parser> {
@@ -196,7 +196,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                         .as_identifier()
                         .escaped_text
                         == "Object"
-                    && node_as_type_reference_node.type_arguments.is_none()
+                    && node_as_type_reference_node.maybe_type_arguments().is_none()
             }
         }
     }

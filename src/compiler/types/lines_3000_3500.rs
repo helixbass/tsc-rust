@@ -1,13 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
-    BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasExpressionInterface,
-    HasIsTypeOnlyInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
-    SyntaxKind, TextRange,
+    BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasElementsInterface,
+    HasExpressionInterface, HasIsTypeOnlyInterface, HasLeftAndRightInterface, HasTypeInterface,
+    HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeArray,
+    SignatureDeclarationInterface, SyntaxKind, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -55,6 +56,22 @@ impl ImportDeclaration {
             module_specifier,
             assert_clause,
         }
+    }
+}
+
+impl HasAssertClauseInterface for ImportDeclaration {
+    fn maybe_assert_clause(&self) -> Option<Rc<Node>> {
+        self.assert_clause.clone()
+    }
+}
+
+pub trait HasModuleSpecifierInterface {
+    fn maybe_module_specifier(&self) -> Option<Rc<Node>>;
+}
+
+impl HasModuleSpecifierInterface for ImportDeclaration {
+    fn maybe_module_specifier(&self) -> Option<Rc<Node>> {
+        Some(self.module_specifier.clone())
     }
 }
 
@@ -155,6 +172,20 @@ impl NamespaceImport {
     }
 }
 
+impl NamedDeclarationInterface for NamespaceImport {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct NamespaceExport {
@@ -183,6 +214,10 @@ impl NamespaceExportDeclaration {
             _named_declaration: base_named_declaration,
         }
     }
+}
+
+pub trait HasAssertClauseInterface {
+    fn maybe_assert_clause(&self) -> Option<Rc<Node>>;
 }
 
 #[derive(Debug)]
@@ -219,6 +254,18 @@ impl HasIsTypeOnlyInterface for ExportDeclaration {
     }
 }
 
+impl HasAssertClauseInterface for ExportDeclaration {
+    fn maybe_assert_clause(&self) -> Option<Rc<Node>> {
+        self.assert_clause.clone()
+    }
+}
+
+impl HasModuleSpecifierInterface for ExportDeclaration {
+    fn maybe_module_specifier(&self) -> Option<Rc<Node>> {
+        self.module_specifier.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct NamedImports {
@@ -232,6 +279,12 @@ impl NamedImports {
             _node: base_node,
             elements,
         }
+    }
+}
+
+impl HasElementsInterface for NamedImports {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
     }
 }
 
@@ -249,6 +302,16 @@ impl NamedExports {
             elements,
         }
     }
+}
+
+impl HasElementsInterface for NamedExports {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
+    }
+}
+
+pub trait HasPropertyNameInterface {
+    fn maybe_property_name(&self) -> Option<Rc<Node>>;
 }
 
 #[derive(Debug)]
@@ -293,6 +356,12 @@ impl NamedDeclarationInterface for ImportSpecifier {
 impl HasIsTypeOnlyInterface for ImportSpecifier {
     fn is_type_only(&self) -> bool {
         self.is_type_only
+    }
+}
+
+impl HasPropertyNameInterface for ImportSpecifier {
+    fn maybe_property_name(&self) -> Option<Rc<Node>> {
+        self.property_name.clone()
     }
 }
 
@@ -341,6 +410,12 @@ impl HasIsTypeOnlyInterface for ExportSpecifier {
     }
 }
 
+impl HasPropertyNameInterface for ExportSpecifier {
+    fn maybe_property_name(&self) -> Option<Rc<Node>> {
+        self.property_name.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ExportAssignment {
@@ -360,14 +435,65 @@ impl ExportAssignment {
     }
 }
 
+impl HasExpressionInterface for ExportAssignment {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct FileReference {
     pos: Cell<isize>,
     end: Cell<isize>,
-    file_name: String,
+    pub file_name: String,
+}
+
+impl FileReference {
+    pub fn new(pos: isize, end: isize, file_name: String) -> Self {
+        Self {
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            file_name,
+        }
+    }
 }
 
 impl TextRange for FileReference {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CheckJsDirective {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    pub enabled: bool,
+}
+
+impl CheckJsDirective {
+    pub fn new(pos: isize, end: isize, enabled: bool) -> Self {
+        Self {
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            enabled,
+        }
+    }
+}
+
+impl TextRange for CheckJsDirective {
     fn pos(&self) -> isize {
         self.pos.get()
     }
@@ -391,8 +517,8 @@ pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | Syntax
 pub struct CommentRange {
     pos: Cell<isize>,
     end: Cell<isize>,
-    has_trailing_new_line: Option<bool>,
-    kind: CommentKind,
+    pub has_trailing_new_line: Option<bool>,
+    pub kind: CommentKind,
 }
 
 impl CommentRange {
@@ -432,10 +558,10 @@ impl TextRange for CommentRange {
 // TODO: should eg implement a CommentRangeInterface for CommentRange + SynthesizedComment?
 #[derive(Debug)]
 pub struct SynthesizedComment {
-    has_trailing_new_line: Option<bool>,
-    kind: CommentKind,
-    text: String,
-    has_leading_new_line: Option<bool>,
+    pub has_trailing_new_line: Option<bool>,
+    pub kind: CommentKind,
+    pub text: String,
+    pub has_leading_new_line: Option<bool>,
 }
 
 impl TextRange for SynthesizedComment {
@@ -527,6 +653,16 @@ impl JSDocMemberName {
             left,
             right,
         }
+    }
+}
+
+impl HasLeftAndRightInterface for JSDocMemberName {
+    fn left(&self) -> Rc<Node> {
+        self.left.clone()
+    }
+
+    fn right(&self) -> Rc<Node> {
+        self.right.clone()
     }
 }
 
@@ -827,6 +963,7 @@ pub struct JSDocTemplateTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub constraint: Option<Rc<Node /*JSDocTypeExpression*/>>,
     pub type_parameters: NodeArray, /*<TypeParameterDeclaration>*/
+    type_parameters_for_has_type_parameters_interface: RefCell<Option<NodeArray>>, /*<TypeParameterDeclaration>*/
 }
 
 impl JSDocTemplateTag {
@@ -838,8 +975,21 @@ impl JSDocTemplateTag {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             constraint,
-            type_parameters,
+            type_parameters: type_parameters.clone(),
+            type_parameters_for_has_type_parameters_interface: RefCell::new(Some(type_parameters)),
         }
+    }
+}
+
+impl HasTypeParametersInterface for JSDocTemplateTag {
+    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>> {
+        self.type_parameters_for_has_type_parameters_interface
+            .borrow()
+    }
+
+    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>> {
+        self.type_parameters_for_has_type_parameters_interface
+            .borrow_mut()
     }
 }
 
@@ -979,7 +1129,7 @@ impl JSDocTypeLikeTagInterface for JSDocCallbackTag {
 #[ast_type]
 pub struct JSDocSignature {
     _node: BaseNode,
-    pub type_parameters: Option<NodeArray /*<JSDocTemplateTag>*/>,
+    type_parameters: RefCell<Option<NodeArray /*<JSDocTemplateTag>*/>>,
     pub parameters: NodeArray, /*<JSDocParameterTag>*/
     pub type_: Option<Rc<Node /*JSDocReturnTag*/>>,
 }
@@ -993,10 +1143,50 @@ impl JSDocSignature {
     ) -> Self {
         Self {
             _node: base_node,
-            type_parameters,
+            type_parameters: RefCell::new(type_parameters),
             parameters,
             type_,
         }
+    }
+}
+
+impl SignatureDeclarationInterface for JSDocSignature {
+    fn parameters(&self) -> &NodeArray {
+        &self.parameters
+    }
+}
+
+impl NamedDeclarationInterface for JSDocSignature {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        None
+    }
+
+    fn name(&self) -> Rc<Node> {
+        panic!("JSDocSignature doesn't have name")
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        panic!("Tried to set name of JSDocSignature")
+    }
+}
+
+impl HasTypeInterface for JSDocSignature {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_;
+    }
+}
+
+impl HasTypeParametersInterface for JSDocSignature {
+    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>> {
+        self.type_parameters.borrow()
+    }
+
+    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>> {
+        self.type_parameters.borrow_mut()
     }
 }
 
@@ -1106,12 +1296,49 @@ impl FlowNode {
     pub fn as_flow_label(&self) -> &FlowLabel {
         enum_unwrapped!(self, [FlowNode, FlowLabel])
     }
+
+    pub fn as_flow_call(&self) -> &FlowCall {
+        enum_unwrapped!(self, [FlowNode, FlowCall])
+    }
+
+    pub fn as_flow_switch_clause(&self) -> &FlowSwitchClause {
+        enum_unwrapped!(self, [FlowNode, FlowSwitchClause])
+    }
+
+    pub fn as_flow_reduce_label(&self) -> &FlowReduceLabel {
+        enum_unwrapped!(self, [FlowNode, FlowReduceLabel])
+    }
+
+    pub fn as_flow_assignment(&self) -> &FlowAssignment {
+        enum_unwrapped!(self, [FlowNode, FlowAssignment])
+    }
+
+    pub fn as_flow_array_mutation(&self) -> &FlowArrayMutation {
+        enum_unwrapped!(self, [FlowNode, FlowArrayMutation])
+    }
+
+    pub fn as_flow_condition(&self) -> &FlowCondition {
+        enum_unwrapped!(self, [FlowNode, FlowCondition])
+    }
+
+    pub fn as_has_antecedent(&self) -> &dyn HasAntecedentInterface {
+        match self {
+            Self::FlowAssignment(value) => value,
+            Self::FlowCall(value) => value,
+            Self::FlowCondition(value) => value,
+            Self::FlowSwitchClause(value) => value,
+            Self::FlowArrayMutation(value) => value,
+            Self::FlowReduceLabel(value) => value,
+            _ => panic!("Expected has antecedent"),
+        }
+    }
 }
 
 pub trait FlowNodeBase {
     fn flags(&self) -> FlowFlags;
     fn set_flags(&self, flags: FlowFlags);
-    fn id(&self) -> Option<usize>;
+    fn maybe_id(&self) -> Option<isize>;
+    fn set_id(&self, id: Option<isize>);
 }
 
 impl FlowNodeBase for FlowNode {
@@ -1141,16 +1368,29 @@ impl FlowNodeBase for FlowNode {
         }
     }
 
-    fn id(&self) -> Option<usize> {
+    fn maybe_id(&self) -> Option<isize> {
         match self {
-            Self::FlowStart(flow_node) => flow_node.id(),
-            Self::FlowLabel(flow_node) => flow_node.id(),
-            Self::FlowAssignment(flow_node) => flow_node.id(),
-            Self::FlowCall(flow_node) => flow_node.id(),
-            Self::FlowCondition(flow_node) => flow_node.id(),
-            Self::FlowSwitchClause(flow_node) => flow_node.id(),
-            Self::FlowArrayMutation(flow_node) => flow_node.id(),
-            Self::FlowReduceLabel(flow_node) => flow_node.id(),
+            Self::FlowStart(flow_node) => flow_node.maybe_id(),
+            Self::FlowLabel(flow_node) => flow_node.maybe_id(),
+            Self::FlowAssignment(flow_node) => flow_node.maybe_id(),
+            Self::FlowCall(flow_node) => flow_node.maybe_id(),
+            Self::FlowCondition(flow_node) => flow_node.maybe_id(),
+            Self::FlowSwitchClause(flow_node) => flow_node.maybe_id(),
+            Self::FlowArrayMutation(flow_node) => flow_node.maybe_id(),
+            Self::FlowReduceLabel(flow_node) => flow_node.maybe_id(),
+        }
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        match self {
+            Self::FlowStart(flow_node) => flow_node.set_id(id),
+            Self::FlowLabel(flow_node) => flow_node.set_id(id),
+            Self::FlowAssignment(flow_node) => flow_node.set_id(id),
+            Self::FlowCall(flow_node) => flow_node.set_id(id),
+            Self::FlowCondition(flow_node) => flow_node.set_id(id),
+            Self::FlowSwitchClause(flow_node) => flow_node.set_id(id),
+            Self::FlowArrayMutation(flow_node) => flow_node.set_id(id),
+            Self::FlowReduceLabel(flow_node) => flow_node.set_id(id),
         }
     }
 }
@@ -1158,7 +1398,7 @@ impl FlowNodeBase for FlowNode {
 #[derive(Debug)]
 pub struct FlowStart {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     node: RefCell<
         Option<
             Rc<
@@ -1172,7 +1412,7 @@ impl FlowStart {
     pub fn new(flags: FlowFlags, node: Option<Rc<Node>>) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             node: RefCell::new(node),
         }
     }
@@ -1197,8 +1437,12 @@ impl FlowNodeBase for FlowStart {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 
@@ -1211,7 +1455,7 @@ impl From<FlowStart> for FlowNode {
 #[derive(Debug)]
 pub struct FlowLabel {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     antecedents: RefCell<Option<Vec<Rc<FlowNode>>>>,
 }
 
@@ -1219,7 +1463,7 @@ impl FlowLabel {
     pub fn new(flags: FlowFlags, antecedents: Option<Vec<Rc<FlowNode>>>) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             antecedents: RefCell::new(antecedents),
         }
     }
@@ -1242,8 +1486,12 @@ impl FlowNodeBase for FlowLabel {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
     }
 }
 
@@ -1253,10 +1501,14 @@ impl From<FlowLabel> for FlowNode {
     }
 }
 
+pub trait HasAntecedentInterface {
+    fn antecedent(&self) -> Rc<FlowNode>;
+}
+
 #[derive(Debug)]
 pub struct FlowAssignment {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub node: Rc<Node /*Expression | VariableDeclaration | BindingElement*/>,
     pub antecedent: Rc<FlowNode>,
 }
@@ -1265,7 +1517,7 @@ impl FlowAssignment {
     pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Rc<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             node,
             antecedent,
         }
@@ -1281,8 +1533,18 @@ impl FlowNodeBase for FlowAssignment {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowAssignment {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 
@@ -1295,7 +1557,7 @@ impl From<FlowAssignment> for FlowNode {
 #[derive(Debug)]
 pub struct FlowCall {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub node: Rc<Node /*CallExpression*/>,
     pub antecedent: Rc<FlowNode>,
 }
@@ -1304,7 +1566,7 @@ impl FlowCall {
     pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Rc<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             node,
             antecedent,
         }
@@ -1320,8 +1582,18 @@ impl FlowNodeBase for FlowCall {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowCall {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 
@@ -1334,7 +1606,7 @@ impl From<FlowCall> for FlowNode {
 #[derive(Debug)]
 pub struct FlowCondition {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub node: Rc<Node /*Expression*/>,
     pub antecedent: Rc<FlowNode>,
 }
@@ -1345,7 +1617,7 @@ impl FlowCondition {
             flags: Cell::new(flags),
             antecedent,
             node,
-            id: None,
+            id: Cell::new(None),
         }
     }
 }
@@ -1359,8 +1631,18 @@ impl FlowNodeBase for FlowCondition {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowCondition {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 
@@ -1373,7 +1655,7 @@ impl From<FlowCondition> for FlowNode {
 #[derive(Debug)]
 pub struct FlowSwitchClause {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub switch_statement: Rc<Node /*SwitchStatement*/>,
     pub clause_start: usize,
     pub clause_end: usize,
@@ -1390,7 +1672,7 @@ impl FlowSwitchClause {
     ) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             switch_statement,
             clause_start,
             clause_end,
@@ -1408,8 +1690,18 @@ impl FlowNodeBase for FlowSwitchClause {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowSwitchClause {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 
@@ -1422,7 +1714,7 @@ impl From<FlowSwitchClause> for FlowNode {
 #[derive(Debug)]
 pub struct FlowArrayMutation {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub node: Rc<Node /*CallExpression | BinaryExpression*/>,
     pub antecedent: Rc<FlowNode>,
 }
@@ -1436,8 +1728,18 @@ impl FlowNodeBase for FlowArrayMutation {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowArrayMutation {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 
@@ -1450,7 +1752,7 @@ impl From<FlowArrayMutation> for FlowNode {
 #[derive(Debug)]
 pub struct FlowReduceLabel {
     flags: Cell<FlowFlags>,
-    id: Option<usize>,
+    id: Cell<Option<isize>>,
     pub target: Rc<FlowNode /*FlowLabel*/>,
     pub antecedents: Vec<Rc<FlowNode>>,
     pub antecedent: Rc<FlowNode>,
@@ -1465,7 +1767,7 @@ impl FlowReduceLabel {
     ) -> Self {
         Self {
             flags: Cell::new(flags),
-            id: None,
+            id: Cell::new(None),
             target,
             antecedents,
             antecedent,
@@ -1482,8 +1784,18 @@ impl FlowNodeBase for FlowReduceLabel {
         self.flags.set(flags)
     }
 
-    fn id(&self) -> Option<usize> {
-        self.id
+    fn maybe_id(&self) -> Option<isize> {
+        self.id.get()
+    }
+
+    fn set_id(&self, id: Option<isize>) {
+        self.id.set(id);
+    }
+}
+
+impl HasAntecedentInterface for FlowReduceLabel {
+    fn antecedent(&self) -> Rc<FlowNode> {
+        self.antecedent.clone()
     }
 }
 

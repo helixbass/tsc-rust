@@ -1,9 +1,10 @@
 use super::{visit_node_returns, visit_nodes_returns};
 use crate::{
     for_each, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
-    InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
+    HasInitializerInterface, HasQuestionTokenInterface, HasTypeArgumentsInterface,
+    HasTypeInterface, HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
+    JSDocTagInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
 };
 
 pub fn for_each_child_returns<
@@ -698,7 +699,7 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.type_arguments.as_ref(),
+                    node.maybe_type_arguments().as_ref(),
                 )
             })
         }
@@ -739,7 +740,7 @@ pub fn for_each_child_returns<
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.type_arguments.as_ref(),
+                        node.maybe_type_arguments().as_ref(),
                     )
                 })
             }),
@@ -806,7 +807,7 @@ pub fn for_each_child_returns<
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.type_arguments.as_ref(),
+                        node.maybe_type_arguments().as_ref(),
                     )
                     .or_else(|| {
                         visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.arguments))
@@ -818,7 +819,7 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.type_arguments.as_ref(),
+                    node.maybe_type_arguments().as_ref(),
                 )
                 .or_else(|| {
                     visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.arguments.as_ref())
@@ -830,7 +831,7 @@ pub fn for_each_child_returns<
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.type_arguments.as_ref(),
+                        node.maybe_type_arguments().as_ref(),
                     )
                     .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.template)))
                 })
@@ -1201,7 +1202,7 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.type_arguments.as_ref(),
+                    node.maybe_type_arguments().as_ref(),
                 )
             })
         }
@@ -1231,7 +1232,7 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.type_arguments.as_ref(),
+                    node.maybe_type_arguments().as_ref(),
                 )
                 .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.attributes)))
             })
@@ -1241,7 +1242,7 @@ pub fn for_each_child_returns<
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.type_arguments.as_ref(),
+                    node.maybe_type_arguments().as_ref(),
                 )
                 .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.attributes)))
             }),
@@ -1416,7 +1417,7 @@ pub fn for_each_child_returns<
             })
         }
         Node::JSDocSignature(node) => {
-            node.type_parameters.as_ref().and_then(|type_parameters| {
+            node.maybe_type_parameters().as_ref().and_then(|type_parameters| {
                 for_each(type_parameters, |node, _| {
                     cb_node(node)
                 })

@@ -1,12 +1,16 @@
+use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
+use std::hash;
+use std::hash::Hash;
 use std::mem;
-use std::ptr;
 use std::rc::Rc;
 
-use crate::{text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
+use crate::{__String, text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
     array.map_or(0, |array| array.len())
@@ -53,6 +57,19 @@ pub fn maybe_for_each<
     }
 }
 
+pub fn maybe_for_each_bool<
+    TCollection: IntoIterator,
+    TCallback: FnMut(TCollection::Item, usize) -> bool,
+>(
+    array: Option<TCollection>,
+    callback: TCallback,
+) -> bool {
+    match array {
+        Some(array) => for_each_bool(array, callback),
+        None => false,
+    }
+}
+
 pub fn first_defined<
     TCollection: IntoIterator,
     TReturn,
@@ -62,6 +79,17 @@ pub fn first_defined<
     callback: TCallback,
 ) -> Option<TReturn> {
     for_each(array, callback)
+}
+
+pub fn maybe_first_defined<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
+>(
+    array: Option<TCollection>,
+    callback: TCallback,
+) -> Option<TReturn> {
+    maybe_for_each(array, callback)
 }
 
 pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
@@ -74,12 +102,31 @@ pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .all(|(index, value)| predicate(value, index))
 }
 
+pub fn maybe_every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: Option<&[TItem]>,
+    predicate: TCallback,
+) -> bool {
+    array.map_or(false, |array| every(array, predicate))
+}
+
 pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array: &[TItem],
     mut predicate: TCallback,
 ) -> Option<&TItem> {
     array
         .into_iter()
+        .enumerate()
+        .find(|(index, value)| predicate(value, *index))
+        .map(|(_, value)| value)
+}
+
+pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    mut predicate: TCallback,
+) -> Option<&TItem> {
+    array
+        .into_iter()
+        .rev()
         .enumerate()
         .find(|(index, value)| predicate(value, *index))
         .map(|(_, value)| value)
@@ -97,6 +144,38 @@ pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .position(|(index, value)| predicate(value, index))
 }
 
+pub fn find_last_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    mut predicate: TCallback,
+    start_index: Option<usize>,
+) -> Option<usize> {
+    if array.is_empty() {
+        return None;
+    }
+    let mut i = start_index.unwrap_or_else(|| array.len() - 1);
+    loop {
+        if predicate(&array[i], i) {
+            return Some(i);
+        }
+        if i == 0 {
+            break;
+        }
+        i -= 1;
+    }
+    None
+}
+
+pub fn find_last_index_returns_isize<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    predicate: TCallback,
+    start_index: Option<usize>,
+) -> isize {
+    match find_last_index(array, predicate, start_index) {
+        None => -1,
+        Some(index) => index.try_into().unwrap(),
+    }
+}
+
 pub fn contains<TItem: Eq>(array: Option<&[TItem]>, value: &TItem) -> bool {
     array.map_or(false, |array| array.iter().any(|item| item == value))
 }
@@ -107,22 +186,96 @@ pub fn contains_rc<TItem>(array: Option<&[Rc<TItem>]>, value: &Rc<TItem>) -> boo
     })
 }
 
+pub fn contains_comparer<TItem, TEqualityComparer: Fn(&TItem, &TItem) -> bool>(
+    array: Option<&[TItem]>,
+    value: &TItem,
+    equality_comparer: TEqualityComparer,
+) -> bool {
+    array.map_or(false, |array| {
+        array.iter().any(|item| equality_comparer(item, value))
+    })
+}
+
 pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
     // TODO: separate eg arrays_equal_by() helper taking equality_comparer callback and not imposing `Eq` bound?
     a.len() == b.len() && every(a, |item_a, i| *item_a == b[i])
 }
 
-pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+pub fn index_of_any_char_code(
+    text: &SourceTextAsChars,
+    char_codes: &[char],
+    start: Option<usize>,
+) -> Option<usize> {
+    let mut i = start.unwrap_or(0);
+    while i < text.len() {
+        if contains(Some(char_codes), &text_char_at_index(text, i)) {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
+pub fn count_where<TItem, TPredicate: FnMut(&TItem, usize) -> bool>(
     array: Option<&[TItem]>,
+    mut predicate: TPredicate,
+) -> usize {
+    let mut count = 0;
+    if let Some(array) = array {
+        for (i, v) in array.iter().enumerate() {
+            if predicate(v, i) {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
+pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+    array: &[TItem],
     mut predicate: TCallback,
+) -> Vec<TItem> {
+    array
+        .into_iter()
+        .filter(|item| predicate(item))
+        .map(Clone::clone)
+        .collect()
+}
+
+pub fn filter_iter<TItem, TArray: IntoIterator<Item = TItem>, TCallback: FnMut(&TItem) -> bool>(
+    array: TArray,
+    predicate: TCallback,
+) -> impl Iterator<Item = TItem> {
+    array.into_iter().filter(predicate)
+}
+
+pub fn maybe_filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+    array: Option<&[TItem]>,
+    predicate: TCallback,
 ) -> Option<Vec<TItem>> {
-    array.map(|array| {
-        array
-            .into_iter()
-            .filter(|item| predicate(item))
-            .map(Clone::clone)
-            .collect()
-    })
+    array.map(|array| filter(array, predicate))
+}
+
+pub fn filter_owning<TItem, TCallback: FnMut(&TItem) -> bool>(
+    array: Vec<TItem>,
+    mut predicate: TCallback,
+) -> Vec<TItem> {
+    array.into_iter().filter(|item| predicate(item)).collect()
+}
+
+pub fn filter_mutate<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+    array: &mut Vec<TItem>,
+    mut predicate: TCallback,
+) {
+    *array = array
+        .into_iter()
+        .filter(|item| predicate(item))
+        .map(|item| item.clone())
+        .collect();
+}
+
+pub fn clear<TItem>(array: &mut Vec<TItem>) {
+    array.clear();
 }
 
 pub fn map<
@@ -130,33 +283,55 @@ pub fn map<
     TReturn,
     TCallback: FnMut(TCollection::Item, usize) -> TReturn,
 >(
-    array: Option<TCollection>,
+    array: TCollection,
     mut f: TCallback,
-) -> Option<Vec<TReturn>> {
-    let mut result: Option<Vec<_>> = None;
-    if let Some(array) = array {
-        let mut some_result = vec![];
-        for (i, item) in array.into_iter().enumerate() {
-            some_result.push(f(item, i));
-        }
-        result = Some(some_result);
+) -> Vec<TReturn> {
+    let mut result = vec![];
+    for (i, item) in array.into_iter().enumerate() {
+        result.push(f(item, i));
     }
     result
+}
+
+pub fn maybe_map<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> TReturn,
+>(
+    array: Option<TCollection>,
+    f: TCallback,
+) -> Option<Vec<TReturn>> {
+    array.map(|array| map(array, f))
 }
 
 // TODO: this currently just mimics map(), I think could do the intended avoiding allocation by
 // returning Cow?
 pub fn same_map<TItem: Clone, TCallback: FnMut(&TItem, usize) -> TItem>(
-    array: Option<&[TItem]>,
+    array: &[TItem],
     mut f: TCallback,
+) -> Vec<TItem> {
+    let mut result = vec![];
+    for (i, item) in array.into_iter().enumerate() {
+        result.push(f(item, i));
+    }
+    result
+}
+
+pub fn maybe_same_map<TItem: Clone, TCallback: FnMut(&TItem, usize) -> TItem>(
+    array: Option<&[TItem]>,
+    f: TCallback,
 ) -> Option<Vec<TItem>> {
-    let mut result: Option<Vec<_>> = None;
-    if let Some(array) = array {
-        let mut some_result = vec![];
-        for (i, item) in array.into_iter().enumerate() {
-            some_result.push(f(item, i));
-        }
-        result = Some(some_result);
+    array.map(|array| same_map(array, f))
+}
+
+pub fn flatten<TItem: Clone>(array: &[Vec<TItem>]) -> Vec<TItem> {
+    let mut result = vec![];
+    for v in array {
+        // if (v) {
+        // if isArray(v) {
+        add_range(&mut result, Some(v), None, None);
+        // }
+        // }
     }
     result
 }
@@ -213,6 +388,22 @@ pub fn map_defined<
     result
 }
 
+pub fn get_or_update<TKey: Eq + Hash, TValue, TCallback: FnOnce() -> TValue>(
+    map: &mut HashMap<TKey, TValue>,
+    key: TKey,
+    callback: TCallback,
+) -> &mut TValue {
+    map.entry(key).or_insert_with(callback)
+}
+
+pub fn try_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) -> bool {
+    if !set.contains(&value) {
+        set.insert(value);
+        return true;
+    }
+    false
+}
+
 pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
     array: Option<&[TItem]>,
     predicate: Option<TPredicate>,
@@ -257,9 +448,55 @@ pub fn concatenate<TItem>(mut array1: Vec<TItem>, mut array2: Vec<TItem>) -> Vec
     array1
 }
 
+pub fn maybe_concatenate<TItem>(
+    array1: Option<Vec<TItem>>,
+    array2: Option<Vec<TItem>>,
+) -> Option<Vec<TItem>> {
+    if !some(array2.as_deref(), Option::<fn(&TItem) -> bool>::None) {
+        return array1;
+    }
+    if !some(array1.as_deref(), Option::<fn(&TItem) -> bool>::None) {
+        return array2;
+    }
+    let mut array1 = array1.unwrap();
+    let mut array2 = array2.unwrap();
+    array1.append(&mut array2);
+    Some(array1)
+}
+
+fn select_index<TItem>(_: TItem, i: usize) -> usize {
+    i
+}
+
+pub fn indices_of<TItem>(array: &[TItem]) -> Vec<usize> {
+    array
+        .into_iter()
+        .enumerate()
+        .map(|(i, item)| select_index(item, i))
+        .collect()
+}
+
 enum ComparerOrEqualityComparer<'closure, TItem> {
     Comparer(&'closure dyn Fn(&TItem, &TItem) -> Comparison),
     EqualityComparer(&'closure dyn Fn(&TItem, &TItem) -> bool),
+}
+
+fn deduplicate_equality_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
+    let mut result = vec![];
+    for item in array {
+        push_if_unique_rc(&mut result, item);
+    }
+    result
+}
+
+pub fn deduplicate_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
+    if array.is_empty() {
+        vec![]
+    } else if array.len() == 1 {
+        vec![array[0].clone()]
+    } else {
+        deduplicate_equality_rc(array)
+    }
 }
 
 fn deduplicate_sorted<TItem: Clone>(
@@ -336,6 +573,67 @@ pub fn sort_and_deduplicate<
     )
 }
 
+pub fn relative_complement<TItem: Clone, TComparer: FnMut(&TItem, &TItem) -> Comparison>(
+    array_a: &[TItem],
+    array_b: &[TItem],
+    mut comparer: TComparer,
+) -> Vec<TItem> {
+    if array_b.is_empty() || array_a.is_empty() {
+        return array_b.to_owned();
+    }
+    let mut result: Vec<TItem> = vec![];
+    let mut offset_a = 0;
+    let mut offset_b = 0;
+    'loop_b: while offset_b < array_b.len() {
+        if offset_b > 0 {
+            Debug_.assert(
+                comparer(&array_b[offset_b], &array_b[offset_b - 1]) != Comparison::LessThan,
+                None,
+            );
+        }
+
+        let start_a = offset_a;
+        'loop_a: while offset_a < array_a.len() {
+            if offset_a > start_a {
+                Debug_.assert(
+                    comparer(&array_a[offset_a], &array_a[offset_a - 1]) != Comparison::LessThan,
+                    None,
+                );
+            }
+
+            match comparer(&array_b[offset_b], &array_a[offset_a]) {
+                Comparison::LessThan => {
+                    result.push(array_b[offset_b].clone());
+                    offset_a += 1;
+                    offset_b += 1;
+                    continue 'loop_b;
+                }
+                Comparison::EqualTo => {
+                    offset_a += 1;
+                    offset_b += 1;
+                    continue 'loop_b;
+                }
+                Comparison::GreaterThan => {
+                    offset_a += 1;
+                    continue 'loop_a;
+                }
+            }
+        }
+    }
+    result
+}
+
+pub fn sum<TItem, TGetValue: FnMut(&TItem) -> usize>(
+    array: &[TItem],
+    mut get_value: TGetValue,
+) -> usize {
+    let mut result = 0;
+    for v in array {
+        result += get_value(v);
+    }
+    result
+}
+
 pub fn append<TItem>(to: &mut Vec<TItem>, value: Option<TItem>) {
     if value.is_none() {
         return /*to*/;
@@ -356,21 +654,39 @@ fn to_offset<TItem>(array: &[TItem], offset: isize) -> usize {
     }
 }
 
-pub fn add_range<TItem: Clone>(
-    to: /*Option<*/ &mut Vec<TItem>, /*>*/
+pub fn maybe_add_range<TItem: Clone>(
+    mut to: Option<Vec<TItem>>,
     from: Option<&[TItem]>,
     start: Option<isize>,
     end: Option<isize>,
-) /*-> Option<Vec<TItem>>*/
-{
+) -> Option<Vec<TItem>> {
     if from.is_none() {
-        return /*to*/;
+        return to;
     }
     let from = from.unwrap();
     if from.is_empty() {
-        return /*to*/;
+        return to;
     }
-    // if to.is_none()
+    if to.is_none() {
+        to = Some(vec![]);
+    }
+    add_range(to.as_mut().unwrap(), Some(from), start, end);
+    to
+}
+
+pub fn add_range<TItem: Clone>(
+    to: &mut Vec<TItem>,
+    from: Option<&[TItem]>,
+    start: Option<isize>,
+    end: Option<isize>,
+) {
+    if from.is_none() {
+        return;
+    }
+    let from = from.unwrap();
+    if from.is_empty() {
+        return;
+    }
     let start: usize = match start {
         None => 0,
         Some(start) => to_offset(from, start),
@@ -385,28 +701,34 @@ pub fn add_range<TItem: Clone>(
         to.push(from[i].clone());
         i += 1;
     }
-    // to
 }
 
-fn push_if_unique<TItem>(array: &mut Vec<TItem>, to_add: TItem) -> bool {
-    if false {
-        unimplemented!()
+pub fn push_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) -> bool {
+    if contains_rc(Some(array), to_add) {
+        false
     } else {
-        array.push(to_add);
+        array.push(to_add.clone());
         true
     }
 }
 
-pub fn append_if_unique<TItem>(array: Option<Vec<TItem>>, to_add: TItem) -> Vec<TItem> {
+pub fn append_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) {
+    push_if_unique_rc(array, to_add);
+}
+
+pub fn maybe_append_if_unique_rc<TItem>(
+    array: Option<Vec<Rc<TItem>>>,
+    to_add: &Rc<TItem>,
+) -> Vec<Rc<TItem>> {
     if let Some(mut array) = array {
-        push_if_unique(&mut array, to_add);
+        push_if_unique_rc(&mut array, to_add);
         array
     } else {
-        vec![to_add]
+        vec![to_add.clone()]
     }
 }
 
-fn comparison_to_ordering(comparison: Comparison) -> Ordering {
+pub fn comparison_to_ordering(comparison: Comparison) -> Ordering {
     match comparison {
         Comparison::EqualTo => Ordering::Equal,
         Comparison::LessThan => Ordering::Less,
@@ -424,7 +746,22 @@ fn comparison_to_ordering(comparison: Comparison) -> Ordering {
 //     |a, b| comparison_to_ordering(comparer(a, b))
 // }
 
-fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+pub fn stable_sort_indices<TItem, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+    array: &[TItem],
+    indices: &mut Vec<usize>,
+    mut comparer: TComparer,
+) {
+    indices.sort_by(|x, y| {
+        let by_comparer = comparer(&array[*x], &array[*y]);
+        comparison_to_ordering(if by_comparer == Comparison::EqualTo {
+            compare_values(Some(*x), Some(*y))
+        } else {
+            by_comparer
+        })
+    });
+}
+
+pub fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
 ) -> SortedArray<TItem> {
@@ -437,14 +774,37 @@ fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     })
 }
 
-pub fn range_equals<TItem>(array1: &[TItem], array2: &[TItem], mut pos: usize, end: usize) -> bool {
+pub fn range_equals_rc<TItem>(
+    array1: &[Rc<TItem>],
+    array2: &[Rc<TItem>],
+    mut pos: usize,
+    end: usize,
+) -> bool {
     while pos < end {
-        if !ptr::eq(&array1[pos], &array2[pos]) {
+        if !Rc::ptr_eq(&array1[pos], &array2[pos]) {
             return false;
         }
         pos += 1;
     }
     true
+}
+
+pub fn stable_sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+    array: &[TItem],
+    comparer: TComparer,
+) -> SortedArray<TItem> {
+    let mut indices = indices_of(array);
+    stable_sort_indices(array, &mut indices, comparer);
+    indices
+        .into_iter()
+        .map(|i| array[i].clone())
+        .collect::<Vec<_>>()
+        .into()
+}
+
+pub fn first<TItem>(array: &[TItem]) -> &TItem {
+    Debug_.assert(!array.is_empty(), None);
+    &array[0]
 }
 
 pub fn first_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
@@ -465,6 +825,12 @@ pub fn single_or_undefined<TItem>(array: Option<&[TItem]>) -> Option<&TItem> {
         Some(array) if array.len() == 1 => Some(&array[0]),
         _ => None,
     }
+}
+
+pub fn replace_element<TItem: Clone>(array: &[TItem], index: usize, value: TItem) -> Vec<TItem> {
+    let mut result = array.to_owned();
+    result[index] = value;
+    result
 }
 
 pub fn binary_search<
@@ -542,17 +908,18 @@ fn binary_search_key<
         return -1;
     }
 
-    let mut low = offset.unwrap_or(0);
-    let mut high = array.len() - 1;
+    let mut low: isize = offset.unwrap_or(0).try_into().unwrap();
+    let mut high: isize = (array.len() - 1).try_into().unwrap();
     while low <= high {
         let middle = low + ((high - low) >> 1);
-        let mid_key = key_selector(&array[middle], Some(middle));
+        let middle_as_usize: usize = middle.try_into().unwrap();
+        let mid_key = key_selector(&array[middle_as_usize], Some(middle_as_usize));
         match key_comparer(mid_key, key) {
             Comparison::LessThan => {
                 low = middle + 1;
             }
             Comparison::EqualTo => {
-                return middle.try_into().unwrap();
+                return middle;
             }
             Comparison::GreaterThan => {
                 high = middle - 1;
@@ -560,7 +927,6 @@ fn binary_search_key<
         }
     }
 
-    let low: isize = low.try_into().unwrap();
     !low
 }
 
@@ -603,6 +969,213 @@ fn binary_search_key_copy_key<
     !low
 }
 
+pub fn reduce_left<TItem, TMemo, TCallback: FnMut(TMemo, &TItem, usize) -> TMemo>(
+    array: &[TItem],
+    mut f: TCallback,
+    initial: TMemo,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> TMemo {
+    if
+    /*array &&*/
+    !array.is_empty() {
+        let size = array.len();
+        // if (size > 0) {
+        let mut pos = if start.is_none() /*|| start < 0*/ {
+            0
+        } else {
+            start.unwrap()
+        };
+        let end = if match count {
+            None => true,
+            Some(count) => pos + count > size - 1,
+        } {
+            size - 1
+        } else {
+            pos + count.unwrap()
+        };
+        let mut result: TMemo;
+        // if (arguments.length <= 2) {
+        //     result = array[pos];
+        //     pos++;
+        // } else {
+        result = initial;
+        while pos <= end {
+            result = f(result, &array[pos], pos);
+            pos += 1;
+        }
+        return result;
+        // }
+        // }
+    }
+    initial
+}
+
+pub fn reduce_left_no_initial_value<
+    TItem: Clone,
+    TCallback: FnMut(TItem, &TItem, usize) -> TItem,
+>(
+    array: &[TItem],
+    mut f: TCallback,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> TItem {
+    if
+    /*array &&*/
+    !array.is_empty() {
+        let size = array.len();
+        // if (size > 0) {
+        let mut pos = if start.is_none() /*|| start < 0*/ {
+            0
+        } else {
+            start.unwrap()
+        };
+        let end = if match count {
+            None => true,
+            Some(count) => pos + count > size - 1,
+        } {
+            size - 1
+        } else {
+            pos + count.unwrap()
+        };
+        let mut result = array[0].clone();
+        pos += 1;
+        while pos <= end {
+            result = f(result, &array[pos], pos);
+            pos += 1;
+        }
+        return result;
+        // }
+        // }
+    }
+    panic!("Shouldn't call reduce_left_no_initial_value() with empty slice")
+}
+
+pub fn reduce_left_no_initial_value_optional<
+    TItem: Clone,
+    TCallback: FnMut(Option<TItem>, &TItem, usize) -> Option<TItem>,
+>(
+    array: &[TItem],
+    mut f: TCallback,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> Option<TItem> {
+    if
+    /*array &&*/
+    !array.is_empty() {
+        let size = array.len();
+        // if (size > 0) {
+        let mut pos = if start.is_none() /*|| start < 0*/ {
+            0
+        } else {
+            start.unwrap()
+        };
+        let end = if match count {
+            None => true,
+            Some(count) => pos + count > size - 1,
+        } {
+            size - 1
+        } else {
+            pos + count.unwrap()
+        };
+        let mut result = Some(array[0].clone());
+        pos += 1;
+        while pos <= end {
+            result = f(result, &array[pos], pos);
+            pos += 1;
+        }
+        return result;
+        // }
+        // }
+    }
+    None
+}
+
+pub fn array_of<TItem, TCallback: FnMut(usize) -> TItem>(
+    count: usize,
+    mut f: TCallback,
+) -> Vec<TItem> {
+    let mut result = Vec::with_capacity(count);
+    for i in 0..count {
+        result[i] = f(i);
+    }
+    result
+}
+
+pub fn array_to_map<
+    TItem,
+    TKey: hash::Hash + Eq,
+    TValue,
+    TMakeKey: FnMut(&TItem) -> Option<TKey>,
+    TMakeValue: FnMut(&TItem) -> TValue,
+>(
+    array: &[TItem],
+    mut make_key: TMakeKey,
+    mut make_value: TMakeValue,
+) -> HashMap<TKey, TValue> {
+    let mut result = HashMap::new();
+    for value in array {
+        let key = make_key(value);
+        if let Some(key) = key {
+            result.insert(key, make_value(value));
+        }
+    }
+    result
+}
+
+pub trait Cloneable {
+    fn cloned(&self) -> Self;
+}
+
+pub fn clone<TValue: Cloneable>(object: &TValue) -> TValue {
+    object.cloned()
+}
+
+// TODO: make the nested hash map private and implement iteration on the wrapper
+#[derive(Debug)]
+pub struct MultiMap<TKey, TValue>(pub HashMap<TKey, Vec<TValue>>);
+
+impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
+    pub fn add(&mut self, key: TKey, value: TValue) {
+        let values = self.0.entry(key).or_insert(vec![]);
+        values.push(value);
+    }
+
+    pub fn remove<TComparer: Fn(&TValue, &TValue) -> bool>(
+        &mut self,
+        key: TKey,
+        value: &TValue,
+        comparer: TComparer,
+    ) {
+        {
+            let mut values = self.0.entry(key);
+            match values {
+                Entry::Occupied(mut values) => {
+                    unordered_remove_item(values.get_mut(), value, comparer);
+                    if values.get().is_empty() {
+                        values.remove_entry();
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
+
+    pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
+        self.0.get(key)
+    }
+}
+
+pub fn create_multi_map<TKey, TValue>() -> MultiMap<TKey, TValue> {
+    MultiMap(HashMap::new())
+}
+
+pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
+
+pub fn create_underscore_escaped_multi_map<TValue>() -> UnderscoreEscapedMultiMap<TValue> {
+    create_multi_map()
+}
+
 pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Option<TIn> {
     if
     /*value !== undefined &&*/
@@ -623,8 +1196,34 @@ pub fn cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: Option<TIn>, test: TTest) -
     Debug_.fail(Some("Invalid cast. The supplied value {:?} did not pass the test." /*'${Debug.getFunctionName(test)'*/));
 }
 
+pub fn cast_present<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> TIn {
+    if test(&value) {
+        return value;
+    }
+
+    Debug_.fail(Some("Invalid cast. The supplied value {:?} did not pass the test." /*'${Debug.getFunctionName(test)'*/));
+}
+
 fn identity<TValue>(x: TValue) -> TValue {
     x
+}
+
+pub fn to_lower_case(x: &str) -> String {
+    x.to_lowercase()
+}
+
+lazy_static! {
+    static ref file_name_lower_case_reg_exp: Regex = Regex::new(r#"[^\u0130\u0131\u00DFa-z0-9\\/:\-_\. ]+"#/*/g*/).unwrap();
+}
+
+pub fn to_file_name_lower_case(x: &str) -> String {
+    if file_name_lower_case_reg_exp.is_match(x) {
+        file_name_lower_case_reg_exp
+            .replace_all(x, |captures: &Captures| to_lower_case(&captures[0]))
+            .into_owned()
+    } else {
+        x.to_owned()
+    }
 }
 
 pub fn not_implemented() -> ! {
@@ -794,8 +1393,8 @@ pub fn get_spelling_suggestion<
 }
 
 fn levenshtein_with_max(s1: &SourceTextAsChars, s2: &SourceTextAsChars, max: f64) -> Option<f64> {
-    let mut previous: Vec<f64> = Vec::with_capacity(s2.len() + 1);
-    let mut current: Vec<f64> = Vec::with_capacity(s2.len() + 1);
+    let mut previous: Vec<f64> = vec![0.0; s2.len() + 1];
+    let mut current: Vec<f64> = vec![0.0; s2.len() + 1];
     let big = max + 0.01;
 
     for i in 0..=s2.len() {
@@ -856,11 +1455,63 @@ pub fn ends_with(str_: &str, suffix: &str) -> bool {
     str_.ends_with(suffix)
 }
 
+pub fn remove_suffix<'str>(str_: &'str str, suffix: &str) -> &'str str {
+    if ends_with(str_, suffix) {
+        &str_[0..str_.len() - suffix.len()]
+    } else {
+        str_
+    }
+}
+
 pub fn string_contains(str_: &str, substring: &str) -> bool {
     str_.find(substring).is_some()
 }
 
-pub type GetCanonicalFileName = fn(&str) -> String;
+pub fn ordered_remove_item_at<TItem: Clone>(array: &mut Vec<TItem>, index: usize) {
+    array.remove(index);
+}
+
+pub fn unordered_remove_item_at<TItem: Clone>(array: &mut Vec<TItem>, index: usize) {
+    array[index] = array[array.len() - 1].clone();
+    array.pop();
+}
+
+pub fn unordered_remove_item<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> bool>(
+    array: &mut Vec<TItem>,
+    item: &TItem,
+    comparer: TComparer,
+) -> bool {
+    unordered_remove_first_item_where(array, |element| comparer(element, item))
+}
+
+pub fn unordered_remove_first_item_where<TItem: Clone, TPredicate: Fn(&TItem) -> bool>(
+    array: &mut Vec<TItem>,
+    predicate: TPredicate,
+) -> bool {
+    for i in 0..array.len() {
+        if predicate(&array[i]) {
+            unordered_remove_item_at(array, i);
+            return true;
+        }
+    }
+    false
+}
+
+pub fn create_get_canonical_file_name(use_case_sensitive_file_names: bool) -> fn(&str) -> String {
+    if use_case_sensitive_file_names {
+        identity_str_to_owned
+    } else {
+        to_file_name_lower_case
+    }
+}
+
+pub fn identity_str_to_cow(str_: &str) -> Cow<'_, str> {
+    str_.into()
+}
+
+pub fn identity_str_to_owned(str_: &str) -> String {
+    str_.to_owned()
+}
 
 #[derive(Clone, Debug)]
 pub struct Pattern {
@@ -874,9 +1525,58 @@ impl Pattern {
     }
 }
 
+pub fn pattern_text(pattern: &Pattern) -> String {
+    format!("{}*{}", pattern.prefix, pattern.suffix)
+}
+
+pub fn matched_text(pattern: &Pattern, candidate: &str) -> String {
+    Debug_.assert(is_pattern_match(pattern, candidate), None);
+    candidate[pattern.prefix.len()..candidate.len() - pattern.suffix.len()].to_owned()
+}
+
+pub fn find_best_pattern_match<'array, TItem, TGetPattern: Fn(&TItem) -> &Pattern>(
+    values: &'array [TItem],
+    get_pattern: TGetPattern,
+    candidate: &str,
+) -> Option<&'array TItem> {
+    let mut matched_value: Option<&TItem> = None;
+    let mut longest_match_prefix_length: isize = -1;
+
+    for v in values {
+        let pattern = get_pattern(v);
+        let pattern_prefix_len_as_isize: isize = pattern.prefix.len().try_into().unwrap();
+        if is_pattern_match(pattern, candidate)
+            && pattern_prefix_len_as_isize > longest_match_prefix_length
+        {
+            longest_match_prefix_length = pattern_prefix_len_as_isize;
+            matched_value = Some(v);
+        }
+    }
+
+    matched_value
+}
+
 pub fn starts_with(str_: &str, prefix: &str) -> bool {
     str_.starts_with(prefix)
 }
+
+pub fn remove_prefix<'str>(str_: &'str str, prefix: &str) -> &'str str {
+    if starts_with(str_, prefix) {
+        &str_[prefix.len()..]
+    } else {
+        str_
+    }
+}
+
+fn is_pattern_match(pattern: &Pattern, candidate: &str) -> bool {
+    let prefix = &pattern.prefix;
+    let suffix = &pattern.suffix;
+    candidate.len() >= prefix.len() + suffix.len()
+        && starts_with(candidate, prefix)
+        && ends_with(candidate, suffix)
+}
+
+// pub fn and<TValue, TFirstCallback: FnMut(TValue) -> bool, TSecondCallback: FnMut(TValue) -> bool>()
 
 pub fn single_element_array<TItem>(t: Option<TItem>) -> Option<Vec<TItem>> {
     t.map(|t| vec![t])

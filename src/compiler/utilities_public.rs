@@ -8,13 +8,14 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, contains, create_compiler_diagnostic, entity_name_to_string, every, find,
+    HasTypeArgumentsInterface, ReadonlyTextRange, TextSpan, __String, combine_paths,
+    compare_diagnostics, contains, create_compiler_diagnostic, entity_name_to_string, every, find,
     flat_map, get_assignment_declaration_kind, get_directory_path, get_effective_modifier_flags,
     get_effective_modifier_flags_always_include_jsdoc,
     get_element_or_property_access_argument_expression_or_name, get_emit_script_target,
     get_jsdoc_comments_and_tags, get_jsdoc_type_parameter_declarations, has_syntactic_modifier,
     is_access_expression, is_ambient_module, is_any_import_or_re_export, is_arrow_function,
-    is_bindable_static_element_access_expression, is_binding_element, is_call_expression,
+    is_bindable_static_element_access_expression, is_binding_element, is_block, is_call_expression,
     is_call_signature_declaration, is_class_expression, is_class_static_block_declaration,
     is_element_access_expression, is_export_assignment, is_export_declaration, is_export_specifier,
     is_function_block, is_function_expression, is_function_type_node, is_identifier,
@@ -23,18 +24,17 @@ use crate::{
     is_jsdoc_override_tag, is_jsdoc_parameter_tag, is_jsdoc_private_tag, is_jsdoc_protected_tag,
     is_jsdoc_public_tag, is_jsdoc_readonly_tag, is_jsdoc_return_tag, is_jsdoc_signature,
     is_jsdoc_template_tag, is_jsdoc_this_tag, is_jsdoc_type_alias, is_jsdoc_type_literal,
-    is_jsdoc_type_tag, is_non_null_expression, is_not_emitted_statement, is_omitted_expression,
-    is_parameter, is_partially_emitted_expression, is_private_identifier,
-    is_property_access_expression, is_property_declaration, is_rooted_disk_path, is_string_literal,
-    is_type_literal_node, is_type_node_kind, is_type_reference_node, is_variable_declaration_list,
-    is_variable_statement, is_white_space_like, modifier_to_flag, normalize_path, path_is_relative,
-    set_localized_diagnostic_messages, set_ui_locale, skip_outer_expressions, some,
-    AssignmentDeclarationKind, CharacterCodes, CompilerOptions, Debug_, Diagnostics,
-    GeneratedIdentifierFlags, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeArray, NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Symbol,
-    SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
-    compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
-    Diagnostic, SortedArray,
+    is_jsdoc_type_tag, is_module_block, is_non_null_expression, is_not_emitted_statement,
+    is_omitted_expression, is_parameter, is_partially_emitted_expression, is_private_identifier,
+    is_property_access_expression, is_property_declaration, is_rooted_disk_path, is_source_file,
+    is_string_literal, is_type_literal_node, is_type_node_kind, is_type_reference_node,
+    is_variable_declaration_list, is_variable_statement, is_white_space_like, modifier_to_flag,
+    normalize_path, path_is_relative, set_localized_diagnostic_messages, set_ui_locale,
+    skip_outer_expressions, some, sort_and_deduplicate, AssignmentDeclarationKind, CharacterCodes,
+    CompilerOptions, Debug_, Diagnostic, Diagnostics, GeneratedIdentifierFlags,
+    HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, SortedArray, Symbol,
+    SymbolInterface, SyntaxKind, System, TextChangeRange,
 };
 
 pub fn is_external_module_name_relative(module_name: &str) -> bool {
@@ -77,7 +77,7 @@ pub fn text_span_contains_position(span: &TextSpan, position: isize) -> bool {
     position >= span.start && position < text_span_end(span)
 }
 
-pub(crate) fn text_range_contains_position_inclusive<TSpan: TextRange>(
+pub(crate) fn text_range_contains_position_inclusive<TSpan: ReadonlyTextRange>(
     span: &TSpan,
     position: isize,
 ) -> bool {
@@ -309,10 +309,10 @@ lazy_static! {
     ];
 }
 
-pub fn validate_locale_and_set_language<TSys: System>(
+pub fn validate_locale_and_set_language(
     locale: &str,
-    sys: &TSys,
-    mut errors: Option<&mut Push<Diagnostic>>,
+    sys: &dyn System,
+    mut errors: Option<&mut Push<Rc<Diagnostic>>>,
 ) {
     let lower_case_locale = locale.to_lowercase();
     lazy_static! {
@@ -322,7 +322,7 @@ pub fn validate_locale_and_set_language<TSys: System>(
 
     if match_result.is_none() {
         if let Some(errors) = errors {
-            errors.push(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into());
+            errors.push(Rc::new(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into()));
         }
         return;
     }
@@ -341,11 +341,11 @@ pub fn validate_locale_and_set_language<TSys: System>(
     set_ui_locale(Some(locale.to_owned()));
 }
 
-fn try_set_language_and_territory<TSys: System>(
-    sys: &TSys,
+fn try_set_language_and_territory(
+    sys: &dyn System,
     language: &str,
     territory: Option<&str>,
-    errors: &mut Option<&mut Push<Diagnostic>>,
+    errors: &mut Option<&mut Push<Rc<Diagnostic>>>,
 ) -> bool {
     let compiler_file_path = normalize_path(&sys.get_executing_file_path());
     let containing_directory_path = get_directory_path(&compiler_file_path);
@@ -365,32 +365,32 @@ fn try_set_language_and_territory<TSys: System>(
         return false;
     }
 
-    let mut file_contents: Option<String> = Some("".to_owned());
-    file_contents = sys.read_file(&file_path);
-    if file_contents.is_none() {
-        if let Some(errors) = errors {
-            errors.push(
-                create_compiler_diagnostic(
-                    &Diagnostics::Unable_to_open_file_0,
-                    Some(vec![file_path]),
-                )
-                .into(),
-            );
+    let file_contents = match sys.read_file(&file_path) {
+        Err(_) => {
+            if let Some(errors) = errors {
+                errors.push(Rc::new(
+                    create_compiler_diagnostic(
+                        &Diagnostics::Unable_to_open_file_0,
+                        Some(vec![file_path]),
+                    )
+                    .into(),
+                ));
+            }
+            return false;
         }
-        return false;
-    }
-    let file_contents = file_contents.unwrap();
+        Ok(file_contents) => file_contents,
+    };
     let parsed_file_contents: serde_json::Result<HashMap<String, String>> =
         serde_json::from_str(&file_contents);
     if parsed_file_contents.is_err() {
         if let Some(errors) = errors {
-            errors.push(
+            errors.push(Rc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Corrupted_locale_file_0,
                     Some(vec![file_path]),
                 )
                 .into(),
-            );
+            ));
         }
         return false;
     }
@@ -434,11 +434,11 @@ impl From<bool> for FindAncestorCallbackReturn {
 }
 
 pub fn find_ancestor<
-    TNodeRef: Borrow<Node>,
+    TNode: Borrow<Node>,
     TCallbackReturn: Into<FindAncestorCallbackReturn>,
     TCallback: FnMut(&Node) -> TCallbackReturn,
 >(
-    node: Option<TNodeRef>,
+    node: Option<TNode>,
     mut callback: TCallback,
 ) -> Option<Rc<Node>> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
@@ -712,7 +712,9 @@ pub(crate) fn get_non_assigned_name_of_declaration(
         }
         _ => (),
     }
-    declaration.as_named_declaration().maybe_name()
+    declaration
+        .maybe_as_named_declaration()
+        .and_then(|declaration| declaration.maybe_name())
 }
 
 pub fn get_name_of_declaration<TNode: Borrow<Node>>(
@@ -1270,7 +1272,7 @@ pub fn is_const_type_reference(node: &Node) -> bool {
             .as_identifier()
             .escaped_text
             .eq_str("const")
-        && node_as_type_reference_node.type_arguments.is_none()
+        && node_as_type_reference_node.maybe_type_arguments().is_none()
 }
 
 pub fn skip_partially_emitted_expressions(node: &Node) -> Rc<Node> {
@@ -1461,12 +1463,12 @@ pub fn is_binding_name(node: &Node) -> bool {
     )
 }
 
-pub fn is_function_like<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
+pub fn is_function_like<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
 }
 
-pub(crate) fn is_function_like_or_class_static_block_declaration<TNodeRef: Borrow<Node>>(
-    node: Option<TNodeRef>,
+pub(crate) fn is_function_like_or_class_static_block_declaration<TNode: Borrow<Node>>(
+    node: Option<TNode>,
 ) -> bool {
     node.map_or(false, |node| {
         let node = node.borrow();
@@ -1534,11 +1536,18 @@ pub fn is_class_element(node: &Node) -> bool {
 }
 
 pub fn is_class_like(node: &Node) -> bool {
-    /*node &&*/
     matches!(
         node.kind(),
         SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
     )
+}
+
+pub fn maybe_is_class_like<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+    node.is_some()
+        && matches!(
+            node.unwrap().borrow().kind(),
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+        )
 }
 
 pub fn is_accessor(node: &Node) -> bool {

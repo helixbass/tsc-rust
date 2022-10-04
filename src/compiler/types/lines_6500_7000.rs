@@ -1,8 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::io;
 use std::rc::Rc;
 
 use super::{
@@ -10,13 +11,144 @@ use super::{
     RedirectTargetsMap, ResolvedProjectReference, ScriptReferenceHost, ScriptTarget, SyntaxKind,
     SynthesizedComment, TextRange,
 };
-use crate::ProgramBuildInfo;
+use crate::{
+    CancellationToken, Cloneable, ModuleResolutionCache, ParseConfigHost, ParsedCommandLine, Path,
+    ProgramBuildInfo, SymlinkCache,
+};
 
 pub trait ModuleResolutionHost {
-    fn read_file(&self, file_name: &str) -> Option<String>;
+    fn file_exists(&self, file_name: &str) -> bool;
+    fn file_exists_non_overridden(&self, file_name: &str) -> bool;
+    fn set_overriding_file_exists(
+        &self,
+        overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
+    fn read_file(&self, file_name: &str) -> io::Result<String>;
+    fn trace(&self, s: &str) {}
+    fn is_trace_supported(&self) -> bool;
+    fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+        None
+    }
+    fn is_directory_exists_supported(&self) -> bool;
+    fn directory_exists_non_overridden(&self, directory_name: &str) -> Option<bool> {
+        None
+    }
+    fn set_overriding_directory_exists(
+        &self,
+        overriding_directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
+    fn realpath(&self, path: &str) -> Option<String> {
+        None
+    }
+    fn realpath_non_overridden(&self, path: &str) -> Option<String> {
+        None
+    }
+    fn is_realpath_supported(&self) -> bool;
+    fn set_overriding_realpath(
+        &self,
+        overriding_realpath: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
+    fn get_current_directory(&self) -> Option<String> {
+        None
+    }
+    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+        None
+    }
+    fn is_get_directories_supported(&self) -> bool;
+    fn get_directories_non_overridden(&self, path: &str) -> Option<Vec<String>> {
+        None
+    }
+    fn set_overriding_get_directories(
+        &self,
+        overriding_get_directories: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        None
+    }
 }
 
-#[derive(Debug)]
+impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
+    fn file_exists(&self, file_name: &str) -> bool {
+        ParseConfigHost::file_exists(self, file_name)
+    }
+
+    fn file_exists_non_overridden(&self, file_name: &str) -> bool {
+        // this is a guess that we don't need any of these overriding things for these implementors
+        // of ModuleResolutionHost
+        unreachable!()
+    }
+
+    fn set_overriding_file_exists(
+        &self,
+        overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn is_directory_exists_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn set_overriding_directory_exists(
+        &self,
+        overriding_directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn is_realpath_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn set_overriding_realpath(
+        &self,
+        overriding_realpath: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn is_get_directories_supported(&self) -> bool {
+        unreachable!()
+    }
+
+    fn set_overriding_get_directories(
+        &self,
+        overriding_get_directories: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
+    fn read_file(&self, file_name: &str) -> io::Result<String> {
+        ParseConfigHost::read_file(self, file_name)
+    }
+
+    fn trace(&self, s: &str) {
+        ParseConfigHost::trace(self, s)
+    }
+
+    fn is_trace_supported(&self) -> bool {
+        ParseConfigHost::is_trace_supported(self)
+    }
+
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        Some(ParseConfigHost::use_case_sensitive_file_names(self))
+    }
+}
+
+pub trait ModuleResolutionHostOverrider {
+    fn file_exists(&self, file_name: &str) -> bool;
+    fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+        None
+    }
+    fn realpath(&self, path: &str) -> Option<String> {
+        None
+    }
+    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+        None
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct ResolvedModuleFull {
     pub resolved_file_name: String,
     pub is_external_library_import: Option<bool>,
@@ -25,7 +157,19 @@ pub struct ResolvedModuleFull {
     pub package_id: Option<PackageId>,
 }
 
-#[derive(Debug)]
+impl ResolvedModuleFull {
+    pub fn extension(&self) -> Extension {
+        self.extension.unwrap()
+    }
+}
+
+impl Cloneable for ResolvedModuleFull {
+    fn cloned(&self) -> Self {
+        self.clone()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct PackageId {
     pub name: String,
     pub sub_module_name: String,
@@ -90,6 +234,17 @@ impl Extension {
     }
 }
 
+impl AsRef<str> for Extension {
+    fn as_ref(&self) -> &str {
+        self.to_str()
+    }
+}
+
+pub struct ResolvedModuleWithFailedLookupLocations {
+    pub resolved_module: Option<Rc<ResolvedModuleFull>>,
+    pub failed_lookup_locations: RefCell<Vec<String>>,
+}
+
 #[derive(Debug)]
 pub struct ResolvedTypeReferenceDirective {
     pub primary: bool,
@@ -99,14 +254,139 @@ pub struct ResolvedTypeReferenceDirective {
     pub is_external_library_import: Option<bool>,
 }
 
+pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
+    pub resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>>,
+    pub failed_lookup_locations: Vec<String>,
+}
+
 pub trait CompilerHost: ModuleResolutionHost {
+    fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
     fn get_source_file(
         &self,
         file_name: &str,
         language_version: ScriptTarget,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        should_create_new_source_file: Option<bool>,
     ) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_source_file_by_path(
+        &self,
+        file_name: &str,
+        path: &Path,
+        language_version: ScriptTarget,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        should_create_new_source_file: Option<bool>,
+    ) -> Option<Rc<Node /*SourceFile*/>> {
+        None
+    }
+    fn get_cancellation_token(&self) -> Option<Rc<dyn CancellationToken>> {
+        None
+    }
+    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String;
+    fn get_default_lib_location(&self) -> Option<String> {
+        None
+    }
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    );
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
+    fn use_case_sensitive_file_names(&self) -> bool;
+    fn get_new_line(&self) -> String;
+    fn read_directory(
+        &self,
+        root_dir: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: &[String],
+        depth: Option<usize>,
+    ) -> Option<Vec<String>> {
+        None
+    }
+    fn is_read_directory_implemented(&self) -> bool;
+
+    fn resolve_module_names(
+        &self,
+        module_names: &[String],
+        containing_file: &str,
+        reused_names: Option<&[String]>,
+        redirected_reference: Option<&ResolvedProjectReference>,
+        options: &CompilerOptions,
+        containing_source_file: Option<&Node /*SourceFile*/>,
+    ) -> Option<Vec<Option<ResolvedModuleFull>>> {
+        None
+    }
+    fn is_resolve_module_names_supported(&self) -> bool;
+    fn get_module_resolution_cache(&self) -> Option<Rc<ModuleResolutionCache>> {
+        None
+    }
+    fn is_resolve_type_reference_directives_supported(&self) -> bool;
+    fn resolve_type_reference_directives(
+        &self,
+        type_reference_directive_names: &[String],
+        containing_file: &str,
+        redirected_reference: Option<&ResolvedProjectReference>,
+        options: &CompilerOptions,
+    ) -> Option<Vec<Option<Rc<ResolvedTypeReferenceDirective>>>> {
+        None
+    }
+    fn get_environment_variable(&self, name: &str) -> Option<String> {
+        None
+    }
+    fn on_release_old_source_file(
+        &self,
+        old_source_file: &Node, /*SourceFile*/
+        old_options: &CompilerOptions,
+        has_source_file_by_path: bool,
+    ) {
+    }
+    fn on_release_parsed_command_line(
+        &self,
+        config_file_name: &str,
+        old_resolved_ref: Option<ResolvedProjectReference>,
+        option_options: &CompilerOptions,
+    ) {
+    }
+    fn has_invalidated_resolution(&self, source_file: &Path) -> Option<bool> {
+        None
+    }
+    fn has_changed_automatic_type_directive_names(&self) -> Option<bool> {
+        None
+    }
+    fn create_hash(&self, data: &str) -> Option<String> {
+        None
+    }
+    fn get_parsed_command_line(&self, file_name: &str) -> Option<ParsedCommandLine> {
+        None
+    }
+    fn use_source_of_project_reference_redirect(&self) -> Option<bool> {
+        None
+    }
+
+    fn create_directory(&self, directory: &str) {}
+    fn get_symlink_cache(&self) -> Option<Rc<SymlinkCache>> {
+        None
+    }
+
+    fn disable_use_file_version_as_signature(&self) -> Option<bool> {
+        None
+    }
+}
+
+#[derive(Clone)]
+pub(crate) enum SourceOfProjectReferenceRedirect {
+    String(String),
+    True,
+}
+
+impl From<String> for SourceOfProjectReferenceRedirect {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
 }
 
 bitflags! {
@@ -229,7 +509,7 @@ pub enum StringOrUsize {
     Usize(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct EmitNode {
     pub annotated_nodes: Option<Vec<Rc<Node>>>,
     pub flags: Option<EmitFlags>,
@@ -244,26 +524,6 @@ pub struct EmitNode {
     pub helpers: Option<Vec<Rc<EmitHelper>>>,
     pub starts_on_new_line: Option<bool>,
     pub snippet_element: Option<SnippetElement>,
-}
-
-impl Default for EmitNode {
-    fn default() -> Self {
-        Self {
-            annotated_nodes: None,
-            flags: None,
-            leading_comments: None,
-            trailing_comments: None,
-            comment_range: None,
-            source_map_range: None,
-            token_source_map_ranges: None,
-            constant_value: None,
-            external_helpers_module_name: None,
-            external_helpers: None,
-            helpers: None,
-            starts_on_new_line: None,
-            snippet_element: None,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -445,6 +705,47 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub(crate) struct ExternalEmitHelpers: u32 {
+        const None = 0;
+        const Extends = 1 << 0;
+        const Assign = 1 << 1;
+        const Rest = 1 << 2;
+        const Decorate = 1 << 3;
+        const Metadata = 1 << 4;
+        const Param = 1 << 5;
+        const Awaiter = 1 << 6;
+        const Generator = 1 << 7;
+        const Values = 1 << 8;
+        const Read = 1 << 9;
+        const SpreadArray = 1 << 10;
+        const Await = 1 << 11;
+        const AsyncGenerator = 1 << 12;
+        const AsyncDelegator = 1 << 13;
+        const AsyncValues = 1 << 14;
+        const ExportStar = 1 << 15;
+        const ImportStar = 1 << 16;
+        const ImportDefault = 1 << 17;
+        const MakeTemplateObject = 1 << 18;
+        const ClassPrivateFieldGet = 1 << 19;
+        const ClassPrivateFieldSet = 1 << 20;
+        const ClassPrivateFieldIn = 1 << 21;
+        const CreateBinding = 1 << 22;
+        const FirstEmitHelper = Self::Extends.bits;
+        const LastEmitHelper = Self::CreateBinding.bits;
+
+        const ForOfIncludes = Self::Values.bits;
+
+        const ForAwaitOfIncludes = Self::AsyncValues.bits;
+
+        const AsyncGeneratorIncludes = Self::Await.bits | Self::AsyncGenerator.bits;
+
+        const AsyncDelegatorIncludes = Self::Await.bits | Self::AsyncDelegator.bits | Self::AsyncValues.bits;
+
+        const SpreadIncludes = Self::Read.bits | Self::SpreadArray.bits;
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmitHint {
     Expression,
@@ -464,7 +765,7 @@ pub trait SourceFileMayBeEmittedHost {
 pub trait EmitHost:
     ScriptReferenceHost + ModuleSpecifierResolutionHost + SourceFileMayBeEmittedHost
 {
-    fn get_source_files(&self) -> Vec<Rc<Node /*SourceFile*/>>;
+    fn get_source_files(&self) -> &[Rc<Node /*SourceFile*/>];
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_current_directory(&self) -> String;
 
@@ -493,4 +794,5 @@ pub trait EmitHost:
         ref_: &FileReference,
     ) -> Option<Rc<Node /*SourceFile*/>>;
     fn redirect_targets_map(&self) -> &RedirectTargetsMap;
+    fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost;
 }

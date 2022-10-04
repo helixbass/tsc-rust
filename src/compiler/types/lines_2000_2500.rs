@@ -5,8 +5,9 @@ use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
-    BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasTypeArgumentsInterface,
-    NamedDeclarationInterface, Node, NodeArray, SyntaxKind,
+    BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
+    SyntaxKind,
 };
 use local_macros::ast_type;
 
@@ -42,6 +43,21 @@ impl BinaryExpression {
 
     pub fn set_cached_literal_kind(&self, cached_literal_kind: SyntaxKind) {
         self.cached_literal_kind.set(Some(cached_literal_kind));
+    }
+}
+
+pub trait HasLeftAndRightInterface {
+    fn left(&self) -> Rc<Node>;
+    fn right(&self) -> Rc<Node>;
+}
+
+impl HasLeftAndRightInterface for BinaryExpression {
+    fn left(&self) -> Rc<Node> {
+        self.left.clone()
+    }
+
+    fn right(&self) -> Rc<Node> {
+        self.right.clone()
     }
 }
 
@@ -82,9 +98,15 @@ impl HasConditionInterface for ConditionalExpression {
     }
 }
 
+impl HasQuestionTokenInterface for ConditionalExpression {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        Some(self.question_token.clone())
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct FunctionExpression {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -100,7 +122,7 @@ impl FunctionExpression {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
 pub struct ArrowFunction {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -317,8 +339,17 @@ impl TemplateSpan {
     }
 }
 
+impl HasExpressionInterface for TemplateSpan {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 pub trait HasExpressionInterface {
     fn expression(&self) -> Rc<Node>;
+    fn maybe_expression(&self) -> Option<Rc<Node>> {
+        Some(self.expression())
+    }
 }
 
 #[derive(Debug)]
@@ -398,6 +429,16 @@ impl ObjectLiteralExpression {
             properties,
             multi_line,
         }
+    }
+}
+
+pub trait HasPropertiesInterface {
+    fn properties(&self) -> &NodeArray;
+}
+
+impl HasPropertiesInterface for ObjectLiteralExpression {
+    fn properties(&self) -> &NodeArray {
+        &self.properties
     }
 }
 
@@ -493,13 +534,17 @@ impl HasQuestionDotTokenInterface for ElementAccessExpression {
     }
 }
 
+pub trait HasArgumentsInterface {
+    fn maybe_arguments(&self) -> Option<&NodeArray>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct CallExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
     pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub arguments: NodeArray, /*<Expression>*/
 }
 
@@ -515,7 +560,7 @@ impl CallExpression {
             _node: base_node,
             expression,
             question_dot_token,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             arguments,
         }
     }
@@ -533,11 +578,23 @@ impl HasQuestionDotTokenInterface for CallExpression {
     }
 }
 
+impl HasArgumentsInterface for CallExpression {
+    fn maybe_arguments(&self) -> Option<&NodeArray> {
+        Some(&self.arguments)
+    }
+}
+
+impl HasTypeArgumentsInterface for CallExpression {
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ExpressionWithTypeArguments {
     _node: BaseNode,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
 }
 
@@ -550,7 +607,7 @@ impl ExpressionWithTypeArguments {
         Self {
             _node: base_node,
             expression,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
         }
     }
 }
@@ -561,12 +618,18 @@ impl HasExpressionInterface for ExpressionWithTypeArguments {
     }
 }
 
+impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct NewExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub arguments: Option<NodeArray /*<Expression>*/>,
 }
 
@@ -580,7 +643,7 @@ impl NewExpression {
         Self {
             _node: base_node,
             expression,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             arguments,
         }
     }
@@ -592,12 +655,24 @@ impl HasExpressionInterface for NewExpression {
     }
 }
 
+impl HasArgumentsInterface for NewExpression {
+    fn maybe_arguments(&self) -> Option<&NodeArray> {
+        self.arguments.as_ref()
+    }
+}
+
+impl HasTypeArgumentsInterface for NewExpression {
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct TaggedTemplateExpression {
     _node: BaseNode,
     pub tag: Rc<Node /*LeftHandSideExpression*/>,
-    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub template: Rc<Node /*TemplateLiteral*/>,
     pub(crate) question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
 }
@@ -613,7 +688,7 @@ impl TaggedTemplateExpression {
         Self {
             _node: base_node,
             tag,
-            type_arguments,
+            type_arguments: RefCell::new(type_arguments),
             template,
             question_dot_token,
         }
@@ -621,8 +696,8 @@ impl TaggedTemplateExpression {
 }
 
 impl HasTypeArgumentsInterface for TaggedTemplateExpression {
-    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
-        self.type_arguments.as_ref()
+    fn maybe_type_arguments(&self) -> Ref<Option<NodeArray>> {
+        self.type_arguments.borrow()
     }
 }
 
@@ -650,6 +725,16 @@ impl HasExpressionInterface for AsExpression {
     }
 }
 
+impl HasTypeInterface for AsExpression {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct TypeAssertion {
@@ -671,6 +756,16 @@ impl TypeAssertion {
 impl HasExpressionInterface for TypeAssertion {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl HasTypeInterface for TypeAssertion {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 

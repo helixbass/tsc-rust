@@ -267,3 +267,5 @@ pub type TransformerFactory = Rc<dyn Fn(Rc<dyn TransformationContext>) -> Transf
 
 // pub type Transformer = Rc<dyn FnMut(&Node) -> Rc<Node>>;
 pub type Transformer = Rc<dyn Fn(&Node) -> Rc<Node>>;
+
+pub type VisitResult = Option<Vec<Rc<Node>>>;

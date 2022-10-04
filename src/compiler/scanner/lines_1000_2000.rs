@@ -168,7 +168,7 @@ impl Scanner {
     ) {
         let is_scientific = is_scientific.unwrap_or(false);
         if !is_identifier_start(
-            code_point_at(self.text(), self.pos()),
+            code_point_at(&self.text(), self.pos()),
             Some(self.language_version),
         ) {
             return;
@@ -651,11 +651,11 @@ impl Scanner {
     ) -> Result<u32, String> {
         if self.language_version >= ScriptTarget::ES2015
             && matches!(
-                maybe_code_point_at(self.text(), self.pos() + 1),
+                maybe_code_point_at(&self.text(), self.pos() + 1),
                 Some(CharacterCodes::u)
             )
             && matches!(
-                maybe_code_point_at(self.text(), self.pos() + 2),
+                maybe_code_point_at(&self.text(), self.pos() + 2),
                 Some(CharacterCodes::open_brace)
             )
         {
@@ -677,7 +677,7 @@ impl Scanner {
         let mut result = "".to_string();
         let mut start = self.pos();
         while self.pos() < self.end() {
-            let ch = code_point_at(self.text(), self.pos());
+            let ch = code_point_at(&self.text(), self.pos());
             if is_identifier_part(ch, Some(self.language_version), None) {
                 self.increment_pos_by(char_size(ch));
             } else if ch == CharacterCodes::backslash {
@@ -828,13 +828,13 @@ impl Scanner {
             if self.pos() >= self.end() {
                 return self.set_token(SyntaxKind::EndOfFileToken);
             }
-            let ch = code_point_at(self.text(), self.pos());
+            let ch = code_point_at(&self.text(), self.pos());
 
             if ch == CharacterCodes::hash
                 && self.pos() == 0
-                && is_shebang_trivia(self.text(), self.pos())
+                && is_shebang_trivia(&self.text(), self.pos())
             {
-                self.set_pos(scan_shebang_trivia(self.text(), self.pos()));
+                self.set_pos(scan_shebang_trivia(&self.text(), self.pos()));
                 if self.skip_trivia {
                     continue;
                 } else {
@@ -1244,9 +1244,9 @@ impl Scanner {
                     return self.set_token(SyntaxKind::SemicolonToken);
                 }
                 CharacterCodes::less_than => {
-                    if is_conflict_marker_trivia(self.text(), self.pos()) {
+                    if is_conflict_marker_trivia(&self.text(), self.pos()) {
                         self.set_pos(scan_conflict_marker_trivia(
-                            self.text(),
+                            &self.text(),
                             self.pos(),
                             // Some(|diag, pos, len| self.error(on_error, diag, pos, len)),
                             |diag, pos, len| self.error(on_error, diag, pos, len),
@@ -1283,9 +1283,9 @@ impl Scanner {
                     return self.set_token(SyntaxKind::LessThanToken);
                 }
                 CharacterCodes::equals => {
-                    if is_conflict_marker_trivia(self.text(), self.pos()) {
+                    if is_conflict_marker_trivia(&self.text(), self.pos()) {
                         self.set_pos(scan_conflict_marker_trivia(
-                            self.text(),
+                            &self.text(),
                             self.pos(),
                             // Some(|diag, pos, len| self.error(on_error, diag, pos, len)),
                             |diag, pos, len| self.error(on_error, diag, pos, len),
@@ -1322,9 +1322,9 @@ impl Scanner {
                     return self.set_token(SyntaxKind::EqualsToken);
                 }
                 CharacterCodes::greater_than => {
-                    if is_conflict_marker_trivia(self.text(), self.pos()) {
+                    if is_conflict_marker_trivia(&self.text(), self.pos()) {
                         self.set_pos(scan_conflict_marker_trivia(
-                            self.text(),
+                            &self.text(),
                             self.pos(),
                             // Some(|diag, pos, len| self.error(on_error, diag, pos, len)),
                             |diag, pos, len| self.error(on_error, diag, pos, len),
@@ -1391,9 +1391,9 @@ impl Scanner {
                     return self.set_token(SyntaxKind::OpenBraceToken);
                 }
                 CharacterCodes::bar => {
-                    if is_conflict_marker_trivia(self.text(), self.pos()) {
+                    if is_conflict_marker_trivia(&self.text(), self.pos()) {
                         self.set_pos(scan_conflict_marker_trivia(
-                            self.text(),
+                            &self.text(),
                             self.pos(),
                             // Some(|diag, pos, len| self.error(on_error, diag, pos, len)),
                             |diag, pos, len| self.error(on_error, diag, pos, len),
@@ -1499,16 +1499,16 @@ impl Scanner {
                         return self.set_token(SyntaxKind::Unknown);
                     }
 
-                    if matches!(maybe_code_point_at(self.text(), self.pos() + 1), Some(ch) if is_identifier_start(ch, Some(self.language_version)))
+                    if matches!(maybe_code_point_at(&self.text(), self.pos() + 1), Some(ch) if is_identifier_start(ch, Some(self.language_version)))
                     {
                         self.increment_pos();
                         self.scan_identifier(
                             on_error,
-                            code_point_at(self.text(), self.pos()),
+                            code_point_at(&self.text(), self.pos()),
                             self.language_version,
                         );
                     } else {
-                        self.set_token_value(code_point_at(self.text(), self.pos()).to_string());
+                        self.set_token_value(code_point_at(&self.text(), self.pos()).to_string());
                         self.error(
                             on_error,
                             &Diagnostics::Invalid_character,

@@ -255,11 +255,11 @@ impl ParserType {
                     self,
                     decorators,
                     modifiers,
-                    dot_dot_dot_token.map(Into::into),
+                    dot_dot_dot_token.map(Node::wrap),
                     Some(name),
-                    question_token.map(Into::into),
+                    question_token.map(Node::wrap),
                     type_annotation,
-                    initializer.map(Into::into),
+                    initializer,
                 ),
                 pos,
                 None,
@@ -385,7 +385,7 @@ impl ParserType {
     }
 
     pub(super) fn is_index_signature(&self) -> bool {
-        self.token() == SyntaxKind::OpenBraceToken
+        self.token() == SyntaxKind::OpenBracketToken
             && self.look_ahead_bool(|| self.is_unambiguously_index_signature())
     }
 
@@ -1055,7 +1055,6 @@ impl ParserType {
                             None,
                         )
                         .into();
-                    break;
                 }
                 SyntaxKind::QuestionToken => {
                     if self.look_ahead_bool(|| self.next_token_is_start_of_type()) {
@@ -1070,7 +1069,6 @@ impl ParserType {
                             None,
                         )
                         .into();
-                    break;
                 }
                 SyntaxKind::OpenBracketToken => {
                     self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
@@ -1095,7 +1093,6 @@ impl ParserType {
                             )
                             .into();
                     }
-                    break;
                 }
                 _ => {
                     return type_;

@@ -36,7 +36,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayBindingElements,
-            || self.parse_array_binding_element().into(),
+            || self.parse_array_binding_element().wrap(),
             None,
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
@@ -193,7 +193,7 @@ impl ParserType {
     ) -> Rc<Node /*FunctionDeclaration*/> {
         let saved_await_context = self.in_await_context();
 
-        let modifier_flags = modifiers_to_flags(modifiers.as_ref());
+        let modifier_flags = modifiers_to_flags(modifiers.as_deref());
         self.parse_expected(SyntaxKind::FunctionKeyword, None, None);
         let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
         let name = if modifier_flags.intersects(ModifierFlags::Default) {
@@ -271,7 +271,7 @@ impl ParserType {
                 let mut node = self
                     .factory
                     .create_constructor_declaration(self, decorators, modifiers, parameters, body);
-                *node.maybe_type_parameters() = type_parameters;
+                *node.maybe_type_parameters_mut() = type_parameters;
                 node.set_type(type_);
                 return Some(self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc));
             }
@@ -347,7 +347,7 @@ impl ParserType {
             || self.parse_initializer(),
         );
         self.parse_semicolon_after_property_name(&*name, type_.clone(), initializer.clone());
-        let node = self.factory.create_property_declaration(
+        let node: Rc<Node> = self.factory.create_property_declaration(
             self,
             decorators,
             modifiers,
@@ -356,7 +356,8 @@ impl ParserType {
             type_,
             initializer,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.finish_node_ref(&*node, pos, None);
+        self.with_jsdoc(node, has_jsdoc)
     }
 
     pub(super) fn parse_property_or_method_declaration(
@@ -424,7 +425,7 @@ impl ParserType {
             }
             node_as_set_accessor_declaration.into()
         };
-        *node.as_has_type_parameters().maybe_type_parameters() = type_parameters;
+        *node.as_has_type_parameters().maybe_type_parameters_mut() = type_parameters;
         self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 

@@ -2,7 +2,6 @@
 
 use bitflags::bitflags;
 use regex::Regex;
-use std::array::IntoIter;
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -17,7 +16,7 @@ use super::{
     full_triple_slash_reference_type_reference_directive_reg_ex,
 };
 use crate::{
-    __String, binary_search_copy_key, compare_values, create_mode_aware_cache,
+    Type, __String, binary_search_copy_key, compare_values, create_mode_aware_cache,
     escape_jsx_attribute_string, escape_leading_underscores, escape_non_ascii_string,
     escape_string, find_ancestor, for_each_child_bool, full_triple_slash_amd_reference_path_reg_ex,
     full_triple_slash_reference_path_reg_ex, get_base_file_name, get_combined_node_flags,
@@ -41,7 +40,12 @@ use crate::{
     TokenFlags, UnderscoreEscapedMap,
 };
 
-// resolvingEmptyArray: never[] = [];
+thread_local! {
+    static resolving_empty_array_: Rc<Vec<Rc<Type>>> = Rc::new(vec![]);
+}
+pub fn resolving_empty_array() -> Rc<Vec<Rc<Type>>> {
+    resolving_empty_array_.with(|resolving_empty_array| resolving_empty_array.clone())
+}
 
 pub const external_helpers_module_name_text: &str = "tslib";
 
@@ -211,11 +215,15 @@ impl SymbolWriter for SingleLineStringWriter {
     fn clear(&mut self) {
         self.str = "".to_string();
     }
+
+    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
+        self
+    }
 }
 
 impl SymbolTracker for SingleLineStringWriter {
     fn track_symbol(
-        &mut self,
+        &self,
         symbol: &Symbol,
         enclosing_declaration: Option<Rc<Node>>,
         meaning: SymbolFlags,
@@ -223,11 +231,51 @@ impl SymbolTracker for SingleLineStringWriter {
         Some(false)
     }
 
-    fn report_inaccessible_this_error(&mut self) {}
+    fn is_track_symbol_supported(&self) -> bool {
+        true
+    }
 
-    fn report_inaccessible_unique_symbol_error(&mut self) {}
+    fn report_inaccessible_this_error(&self) {}
 
-    fn report_private_in_base_of_class_expression(&mut self, _property_name: &str) {}
+    fn is_report_inaccessible_this_error_supported(&self) -> bool {
+        true
+    }
+
+    fn report_inaccessible_unique_symbol_error(&self) {}
+
+    fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
+        true
+    }
+
+    fn report_private_in_base_of_class_expression(&self, _property_name: &str) {}
+
+    fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
+        true
+    }
+
+    fn is_report_cyclic_structure_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_nonlocal_augmentation_supported(&self) -> bool {
+        false
+    }
+
+    fn is_report_non_serializable_property_supported(&self) -> bool {
+        false
+    }
+
+    fn is_module_resolver_host_supported(&self) -> bool {
+        false
+    }
+
+    fn is_track_referenced_ambient_module_supported(&self) -> bool {
+        false
+    }
 }
 
 pub fn changes_affect_module_resolution(
@@ -334,6 +382,19 @@ pub fn for_each_entry<
     None
 }
 
+pub fn for_each_entry_bool<TKey, TValue, TCallback: FnMut(&TValue, &TKey) -> bool>(
+    map: &HashMap<TKey, TValue>, /*ReadonlyESMap*/
+    mut callback: TCallback,
+) -> bool {
+    for (key, value) in map {
+        let result = callback(value, key);
+        if result {
+            return result;
+        }
+    }
+    false
+}
+
 pub fn for_each_key<
     TKey,
     TReturn,
@@ -393,7 +454,7 @@ pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
         {
             return source_file_resolved_modules
                 .get(module_name_text, mode)
-                .map(Clone::clone);
+                .flatten();
         }
     }
     None
@@ -401,8 +462,8 @@ pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
 
 pub fn set_resolved_module(
     source_file: &Node, /*SourceFile*/
-    module_name_text: String,
-    resolved_module: Rc<ResolvedModuleFull>,
+    module_name_text: &str,
+    resolved_module: Option<Rc<ResolvedModuleFull>>,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) {
     let mut source_file_resolved_modules = source_file.as_source_file().maybe_resolved_modules();
@@ -418,8 +479,8 @@ pub fn set_resolved_module(
 
 pub fn set_resolved_type_reference_directive(
     source_file: &Node, /*SourceFile*/
-    type_reference_directive_name: String,
-    resolved_type_reference_directive /*?*/: Rc<ResolvedTypeReferenceDirective>,
+    type_reference_directive_name: &str,
+    resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>>,
 ) {
     let mut source_file_resolved_type_reference_directive_names = source_file
         .as_source_file()
@@ -492,7 +553,7 @@ pub fn type_directive_is_equal_to(
 }
 
 pub fn has_changes_in_resolutions<
-    TValue,
+    TValue: Clone,
     TName: AsRef<str>,
     TOldSourceFile: Borrow<Node>,
     TComparer: FnMut(&TValue, &TValue) -> bool,
@@ -517,7 +578,7 @@ pub fn has_changes_in_resolutions<
                 }),
             )
         });
-        let changed = match old_resolution {
+        let changed = match old_resolution.as_ref() {
             Some(old_resolution) =>
             /* !newResolution ||*/
             {
@@ -998,18 +1059,17 @@ pub fn index_of_node(node_array: &[Rc<Node>], node: &Node) -> isize {
 
 pub fn get_emit_flags(node: &Node) -> EmitFlags {
     node.maybe_emit_node()
-        .as_ref()
-        .and_then(|emit_node| emit_node.flags)
+        .and_then(|emit_node| (*emit_node).borrow().flags)
         .unwrap_or(EmitFlags::None)
 }
 
 pub type ScriptTargetFeatures = HashMap<&'static str, HashMap<&'static str, Vec<&'static str>>>;
 
 pub fn get_script_target_features() -> ScriptTargetFeatures {
-    HashMap::from_iter(IntoIter::new([
+    HashMap::from_iter(IntoIterator::into_iter([
         (
             "es2015",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 (
                     "Array",
                     vec![
@@ -1111,11 +1171,11 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2016",
-            HashMap::from_iter(IntoIter::new([("Array", vec!["includes"])])),
+            HashMap::from_iter(IntoIterator::into_iter([("Array", vec!["includes"])])),
         ),
         (
             "es2017",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("Atomics", vec![]),
                 ("SharedArrayBuffer", vec![]),
                 ("String", vec!["padStart", "padEnd"]),
@@ -1128,7 +1188,7 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2018",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("Promise", vec!["finally"]),
                 ("RegExpMatchArray", vec!["groups"]),
                 ("RegExpExecArray", vec!["groups"]),
@@ -1142,7 +1202,7 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2019",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("Array", vec!["flat", "flatMap"]),
                 ("ObjectConstructor", vec!["fromEntries"]),
                 (
@@ -1154,7 +1214,7 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2020",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("BigInt", vec![]),
                 ("BigInt64Array", vec![]),
                 ("BigUint64Array", vec![]),
@@ -1173,14 +1233,17 @@ pub fn get_script_target_features() -> ScriptTargetFeatures {
         ),
         (
             "es2021",
-            HashMap::from_iter(IntoIter::new([
+            HashMap::from_iter(IntoIterator::into_iter([
                 ("PromiseConstructor", vec!["any"]),
                 ("String", vec!["replaceAll"]),
             ])),
         ),
         (
             "esnext",
-            HashMap::from_iter(IntoIter::new([("NumberFormat", vec!["formatToParts"])])),
+            HashMap::from_iter(IntoIterator::into_iter([(
+                "NumberFormat",
+                vec!["formatToParts"],
+            )])),
         ),
     ]))
 }

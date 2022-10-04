@@ -9,12 +9,12 @@ use crate::{
     CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
     ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
     ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface, FunctionTypeNode,
-    GetAccessorDeclaration, HasInitializerInterface, IndexSignatureDeclaration,
-    IntersectionTypeNode, MethodDeclaration, MethodSignature, ModifierFlags,
-    NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration, PropertySignature,
-    QualifiedName, RestTypeNode, SetAccessorDeclaration, StringOrRcNode, SyntaxKind,
-    TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
+    GetAccessorDeclaration, HasInitializerInterface, HasQuestionTokenInterface,
+    IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
+    ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration,
+    PropertySignature, QualifiedName, RestTypeNode, SetAccessorDeclaration, StringOrRcNode,
+    SyntaxKind, TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
     TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
@@ -139,6 +139,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_qualified_name(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*QualifiedName*/
+        left: Rc<Node /*EntityName*/>,
+        right: Rc<Node /*Identifier*/>,
+    ) -> Rc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_computed_property_name(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -218,7 +228,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             if question_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsTypeScript);
             }
-            if modifiers_to_flags(node.maybe_modifiers().as_ref())
+            if modifiers_to_flags(node.maybe_modifiers().as_deref())
                 .intersects(ModifierFlags::ParameterPropertyModifier)
             {
                 node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
@@ -285,7 +295,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         question_or_exclamation_token: Option<Rc<Node /*QuestionToken | ExclamationToken*/>>,
         type_: Option<Rc<Node /*TypeNode*/>>,
         initializer: Option<Rc<Node /*Expression*/>>,
-    ) -> PropertyDeclaration {
+    ) -> Rc<Node> /*PropertyDeclaration*/ {
         let node = self.create_base_variable_like_declaration(
             base_factory,
             SyntaxKind::PropertyDeclaration,
@@ -312,13 +322,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(node.exclamation_token.clone())
                 | TransformFlags::ContainsClassFields,
         );
-        if is_computed_property_name(&node.name())
-            || has_static_modifier(&node) && node.maybe_initializer().is_some()
+        let node: Rc<Node> = node.into();
+        let node_as_property_declaration = node.as_property_declaration();
+        if is_computed_property_name(&node_as_property_declaration.name())
+            || has_static_modifier(&node)
+                && node_as_property_declaration.maybe_initializer().is_some()
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
         }
         if question_or_exclamation_token_is_some
-            || modifiers_to_flags(node.maybe_modifiers().as_ref())
+            || modifiers_to_flags(node.maybe_modifiers().as_deref())
                 .intersects(ModifierFlags::Ambient)
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -399,7 +412,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if question_token_is_some {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
-        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Async) {
+        if modifiers_to_flags(node.maybe_modifiers().as_deref()).intersects(ModifierFlags::Async) {
             if asterisk_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsES2018);
             } else {
@@ -658,6 +671,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_type_reference_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TypeReferenceNode*/
+        type_name: Rc<Node /*EntityName*/>,
+        type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    ) -> Rc<Node> {
+        unimplemented!()
     }
 
     pub fn create_function_type_node<

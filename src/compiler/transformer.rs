@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
@@ -7,7 +9,7 @@ use crate::{
     add_range, append, chain_bundle, create_emit_helper_factory, dispose_emit_nodes,
     factory as factory_static, get_emit_flags, get_emit_module_kind, get_emit_script_target,
     get_jsx_transform_enabled, get_parse_tree_node, get_source_file_of_node, is_bundle,
-    is_source_file, map, not_implemented, set_emit_flags, some, synthetic_factory,
+    is_source_file, maybe_map, not_implemented, set_emit_flags, some, synthetic_factory,
     transform_class_fields, transform_declarations, transform_ecmascript_module, transform_es2015,
     transform_es2016, transform_es2017, transform_es2018, transform_es2019, transform_es2020,
     transform_es2021, transform_es5, transform_esnext, transform_generators, transform_jsx,
@@ -83,7 +85,7 @@ fn get_script_transformers(
         &mut transformers,
         custom_transformers
             .and_then(|custom_transformers| {
-                map(custom_transformers.before.as_ref(), |factory, _| {
+                maybe_map(custom_transformers.before.as_ref(), |factory, _| {
                     wrap_script_transformer_factory(factory.clone())
                 })
             })
@@ -142,7 +144,7 @@ fn get_script_transformers(
         &mut transformers,
         custom_transformers
             .and_then(|custom_transformers| {
-                map(custom_transformers.after.as_ref(), |factory, _| {
+                maybe_map(custom_transformers.after.as_ref(), |factory, _| {
                     wrap_script_transformer_factory(factory.clone())
                 })
             })
@@ -163,7 +165,7 @@ fn get_declaration_transformers(
         &mut transformers,
         custom_transformers
             .and_then(|custom_transformers| {
-                map(
+                maybe_map(
                     custom_transformers.after_declarations.as_ref(),
                     |factory, _| wrap_declaration_transformer_factory(factory.clone()),
                 )
