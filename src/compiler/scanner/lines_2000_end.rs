@@ -608,9 +608,7 @@ impl Scanner {
         let save_token_flags = self.token_flags();
         let save_error_expectations = (*self.maybe_comment_directives()).clone();
 
-        let text = Some(self.text().clone());
-        let text_str = Some(self.text_str().to_string());
-        self.set_text(text, text_str, Some(start), Some(length));
+        self.set_text_start_and_length(start, length);
         let result = callback();
 
         self.set_end(save_end);
@@ -660,6 +658,11 @@ impl Scanner {
         self.set_text_(text_as_chars, text);
         self.set_end(length.map_or(text_as_chars_len, |length| start.unwrap() + length));
         self.set_text_pos(start.unwrap_or(0));
+    }
+
+    pub fn set_text_start_and_length(&self, start: usize, length: usize) {
+        self.set_end(length);
+        self.set_text_pos(start);
     }
 
     // pub fn set_on_error(&mut self, error_callback: Option<ErrorCallback<'on_error>>) {
