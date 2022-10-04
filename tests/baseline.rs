@@ -1,4 +1,6 @@
+use rstest::rstest;
 use std::fs;
+use std::path::Path;
 use std::rc::Rc;
 
 use typescript_rust::{
@@ -6,19 +8,15 @@ use typescript_rust::{
     get_sys, CompilerOptions, CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, Node,
 };
 
-#[test]
-fn run_compiler_baselines() {
-    let names = vec!["yieldStringLiteral"];
-    for name in &names {
-        run_compiler_baseline(name);
-    }
-}
-
-fn run_compiler_baseline(name: &str) {
+#[rstest]
+#[case("yieldStringLiteral.ts")]
+fn run_compiler_baseline(#[case] case_filename: &str) {
     let options: Rc<CompilerOptions> = Rc::new(Default::default());
     let host = create_compiler_host_worker(options.clone(), None, Some(get_sys()));
     let program = create_program(CreateProgramOptions {
-        root_names: vec![format!("typescript_src/tests/cases/compiler/{name}.ts")],
+        root_names: vec![format!(
+            "typescript_src/tests/cases/compiler/{case_filename}"
+        )],
         options,
         host: Some(Rc::new(host)),
         project_references: None,
@@ -27,7 +25,14 @@ fn run_compiler_baseline(name: &str) {
     });
     // let emit_result = program.emit(None, None, None, None, None, None);
     let errors = get_pre_emit_diagnostics(&program.clone().into(), Option::<&Node>::None, None);
-    compare_baselines(name, &errors)
+    compare_baselines(
+        Path::new(case_filename)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        &errors,
+    )
 }
 
 fn compare_baselines(name: &str, diagnostics: &[Rc<Diagnostic>]) {
