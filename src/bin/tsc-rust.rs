@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::rc::Rc;
 
-use tsc_rust::{execute_command_line, get_sys, Debug_, LogLevel, LoggingHost};
+use typescript_rust::{execute_command_line, get_sys, Debug_, LogLevel, LoggingHost};
 
 fn main() {
     Debug_.set_logging_host(Some(Rc::new(LoggingHostConcrete::new())));
