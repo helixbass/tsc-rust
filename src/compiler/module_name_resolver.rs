@@ -676,7 +676,13 @@ pub fn resolve_type_reference_directive(
     );
     let mut primary = true;
     if resolved.is_none() {
-        resolved = secondary_lookup();
+        resolved = secondary_lookup(
+            containing_file,
+            trace_enabled,
+            host,
+            type_reference_directive_name,
+            &module_resolution_state,
+        );
         primary = false;
     }
 
@@ -775,8 +781,62 @@ fn primary_lookup(
     }
 }
 
-fn secondary_lookup() -> Option<PathAndPackageId> {
-    unimplemented!()
+fn secondary_lookup(
+    containing_file: Option<&str>,
+    trace_enabled: bool,
+    host: &dyn ModuleResolutionHost,
+    type_reference_directive_name: &str,
+    module_resolution_state: &ModuleResolutionState,
+) -> Option<PathAndPackageId> {
+    let initial_location_for_secondary_lookup =
+        containing_file.map(|containing_file| get_directory_path(containing_file));
+
+    if let Some(initial_location_for_secondary_lookup) =
+        initial_location_for_secondary_lookup.as_ref()
+    {
+        if trace_enabled {
+            trace(
+                host,
+                &Diagnostics::Looking_up_in_node_modules_folder_initial_location_0,
+                Some(vec![initial_location_for_secondary_lookup.clone()]),
+            );
+        }
+        let result: Option<Resolved>;
+        if !is_external_module_name_relative(type_reference_directive_name) {
+            let search_result = load_module_from_nearest_node_modules_directory(
+                Extensions::DtsOnly,
+                type_reference_directive_name,
+                initial_location_for_secondary_lookup,
+                module_resolution_state,
+                None,
+                None,
+            );
+            result = search_result.and_then(|search_result| search_result.value);
+        } else {
+            let ref candidate = normalize_path_and_parts(&combine_paths(
+                initial_location_for_secondary_lookup,
+                &[Some(type_reference_directive_name)],
+            ))
+            .path;
+            result = node_load_module_by_relative_name(
+                Extensions::DtsOnly,
+                candidate,
+                false,
+                module_resolution_state,
+                true,
+            );
+        }
+        resolved_type_script_only(result.as_ref())
+    } else {
+        if trace_enabled {
+            trace(
+                host,
+                &Diagnostics::Containing_file_is_not_specified_and_root_directory_cannot_be_determined_skipping_lookup_in_node_modules_folder,
+                None,
+            );
+        }
+        None
+    }
 }
 
 fn trace_result(result: &ResolvedTypeReferenceDirectiveWithFailedLookupLocations) {
