@@ -839,18 +839,17 @@ impl GetFlowTypeOfReference {
 
     pub(super) fn get_type_at_flow_loop_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> FlowType {
         let id = self.type_checker.get_flow_node_id(&flow);
-        let cache = self
-            .type_checker
-            .flow_loop_caches()
-            .get(&id)
-            .cloned()
-            .unwrap_or_else(|| {
-                let flow_loop_cache = Rc::new(RefCell::new(HashMap::new()));
-                self.type_checker
-                    .flow_loop_caches()
-                    .insert(id, flow_loop_cache.clone());
-                flow_loop_cache
-            });
+        let cache = {
+            let value = self.type_checker.flow_loop_caches().get(&id).cloned();
+            value
+        }
+        .unwrap_or_else(|| {
+            let flow_loop_cache = Rc::new(RefCell::new(HashMap::new()));
+            self.type_checker
+                .flow_loop_caches()
+                .insert(id, flow_loop_cache.clone());
+            flow_loop_cache
+        });
         let key = self.get_or_set_cache_key();
         if key.is_none() {
             return self.declared_type.clone().into();
