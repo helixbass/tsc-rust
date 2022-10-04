@@ -111,7 +111,8 @@ pub(super) fn create_compiler_host(
     create_compiler_host_worker(options, set_parent_nodes, None)
 }
 
-pub(crate) fn create_compiler_host_worker(
+/*pub(crate) fn create_compiler_host_worker(*/
+pub fn create_compiler_host_worker(
     options: Rc<CompilerOptions>,
     set_parent_nodes: Option<bool>,
     system: Option<Rc<dyn System>>,

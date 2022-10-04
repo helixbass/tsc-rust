@@ -193,16 +193,18 @@ pub use compiler::path::{
     starts_with_directory, to_path, PathAndParts, StringOrBool,
 };
 use compiler::program::{
-    change_compiler_host_like_to_use_cache, create_compiler_host_worker, format_color_and_reset,
-    get_mode_for_resolution_at_index, get_mode_for_usage_location,
-    get_module_name_string_literal_at, get_referenced_file_location, is_reference_file_location,
-    is_referenced_file, DiagnosticCache, ForegroundColorEscapeSequences, ReferenceFileLocation,
+    change_compiler_host_like_to_use_cache,
+    /*create_compiler_host_worker,*/ format_color_and_reset, get_mode_for_resolution_at_index,
+    get_mode_for_usage_location, get_module_name_string_literal_at, get_referenced_file_location,
+    is_reference_file_location, is_referenced_file, DiagnosticCache,
+    ForegroundColorEscapeSequences, ReferenceFileLocation,
     ReferenceFileLocationOrSyntheticReferenceFileLocation, SyntheticReferenceFileLocation,
 };
 pub use compiler::program::{
-    create_program, find_config_file, flatten_diagnostic_message_text, format_diagnostic,
-    format_diagnostics_with_color_and_context, get_config_file_parsing_diagnostics,
-    get_implied_node_format_for_file, get_resolution_diagnostic, ActualResolveModuleNamesWorker,
+    create_compiler_host_worker, create_program, find_config_file, flatten_diagnostic_message_text,
+    format_diagnostic, format_diagnostics_with_color_and_context,
+    get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
+    get_resolution_diagnostic, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, FilesByNameValue, FormatDiagnosticsHost,
 };
 use compiler::scanner::{
