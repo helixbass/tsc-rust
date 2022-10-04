@@ -20,7 +20,7 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 thread_local! {
-    pub(crate) static option_declarations: Vec<Rc<CommandLineOption>> =
+    pub static option_declarations: Vec<Rc<CommandLineOption>> =
         common_options_with_build.with(|common_options_with_build_| {
             command_options_without_build.with(|command_options_without_build_| {
                 common_options_with_build_
