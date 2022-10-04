@@ -9,12 +9,13 @@ use std::rc::Rc;
 
 use typescript_rust::{
     create_compiler_host_worker, create_program, format_diagnostics, get_pre_emit_diagnostics,
-    get_sys, option_declarations, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
-    CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, Node,
+    get_sys, option_declarations, parse_custom_type_option, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
+    CompilerOptionsValue, CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, Node,
 };
 
 #[rstest]
+#[case("yieldExpressionInFlowLoop.ts")]
 #[case("yieldStringLiteral.ts")]
 fn run_compiler_baseline(#[case] case_filename: &str) {
     let case_file_path = format!("typescript_src/tests/cases/compiler/{case_filename}");
@@ -60,10 +61,10 @@ fn set_compiler_options_from_harness_settings(
                 option_value(option, value, &mut errors),
             );
             if !errors.is_empty() {
-                panic!("Unknown value '{value}' for compiler option '{name}'.")
+                panic!("Unknown value '{}' for compiler option '{}'.", value, name);
             }
         } else {
-            panic!("Unknown compiler option '{name}'.")
+            panic!("Unknown compiler option '{}'.", name);
         }
     }
 }
@@ -79,7 +80,7 @@ fn option_value(
         CommandLineOptionType::Number => unimplemented!(),
         CommandLineOptionType::Object => unimplemented!(),
         CommandLineOptionType::List => unimplemented!(),
-        CommandLineOptionType::Map(_) => unimplemented!(),
+        CommandLineOptionType::Map(_) => parse_custom_type_option(option, Some(value), errors),
     }
 }
 
@@ -99,13 +100,13 @@ fn get_command_line_option(name: &str) -> Option<Rc<CommandLineOption>> {
                 });
                 options_index_
             })
-            .get(name)
+            .get(&name.to_lowercase())
             .cloned()
     })
 }
 
 lazy_static! {
-    static ref option_regex: Regex = Regex::new(r"(?m)^[/]{2}\s*@(w+)\s*:\s*([^\r\n]*)").unwrap();
+    static ref option_regex: Regex = Regex::new(r"(?m)^[/]{2}\s*@(\w+)\s*:\s*([^\r\n]*)").unwrap();
 }
 
 fn extract_compiler_settings(case_file_contents: &str) -> HashMap<&str, &str> {

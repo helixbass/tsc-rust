@@ -1468,7 +1468,11 @@ impl FlowLabel {
         }
     }
 
-    pub fn maybe_antecedents(&self) -> RefMut<Option<Vec<Rc<FlowNode>>>> {
+    pub fn maybe_antecedents(&self) -> Ref<Option<Vec<Rc<FlowNode>>>> {
+        self.antecedents.borrow()
+    }
+
+    pub fn maybe_antecedents_mut(&self) -> RefMut<Option<Vec<Rc<FlowNode>>>> {
         self.antecedents.borrow_mut()
     }
 

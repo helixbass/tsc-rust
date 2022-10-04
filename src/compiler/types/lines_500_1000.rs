@@ -199,7 +199,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_next_container(&self, next_container: Option<Rc<Node>>);
     fn maybe_local_symbol(&self) -> Option<Rc<Symbol>>;
     fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>);
-    fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>>;
+    fn maybe_flow_node(&self) -> Ref<Option<Rc<FlowNode>>>;
+    fn maybe_flow_node_mut(&self) -> RefMut<Option<Rc<FlowNode>>>;
     fn set_flow_node(&self, emit_node: Option<Rc<FlowNode>>);
     fn maybe_emit_node(&self) -> Option<Rc<RefCell<EmitNode>>>;
     fn maybe_emit_node_mut(&self) -> RefMut<Option<Rc<RefCell<EmitNode>>>>;
@@ -1537,6 +1538,10 @@ impl Node {
     pub fn as_jsdoc_callback_tag(&self) -> &JSDocCallbackTag {
         enum_unwrapped!(self, [Node, JSDocCallbackTag])
     }
+
+    pub fn as_comma_list_expression(&self) -> &CommaListExpression {
+        enum_unwrapped!(self, [Node, CommaListExpression])
+    }
 }
 
 #[derive(Debug)]
@@ -1762,7 +1767,11 @@ impl NodeInterface for BaseNode {
         self.inference_context.borrow_mut()
     }
 
-    fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
+    fn maybe_flow_node(&self) -> Ref<Option<Rc<FlowNode>>> {
+        self.flow_node.borrow()
+    }
+
+    fn maybe_flow_node_mut(&self) -> RefMut<Option<Rc<FlowNode>>> {
         self.flow_node.borrow_mut()
     }
 

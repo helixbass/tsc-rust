@@ -512,7 +512,7 @@ pub(super) fn create_diagnostic_for_invalid_custom_type<
     )
 }
 
-pub(crate) fn parse_custom_type_option(
+pub fn parse_custom_type_option(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
     value: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,
