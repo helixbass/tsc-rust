@@ -733,8 +733,9 @@ impl CheckTypeRelatedTo {
         }
         let mut result = Ternary::True;
         if self.type_checker.is_tuple_type(target) {
-            let target_as_type_reference = target.as_type_reference();
-            let target_target_as_tuple_type = target_as_type_reference.target.as_tuple_type();
+            let target_as_type_reference = target.as_type_reference_interface();
+            let target_target = target_as_type_reference.target();
+            let target_target_as_tuple_type = target_target.as_tuple_type();
             if self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source) {
                 if !target_target_as_tuple_type.readonly
                     && (self.type_checker.is_readonly_array_type(source)
@@ -824,10 +825,8 @@ impl CheckTypeRelatedTo {
                     } else {
                         0
                     },
-                    self.type_checker.get_start_element_count(
-                        &target_as_type_reference.target,
-                        ElementFlags::NonRest,
-                    ),
+                    self.type_checker
+                        .get_start_element_count(&target_target, ElementFlags::NonRest),
                 );
                 let end_count = cmp::min(
                     if self.type_checker.is_tuple_type(source) {
@@ -839,10 +838,8 @@ impl CheckTypeRelatedTo {
                         0
                     },
                     if target_rest_flag != ElementFlags::None {
-                        self.type_checker.get_end_element_count(
-                            &target_as_type_reference.target,
-                            ElementFlags::NonRest,
-                        )
+                        self.type_checker
+                            .get_end_element_count(&target_target, ElementFlags::NonRest)
                     } else {
                         0
                     },
