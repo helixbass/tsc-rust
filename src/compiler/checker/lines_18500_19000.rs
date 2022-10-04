@@ -1685,7 +1685,11 @@ impl CheckTypeRelatedTo {
             } else {
                 self.type_checker.is_array_type(target)
                     && self.type_checker.is_tuple_type(&source)
-                    && !source.as_type_reference().target.as_tuple_type().readonly
+                    && !source
+                        .as_type_reference_interface()
+                        .target()
+                        .as_tuple_type()
+                        .readonly
             } {
                 if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
                     return self.is_related_to(
