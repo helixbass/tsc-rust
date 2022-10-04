@@ -129,7 +129,7 @@ impl Program {
                     get_mode_for_resolution_at_index(file_as_source_file, index),
                 );
 
-                if (resolution.is_none()) {
+                if resolution.is_none() {
                     continue;
                 }
                 let resolution = resolution.unwrap();
