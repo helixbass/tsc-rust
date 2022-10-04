@@ -1877,7 +1877,7 @@ pub fn add_related_info(
     if related_information.is_empty() {
         return /*diagnostic*/;
     }
-    let mut diagnostic_related_information = diagnostic.related_information();
+    let mut diagnostic_related_information = diagnostic.related_information_mut();
     if diagnostic_related_information.is_none() {
         *diagnostic_related_information = Some(vec![]);
     }

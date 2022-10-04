@@ -281,7 +281,7 @@ impl TypeChecker {
         args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {
         let diagnostic = self.error(location, message, args);
-        *diagnostic.maybe_skipped_on() = Some(key);
+        *diagnostic.maybe_skipped_on_mut() = Some(key);
         diagnostic
     }
 
@@ -802,7 +802,7 @@ impl TypeChecker {
                     continue;
                 }
                 {
-                    let mut err_related_information = err.related_information();
+                    let mut err_related_information = err.related_information_mut();
                     if err_related_information.is_none() {
                         *err_related_information = Some(vec![]);
                     }

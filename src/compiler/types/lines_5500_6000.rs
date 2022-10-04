@@ -1156,8 +1156,10 @@ impl Diagnostic {
 }
 
 pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>>;
-    fn maybe_skipped_on(&self) -> RefMut<Option<String>>;
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>>;
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>>;
+    fn maybe_skipped_on(&self) -> Ref<Option<String>>;
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>>;
 }
 
 #[derive(Clone, Debug)]
@@ -1231,11 +1233,19 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
 }
 
 impl DiagnosticInterface for BaseDiagnostic {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        self.related_information.borrow()
+    }
+
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
         self.related_information.borrow_mut()
     }
 
-    fn maybe_skipped_on(&self) -> RefMut<Option<String>> {
+    fn maybe_skipped_on(&self) -> Ref<Option<String>> {
+        self.skipped_on.borrow()
+    }
+
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>> {
         self.skipped_on.borrow_mut()
     }
 }
@@ -1349,7 +1359,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 }
 
 impl DiagnosticInterface for Diagnostic {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.related_information(),
             Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
@@ -1359,11 +1369,31 @@ impl DiagnosticInterface for Diagnostic {
         }
     }
 
-    fn maybe_skipped_on(&self) -> RefMut<Option<String>> {
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.related_information_mut(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
+                diagnostic.related_information_mut()
+            }
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.related_information_mut(),
+        }
+    }
+
+    fn maybe_skipped_on(&self) -> Ref<Option<String>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_skipped_on(),
             Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.maybe_skipped_on(),
             Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.maybe_skipped_on(),
+        }
+    }
+
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_skipped_on_mut(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
+                diagnostic.maybe_skipped_on_mut()
+            }
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.maybe_skipped_on_mut(),
         }
     }
 }
@@ -1682,12 +1712,20 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithLocation {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
         self._diagnostic.related_information()
     }
 
-    fn maybe_skipped_on(&self) -> RefMut<Option<String>> {
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        self._diagnostic.related_information_mut()
+    }
+
+    fn maybe_skipped_on(&self) -> Ref<Option<String>> {
         self._diagnostic.maybe_skipped_on()
+    }
+
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>> {
+        self._diagnostic.maybe_skipped_on_mut()
     }
 }
 
@@ -1771,12 +1809,20 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithDetachedLocation {
-    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+    fn related_information(&self) -> Ref<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
         self._diagnostic.related_information()
     }
 
-    fn maybe_skipped_on(&self) -> RefMut<Option<String>> {
+    fn related_information_mut(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        self._diagnostic.related_information_mut()
+    }
+
+    fn maybe_skipped_on(&self) -> Ref<Option<String>> {
         self._diagnostic.maybe_skipped_on()
+    }
+
+    fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>> {
+        self._diagnostic.maybe_skipped_on_mut()
     }
 }
 
