@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use regex::Regex;
+use regex::{Captures, Regex};
 use rstest::rstest;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -45,6 +45,7 @@ fn run_compiler_baseline(#[case] case_filename: &str) {
             .to_str()
             .unwrap(),
         &errors,
+        &case_file_contents,
     )
 }
 
@@ -122,14 +123,52 @@ fn extract_compiler_settings(case_file_contents: &str) -> HashMap<&str, &str> {
     opts
 }
 
-fn compare_baselines(name: &str, diagnostics: &[Rc<Diagnostic>]) {
+fn compare_baselines(name: &str, diagnostics: &[Rc<Diagnostic>], case_file_contents: &str) {
     let ref baseline_file_contents = fs::read_to_string(&format!(
         "typescript_src/tests/baselines/reference/{name}.errors.txt"
     ))
     .unwrap();
     let baseline_error_lines = parse_baseline_errors(baseline_file_contents);
-    let formatted_diagnostic_lines = format_diagnostics(diagnostics, &DummyFormatDiagnosticsHost);
+    let formatted_diagnostic_lines = adjust_diagnostic_line_numbers(
+        &format_diagnostics(diagnostics, &DummyFormatDiagnosticsHost),
+        case_file_contents,
+    );
     assert_eq!(baseline_error_lines, formatted_diagnostic_lines,);
+}
+
+fn adjust_diagnostic_line_numbers(formatted_diagnostics: &str, case_file_contents: &str) -> String {
+    let number_of_leading_lines_to_remove =
+        get_number_of_leading_lines_to_remove(case_file_contents);
+    lazy_static! {
+        static ref formatted_diagnostic_regex: Regex =
+            Regex::new(r"^(typescript_src/tests/cases/compiler/[^(]+\()(\d+)(,\d+\))").unwrap();
+    }
+    formatted_diagnostics
+        .split("\n")
+        .map(|line| {
+            formatted_diagnostic_regex.replace(line, |captures: &Captures| {
+                format!(
+                    "{}{}{}",
+                    &captures[1],
+                    (captures.get(2).unwrap().as_str().parse::<usize>().unwrap()
+                        - number_of_leading_lines_to_remove),
+                    &captures[3],
+                )
+            })
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+lazy_static! {
+    static ref whitespace_only_regex: Regex = Regex::new(r"^\s*$").unwrap();
+}
+
+fn get_number_of_leading_lines_to_remove(case_file_contents: &str) -> usize {
+    case_file_contents
+        .split("\n")
+        .take_while(|&line| option_regex.is_match(line) || whitespace_only_regex.is_match(line))
+        .count()
 }
 
 struct DummyFormatDiagnosticsHost;
