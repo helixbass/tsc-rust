@@ -1,5 +1,5 @@
 use std::borrow::{Borrow, Cow};
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::FromIterator;
@@ -9,12 +9,13 @@ use crate::{
     create_text_writer, factory, file_extension_is, get_emit_flags,
     get_emit_module_kind_from_module_and_target, get_literal_text, get_new_line_character,
     get_parse_tree_node, id_text, is_expression, is_identifier, is_keyword, is_source_file,
-    no_emit_notification, no_emit_substitution, positions_are_on_same_line, skip_trivia,
-    token_to_string, BundleFileInfo, BundleFileSectionKind, Debug_, EmitFlags, EmitHint,
-    EmitTextWriter, Extension, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface,
-    ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine,
-    PrintHandlers, Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike, SourceMapGenerator,
-    Symbol, SyntaxKind,
+    last_or_undefined, no_emit_notification, no_emit_substitution, positions_are_on_same_line,
+    skip_trivia, token_to_string, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
+    BundleFileSectionKind, Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension,
+    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine, PrintHandlers,
+    Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike, SourceMapGenerator, Symbol,
+    SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -146,11 +147,11 @@ impl Printer {
         self.current_source_file.borrow().clone()
     }
 
-    fn maybe_writer(&self) -> Option<Rc<RefCell<dyn EmitTextWriter>>> {
+    fn maybe_writer(&self) -> Option<Rc<dyn EmitTextWriter>> {
         self.writer.borrow().clone()
     }
 
-    fn writer_(&self) -> Rc<RefCell<dyn EmitTextWriter>> {
+    fn writer(&self) -> Rc<dyn EmitTextWriter> {
         self.writer.borrow().clone().unwrap()
     }
 
@@ -208,6 +209,18 @@ impl Printer {
 
     fn write(&self, text: &str) {
         (self.write.get())(self, text);
+    }
+
+    fn bundle_file_info(&self) -> Ref<BundleFileInfo> {
+        Ref::map(self.bundle_file_info.borrow(), |bundle_file_info| {
+            bundle_file_info.as_ref().unwrap()
+        })
+    }
+
+    fn bundle_file_info_mut(&self) -> RefMut<BundleFileInfo> {
+        RefMut::map(self.bundle_file_info.borrow_mut(), |bundle_file_info| {
+            bundle_file_info.as_mut().unwrap()
+        })
     }
 
     fn enter_comment(&self) {
@@ -286,7 +299,7 @@ impl Printer {
         hint: EmitHint,
         node: &Node,
         source_file: Option<&Node /*SourceFile*/>,
-        output: Rc<RefCell<dyn EmitTextWriter>>,
+        output: Rc<dyn EmitTextWriter>,
     ) {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
@@ -300,7 +313,7 @@ impl Printer {
         format: ListFormat,
         nodes: &NodeArray,
         source_file: Option<&Node /*SourceFile*/>,
-        output: Rc<RefCell<dyn EmitTextWriter>>,
+        output: Rc<dyn EmitTextWriter>,
     ) {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
@@ -312,10 +325,33 @@ impl Printer {
         *self.writer.borrow_mut() = previous_writer;
     }
 
+    fn get_text_pos_with_write_line(&self) -> usize {
+        self.writer()
+            .get_text_pos_with_write_line()
+            .unwrap_or_else(|| self.writer().get_text_pos())
+    }
+
+    fn update_or_push_bundle_file_text_like(
+        &self,
+        pos: isize,
+        end: isize,
+        kind: BundleFileSectionKind, /*BundleFileTextLikeKind*/
+    ) {
+        let mut bundle_file_info = self.bundle_file_info_mut();
+        let last = last_or_undefined(&bundle_file_info.sections);
+        if let Some(last) = last.filter(|last| last.kind() == kind) {
+            last.set_end(end);
+        } else {
+            bundle_file_info
+                .sections
+                .push(BundleFileSection::new_text_like(kind, None, pos, end));
+        }
+    }
+
     pub fn write_bundle(
         &self,
         bundle: &Node, /*Bundle*/
-        output: Rc<RefCell<dyn EmitTextWriter>>,
+        output: Rc<dyn EmitTextWriter>,
         source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
     ) {
         unimplemented!()
@@ -324,7 +360,7 @@ impl Printer {
     pub fn write_unparsed_source(
         &self,
         unparsed: &Node, /*UnparsedSource*/
-        output: Rc<RefCell<dyn EmitTextWriter>>,
+        output: Rc<dyn EmitTextWriter>,
     ) {
         unimplemented!()
     }
@@ -332,23 +368,22 @@ impl Printer {
     pub fn write_file(
         &self,
         source_file: &Node, /*SourceFile*/
-        output: Rc<RefCell<dyn EmitTextWriter>>,
+        output: Rc<dyn EmitTextWriter>,
         source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
     ) {
         unimplemented!()
     }
 
-    fn begin_print(&self) -> Rc<RefCell<dyn EmitTextWriter>> {
+    fn begin_print(&self) -> Rc<dyn EmitTextWriter> {
         self.own_writer
             .borrow_mut()
-            .get_or_insert_with(|| Rc::new(RefCell::new(create_text_writer(&self.new_line))))
+            .get_or_insert_with(|| Rc::new(create_text_writer(&self.new_line)))
             .clone()
     }
 
     fn end_print(&self) -> String {
         let own_writer = self.own_writer.borrow();
         let own_writer = own_writer.as_ref().unwrap();
-        let mut own_writer = own_writer.borrow_mut();
         let text = own_writer.get_text();
         own_writer.clear();
         text
@@ -369,7 +404,7 @@ impl Printer {
 
     fn set_writer(
         &self,
-        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+        writer: Option<Rc<dyn EmitTextWriter>>,
         source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
     ) {
         *self.writer.borrow_mut() = writer;
@@ -822,43 +857,43 @@ impl Printer {
     }
 
     fn write_base(&self, s: &str) {
-        self.writer_().borrow_mut().write(s);
+        self.writer().write(s);
     }
 
     fn write_string_literal(&self, s: &str) {
-        self.writer_().borrow_mut().write_string_literal(s);
+        self.writer().write_string_literal(s);
     }
 
     fn write_symbol(&self, s: &str, sym: &Symbol) {
-        self.writer_().borrow_mut().write_symbol(s, sym);
+        self.writer().write_symbol(s, sym);
     }
 
     fn write_punctuation(&self, s: &str) {
-        self.writer_().borrow_mut().write_punctuation(s);
+        self.writer().write_punctuation(s);
     }
 
     fn write_trailing_semicolon(&self) {
-        self.writer_().borrow_mut().write_trailing_semicolon(";");
+        self.writer().write_trailing_semicolon(";");
     }
 
     fn write_keyword(&self, s: &str) {
-        self.writer_().borrow_mut().write_keyword(s);
+        self.writer().write_keyword(s);
     }
 
     fn write_space(&self) {
-        self.writer_().borrow_mut().write_space(" ");
+        self.writer().write_space(" ");
     }
 
     fn write_property(&self, s: &str) {
-        self.writer_().borrow_mut().write_property(s);
+        self.writer().write_property(s);
     }
 
     fn increase_indent(&self) {
-        self.writer_().borrow_mut().increase_indent();
+        self.writer().increase_indent();
     }
 
     fn decrease_indent(&self) {
-        self.writer_().borrow_mut().decrease_indent();
+        self.writer().decrease_indent();
     }
 
     fn write_token_node(&self, node: &Node, writer: fn(&Printer, &str)) {

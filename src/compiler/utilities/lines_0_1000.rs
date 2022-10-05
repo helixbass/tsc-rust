@@ -3,7 +3,7 @@
 use bitflags::bitflags;
 use regex::Regex;
 use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::Hash;
@@ -90,60 +90,72 @@ pub fn is_transient_symbol(symbol: &Symbol) -> bool {
 }
 
 // lazy_static! {
-//     static ref string_writer: Rc<RefCell<dyn EmitTextWriter>> = create_single_line_string_writer();
+//     static ref string_writer: Rc<dyn EmitTextWriter> = create_single_line_string_writer();
 // }
 
-fn string_writer() -> Rc<RefCell<dyn EmitTextWriter>> {
+fn string_writer() -> Rc<dyn EmitTextWriter> {
     create_single_line_string_writer()
 }
 
-fn create_single_line_string_writer() -> Rc<RefCell<dyn EmitTextWriter>> {
-    Rc::new(RefCell::new(SingleLineStringWriter::new()))
+fn create_single_line_string_writer() -> Rc<dyn EmitTextWriter> {
+    Rc::new(SingleLineStringWriter::new())
 }
 
 struct SingleLineStringWriter {
-    str: String,
+    str: RefCell<String>,
 }
 
 impl SingleLineStringWriter {
     pub fn new() -> Self {
         Self {
-            str: "".to_string(),
+            str: RefCell::new("".to_owned()),
         }
     }
 
-    fn write_text(&mut self, text: &str) {
-        self.str.push_str(text);
+    fn str(&self) -> Ref<String> {
+        self.str.borrow()
+    }
+
+    fn str_mut(&self) -> RefMut<String> {
+        self.str.borrow_mut()
+    }
+
+    fn set_str(&self, str: String) {
+        *self.str.borrow_mut() = str;
+    }
+
+    fn write_text(&self, text: &str) {
+        self.str_mut().push_str(text);
     }
 }
 
 impl EmitTextWriter for SingleLineStringWriter {
     fn get_text(&self) -> String {
-        self.str.clone()
+        self.str().clone()
     }
 
-    fn write(&mut self, text: &str) {
+    fn write(&self, text: &str) {
         self.write_text(text);
     }
 
-    fn raw_write(&mut self, text: &str) {
+    fn raw_write(&self, text: &str) {
         self.write_text(text);
     }
 
-    fn write_literal(&mut self, text: &str) {
+    fn write_literal(&self, text: &str) {
         self.write_text(text);
     }
 
-    fn write_trailing_semicolon(&mut self, text: &str) {
+    fn write_trailing_semicolon(&self, text: &str) {
         self.write_text(text);
     }
 
-    fn write_comment(&mut self, text: &str) {
+    fn write_comment(&self, text: &str) {
         self.write_text(text);
     }
 
     fn get_text_pos(&self) -> usize {
-        self.str.len()
+        self.str().len()
     }
 
     fn get_line(&self) -> usize {
@@ -167,53 +179,53 @@ impl EmitTextWriter for SingleLineStringWriter {
     }
 
     fn has_trailing_whitespace(&self) -> bool {
-        !self.str.is_empty() && is_white_space_like(self.str.chars().last().unwrap())
+        !self.str().is_empty() && is_white_space_like(self.str().chars().last().unwrap())
     }
 }
 
 impl SymbolWriter for SingleLineStringWriter {
-    fn write_keyword(&mut self, text: &str) {
+    fn write_keyword(&self, text: &str) {
         self.write_text(text);
     }
 
-    fn write_operator(&mut self, s: &str) {
+    fn write_operator(&self, s: &str) {
         self.write_text(s);
     }
 
-    fn write_punctuation(&mut self, s: &str) {
+    fn write_punctuation(&self, s: &str) {
         self.write_text(s);
     }
 
-    fn write_space(&mut self, s: &str) {
+    fn write_space(&self, s: &str) {
         self.write_text(s);
     }
 
-    fn write_string_literal(&mut self, s: &str) {
+    fn write_string_literal(&self, s: &str) {
         self.write_text(s);
     }
 
-    fn write_parameter(&mut self, s: &str) {
+    fn write_parameter(&self, s: &str) {
         self.write_text(s);
     }
 
-    fn write_property(&mut self, s: &str) {
+    fn write_property(&self, s: &str) {
         self.write_text(s);
     }
 
-    fn write_symbol(&mut self, s: &str, _: &Symbol) {
+    fn write_symbol(&self, s: &str, _: &Symbol) {
         self.write_text(s);
     }
 
-    fn write_line(&mut self, _: Option<bool>) {
-        self.str.push_str(" ");
+    fn write_line(&self, _: Option<bool>) {
+        self.str_mut().push_str(" ");
     }
 
-    fn increase_indent(&mut self) {}
+    fn increase_indent(&self) {}
 
-    fn decrease_indent(&mut self) {}
+    fn decrease_indent(&self) {}
 
-    fn clear(&mut self) {
-        self.str = "".to_string();
+    fn clear(&self) {
+        self.set_str("".to_owned());
     }
 
     fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
@@ -423,13 +435,12 @@ pub fn copy_entries<TKey: Clone + Eq + Hash, TValue: Clone>(
     }
 }
 
-pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWriter>>)>(
+pub fn using_single_line_string_writer<TAction: FnOnce(Rc<dyn EmitTextWriter>)>(
     action: TAction,
 ) -> String {
     let string_writer = string_writer();
-    let old_string = (*string_writer).borrow().get_text();
+    let old_string = string_writer.get_text();
     action(string_writer.clone());
-    let mut string_writer = string_writer.borrow_mut();
     let ret = string_writer.get_text();
     string_writer.clear();
     string_writer.write_keyword(&old_string);

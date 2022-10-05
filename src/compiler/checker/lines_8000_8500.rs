@@ -34,7 +34,7 @@ impl TypeChecker {
         type_predicate: &TypePredicate,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: TypeFormatFlags,
-        writer: Rc<RefCell<dyn EmitTextWriter>>,
+        writer: Rc<dyn EmitTextWriter>,
     ) {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());

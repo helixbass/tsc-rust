@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::io;
 use std::rc::Rc;
 
@@ -60,102 +60,168 @@ pub fn get_indent_size() -> usize {
 #[derive(Clone)]
 pub struct TextWriter {
     new_line: String,
-    output: String,
-    indent: usize,
-    line_start: bool,
-    line_count: usize,
-    line_pos: usize,
-    has_trailing_comment: bool,
-    output_as_chars: Vec<char>,
+    output: RefCell<String>,
+    indent: Cell<usize>,
+    line_start: Cell<bool>,
+    line_count: Cell<usize>,
+    line_pos: Cell<usize>,
+    has_trailing_comment: Cell<bool>,
+    output_as_chars: RefCell<Vec<char>>,
 }
 
 impl TextWriter {
     pub fn new(new_line: &str) -> Self {
         Self {
-            new_line: new_line.to_string(),
-            output: String::new(),
-            indent: 0,
-            line_start: true,
-            line_count: 0,
-            line_pos: 0,
-            has_trailing_comment: false,
-            output_as_chars: vec![],
+            new_line: new_line.to_owned(),
+            output: RefCell::new("".to_owned()),
+            indent: Cell::new(0),
+            line_start: Cell::new(true),
+            line_count: Cell::new(0),
+            line_pos: Cell::new(0),
+            has_trailing_comment: Cell::new(false),
+            output_as_chars: RefCell::new(vec![]),
         }
     }
 
-    fn push_output(&mut self, str: &str) {
-        self.output.push_str(str);
-        self.output_as_chars
+    fn output(&self) -> Ref<String> {
+        self.output.borrow()
+    }
+
+    fn output_mut(&self) -> RefMut<String> {
+        self.output.borrow_mut()
+    }
+
+    fn set_output(&self, output: String) {
+        *self.output.borrow_mut() = output;
+    }
+
+    fn indent(&self) -> usize {
+        self.indent.get()
+    }
+
+    fn set_indent(&self, indent: usize) {
+        self.indent.set(indent);
+    }
+
+    fn line_start(&self) -> bool {
+        self.line_start.get()
+    }
+
+    fn set_line_start(&self, line_start: bool) {
+        self.line_start.set(line_start);
+    }
+
+    fn line_count(&self) -> usize {
+        self.line_count.get()
+    }
+
+    fn set_line_count(&self, line_count: usize) {
+        self.line_count.set(line_count);
+    }
+
+    fn line_pos(&self) -> usize {
+        self.line_pos.get()
+    }
+
+    fn set_line_pos(&self, line_pos: usize) {
+        self.line_pos.set(line_pos);
+    }
+
+    fn set_has_trailing_comment(&self, has_trailing_comment: bool) {
+        self.has_trailing_comment.set(has_trailing_comment);
+    }
+
+    fn has_trailing_comment(&self) -> bool {
+        self.has_trailing_comment.get()
+    }
+
+    fn output_as_chars(&self) -> Ref<Vec<char>> {
+        self.output_as_chars.borrow()
+    }
+
+    fn output_as_chars_mut(&self) -> RefMut<Vec<char>> {
+        self.output_as_chars.borrow_mut()
+    }
+
+    fn set_output_as_chars(&self, output_as_chars: Vec<char>) {
+        *self.output_as_chars.borrow_mut() = output_as_chars;
+    }
+
+    fn push_output(&self, str: &str) {
+        self.output_mut().push_str(str);
+        self.output_as_chars_mut()
             .append(&mut str.chars().collect::<Vec<_>>());
     }
 
-    fn update_line_count_and_pos_for(&mut self, s: &str) {
+    fn update_line_count_and_pos_for(&self, s: &str) {
         let s_as_chars = str_to_source_text_as_chars(s);
         let line_starts_of_s = compute_line_starts(&s_as_chars);
         if line_starts_of_s.len() > 1 {
-            self.line_count = self.line_count + line_starts_of_s.len() - 1;
-            self.line_pos = self.output_as_chars.len() - s_as_chars.len() + last(&line_starts_of_s);
-            self.line_start = (self.line_pos - self.output_as_chars.len()) == 0;
+            self.set_line_count(self.line_count() + line_starts_of_s.len() - 1);
+            self.set_line_pos(
+                self.output_as_chars().len() - s_as_chars.len() + last(&line_starts_of_s),
+            );
+            self.set_line_start((self.line_pos() - self.output_as_chars().len()) == 0);
         } else {
-            self.line_start = false;
+            self.set_line_start(false);
         }
     }
 
-    fn write_text(&mut self, s: &str) {
+    fn write_text(&self, s: &str) {
         let mut s = s.to_owned();
         if !s.is_empty() {
-            if self.line_start {
-                s = format!("{}{}", get_indent_string(self.indent), s);
-                self.line_start = false;
+            if self.line_start() {
+                s = format!("{}{}", get_indent_string(self.indent()), s);
+                self.set_line_start(false);
             }
             self.push_output(&s);
             self.update_line_count_and_pos_for(&s);
         }
     }
 
-    fn reset(&mut self) {
-        self.output = String::new();
-        self.indent = 0;
-        self.line_start = true;
-        self.line_count = 0;
-        self.line_pos = 0;
-        self.has_trailing_comment = false;
-        self.output_as_chars = vec![];
+    fn reset(&self) {
+        self.set_output(String::new());
+        self.set_indent(0);
+        self.set_line_start(true);
+        self.set_line_count(0);
+        self.set_line_pos(0);
+        self.set_has_trailing_comment(false);
+        self.set_output_as_chars(vec![]);
     }
 
     fn get_text_pos_with_write_line(&self) -> Option<usize> {
-        Some(if self.line_start {
-            self.output_as_chars.len()
+        Some(if self.line_start() {
+            self.output_as_chars().len()
         } else {
-            self.output_as_chars.len() + self.new_line.len()
+            self.output_as_chars().len() + self.new_line.len()
         })
     }
 }
 
 impl EmitTextWriter for TextWriter {
-    fn write(&mut self, s: &str) {
+    fn write(&self, s: &str) {
         if !s.is_empty() {
-            self.has_trailing_comment = false;
+            self.set_has_trailing_comment(false);
         }
         self.write_text(s);
     }
 
-    fn write_comment(&mut self, s: &str) {
+    fn write_comment(&self, s: &str) {
         if !s.is_empty() {
-            self.has_trailing_comment = true;
+            self.set_has_trailing_comment(true);
         }
         self.write_text(s);
     }
 
-    fn raw_write(&mut self, s: &str) {
+    fn raw_write(&self, s: &str) {
         // if (s!== undefined) {
         self.push_output(s);
         self.update_line_count_and_pos_for(s);
-        self.has_trailing_comment = false;
+        self.set_has_trailing_comment(false);
         //}
     }
 
-    fn write_literal(&mut self, s: &str) {
+    fn write_literal(&self, s: &str) {
         if
         /*s && */
         !s.is_empty() {
@@ -163,101 +229,101 @@ impl EmitTextWriter for TextWriter {
         }
     }
 
-    fn write_trailing_semicolon(&mut self, text: &str) {
+    fn write_trailing_semicolon(&self, text: &str) {
         self.write(text);
     }
 
     fn get_text(&self) -> String {
-        self.output.clone()
+        self.output().clone()
     }
 
     fn get_text_pos(&self) -> usize {
-        self.output_as_chars.len()
+        self.output_as_chars().len()
     }
 
     fn get_line(&self) -> usize {
-        self.line_count
+        self.line_count()
     }
 
     fn get_column(&self) -> usize {
-        if self.line_start {
-            self.indent * get_indent_size()
+        if self.line_start() {
+            self.indent() * get_indent_size()
         } else {
-            self.output_as_chars.len() - self.line_pos
+            self.output_as_chars().len() - self.line_pos()
         }
     }
 
     fn get_indent(&self) -> usize {
-        self.indent
+        self.indent()
     }
 
     fn is_at_start_of_line(&self) -> bool {
-        self.line_start
+        self.line_start()
     }
 
     fn has_trailing_comment(&self) -> bool {
-        self.has_trailing_comment
+        self.has_trailing_comment()
     }
 
     fn has_trailing_whitespace(&self) -> bool {
-        !self.output.is_empty()
-            && is_white_space_like(self.output_as_chars[self.output_as_chars.len() - 1])
+        !self.output().is_empty()
+            && is_white_space_like(self.output_as_chars()[self.output_as_chars().len() - 1])
     }
 }
 
 impl SymbolWriter for TextWriter {
-    fn write_line(&mut self, force: Option<bool>) {
+    fn write_line(&self, force: Option<bool>) {
         let force = force.unwrap_or(false);
-        if !self.line_start || force {
+        if !self.line_start() || force {
             self.push_output(&self.new_line.clone());
-            self.line_count += 1;
-            self.line_pos = self.output_as_chars.len();
-            self.line_start = true;
-            self.has_trailing_comment = false;
+            self.set_line_count(self.line_count() + 1);
+            self.set_line_pos(self.output_as_chars().len());
+            self.set_line_start(true);
+            self.set_has_trailing_comment(false);
         }
     }
 
-    fn increase_indent(&mut self) {
-        self.indent += 1;
+    fn increase_indent(&self) {
+        self.set_indent(self.indent() + 1);
     }
 
-    fn decrease_indent(&mut self) {
-        self.indent -= 1; // TODO: should use isize to avoid this crashing if misused?
+    fn decrease_indent(&self) {
+        self.set_indent(self.indent() - 1); // TODO: should use isize to avoid this crashing if misused?
     }
 
-    fn write_keyword(&mut self, text: &str) {
+    fn write_keyword(&self, text: &str) {
         self.write(text);
     }
 
-    fn write_operator(&mut self, text: &str) {
+    fn write_operator(&self, text: &str) {
         self.write(text);
     }
 
-    fn write_parameter(&mut self, text: &str) {
+    fn write_parameter(&self, text: &str) {
         self.write(text);
     }
 
-    fn write_punctuation(&mut self, s: &str) {
+    fn write_punctuation(&self, s: &str) {
         self.write(s);
     }
 
-    fn write_space(&mut self, s: &str) {
+    fn write_space(&self, s: &str) {
         self.write(s);
     }
 
-    fn write_string_literal(&mut self, s: &str) {
+    fn write_string_literal(&self, s: &str) {
         self.write(s);
     }
 
-    fn write_property(&mut self, s: &str) {
+    fn write_property(&self, s: &str) {
         self.write(s);
     }
 
-    fn write_symbol(&mut self, s: &str, _: &Symbol) {
+    fn write_symbol(&self, s: &str, _: &Symbol) {
         self.write(s);
     }
 
-    fn clear(&mut self) {
+    fn clear(&self) {
         self.reset();
     }
 
@@ -324,146 +390,146 @@ pub fn create_text_writer(new_line: &str) -> TextWriter {
 }
 
 pub fn get_trailing_semicolon_deferring_writer(
-    writer: Rc<RefCell<dyn EmitTextWriter>>,
+    writer: Rc<dyn EmitTextWriter>,
 ) -> TrailingSemicolonDeferringWriter {
     TrailingSemicolonDeferringWriter::new(writer)
 }
 
 pub struct TrailingSemicolonDeferringWriter {
-    writer: Rc<RefCell<dyn EmitTextWriter>>,
-    pending_trailing_semicolon: bool,
+    writer: Rc<dyn EmitTextWriter>,
+    pending_trailing_semicolon: Cell<bool>,
 }
 
 impl TrailingSemicolonDeferringWriter {
-    pub fn new(writer: Rc<RefCell<dyn EmitTextWriter>>) -> Self {
+    pub fn new(writer: Rc<dyn EmitTextWriter>) -> Self {
         Self {
             writer,
-            pending_trailing_semicolon: false,
+            pending_trailing_semicolon: Cell::new(false),
         }
     }
 
-    fn commit_pending_trailing_semicolon(&mut self) {
-        if self.pending_trailing_semicolon {
-            self.writer.borrow_mut().write_trailing_semicolon(";");
-            self.pending_trailing_semicolon = false;
+    fn commit_pending_trailing_semicolon(&self) {
+        if self.pending_trailing_semicolon.get() {
+            self.writer.write_trailing_semicolon(";");
+            self.pending_trailing_semicolon.set(false);
         }
     }
 }
 
 impl EmitTextWriter for TrailingSemicolonDeferringWriter {
-    fn write(&mut self, s: &str) {
-        self.writer.borrow_mut().write(s)
+    fn write(&self, s: &str) {
+        self.writer.write(s)
     }
 
-    fn write_comment(&mut self, s: &str) {
+    fn write_comment(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_comment(s)
+        self.writer.write_comment(s)
     }
 
-    fn raw_write(&mut self, s: &str) {
-        self.writer.borrow_mut().raw_write(s)
+    fn raw_write(&self, s: &str) {
+        self.writer.raw_write(s)
     }
 
-    fn write_literal(&mut self, s: &str) {
+    fn write_literal(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_literal(s)
+        self.writer.write_literal(s)
     }
 
-    fn write_trailing_semicolon(&mut self, text: &str) {
-        self.pending_trailing_semicolon = true;
+    fn write_trailing_semicolon(&self, text: &str) {
+        self.pending_trailing_semicolon.set(true);
     }
 
     fn get_text(&self) -> String {
-        self.writer.borrow_mut().get_text()
+        self.writer.get_text()
     }
 
     fn get_text_pos(&self) -> usize {
-        self.writer.borrow_mut().get_text_pos()
+        self.writer.get_text_pos()
     }
 
     fn get_line(&self) -> usize {
-        self.writer.borrow_mut().get_line()
+        self.writer.get_line()
     }
 
     fn get_column(&self) -> usize {
-        self.writer.borrow_mut().get_column()
+        self.writer.get_column()
     }
 
     fn get_indent(&self) -> usize {
-        self.writer.borrow_mut().get_indent()
+        self.writer.get_indent()
     }
 
     fn is_at_start_of_line(&self) -> bool {
-        self.writer.borrow_mut().is_at_start_of_line()
+        self.writer.is_at_start_of_line()
     }
 
     fn has_trailing_comment(&self) -> bool {
-        self.writer.borrow_mut().has_trailing_comment()
+        self.writer.has_trailing_comment()
     }
 
     fn has_trailing_whitespace(&self) -> bool {
-        self.writer.borrow_mut().has_trailing_whitespace()
+        self.writer.has_trailing_whitespace()
     }
 }
 
 impl SymbolWriter for TrailingSemicolonDeferringWriter {
-    fn write_line(&mut self, _force: Option<bool>) {
+    fn write_line(&self, _force: Option<bool>) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_line(None)
+        self.writer.write_line(None)
     }
 
-    fn increase_indent(&mut self) {
+    fn increase_indent(&self) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().increase_indent()
+        self.writer.increase_indent()
     }
 
-    fn decrease_indent(&mut self) {
+    fn decrease_indent(&self) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().decrease_indent()
+        self.writer.decrease_indent()
     }
 
-    fn write_keyword(&mut self, s: &str) {
+    fn write_keyword(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_keyword(s)
+        self.writer.write_keyword(s)
     }
 
-    fn write_operator(&mut self, s: &str) {
+    fn write_operator(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_operator(s)
+        self.writer.write_operator(s)
     }
 
-    fn write_parameter(&mut self, s: &str) {
+    fn write_parameter(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_parameter(s)
+        self.writer.write_parameter(s)
     }
 
-    fn write_punctuation(&mut self, s: &str) {
+    fn write_punctuation(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_punctuation(s)
+        self.writer.write_punctuation(s)
     }
 
-    fn write_space(&mut self, s: &str) {
+    fn write_space(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_space(s)
+        self.writer.write_space(s)
     }
 
-    fn write_string_literal(&mut self, s: &str) {
+    fn write_string_literal(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_string_literal(s)
+        self.writer.write_string_literal(s)
     }
 
-    fn write_property(&mut self, s: &str) {
+    fn write_property(&self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_property(s)
+        self.writer.write_property(s)
     }
 
-    fn write_symbol(&mut self, s: &str, sym: &Symbol) {
+    fn write_symbol(&self, s: &str, sym: &Symbol) {
         self.commit_pending_trailing_semicolon();
-        self.writer.borrow_mut().write_symbol(s, sym)
+        self.writer.write_symbol(s, sym)
     }
 
-    fn clear(&mut self) {
-        self.writer.borrow_mut().clear()
+    fn clear(&self) {
+        self.writer.clear()
     }
 
     fn as_symbol_tracker(&self) -> &dyn SymbolTracker {

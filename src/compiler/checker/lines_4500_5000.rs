@@ -235,7 +235,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
-        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+        writer: Option<Rc<dyn EmitTextWriter>>,
     ) -> String {
         let flags = flags.unwrap_or(SymbolFormatFlags::AllowAnyNodeKind);
         let mut node_flags = NodeBuilderFlags::IgnoreErrors;
@@ -258,7 +258,7 @@ impl TypeChecker {
         };
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let symbol_to_string_worker = |writer: Rc<RefCell<dyn EmitTextWriter>>| {
+        let symbol_to_string_worker = |writer: Rc<dyn EmitTextWriter>| {
             let entity = builder(
                 &self.node_builder(),
                 symbol,
@@ -304,7 +304,7 @@ impl TypeChecker {
         };
         if let Some(writer) = writer {
             symbol_to_string_worker(writer.clone());
-            RefCell::borrow(&writer).get_text()
+            writer.get_text()
         } else {
             using_single_line_string_writer(symbol_to_string_worker)
         }
@@ -316,7 +316,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+        writer: Option<Rc<dyn EmitTextWriter>>,
     ) -> String {
         let flags = flags.unwrap_or(TypeFormatFlags::None);
         if let Some(writer) = writer {
@@ -327,9 +327,9 @@ impl TypeChecker {
                 kind,
                 writer.clone(),
             );
-            RefCell::borrow(&writer).get_text()
+            writer.get_text()
         } else {
-            using_single_line_string_writer(|writer: Rc<RefCell<dyn EmitTextWriter>>| {
+            using_single_line_string_writer(|writer: Rc<dyn EmitTextWriter>| {
                 self.signature_to_string_worker(
                     signature,
                     enclosing_declaration,
@@ -347,7 +347,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: TypeFormatFlags,
         kind: Option<SignatureKind>,
-        writer: Rc<RefCell<dyn EmitTextWriter>>,
+        writer: Rc<dyn EmitTextWriter>,
     ) {
         let sig_output: SyntaxKind;
         if flags.intersects(TypeFormatFlags::WriteArrowStyleSignature) {
@@ -391,9 +391,7 @@ impl TypeChecker {
             EmitHint::Unspecified,
             &sig.unwrap(),
             source_file.as_deref(),
-            Rc::new(RefCell::new(get_trailing_semicolon_deferring_writer(
-                writer,
-            ))),
+            Rc::new(get_trailing_semicolon_deferring_writer(writer)),
         );
         // writer
     }
@@ -403,13 +401,13 @@ impl TypeChecker {
         type_: &Type,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+        writer: Option<Rc<dyn EmitTextWriter>>,
     ) -> String {
         let flags = flags.unwrap_or(
             TypeFormatFlags::AllowUniqueESSymbolType
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
         );
-        let writer = writer.unwrap_or_else(|| Rc::new(RefCell::new(create_text_writer(""))));
+        let writer = writer.unwrap_or_else(|| Rc::new(create_text_writer("")));
         let no_truncation = matches!(self.compiler_options.no_error_truncation, Some(true))
             || flags.intersects(TypeFormatFlags::NoTruncation);
         let enclosing_declaration = enclosing_declaration

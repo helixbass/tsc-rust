@@ -34,8 +34,8 @@ pub struct Printer {
     pub preserve_source_newlines: Cell<Option<bool>>,
     pub next_list_element_pos: Cell<Option<usize>>,
 
-    pub writer: RefCell<Option<Rc<RefCell<dyn EmitTextWriter>>>>,
-    pub own_writer: RefCell<Option<Rc<RefCell<dyn EmitTextWriter>>>>,
+    pub writer: RefCell<Option<Rc<dyn EmitTextWriter>>>,
+    pub own_writer: RefCell<Option<Rc<dyn EmitTextWriter>>>,
     pub write: Cell<fn(&Printer, &str)>,
     pub is_own_file_emit: Cell<bool>,
     pub bundle_file_info: RefCell<Option<BundleFileInfo>>,
@@ -624,12 +624,12 @@ pub(crate) struct RawSourceMap {
 pub trait SourceMapGenerator {}
 
 pub trait EmitTextWriter: SymbolWriter {
-    fn write(&mut self, s: &str);
-    fn write_trailing_semicolon(&mut self, text: &str);
-    fn write_comment(&mut self, text: &str);
+    fn write(&self, s: &str);
+    fn write_trailing_semicolon(&self, text: &str);
+    fn write_comment(&self, text: &str);
     fn get_text(&self) -> String;
-    fn raw_write(&mut self, text: &str);
-    fn write_literal(&mut self, text: &str);
+    fn raw_write(&self, text: &str);
+    fn write_literal(&self, text: &str);
     fn get_text_pos(&self) -> usize;
     fn get_line(&self) -> usize;
     fn get_column(&self) -> usize;
@@ -640,7 +640,7 @@ pub trait EmitTextWriter: SymbolWriter {
     fn get_text_pos_with_write_line(&self) -> Option<usize> {
         None
     }
-    fn non_escaping_write(&mut self, text: &str) {}
+    fn non_escaping_write(&self, text: &str) {}
 }
 
 pub trait ModuleSpecifierResolutionHost {
