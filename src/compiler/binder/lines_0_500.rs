@@ -870,7 +870,7 @@ impl BinderType {
         match node.kind() {
             SyntaxKind::Constructor => Some(InternalSymbolName::Constructor()),
             SyntaxKind::FunctionType | SyntaxKind::CallSignature | SyntaxKind::JSDocSignature => {
-                Some(InternalSymbolName::Constructor())
+                Some(InternalSymbolName::Call())
             }
             SyntaxKind::ConstructorType | SyntaxKind::ConstructSignature => {
                 Some(InternalSymbolName::New())
