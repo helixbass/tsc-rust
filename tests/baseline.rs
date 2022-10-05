@@ -15,6 +15,7 @@ use typescript_rust::{
 };
 
 #[rstest]
+#[case("wrappedRecursiveGenericType.ts")]
 #[case("yieldExpression1.ts")]
 #[case("yieldExpressionInFlowLoop.ts")]
 #[case("yieldStringLiteral.ts")]

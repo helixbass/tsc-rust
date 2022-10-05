@@ -228,7 +228,9 @@ pub use compiler::semver::{Version, VersionRange};
 use compiler::sys::{generate_djb2_hash, ignored_paths, missing_file_modified_time};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
-pub use compiler::transformer::null_transformation_context;
+pub use compiler::transformer::{
+    no_emit_notification, no_emit_substitution, null_transformation_context,
+};
 pub use compiler::transformers::{
     chain_bundle, transform_class_fields, transform_declarations, transform_ecmascript_module,
     transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,

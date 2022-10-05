@@ -278,6 +278,7 @@ impl TypeChecker {
                         .never_ascii_escape(Some(true))
                         .build()
                         .unwrap(),
+                    None,
                 )
             } else {
                 create_printer(
@@ -285,6 +286,7 @@ impl TypeChecker {
                         .remove_comments(Some(true))
                         .build()
                         .unwrap(),
+                    None,
                 )
             };
             let source_file = enclosing_declaration
@@ -375,6 +377,7 @@ impl TypeChecker {
                 .omit_trailing_semicolon(Some(true))
                 .build()
                 .unwrap(),
+            None,
         );
         let source_file = enclosing_declaration
             .as_deref()
@@ -428,7 +431,7 @@ impl TypeChecker {
             .remove_comments(Some(!ptr::eq(type_, &*self.unresolved_type())))
             .build()
             .unwrap();
-        let mut printer = create_printer(options);
+        let mut printer = create_printer(options, None);
         let source_file = enclosing_declaration
             .and_then(|enclosing_declaration| get_source_file_of_node(Some(enclosing_declaration)));
         printer.write_node(

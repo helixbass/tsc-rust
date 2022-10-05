@@ -10,12 +10,14 @@ use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
-    CommentRange, FileIncludeReason, ModuleKind, MultiMap, NewLineKind, Path, RedirectTargetsMap,
-    ScriptTarget, SortedArray, SymlinkCache,
+    CommentRange, EmitHint, FileIncludeReason, ModuleKind, MultiMap, NewLineKind, NodeArray, Path,
+    RedirectTargetsMap, ScriptTarget, SortedArray, SymlinkCache, SyntaxKind,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
 pub struct Printer {
+    pub printer_options: PrinterOptions,
+    pub handlers: Rc<dyn PrintHandlers>,
     pub current_source_file: RefCell<Option<Rc<Node /*SourceFile*/>>>,
     pub writer: RefCell<Option<Rc<RefCell<dyn EmitTextWriter>>>>,
     pub write: Cell<fn(&Printer, &str)>,
@@ -24,7 +26,42 @@ pub struct Printer {
 pub(crate) type BuildInfo = ();
 
 pub trait PrintHandlers {
-    fn has_global_name(&self, name: &str) -> Option<bool>;
+    fn has_global_name(&self, name: &str) -> Option<bool> {
+        None
+    }
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {}
+    fn is_on_emit_node_supported(&self) -> bool;
+    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
+        None
+    }
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Rc<Node>> {
+        None
+    }
+    fn on_emit_source_map_of_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node),
+    ) {
+    }
+    fn on_emit_source_map_of_token(
+        &self,
+        node: Option<&Node>,
+        token: SyntaxKind,
+        writer: &dyn Fn(&str),
+        pos: usize,
+        emit_callback: &dyn Fn(SyntaxKind, &dyn Fn(&str), usize) -> usize,
+    ) -> Option<usize> {
+        None
+    }
+    fn on_emit_source_map_of_position(&self, pos: usize) {}
+    fn on_set_source_file(&self, node: &Node /*SourceFile*/) {}
+    fn on_before_emit_node(&self, node: Option<&Node>) {}
+    fn on_after_emit_node(&self, node: Option<&Node>) {}
+    fn on_before_emit_node_array(&self, nodes: Option<&NodeArray>) {}
+    fn on_after_emit_node_array(&self, nodes: Option<&NodeArray>) {}
+    fn on_before_emit_token(&self, node: Option<&Node>) {}
+    fn on_after_emit_token(&self, node: Option<&Node>) {}
 }
 
 #[derive(Builder, Default)]
@@ -47,7 +84,7 @@ pub struct PrinterOptions {
     pub(crate) strip_internal: Option<bool>,
     pub(crate) preserve_source_newlines: Option<bool>,
     pub(crate) terminate_unterminated_literals: Option<bool>,
-    // pub(crate) relative_to_build_info: Option<fn(&str) -> String>,
+    pub(crate) relative_to_build_info: Option<Rc<dyn Fn(&str) -> String>>,
 }
 
 pub(crate) struct RawSourceMap {
@@ -277,8 +314,8 @@ bitflags! {
 
         const SingleLineTupleTypeElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
         const MultiLineTupleTypeElements = Self::CommaDelimited.bits | Self::Indented.bits | Self::SpaceBetweenSiblings.bits | Self::MultiLine.bits;
-
         const UnionTypeConstituents = Self::BarDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const TypeArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
     }
 }
 

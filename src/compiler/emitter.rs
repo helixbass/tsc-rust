@@ -1,15 +1,26 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::convert::TryInto;
+use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    get_emit_flags, get_literal_text, get_parse_tree_node, id_text, is_expression, is_identifier,
-    is_keyword, positions_are_on_same_line, skip_trivia, token_to_string, Debug_, EmitFlags,
-    EmitHint, EmitTextWriter, GetLiteralTextFlags, HasTypeInterface, ListFormat,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine, Printer,
-    PrinterOptions, ReadonlyTextRange, SourceFileLike, Symbol, SyntaxKind,
+    file_extension_is, get_emit_flags, get_literal_text, get_parse_tree_node, id_text,
+    is_expression, is_identifier, is_keyword, no_emit_notification, no_emit_substitution,
+    positions_are_on_same_line, skip_trivia, token_to_string, Debug_, EmitFlags, EmitHint,
+    EmitTextWriter, Extension, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface,
+    ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine,
+    PrintHandlers, Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike, Symbol, SyntaxKind,
 };
+
+lazy_static! {
+    static ref brackets: HashMap<ListFormat, (&'static str, &'static str)> = create_brackets_map();
+}
+
+pub(crate) fn is_build_info_file(file: &str) -> bool {
+    file_extension_is(file, Extension::TsBuildInfo.to_str())
+}
 
 pub(crate) fn get_output_declaration_file_name<TGetCommonSourceDirectory: FnMut() -> String>(
     input_file_name: &str,
@@ -29,21 +40,38 @@ pub(crate) fn get_common_source_directory_of_config(
     unimplemented!()
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum PipelinePhase {
     Notification,
+    Substitution,
+    Comments,
+    SourceMaps,
     Emit,
 }
 
-pub fn create_printer(printer_options: PrinterOptions) -> Printer {
-    let mut printer = Printer::new();
+pub fn create_printer(
+    printer_options: PrinterOptions,
+    handlers: Option<Rc<dyn PrintHandlers>>,
+) -> Printer {
+    let handlers = handlers.unwrap_or_else(|| Rc::new(DummyPrintHandlers));
+    let mut printer = Printer::new(printer_options, handlers);
     printer.reset();
     printer
 }
 
+struct DummyPrintHandlers;
+
+impl PrintHandlers for DummyPrintHandlers {
+    fn is_on_emit_node_supported(&self) -> bool {
+        false
+    }
+}
+
 impl Printer {
-    pub fn new() -> Self {
+    pub fn new(printer_options: PrinterOptions, handlers: Rc<dyn PrintHandlers>) -> Self {
         Self {
+            printer_options,
+            handlers,
             current_source_file: RefCell::new(None),
             writer: RefCell::new(None),
             write: Cell::new(Printer::write_base),
@@ -60,6 +88,58 @@ impl Printer {
 
     fn writer_(&self) -> Rc<RefCell<dyn EmitTextWriter>> {
         self.writer.borrow().clone().unwrap()
+    }
+
+    fn has_global_name(&self, name: &str) -> Option<bool> {
+        self.handlers.has_global_name(name)
+    }
+
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
+        if self.handlers.is_on_emit_node_supported() {
+            self.handlers.on_emit_node(hint, node, emit_callback)
+        } else {
+            no_emit_notification(hint, node, emit_callback)
+        }
+    }
+
+    fn is_on_emit_node_supported(&self) -> bool {
+        true
+    }
+
+    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
+        self.handlers.is_emit_notification_enabled(node)
+    }
+
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Rc<Node>> {
+        Some(
+            self.handlers
+                .substitute_node(hint, node)
+                .unwrap_or_else(|| no_emit_substitution(hint, node)),
+        )
+    }
+
+    fn on_before_emit_node(&self, node: Option<&Node>) {
+        self.handlers.on_before_emit_node(node)
+    }
+
+    fn on_after_emit_node(&self, node: Option<&Node>) {
+        self.handlers.on_after_emit_node(node)
+    }
+
+    fn on_before_emit_node_array(&self, nodes: Option<&NodeArray>) {
+        self.handlers.on_before_emit_node_array(nodes)
+    }
+
+    fn on_after_emit_node_array(&self, nodes: Option<&NodeArray>) {
+        self.handlers.on_after_emit_node_array(nodes)
+    }
+
+    fn on_before_emit_token(&self, node: Option<&Node>) {
+        self.handlers.on_before_emit_token(node)
+    }
+
+    fn on_after_emit_token(&self, node: Option<&Node>) {
+        self.handlers.on_after_emit_token(node)
     }
 
     fn write(&self, text: &str) {
@@ -221,7 +301,12 @@ impl Printer {
     }
 
     fn emit_type_reference(&self, node: &Node /*TypeReferenceNode*/) {
-        self.emit(Some(&*node.as_type_reference_node().type_name));
+        let node_as_type_reference_node = node.as_type_reference_node();
+        self.emit(Some(&*node_as_type_reference_node.type_name));
+        self.emit_type_arguments(
+            node,
+            node_as_type_reference_node.maybe_type_arguments().as_ref(),
+        );
     }
 
     fn emit_function_type(&self, node: &Node /*FunctionTypeNode*/) {
@@ -408,6 +493,19 @@ impl Printer {
         }
     }
 
+    fn emit_type_arguments(
+        &self,
+        parent_node: &Node,
+        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
+    ) {
+        self.emit_list(
+            Some(parent_node),
+            type_arguments,
+            ListFormat::TypeArguments,
+            // parenthesizer.parenthesizeMemberOfElementType
+        );
+    }
+
     fn write_delimiter(&self, format: ListFormat) {
         match format & ListFormat::DelimitersMask {
             ListFormat::None => (),
@@ -428,7 +526,15 @@ impl Printer {
         children: Option<&NodeArray>,
         format: ListFormat,
     ) {
-        self.emit_node_list(Printer::emit, parent_node, children, format, None, None);
+        self.emit_node_list(
+            Printer::emit,
+            parent_node,
+            children,
+            format,
+            // TODO: this is wrong
+            None,
+            None,
+        );
     }
 
     fn emit_node_list<TNode: Borrow<Node>>(
@@ -448,8 +554,33 @@ impl Printer {
                 0
             }
         });
+        let is_undefined = children.is_none();
+        if is_undefined && format.intersects(ListFormat::OptionalIfUndefined) {
+            return;
+        }
+
+        let is_empty = match children {
+            None => true,
+            Some(children) => start >= children.len(),
+        } || count == 0;
+        if is_empty && format.intersects(ListFormat::OptionalIfEmpty) {
+            // TODO
+            return;
+        }
+
+        if format.intersects(ListFormat::BracketsMask) {
+            self.write_punctuation(get_opening_bracket(format));
+            if is_empty {
+                if let Some(children) = children {
+                    self.emit_trailing_comments_of_position(children.pos(), Some(true), None);
+                }
+            }
+        }
+
+        // TODO
+
         let children = children.unwrap();
-        if false {
+        if is_empty {
             unimplemented!()
         } else {
             if false {
@@ -578,4 +709,21 @@ impl Printer {
     ) {
         // unimplemented!()
     }
+}
+
+fn create_brackets_map() -> HashMap<ListFormat, (&'static str, &'static str)> {
+    HashMap::from_iter(IntoIterator::into_iter([
+        (ListFormat::Braces, ("{", "}")),
+        (ListFormat::Parenthesis, ("(", ")")),
+        (ListFormat::AngleBrackets, ("<", ">")),
+        (ListFormat::SquareBrackets, ("[", "]")),
+    ]))
+}
+
+fn get_opening_bracket(format: ListFormat) -> &'static str {
+    brackets.get(&format).unwrap().0
+}
+
+fn get_closing_bracket(format: ListFormat) -> &'static str {
+    brackets.get(&format).unwrap().1
 }

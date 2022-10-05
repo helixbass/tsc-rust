@@ -748,8 +748,13 @@ bitflags! {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmitHint {
+    SourceFile,
     Expression,
+    IdentifierName,
+    MappedTypeParameter,
     Unspecified,
+    EmbeddedStatement,
+    JsxAttributeValue,
 }
 
 pub trait SourceFileMayBeEmittedHost {

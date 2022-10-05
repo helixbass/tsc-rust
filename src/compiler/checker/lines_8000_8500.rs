@@ -89,6 +89,7 @@ impl TypeChecker {
                 .remove_comments(Some(true))
                 .build()
                 .unwrap(),
+            None,
         );
         let source_file = enclosing_declaration
             .as_deref()
