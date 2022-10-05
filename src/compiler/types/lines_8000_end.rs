@@ -3,24 +3,519 @@
 use bitflags::bitflags;
 use derive_builder::Builder;
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
-    CommentRange, EmitHint, FileIncludeReason, ModuleKind, MultiMap, NewLineKind, NodeArray, Path,
-    RedirectTargetsMap, ScriptTarget, SortedArray, SymlinkCache, SyntaxKind,
+    CommentRange, EmitHint, FileIncludeReason, ModuleKind, MultiMap, NewLineKind, NodeArray,
+    NodeId, Path, RedirectTargetsMap, ScriptTarget, SortedArray, SymlinkCache, SyntaxKind,
+    TempFlags, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
 pub struct Printer {
     pub printer_options: PrinterOptions,
     pub handlers: Rc<dyn PrintHandlers>,
+    pub extended_diagnostics: bool,
+    pub new_line: String,
+    pub module_kind: ModuleKind,
     pub current_source_file: RefCell<Option<Rc<Node /*SourceFile*/>>>,
+    pub bundled_helpers: RefCell<HashMap<String, bool>>,
+    pub node_id_to_generated_name: RefCell<HashMap<NodeId, String>>,
+    pub auto_generated_id_to_generated_name: RefCell<HashMap<usize, String>>,
+    pub generated_names: RefCell<HashSet<String>>,
+    pub temp_flags_stack: RefCell<Vec<TempFlags>>,
+    pub temp_flags: Cell<TempFlags>,
+    pub reserved_names_stack: RefCell<Vec<HashSet<String>>>,
+    pub reserved_names: RefCell<HashSet<String>>,
+    pub preserve_source_newlines: Cell<Option<bool>>,
+    pub next_list_element_pos: Cell<Option<usize>>,
     pub writer: RefCell<Option<Rc<RefCell<dyn EmitTextWriter>>>>,
+    pub own_writer: RefCell<Option<Rc<RefCell<dyn EmitTextWriter>>>>,
     pub write: Cell<fn(&Printer, &str)>,
+    pub is_own_file_emit: Cell<bool>,
+    pub bundle_file_info: RefCell<Option<BundleFileInfo>>,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum BundleFileSectionKind {
+    Prologue,
+    EmitHelpers,
+    NoDefaultLib,
+    Reference,
+    Type,
+    Lib,
+    Prepend,
+    Text,
+    Internal,
+}
+
+impl BundleFileSectionKind {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Prologue => "prologue",
+            Self::EmitHelpers => "emitHelpers",
+            Self::NoDefaultLib => "no-default-lib",
+            Self::Reference => "reference",
+            Self::Type => "type",
+            Self::Lib => "lib",
+            Self::Prepend => "prepend",
+            Self::Text => "text",
+            Self::Internal => "internal",
+        }
+    }
+}
+
+pub struct BundleFileSectionBase {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    kind: BundleFileSectionKind,
+    data: Option<String>,
+}
+
+impl BundleFileSectionBase {
+    pub fn new(pos: isize, end: isize, kind: BundleFileSectionKind, data: Option<String>) -> Self {
+        Self {
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            kind,
+            data,
+        }
+    }
+}
+
+impl TextRange for BundleFileSectionBase {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
+    }
+}
+
+pub trait BundleFileSectionInterface: TextRange {
+    fn kind(&self) -> BundleFileSectionKind;
+    fn maybe_data(&self) -> Option<&String>;
+}
+
+impl BundleFileSectionInterface for BundleFileSectionBase {
+    fn kind(&self) -> BundleFileSectionKind {
+        self.kind
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self.data.as_ref()
+    }
+}
+
+pub struct BundleFilePrologue {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl BundleFilePrologue {
+    pub fn data(&self) -> &String {
+        self.maybe_data().unwrap()
+    }
+}
+
+impl TextRange for BundleFilePrologue {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFilePrologue {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+pub struct BundleFileEmitHelpers {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl BundleFileEmitHelpers {
+    pub fn data(&self) -> &String {
+        self.maybe_data().unwrap()
+    }
+}
+
+impl TextRange for BundleFileEmitHelpers {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileEmitHelpers {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+pub struct BundleFileHasNoDefaultLib {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl TextRange for BundleFileHasNoDefaultLib {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileHasNoDefaultLib {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+pub struct BundleFileReference {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl BundleFileReference {
+    pub fn data(&self) -> &String {
+        self.maybe_data().unwrap()
+    }
+}
+
+impl TextRange for BundleFileReference {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileReference {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+pub struct BundleFilePrepend {
+    _bundle_file_section_base: BundleFileSectionBase,
+    pub texts: Vec<BundleFileSection /*BundleFileTextLike*/>,
+}
+
+impl BundleFilePrepend {
+    pub fn data(&self) -> &String {
+        self.maybe_data().unwrap()
+    }
+}
+
+impl TextRange for BundleFilePrepend {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFilePrepend {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+pub struct BundleFileTextLike {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl TextRange for BundleFileTextLike {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileTextLike {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+pub enum BundleFileSection {
+    BundleFilePrologue(BundleFilePrologue),
+    BundleFileEmitHelpers(BundleFileEmitHelpers),
+    BundleFileHasNoDefaultLib(BundleFileHasNoDefaultLib),
+    BundleFileReference(BundleFileReference),
+    BundleFilePrepend(BundleFilePrepend),
+    BundleFileTextLike(BundleFileTextLike),
+}
+
+impl BundleFileSection {
+    pub fn new_prologue(data: String, pos: isize, end: isize) -> Self {
+        Self::BundleFilePrologue(BundleFilePrologue {
+            _bundle_file_section_base: BundleFileSectionBase::new(
+                pos,
+                end,
+                BundleFileSectionKind::Prologue,
+                Some(data),
+            ),
+        })
+    }
+
+    pub fn new_emit_helpers(data: String, pos: isize, end: isize) -> Self {
+        Self::BundleFileEmitHelpers(BundleFileEmitHelpers {
+            _bundle_file_section_base: BundleFileSectionBase::new(
+                pos,
+                end,
+                BundleFileSectionKind::EmitHelpers,
+                Some(data),
+            ),
+        })
+    }
+
+    pub fn new_has_no_default_lib(data: Option<String>, pos: isize, end: isize) -> Self {
+        Self::BundleFileEmitHelpers(BundleFileEmitHelpers {
+            _bundle_file_section_base: BundleFileSectionBase::new(
+                pos,
+                end,
+                BundleFileSectionKind::NoDefaultLib,
+                data,
+            ),
+        })
+    }
+
+    pub fn new_reference(
+        kind: BundleFileSectionKind,
+        data: String,
+        pos: isize,
+        end: isize,
+    ) -> Self {
+        Self::BundleFileReference(BundleFileReference {
+            _bundle_file_section_base: BundleFileSectionBase::new(pos, end, kind, Some(data)),
+        })
+    }
+
+    pub fn new_prepend(
+        data: String,
+        texts: Vec<BundleFileSection>,
+        pos: isize,
+        end: isize,
+    ) -> Self {
+        Self::BundleFilePrepend(BundleFilePrepend {
+            _bundle_file_section_base: BundleFileSectionBase::new(
+                pos,
+                end,
+                BundleFileSectionKind::Prepend,
+                Some(data),
+            ),
+            texts,
+        })
+    }
+
+    pub fn new_text_like(
+        kind: BundleFileSectionKind,
+        data: Option<String>,
+        pos: isize,
+        end: isize,
+    ) -> Self {
+        Self::BundleFileTextLike(BundleFileTextLike {
+            _bundle_file_section_base: BundleFileSectionBase::new(pos, end, kind, data),
+        })
+    }
+}
+
+impl TextRange for BundleFileSection {
+    fn pos(&self) -> isize {
+        match self {
+            Self::BundleFilePrologue(value) => value.pos(),
+            Self::BundleFileEmitHelpers(value) => value.pos(),
+            Self::BundleFileHasNoDefaultLib(value) => value.pos(),
+            Self::BundleFileReference(value) => value.pos(),
+            Self::BundleFilePrepend(value) => value.pos(),
+            Self::BundleFileTextLike(value) => value.pos(),
+        }
+    }
+
+    fn set_pos(&self, pos: isize) {
+        match self {
+            Self::BundleFilePrologue(value) => value.set_pos(pos),
+            Self::BundleFileEmitHelpers(value) => value.set_pos(pos),
+            Self::BundleFileHasNoDefaultLib(value) => value.set_pos(pos),
+            Self::BundleFileReference(value) => value.set_pos(pos),
+            Self::BundleFilePrepend(value) => value.set_pos(pos),
+            Self::BundleFileTextLike(value) => value.set_pos(pos),
+        }
+    }
+
+    fn end(&self) -> isize {
+        match self {
+            Self::BundleFilePrologue(value) => value.end(),
+            Self::BundleFileEmitHelpers(value) => value.end(),
+            Self::BundleFileHasNoDefaultLib(value) => value.end(),
+            Self::BundleFileReference(value) => value.end(),
+            Self::BundleFilePrepend(value) => value.end(),
+            Self::BundleFileTextLike(value) => value.end(),
+        }
+    }
+
+    fn set_end(&self, end: isize) {
+        match self {
+            Self::BundleFilePrologue(value) => value.set_end(end),
+            Self::BundleFileEmitHelpers(value) => value.set_end(end),
+            Self::BundleFileHasNoDefaultLib(value) => value.set_end(end),
+            Self::BundleFileReference(value) => value.set_end(end),
+            Self::BundleFilePrepend(value) => value.set_end(end),
+            Self::BundleFileTextLike(value) => value.set_end(end),
+        }
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileSection {
+    fn kind(&self) -> BundleFileSectionKind {
+        match self {
+            Self::BundleFilePrologue(value) => value.kind(),
+            Self::BundleFileEmitHelpers(value) => value.kind(),
+            Self::BundleFileHasNoDefaultLib(value) => value.kind(),
+            Self::BundleFileReference(value) => value.kind(),
+            Self::BundleFilePrepend(value) => value.kind(),
+            Self::BundleFileTextLike(value) => value.kind(),
+        }
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        match self {
+            Self::BundleFilePrologue(value) => value.maybe_data(),
+            Self::BundleFileEmitHelpers(value) => value.maybe_data(),
+            Self::BundleFileHasNoDefaultLib(value) => value.maybe_data(),
+            Self::BundleFileReference(value) => value.maybe_data(),
+            Self::BundleFilePrepend(value) => value.maybe_data(),
+            Self::BundleFileTextLike(value) => value.maybe_data(),
+        }
+    }
+}
+
+pub struct SourceFilePrologueDirectiveExpression {
+    pub pos: isize,
+    pub end: isize,
+    pub text: String,
+}
+
+pub struct SourceFilePrologueDirective {
+    pub pos: isize,
+    pub end: isize,
+    pub expression: SourceFilePrologueDirectiveExpression,
+}
+
+pub struct SourceFilePrologueInfo {
+    pub file: usize,
+    pub text: String,
+    pub directives: Vec<SourceFilePrologueDirective>,
+}
+
+pub struct SourceFileInfo {
+    pub helpers: Option<Vec<String>>,
+    pub prologues: Option<Vec<SourceFilePrologueInfo>>,
+}
+
+pub struct BundleFileInfo {
+    pub sections: Vec<BundleFileSection>,
+    pub sources: Option<SourceFileInfo>,
 }
 
 pub(crate) type BuildInfo = ();
@@ -79,7 +574,7 @@ pub struct PrinterOptions {
     pub(crate) extended_diagnostics: Option<bool>,
     pub(crate) only_print_js_doc_style: Option<bool>,
     pub(crate) never_ascii_escape: Option<bool>,
-    pub(crate) write_bundle_info_file: Option<bool>,
+    pub(crate) write_bundle_file_info: Option<bool>,
     pub(crate) record_internal_section: Option<bool>,
     pub(crate) strip_internal: Option<bool>,
     pub(crate) preserve_source_newlines: Option<bool>,

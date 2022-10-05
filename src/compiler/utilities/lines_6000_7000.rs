@@ -231,10 +231,17 @@ pub fn get_language_variant(script_kind: ScriptKind) -> LanguageVariant {
 }
 
 pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarget {
-    compiler_options.target.unwrap_or_else(|| {
-        if matches!(compiler_options.module, Some(ModuleKind::Node12)) {
+    get_emit_script_target_from_module_and_target(compiler_options.module, compiler_options.target)
+}
+
+pub fn get_emit_script_target_from_module_and_target(
+    module: Option<ModuleKind>,
+    target: Option<ScriptTarget>,
+) -> ScriptTarget {
+    target.unwrap_or_else(|| {
+        if matches!(module, Some(ModuleKind::Node12)) {
             ScriptTarget::ES2020
-        } else if matches!(compiler_options.module, Some(ModuleKind::NodeNext)) {
+        } else if matches!(module, Some(ModuleKind::NodeNext)) {
             ScriptTarget::ESNext
         } else {
             ScriptTarget::ES3
@@ -243,8 +250,15 @@ pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarge
 }
 
 pub fn get_emit_module_kind(compiler_options: &CompilerOptions) -> ModuleKind {
-    compiler_options.module.unwrap_or_else(|| {
-        if get_emit_script_target(compiler_options) >= ScriptTarget::ES2015 {
+    get_emit_module_kind_from_module_and_target(compiler_options.module, compiler_options.target)
+}
+
+pub fn get_emit_module_kind_from_module_and_target(
+    module: Option<ModuleKind>,
+    target: Option<ScriptTarget>,
+) -> ModuleKind {
+    module.unwrap_or_else(|| {
+        if get_emit_script_target_from_module_and_target(module, target) >= ScriptTarget::ES2015 {
             ModuleKind::ES2015
         } else {
             ModuleKind::CommonJS

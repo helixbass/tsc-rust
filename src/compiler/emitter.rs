@@ -1,17 +1,19 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    file_extension_is, get_emit_flags, get_literal_text, get_parse_tree_node, id_text,
-    is_expression, is_identifier, is_keyword, no_emit_notification, no_emit_substitution,
-    positions_are_on_same_line, skip_trivia, token_to_string, Debug_, EmitFlags, EmitHint,
-    EmitTextWriter, Extension, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface,
-    ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine,
-    PrintHandlers, Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike, Symbol, SyntaxKind,
+    file_extension_is, get_emit_flags, get_emit_module_kind_from_module_and_target,
+    get_literal_text, get_new_line_character, get_parse_tree_node, id_text, is_expression,
+    is_identifier, is_keyword, no_emit_notification, no_emit_substitution,
+    positions_are_on_same_line, skip_trivia, token_to_string, BundleFileInfo, Debug_, EmitFlags,
+    EmitHint, EmitTextWriter, Extension, GetLiteralTextFlags, HasTypeArgumentsInterface,
+    HasTypeInterface, ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike,
+    Symbol, SyntaxKind,
 };
 
 lazy_static! {
@@ -69,12 +71,44 @@ impl PrintHandlers for DummyPrintHandlers {
 
 impl Printer {
     pub fn new(printer_options: PrinterOptions, handlers: Rc<dyn PrintHandlers>) -> Self {
+        let extended_diagnostics = printer_options.extended_diagnostics == Some(true);
+        let new_line =
+            get_new_line_character(printer_options.new_line, Option::<fn() -> String>::None);
+        let module_kind = get_emit_module_kind_from_module_and_target(
+            printer_options.module,
+            printer_options.target,
+        );
+        let preserve_source_newlines = printer_options.preserve_source_newlines;
+        let bundle_file_info = if printer_options.write_bundle_file_info == Some(true) {
+            Some(BundleFileInfo {
+                sections: vec![],
+                sources: None,
+            })
+        } else {
+            None
+        };
         Self {
             printer_options,
             handlers,
+            extended_diagnostics,
+            new_line,
+            module_kind,
             current_source_file: RefCell::new(None),
+            bundled_helpers: RefCell::new(HashMap::new()),
+            node_id_to_generated_name: RefCell::new(HashMap::new()),
+            auto_generated_id_to_generated_name: RefCell::new(HashMap::new()),
+            generated_names: RefCell::new(HashSet::new()),
+            temp_flags_stack: RefCell::new(vec![]),
+            temp_flags: Cell::new(TempFlags::Auto),
+            reserved_names_stack: RefCell::new(vec![]),
+            reserved_names: RefCell::new(HashSet::new()),
+            preserve_source_newlines: Cell::new(preserve_source_newlines),
+            next_list_element_pos: Cell::new(None),
             writer: RefCell::new(None),
+            own_writer: RefCell::new(None),
             write: Cell::new(Printer::write_base),
+            is_own_file_emit: Cell::new(false),
+            bundle_file_info: RefCell::new(bundle_file_info),
         }
     }
 
@@ -726,4 +760,10 @@ fn get_opening_bracket(format: ListFormat) -> &'static str {
 
 fn get_closing_bracket(format: ListFormat) -> &'static str {
     brackets.get(&format).unwrap().1
+}
+
+pub enum TempFlags {
+    Auto = 0x00000000,
+    CountMask = 0x0FFFFFFF,
+    _I = 0x10000000,
 }
