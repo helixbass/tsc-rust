@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::fmt;
 use std::io;
 use std::rc::Rc;
 
@@ -495,12 +496,17 @@ impl TextRange for SourceMapRange {
     }
 }
 
-#[derive(Debug)]
 pub struct SourceMapSource {
     pub file_name: String,
     pub text: String,
     pub(crate) line_map: Vec<usize>,
-    pub skip_trivia: Option<fn(usize) -> usize>,
+    pub skip_trivia: Option<Rc<dyn Fn(usize) -> usize>>,
+}
+
+impl fmt::Debug for SourceMapSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SourceMapSource").finish()
+    }
 }
 
 #[derive(Clone, Debug)]

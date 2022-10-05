@@ -6,14 +6,14 @@ use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    file_extension_is, get_emit_flags, get_emit_module_kind_from_module_and_target,
+    factory, file_extension_is, get_emit_flags, get_emit_module_kind_from_module_and_target,
     get_literal_text, get_new_line_character, get_parse_tree_node, id_text, is_expression,
     is_identifier, is_keyword, no_emit_notification, no_emit_substitution,
-    positions_are_on_same_line, skip_trivia, token_to_string, BundleFileInfo, Debug_, EmitFlags,
-    EmitHint, EmitTextWriter, Extension, GetLiteralTextFlags, HasTypeArgumentsInterface,
-    HasTypeInterface, ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike,
-    Symbol, SyntaxKind,
+    positions_are_on_same_line, skip_trivia, token_to_string, BundleFileInfo,
+    BundleFileSectionKind, Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension,
+    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine, PrintHandlers,
+    Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike, Symbol, SyntaxKind,
 };
 
 lazy_static! {
@@ -56,7 +56,7 @@ pub fn create_printer(
     handlers: Option<Rc<dyn PrintHandlers>>,
 ) -> Printer {
     let handlers = handlers.unwrap_or_else(|| Rc::new(DummyPrintHandlers));
-    let mut printer = Printer::new(printer_options, handlers);
+    let printer = Printer::new(printer_options, handlers);
     printer.reset();
     printer
 }
@@ -87,6 +87,12 @@ impl Printer {
         } else {
             None
         };
+        let relative_to_build_info = if bundle_file_info.is_some() {
+            Some(Debug_.check_defined(printer_options.relative_to_build_info.clone(), None))
+        } else {
+            None
+        };
+        let record_internal_section = printer_options.record_internal_section;
         Self {
             printer_options,
             handlers,
@@ -109,6 +115,29 @@ impl Printer {
             write: Cell::new(Printer::write_base),
             is_own_file_emit: Cell::new(false),
             bundle_file_info: RefCell::new(bundle_file_info),
+            relative_to_build_info,
+            record_internal_section,
+            source_file_text_pos: Cell::new(0),
+            source_file_text_kind: Cell::new(BundleFileSectionKind::Text),
+
+            source_maps_disabled: Cell::new(true),
+            source_map_generator: RefCell::new(None),
+            source_map_source: RefCell::new(None),
+            source_map_source_index: Cell::new(-1),
+            most_recently_added_source_map_source: RefCell::new(None),
+            most_recently_added_source_map_source_index: Cell::new(-1),
+
+            container_pos: Cell::new(-1),
+            container_end: Cell::new(-1),
+            declaration_list_container_end: Cell::new(-1),
+            current_line_map: RefCell::new(None),
+            detached_comments_info: RefCell::new(None),
+            has_written_comment: Cell::new(false),
+            comments_disabled: Cell::new(false),
+            last_substitution: RefCell::new(None),
+            current_parenthesizer_rule: RefCell::new(None),
+            // const { enter: enterComment, exit: exitComment } = performance.createTimerIf(extendedDiagnostics, "commentTime", "beforeComment", "afterComment");
+            parenthesizer: factory.with(|factory_| factory_.parenthesizer()),
         }
     }
 
@@ -178,6 +207,18 @@ impl Printer {
 
     fn write(&self, text: &str) {
         (self.write.get())(self, text);
+    }
+
+    fn enter_comment(&self) {
+        // unimplemented!()
+    }
+
+    fn exit_comment(&self) {
+        // unimplemented!()
+    }
+
+    fn emit_binary_expression(&self) {
+        unimplemented!()
     }
 
     pub fn write_node(

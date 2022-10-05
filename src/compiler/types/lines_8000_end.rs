@@ -10,9 +10,9 @@ use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
-    CommentRange, EmitHint, FileIncludeReason, ModuleKind, MultiMap, NewLineKind, NodeArray,
-    NodeId, Path, RedirectTargetsMap, ScriptTarget, SortedArray, SymlinkCache, SyntaxKind,
-    TempFlags, TextRange,
+    BaseNodeFactorySynthetic, CommentRange, EmitHint, FileIncludeReason, ModuleKind, MultiMap,
+    NewLineKind, NodeArray, NodeId, ParenthesizerRules, Path, RedirectTargetsMap, ScriptTarget,
+    SortedArray, SourceMapSource, SymlinkCache, SyntaxKind, TempFlags, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -33,11 +33,40 @@ pub struct Printer {
     pub reserved_names: RefCell<HashSet<String>>,
     pub preserve_source_newlines: Cell<Option<bool>>,
     pub next_list_element_pos: Cell<Option<usize>>,
+
     pub writer: RefCell<Option<Rc<RefCell<dyn EmitTextWriter>>>>,
     pub own_writer: RefCell<Option<Rc<RefCell<dyn EmitTextWriter>>>>,
     pub write: Cell<fn(&Printer, &str)>,
     pub is_own_file_emit: Cell<bool>,
     pub bundle_file_info: RefCell<Option<BundleFileInfo>>,
+    pub relative_to_build_info: Option<Rc<dyn Fn(&str) -> String>>,
+    pub record_internal_section: Option<bool>,
+    pub source_file_text_pos: Cell<usize>,
+    pub source_file_text_kind: Cell<BundleFileSectionKind>,
+
+    pub source_maps_disabled: Cell<bool>,
+    pub source_map_generator: RefCell<Option<Rc<dyn SourceMapGenerator>>>,
+    pub source_map_source: RefCell<Option<SourceMapSource>>,
+    pub source_map_source_index: Cell<isize>,
+    pub most_recently_added_source_map_source: RefCell<Option<SourceMapSource>>,
+    pub most_recently_added_source_map_source_index: Cell<isize>,
+
+    pub container_pos: Cell<isize>,
+    pub container_end: Cell<isize>,
+    pub declaration_list_container_end: Cell<isize>,
+    pub current_line_map: RefCell<Option<Vec<usize>>>,
+    pub detached_comments_info: RefCell<Option<Vec<DetachedCommentInfo>>>,
+    pub has_written_comment: Cell<bool>,
+    pub comments_disabled: Cell<bool>,
+    pub last_substitution: RefCell<Option<Rc<Node>>>,
+    pub current_parenthesizer_rule: RefCell<Option<Rc<dyn Fn(&Node) -> Rc<Node>>>>,
+    pub parenthesizer: Rc<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>,
+}
+
+#[derive(Copy, Clone)]
+pub struct DetachedCommentInfo {
+    pub node_pos: usize,
+    pub detached_comment_end_pos: usize,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -591,6 +620,8 @@ pub(crate) struct RawSourceMap {
     pub mappings: String,
     pub names: Option<Vec<String>>,
 }
+
+pub trait SourceMapGenerator {}
 
 pub trait EmitTextWriter: SymbolWriter {
     fn write(&mut self, s: &str);

@@ -174,7 +174,7 @@ pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory> {
 
 pub struct NodeFactory<TBaseNodeFactory> {
     pub flags: NodeFactoryFlags,
-    pub parenthesizer_rules: RefCell<Option<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>,
+    pub parenthesizer_rules: RefCell<Option<Rc<dyn ParenthesizerRules<TBaseNodeFactory>>>>,
     pub converters: RefCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,
 }
 
