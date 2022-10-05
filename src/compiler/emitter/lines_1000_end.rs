@@ -1,22 +1,17 @@
 use std::borrow::{Borrow, Cow};
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::{brackets, PipelinePhase};
 use crate::{
-    create_text_writer, factory, file_extension_is, get_emit_flags,
-    get_emit_module_kind_from_module_and_target, get_literal_text, get_new_line_character,
-    get_parse_tree_node, id_text, is_expression, is_identifier, is_keyword, is_source_file,
-    last_or_undefined, no_emit_notification, no_emit_substitution, positions_are_on_same_line,
-    skip_trivia, token_to_string, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
-    BundleFileSectionKind, Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension,
-    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine, PrintHandlers,
-    Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike, SourceMapGenerator, Symbol,
-    SyntaxKind, TextRange,
+    create_text_writer, get_emit_flags, get_literal_text, get_parse_tree_node, id_text,
+    is_expression, is_identifier, is_keyword, positions_are_on_same_line, skip_trivia,
+    token_to_string, Debug_, EmitFlags, EmitHint, EmitTextWriter, GetLiteralTextFlags,
+    HasTypeArgumentsInterface, HasTypeInterface, ListFormat, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, SourceMapGenerator,
+    Symbol, SyntaxKind, TextRange,
 };
 
 impl Printer {
