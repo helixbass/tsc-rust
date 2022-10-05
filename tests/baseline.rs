@@ -15,6 +15,7 @@ use typescript_rust::{
 };
 
 #[rstest]
+#[case("yieldExpression1.ts")]
 #[case("yieldExpressionInFlowLoop.ts")]
 #[case("yieldStringLiteral.ts")]
 fn run_compiler_baseline(#[case] case_filename: &str) {
