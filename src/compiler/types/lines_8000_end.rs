@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io;
 use std::iter::FromIterator;
@@ -16,9 +16,9 @@ use crate::{
 use local_macros::{ast_type, enum_unwrapped};
 
 pub struct Printer {
-    pub current_source_file: Option<Rc<Node /*SourceFile*/>>,
-    pub writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
-    pub write: fn(&Printer, &str),
+    pub current_source_file: RefCell<Option<Rc<Node /*SourceFile*/>>>,
+    pub writer: RefCell<Option<Rc<RefCell<dyn EmitTextWriter>>>>,
+    pub write: Cell<fn(&Printer, &str)>,
 }
 
 pub(crate) type BuildInfo = ();
@@ -235,20 +235,48 @@ bitflags! {
         const None = 0;
 
         const SingleLine = 0;
+        const MultiLine = 1 << 0;
+        const PreserveLines = 1 << 1;
+        const LinesMask = Self::SingleLine.bits | Self::MultiLine.bits | Self::PreserveLines.bits;
 
+        const NotDelimited = 0;
         const BarDelimited = 1 << 2;
         const AmpersandDelimited = 1 << 3;
         const CommaDelimited = 1 << 4;
         const AsteriskDelimited = 1 << 5;
         const DelimitersMask = Self::BarDelimited.bits | Self::AmpersandDelimited.bits | Self::CommaDelimited.bits | Self::AsteriskDelimited.bits;
 
+        const AllowTrailingComma = 1 << 6;
+
+        const Indented = 1 << 7;
         const SpaceBetweenBraces = 1 << 8;
         const SpaceBetweenSiblings = 1 << 9;
 
+        const Braces = 1 << 10;
+        const Parenthesis = 1 << 11;
+        const AngleBrackets = 1 << 12;
+        const SquareBrackets = 1 << 13;
+        const BracketsMask = Self::Braces.bits | Self::Parenthesis.bits | Self::AngleBrackets.bits | Self::SquareBrackets.bits;
+
+        const OptionalIfUndefined = 1 << 14;
+        const OptionalIfEmpty = 1 << 15;
+        const Optional = Self::OptionalIfUndefined.bits | Self::OptionalIfEmpty.bits;
+
+        const PreferNewLine = 1 << 16;
+        const NoTrailingNewLine = 1 << 17;
+        const NoInterveningComments = 1 << 18;
+
         const NoSpaceIfEmpty = 1 << 19;
+        const SingleElement = 1 << 20;
         const SpaceAfterList = 1 << 21;
 
+        const Modifiers = Self::SingleLine.bits | Self::SpaceBetweenSiblings.bits | Self::NoInterveningComments.bits;
+        const HeritageClauses = Self::SingleLine.bits | Self::SpaceBetweenSiblings.bits;
         const SingleLineTypeLiteralMembers = Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits;
+        const MultiLineTypeLiteralMembers = Self::MultiLine.bits | Self::Indented.bits | Self::OptionalIfEmpty.bits;
+
+        const SingleLineTupleTypeElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const MultiLineTupleTypeElements = Self::CommaDelimited.bits | Self::Indented.bits | Self::SpaceBetweenSiblings.bits | Self::MultiLine.bits;
 
         const UnionTypeConstituents = Self::BarDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
     }

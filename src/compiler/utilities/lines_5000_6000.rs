@@ -11,10 +11,11 @@ use std::rc::Rc;
 use super::supported_ts_extensions_for_extract_extension;
 use crate::{
     entity_name_to_string, file_extension_is, find, get_combined_modifier_flags,
-    get_element_or_property_access_name, get_property_name_for_property_name_node, get_sys,
-    has_syntactic_modifier, is_assignment_operator, is_bindable_static_access_expression,
-    is_class_like, is_element_access_expression, is_entity_name_expression, is_identifier,
-    is_jsdoc_member_name, is_property_access_expression, is_property_name, is_qualified_name,
+    get_element_or_property_access_name, get_lines_between_positions,
+    get_property_name_for_property_name_node, get_sys, has_syntactic_modifier,
+    is_assignment_operator, is_bindable_static_access_expression, is_class_like,
+    is_element_access_expression, is_entity_name_expression, is_identifier, is_jsdoc_member_name,
+    is_property_access_expression, is_property_name, is_qualified_name,
     parse_config_file_text_to_json, unescape_leading_underscores,
     walk_up_parenthesized_expressions, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode,
     BaseSymbol, BaseType, CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface,
@@ -230,6 +231,14 @@ pub fn get_new_line_character<TGetNewLine: Fn() -> String>(
     } else {
         get_sys().new_line().to_owned()
     }
+}
+
+pub fn positions_are_on_same_line(
+    pos1: usize,
+    pos2: usize,
+    source_file: &Node, /*SourceFile*/
+) -> bool {
+    get_lines_between_positions(source_file.as_source_file(), pos1, pos2) == 0
 }
 
 pub fn is_watch_set(options: &CompilerOptions) -> bool {
