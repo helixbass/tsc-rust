@@ -796,11 +796,17 @@ fn create_brackets_map() -> HashMap<ListFormat, (&'static str, &'static str)> {
 }
 
 fn get_opening_bracket(format: ListFormat) -> &'static str {
-    brackets.get(&format).unwrap().0
+    brackets
+        .get(&(format & ListFormat::BracketsMask))
+        .unwrap()
+        .0
 }
 
 fn get_closing_bracket(format: ListFormat) -> &'static str {
-    brackets.get(&format).unwrap().1
+    brackets
+        .get(&(format & ListFormat::BracketsMask))
+        .unwrap()
+        .1
 }
 
 pub enum TempFlags {
