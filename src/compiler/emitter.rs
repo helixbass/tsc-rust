@@ -6,14 +6,15 @@ use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    factory, file_extension_is, get_emit_flags, get_emit_module_kind_from_module_and_target,
-    get_literal_text, get_new_line_character, get_parse_tree_node, id_text, is_expression,
-    is_identifier, is_keyword, no_emit_notification, no_emit_substitution,
-    positions_are_on_same_line, skip_trivia, token_to_string, BundleFileInfo,
-    BundleFileSectionKind, Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension,
-    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine, PrintHandlers,
-    Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike, Symbol, SyntaxKind,
+    create_text_writer, factory, file_extension_is, get_emit_flags,
+    get_emit_module_kind_from_module_and_target, get_literal_text, get_new_line_character,
+    get_parse_tree_node, id_text, is_expression, is_identifier, is_keyword, is_source_file,
+    no_emit_notification, no_emit_substitution, positions_are_on_same_line, skip_trivia,
+    token_to_string, BundleFileInfo, BundleFileSectionKind, Debug_, EmitFlags, EmitHint,
+    EmitTextWriter, Extension, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface,
+    ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ParsedCommandLine,
+    PrintHandlers, Printer, PrinterOptions, ReadonlyTextRange, SourceFileLike, SourceMapGenerator,
+    Symbol, SyntaxKind,
 };
 
 lazy_static! {
@@ -221,21 +222,139 @@ impl Printer {
         unimplemented!()
     }
 
+    pub fn print_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        source_file: &Node, /*SourceFile*/
+    ) -> String {
+        match hint {
+            EmitHint::SourceFile => {
+                Debug_.assert(is_source_file(node), Some("Expected a SourceFile node."));
+            }
+            EmitHint::IdentifierName => {
+                Debug_.assert(is_identifier(node), Some("Expected an Identifier node."));
+            }
+            EmitHint::Expression => {
+                Debug_.assert(is_expression(node), Some("Expected an Expression node."));
+            }
+            _ => (),
+        }
+        match node.kind() {
+            SyntaxKind::SourceFile => {
+                return self.print_file(node);
+            }
+            SyntaxKind::Bundle => {
+                return self.print_bundle(node);
+            }
+            SyntaxKind::UnparsedSource => {
+                return self.print_unparsed_source(node);
+            }
+            _ => (),
+        }
+        self.write_node(hint, node, Some(source_file), self.begin_print());
+        self.end_print()
+    }
+
+    pub fn print_list(
+        &self,
+        format: ListFormat,
+        nodes: &NodeArray,
+        source_file: &Node, /*SourceFile*/
+    ) -> String {
+        self.write_list(format, nodes, Some(source_file), self.begin_print());
+        self.end_print()
+    }
+
+    pub fn print_bundle(&self, bundle: &Node /*Bundle*/) -> String {
+        self.write_bundle(bundle, self.begin_print(), None);
+        self.end_print()
+    }
+
+    pub fn print_file(&self, source_file: &Node /*SourceFile*/) -> String {
+        self.write_file(source_file, self.begin_print(), None);
+        self.end_print()
+    }
+
+    pub fn print_unparsed_source(&self, unparsed: &Node /*UnparsedSource*/) -> String {
+        self.write_unparsed_source(unparsed, self.begin_print());
+        self.end_print()
+    }
+
     pub fn write_node(
         &self,
         hint: EmitHint,
         node: &Node,
-        source_file: Option<Rc<Node /*SourceFile*/>>,
+        source_file: Option<&Node /*SourceFile*/>,
         output: Rc<RefCell<dyn EmitTextWriter>>,
     ) {
         let previous_writer = self.maybe_writer();
-        self.set_writer(Some(output));
+        self.set_writer(Some(output), None);
         self.print(hint, node, source_file);
         self.reset();
-        self.set_writer(previous_writer);
+        *self.writer.borrow_mut() = previous_writer;
     }
 
-    fn print(&self, hint: EmitHint, node: &Node, source_file: Option<Rc<Node /*SourceFile*/>>) {
+    pub fn write_list(
+        &self,
+        format: ListFormat,
+        nodes: &NodeArray,
+        source_file: Option<&Node /*SourceFile*/>,
+        output: Rc<RefCell<dyn EmitTextWriter>>,
+    ) {
+        let previous_writer = self.maybe_writer();
+        self.set_writer(Some(output), None);
+        if source_file.is_some() {
+            self.set_source_file(source_file);
+        }
+        self.emit_list(Option::<&Node>::None, Some(nodes), format);
+        self.reset();
+        *self.writer.borrow_mut() = previous_writer;
+    }
+
+    pub fn write_bundle(
+        &self,
+        bundle: &Node, /*Bundle*/
+        output: Rc<RefCell<dyn EmitTextWriter>>,
+        source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
+    ) {
+        unimplemented!()
+    }
+
+    pub fn write_unparsed_source(
+        &self,
+        unparsed: &Node, /*UnparsedSource*/
+        output: Rc<RefCell<dyn EmitTextWriter>>,
+    ) {
+        unimplemented!()
+    }
+
+    pub fn write_file(
+        &self,
+        source_file: &Node, /*SourceFile*/
+        output: Rc<RefCell<dyn EmitTextWriter>>,
+        source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
+    ) {
+        unimplemented!()
+    }
+
+    fn begin_print(&self) -> Rc<RefCell<dyn EmitTextWriter>> {
+        self.own_writer
+            .borrow_mut()
+            .get_or_insert_with(|| Rc::new(RefCell::new(create_text_writer(&self.new_line))))
+            .clone()
+    }
+
+    fn end_print(&self) -> String {
+        let own_writer = self.own_writer.borrow();
+        let own_writer = own_writer.as_ref().unwrap();
+        let mut own_writer = own_writer.borrow_mut();
+        let text = own_writer.get_text();
+        own_writer.clear();
+        text
+    }
+
+    fn print(&self, hint: EmitHint, node: &Node, source_file: Option<&Node /*SourceFile*/>) {
         if let Some(source_file) = source_file {
             self.set_source_file(Some(source_file));
         }
@@ -243,16 +362,23 @@ impl Printer {
         self.pipeline_emit(hint, node);
     }
 
-    fn set_source_file(&self, source_file: Option<Rc<Node /*SourceFile*/>>) {
-        *self.current_source_file.borrow_mut() = source_file;
+    fn set_source_file(&self, source_file: Option<&Node /*SourceFile*/>) {
+        *self.current_source_file.borrow_mut() =
+            source_file.map(|source_file| source_file.node_wrapper());
     }
 
-    fn set_writer(&self, writer: Option<Rc<RefCell<dyn EmitTextWriter>>>) {
+    fn set_writer(
+        &self,
+        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+        source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
+    ) {
         *self.writer.borrow_mut() = writer;
     }
 
     fn reset(&self) {
-        self.set_writer(None);
+        self.set_writer(
+            None, None, //TODO this might be wrong
+        );
     }
 
     fn emit(&self, node: Option<&Node>) {

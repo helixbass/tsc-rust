@@ -94,7 +94,12 @@ impl TypeChecker {
         let source_file = enclosing_declaration
             .as_deref()
             .and_then(|enclosing_declaration| get_source_file_of_node(Some(enclosing_declaration)));
-        printer.write_node(EmitHint::Unspecified, &predicate, source_file, writer);
+        printer.write_node(
+            EmitHint::Unspecified,
+            &predicate,
+            source_file.as_deref(),
+            writer,
+        );
         // return writer;
     }
 

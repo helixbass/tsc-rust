@@ -294,7 +294,12 @@ impl TypeChecker {
                 .and_then(|enclosing_declaration| {
                     get_source_file_of_node(Some(enclosing_declaration))
                 });
-            printer.write_node(EmitHint::Unspecified, &entity, source_file, writer);
+            printer.write_node(
+                EmitHint::Unspecified,
+                &entity,
+                source_file.as_deref(),
+                writer,
+            );
             // writer
         };
         if let Some(writer) = writer {
@@ -385,7 +390,7 @@ impl TypeChecker {
         printer.write_node(
             EmitHint::Unspecified,
             &sig.unwrap(),
-            source_file,
+            source_file.as_deref(),
             Rc::new(RefCell::new(get_trailing_semicolon_deferring_writer(
                 writer,
             ))),
@@ -437,7 +442,7 @@ impl TypeChecker {
         printer.write_node(
             EmitHint::Unspecified,
             &type_node,
-            source_file,
+            source_file.as_deref(),
             writer.clone(),
         );
         let result = (*writer).borrow().get_text();
