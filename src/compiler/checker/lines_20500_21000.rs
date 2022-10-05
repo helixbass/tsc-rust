@@ -749,7 +749,7 @@ impl TypeChecker {
                 TypeFlags::None
             }
         } else {
-            TypeFlags::PossiblyFalsy
+            type_.flags() & TypeFlags::PossiblyFalsy
         }
     }
 
