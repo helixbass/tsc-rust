@@ -793,7 +793,7 @@ impl CheckTypeRelatedTo {
                     return Ternary::False;
                 }
                 if target_rest_flag == ElementFlags::None
-                    && (source_rest_flag == ElementFlags::None || target_arity < source_arity)
+                    && (source_rest_flag != ElementFlags::None || target_arity < source_arity)
                 {
                     if report_errors {
                         if source_min_length < target_min_length {
