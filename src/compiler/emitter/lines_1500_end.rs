@@ -1,24 +1,16 @@
 use std::borrow::{Borrow, Cow};
-use std::cell::Ref;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{brackets, PipelinePhase};
+use super::brackets;
 use crate::{
-    cast_present, create_text_writer, get_emit_flags, get_line_starts, get_literal_text,
-    get_parse_tree_node, get_snippet_element, get_trailing_semicolon_deferring_writer, id_text,
-    is_bundle_file_text_like, is_declaration, is_empty_statement, is_expression, is_identifier,
-    is_in_json_file, is_internal_declaration, is_keyword, is_source_file, is_string_literal,
-    is_token_kind, is_type_parameter_declaration, is_unparsed_prepend, is_unparsed_source,
-    is_variable_statement, positions_are_on_same_line, skip_trivia, token_to_string,
-    BundleFileSection, BundleFileSectionKind, Debug_, EmitFlags, EmitHint, EmitTextWriter,
+    get_emit_flags, get_literal_text, get_parse_tree_node, id_text, is_identifier,
+    positions_are_on_same_line, skip_trivia, token_to_string, EmitFlags, EmitHint,
     GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SnippetElement, SourceFileLike, SourceFilePrologueInfo, SourceMapGenerator, SourceMapSource,
-    Symbol, SyntaxKind,
+    SnippetElement, SourceFileLike, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
 };
 
 impl Printer {
