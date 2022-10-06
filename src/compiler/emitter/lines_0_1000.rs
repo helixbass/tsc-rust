@@ -7,9 +7,10 @@ use crate::{
     factory, file_extension_is, get_emit_module_kind_from_module_and_target,
     get_new_line_character, is_expression, is_identifier, is_source_file, last_or_undefined,
     no_emit_notification, no_emit_substitution, BundleFileInfo, BundleFileSection,
-    BundleFileSectionInterface, BundleFileSectionKind, Debug_, EmitHint, EmitTextWriter, Extension,
-    ListFormat, Node, NodeArray, NodeInterface, ParsedCommandLine, PrintHandlers, Printer,
-    PrinterOptions, SyntaxKind, TextRange,
+    BundleFileSectionInterface, BundleFileSectionKind, Debug_, DetachedCommentInfo, EmitHint,
+    EmitTextWriter, Extension, ListFormat, Node, NodeArray, NodeId, NodeInterface,
+    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, SourceMapGenerator, SyntaxKind,
+    TextRange,
 };
 
 lazy_static! {
@@ -142,6 +143,49 @@ impl Printer {
         self.current_source_file.borrow().clone()
     }
 
+    pub(super) fn current_source_file(&self) -> Rc<Node> {
+        self.current_source_file.borrow().clone().unwrap()
+    }
+
+    pub(super) fn set_current_source_file(&self, current_source_file: Option<Rc<Node>>) {
+        *self.current_source_file.borrow_mut() = current_source_file;
+    }
+
+    pub(super) fn set_node_id_to_generated_name(
+        &self,
+        node_id_to_generated_name: HashMap<NodeId, String>,
+    ) {
+        *self.node_id_to_generated_name.borrow_mut() = node_id_to_generated_name;
+    }
+
+    pub(super) fn set_auto_generated_id_to_generated_name(
+        &self,
+        auto_generated_id_to_generated_name: HashMap<usize, String>,
+    ) {
+        *self.auto_generated_id_to_generated_name.borrow_mut() =
+            auto_generated_id_to_generated_name;
+    }
+
+    pub(super) fn set_generated_names(&self, generated_names: HashSet<String>) {
+        *self.generated_names.borrow_mut() = generated_names;
+    }
+
+    pub(super) fn set_temp_flags_stack(&self, temp_flags_stack: Vec<TempFlags>) {
+        *self.temp_flags_stack.borrow_mut() = temp_flags_stack;
+    }
+
+    pub(super) fn temp_flags(&self) -> TempFlags {
+        self.temp_flags.get()
+    }
+
+    pub(super) fn set_temp_flags(&self, temp_flags: TempFlags) {
+        self.temp_flags.set(temp_flags);
+    }
+
+    pub(super) fn set_reserved_names_stack(&self, reserved_names_stack: Vec<HashSet<String>>) {
+        *self.reserved_names_stack.borrow_mut() = reserved_names_stack;
+    }
+
     pub(super) fn maybe_writer(&self) -> Option<Rc<dyn EmitTextWriter>> {
         self.writer.borrow().clone()
     }
@@ -259,6 +303,42 @@ impl Printer {
         self.source_file_text_kind.set(source_file_text_kind);
     }
 
+    pub(super) fn set_source_map_generator(
+        &self,
+        source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
+    ) {
+        *self.source_map_generator.borrow_mut() = source_map_generator;
+    }
+
+    pub(super) fn source_maps_disabled(&self) -> bool {
+        self.source_maps_disabled.get()
+    }
+
+    pub(super) fn set_source_maps_disabled(&self, source_maps_disabled: bool) {
+        self.source_maps_disabled.set(source_maps_disabled);
+    }
+
+    pub(super) fn maybe_current_line_map(&self) -> Ref<Option<Vec<usize>>> {
+        self.current_line_map.borrow()
+    }
+
+    pub(super) fn current_line_map(&self) -> Ref<Vec<usize>> {
+        Ref::map(self.current_line_map.borrow(), |current_line_map| {
+            current_line_map.as_ref().unwrap()
+        })
+    }
+
+    pub(super) fn set_current_line_map(&self, current_line_map: Option<Vec<usize>>) {
+        *self.current_line_map.borrow_mut() = current_line_map;
+    }
+
+    pub(super) fn set_detached_comments_info(
+        &self,
+        detached_comments_info: Option<Vec<DetachedCommentInfo>>,
+    ) {
+        *self.detached_comments_info.borrow_mut() = detached_comments_info;
+    }
+
     pub(super) fn enter_comment(&self) {
         // unimplemented!()
     }
@@ -356,7 +436,7 @@ impl Printer {
         if source_file.is_some() {
             self.set_source_file(source_file);
         }
-        self.emit_list(Option::<&Node>::None, Some(nodes), format);
+        self.emit_list(Option::<&Node>::None, Some(nodes), format, None, None, None);
         self.reset();
         *self.writer.borrow_mut() = previous_writer;
     }

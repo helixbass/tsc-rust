@@ -1,19 +1,20 @@
 use std::borrow::{Borrow, Cow};
-use std::collections::HashMap;
+use std::cell::Ref;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::{brackets, PipelinePhase};
 use crate::{
-    create_text_writer, get_emit_flags, get_literal_text, get_parse_tree_node, id_text,
-    is_bundle_file_text_like, is_declaration, is_expression, is_identifier,
-    is_internal_declaration, is_keyword, is_variable_statement, positions_are_on_same_line,
-    skip_trivia, token_to_string, BundleFileSection, BundleFileSectionKind, Debug_, EmitFlags,
-    EmitHint, EmitTextWriter, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface,
-    ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, SourceFileLike, SourceFilePrologueInfo, SourceMapGenerator, Symbol,
-    SyntaxKind,
+    create_text_writer, get_emit_flags, get_line_starts, get_literal_text, get_parse_tree_node,
+    get_trailing_semicolon_deferring_writer, id_text, is_bundle_file_text_like, is_declaration,
+    is_expression, is_identifier, is_internal_declaration, is_keyword, is_variable_statement,
+    positions_are_on_same_line, skip_trivia, token_to_string, BundleFileSection,
+    BundleFileSectionKind, Debug_, EmitFlags, EmitHint, EmitTextWriter, GetLiteralTextFlags,
+    HasTypeArgumentsInterface, HasTypeInterface, ListFormat, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, SourceFilePrologueInfo,
+    SourceMapGenerator, SourceMapSource, Symbol, SyntaxKind,
 };
 
 impl Printer {
@@ -155,7 +156,11 @@ impl Printer {
         unparsed: &Node, /*UnparsedSource*/
         output: Rc<dyn EmitTextWriter>,
     ) {
-        unimplemented!()
+        let previous_writer = self.maybe_writer();
+        self.set_writer(Some(output), None);
+        self.print(EmitHint::Unspecified, unparsed, None);
+        self.reset();
+        *self.writer.borrow_mut() = previous_writer;
     }
 
     pub fn write_file(
@@ -164,7 +169,14 @@ impl Printer {
         output: Rc<dyn EmitTextWriter>,
         source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
     ) {
-        unimplemented!()
+        self.set_is_own_file_emit(true);
+        let previous_writer = self.writer();
+        self.set_writer(Some(output), source_map_generator);
+        self.emit_shebang_if_needed(source_file);
+        self.emit_prologue_directives_if_needed(source_file);
+        self.print(EmitHint::SourceFile, source_file, Some(source_file));
+        self.reset();
+        *self.writer.borrow_mut() = Some(previous_writer);
     }
 
     pub(super) fn begin_print(&self) -> Rc<dyn EmitTextWriter> {
@@ -192,41 +204,98 @@ impl Printer {
             self.set_source_file(Some(source_file));
         }
 
-        self.pipeline_emit(hint, node);
+        self.pipeline_emit(hint, node, None);
     }
 
     pub(super) fn set_source_file(&self, source_file: Option<&Node /*SourceFile*/>) {
         *self.current_source_file.borrow_mut() =
             source_file.map(|source_file| source_file.node_wrapper());
+        self.set_current_line_map(None);
+        self.set_detached_comments_info(None);
+        if let Some(source_file) = source_file {
+            self.set_source_map_source(source_file.node_wrapper().into());
+        }
     }
 
     pub(super) fn set_writer(
         &self,
-        writer: Option<Rc<dyn EmitTextWriter>>,
+        mut writer: Option<Rc<dyn EmitTextWriter>>,
         source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
     ) {
-        *self.writer.borrow_mut() = writer;
+        if let Some(writer_present) = writer.as_ref() {
+            if self.printer_options.omit_trailing_semicolon == Some(true) {
+                writer = Some(Rc::new(get_trailing_semicolon_deferring_writer(
+                    writer_present.clone(),
+                )));
+            }
+        }
+        *self.writer.borrow_mut() = writer.clone();
+        self.set_source_map_generator(source_map_generator.clone());
+        self.set_source_maps_disabled(writer.is_none() || source_map_generator.is_none());
     }
 
     pub(super) fn reset(&self) {
-        self.set_writer(
-            None, None, //TODO this might be wrong
-        );
+        self.set_node_id_to_generated_name(HashMap::new());
+        self.set_auto_generated_id_to_generated_name(HashMap::new());
+        self.set_generated_names(HashSet::new());
+        self.set_temp_flags_stack(vec![]);
+        self.set_temp_flags(TempFlags::Auto);
+        self.set_reserved_names_stack(vec![]);
+        self.set_current_source_file(None);
+        self.set_current_line_map(None);
+        self.set_detached_comments_info(None);
+        self.set_writer(None, None);
     }
 
-    pub(super) fn emit(&self, node: Option<&Node>) {
+    pub(super) fn get_current_line_map(&self) -> Ref<Vec<usize>> {
+        if self.maybe_current_line_map().is_none() {
+            self.set_current_line_map(Some(
+                get_line_starts(self.current_source_file().as_source_file()).clone(),
+            ));
+        }
+        self.current_line_map()
+    }
+
+    pub(super) fn emit(
+        &self,
+        node: Option<&Node>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+    ) {
         if node.is_none() {
             return;
         }
         let node = node.unwrap();
-        self.pipeline_emit(EmitHint::Unspecified, node);
+        let prev_source_file_text_kind = self.record_bundle_file_internal_section_start(node);
+        self.pipeline_emit(EmitHint::Unspecified, node, parenthesizer_rule);
+        self.record_bundle_file_internal_section_end(prev_source_file_text_kind);
     }
 
-    pub(super) fn emit_expression(&self, node: &Node /*Expression*/) {
-        self.pipeline_emit(EmitHint::Expression, node);
+    pub(super) fn emit_identifier_name(&self, node: Option<&Node /*Identifier*/>) {
+        if node.is_none() {
+            return;
+        }
+        let node = node.unwrap();
+        self.pipeline_emit(EmitHint::IdentifierName, node, None);
     }
 
-    pub(super) fn pipeline_emit(&self, emit_hint: EmitHint, node: &Node) {
+    pub(super) fn emit_expression(
+        &self,
+        node: Option<&Node /*Expression*/>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+    ) {
+        if node.is_none() {
+            return;
+        }
+        let node = node.unwrap();
+        self.pipeline_emit(EmitHint::Expression, node, parenthesizer_rule);
+    }
+
+    pub(super) fn pipeline_emit(
+        &self,
+        emit_hint: EmitHint,
+        node: &Node,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+    ) {
         let pipeline_phase = self.get_pipeline_phase(PipelinePhase::Notification, emit_hint, node);
         pipeline_phase(self, emit_hint, node);
     }
@@ -351,7 +420,7 @@ impl Printer {
 
     pub(super) fn emit_type_reference(&self, node: &Node /*TypeReferenceNode*/) {
         let node_as_type_reference_node = node.as_type_reference_node();
-        self.emit(Some(&*node_as_type_reference_node.type_name));
+        self.emit(Some(&*node_as_type_reference_node.type_name), None);
         self.emit_type_arguments(
             node,
             node_as_type_reference_node.maybe_type_arguments().as_ref(),
@@ -379,6 +448,9 @@ impl Printer {
             Some(node),
             Some(&node.as_type_literal_node().members),
             flags | ListFormat::NoSpaceIfEmpty,
+            None,
+            None,
+            None,
         );
         self.write_punctuation("}");
     }
@@ -406,6 +478,9 @@ impl Printer {
             Some(node),
             Some(&node_elements),
             flags | ListFormat::NoSpaceIfEmpty,
+            None,
+            None,
+            None,
         );
         self.emit_token_with_comment(
             SyntaxKind::CloseBracketToken,
@@ -421,6 +496,10 @@ impl Printer {
             Some(node),
             Some(&node.as_union_or_intersection_type_node().types()),
             ListFormat::UnionTypeConstituents,
+            // TODO: this is wrong
+            None,
+            None,
+            None,
         );
     }
 
@@ -449,7 +528,7 @@ impl Printer {
         self.write_space();
         self.emit(
             Some(&*node_as_type_operator_node.type_),
-            // parenthesizer.parenthesizeMemberOfElementType
+            None, // TODO: this is wrong, should be parenthesizer.parenthesizeMemberOfElementType
         );
     }
 
@@ -459,7 +538,7 @@ impl Printer {
     }
 
     pub(super) fn emit_literal_type(&self, node: &Node /*LiteralTypeNode*/) {
-        self.emit_expression(&*node.as_literal_type_node().literal);
+        self.emit_expression(Some(&*node.as_literal_type_node().literal), None);
     }
 
     pub(super) fn emit_import_type(&self, node: &Node /*ImportTypeNode*/) {
@@ -557,7 +636,7 @@ impl Printer {
         let node = node.unwrap();
         let saved_write = self.write.get();
         self.write.set(writer);
-        self.emit(Some(node));
+        self.emit(Some(node), None);
         self.write.set(saved_write);
     }
 
@@ -569,7 +648,7 @@ impl Printer {
             let node = node.borrow();
             self.write_punctuation(":");
             self.write_space();
-            self.emit(Some(node));
+            self.emit(Some(node), None);
         }
     }
 
@@ -582,7 +661,10 @@ impl Printer {
             Some(parent_node),
             type_arguments,
             ListFormat::TypeArguments,
-            // parenthesizer.parenthesizeMemberOfElementType
+            // TODO: this is wrong, should be parenthesizer.parenthesizeMemberOfElementType
+            None,
+            None,
+            None,
         );
     }
 
@@ -605,24 +687,29 @@ impl Printer {
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        start: Option<usize>,
+        count: Option<usize>,
     ) {
         self.emit_node_list(
             Printer::emit,
             parent_node,
             children,
             format,
-            // TODO: this is wrong
-            None,
-            None,
+            parenthesizer_rule,
+            start,
+            count,
         );
     }
 
     pub(super) fn emit_node_list<TNode: Borrow<Node>>(
         &self,
-        emit: fn(&Printer, Option<&Node>),
+        emit: fn(&Printer, Option<&Node>, Option<Rc<dyn Fn(&Node) -> Rc<Node>>>),
+
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {
@@ -686,7 +773,11 @@ impl Printer {
                     self.write_space();
                 }
 
-                emit(self, Some(&**child));
+                emit(
+                    self,
+                    Some(&**child),
+                    None, // TODO: this is wrong
+                );
 
                 previous_sibling = Some(child.clone());
             }
@@ -794,6 +885,10 @@ impl Printer {
     ) {
         // unimplemented!()
     }
+
+    pub(super) fn set_source_map_source(&self, source: SourceMapSource) {
+        unimplemented!()
+    }
 }
 
 pub(super) fn create_brackets_map() -> HashMap<ListFormat, (&'static str, &'static str)> {
@@ -819,6 +914,7 @@ pub(super) fn get_closing_bracket(format: ListFormat) -> &'static str {
         .1
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TempFlags {
     Auto = 0x00000000,
     CountMask = 0x0FFFFFFF,

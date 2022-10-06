@@ -496,14 +496,32 @@ impl TextRange for SourceMapRange {
     }
 }
 
-pub struct SourceMapSource {
+#[derive(Debug)]
+pub enum SourceMapSource {
+    SourceFile(Rc<Node /*SourceFile*/>),
+    SourceMapSourceConcrete(SourceMapSourceConcrete),
+}
+
+impl From<Rc<Node /*SourceFile*/>> for SourceMapSource {
+    fn from(value: Rc<Node>) -> Self {
+        Self::SourceFile(value)
+    }
+}
+
+impl From<SourceMapSourceConcrete> for SourceMapSource {
+    fn from(value: SourceMapSourceConcrete) -> Self {
+        Self::SourceMapSourceConcrete(value)
+    }
+}
+
+pub struct SourceMapSourceConcrete {
     pub file_name: String,
     pub text: String,
     pub(crate) line_map: Vec<usize>,
     pub skip_trivia: Option<Rc<dyn Fn(usize) -> usize>>,
 }
 
-impl fmt::Debug for SourceMapSource {
+impl fmt::Debug for SourceMapSourceConcrete {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SourceMapSource").finish()
     }
