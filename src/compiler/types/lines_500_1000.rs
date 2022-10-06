@@ -7,8 +7,8 @@ use std::rc::{Rc, Weak};
 use crate::{
     CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
     HasChildrenInterface, HasDotDotDotTokenInterface, HasLeftAndRightInterface,
-    HasMembersInterface, HasModuleSpecifierInterface, HasTagNameInterface, InferenceContext,
-    JsxOpeningLikeElementInterface, SyntheticExpression,
+    HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
+    HasTagNameInterface, InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
 };
 
 use super::{
@@ -963,6 +963,14 @@ impl Node {
         }
     }
 
+    pub fn as_has_old_file_of_current_emit(&self) -> &dyn HasOldFileOfCurrentEmitInterface {
+        match self {
+            Node::InputFiles(node) => node,
+            Node::UnparsedSource(node) => node,
+            _ => panic!("Expected has old file of current emit"),
+        }
+    }
+
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
         enum_unwrapped!(self, [Node, VariableDeclarationList])
     }
@@ -1541,6 +1549,14 @@ impl Node {
 
     pub fn as_comma_list_expression(&self) -> &CommaListExpression {
         enum_unwrapped!(self, [Node, CommaListExpression])
+    }
+
+    pub fn as_bundle(&self) -> &Bundle {
+        enum_unwrapped!(self, [Node, Bundle])
+    }
+
+    pub fn as_unparsed_source(&self) -> &UnparsedSource {
+        enum_unwrapped!(self, [Node, UnparsedSource])
     }
 }
 

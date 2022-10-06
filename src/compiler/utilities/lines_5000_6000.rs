@@ -18,13 +18,13 @@ use crate::{
     is_property_access_expression, is_property_name, is_qualified_name,
     parse_config_file_text_to_json, unescape_leading_underscores,
     walk_up_parenthesized_expressions, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode,
-    BaseSymbol, BaseType, CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, MapLike, ModifierFlags,
-    NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, Signature,
-    SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TransformFlags, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, __String,
+    BaseSymbol, BaseType, BundleFileSection, CheckFlags, CompilerOptions, Debug_, Diagnostic,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    Extension, MapLike, ModifierFlags, NamedDeclarationInterface, NewLineKind, Node, NodeFlags,
+    NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransformFlags, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, __String,
 };
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
@@ -475,6 +475,10 @@ pub fn is_access_expression(node: &Node) -> bool {
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
     )
+}
+
+pub fn is_bundle_file_text_like(section: &BundleFileSection) -> bool {
+    unimplemented!()
 }
 
 pub fn get_leftmost_access_expression(node: &Node /*Expression*/) -> Rc<Node /*Expression*/> {

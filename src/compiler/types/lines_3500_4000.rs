@@ -780,6 +780,16 @@ impl InputFiles {
     }
 }
 
+pub trait HasOldFileOfCurrentEmitInterface {
+    fn maybe_old_file_of_current_emit(&self) -> Option<bool>;
+}
+
+impl HasOldFileOfCurrentEmitInterface for InputFiles {
+    fn maybe_old_file_of_current_emit(&self) -> Option<bool> {
+        self.old_file_of_current_emit
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct UnparsedSource {
@@ -829,6 +839,12 @@ impl UnparsedSource {
             source_map_text: None,
             old_file_of_current_emit: None,
         }
+    }
+}
+
+impl HasOldFileOfCurrentEmitInterface for UnparsedSource {
+    fn maybe_old_file_of_current_emit(&self) -> Option<bool> {
+        self.old_file_of_current_emit
     }
 }
 

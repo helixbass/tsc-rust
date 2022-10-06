@@ -211,6 +211,22 @@ impl Printer {
         (self.write.get())(self, text);
     }
 
+    pub(super) fn is_own_file_emit(&self) -> bool {
+        self.is_own_file_emit.get()
+    }
+
+    pub(super) fn set_is_own_file_emit(&self, is_own_file_emit: bool) {
+        self.is_own_file_emit.set(is_own_file_emit);
+    }
+
+    pub(super) fn maybe_bundle_file_info(&self) -> Ref<Option<BundleFileInfo>> {
+        self.bundle_file_info.borrow()
+    }
+
+    pub(super) fn maybe_bundle_file_info_mut(&self) -> RefMut<Option<BundleFileInfo>> {
+        self.bundle_file_info.borrow_mut()
+    }
+
     pub(super) fn bundle_file_info(&self) -> Ref<BundleFileInfo> {
         Ref::map(self.bundle_file_info.borrow(), |bundle_file_info| {
             bundle_file_info.as_ref().unwrap()
@@ -221,6 +237,26 @@ impl Printer {
         RefMut::map(self.bundle_file_info.borrow_mut(), |bundle_file_info| {
             bundle_file_info.as_mut().unwrap()
         })
+    }
+
+    pub(super) fn relative_to_build_info(&self, value: &str) -> String {
+        (self.relative_to_build_info.clone().unwrap())(value)
+    }
+
+    pub(super) fn source_file_text_pos(&self) -> usize {
+        self.source_file_text_pos.get()
+    }
+
+    pub(super) fn set_source_file_text_pos(&self, source_file_text_pos: usize) {
+        self.source_file_text_pos.set(source_file_text_pos);
+    }
+
+    pub(super) fn source_file_text_kind(&self) -> BundleFileSectionKind {
+        self.source_file_text_kind.get()
+    }
+
+    pub(super) fn set_source_file_text_kind(&self, source_file_text_kind: BundleFileSectionKind) {
+        self.source_file_text_kind.set(source_file_text_kind);
     }
 
     pub(super) fn enter_comment(&self) {
@@ -344,7 +380,9 @@ impl Printer {
         } else {
             bundle_file_info
                 .sections
-                .push(BundleFileSection::new_text_like(kind, None, pos, end));
+                .push(Rc::new(BundleFileSection::new_text_like(
+                    kind, None, pos, end,
+                )));
         }
     }
 }

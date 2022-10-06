@@ -297,7 +297,7 @@ impl BundleFileSectionInterface for BundleFileReference {
 
 pub struct BundleFilePrepend {
     _bundle_file_section_base: BundleFileSectionBase,
-    pub texts: Vec<BundleFileSection /*BundleFileTextLike*/>,
+    pub texts: Vec<Rc<BundleFileSection /*BundleFileTextLike*/>>,
 }
 
 impl BundleFilePrepend {
@@ -422,7 +422,7 @@ impl BundleFileSection {
 
     pub fn new_prepend(
         data: String,
-        texts: Vec<BundleFileSection>,
+        texts: Vec<Rc<BundleFileSection>>,
         pos: isize,
         end: isize,
     ) -> Self {
@@ -537,13 +537,14 @@ pub struct SourceFilePrologueInfo {
     pub directives: Vec<SourceFilePrologueDirective>,
 }
 
+#[derive(Default)]
 pub struct SourceFileInfo {
     pub helpers: Option<Vec<String>>,
     pub prologues: Option<Vec<SourceFilePrologueInfo>>,
 }
 
 pub struct BundleFileInfo {
-    pub sections: Vec<BundleFileSection>,
+    pub sections: Vec<Rc<BundleFileSection>>,
     pub sources: Option<SourceFileInfo>,
 }
 

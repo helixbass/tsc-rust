@@ -7,21 +7,147 @@ use std::rc::Rc;
 use super::{brackets, PipelinePhase};
 use crate::{
     create_text_writer, get_emit_flags, get_literal_text, get_parse_tree_node, id_text,
-    is_expression, is_identifier, is_keyword, positions_are_on_same_line, skip_trivia,
-    token_to_string, Debug_, EmitFlags, EmitHint, EmitTextWriter, GetLiteralTextFlags,
-    HasTypeArgumentsInterface, HasTypeInterface, ListFormat, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, SourceMapGenerator,
-    Symbol, SyntaxKind, TextRange,
+    is_bundle_file_text_like, is_declaration, is_expression, is_identifier,
+    is_internal_declaration, is_keyword, is_variable_statement, positions_are_on_same_line,
+    skip_trivia, token_to_string, BundleFileSection, BundleFileSectionKind, Debug_, EmitFlags,
+    EmitHint, EmitTextWriter, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface,
+    ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
+    ReadonlyTextRange, SourceFileLike, SourceFilePrologueInfo, SourceMapGenerator, Symbol,
+    SyntaxKind,
 };
 
 impl Printer {
+    pub(super) fn record_bundle_file_internal_section_start(
+        &self,
+        node: &Node,
+    ) -> Option<BundleFileSectionKind> {
+        if self.record_internal_section == Some(true)
+            && self.maybe_bundle_file_info().is_some()
+            && matches!(
+                self.maybe_current_source_file().as_ref(),
+                Some(current_source_file) if (
+                    is_declaration(node) ||
+                    is_variable_statement(node)
+                ) && is_internal_declaration(
+                    node,
+                    current_source_file,
+                )
+            )
+            && self.source_file_text_kind() != BundleFileSectionKind::Internal
+        {
+            let prev_source_file_text_kind = self.source_file_text_kind();
+            self.record_bundle_file_text_like_section(self.writer().get_text_pos());
+            self.set_source_file_text_pos(self.get_text_pos_with_write_line());
+            self.set_source_file_text_kind(BundleFileSectionKind::Internal);
+            return Some(prev_source_file_text_kind);
+        }
+        None
+    }
+
+    pub(super) fn record_bundle_file_internal_section_end(
+        &self,
+        prev_source_file_text_kind: Option<BundleFileSectionKind>,
+    ) {
+        if let Some(prev_source_file_text_kind) = prev_source_file_text_kind {
+            self.record_bundle_file_text_like_section(self.writer().get_text_pos());
+            self.set_source_file_text_pos(self.get_text_pos_with_write_line());
+            self.set_source_file_text_kind(prev_source_file_text_kind);
+        }
+    }
+
+    pub(super) fn record_bundle_file_text_like_section(&self, end: usize) -> bool {
+        if self.source_file_text_pos() < end {
+            self.update_or_push_bundle_file_text_like(
+                self.source_file_text_pos().try_into().unwrap(),
+                end.try_into().unwrap(),
+                self.source_file_text_kind(),
+            );
+            return true;
+        }
+        false
+    }
+
     pub fn write_bundle(
         &self,
         bundle: &Node, /*Bundle*/
         output: Rc<dyn EmitTextWriter>,
         source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
     ) {
-        unimplemented!()
+        self.set_is_own_file_emit(false);
+        let previous_writer = self.writer();
+        self.set_writer(Some(output), source_map_generator);
+        self.emit_shebang_if_needed(bundle);
+        self.emit_prologue_directives_if_needed(bundle);
+        self.emit_helpers(bundle);
+        self.emit_synthetic_triple_slash_references_if_needed(bundle);
+
+        let bundle_as_bundle = bundle.as_bundle();
+        for prepend in &bundle_as_bundle.prepends {
+            self.write_line(None);
+            let pos = self.writer().get_text_pos();
+            let mut bundle_file_info = self.maybe_bundle_file_info_mut();
+            let saved_sections = bundle_file_info
+                .as_ref()
+                .map(|bundle_file_info| bundle_file_info.sections.clone());
+            if saved_sections.is_some() {
+                bundle_file_info.as_mut().unwrap().sections = vec![];
+            }
+            self.print(EmitHint::Unspecified, prepend, None);
+            if let Some(bundle_file_info) = bundle_file_info.as_mut() {
+                let mut new_sections = bundle_file_info.sections.clone();
+                bundle_file_info.sections = saved_sections.unwrap();
+                if prepend
+                    .as_has_old_file_of_current_emit()
+                    .maybe_old_file_of_current_emit()
+                    == Some(true)
+                {
+                    bundle_file_info.sections.append(&mut new_sections);
+                } else {
+                    for section in &new_sections {
+                        Debug_.assert(is_bundle_file_text_like(section), None);
+                    }
+                    bundle_file_info
+                        .sections
+                        .push(Rc::new(BundleFileSection::new_prepend(
+                            self.relative_to_build_info(&prepend.as_unparsed_source().file_name),
+                            new_sections,
+                            pos.try_into().unwrap(),
+                            self.writer().get_text_pos().try_into().unwrap(),
+                        )))
+                }
+            }
+        }
+
+        self.set_source_file_text_pos(self.get_text_pos_with_write_line());
+        for source_file in &bundle_as_bundle.source_files {
+            self.print(EmitHint::SourceFile, source_file, Some(source_file));
+        }
+        let mut bundle_file_info = self.maybe_bundle_file_info_mut();
+        if let Some(bundle_file_info) = bundle_file_info.as_mut() {
+            if !bundle_as_bundle.source_files.is_empty() {
+                let end = self.writer().get_text_pos();
+                if self.record_bundle_file_text_like_section(end) {
+                    let prologues = self.get_prologue_directives_from_bundled_source_files(bundle);
+                    if let Some(prologues) = prologues {
+                        bundle_file_info
+                            .sources
+                            .get_or_insert_with(Default::default)
+                            .prologues = Some(prologues);
+                    }
+
+                    let helpers = self.get_helpers_from_bundled_source_files(bundle);
+                    if let Some(helpers) = helpers {
+                        bundle_file_info
+                            .sources
+                            .get_or_insert_with(Default::default)
+                            .helpers = Some(helpers);
+                    }
+                }
+            }
+        }
+
+        self.reset();
+        *self.writer.borrow_mut() = Some(previous_writer);
     }
 
     pub fn write_unparsed_source(
@@ -173,6 +299,17 @@ impl Printer {
             return self.write_token_node(node, Printer::write_keyword);
         }
         unimplemented!("hint: {:?}, kind: {:?}", hint, node.kind());
+    }
+
+    pub(super) fn get_helpers_from_bundled_source_files(
+        &self,
+        bundle: &Node, /*Bundle*/
+    ) -> Option<Vec<String>> {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_helpers(&self, node: &Node) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn emit_literal(
@@ -385,6 +522,34 @@ impl Printer {
         pos
     }
 
+    pub(super) fn emit_synthetic_triple_slash_references_if_needed(
+        &self,
+        node: &Node, /*Bundle*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_prologue_directives_if_needed(
+        &self,
+        source_file_or_bundle: &Node, /*Bundle | SourceFile*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn get_prologue_directives_from_bundled_source_files(
+        &self,
+        bundle: &Node, /*Bundle*/
+    ) -> Option<Vec<SourceFilePrologueInfo>> {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_shebang_if_needed(
+        &self,
+        source_file_or_bundle: &Node, /*Bundle | SourceFile | UnparsedSource*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn emit_node_with_writer(&self, node: Option<&Node>, writer: fn(&Printer, &str)) {
         if node.is_none() {
             return;
@@ -565,6 +730,11 @@ impl Printer {
 
     pub(super) fn write_property(&self, s: &str) {
         self.writer().write_property(s);
+    }
+
+    pub(super) fn write_line(&self, count: Option<usize>) {
+        let count = count.unwrap_or(1);
+        unimplemented!()
     }
 
     pub(super) fn increase_indent(&self) {
