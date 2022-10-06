@@ -167,6 +167,14 @@ impl Printer {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
+    pub(super) fn bundled_helpers(&self) -> Ref<HashMap<String, bool>> {
+        self.bundled_helpers.borrow()
+    }
+
+    pub(super) fn bundled_helpers_mut(&self) -> RefMut<HashMap<String, bool>> {
+        self.bundled_helpers.borrow_mut()
+    }
+
     pub(super) fn set_node_id_to_generated_name(
         &self,
         node_id_to_generated_name: HashMap<NodeId, String>,

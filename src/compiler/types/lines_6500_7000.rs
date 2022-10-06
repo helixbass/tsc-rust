@@ -579,16 +579,40 @@ pub enum SnippetKind {
 pub trait EmitHelperBase {
     fn name(&self) -> &str;
     fn scoped(&self) -> bool;
-    fn text(&self) -> &str; // TODO: support callback value?
+    fn text(&self) -> EmitHelperText;
     fn priority(&self) -> Option<usize>;
     fn dependencies(&self) -> Option<&[Rc<EmitHelper>]>;
+}
+
+#[derive(Clone)]
+pub enum EmitHelperText {
+    String(String),
+    Callback(Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>),
+}
+
+impl fmt::Debug for EmitHelperText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EmitHelperText").finish()
+    }
+}
+
+impl From<String> for EmitHelperText {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>> for EmitHelperText {
+    fn from(value: Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>) -> Self {
+        Self::Callback(value)
+    }
 }
 
 #[derive(Debug)]
 pub struct ScopedEmitHelper {
     name: String,
     scoped: bool, /*true*/
-    text: String,
+    text: EmitHelperText,
     priority: Option<usize>,
     dependencies: Option<Vec<Rc<EmitHelper>>>,
 }
@@ -602,8 +626,8 @@ impl EmitHelperBase for ScopedEmitHelper {
         self.scoped
     }
 
-    fn text(&self) -> &str {
-        &self.text
+    fn text(&self) -> EmitHelperText {
+        self.text.clone()
     }
 
     fn priority(&self) -> Option<usize> {
@@ -634,8 +658,8 @@ impl EmitHelperBase for UnscopedEmitHelper {
         self.scoped
     }
 
-    fn text(&self) -> &str {
-        &self.text
+    fn text(&self) -> EmitHelperText {
+        self.text.clone().into()
     }
 
     fn priority(&self) -> Option<usize> {
@@ -668,7 +692,7 @@ impl EmitHelperBase for EmitHelper {
         }
     }
 
-    fn text(&self) -> &str {
+    fn text(&self) -> EmitHelperText {
         match self {
             Self::ScopedEmitHelper(emit_helper) => emit_helper.text(),
             Self::UnscopedEmitHelper(emit_helper) => emit_helper.text(),

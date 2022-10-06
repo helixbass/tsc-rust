@@ -7,10 +7,11 @@ use std::rc::Rc;
 use super::{brackets, PipelinePhase};
 use crate::{
     compare_emit_helpers, get_emit_flags, get_emit_helpers, get_external_helpers_module_name,
-    get_literal_text, get_parse_tree_node, id_text, is_identifier, positions_are_on_same_line,
-    skip_trivia, stable_sort, token_to_string, Debug_, EmitFlags, EmitHelper, EmitHelperBase,
-    EmitHint, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
-    ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
+    get_literal_text, get_parse_tree_node, has_recorded_external_helpers, id_text, is_identifier,
+    is_source_file, is_unparsed_source, positions_are_on_same_line, skip_trivia, stable_sort,
+    token_to_string, BundleFileSection, Debug_, EmitFlags, EmitHelper, EmitHelperBase,
+    EmitHelperText, EmitHint, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface,
+    ListFormat, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
     ReadonlyTextRange, SnippetElement, SortedArray, SourceFileLike, SourceFilePrologueInfo,
     SourceMapSource, Symbol, SyntaxKind,
 };
@@ -74,7 +75,94 @@ impl Printer {
     }
 
     pub(super) fn emit_helpers(&self, node: &Node) -> bool {
-        unimplemented!()
+        let mut helpers_emitted = false;
+        let bundle: Option<Rc<Node>> = if node.kind() == SyntaxKind::Bundle {
+            Some(node.node_wrapper())
+        } else {
+            None
+        };
+        if bundle.is_some() && self.module_kind == ModuleKind::None {
+            return false;
+        }
+        let num_prepends = bundle
+            .as_ref()
+            .map_or(0, |bundle| bundle.as_bundle().prepends.len());
+        let num_nodes = bundle.as_ref().map_or(1, |bundle| {
+            bundle.as_bundle().source_files.len() + num_prepends
+        });
+        for i in 0..num_nodes {
+            let ref current_node = if let Some(bundle) = bundle.as_ref() {
+                if i < num_prepends {
+                    bundle.as_bundle().prepends[i].clone()
+                } else {
+                    bundle.as_bundle().source_files[i - num_prepends].clone()
+                }
+            } else {
+                node.node_wrapper()
+            };
+            let source_file = if is_source_file(current_node) {
+                Some(current_node.clone())
+            } else if is_unparsed_source(current_node) {
+                None
+            } else {
+                self.maybe_current_source_file()
+            };
+            let should_skip = self.printer_options.no_emit_helpers == Some(true)
+                || matches!(
+                    source_file.as_ref(),
+                    Some(source_file) if has_recorded_external_helpers(source_file)
+                );
+            let should_bundle = (is_source_file(current_node) || is_unparsed_source(current_node))
+                && !self.is_own_file_emit();
+            let helpers = if is_unparsed_source(current_node) {
+                current_node.as_unparsed_source().helpers.clone()
+            } else {
+                self.get_sorted_emit_helpers(current_node).map(Into::into)
+            };
+            if let Some(helpers) = helpers {
+                for helper in &helpers {
+                    if !helper.scoped() {
+                        if should_skip {
+                            continue;
+                        }
+
+                        if should_bundle {
+                            if self.bundled_helpers().get(helper.name()).copied() == Some(true) {
+                                continue;
+                            }
+
+                            self.bundled_helpers_mut()
+                                .insert(helper.name().to_owned(), true);
+                        }
+                    } else if bundle.is_some() {
+                        continue;
+                    }
+                    let pos = self.get_text_pos_with_write_line();
+                    match helper.text() {
+                        EmitHelperText::String(ref helper_text) => {
+                            self.write_lines(helper_text);
+                        }
+                        EmitHelperText::Callback(helper_text) => {
+                            self.write_lines(&helper_text(&|name: &str| {
+                                self.make_file_level_optimistic_unique_name(name)
+                            }));
+                        }
+                    }
+                    if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
+                        bundle_file_info.sections.push(Rc::new(
+                            BundleFileSection::new_emit_helpers(
+                                helper.name().to_owned(),
+                                pos.try_into().unwrap(),
+                                self.writer().get_text_pos().try_into().unwrap(),
+                            ),
+                        ));
+                    }
+                    helpers_emitted = true;
+                }
+            }
+        }
+
+        helpers_emitted
     }
 
     pub(super) fn get_sorted_emit_helpers(
@@ -1209,6 +1297,10 @@ impl Printer {
         })
     }
 
+    pub(super) fn write_lines(&self, text: &str) {
+        unimplemented!()
+    }
+
     pub(super) fn get_text_of_node(&self, node: &Node, include_trivia: Option<bool>) -> String {
         if false {
             unimplemented!()
@@ -1223,6 +1315,10 @@ impl Printer {
         let flags = GetLiteralTextFlags::None;
 
         get_literal_text(node, self.maybe_current_source_file(), flags)
+    }
+
+    pub(super) fn make_file_level_optimistic_unique_name(&self, name: &str) -> String {
+        unimplemented!()
     }
 
     pub(super) fn pipeline_emit_with_comments(&self, hint: EmitHint, node: &Node) {

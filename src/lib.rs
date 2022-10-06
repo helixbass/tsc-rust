@@ -149,9 +149,10 @@ use compiler::factory::utilities::get_jsdoc_type_alias_name;
 pub use compiler::factory::utilities::{
     create_binary_expression_trampoline, find_use_strict_prologue,
     get_elements_of_binding_or_assignment_pattern, get_external_helpers_module_name,
-    get_jsdoc_type_assertion_type, get_target_of_binding_or_assignment_element, is_comma_sequence,
-    is_jsdoc_type_assertion, is_local_name, is_outer_expression, skip_outer_expressions,
-    starts_with_use_strict, BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
+    get_jsdoc_type_assertion_type, get_target_of_binding_or_assignment_element,
+    has_recorded_external_helpers, is_comma_sequence, is_jsdoc_type_assertion, is_local_name,
+    is_outer_expression, skip_outer_expressions, starts_with_use_strict,
+    BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
 };
 pub use compiler::factory::utilities_public::set_text_range;
 use compiler::module_name_resolver::{
@@ -286,11 +287,11 @@ pub use compiler::types::{
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     DidYouMeanOptionsDiagnostics, DoStatement, ElementAccessExpression, ElementFlags, EmitFlags,
-    EmitHelper, EmitHelperBase, EmitHint, EmitHost, EmitResolver, EmitResolverDebuggable,
-    EmitResult, EmitTextWriter, EmitTransformers, EmptyStatement, EnumDeclaration, EnumKind,
-    EnumMember, EvolvingArrayType, ExitStatus, ExportAssignment, ExportDeclaration,
-    ExportSpecifier, ExpressionStatement, ExpressionWithTypeArguments, Extension,
-    ExternalModuleReference, FileExtensionInfo, FilePreprocessingDiagnostics,
+    EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, EmitHost, EmitResolver,
+    EmitResolverDebuggable, EmitResult, EmitTextWriter, EmitTransformers, EmptyStatement,
+    EnumDeclaration, EnumKind, EnumMember, EvolvingArrayType, ExitStatus, ExportAssignment,
+    ExportDeclaration, ExportSpecifier, ExpressionStatement, ExpressionWithTypeArguments,
+    Extension, ExternalModuleReference, FileExtensionInfo, FilePreprocessingDiagnostics,
     FilePreprocessingDiagnosticsKind, FilePreprocessingFileExplainingDiagnostic,
     FilePreprocessingReferencedDiagnostic, FileReference, FlowAssignment, FlowCall, FlowCondition,
     FlowFlags, FlowLabel, FlowNode, FlowNodeBase, FlowReduceLabel, FlowStart, FlowSwitchClause,
