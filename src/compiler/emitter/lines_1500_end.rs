@@ -4,33 +4,89 @@ use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
-use super::brackets;
+use super::{brackets, PipelinePhase};
 use crate::{
-    get_emit_flags, get_literal_text, get_parse_tree_node, id_text, is_identifier,
-    positions_are_on_same_line, skip_trivia, token_to_string, EmitFlags, EmitHint,
-    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SnippetElement, SourceFileLike, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
+    compare_emit_helpers, get_emit_flags, get_emit_helpers, get_external_helpers_module_name,
+    get_literal_text, get_parse_tree_node, id_text, is_identifier, positions_are_on_same_line,
+    skip_trivia, stable_sort, token_to_string, Debug_, EmitFlags, EmitHelper, EmitHelperBase,
+    EmitHint, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
+    ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
+    ReadonlyTextRange, SnippetElement, SortedArray, SourceFileLike, SourceFilePrologueInfo,
+    SourceMapSource, Symbol, SyntaxKind,
 };
 
 impl Printer {
     pub(super) fn emit_mapped_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
-        unimplemented!()
+        let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
+        self.emit(
+            node_as_type_parameter_declaration.maybe_name().as_deref(),
+            None,
+        );
+        self.write_space();
+        self.write_keyword("in");
+        self.write_space();
+        self.emit(
+            node_as_type_parameter_declaration.constraint.as_deref(),
+            None,
+        );
     }
 
     pub(super) fn pipeline_emit_with_substitution(&self, hint: EmitHint, node: &Node) {
-        unimplemented!()
+        let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::Substitution, hint, node);
+        Debug_.assert_is_defined(&self.maybe_last_substitution(), None);
+        let ref node = self.maybe_last_substitution().unwrap();
+        self.set_last_substitution(None);
+        pipeline_phase(self, hint, node);
     }
 
     pub(super) fn get_helpers_from_bundled_source_files(
         &self,
         bundle: &Node, /*Bundle*/
     ) -> Option<Vec<String>> {
-        unimplemented!()
+        let mut result: Option<Vec<String>> = None;
+        if self.module_kind == ModuleKind::None
+            || self.printer_options.no_emit_helpers == Some(true)
+        {
+            return None;
+        }
+        let mut bundled_helpers: HashMap<String, bool> = HashMap::new();
+        for source_file in &bundle.as_bundle().source_files {
+            let should_skip = get_external_helpers_module_name(source_file).is_some();
+            let helpers = self.get_sorted_emit_helpers(source_file);
+            if helpers.is_none() {
+                continue;
+            }
+            let helpers = helpers.unwrap();
+            for helper in &*helpers {
+                if !helper.scoped()
+                    && !should_skip
+                    && bundled_helpers.get(helper.name()).copied() != Some(true)
+                {
+                    bundled_helpers.insert(helper.name().to_owned(), true);
+                    result
+                        .get_or_insert_with(|| vec![])
+                        .push(helper.name().to_owned());
+                }
+            }
+        }
+
+        result
     }
 
     pub(super) fn emit_helpers(&self, node: &Node) -> bool {
         unimplemented!()
+    }
+
+    pub(super) fn get_sorted_emit_helpers(
+        &self,
+        node: &Node,
+    ) -> Option<SortedArray<Rc<EmitHelper>>> {
+        let helpers = get_emit_helpers(node);
+        helpers.map(|helpers| {
+            stable_sort(&helpers, |a: &Rc<EmitHelper>, b: &Rc<EmitHelper>| {
+                compare_emit_helpers(a, b)
+            })
+        })
     }
 
     pub(super) fn emit_numeric_or_big_int_literal(

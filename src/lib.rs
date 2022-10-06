@@ -67,10 +67,11 @@ use compiler::emitter::{get_common_source_directory_of_config, get_output_declar
 pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
 };
+use compiler::factory::emit_helpers::compare_emit_helpers;
 pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
 pub use compiler::factory::emit_node::{
-    add_emit_flags, add_synthetic_leading_comment, dispose_emit_nodes, set_comment_range,
-    set_emit_flags, set_synthetic_leading_comments,
+    add_emit_flags, add_synthetic_leading_comment, dispose_emit_nodes, get_emit_helpers,
+    set_comment_range, set_emit_flags, set_synthetic_leading_comments,
 };
 use compiler::factory::emit_node::{
     get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,
@@ -147,10 +148,10 @@ pub use compiler::factory::parenthesizer_rules::{
 use compiler::factory::utilities::get_jsdoc_type_alias_name;
 pub use compiler::factory::utilities::{
     create_binary_expression_trampoline, find_use_strict_prologue,
-    get_elements_of_binding_or_assignment_pattern, get_jsdoc_type_assertion_type,
-    get_target_of_binding_or_assignment_element, is_comma_sequence, is_jsdoc_type_assertion,
-    is_local_name, is_outer_expression, skip_outer_expressions, starts_with_use_strict,
-    BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
+    get_elements_of_binding_or_assignment_pattern, get_external_helpers_module_name,
+    get_jsdoc_type_assertion_type, get_target_of_binding_or_assignment_element, is_comma_sequence,
+    is_jsdoc_type_assertion, is_local_name, is_outer_expression, skip_outer_expressions,
+    starts_with_use_strict, BinaryExpressionStateMachine, BinaryExpressionTrampoline, LeftOrRight,
 };
 pub use compiler::factory::utilities_public::set_text_range;
 use compiler::module_name_resolver::{

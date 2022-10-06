@@ -88,6 +88,10 @@ pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) 
     node
 }
 
+pub fn get_external_helpers_module_name(node: &Node /*SourceFile*/) -> Option<Rc<Node>> {
+    unimplemented!()
+}
+
 pub fn get_target_of_binding_or_assignment_element(
     binding_element: &Node, /*BindingOrAssignmentElement*/
 ) -> Option<Rc<Node /*BindingOrAssignmentElementTarget*/>> {

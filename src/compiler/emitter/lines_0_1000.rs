@@ -379,6 +379,10 @@ impl Printer {
         self.comments_disabled.set(comments_disabled);
     }
 
+    pub(super) fn maybe_last_substitution(&self) -> Option<Rc<Node>> {
+        self.last_substitution.borrow().clone()
+    }
+
     pub(super) fn set_last_substitution(&self, last_substitution: Option<Rc<Node>>) {
         *self.last_substitution.borrow_mut() = last_substitution;
     }
