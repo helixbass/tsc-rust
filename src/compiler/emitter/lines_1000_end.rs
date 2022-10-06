@@ -3,18 +3,22 @@ use std::cell::Ref;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{brackets, PipelinePhase};
 use crate::{
-    create_text_writer, get_emit_flags, get_line_starts, get_literal_text, get_parse_tree_node,
-    get_trailing_semicolon_deferring_writer, id_text, is_bundle_file_text_like, is_declaration,
-    is_expression, is_identifier, is_internal_declaration, is_keyword, is_variable_statement,
-    positions_are_on_same_line, skip_trivia, token_to_string, BundleFileSection,
-    BundleFileSectionKind, Debug_, EmitFlags, EmitHint, EmitTextWriter, GetLiteralTextFlags,
-    HasTypeArgumentsInterface, HasTypeInterface, ListFormat, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, SourceFilePrologueInfo,
-    SourceMapGenerator, SourceMapSource, Symbol, SyntaxKind,
+    cast_present, create_text_writer, get_emit_flags, get_line_starts, get_literal_text,
+    get_parse_tree_node, get_snippet_element, get_trailing_semicolon_deferring_writer, id_text,
+    is_bundle_file_text_like, is_declaration, is_empty_statement, is_expression, is_identifier,
+    is_in_json_file, is_internal_declaration, is_keyword, is_source_file, is_string_literal,
+    is_token_kind, is_type_parameter_declaration, is_unparsed_prepend, is_unparsed_source,
+    is_variable_statement, positions_are_on_same_line, skip_trivia, token_to_string,
+    BundleFileSection, BundleFileSectionKind, Debug_, EmitFlags, EmitHint, EmitTextWriter,
+    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
+    SnippetElement, SourceFileLike, SourceFilePrologueInfo, SourceMapGenerator, SourceMapSource,
+    Symbol, SyntaxKind,
 };
 
 impl Printer {
@@ -290,14 +294,55 @@ impl Printer {
         self.pipeline_emit(EmitHint::Expression, node, parenthesizer_rule);
     }
 
+    pub(super) fn emit_jsx_attribute_value(
+        &self,
+        node: &Node, /*StringLiteral | JsxExpression*/
+    ) {
+        self.pipeline_emit(
+            if is_string_literal(node) {
+                EmitHint::JsxAttributeValue
+            } else {
+                EmitHint::Unspecified
+            },
+            node,
+            None,
+        );
+    }
+
+    pub(super) fn before_emit_node(&self, node: &Node) {
+        if self.maybe_preserve_source_newlines() == Some(true)
+            && get_emit_flags(node).intersects(EmitFlags::IgnoreSourceNewlines)
+        {
+            self.set_preserve_source_newlines(Some(false));
+        }
+    }
+
+    pub(super) fn after_emit_node(&self, saved_preserve_source_newlines: Option<bool>) {
+        self.set_preserve_source_newlines(saved_preserve_source_newlines);
+    }
+
     pub(super) fn pipeline_emit(
         &self,
         emit_hint: EmitHint,
         node: &Node,
         parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
     ) {
+        self.set_current_parenthesizer_rule(parenthesizer_rule);
         let pipeline_phase = self.get_pipeline_phase(PipelinePhase::Notification, emit_hint, node);
         pipeline_phase(self, emit_hint, node);
+        self.set_current_parenthesizer_rule(None);
+    }
+
+    pub(super) fn should_emit_comments(&self, node: &Node) -> bool {
+        !self.comments_disabled() && !is_source_file(node)
+    }
+
+    pub(super) fn should_emit_source_maps(&self, node: &Node) -> bool {
+        !self.source_maps_disabled()
+            && !is_source_file(node)
+            && !is_in_json_file(Some(node))
+            && !is_unparsed_source(node)
+            && !is_unparsed_prepend(node)
     }
 
     pub(super) fn get_pipeline_phase(
@@ -307,59 +352,442 @@ impl Printer {
         node: &Node,
     ) -> fn(&Printer, EmitHint, &Node) {
         if phase == PipelinePhase::Notification {
-            if false {
-                unimplemented!()
+            if !self.is_on_emit_node_no_emit_notification()
+                && match self.is_emit_notification_enabled(node) {
+                    None => true,
+                    Some(is_emit_notification_enabled) => is_emit_notification_enabled,
+                }
+            {
+                return Printer::pipeline_emit_with_notification;
             }
         }
-        if phase == PipelinePhase::Notification || phase == PipelinePhase::Emit {
+        if matches!(
+            phase,
+            PipelinePhase::Notification | PipelinePhase::Substitution
+        ) {
+            if !self.is_substitute_node_no_emit_substitution() {
+                let ref last_substitution = self
+                    .substitute_node(emit_hint, node)
+                    .unwrap_or_else(|| node.node_wrapper());
+                self.set_last_substitution(Some(last_substitution.clone()));
+                if !ptr::eq(&**last_substitution, node) {
+                    if let Some(current_parenthesizer_rule) =
+                        self.maybe_current_parenthesizer_rule().as_ref()
+                    {
+                        self.set_last_substitution(Some(current_parenthesizer_rule(
+                            last_substitution,
+                        )));
+                    }
+                    return Printer::pipeline_emit_with_substitution;
+                }
+            }
+        }
+        if matches!(
+            phase,
+            PipelinePhase::Notification | PipelinePhase::Substitution | PipelinePhase::Comments
+        ) {
+            if self.should_emit_comments(node) {
+                return Printer::pipeline_emit_with_comments;
+            }
+        }
+        if matches!(
+            phase,
+            PipelinePhase::Notification
+                | PipelinePhase::Substitution
+                | PipelinePhase::Comments
+                | PipelinePhase::SourceMaps
+        ) {
+            if self.should_emit_source_maps(node) {
+                return Printer::pipeline_emit_with_source_maps;
+            }
+        }
+        if matches!(
+            phase,
+            PipelinePhase::Notification
+                | PipelinePhase::Substitution
+                | PipelinePhase::Comments
+                | PipelinePhase::SourceMaps
+                | PipelinePhase::Emit
+        ) {
             return Printer::pipeline_emit_with_hint;
         }
         Debug_.assert_never(phase, None);
     }
 
-    pub(super) fn pipeline_emit_with_hint(&self, hint: EmitHint, node: &Node) {
-        if false {
-            unimplemented!()
-        } else {
-            self.pipeline_emit_with_hint_worker(hint, node);
-        }
+    pub(super) fn get_next_pipeline_phase(
+        &self,
+        current_phase: PipelinePhase,
+        emit_hint: EmitHint,
+        node: &Node,
+    ) -> fn(&Printer, EmitHint, &Node) {
+        self.get_pipeline_phase(current_phase.incremented(), emit_hint, node)
     }
 
-    pub(super) fn pipeline_emit_with_hint_worker(&self, mut hint: EmitHint, node: &Node) {
+    pub(super) fn pipeline_emit_with_notification(&self, hint: EmitHint, node: &Node) {
+        let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::Notification, hint, node);
+        self.on_emit_node(hint, node, &|hint: EmitHint, node: &Node| {
+            pipeline_phase(self, hint, node)
+        });
+    }
+
+    pub(super) fn pipeline_emit_with_hint(&self, hint: EmitHint, node: &Node) {
+        self.on_before_emit_node(Some(node));
+        if self.maybe_preserve_source_newlines() == Some(true) {
+            let saved_preserve_source_newlines = self.maybe_preserve_source_newlines();
+            self.before_emit_node(node);
+            self.pipeline_emit_with_hint_worker(hint, node, None);
+            self.after_emit_node(saved_preserve_source_newlines);
+        } else {
+            self.pipeline_emit_with_hint_worker(hint, node, None);
+        }
+        self.on_after_emit_node(Some(node));
+        self.set_current_parenthesizer_rule(None);
+    }
+
+    pub(super) fn pipeline_emit_with_hint_worker(
+        &self,
+        mut hint: EmitHint,
+        node: &Node,
+        allow_snippets: Option<bool>,
+    ) {
+        let allow_snippets = allow_snippets.unwrap_or(true);
+        if allow_snippets {
+            let snippet = get_snippet_element(node);
+            if let Some(snippet) = snippet {
+                return self.emit_snippet_node(hint, node, snippet);
+            }
+        }
+        if hint == EmitHint::SourceFile {
+            return self.emit_source_file(cast_present(node, |node: &&Node| is_source_file(node)));
+        }
+        if hint == EmitHint::IdentifierName {
+            return self.emit_identifier(cast_present(node, |node: &&Node| is_identifier(node)));
+        }
+        if hint == EmitHint::JsxAttributeValue {
+            return self.emit_literal(
+                cast_present(node, |node: &&Node| is_string_literal(node)),
+                true,
+            );
+        }
+        if hint == EmitHint::MappedTypeParameter {
+            return self.emit_mapped_type_parameter(cast_present(node, |node: &&Node| {
+                is_type_parameter_declaration(node)
+            }));
+        }
+        if hint == EmitHint::EmbeddedStatement {
+            Debug_.assert_node(Some(node), Some(is_empty_statement), None);
+            return self.emit_empty_statement(true);
+        }
+        let mut node = node.node_wrapper();
         if hint == EmitHint::Unspecified {
             match node.kind() {
-                SyntaxKind::Identifier => return self.emit_identifier(node),
-                SyntaxKind::PropertySignature => return self.emit_property_signature(node),
-                SyntaxKind::CallSignature => return self.emit_call_signature(node),
-                SyntaxKind::TypeReference => return self.emit_type_reference(node),
-                SyntaxKind::FunctionType => return self.emit_function_type(node),
-                SyntaxKind::ConstructorType => return self.emit_constructor_type(node),
-                SyntaxKind::TypeLiteral => return self.emit_type_literal(node),
-                SyntaxKind::ArrayType => return self.emit_array_type(node),
-                SyntaxKind::TupleType => return self.emit_tuple_type(node),
-                SyntaxKind::UnionType => return self.emit_union_type(node),
-                SyntaxKind::IntersectionType => return self.emit_intersection_type(node),
-                SyntaxKind::ConditionalType => return self.emit_conditional_type(node),
-                SyntaxKind::ParenthesizedType => return self.emit_parenthesized_type(node),
-                SyntaxKind::TypeOperator => return self.emit_type_operator(node),
-                SyntaxKind::IndexedAccessType => return self.emit_indexed_access_type(node),
-                SyntaxKind::LiteralType => return self.emit_literal_type(node),
-                SyntaxKind::ImportType => return self.emit_import_type(node),
+                SyntaxKind::TemplateHead
+                | SyntaxKind::TemplateMiddle
+                | SyntaxKind::TemplateTail => return self.emit_literal(&node, false),
+
+                SyntaxKind::Identifier => return self.emit_identifier(&node),
+
+                SyntaxKind::PrivateIdentifier => return self.emit_private_identifier(&node),
+
+                SyntaxKind::QualifiedName => return self.emit_qualified_name(&node),
+                SyntaxKind::ComputedPropertyName => return self.emit_computed_property_name(&node),
+
+                SyntaxKind::TypeParameter => return self.emit_type_parameter(&node),
+                SyntaxKind::Parameter => return self.emit_parameter(&node),
+                SyntaxKind::Decorator => return self.emit_decorator(&node),
+
+                SyntaxKind::PropertySignature => return self.emit_property_signature(&node),
+                SyntaxKind::PropertyDeclaration => return self.emit_property_declaration(&node),
+                SyntaxKind::MethodSignature => return self.emit_method_signature(&node),
+                SyntaxKind::MethodDeclaration => return self.emit_method_declaration(&node),
+                SyntaxKind::ClassStaticBlockDeclaration => {
+                    return self.emit_class_static_block_declaration(&node)
+                }
+                SyntaxKind::Constructor => return self.emit_constructor(&node),
+                SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+                    return self.emit_accessor_declaration(&node)
+                }
+                SyntaxKind::CallSignature => return self.emit_call_signature(&node),
+                SyntaxKind::ConstructSignature => return self.emit_construct_signature(&node),
+                SyntaxKind::IndexSignature => return self.emit_index_signature(&node),
+
+                SyntaxKind::TypePredicate => return self.emit_type_predicate(&node),
+                SyntaxKind::TypeReference => return self.emit_type_reference(&node),
+                SyntaxKind::FunctionType => return self.emit_function_type(&node),
+                SyntaxKind::ConstructorType => return self.emit_constructor_type(&node),
+                SyntaxKind::TypeQuery => return self.emit_type_query(&node),
+                SyntaxKind::TypeLiteral => return self.emit_type_literal(&node),
+                SyntaxKind::ArrayType => return self.emit_array_type(&node),
+                SyntaxKind::TupleType => return self.emit_tuple_type(&node),
+                SyntaxKind::OptionalType => return self.emit_optional_type(&node),
+                SyntaxKind::UnionType => return self.emit_union_type(&node),
+                SyntaxKind::IntersectionType => return self.emit_intersection_type(&node),
+                SyntaxKind::ConditionalType => return self.emit_conditional_type(&node),
+                SyntaxKind::InferType => return self.emit_infer_type(&node),
+                SyntaxKind::ParenthesizedType => return self.emit_parenthesized_type(&node),
+                SyntaxKind::ExpressionWithTypeArguments => {
+                    return self.emit_expression_with_type_arguments(&node)
+                }
+                SyntaxKind::ThisType => return self.emit_this_type(&node),
+                SyntaxKind::TypeOperator => return self.emit_type_operator(&node),
+                SyntaxKind::IndexedAccessType => return self.emit_indexed_access_type(&node),
+                SyntaxKind::MappedType => return self.emit_mapped_type(&node),
+                SyntaxKind::LiteralType => return self.emit_literal_type(&node),
+                SyntaxKind::NamedTupleMember => return self.emit_named_tuple_member(&node),
+                SyntaxKind::TemplateLiteralType => return self.emit_template_type(&node),
+                SyntaxKind::TemplateLiteralTypeSpan => return self.emit_template_type_span(&node),
+                SyntaxKind::ImportType => return self.emit_import_type_node(&node),
+
+                SyntaxKind::ObjectBindingPattern => return self.emit_object_binding_pattern(&node),
+                SyntaxKind::ArrayBindingPattern => return self.emit_array_binding_pattern(&node),
+                SyntaxKind::BindingElement => return self.emit_binding_element(&node),
+
+                SyntaxKind::TemplateSpan => return self.emit_template_span(&node),
+                SyntaxKind::SemicolonClassElement => {
+                    return self.emit_semicolon_class_element(&node)
+                }
+
+                SyntaxKind::Block => return self.emit_block(&node),
+                SyntaxKind::VariableStatement => return self.emit_variable_statement(&node),
+                SyntaxKind::EmptyStatement => return self.emit_empty_statement(false),
+                SyntaxKind::ExpressionStatement => return self.emit_expression_statement(&node),
+                SyntaxKind::IfStatement => return self.emit_if_statement(&node),
+                SyntaxKind::DoStatement => return self.emit_do_statement(&node),
+                SyntaxKind::WhileStatement => return self.emit_while_statement(&node),
+                SyntaxKind::ForStatement => return self.emit_for_statement(&node),
+                SyntaxKind::ForInStatement => return self.emit_for_in_statement(&node),
+                SyntaxKind::ForOfStatement => return self.emit_for_of_statement(&node),
+                SyntaxKind::ContinueStatement => return self.emit_continue_statement(&node),
+                SyntaxKind::BreakStatement => return self.emit_break_statement(&node),
+                SyntaxKind::ReturnStatement => return self.emit_return_statement(&node),
+                SyntaxKind::WithStatement => return self.emit_with_statement(&node),
+                SyntaxKind::SwitchStatement => return self.emit_switch_statement(&node),
+                SyntaxKind::LabeledStatement => return self.emit_labeled_statement(&node),
+                SyntaxKind::ThrowStatement => return self.emit_throw_statement(&node),
+                SyntaxKind::TryStatement => return self.emit_try_statement(&node),
+                SyntaxKind::DebuggerStatement => return self.emit_debugger_statement(&node),
+
+                SyntaxKind::VariableDeclaration => return self.emit_variable_declaration(&node),
+                SyntaxKind::VariableDeclarationList => {
+                    return self.emit_variable_declaration_list(&node)
+                }
+                SyntaxKind::FunctionDeclaration => return self.emit_function_declaration(&node),
+                SyntaxKind::ClassDeclaration => return self.emit_class_declaration(&node),
+                SyntaxKind::InterfaceDeclaration => return self.emit_interface_declaration(&node),
+                SyntaxKind::TypeAliasDeclaration => return self.emit_type_alias_declaration(&node),
+                SyntaxKind::EnumDeclaration => return self.emit_enum_declaration(&node),
+                SyntaxKind::ModuleDeclaration => return self.emit_module_declaration(&node),
+                SyntaxKind::ModuleBlock => return self.emit_module_block(&node),
+                SyntaxKind::CaseBlock => return self.emit_case_block(&node),
+                SyntaxKind::NamespaceExportDeclaration => {
+                    return self.emit_namespace_export_declaration(&node)
+                }
+                SyntaxKind::ImportEqualsDeclaration => {
+                    return self.emit_import_equals_declaration(&node)
+                }
+                SyntaxKind::ImportDeclaration => return self.emit_import_declaration(&node),
+                SyntaxKind::ImportClause => return self.emit_import_clause(&node),
+                SyntaxKind::NamespaceImport => return self.emit_namespace_import(&node),
+                SyntaxKind::NamespaceExport => return self.emit_namespace_export(&node),
+                SyntaxKind::NamedImports => return self.emit_named_imports(&node),
+                SyntaxKind::ImportSpecifier => return self.emit_import_specifier(&node),
+                SyntaxKind::ExportAssignment => return self.emit_export_assignment(&node),
+                SyntaxKind::ExportDeclaration => return self.emit_export_declaration(&node),
+                SyntaxKind::NamedExports => return self.emit_named_exports(&node),
+                SyntaxKind::ExportSpecifier => return self.emit_export_specifier(&node),
+                SyntaxKind::AssertClause => return self.emit_assert_clause(&node),
+                SyntaxKind::AssertEntry => return self.emit_assert_entry(&node),
+                SyntaxKind::MissingDeclaration => return,
+
+                SyntaxKind::ExternalModuleReference => {
+                    return self.emit_external_module_reference(&node)
+                }
+
+                SyntaxKind::JsxText => return self.emit_jsx_text(&node),
+                SyntaxKind::JsxOpeningElement | SyntaxKind::JsxOpeningFragment => {
+                    return self.emit_jsx_opening_element_or_fragment(&node)
+                }
+                SyntaxKind::JsxClosingElement | SyntaxKind::JsxClosingFragment => {
+                    return self.emit_jsx_closing_element_or_fragment(&node)
+                }
+                SyntaxKind::JsxAttribute => return self.emit_jsx_attribute(&node),
+                SyntaxKind::JsxAttributes => return self.emit_jsx_attributes(&node),
+                SyntaxKind::JsxSpreadAttribute => return self.emit_jsx_spread_attribute(&node),
+                SyntaxKind::JsxExpression => return self.emit_jsx_expression(&node),
+
+                SyntaxKind::CaseClause => return self.emit_case_clause(&node),
+                SyntaxKind::DefaultClause => return self.emit_default_clause(&node),
+                SyntaxKind::HeritageClause => return self.emit_heritage_clause(&node),
+                SyntaxKind::CatchClause => return self.emit_catch_clause(&node),
+
+                SyntaxKind::PropertyAssignment => return self.emit_property_assignment(&node),
+                SyntaxKind::ShorthandPropertyAssignment => {
+                    return self.emit_shorthand_property_assignment(&node)
+                }
+                SyntaxKind::SpreadAssignment => return self.emit_spread_assignment(&node),
+
+                SyntaxKind::EnumMember => return self.emit_enum_member(&node),
+
+                SyntaxKind::UnparsedPrologue => return self.write_unparsed_node(&node),
+                SyntaxKind::UnparsedSource | SyntaxKind::UnparsedPrepend => {
+                    return self.emit_unparsed_source_or_prepend(&node)
+                }
+                SyntaxKind::UnparsedText | SyntaxKind::UnparsedInternalText => {
+                    return self.emit_unparsed_text_like(&node)
+                }
+                SyntaxKind::UnparsedSyntheticReference => {
+                    return self.emit_unparsed_synthetic_reference(&node)
+                }
+
+                SyntaxKind::SourceFile => return self.emit_source_file(&node),
+                SyntaxKind::Bundle => {
+                    Debug_.fail(Some("Bundles should be printed using printBundle"))
+                }
+                SyntaxKind::InputFiles => Debug_.fail(Some("InputFiles should not be printed")),
+
+                SyntaxKind::JSDocTypeExpression => return self.emit_jsdoc_type_expression(&node),
+                SyntaxKind::JSDocNameReference => return self.emit_jsdoc_name_reference(&node),
+                SyntaxKind::JSDocAllType => return self.write_punctuation("*"),
+                SyntaxKind::JSDocUnknownType => return self.write_punctuation("?"),
+                SyntaxKind::JSDocNullableType => return self.emit_jsdoc_nullable_type(&node),
+                SyntaxKind::JSDocNonNullableType => {
+                    return self.emit_jsdoc_non_nullable_type(&node)
+                }
+                SyntaxKind::JSDocOptionalType => return self.emit_jsdoc_optional_type(&node),
+                SyntaxKind::JSDocFunctionType => return self.emit_jsdoc_function_type(&node),
+                SyntaxKind::RestType | SyntaxKind::JSDocVariadicType => {
+                    return self.emit_rest_or_jsdoc_variadic_type(&node)
+                }
+                SyntaxKind::JSDocNamepathType => return,
+                SyntaxKind::JSDocComment => return self.emit_jsdoc(&node),
+                SyntaxKind::JSDocTypeLiteral => return self.emit_jsdoc_type_literal(&node),
+                SyntaxKind::JSDocSignature => return self.emit_jsdoc_signature(&node),
+                SyntaxKind::JSDocTag | SyntaxKind::JSDocClassTag => {
+                    return self.emit_jsdoc_simple_tag(&node)
+                }
+                SyntaxKind::JSDocAugmentsTag | SyntaxKind::JSDocImplementsTag => {
+                    return self.emit_jsdoc_heritage_tag(&node)
+                }
+                SyntaxKind::JSDocAuthorTag | SyntaxKind::JSDocDeprecatedTag => return,
+                SyntaxKind::JSDocPublicTag
+                | SyntaxKind::JSDocPrivateTag
+                | SyntaxKind::JSDocProtectedTag
+                | SyntaxKind::JSDocReadonlyTag
+                | SyntaxKind::JSDocOverrideTag => return,
+                SyntaxKind::JSDocCallbackTag => return self.emit_jsdoc_callback_tag(&node),
+                SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocPropertyTag => {
+                    return self.emit_jsdoc_property_like_tag(&node)
+                }
+                SyntaxKind::JSDocEnumTag
+                | SyntaxKind::JSDocReturnTag
+                | SyntaxKind::JSDocThisTag
+                | SyntaxKind::JSDocTypeTag => return self.emit_jsdoc_simple_typed_tag(&node),
+                SyntaxKind::JSDocTemplateTag => return self.emit_jsdoc_template_tag(&node),
+                SyntaxKind::JSDocTypedefTag => return self.emit_jsdoc_typedef_tag(&node),
+                SyntaxKind::JSDocSeeTag => return self.emit_jsdoc_see_tag(&node),
+
+                SyntaxKind::NotEmittedStatement
+                | SyntaxKind::EndOfDeclarationMarker
+                | SyntaxKind::MergeDeclarationMarker => return,
                 _ => (),
             }
-            if is_expression(node) {
+            if is_expression(&node) {
                 hint = EmitHint::Expression;
+                if !self.is_substitute_node_no_emit_substitution() {
+                    let substitute = self
+                        .substitute_node(hint, &node)
+                        .unwrap_or_else(|| node.node_wrapper());
+                    if !ptr::eq(&*substitute, node) {
+                        node = substitute;
+                        if let Some(current_parenthesizer_rule) =
+                            self.maybe_current_parenthesizer_rule()
+                        {
+                            node = current_parenthesizer_rule(&node);
+                        }
+                    }
+                }
             }
         }
         if hint == EmitHint::Expression {
-            match node {
-                Node::StringLiteral(_)
-                | Node::TemplateLiteralLikeNode(_)
-                | Node::NumericLiteral(_)
-                | Node::BigIntLiteral(_)
-                | Node::RegularExpressionLiteral(_)
-                | Node::JsxText(_) => {
-                    return self.emit_literal(node, false);
+            match node.kind() {
+                SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral => {
+                    return self.emit_numeric_or_big_int_literal(node)
+                }
+
+                SyntaxKind::StringLiteral
+                | SyntaxKind::RegularExpressionLiteral
+                | SyntaxKind::NoSubstitutionTemplateLiteral => {
+                    return self.emit_literal(node, false)
+                }
+
+                SyntaxKind::Identifier => return self.emit_identifier(node),
+                SyntaxKind::PrivateIdentifier => return self.emit_private_identifier(node),
+
+                SyntaxKind::ArrayLiteralExpression => {
+                    return self.emit_array_literal_expression(node)
+                }
+                SyntaxKind::ObjectLiteralExpression => {
+                    return self.emit_object_literal_expression(node)
+                }
+                SyntaxKind::PropertyAccessExpression => {
+                    return self.emit_property_access_expression(node)
+                }
+                SyntaxKind::ElementAccessExpression => {
+                    return self.emit_element_access_expression(node)
+                }
+                SyntaxKind::CallExpression => return self.emit_call_expression(node),
+                SyntaxKind::NewExpression => return self.emit_new_expression(node),
+                SyntaxKind::TaggedTemplateExpression => {
+                    return self.emit_tagged_template_expression(node)
+                }
+                SyntaxKind::TypeAssertionExpression => {
+                    return self.emit_type_assertion_expression(node)
+                }
+                SyntaxKind::ParenthesizedExpression => {
+                    return self.emit_parenthesized_expression(node)
+                }
+                SyntaxKind::FunctionExpression => return self.emit_function_expression(node),
+                SyntaxKind::ArrowFunction => return self.emit_arrow_function(node),
+                SyntaxKind::DeleteExpression => return self.emit_delete_expression(node),
+                SyntaxKind::TypeOfExpression => return self.emit_type_of_expression(node),
+                SyntaxKind::VoidExpression => return self.emit_void_expression(node),
+                SyntaxKind::AwaitExpression => return self.emit_await_expression(node),
+                SyntaxKind::PrefixUnaryExpression => {
+                    return self.emit_prefix_unary_expression(node)
+                }
+                SyntaxKind::PostfixUnaryExpression => {
+                    return self.emit_postfix_unary_expression(node)
+                }
+                SyntaxKind::BinaryExpression => return self.emit_binary_expression(node),
+                SyntaxKind::ConditionalExpression => return self.emit_conditional_expression(node),
+                SyntaxKind::TemplateExpression => return self.emit_template_expression(node),
+                SyntaxKind::YieldExpression => return self.emit_yield_expression(node),
+                SyntaxKind::SpreadElement => return self.emit_spread_element(node),
+                SyntaxKind::ClassExpression => return self.emit_class_expression(node),
+                SyntaxKind::OmittedExpression => return,
+                SyntaxKind::AsExpression => return self.emit_as_expression(node),
+                SyntaxKind::NonNullExpression => return self.emit_non_null_expression(node),
+                SyntaxKind::MetaProperty => return self.emit_meta_property(node),
+                SyntaxKind::SyntheticExpression => {
+                    Debug_.fail(Some("SyntheticExpression should never be printed."))
+                }
+
+                SyntaxKind::JsxElement => return self.emit_jsx_element(node),
+                SyntaxKind::JsxSelfClosingElement => {
+                    return self.emit_jsx_self_closing_element(node)
+                }
+                SyntaxKind::JsxFragment => return self.emit_jsx_fragment(node),
+
+                SyntaxKind::SyntaxList => Debug_.fail(Some("SyntaxList should not be printed")),
+
+                SyntaxKind::NotEmittedStatement => return,
+                SyntaxKind::PartiallyEmittedExpression => {
+                    return self.emit_partially_emitted_expression(node)
+                }
+                SyntaxKind::CommaListExpression => return self.emit_comma_list(node),
+                SyntaxKind::MergeDeclarationMarker | SyntaxKind::EndOfDeclarationMarker => return,
+                SyntaxKind::SyntheticReferenceExpression => {
+                    Debug_.fail(Some("SyntheticReferenceExpression should not be printed"))
                 }
                 _ => (),
             }
@@ -367,7 +795,18 @@ impl Printer {
         if is_keyword(node.kind()) {
             return self.write_token_node(node, Printer::write_keyword);
         }
-        unimplemented!("hint: {:?}, kind: {:?}", hint, node.kind());
+        if is_token_kind(node.kind()) {
+            return self.write_token_node(node, Printer::write_punctuation);
+        }
+        Debug_.fail(Some(&format!("Unhandled SyntaxKind: {:?}", node.kind())));
+    }
+
+    pub(super) fn emit_mapped_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn pipeline_emit_with_substitution(&self, hint: EmitHint, node: &Node) {
+        unimplemented!()
     }
 
     pub(super) fn get_helpers_from_bundled_source_files(
@@ -392,6 +831,10 @@ impl Printer {
         } else {
             self.write_string_literal(&text);
         }
+    }
+
+    pub(super) fn emit_snippet_node(&self, hint: EmitHint, node: &Node, snippet: SnippetElement) {
+        unimplemented!()
     }
 
     pub(super) fn emit_identifier(&self, node: &Node /*Identifier*/) {
@@ -541,9 +984,13 @@ impl Printer {
         self.emit_expression(Some(&*node.as_literal_type_node().literal), None);
     }
 
-    pub(super) fn emit_import_type(&self, node: &Node /*ImportTypeNode*/) {
+    pub(super) fn emit_import_type_node(&self, node: &Node /*ImportTypeNode*/) {
         // unimplemented!()
         self.write_punctuation("TODO import type");
+    }
+
+    pub(super) fn emit_empty_statement(&self, is_embedded_statement: bool) {
+        unimplemented!()
     }
 
     pub(super) fn emit_token_with_comment<TWriter: FnMut(&str)>(
@@ -599,6 +1046,10 @@ impl Printer {
             );
         }
         pos
+    }
+
+    pub(super) fn emit_source_file(&self, node: &Node /*SourceFile*/) {
+        unimplemented!()
     }
 
     pub(super) fn emit_synthetic_triple_slash_references_if_needed(
@@ -873,6 +1324,10 @@ impl Printer {
         get_literal_text(node, self.maybe_current_source_file(), flags)
     }
 
+    pub(super) fn pipeline_emit_with_comments(&self, hint: EmitHint, node: &Node) {
+        unimplemented!()
+    }
+
     pub(super) fn emit_leading_comments_of_position(&self, pos: isize) {
         // unimplemented!()
     }
@@ -884,6 +1339,10 @@ impl Printer {
         force_no_newline: Option<bool>,
     ) {
         // unimplemented!()
+    }
+
+    pub(super) fn pipeline_emit_with_source_maps(&self, hint: EmitHint, node: &Node) {
+        unimplemented!()
     }
 
     pub(super) fn set_source_map_source(&self, source: SourceMapSource) {

@@ -72,7 +72,9 @@ pub use compiler::factory::emit_node::{
     add_emit_flags, add_synthetic_leading_comment, dispose_emit_nodes, set_comment_range,
     set_emit_flags, set_synthetic_leading_comments,
 };
-use compiler::factory::emit_node::{get_starts_on_new_line, set_starts_on_new_line};
+use compiler::factory::emit_node::{
+    get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,
+};
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
     create_node_factory, factory, set_original_node, synthetic_factory, with_factory,
@@ -348,14 +350,14 @@ pub use compiler::types::{
     ScriptReferenceHost, ScriptTarget, SemicolonClassElement, SetAccessorDeclaration,
     ShorthandPropertyAssignment, Signature, SignatureDeclarationBase,
     SignatureDeclarationInterface, SignatureFlags, SignatureKind,
-    SignatureOptionalCallSignatureCache, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
-    SourceFilePrologueInfo, SourceMapGenerator, SourceMapRange, SourceMapSource, SourceTextAsChars,
-    SpreadAssignment, SpreadElement, StringLiteral, StringLiteralType, StringMappingType,
-    StringOrNodeArray, StructureIsReused, SubstitutionType, SwitchStatement, Symbol,
-    SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolFormatFlags, SymbolId,
-    SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolVisibilityResult, SymbolWalker,
-    SymbolWriter, SyntaxKind, SyntaxList, SynthesizedComment, SyntheticExpression,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
+    SignatureOptionalCallSignatureCache, SnippetElement, SourceFile, SourceFileLike,
+    SourceFileMayBeEmittedHost, SourceFilePrologueInfo, SourceMapGenerator, SourceMapRange,
+    SourceMapSource, SourceTextAsChars, SpreadAssignment, SpreadElement, StringLiteral,
+    StringLiteralType, StringMappingType, StringOrNodeArray, StructureIsReused, SubstitutionType,
+    SwitchStatement, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker,
+    SymbolVisibilityResult, SymbolWalker, SymbolWriter, SyntaxKind, SyntaxList, SynthesizedComment,
+    SyntheticExpression, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
     TemplateLiteralLikeNodeInterface, TemplateLiteralType, TemplateLiteralTypeNode,
     TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan,
     ThisTypeNode, ThrowStatement, ToHashMapOfCompilerOptionsValues, TokenFlags, TransformFlags,

@@ -550,25 +550,25 @@ pub struct EmitNode {
     pub snippet_element: Option<SnippetElement>,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum SnippetElement {
     TabStop(TabStop),
     Placeholder(Placeholder),
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct TabStop {
     pub kind: SnippetKind,
     pub order: usize,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Placeholder {
     pub kind: SnippetKind,
     pub order: usize,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SnippetKind {
     TabStop,
     Placeholder,

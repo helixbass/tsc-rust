@@ -49,6 +49,18 @@ pub(super) enum PipelinePhase {
     Emit,
 }
 
+impl PipelinePhase {
+    pub fn incremented(&self) -> Self {
+        match self {
+            Self::Notification => Self::Substitution,
+            Self::Substitution => Self::Comments,
+            Self::Comments => Self::SourceMaps,
+            Self::SourceMaps => Self::Emit,
+            Self::Emit => panic!("Called incremented() on PipelinePhase::Emit"),
+        }
+    }
+}
+
 pub fn create_printer(
     printer_options: PrinterOptions,
     handlers: Option<Rc<dyn PrintHandlers>>,
@@ -63,6 +75,10 @@ pub(super) struct DummyPrintHandlers;
 
 impl PrintHandlers for DummyPrintHandlers {
     fn is_on_emit_node_supported(&self) -> bool {
+        false
+    }
+
+    fn is_substitute_node_supported(&self) -> bool {
         false
     }
 }
@@ -186,6 +202,14 @@ impl Printer {
         *self.reserved_names_stack.borrow_mut() = reserved_names_stack;
     }
 
+    pub(super) fn maybe_preserve_source_newlines(&self) -> Option<bool> {
+        self.preserve_source_newlines.get()
+    }
+
+    pub(super) fn set_preserve_source_newlines(&self, preserve_source_newlines: Option<bool>) {
+        self.preserve_source_newlines.set(preserve_source_newlines);
+    }
+
     pub(super) fn maybe_writer(&self) -> Option<Rc<dyn EmitTextWriter>> {
         self.writer.borrow().clone()
     }
@@ -211,6 +235,10 @@ impl Printer {
         }
     }
 
+    pub(super) fn is_on_emit_node_no_emit_notification(&self) -> bool {
+        !self.handlers.is_on_emit_node_supported()
+    }
+
     pub(super) fn is_on_emit_node_supported(&self) -> bool {
         true
     }
@@ -220,11 +248,15 @@ impl Printer {
     }
 
     pub(super) fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Rc<Node>> {
-        Some(
-            self.handlers
-                .substitute_node(hint, node)
-                .unwrap_or_else(|| no_emit_substitution(hint, node)),
-        )
+        Some(if self.handlers.is_substitute_node_supported() {
+            self.handlers.substitute_node(hint, node).unwrap()
+        } else {
+            no_emit_substitution(hint, node)
+        })
+    }
+
+    pub(super) fn is_substitute_node_no_emit_substitution(&self) -> bool {
+        !self.handlers.is_substitute_node_supported()
     }
 
     pub(super) fn on_before_emit_node(&self, node: Option<&Node>) {
@@ -339,6 +371,29 @@ impl Printer {
         *self.detached_comments_info.borrow_mut() = detached_comments_info;
     }
 
+    pub(super) fn comments_disabled(&self) -> bool {
+        self.comments_disabled.get()
+    }
+
+    pub(super) fn set_comments_disabled(&self, comments_disabled: bool) {
+        self.comments_disabled.set(comments_disabled);
+    }
+
+    pub(super) fn set_last_substitution(&self, last_substitution: Option<Rc<Node>>) {
+        *self.last_substitution.borrow_mut() = last_substitution;
+    }
+
+    pub(super) fn maybe_current_parenthesizer_rule(&self) -> Option<Rc<dyn Fn(&Node) -> Rc<Node>>> {
+        self.current_parenthesizer_rule.borrow().clone()
+    }
+
+    pub(super) fn set_current_parenthesizer_rule(
+        &self,
+        current_parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+    ) {
+        *self.current_parenthesizer_rule.borrow_mut() = current_parenthesizer_rule;
+    }
+
     pub(super) fn enter_comment(&self) {
         // unimplemented!()
     }
@@ -347,7 +402,7 @@ impl Printer {
         // unimplemented!()
     }
 
-    pub(super) fn emit_binary_expression(&self) {
+    pub(super) fn emit_binary_expression(&self, node: &Node /*BinaryExpression*/) {
         unimplemented!()
     }
 

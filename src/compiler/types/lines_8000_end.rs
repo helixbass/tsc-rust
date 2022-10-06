@@ -562,6 +562,7 @@ pub trait PrintHandlers {
     fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Rc<Node>> {
         None
     }
+    fn is_substitute_node_supported(&self) -> bool;
     fn on_emit_source_map_of_node(
         &self,
         hint: EmitHint,

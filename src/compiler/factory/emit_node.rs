@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::{
     get_parse_tree_node, get_source_file_of_node, is_parse_tree_node, Debug_, EmitFlags, EmitNode,
-    Node, NodeInterface, ReadonlyTextRange, SyntaxKind, SynthesizedComment,
+    Node, NodeInterface, ReadonlyTextRange, SnippetElement, SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> Rc<RefCell<EmitNode>> {
@@ -99,5 +99,9 @@ pub fn add_synthetic_leading_comment(
     has_trailing_new_line: Option<bool>,
 ) /*-> Rc<Node>*/
 {
+    unimplemented!()
+}
+
+pub(crate) fn get_snippet_element(node: &Node) -> Option<SnippetElement> {
     unimplemented!()
 }
