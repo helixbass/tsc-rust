@@ -6,13 +6,13 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    for_each, get_emit_flags, get_literal_text, id_text, is_block, is_identifier, is_let,
-    is_module_declaration, is_var_const, node_is_synthesized, range_is_on_single_line,
-    token_to_string, with_synthetic_factory, EmitFlags, EmitHint, GetLiteralTextFlags,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
+    for_each, get_comment_range, get_emit_flags, get_literal_text, id_text, is_block,
+    is_identifier, is_let, is_module_declaration, is_var_const, node_is_synthesized,
+    range_is_on_single_line, token_to_string, with_synthetic_factory, EmitFlags, EmitHint,
+    GetLiteralTextFlags, HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, ListFormat, NamedDeclarationInterface, Node,
     NodeArray, NodeFlags, NodeInterface, Printer, ReadonlyTextRange, SourceFilePrologueInfo,
-    SourceMapSource, Symbol, SyntaxKind,
+    SourceMapSource, Symbol, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -786,52 +786,203 @@ impl Printer {
     }
 
     pub(super) fn emit_export_declaration(&self, node: &Node /*ExportDeclaration*/) {
-        unimplemented!()
+        let mut next_pos = self.emit_token_with_comment(
+            SyntaxKind::ExportKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let node_as_export_declaration = node.as_export_declaration();
+        if node_as_export_declaration.is_type_only {
+            next_pos = self.emit_token_with_comment(
+                SyntaxKind::TypeKeyword,
+                next_pos,
+                |text: &str| self.write_keyword(text),
+                node,
+                None,
+            );
+            self.write_space();
+        }
+        if let Some(node_export_clause) = node_as_export_declaration.export_clause.as_ref() {
+            self.emit(Some(&**node_export_clause), None);
+        } else {
+            next_pos = self.emit_token_with_comment(
+                SyntaxKind::AsteriskToken,
+                next_pos,
+                |text: &str| self.write_punctuation(text),
+                node,
+                None,
+            );
+        }
+        if let Some(node_module_specifier) = node_as_export_declaration.module_specifier.as_ref() {
+            self.write_space();
+            let from_pos = node_as_export_declaration
+                .export_clause
+                .as_ref()
+                .map_or(next_pos, |node_export_clause| node_export_clause.end());
+            self.emit_token_with_comment(
+                SyntaxKind::FromKeyword,
+                from_pos,
+                |text: &str| self.write_keyword(text),
+                node,
+                None,
+            );
+            self.write_space();
+            self.emit_expression(Some(&**node_module_specifier), None);
+        }
+        if let Some(node_assert_clause) = node_as_export_declaration.assert_clause.as_ref() {
+            self.emit_with_leading_space(Some(&**node_assert_clause));
+        }
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_assert_clause(&self, node: &Node /*AssertClause*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::AssertKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let elements = &node.as_assert_clause().elements;
+        self.emit_list(
+            Some(node),
+            Some(elements),
+            ListFormat::ImportClauseEntries,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_assert_entry(&self, node: &Node /*AssertEntry*/) {
-        unimplemented!()
+        let node_as_assert_entry = node.as_assert_entry();
+        self.emit(Some(&*node_as_assert_entry.name), None);
+        self.write_punctuation(":");
+        self.write_space();
+
+        let value = &node_as_assert_entry.value;
+        if !get_emit_flags(value).intersects(EmitFlags::NoLeadingComments) {
+            let comment_range = get_comment_range(value);
+            self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
+        }
+        self.emit(Some(&**value), None);
     }
 
     pub(super) fn emit_namespace_export_declaration(
         &self,
         node: &Node, /*NamespaceExportDeclaration*/
     ) {
-        unimplemented!()
+        let mut next_pos = self.emit_token_with_comment(
+            SyntaxKind::ExportKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        next_pos = self.emit_token_with_comment(
+            SyntaxKind::AsKeyword,
+            next_pos,
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        next_pos = self.emit_token_with_comment(
+            SyntaxKind::NamespaceKeyword,
+            next_pos,
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit(
+            node.as_namespace_export_declaration()
+                .maybe_name()
+                .as_deref(),
+            None,
+        );
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_namespace_export(&self, node: &Node /*NamespaceExport*/) {
-        unimplemented!()
+        let as_pos = self.emit_token_with_comment(
+            SyntaxKind::AsteriskToken,
+            node.pos(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::AsKeyword,
+            as_pos,
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit(Some(&*node.as_namespace_export().name), None);
     }
 
     pub(super) fn emit_named_exports(&self, node: &Node /*NamedExports*/) {
-        unimplemented!()
+        self.emit_named_imports_or_exports(node);
     }
 
     pub(super) fn emit_export_specifier(&self, node: &Node /*ExportSpecifier*/) {
-        unimplemented!()
+        self.emit_import_or_export_specifier(node);
     }
 
     pub(super) fn emit_named_imports_or_exports(&self, node: &Node /*NamedImportsOrExports*/) {
-        unimplemented!()
+        self.write_punctuation("{");
+        self.emit_list(
+            Some(node),
+            Some(node.as_has_elements().elements()),
+            ListFormat::NamedImportsOrExportsElements,
+            None,
+            None,
+            None,
+        );
+        self.write_punctuation("}");
     }
 
     pub(super) fn emit_import_or_export_specifier(
         &self,
         node: &Node, /*ImportOrExportSpecifier*/
     ) {
-        unimplemented!()
+        if node.as_has_is_type_only().is_type_only() {
+            self.write_keyword("type");
+            self.write_space();
+        }
+        if let Some(node_property_name) = node.as_has_property_name().maybe_property_name().as_ref()
+        {
+            self.emit(Some(&**node_property_name), None);
+            self.write_space();
+            self.emit_token_with_comment(
+                SyntaxKind::AsKeyword,
+                node_property_name.end(),
+                |text: &str| self.write_keyword(text),
+                node,
+                None,
+            );
+            self.write_space();
+        }
+
+        self.emit(node.as_named_declaration().maybe_name().as_deref(), None);
     }
 
     pub(super) fn emit_external_module_reference(
         &self,
         node: &Node, /*ExternalModuleReference*/
     ) {
-        unimplemented!()
+        self.write_keyword("require");
+        self.write_punctuation("(");
+        self.emit_expression(Some(&*node.as_external_module_reference().expression), None);
+        self.write_punctuation(")");
     }
 
     pub(super) fn emit_jsx_element(&self, node: &Node /*JsxElement*/) {

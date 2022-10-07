@@ -1596,6 +1596,18 @@ impl Node {
     pub fn as_namespace_import(&self) -> &NamespaceImport {
         enum_unwrapped!(self, [Node, NamespaceImport])
     }
+
+    pub fn as_assert_clause(&self) -> &AssertClause {
+        enum_unwrapped!(self, [Node, AssertClause])
+    }
+
+    pub fn as_assert_entry(&self) -> &AssertEntry {
+        enum_unwrapped!(self, [Node, AssertEntry])
+    }
+
+    pub fn as_namespace_export_declaration(&self) -> &NamespaceExportDeclaration {
+        enum_unwrapped!(self, [Node, NamespaceExportDeclaration])
+    }
 }
 
 #[derive(Debug)]

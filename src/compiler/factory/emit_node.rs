@@ -3,9 +3,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    get_parse_tree_node, get_source_file_of_node, is_parse_tree_node, Debug_, EmitFlags,
-    EmitHelper, EmitNode, Node, NodeInterface, ReadonlyTextRange, SnippetElement, StringOrNumber,
-    SyntaxKind, SynthesizedComment,
+    get_parse_tree_node, get_source_file_of_node, is_parse_tree_node, BaseTextRange, Debug_,
+    EmitFlags, EmitHelper, EmitNode, Node, NodeInterface, ReadonlyTextRange, SnippetElement,
+    StringOrNumber, SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> Rc<RefCell<EmitNode>> {
@@ -79,6 +79,13 @@ pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Rc<Node>*
         .borrow_mut()
         .starts_on_new_line = Some(new_line);
     // node
+}
+
+pub fn get_comment_range(node: &Node) -> BaseTextRange {
+    // TODO: these semantics wouldn't work if the return value is treated mutably?
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().comment_range.clone())
+        .unwrap_or_else(|| BaseTextRange::new(node.pos(), node.end()))
 }
 
 pub fn set_comment_range<TRange: ReadonlyTextRange /*TextRange*/>(node: &Node, range: &TRange)

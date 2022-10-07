@@ -858,7 +858,7 @@ bitflags! {
         const ObjectBindingPatternElements = Self::SingleLine.bits | Self::AllowTrailingComma.bits | Self::SpaceBetweenBraces.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::NoSpaceIfEmpty.bits;
         const ArrayBindingPatternElements = Self::SingleLine.bits | Self::AllowTrailingComma.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::NoSpaceIfEmpty.bits;
         const ObjectLiteralExpressionProperties = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits | Self::Indented.bits | Self::Braces.bits | Self::NoSpaceIfEmpty.bits;
-
+        const ImportClauseEntries = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits | Self::Indented.bits | Self::Braces.bits | Self::NoSpaceIfEmpty.bits;
         const ArrayLiteralExpressionElements = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::Indented.bits | Self::SquareBrackets.bits;
 
         const CallExpressionArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Parenthesis.bits;
@@ -874,6 +874,7 @@ bitflags! {
         const InterfaceMembers = Self::Indented.bits | Self::MultiLine.bits;
         const EnumMembers = Self::CommaDelimited.bits | Self::Indented.bits | Self::MultiLine.bits;
         const CaseBlockClauses = Self::Indented.bits | Self::MultiLine.bits;
+        const NamedImportsOrExportsElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::NoSpaceIfEmpty.bits;
 
         const TypeArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
         const TypeParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
