@@ -98,6 +98,7 @@ impl BundleFileSectionKind {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BundleFileSectionBase {
     pos: Cell<isize>,
     end: Cell<isize>,
@@ -149,6 +150,7 @@ impl BundleFileSectionInterface for BundleFileSectionBase {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BundleFilePrologue {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -187,6 +189,7 @@ impl BundleFileSectionInterface for BundleFilePrologue {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BundleFileEmitHelpers {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -225,6 +228,7 @@ impl BundleFileSectionInterface for BundleFileEmitHelpers {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BundleFileHasNoDefaultLib {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -257,6 +261,7 @@ impl BundleFileSectionInterface for BundleFileHasNoDefaultLib {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BundleFileReference {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -295,6 +300,7 @@ impl BundleFileSectionInterface for BundleFileReference {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BundleFilePrepend {
     _bundle_file_section_base: BundleFileSectionBase,
     pub texts: Vec<Rc<BundleFileSection /*BundleFileTextLike*/>>,
@@ -334,6 +340,7 @@ impl BundleFileSectionInterface for BundleFilePrepend {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct BundleFileTextLike {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -366,6 +373,7 @@ impl BundleFileSectionInterface for BundleFileTextLike {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum BundleFileSection {
     BundleFilePrologue(BundleFilePrologue),
     BundleFileEmitHelpers(BundleFileEmitHelpers),

@@ -8,12 +8,12 @@ use super::{brackets, PipelinePhase};
 use crate::{
     compare_emit_helpers, get_emit_flags, get_emit_helpers, get_external_helpers_module_name,
     get_literal_text, get_parse_tree_node, has_recorded_external_helpers, id_text, is_identifier,
-    is_source_file, is_unparsed_source, positions_are_on_same_line, skip_trivia, stable_sort,
-    token_to_string, BundleFileSection, Debug_, EmitFlags, EmitHelper, EmitHelperBase,
-    EmitHelperText, EmitHint, GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface,
-    ListFormat, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, SnippetElement, SortedArray, SourceFileLike, SourceFilePrologueInfo,
-    SourceMapSource, Symbol, SyntaxKind,
+    is_source_file, is_template_literal_kind, is_unparsed_source, positions_are_on_same_line,
+    skip_trivia, stable_sort, token_to_string, BundleFileSection, BundleFileSectionKind, Debug_,
+    EmitFlags, EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, GetLiteralTextFlags,
+    HasTypeArgumentsInterface, HasTypeInterface, ListFormat, ModuleKind, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SnippetElement, SortedArray,
+    SourceFileLike, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -189,11 +189,18 @@ impl Printer {
         node: &Node, /*LiteralLikeNode*/
         jsx_attribute_escape: bool,
     ) {
-        let text = self.get_literal_text_of_node(node);
-        if false {
-            unimplemented!()
+        let ref text = self.get_literal_text_of_node(
+            node,
+            self.printer_options.never_ascii_escape,
+            jsx_attribute_escape,
+        );
+        if (self.printer_options.source_map == Some(true)
+            || self.printer_options.inline_source_map == Some(true))
+            && (node.kind() == SyntaxKind::StringLiteral || is_template_literal_kind(node.kind()))
+        {
+            self.write_literal(text);
         } else {
-            self.write_string_literal(&text);
+            self.write_string_literal(text);
         }
     }
 
@@ -201,22 +208,48 @@ impl Printer {
         &self,
         unparsed: &Node, /*UnparsedSource | UnparsedPrepend*/
     ) {
-        unimplemented!()
+        for text in unparsed.as_has_texts().texts() {
+            self.write_line(None);
+            self.emit(Some(&**text), None);
+        }
     }
 
     pub(super) fn write_unparsed_node(&self, unparsed: &Node /*UnparsedNode*/) {
-        unimplemented!()
+        self.writer().raw_write(
+            &unparsed.parent().as_unparsed_source().text[TryInto::<usize>::try_into(unparsed.pos())
+                .unwrap()
+                ..TryInto::<usize>::try_into(unparsed.end()).unwrap()],
+        );
     }
 
     pub(super) fn emit_unparsed_text_like(&self, unparsed: &Node /*UnparsedTextLike*/) {
-        unimplemented!()
+        let pos = self.get_text_pos_with_write_line();
+        self.write_unparsed_node(unparsed);
+        if self.maybe_bundle_file_info().is_some() {
+            self.update_or_push_bundle_file_text_like(
+                pos.try_into().unwrap(),
+                self.writer().get_text_pos().try_into().unwrap(),
+                if unparsed.kind() == SyntaxKind::UnparsedText {
+                    BundleFileSectionKind::Text
+                } else {
+                    BundleFileSectionKind::Internal
+                },
+            );
+        }
     }
 
     pub(super) fn emit_unparsed_synthetic_reference(
         &self,
         unparsed: &Node, /*UnparsedSyntheticReference*/
     ) {
-        unimplemented!()
+        let pos = self.get_text_pos_with_write_line();
+        self.write_unparsed_node(unparsed);
+        if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
+            let section = (*unparsed.as_unparsed_synthetic_reference().section).clone();
+            section.set_pos(pos.try_into().unwrap());
+            section.set_end(self.writer().get_text_pos().try_into().unwrap());
+            bundle_file_info.sections.push(Rc::new(section));
+        }
     }
 
     pub(super) fn emit_snippet_node(&self, hint: EmitHint, node: &Node, snippet: SnippetElement) {
@@ -1235,6 +1268,10 @@ impl Printer {
         self.writer().write(s);
     }
 
+    pub(super) fn write_literal(&self, s: &str) {
+        unimplemented!()
+    }
+
     pub(super) fn write_string_literal(&self, s: &str) {
         self.writer().write_string_literal(s);
     }
@@ -1311,7 +1348,12 @@ impl Printer {
         unimplemented!()
     }
 
-    pub(super) fn get_literal_text_of_node(&self, node: &Node) -> Cow<'static, str> {
+    pub(super) fn get_literal_text_of_node(
+        &self,
+        node: &Node,
+        never_ascii_escape: Option<bool>,
+        jsx_attribute_escape: bool,
+    ) -> Cow<'static, str> {
         let flags = GetLiteralTextFlags::None;
 
         get_literal_text(node, self.maybe_current_source_file(), flags)

@@ -15,12 +15,13 @@ use super::{
 };
 use crate::{
     ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
-    CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
-    DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue, ModeAwareCache,
-    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    MultiMap, PackageId, ParseConfigFileHost, PragmaContext, RedirectTargetsMap,
-    ResolvedProjectReference, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
-    Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    BundleFileSection, CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions,
+    DiagnosticCache, DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue,
+    ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
+    RedirectTargetsMap, ResolvedProjectReference, SourceOfProjectReferenceRedirect,
+    StructureIsReused, SymlinkCache, Type, TypeFlags, TypeInterface,
+    TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -842,6 +843,12 @@ impl UnparsedSource {
     }
 }
 
+impl HasTextsInterface for UnparsedSource {
+    fn texts(&self) -> &[Rc<Node>] {
+        &self.texts
+    }
+}
+
 impl HasOldFileOfCurrentEmitInterface for UnparsedSource {
     fn maybe_old_file_of_current_emit(&self) -> Option<bool> {
         self.old_file_of_current_emit
@@ -904,6 +911,16 @@ impl UnparsedPrepend {
     }
 }
 
+pub trait HasTextsInterface {
+    fn texts(&self) -> &[Rc<Node>];
+}
+
+impl HasTextsInterface for UnparsedPrepend {
+    fn texts(&self) -> &[Rc<Node>] {
+        &self.texts
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedTextLike {
@@ -914,6 +931,22 @@ impl UnparsedTextLike {
     pub fn new(base_unparsed_node: BaseUnparsedNode) -> Self {
         Self {
             _unparsed_node: base_unparsed_node,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "UnparsedSectionInterface")]
+pub struct UnparsedSyntheticReference {
+    _unparsed_node: BaseUnparsedNode,
+    pub section: Rc<BundleFileSection>,
+}
+
+impl UnparsedSyntheticReference {
+    pub fn new(base_unparsed_node: BaseUnparsedNode, section: Rc<BundleFileSection>) -> Self {
+        Self {
+            _unparsed_node: base_unparsed_node,
+            section,
         }
     }
 }

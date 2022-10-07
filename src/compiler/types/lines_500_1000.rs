@@ -8,7 +8,8 @@ use crate::{
     CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
     HasChildrenInterface, HasDotDotDotTokenInterface, HasLeftAndRightInterface,
     HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
-    HasTagNameInterface, InferenceContext, JsxOpeningLikeElementInterface, SyntheticExpression,
+    HasTagNameInterface, HasTextsInterface, InferenceContext, JsxOpeningLikeElementInterface,
+    SyntheticExpression, UnparsedSyntheticReference,
 };
 
 use super::{
@@ -405,6 +406,7 @@ pub enum Node {
     InputFiles(InputFiles),
     CommaListExpression(CommaListExpression),
     SyntaxList(SyntaxList),
+    UnparsedSyntheticReference(UnparsedSyntheticReference),
 }
 
 impl Node {
@@ -968,6 +970,14 @@ impl Node {
             Node::InputFiles(node) => node,
             Node::UnparsedSource(node) => node,
             _ => panic!("Expected has old file of current emit"),
+        }
+    }
+
+    pub fn as_has_texts(&self) -> &dyn HasTextsInterface {
+        match self {
+            Node::UnparsedPrepend(node) => node,
+            Node::UnparsedSource(node) => node,
+            _ => panic!("Expected has texts"),
         }
     }
 
@@ -1557,6 +1567,10 @@ impl Node {
 
     pub fn as_unparsed_source(&self) -> &UnparsedSource {
         enum_unwrapped!(self, [Node, UnparsedSource])
+    }
+
+    pub fn as_unparsed_synthetic_reference(&self) -> &UnparsedSyntheticReference {
+        enum_unwrapped!(self, [Node, UnparsedSyntheticReference])
     }
 }
 
