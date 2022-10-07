@@ -851,6 +851,13 @@ bitflags! {
         const SingleLineTupleTypeElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
         const MultiLineTupleTypeElements = Self::CommaDelimited.bits | Self::Indented.bits | Self::SpaceBetweenSiblings.bits | Self::MultiLine.bits;
         const UnionTypeConstituents = Self::BarDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const IntersectionTypeConstituents = Self::AmpersandDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const ObjectBindingPatternElements = Self::SingleLine.bits | Self::AllowTrailingComma.bits | Self::SpaceBetweenBraces.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::NoSpaceIfEmpty.bits;
+        const ArrayBindingPatternElements = Self::SingleLine.bits | Self::AllowTrailingComma.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::NoSpaceIfEmpty.bits;
+
+        const ArrayLiteralExpressionElements = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::Indented.bits | Self::SquareBrackets.bits;
+
+        const TemplateExpressionSpans = Self::SingleLine.bits | Self::NoInterveningComments.bits;
 
         const TypeArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
         const TypeParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;

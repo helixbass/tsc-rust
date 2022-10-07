@@ -271,7 +271,18 @@ impl Printer {
     }
 
     pub(super) fn emit_type_predicate(&self, node: &Node /*TypePredicateNode*/) {
-        unimplemented!()
+        let node_as_type_predicate_node = node.as_type_predicate_node();
+        if let Some(node_asserts_modifier) = node_as_type_predicate_node.asserts_modifier.as_ref() {
+            self.emit(Some(&**node_asserts_modifier), None);
+            self.write_space();
+        }
+        self.emit(Some(&*node_as_type_predicate_node.parameter_name), None);
+        if let Some(node_type) = node_as_type_predicate_node.type_.as_ref() {
+            self.write_space();
+            self.write_keyword("is");
+            self.write_space();
+            self.emit(Some(&**node_type), None);
+        }
     }
 
     pub(super) fn emit_type_reference(&self, node: &Node /*TypeReferenceNode*/) {
@@ -284,41 +295,84 @@ impl Printer {
     }
 
     pub(super) fn emit_function_type(&self, node: &Node /*FunctionTypeNode*/) {
-        // unimplemented!()
-        self.write_punctuation("TODO function type");
+        self.push_name_generation_scope(Some(node));
+        let node_as_function_type_node = node.as_function_type_node();
+        self.emit_type_parameters(
+            node,
+            node_as_function_type_node.maybe_type_parameters().as_ref(),
+        );
+        self.emit_parameters_for_arrow(node, &node_as_function_type_node.parameters());
+        self.write_space();
+        self.write_punctuation("=>");
+        self.write_space();
+        self.emit(node_as_function_type_node.maybe_type().as_deref(), None);
+        self.pop_name_generation_scope(Some(node));
     }
 
     pub(super) fn emit_jsdoc_function_type(&self, node: &Node /*JSDocFunctionType*/) {
-        unimplemented!()
+        self.write_keyword("function");
+        let node_as_jsdoc_function_type = node.as_jsdoc_function_type();
+        self.emit_parameters(node, &node_as_jsdoc_function_type.parameters());
+        self.write_punctuation(":");
+        self.emit(node_as_jsdoc_function_type.maybe_type().as_deref(), None);
     }
 
     pub(super) fn emit_jsdoc_nullable_type(&self, node: &Node /*JSDocNullableType*/) {
-        unimplemented!()
+        self.write_punctuation("?");
+        self.emit(
+            node.as_base_jsdoc_unary_type().maybe_type().as_deref(),
+            None,
+        );
     }
 
     pub(super) fn emit_jsdoc_non_nullable_type(&self, node: &Node /*JSDocNonNullableType*/) {
-        unimplemented!()
+        self.write_punctuation("!");
+        self.emit(
+            node.as_base_jsdoc_unary_type().maybe_type().as_deref(),
+            None,
+        );
     }
 
     pub(super) fn emit_jsdoc_optional_type(&self, node: &Node /*JSDocOptionalType*/) {
-        unimplemented!()
+        self.emit(
+            node.as_base_jsdoc_unary_type().maybe_type().as_deref(),
+            None,
+        );
+        self.write_punctuation("=");
     }
 
     pub(super) fn emit_constructor_type(&self, node: &Node /*ConstructorTypeNode*/) {
-        // unimplemented!()
-        self.write_punctuation("TODO constructor type");
+        self.push_name_generation_scope(Some(node));
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword("new");
+        self.write_space();
+        let node_as_constructor_type_node = node.as_constructor_type_node();
+        self.emit_type_parameters(
+            node,
+            node_as_constructor_type_node
+                .maybe_type_parameters()
+                .as_ref(),
+        );
+        self.emit_parameters(node, &node_as_constructor_type_node.parameters());
+        self.write_space();
+        self.write_punctuation("=>");
+        self.write_space();
+        self.emit(node_as_constructor_type_node.maybe_type().as_deref(), None);
+        self.pop_name_generation_scope(Some(node));
     }
 
     pub(super) fn emit_type_query(&self, node: &Node /*TypeQueryNode*/) {
-        unimplemented!()
+        self.write_keyword("typeof");
+        self.write_space();
+        self.emit(Some(&*node.as_type_query_node().expr_name), None);
     }
 
     pub(super) fn emit_type_literal(&self, node: &Node /*TypeLiteralNode*/) {
         self.write_punctuation("{");
-        let flags = if true {
+        let flags = if get_emit_flags(node).intersects(EmitFlags::SingleLine) {
             ListFormat::SingleLineTypeLiteralMembers
         } else {
-            unimplemented!()
+            ListFormat::MultiLineTypeLiteralMembers
         };
         self.emit_list(
             Some(node),
@@ -332,15 +386,28 @@ impl Printer {
     }
 
     pub(super) fn emit_array_type(&self, node: &Node /*ArrayTypeNode*/) {
-        // unimplemented!()
-        self.write_punctuation("TODO array type");
+        self.emit(
+            Some(&*node.as_array_type_node().element_type),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_element_type_of_array_type(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.write_punctuation("[");
+        self.write_punctuation("]");
     }
 
     pub(super) fn emit_rest_or_jsdoc_variadic_type(
         &self,
         node: &Node, /*RestTypeNode | JSDocVariadicType*/
     ) {
-        unimplemented!()
+        self.write_punctuation("...");
+        self.emit(node.as_has_type().maybe_type().as_deref(), None);
     }
 
     pub(super) fn emit_tuple_type(&self, node: &Node /*TupleTypeNode*/) {
@@ -375,46 +442,129 @@ impl Printer {
     }
 
     pub(super) fn emit_named_tuple_member(&self, node: &Node /*NamedTupleMember*/) {
-        unimplemented!()
+        let node_as_named_tuple_member = node.as_named_tuple_member();
+        self.emit(
+            node_as_named_tuple_member.dot_dot_dot_token.as_deref(),
+            None,
+        );
+        self.emit(Some(&*node_as_named_tuple_member.name), None);
+        self.emit(node_as_named_tuple_member.question_token.as_deref(), None);
+        self.emit_token_with_comment(
+            SyntaxKind::ColonToken,
+            node_as_named_tuple_member.name.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit(Some(&*node_as_named_tuple_member.type_), None);
     }
 
     pub(super) fn emit_optional_type(&self, node: &Node /*OptionalTypeNode*/) {
-        unimplemented!()
+        self.emit(
+            Some(&*node.as_optional_type_node().type_),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_element_type_of_array_type(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.write_punctuation("?");
     }
 
     pub(super) fn emit_union_type(&self, node: &Node /*UnionTypeNode*/) {
         self.emit_list(
             Some(node),
-            Some(&node.as_union_or_intersection_type_node().types()),
+            Some(&node.as_union_type_node().types),
             ListFormat::UnionTypeConstituents,
-            // TODO: this is wrong
-            None,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
+                    })
+                }
+            })),
             None,
             None,
         );
     }
 
     pub(super) fn emit_intersection_type(&self, node: &Node /*IntersectionTypeNode*/) {
-        // unimplemented!()
-        self.write_punctuation("TODO intersection type");
+        self.emit_list(
+            Some(node),
+            Some(&node.as_intersection_type_node().types),
+            ListFormat::IntersectionTypeConstituents,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
+                    })
+                }
+            })),
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_conditional_type(&self, node: &Node /*ConditionalTypeNode*/) {
-        // unimplemented!()
-        self.write_punctuation("TODO conditional type");
+        let node_as_conditional_type_node = node.as_conditional_type_node();
+        self.emit(
+            Some(&*node_as_conditional_type_node.check_type),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_member_of_conditional_type(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.write_space();
+        self.write_keyword("extends");
+        self.write_space();
+        self.emit(
+            Some(&*node_as_conditional_type_node.extends_type),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_member_of_conditional_type(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.write_space();
+        self.write_punctuation("?");
+        self.write_space();
+        self.emit(Some(&*node_as_conditional_type_node.true_type), None);
+        self.write_space();
+        self.write_punctuation(":");
+        self.write_space();
+        self.emit(Some(&*node_as_conditional_type_node.false_type), None);
     }
 
     pub(super) fn emit_infer_type(&self, node: &Node /*InferTypeNode*/) {
-        unimplemented!()
+        self.write_keyword("infer");
+        self.write_space();
+        self.emit(Some(&*node.as_infer_type_node().type_parameter), None);
     }
 
     pub(super) fn emit_parenthesized_type(&self, node: &Node /*ParenthesizedTypeNode*/) {
-        // unimplemented!()
-        self.write_punctuation("TODO parenthesized type");
+        self.write_punctuation("(");
+        self.emit(Some(&*node.as_parenthesized_type_node().type_), None);
+        self.write_punctuation(")");
     }
 
     pub(super) fn emit_this_type(&self) {
-        unimplemented!()
+        self.write_keyword("this");
     }
 
     pub(super) fn emit_type_operator(&self, node: &Node /*TypeOperatorNode*/) {
@@ -427,49 +577,201 @@ impl Printer {
         self.write_space();
         self.emit(
             Some(&*node_as_type_operator_node.type_),
-            None, // TODO: this is wrong, should be parenthesizer.parenthesizeMemberOfElementType
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
+                    })
+                }
+            })),
         );
     }
 
     pub(super) fn emit_indexed_access_type(&self, node: &Node /*IndexedAccessType*/) {
-        // unimplemented!()
-        self.write_punctuation("TODO indexed access type");
+        let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
+        self.emit(
+            Some(&*node_as_indexed_access_type_node.object_type),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.write_punctuation("[");
+        self.emit(Some(&*node_as_indexed_access_type_node.index_type), None);
+        self.write_punctuation("]");
     }
 
     pub(super) fn emit_mapped_type(&self, node: &Node /*MappedTypeNode*/) {
-        unimplemented!()
+        let emit_flags = get_emit_flags(node);
+        self.write_punctuation("{");
+        if emit_flags.intersects(EmitFlags::SingleLine) {
+            self.write_space();
+        } else {
+            self.write_line(None);
+            self.increase_indent();
+        }
+        let node_as_mapped_type_node = node.as_mapped_type_node();
+        if let Some(node_readonly_token) = node_as_mapped_type_node.readonly_token.as_ref() {
+            self.emit(Some(&**node_readonly_token), None);
+            if node_readonly_token.kind() != SyntaxKind::ReadonlyKeyword {
+                self.write_keyword("readonly");
+            }
+            self.write_space();
+        }
+        self.write_punctuation("[");
+
+        self.pipeline_emit(
+            EmitHint::MappedTypeParameter,
+            &node_as_mapped_type_node.type_parameter,
+            None,
+        );
+        if let Some(node_name_type) = node_as_mapped_type_node.name_type.as_ref() {
+            self.write_space();
+            self.write_keyword("as");
+            self.write_space();
+            self.emit(Some(&**node_name_type), None);
+        }
+
+        self.write_punctuation("]");
+        if let Some(node_question_token) = node_as_mapped_type_node.question_token.as_ref() {
+            self.emit(Some(&**node_question_token), None);
+            if node_question_token.kind() != SyntaxKind::QuestionToken {
+                self.write_punctuation("?");
+            }
+        }
+        self.write_punctuation(":");
+        self.write_space();
+        self.emit(node_as_mapped_type_node.type_.as_deref(), None);
+        self.write_trailing_semicolon();
+        if emit_flags.intersects(EmitFlags::SingleLine) {
+            self.write_space();
+        } else {
+            self.write_line(None);
+            self.decrease_indent();
+        }
+        self.write_punctuation("}");
     }
 
     pub(super) fn emit_literal_type(&self, node: &Node /*LiteralTypeNode*/) {
         self.emit_expression(Some(&*node.as_literal_type_node().literal), None);
     }
 
-    pub(super) fn emit_template_type(&self, node: &Node /*TemplateLiteralLikeNode*/) {
-        unimplemented!()
+    pub(super) fn emit_template_type(&self, node: &Node /*TemplateLiteralTypeNode*/) {
+        let node_as_template_literal_type_node = node.as_template_literal_type_node();
+        self.emit(Some(&*node_as_template_literal_type_node.head), None);
+        self.emit_list(
+            Some(node),
+            Some(&node_as_template_literal_type_node.template_spans),
+            ListFormat::TemplateExpressionSpans,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_import_type_node(&self, node: &Node /*ImportTypeNode*/) {
-        // unimplemented!()
-        self.write_punctuation("TODO import type");
+        let node_as_import_type_node = node.as_import_type_node();
+        if node_as_import_type_node.is_type_of() {
+            self.write_keyword("typeof");
+            self.write_space();
+        }
+        self.write_keyword("import");
+        self.write_punctuation("(");
+        self.emit(Some(&*node_as_import_type_node.argument), None);
+        self.write_punctuation(")");
+        if let Some(node_qualifier) = node_as_import_type_node.qualifier.as_ref() {
+            self.write_punctuation(".");
+            self.emit(Some(&**node_qualifier), None);
+        }
+        self.emit_type_arguments(
+            node,
+            node_as_import_type_node.maybe_type_arguments().as_ref(),
+        );
     }
 
     pub(super) fn emit_object_binding_pattern(&self, node: &Node /*ObjectBindingPattern*/) {
-        unimplemented!()
+        self.write_punctuation("{");
+        self.emit_list(
+            Some(node),
+            Some(&node.as_object_binding_pattern().elements),
+            ListFormat::ObjectBindingPatternElements,
+            None,
+            None,
+            None,
+        );
+        self.write_punctuation("}");
     }
 
     pub(super) fn emit_array_binding_pattern(&self, node: &Node /*ArrayBindingPattern*/) {
-        unimplemented!()
+        self.write_punctuation("[");
+        self.emit_list(
+            Some(node),
+            Some(&node.as_array_binding_pattern().elements),
+            ListFormat::ArrayBindingPatternElements,
+            None,
+            None,
+            None,
+        );
+        self.write_punctuation("]");
     }
 
     pub(super) fn emit_binding_element(&self, node: &Node /*BindingElement*/) {
-        unimplemented!()
+        let node_as_binding_element = node.as_binding_element();
+        self.emit(node_as_binding_element.dot_dot_dot_token.as_deref(), None);
+        if let Some(node_property_name) = node_as_binding_element.property_name.as_ref() {
+            self.emit(Some(&**node_property_name), None);
+            self.write_punctuation(":");
+            self.write_space();
+        }
+        self.emit(node_as_binding_element.maybe_name().as_deref(), None);
+        self.emit_initializer(
+            node_as_binding_element.maybe_initializer(),
+            node_as_binding_element.name().end(),
+            node,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_array_literal_expression(
         &self,
         node: &Node, /*ArrayLiteralExpression*/
     ) {
-        unimplemented!()
+        let node_as_array_literal_expression = node.as_array_literal_expression();
+        let elements = &node_as_array_literal_expression.elements;
+        let prefer_new_line = if node_as_array_literal_expression.multi_line == Some(true) {
+            ListFormat::PreferNewLine
+        } else {
+            ListFormat::None
+        };
+        self.emit_expression_list(
+            Some(node),
+            Some(elements),
+            ListFormat::ArrayLiteralExpressionElements | prefer_new_line,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_object_literal_expression(
@@ -1118,6 +1420,14 @@ impl Printer {
         unimplemented!()
     }
 
+    pub(super) fn emit_parameters_for_arrow(
+        &self,
+        parent_node: &Node,     /*FunctionTypeNode | ArrowFunction*/
+        parameters: &NodeArray, /*<ParameterDeclaration>*/
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn emit_parameters_for_index_signature(
         &self,
         parent_node: &Node,
@@ -1160,10 +1470,29 @@ impl Printer {
         );
     }
 
+    pub(super) fn emit_expression_list<TNode: Borrow<Node>>(
+        &self,
+        parent_node: Option<TNode>,
+        children: Option<&NodeArray>,
+        format: ListFormat,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        start: Option<usize>,
+        count: Option<usize>,
+    ) {
+        self.emit_node_list(
+            Printer::emit_expression,
+            parent_node,
+            children,
+            format,
+            parenthesizer_rule,
+            start,
+            count,
+        );
+    }
+
     pub(super) fn emit_node_list<TNode: Borrow<Node>>(
         &self,
         emit: fn(&Printer, Option<&Node>, Option<Rc<dyn Fn(&Node) -> Rc<Node>>>),
-
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,

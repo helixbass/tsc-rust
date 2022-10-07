@@ -1580,6 +1580,10 @@ impl Node {
     pub fn as_construct_signature_declaration(&self) -> &ConstructSignatureDeclaration {
         enum_unwrapped!(self, [Node, ConstructSignatureDeclaration])
     }
+
+    pub fn as_constructor_type_node(&self) -> &ConstructorTypeNode {
+        enum_unwrapped!(self, [Node, ConstructorTypeNode])
+    }
 }
 
 #[derive(Debug)]
