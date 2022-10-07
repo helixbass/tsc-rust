@@ -311,6 +311,46 @@ impl Printer {
     }
 
     pub(super) fn emit_block_function_body(&self, body: &Node /*Block*/) {
+        self.on_before_emit_node(Some(body));
+        self.write_space();
+        self.write_punctuation("{");
+        self.increase_indent();
+
+        let body_as_block = body.as_block();
+        let should_emit_block_function_body_on_single_line =
+            self.should_emit_block_function_body_on_single_line(body);
+        // if (emitBodyWithDetachedComments) {
+        self.emit_body_with_detached_comments(body, &body_as_block.statements, |node: &Node| {
+            if should_emit_block_function_body_on_single_line {
+                self.emit_block_function_body_on_single_line(node);
+            } else {
+                self.emit_block_function_body_worker(node, None);
+            }
+        });
+        // }
+        // else {
+        //     emitBlockFunctionBody(body);
+        // }
+
+        self.decrease_indent();
+        self.write_token(
+            SyntaxKind::CloseBraceToken,
+            body_as_block.statements.end(),
+            |text: &str| self.write_punctuation(text),
+            Some(body),
+        );
+        self.on_after_emit_node(Some(body));
+    }
+
+    pub(super) fn emit_block_function_body_on_single_line(&self, body: &Node /*Block*/) {
+        self.emit_block_function_body_worker(body, Some(true));
+    }
+
+    pub(super) fn emit_block_function_body_worker(
+        &self,
+        body: &Node, /*Block*/
+        emit_block_function_body_on_single_line: Option<bool>,
+    ) {
         unimplemented!()
     }
 
@@ -1085,6 +1125,18 @@ impl Printer {
         saved_declaration_list_container_end: isize,
     ) {
         unimplemented!()
+    }
+
+    pub(super) fn emit_body_with_detached_comments<
+        TDetachedRange: ReadonlyTextRange,
+        TEmitCallback: FnMut(&Node),
+    >(
+        &self,
+        node: &Node,
+        detached_range: &TDetachedRange,
+        emit_callback: TEmitCallback,
+    ) {
+        // unimplemented!()
     }
 
     pub(super) fn emit_leading_comments_of_position(&self, pos: isize) {
