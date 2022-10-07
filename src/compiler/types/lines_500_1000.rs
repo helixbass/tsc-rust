@@ -1592,6 +1592,10 @@ impl Node {
     pub fn as_break_statement(&self) -> &BreakStatement {
         enum_unwrapped!(self, [Node, BreakStatement])
     }
+
+    pub fn as_namespace_import(&self) -> &NamespaceImport {
+        enum_unwrapped!(self, [Node, NamespaceImport])
+    }
 }
 
 #[derive(Debug)]

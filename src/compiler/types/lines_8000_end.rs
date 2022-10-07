@@ -867,6 +867,13 @@ bitflags! {
         const SingleLineBlockStatements = Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
         const MultiLineBlockStatements = Self::Indented.bits | Self::MultiLine.bits;
         const VariableDeclarationList = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const SingleLineFunctionBodyStatements = Self::SingleLine.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits;
+        const MultiLineFunctionBodyStatements = Self::MultiLine.bits;
+        const ClassHeritageClauses = Self::SingleLine.bits;
+        const ClassMembers = Self::Indented.bits | Self::MultiLine.bits;
+        const InterfaceMembers = Self::Indented.bits | Self::MultiLine.bits;
+        const EnumMembers = Self::CommaDelimited.bits | Self::Indented.bits | Self::MultiLine.bits;
+        const CaseBlockClauses = Self::Indented.bits | Self::MultiLine.bits;
 
         const TypeArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
         const TypeParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;

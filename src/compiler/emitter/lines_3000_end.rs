@@ -1,5 +1,5 @@
 use std::borrow::{Borrow, Cow};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
@@ -7,10 +7,12 @@ use std::rc::Rc;
 use super::brackets;
 use crate::{
     for_each, get_emit_flags, get_literal_text, id_text, is_block, is_identifier, is_let,
-    is_var_const, node_is_synthesized, range_is_on_single_line, token_to_string,
-    with_synthetic_factory, EmitFlags, EmitHint, GetLiteralTextFlags, HasInitializerInterface,
-    HasTypeInterface, ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    Printer, ReadonlyTextRange, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
+    is_module_declaration, is_var_const, node_is_synthesized, range_is_on_single_line,
+    token_to_string, with_synthetic_factory, EmitFlags, EmitHint, GetLiteralTextFlags,
+    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
+    InterfaceOrClassLikeDeclarationInterface, ListFormat, NamedDeclarationInterface, Node,
+    NodeArray, NodeFlags, NodeInterface, Printer, ReadonlyTextRange, SourceFilePrologueInfo,
+    SourceMapSource, Symbol, SyntaxKind,
 };
 
 impl Printer {
@@ -351,73 +353,436 @@ impl Printer {
         body: &Node, /*Block*/
         emit_block_function_body_on_single_line: Option<bool>,
     ) {
-        unimplemented!()
+        let body_as_block = body.as_block();
+        let statement_offset =
+            self.emit_prologue_directives(&body_as_block.statements, None, None, None);
+        let pos = self.writer().get_text_pos();
+        self.emit_helpers(body);
+        if statement_offset == 0
+            && pos == self.writer().get_text_pos()
+            && emit_block_function_body_on_single_line == Some(true)
+        {
+            self.decrease_indent();
+            self.emit_list(
+                Some(body),
+                Some(&body_as_block.statements),
+                ListFormat::SingleLineFunctionBodyStatements,
+                None,
+                None,
+                None,
+            );
+            self.increase_indent();
+        } else {
+            self.emit_list(
+                Some(body),
+                Some(&body_as_block.statements),
+                ListFormat::MultiLineFunctionBodyStatements,
+                None,
+                Some(statement_offset),
+                None,
+            );
+        }
     }
 
     pub(super) fn emit_class_declaration(&self, node: &Node /*ClassDeclaration*/) {
-        unimplemented!()
+        self.emit_class_declaration_or_expression(node);
     }
 
     pub(super) fn emit_class_declaration_or_expression(
         &self,
         node: &Node, /*ClassDeclaration | ClassExpression*/
     ) {
-        unimplemented!()
+        let node_as_class_like_declaration = node.as_class_like_declaration();
+        for_each(
+            node_as_class_like_declaration.members(),
+            |member: &Rc<Node>, _| -> Option<()> {
+                self.generate_member_names(Some(&**member));
+                None
+            },
+        );
+
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword("class");
+        if let Some(node_name) = node_as_class_like_declaration.maybe_name().as_ref() {
+            self.write_space();
+            self.emit_identifier_name(Some(&**node_name));
+        }
+
+        let indented_flag = get_emit_flags(node).intersects(EmitFlags::Indented);
+        if indented_flag {
+            self.increase_indent();
+        }
+
+        self.emit_type_parameters(
+            node,
+            node_as_class_like_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+        );
+        self.emit_list(
+            Some(node),
+            node_as_class_like_declaration.maybe_heritage_clauses(),
+            ListFormat::ClassHeritageClauses,
+            None,
+            None,
+            None,
+        );
+
+        self.write_space();
+        self.write_punctuation("{");
+        self.emit_list(
+            Some(node),
+            Some(node_as_class_like_declaration.members()),
+            ListFormat::ClassMembers,
+            None,
+            None,
+            None,
+        );
+        self.write_punctuation("}");
+
+        if indented_flag {
+            self.decrease_indent();
+        }
     }
 
     pub(super) fn emit_interface_declaration(&self, node: &Node /*InterfaceDeclaration*/) {
-        unimplemented!()
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword("interface");
+        self.write_space();
+        let node_as_interface_declaration = node.as_interface_declaration();
+        self.emit(node_as_interface_declaration.maybe_name().as_deref(), None);
+        self.emit_type_parameters(
+            node,
+            node_as_interface_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+        );
+        self.emit_list(
+            Some(node),
+            node_as_interface_declaration.maybe_heritage_clauses(),
+            ListFormat::HeritageClauses,
+            None,
+            None,
+            None,
+        );
+        self.write_space();
+        self.write_punctuation("{");
+        self.emit_list(
+            Some(node),
+            Some(&node_as_interface_declaration.members),
+            ListFormat::InterfaceMembers,
+            None,
+            None,
+            None,
+        );
+        self.write_punctuation("}");
     }
 
     pub(super) fn emit_type_alias_declaration(&self, node: &Node /*TypeAliasDeclaration*/) {
-        unimplemented!()
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword("type");
+        self.write_space();
+        let node_as_type_alias_declaration = node.as_type_alias_declaration();
+        self.emit(node_as_type_alias_declaration.maybe_name().as_deref(), None);
+        self.emit_type_parameters(
+            node,
+            node_as_type_alias_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+        );
+        self.write_space();
+        self.write_punctuation("=");
+        self.write_space();
+        self.emit(node_as_type_alias_declaration.maybe_type().as_deref(), None);
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_enum_declaration(&self, node: &Node /*EnumDeclaration*/) {
-        unimplemented!()
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword("enum");
+        self.write_space();
+        let node_as_enum_declaration = node.as_enum_declaration();
+        self.emit(node_as_enum_declaration.maybe_name().as_deref(), None);
+
+        self.write_space();
+        self.write_punctuation("{");
+        self.emit_list(
+            Some(node),
+            Some(&node_as_enum_declaration.members),
+            ListFormat::EnumMembers,
+            None,
+            None,
+            None,
+        );
+        self.write_punctuation("}");
     }
 
     pub(super) fn emit_module_declaration(&self, node: &Node /*ModuleDeclaration*/) {
-        unimplemented!()
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        if (!node.flags()).intersects(NodeFlags::GlobalAugmentation) {
+            self.write_keyword(if node.flags().intersects(NodeFlags::Namespace) {
+                "namespace"
+            } else {
+                "module"
+            });
+            self.write_space();
+        }
+        let node_as_module_declaration = node.as_module_declaration();
+        self.emit(node_as_module_declaration.maybe_name().as_deref(), None);
+
+        let mut body = node_as_module_declaration.body.clone();
+        if body.is_none() {
+            return self.write_trailing_semicolon();
+        }
+        while let Some(body_present) = body.as_ref().filter(|body| is_module_declaration(body)) {
+            self.write_punctuation(".");
+            let body_as_module_declaration = body_present.as_module_declaration();
+            self.emit(body_as_module_declaration.maybe_name().as_deref(), None);
+            body = body_as_module_declaration.body.clone();
+        }
+
+        self.write_space();
+        self.emit(body.as_deref(), None);
     }
 
     pub(super) fn emit_module_block(&self, node: &Node /*ModuleBlock*/) {
-        unimplemented!()
+        self.push_name_generation_scope(Some(node));
+        for_each(
+            &node.as_module_block().statements,
+            |statement: &Rc<Node>, _| -> Option<()> {
+                self.generate_names(Some(&**statement));
+                None
+            },
+        );
+        self.emit_block_statements(node, self.is_empty_block(node));
+        self.pop_name_generation_scope(Some(node));
     }
 
     pub(super) fn emit_case_block(&self, node: &Node /*CaseBlock*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::OpenBraceToken,
+            node.pos(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        let node_as_case_block = node.as_case_block();
+        self.emit_list(
+            Some(node),
+            Some(&node_as_case_block.clauses),
+            ListFormat::CaseBlockClauses,
+            None,
+            None,
+            None,
+        );
+        self.emit_token_with_comment(
+            SyntaxKind::CloseBraceToken,
+            node_as_case_block.clauses.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            Some(true),
+        );
     }
 
     pub(super) fn emit_import_equals_declaration(
         &self,
         node: &Node, /*ImportEqualsDeclaration*/
     ) {
-        unimplemented!()
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_token_with_comment(
+            SyntaxKind::ImportKeyword,
+            node.maybe_modifiers()
+                .as_ref()
+                .map_or_else(|| node.pos(), |node_modifiers| node_modifiers.end()),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let node_as_import_equals_declaration = node.as_import_equals_declaration();
+        if node_as_import_equals_declaration.is_type_only {
+            self.emit_token_with_comment(
+                SyntaxKind::TypeKeyword,
+                node.pos(),
+                |text: &str| self.write_keyword(text),
+                node,
+                None,
+            );
+            self.write_space();
+        }
+        self.emit(
+            node_as_import_equals_declaration.maybe_name().as_deref(),
+            None,
+        );
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::EqualsToken,
+            node_as_import_equals_declaration.name().end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_module_reference(&node_as_import_equals_declaration.module_reference);
+        self.write_trailing_semicolon();
+    }
+
+    pub(super) fn emit_module_reference(&self, node: &Node /*ModuleReference*/) {
+        if node.kind() == SyntaxKind::Identifier {
+            self.emit_expression(Some(node), None);
+        } else {
+            self.emit(Some(node), None);
+        }
     }
 
     pub(super) fn emit_import_declaration(&self, node: &Node /*ImportDeclaration*/) {
-        unimplemented!()
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_token_with_comment(
+            SyntaxKind::ImportKeyword,
+            node.maybe_modifiers()
+                .as_ref()
+                .map_or_else(|| node.pos(), |node_modifiers| node_modifiers.end()),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let node_as_import_declaration = node.as_import_declaration();
+        if let Some(node_import_clause) = node_as_import_declaration.import_clause.as_ref() {
+            self.emit(Some(&**node_import_clause), None);
+            self.write_space();
+            self.emit_token_with_comment(
+                SyntaxKind::FromKeyword,
+                node_import_clause.end(),
+                |text: &str| self.write_keyword(text),
+                node,
+                None,
+            );
+            self.write_space();
+        }
+        self.emit_expression(Some(&*node_as_import_declaration.module_specifier), None);
+        if let Some(node_assert_clause) = node_as_import_declaration.assert_clause.as_ref() {
+            self.emit_with_leading_space(Some(&**node_assert_clause));
+        }
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_import_clause(&self, node: &Node /*ImportClause*/) {
-        unimplemented!()
+        let node_as_import_clause = node.as_import_clause();
+        if node_as_import_clause.is_type_only {
+            self.emit_token_with_comment(
+                SyntaxKind::TypeKeyword,
+                node.pos(),
+                |text: &str| self.write_keyword(text),
+                node,
+                None,
+            );
+            self.write_space();
+        }
+        self.emit(node_as_import_clause.maybe_name().as_deref(), None);
+        if let Some(node_name) = node_as_import_clause.maybe_name().as_ref() {
+            if node_as_import_clause.named_bindings.is_some() {
+                self.emit_token_with_comment(
+                    SyntaxKind::CommaToken,
+                    node_name.end(),
+                    |text: &str| self.write_punctuation(text),
+                    node,
+                    None,
+                );
+                self.write_space();
+            }
+        }
+        self.emit(node_as_import_clause.named_bindings.as_deref(), None);
     }
 
     pub(super) fn emit_namespace_import(&self, node: &Node /*NamespaceImport*/) {
-        unimplemented!()
+        let as_pos = self.emit_token_with_comment(
+            SyntaxKind::AsteriskToken,
+            node.pos(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::AsKeyword,
+            as_pos,
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit(node.as_namespace_import().maybe_name().as_deref(), None);
     }
 
     pub(super) fn emit_named_imports(&self, node: &Node /*NamedImports*/) {
-        unimplemented!()
+        self.emit_named_imports_or_exports(node);
     }
 
     pub(super) fn emit_import_specifier(&self, node: &Node /*ImportSpecifier*/) {
-        unimplemented!()
+        self.emit_import_or_export_specifier(node);
     }
 
     pub(super) fn emit_export_assignment(&self, node: &Node /*ExportAssignment*/) {
-        unimplemented!()
+        let next_pos = self.emit_token_with_comment(
+            SyntaxKind::ExportKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let node_as_export_assignment = node.as_export_assignment();
+        if node_as_export_assignment.is_export_equals == Some(true) {
+            self.emit_token_with_comment(
+                SyntaxKind::EqualsToken,
+                next_pos,
+                |text: &str| self.write_operator(text),
+                node,
+                None,
+            );
+        } else {
+            self.emit_token_with_comment(
+                SyntaxKind::DefaultKeyword,
+                next_pos,
+                |text: &str| self.write_keyword(text),
+                node,
+                None,
+            );
+        }
+        self.write_space();
+        self.emit_expression(
+            Some(&*node_as_export_assignment.expression),
+            if node_as_export_assignment.is_export_equals == Some(true) {
+                Some(Rc::new({
+                    let parenthesizer = self.parenthesizer();
+                    move |node: &Node| {
+                        with_synthetic_factory(|synthetic_factory| {
+                            parenthesizer.parenthesize_right_side_of_binary(
+                                synthetic_factory,
+                                SyntaxKind::EqualsToken,
+                                None,
+                                node,
+                            )
+                        })
+                    }
+                }))
+            } else {
+                Some(Rc::new({
+                    let parenthesizer = self.parenthesizer();
+                    move |node: &Node| {
+                        with_synthetic_factory(|synthetic_factory| {
+                            parenthesizer
+                                .parenthesize_expression_of_export_default(synthetic_factory, node)
+                        })
+                    }
+                }))
+            },
+        );
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_export_declaration(&self, node: &Node /*ExportDeclaration*/) {
@@ -448,6 +813,17 @@ impl Printer {
     }
 
     pub(super) fn emit_export_specifier(&self, node: &Node /*ExportSpecifier*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_named_imports_or_exports(&self, node: &Node /*NamedImportsOrExports*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_import_or_export_specifier(
+        &self,
+        node: &Node, /*ImportOrExportSpecifier*/
+    ) {
         unimplemented!()
     }
 
@@ -616,6 +992,16 @@ impl Printer {
     }
 
     pub(super) fn emit_comma_list(&self, node: &Node /*CommaListExpression*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_prologue_directives(
+        &self,
+        statements: &[Rc<Node>],
+        source_file: Option<&Node /*SourceFile*/>,
+        seen_prologue_directives: Option<&mut HashSet<String>>,
+        record_bundle_file_section: Option<bool /*true*/>,
+    ) -> usize {
         unimplemented!()
     }
 
