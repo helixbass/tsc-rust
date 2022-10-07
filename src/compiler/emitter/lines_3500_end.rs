@@ -6,63 +6,293 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    get_literal_text, id_text, is_identifier, token_to_string, EmitFlags, EmitHint,
-    GetLiteralTextFlags, ListFormat, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind, TextRange,
+    for_each_leading_comment_range, for_each_trailing_comment_range,
+    get_line_and_character_of_position, get_literal_text, id_text, is_identifier,
+    is_jsx_closing_element, is_jsx_opening_element, node_is_synthesized, token_to_string,
+    with_synthetic_factory, EmitFlags, EmitHint, GetLiteralTextFlags, HasTypeArgumentsInterface,
+    ListFormat, LiteralLikeNodeInterface, Node, NodeArray, NodeInterface, Printer,
+    ReadonlyTextRange, SourceFileLike, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
+    TextRange,
 };
 
 impl Printer {
     pub(super) fn emit_jsx_element(&self, node: &Node /*JsxElement*/) {
-        unimplemented!()
+        let node_as_jsx_element = node.as_jsx_element();
+        self.emit(Some(&*node_as_jsx_element.opening_element), None);
+        self.emit_list(
+            Some(node),
+            Some(&node_as_jsx_element.children),
+            ListFormat::JsxElementOrFragmentChildren,
+            None,
+            None,
+            None,
+        );
+        self.emit(Some(&*node_as_jsx_element.closing_element), None);
     }
 
     pub(super) fn emit_jsx_self_closing_element(&self, node: &Node /*JsxSelfClosingElement*/) {
-        unimplemented!()
+        self.write_punctuation("<");
+        let node_as_jsx_self_closing_element = node.as_jsx_self_closing_element();
+        self.emit_jsx_tag_name(&node_as_jsx_self_closing_element.tag_name);
+        self.emit_type_arguments(
+            node,
+            node_as_jsx_self_closing_element
+                .maybe_type_arguments()
+                .as_ref(),
+        );
+        self.write_space();
+        self.emit(Some(&*node_as_jsx_self_closing_element.attributes), None);
+        self.write_punctuation("/>");
     }
 
     pub(super) fn emit_jsx_fragment(&self, node: &Node /*JsxFragment*/) {
-        unimplemented!()
+        let node_as_jsx_fragment = node.as_jsx_fragment();
+        self.emit(Some(&*node_as_jsx_fragment.opening_fragment), None);
+        self.emit_list(
+            Some(node),
+            Some(&node_as_jsx_fragment.children),
+            ListFormat::JsxElementOrFragmentChildren,
+            None,
+            None,
+            None,
+        );
+        self.emit(Some(&*node_as_jsx_fragment.closing_fragment), None);
     }
 
     pub(super) fn emit_jsx_opening_element_or_fragment(
         &self,
         node: &Node, /*JsxOpeningElement | JsxOpeningFragment*/
     ) {
-        unimplemented!()
+        self.write_punctuation("<");
+
+        if is_jsx_opening_element(node) {
+            let node_as_jsx_opening_element = node.as_jsx_opening_element();
+            let indented = self.write_line_separators_and_indent_before(
+                &node_as_jsx_opening_element.tag_name,
+                node,
+            );
+            self.emit_jsx_tag_name(&node_as_jsx_opening_element.tag_name);
+            self.emit_type_arguments(
+                node,
+                node_as_jsx_opening_element.maybe_type_arguments().as_ref(),
+            );
+            if
+            /*node.attributes.properties &&*/
+            !node_as_jsx_opening_element
+                .attributes
+                .as_jsx_attributes()
+                .properties
+                .is_empty()
+            {
+                self.write_space();
+            }
+            self.emit(Some(&*node_as_jsx_opening_element.attributes), None);
+            self.write_line_separators_after(&node_as_jsx_opening_element.attributes, node);
+            self.decrease_indent_if(indented, None);
+        }
+
+        self.write_punctuation(">");
     }
 
     pub(super) fn emit_jsx_text(&self, node: &Node /*JsxText*/) {
-        unimplemented!()
+        self.writer().write_literal(&node.as_jsx_text().text());
     }
 
     pub(super) fn emit_jsx_closing_element_or_fragment(
         &self,
         node: &Node, /*JsxClosingElement | JsxClosingFragment*/
     ) {
-        unimplemented!()
+        self.write_punctuation("</");
+        if is_jsx_closing_element(node) {
+            self.emit_jsx_tag_name(&node.as_jsx_closing_element().tag_name);
+        }
+        self.write_punctuation(">");
     }
 
     pub(super) fn emit_jsx_attributes(&self, node: &Node /*JsxAttributes*/) {
-        unimplemented!()
+        self.emit_list(
+            Some(node),
+            Some(&node.as_jsx_attributes().properties),
+            ListFormat::JsxElementAttributes,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_jsx_attribute(&self, node: &Node /*JsxAttribute*/) {
-        unimplemented!()
+        let node_as_jsx_attribute = node.as_jsx_attribute();
+        self.emit(Some(&*node_as_jsx_attribute.name), None);
+        self.emit_node_with_prefix(
+            "=",
+            |text: &str| self.write_punctuation(text),
+            node_as_jsx_attribute.initializer.as_deref(),
+            |node: &Node| self.emit_jsx_attribute_value(node),
+        );
     }
 
     pub(super) fn emit_jsx_spread_attribute(&self, node: &Node /*JsxSpreadAttribute*/) {
-        unimplemented!()
+        self.write_punctuation("{...");
+        self.emit_expression(Some(&*node.as_jsx_spread_attribute().expression), None);
+        self.write_punctuation("}");
+    }
+
+    pub(super) fn has_trailing_comments_at_position(&self, pos: isize) -> bool {
+        let mut result = false;
+
+        let current_source_file = self.maybe_current_source_file();
+        let default_text: Option<Vec<char>> = if current_source_file.is_some() {
+            None
+        } else {
+            Some(vec![])
+        };
+        for_each_trailing_comment_range(
+            current_source_file
+                .as_ref()
+                .map(|current_source_file| current_source_file.as_source_file().text_as_chars())
+                .as_deref()
+                .unwrap_or_else(|| default_text.as_ref().unwrap()),
+            (pos + 1).try_into().unwrap(),
+            |_, _, _, _, _| -> () {
+                result = true;
+                ()
+            },
+            &(),
+        );
+        result
+    }
+
+    pub(super) fn has_leading_comments_at_position(&self, pos: isize) -> bool {
+        let mut result = false;
+
+        let current_source_file = self.maybe_current_source_file();
+        let default_text: Option<Vec<char>> = if current_source_file.is_some() {
+            None
+        } else {
+            Some(vec![])
+        };
+        for_each_leading_comment_range(
+            current_source_file
+                .as_ref()
+                .map(|current_source_file| current_source_file.as_source_file().text_as_chars())
+                .as_deref()
+                .unwrap_or_else(|| default_text.as_ref().unwrap()),
+            (pos + 1).try_into().unwrap(),
+            |_, _, _, _, _| -> () {
+                result = true;
+                ()
+            },
+            &(),
+        );
+        result
+    }
+
+    pub(super) fn has_comments_at_position(&self, pos: isize) -> bool {
+        self.has_trailing_comments_at_position(pos) || self.has_leading_comments_at_position(pos)
     }
 
     pub(super) fn emit_jsx_expression(&self, node: &Node /*JsxExpression*/) {
-        unimplemented!()
+        let node_as_jsx_expression = node.as_jsx_expression();
+        if node_as_jsx_expression.expression.is_some()
+            || !self.comments_disabled()
+                && !node_is_synthesized(node)
+                && self.has_comments_at_position(node.pos())
+        {
+            let is_multiline = matches!(
+                self.maybe_current_source_file().as_ref(),
+                Some(current_source_file) if !node_is_synthesized(node) &&
+                    get_line_and_character_of_position(
+                        current_source_file.as_source_file(),
+                        node.pos().try_into().unwrap(),
+                    ).line !=
+                    get_line_and_character_of_position(
+                        current_source_file.as_source_file(),
+                        node.end().try_into().unwrap(),
+                    ).line
+            );
+            if is_multiline {
+                self.writer().increase_indent();
+            }
+            let end = self.emit_token_with_comment(
+                SyntaxKind::OpenBraceToken,
+                node.pos(),
+                |text: &str| self.write_punctuation(text),
+                node,
+                None,
+            );
+            self.emit(node_as_jsx_expression.dot_dot_dot_token.as_deref(), None);
+            self.emit_expression(node_as_jsx_expression.expression.as_deref(), None);
+            self.emit_token_with_comment(
+                SyntaxKind::CloseBraceToken,
+                node_as_jsx_expression
+                    .expression
+                    .as_ref()
+                    .map_or(end, |node_expression| node_expression.end()),
+                |text: &str| self.write_punctuation(text),
+                node,
+                None,
+            );
+            if is_multiline {
+                self.writer().decrease_indent();
+            }
+        }
+    }
+
+    pub(super) fn emit_jsx_tag_name(&self, node: &Node /*JsxTagNameExpression*/) {
+        if node.kind() == SyntaxKind::Identifier {
+            self.emit_expression(Some(node), None);
+        } else {
+            self.emit(Some(node), None);
+        }
     }
 
     pub(super) fn emit_case_clause(&self, node: &Node /*CaseClause*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::CaseKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let node_as_case_clause = node.as_case_clause();
+        self.emit_expression(
+            Some(&*node_as_case_clause.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+
+        self.emit_case_or_default_clause_rest(
+            node,
+            &node_as_case_clause.statements,
+            node_as_case_clause.expression.end(),
+        );
     }
 
     pub(super) fn emit_default_clause(&self, node: &Node /*DefaultClause*/) {
+        let pos = self.emit_token_with_comment(
+            SyntaxKind::DefaultKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.emit_case_or_default_clause_rest(node, &node.as_default_clause().statements, pos);
+    }
+
+    pub(super) fn emit_case_or_default_clause_rest(
+        &self,
+        parent_node: &Node,
+        statements: &NodeArray, /*<Statement>*/
+        colon_pos: isize,
+    ) {
         unimplemented!()
     }
 
@@ -237,6 +467,16 @@ impl Printer {
         equal_comment_start_pos: isize,
         container: &Node,
         parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_node_with_prefix<TPrefixWriter: FnMut(&str), TEmit: FnMut(&Node)>(
+        &self,
+        prefix: &str,
+        prefix_writer: TPrefixWriter,
+        node: Option<&Node>,
+        emit: TEmit,
     ) {
         unimplemented!()
     }

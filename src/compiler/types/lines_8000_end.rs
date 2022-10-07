@@ -875,6 +875,8 @@ bitflags! {
         const EnumMembers = Self::CommaDelimited.bits | Self::Indented.bits | Self::MultiLine.bits;
         const CaseBlockClauses = Self::Indented.bits | Self::MultiLine.bits;
         const NamedImportsOrExportsElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::NoSpaceIfEmpty.bits;
+        const JsxElementOrFragmentChildren = Self::SingleLine.bits | Self::NoInterveningComments.bits;
+        const JsxElementAttributes = Self::SingleLine.bits | Self::SpaceBetweenSiblings.bits | Self::NoInterveningComments.bits;
 
         const TypeArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
         const TypeParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
