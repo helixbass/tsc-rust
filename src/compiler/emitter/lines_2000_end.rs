@@ -4,17 +4,13 @@ use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
-use super::{brackets, PipelinePhase};
+use super::brackets;
 use crate::{
-    compare_emit_helpers, get_emit_flags, get_emit_helpers, get_external_helpers_module_name,
-    get_literal_text, get_parse_tree_node, has_recorded_external_helpers, id_text, is_identifier,
-    is_source_file, is_template_literal_kind, is_unparsed_source, positions_are_on_same_line,
-    skip_trivia, stable_sort, token_to_string, with_synthetic_factory, BundleFileSection,
-    BundleFileSectionKind, Debug_, EmitFlags, EmitHelper, EmitHelperBase, EmitHelperText, EmitHint,
-    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat, ModuleKind,
+    get_emit_flags, get_literal_text, get_parse_tree_node, id_text, is_identifier,
+    positions_are_on_same_line, skip_trivia, token_to_string, EmitFlags, EmitHint,
+    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SnippetElement, SnippetKind, SortedArray, SourceFileLike, SourceFilePrologueInfo,
-    SourceMapSource, Symbol, SyntaxKind, TextRange,
+    SourceFileLike, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
 };
 
 impl Printer {

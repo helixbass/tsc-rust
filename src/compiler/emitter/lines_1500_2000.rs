@@ -1,20 +1,15 @@
-use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::iter::FromIterator;
 use std::rc::Rc;
 
-use super::{brackets, PipelinePhase};
+use super::PipelinePhase;
 use crate::{
-    compare_emit_helpers, get_emit_flags, get_emit_helpers, get_external_helpers_module_name,
-    get_literal_text, get_parse_tree_node, has_recorded_external_helpers, id_text, is_identifier,
-    is_source_file, is_template_literal_kind, is_unparsed_source, positions_are_on_same_line,
-    skip_trivia, stable_sort, token_to_string, with_synthetic_factory, BundleFileSection,
-    BundleFileSectionKind, Debug_, EmitFlags, EmitHelper, EmitHelperBase, EmitHelperText, EmitHint,
-    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SnippetElement, SnippetKind, SortedArray, SourceFileLike, SourceFilePrologueInfo,
-    SourceMapSource, Symbol, SyntaxKind, TextRange,
+    compare_emit_helpers, get_emit_helpers, get_external_helpers_module_name,
+    has_recorded_external_helpers, is_source_file, is_template_literal_kind, is_unparsed_source,
+    stable_sort, with_synthetic_factory, BundleFileSection, BundleFileSectionKind, Debug_,
+    EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, HasTypeArgumentsInterface, ListFormat,
+    ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
+    SnippetElement, SnippetKind, SortedArray, SyntaxKind, TextRange,
 };
 
 impl Printer {
