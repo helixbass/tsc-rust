@@ -8,11 +8,12 @@ use std::rc::Rc;
 use super::{brackets, PipelinePhase};
 use crate::{
     cast, create_binary_expression_trampoline, get_emit_flags, get_literal_text,
-    get_parse_tree_node, id_text, is_binary_expression, is_expression, is_identifier,
-    positions_are_on_same_line, skip_trivia, token_to_string, with_synthetic_factory,
-    BinaryExpressionStateMachine, BinaryExpressionTrampoline, Debug_, EmitFlags, EmitHint,
-    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
-    LeftOrRight, ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
+    get_parse_tree_node, id_text, is_binary_expression, is_block, is_expression, is_identifier,
+    is_json_source_file, node_is_synthesized, positions_are_on_same_line, skip_trivia,
+    token_to_string, with_synthetic_factory, BinaryExpressionStateMachine,
+    BinaryExpressionTrampoline, Debug_, EmitFlags, EmitHint, GetLiteralTextFlags,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, LeftOrRight,
+    ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
     ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SourceFilePrologueInfo,
     SourceMapSource, Symbol, SyntaxKind,
 };
@@ -366,94 +367,564 @@ impl Printer {
     }
 
     pub(super) fn emit_conditional_expression(&self, node: &Node /*ConditionalExpression*/) {
-        unimplemented!()
+        let node_as_conditional_expression = node.as_conditional_expression();
+        let lines_before_question = self.get_lines_between_nodes(
+            node,
+            &node_as_conditional_expression.condition,
+            &node_as_conditional_expression.question_token,
+        );
+        let lines_after_question = self.get_lines_between_nodes(
+            node,
+            &node_as_conditional_expression.question_token,
+            &node_as_conditional_expression.when_true,
+        );
+        let lines_before_colon = self.get_lines_between_nodes(
+            node,
+            &node_as_conditional_expression.when_true,
+            &node_as_conditional_expression.colon_token,
+        );
+        let lines_after_colon = self.get_lines_between_nodes(
+            node,
+            &node_as_conditional_expression.colon_token,
+            &node_as_conditional_expression.when_false,
+        );
+
+        self.emit_expression(
+            Some(&*node_as_conditional_expression.condition),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_condition_of_conditional_expression(
+                            synthetic_factory,
+                            node,
+                        )
+                    })
+                }
+            })),
+        );
+        self.write_lines_and_indent(lines_before_question, true);
+        self.emit(Some(&*node_as_conditional_expression.question_token), None);
+        self.write_lines_and_indent(lines_after_question, true);
+        self.emit_expression(
+            Some(&*node_as_conditional_expression.when_true),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_branch_of_conditional_expression(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.decrease_indent_if(lines_before_question != 0, Some(lines_after_question != 0));
+
+        self.write_lines_and_indent(lines_before_colon, true);
+        self.emit(Some(&*node_as_conditional_expression.colon_token), None);
+        self.write_lines_and_indent(lines_after_colon, true);
+        self.emit_expression(
+            Some(&*node_as_conditional_expression.when_false),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_branch_of_conditional_expression(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.decrease_indent_if(lines_before_colon != 0, Some(lines_after_colon != 0));
     }
 
     pub(super) fn emit_template_expression(&self, node: &Node /*TemplateExpression*/) {
-        unimplemented!()
+        let node_as_template_expression = node.as_template_expression();
+        self.emit(Some(&*node_as_template_expression.head), None);
+        self.emit_list(
+            Some(node),
+            Some(&node_as_template_expression.template_spans),
+            ListFormat::TemplateExpressionSpans,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_yield_expression(&self, node: &Node /*YieldExpression*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::YieldKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        let node_as_yield_expression = node.as_yield_expression();
+        self.emit(node_as_yield_expression.asterisk_token.as_deref(), None);
+        self.emit_expression_with_leading_space(
+            node_as_yield_expression.expression.as_deref(),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_spread_element(&self, node: &Node /*SpreadElement*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::DotDotDotToken,
+            node.pos(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_expression(
+            Some(&*node.as_spread_element().expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_class_expression(&self, node: &Node /*ClassExpression*/) {
-        unimplemented!()
+        let node_as_class_expression = node.as_class_expression();
+        self.generate_name_if_needed(node_as_class_expression.maybe_name().as_deref());
+        self.emit_class_declaration_or_expression(node);
     }
 
     pub(super) fn emit_expression_with_type_arguments(
         &self,
         node: &Node, /*ExpressionWithTypeArguments*/
     ) {
-        unimplemented!()
+        let node_as_expression_with_type_arguments = node.as_expression_with_type_arguments();
+        self.emit_expression(
+            Some(&*node_as_expression_with_type_arguments.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.emit_type_arguments(
+            node,
+            node_as_expression_with_type_arguments
+                .maybe_type_arguments()
+                .as_ref(),
+        );
     }
 
     pub(super) fn emit_as_expression(&self, node: &Node /*AsExpression*/) {
-        unimplemented!()
+        let node_as_as_expression = node.as_as_expression();
+        self.emit_expression(Some(&*node_as_as_expression.expression), None);
+        if let Some(node_type) = node_as_as_expression.maybe_type().as_ref() {
+            self.write_space();
+            self.write_keyword("as");
+            self.write_space();
+            self.emit(Some(&**node_type), None);
+        }
     }
 
     pub(super) fn emit_non_null_expression(&self, node: &Node /*NonNullExpression*/) {
-        unimplemented!()
+        let node_as_non_null_expression = node.as_non_null_expression();
+        self.emit_expression(
+            Some(&*node_as_non_null_expression.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.write_operator("!");
     }
 
     pub(super) fn emit_meta_property(&self, node: &Node /*MetaProperty*/) {
-        unimplemented!()
+        let node_as_meta_property = node.as_meta_property();
+        self.write_token(
+            node_as_meta_property.keyword_token,
+            node.pos(),
+            |text: &str| self.write_punctuation(text),
+            None,
+        );
+        self.write_punctuation(".");
+        self.emit(Some(&*node_as_meta_property.name), None);
     }
 
     pub(super) fn emit_template_span(&self, node: &Node /*TemplateSpan*/) {
-        unimplemented!()
+        let node_as_template_span = node.as_template_span();
+        self.emit_expression(Some(&*node_as_template_span.expression), None);
+        self.emit(Some(&*node_as_template_span.literal), None);
     }
 
     pub(super) fn emit_block(&self, node: &Node /*Block*/) {
-        unimplemented!()
+        self.emit_block_statements(
+            node,
+            node.as_block().multi_line != Some(true) && self.is_empty_block(node),
+        );
+    }
+
+    pub(super) fn emit_block_statements(
+        &self,
+        node: &Node, /*BlockLlke*/
+        force_single_line: bool,
+    ) {
+        self.emit_token_with_comment(
+            SyntaxKind::OpenBraceToken,
+            node.pos(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        let format = if force_single_line || get_emit_flags(node).intersects(EmitFlags::SingleLine)
+        {
+            ListFormat::SingleLineBlockStatements
+        } else {
+            ListFormat::MultiLineBlockStatements
+        };
+        self.emit_list(
+            Some(node),
+            Some(node.as_has_statements().statements()),
+            format,
+            None,
+            None,
+            None,
+        );
+        self.emit_token_with_comment(
+            SyntaxKind::CloseBraceToken,
+            node.as_has_statements().statements().end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            Some(format.intersects(ListFormat::MultiLine)),
+        );
     }
 
     pub(super) fn emit_variable_statement(&self, node: &Node /*VariableStatement*/) {
-        unimplemented!()
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit(Some(&*node.as_variable_statement().declaration_list), None);
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_empty_statement(&self, is_embedded_statement: bool) {
-        unimplemented!()
+        if is_embedded_statement {
+            self.write_punctuation(";");
+        } else {
+            self.write_trailing_semicolon();
+        }
     }
 
     pub(super) fn emit_expression_statement(&self, node: &Node /*ExpressionStatement*/) {
-        unimplemented!()
+        let node_as_expression_statement = node.as_expression_statement();
+        self.emit_expression(
+            Some(&*node_as_expression_statement.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_expression_of_expression_statement(
+                            synthetic_factory,
+                            node,
+                        )
+                    })
+                }
+            })),
+        );
+        if !is_json_source_file(&self.current_source_file())
+            || node_is_synthesized(&*node_as_expression_statement.expression)
+        {
+            self.write_trailing_semicolon();
+        }
     }
 
     pub(super) fn emit_if_statement(&self, node: &Node /*IfStatement*/) {
-        unimplemented!()
+        let open_paren_pos = self.emit_token_with_comment(
+            SyntaxKind::IfKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::OpenParenToken,
+            open_paren_pos,
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        let node_as_if_statement = node.as_if_statement();
+        self.emit_expression(Some(&*node_as_if_statement.expression), None);
+        self.emit_token_with_comment(
+            SyntaxKind::CloseParenToken,
+            node_as_if_statement.expression.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_embedded_statement(node, &node_as_if_statement.then_statement);
+        if let Some(node_else_statement) = node_as_if_statement.else_statement.as_ref() {
+            self.write_line_or_space(
+                node,
+                &node_as_if_statement.then_statement,
+                node_else_statement,
+            );
+            self.emit_token_with_comment(
+                SyntaxKind::ElseKeyword,
+                node_as_if_statement.then_statement.end(),
+                |text: &str| self.write_keyword(text),
+                node,
+                None,
+            );
+            if node_else_statement.kind() == SyntaxKind::IfStatement {
+                self.write_space();
+                self.emit(Some(&**node_else_statement), None);
+            } else {
+                self.emit_embedded_statement(node, node_else_statement);
+            }
+        }
+    }
+
+    pub(super) fn emit_while_clause(
+        &self,
+        node: &Node, /*WhileStatement | DoStatement*/
+        start_pos: isize,
+    ) {
+        let open_paren_pos = self.emit_token_with_comment(
+            SyntaxKind::WhileKeyword,
+            start_pos,
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::OpenParenToken,
+            open_paren_pos,
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_expression(node.as_has_expression().maybe_expression().as_deref(), None);
+        self.emit_token_with_comment(
+            SyntaxKind::CloseParenToken,
+            node.as_has_expression().expression().end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
     }
 
     pub(super) fn emit_do_statement(&self, node: &Node /*DoStatement*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::DoKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        let node_as_do_statement = node.as_do_statement();
+        self.emit_embedded_statement(node, &node_as_do_statement.statement);
+        if is_block(&node_as_do_statement.statement)
+            && self.maybe_preserve_source_newlines() != Some(true)
+        {
+            self.write_space();
+        } else {
+            self.write_line_or_space(
+                node,
+                &node_as_do_statement.statement,
+                &node_as_do_statement.expression,
+            );
+        }
+
+        self.emit_while_clause(node, node_as_do_statement.statement.end());
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_while_statement(&self, node: &Node /*WhileStatement*/) {
-        unimplemented!()
+        self.emit_while_clause(node, node.pos());
+        self.emit_embedded_statement(node, &node.as_while_statement().statement);
     }
 
     pub(super) fn emit_for_statement(&self, node: &Node /*ForStatement*/) {
-        unimplemented!()
+        let open_paren_pos = self.emit_token_with_comment(
+            SyntaxKind::ForKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let mut pos = self.emit_token_with_comment(
+            SyntaxKind::OpenParenToken,
+            open_paren_pos,
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        let node_as_for_statement = node.as_for_statement();
+        self.emit_for_binding(node_as_for_statement.initializer.as_deref());
+        pos = self.emit_token_with_comment(
+            SyntaxKind::SemicolonToken,
+            node_as_for_statement
+                .initializer
+                .as_ref()
+                .map_or(pos, |node_initializer| node_initializer.end()),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_expression_with_leading_space(node_as_for_statement.condition.as_deref(), None);
+        pos = self.emit_token_with_comment(
+            SyntaxKind::SemicolonToken,
+            node_as_for_statement
+                .condition
+                .as_ref()
+                .map_or(pos, |node_condition| node_condition.end()),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_expression_with_leading_space(node_as_for_statement.incrementor.as_deref(), None);
+        self.emit_token_with_comment(
+            SyntaxKind::CloseParenToken,
+            node_as_for_statement
+                .incrementor
+                .as_ref()
+                .map_or(pos, |node_incrementor| node_incrementor.end()),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_embedded_statement(node, &node_as_for_statement.statement);
     }
 
     pub(super) fn emit_for_in_statement(&self, node: &Node /*ForInStatement*/) {
-        unimplemented!()
+        let open_paren_pos = self.emit_token_with_comment(
+            SyntaxKind::ForKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::OpenParenToken,
+            open_paren_pos,
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        let node_as_for_in_statement = node.as_for_in_statement();
+        self.emit_for_binding(Some(&*node_as_for_in_statement.initializer));
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::InKeyword,
+            node_as_for_in_statement.initializer.end(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_expression(Some(&*node_as_for_in_statement.expression), None);
+        self.emit_token_with_comment(
+            SyntaxKind::CloseParenToken,
+            node_as_for_in_statement.expression.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_embedded_statement(node, &node_as_for_in_statement.statement);
     }
 
     pub(super) fn emit_for_of_statement(&self, node: &Node /*ForOfStatement*/) {
-        unimplemented!()
+        let open_paren_pos = self.emit_token_with_comment(
+            SyntaxKind::ForKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let node_as_for_of_statement = node.as_for_of_statement();
+        self.emit_with_trailing_space(node_as_for_of_statement.await_modifier.as_deref());
+        self.emit_token_with_comment(
+            SyntaxKind::OpenParenToken,
+            open_paren_pos,
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_for_binding(Some(&*node_as_for_of_statement.initializer));
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::OfKeyword,
+            node_as_for_of_statement.initializer.end(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_expression(Some(&*node_as_for_of_statement.expression), None);
+        self.emit_token_with_comment(
+            SyntaxKind::CloseParenToken,
+            node_as_for_of_statement.expression.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_embedded_statement(node, &node_as_for_of_statement.statement);
+    }
+
+    pub(super) fn emit_for_binding(
+        &self,
+        node: Option<&Node /*VariableDeclarationList | Expression*/>,
+    ) {
+        if let Some(node) = node {
+            if node.kind() == SyntaxKind::VariableDeclarationList {
+                self.emit(Some(node), None);
+            } else {
+                self.emit_expression(Some(node), None);
+            }
+        }
     }
 
     pub(super) fn emit_continue_statement(&self, node: &Node /*ContinueStatement*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::ContinueKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.emit_with_leading_space(node.as_continue_statement().label.as_deref());
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_break_statement(&self, node: &Node /*BreakStatement*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::BreakKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.emit_with_leading_space(node.as_break_statement().label.as_deref());
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_token_with_comment<TWriter: FnMut(&str)>(
@@ -512,11 +983,46 @@ impl Printer {
     }
 
     pub(super) fn emit_return_statement(&self, node: &Node /*ReturnStatement*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::ReturnKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.emit_expression_with_leading_space(
+            node.as_return_statement().expression.as_deref(),
+            None,
+        );
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_with_statement(&self, node: &Node /*WithStatement*/) {
-        unimplemented!()
+        let open_paren_pos = self.emit_token_with_comment(
+            SyntaxKind::WithKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::OpenParenToken,
+            open_paren_pos,
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        let node_as_with_statement = node.as_with_statement();
+        self.emit_expression(Some(&*node_as_with_statement.expression), None);
+        self.emit_token_with_comment(
+            SyntaxKind::CloseParenToken,
+            node_as_with_statement.expression.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_embedded_statement(node, &node_as_with_statement.statement);
     }
 
     pub(super) fn emit_switch_statement(&self, node: &Node /*SwitchStatement*/) {
@@ -581,6 +1087,13 @@ impl Printer {
     }
 
     pub(super) fn emit_class_declaration(&self, node: &Node /*ClassDeclaration*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_class_declaration_or_expression(
+        &self,
+        node: &Node, /*ClassDeclaration | ClassExpression*/
+    ) {
         unimplemented!()
     }
 
@@ -896,6 +1409,26 @@ impl Printer {
         unimplemented!()
     }
 
+    pub(super) fn emit_with_leading_space(&self, node: Option<&Node>) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_expression_with_leading_space(
+        &self,
+        node: Option<&Node>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_with_trailing_space(&self, node: Option<&Node>) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_embedded_statement(&self, parent: &Node, node: &Node /*Statement*/) {
+        unimplemented!()
+    }
+
     pub(super) fn emit_decorators(
         &self,
         parent_node: &Node,
@@ -1155,6 +1688,16 @@ impl Printer {
         self.writer().decrease_indent();
     }
 
+    pub(super) fn write_token<TWriter: FnMut(&str)>(
+        &self,
+        token: SyntaxKind,
+        pos: isize,
+        mut writer: TWriter,
+        context_node: Option<&Node>,
+    ) -> Option<isize> {
+        unimplemented!()
+    }
+
     pub(super) fn write_token_node(&self, node: &Node, writer: fn(&Printer, &str)) {
         writer(self, token_to_string(node.kind()).unwrap());
     }
@@ -1174,6 +1717,15 @@ impl Printer {
                 pos + TryInto::<isize>::try_into(token_string.len()).unwrap()
             }
         })
+    }
+
+    pub(super) fn write_line_or_space(
+        &self,
+        parent_node: &Node,
+        prev_child_node: &Node,
+        next_child_node: &Node,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn write_lines(&self, text: &str) {
@@ -1210,6 +1762,10 @@ impl Printer {
         node1: &Node,
         node2: &Node,
     ) -> usize {
+        unimplemented!()
+    }
+
+    pub(super) fn is_empty_block(&self, block: &Node /*BlockLike*/) -> bool {
         unimplemented!()
     }
 

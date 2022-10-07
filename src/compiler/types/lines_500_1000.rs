@@ -1584,6 +1584,14 @@ impl Node {
     pub fn as_constructor_type_node(&self) -> &ConstructorTypeNode {
         enum_unwrapped!(self, [Node, ConstructorTypeNode])
     }
+
+    pub fn as_continue_statement(&self) -> &ContinueStatement {
+        enum_unwrapped!(self, [Node, ContinueStatement])
+    }
+
+    pub fn as_break_statement(&self) -> &BreakStatement {
+        enum_unwrapped!(self, [Node, BreakStatement])
+    }
 }
 
 #[derive(Debug)]
