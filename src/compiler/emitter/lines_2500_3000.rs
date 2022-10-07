@@ -1,21 +1,16 @@
-use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::convert::TryInto;
-use std::iter::FromIterator;
 use std::rc::Rc;
 
-use super::{brackets, PipelinePhase};
+use super::PipelinePhase;
 use crate::{
-    cast, create_binary_expression_trampoline, get_emit_flags, get_literal_text,
-    get_parse_tree_node, id_text, is_binary_expression, is_block, is_expression, is_identifier,
-    is_json_source_file, node_is_synthesized, positions_are_on_same_line, skip_trivia,
-    token_to_string, with_synthetic_factory, BinaryExpressionStateMachine,
-    BinaryExpressionTrampoline, Debug_, EmitFlags, EmitHint, GetLiteralTextFlags,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, LeftOrRight,
-    ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SourceFilePrologueInfo,
-    SourceMapSource, Symbol, SyntaxKind,
+    cast, create_binary_expression_trampoline, get_emit_flags, get_parse_tree_node,
+    is_binary_expression, is_block, is_expression, is_json_source_file, node_is_synthesized,
+    positions_are_on_same_line, skip_trivia, with_synthetic_factory, BinaryExpressionStateMachine,
+    BinaryExpressionTrampoline, Debug_, EmitFlags, EmitHint, HasTypeArgumentsInterface,
+    HasTypeInterface, HasTypeParametersInterface, LeftOrRight, ListFormat,
+    NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
+    SignatureDeclarationInterface, SourceFileLike, SyntaxKind,
 };
 
 impl Printer {

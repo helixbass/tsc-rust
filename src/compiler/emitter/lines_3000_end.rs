@@ -1,20 +1,13 @@
 use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
-use super::{brackets, PipelinePhase};
+use super::brackets;
 use crate::{
-    cast, create_binary_expression_trampoline, get_emit_flags, get_literal_text,
-    get_parse_tree_node, id_text, is_binary_expression, is_block, is_expression, is_identifier,
-    is_json_source_file, node_is_synthesized, positions_are_on_same_line, skip_trivia,
-    token_to_string, with_synthetic_factory, BinaryExpressionStateMachine,
-    BinaryExpressionTrampoline, Debug_, EmitFlags, EmitHint, GetLiteralTextFlags,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, LeftOrRight,
-    ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SourceFilePrologueInfo,
+    get_literal_text, id_text, is_identifier, token_to_string, EmitHint, GetLiteralTextFlags,
+    ListFormat, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFilePrologueInfo,
     SourceMapSource, Symbol, SyntaxKind,
 };
 
