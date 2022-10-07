@@ -1273,7 +1273,7 @@ impl Node {
         enum_unwrapped!(self, [Node, ImportTypeNode])
     }
 
-    pub fn as_type_assertion_expression(&self) -> &TypeAssertion {
+    pub fn as_type_assertion(&self) -> &TypeAssertion {
         enum_unwrapped!(self, [Node, TypeAssertion])
     }
 

@@ -1,77 +1,368 @@
 use std::borrow::{Borrow, Cow};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
-use super::brackets;
+use super::{brackets, PipelinePhase};
 use crate::{
-    get_literal_text, get_parse_tree_node, id_text, is_identifier, positions_are_on_same_line,
-    skip_trivia, token_to_string, EmitHint, GetLiteralTextFlags, ListFormat, Node, NodeArray,
-    NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, SourceFilePrologueInfo,
+    cast, create_binary_expression_trampoline, get_emit_flags, get_literal_text,
+    get_parse_tree_node, id_text, is_binary_expression, is_expression, is_identifier,
+    positions_are_on_same_line, skip_trivia, token_to_string, with_synthetic_factory,
+    BinaryExpressionStateMachine, BinaryExpressionTrampoline, Debug_, EmitFlags, EmitHint,
+    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    LeftOrRight, ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
+    ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SourceFilePrologueInfo,
     SourceMapSource, Symbol, SyntaxKind,
 };
 
 impl Printer {
     pub(super) fn emit_call_expression(&self, node: &Node /*CallExpression*/) {
-        unimplemented!()
+        let indirect_call = get_emit_flags(node).intersects(EmitFlags::IndirectCall);
+        if indirect_call {
+            self.write_punctuation("(");
+            self.write_literal("0");
+            self.write_punctuation(",");
+            self.write_space();
+        }
+        let node_as_call_expression = node.as_call_expression();
+        self.emit_expression(
+            Some(&*node_as_call_expression.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        if indirect_call {
+            self.write_punctuation(")");
+        }
+        self.emit(node_as_call_expression.question_dot_token.as_deref(), None);
+        self.emit_type_arguments(
+            node,
+            node_as_call_expression.maybe_type_arguments().as_ref(),
+        );
+        self.emit_expression_list(
+            Some(node),
+            Some(&node_as_call_expression.arguments),
+            ListFormat::CallExpressionArguments,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_new_expression(&self, node: &Node /*NewExpression*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::NewKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let node_as_new_expression = node.as_new_expression();
+        self.emit_expression(
+            Some(&*node_as_new_expression.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_expression_of_new(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.emit_type_arguments(node, node_as_new_expression.maybe_type_arguments().as_ref());
+        self.emit_expression_list(
+            Some(node),
+            node_as_new_expression.arguments.as_ref(),
+            ListFormat::NewExpressionArguments,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_tagged_template_expression(
         &self,
         node: &Node, /*TaggedTemplateExpression*/
     ) {
-        unimplemented!()
+        let indirect_call = get_emit_flags(node).intersects(EmitFlags::IndirectCall);
+        if indirect_call {
+            self.write_punctuation("(");
+            self.write_literal("0");
+            self.write_punctuation(",");
+            self.write_space();
+        }
+        let node_as_tagged_template_expression = node.as_tagged_template_expression();
+        self.emit_expression(
+            Some(&*node_as_tagged_template_expression.tag),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        if indirect_call {
+            self.write_punctuation(")");
+        }
+        self.emit_type_arguments(
+            node,
+            node_as_tagged_template_expression
+                .maybe_type_arguments()
+                .as_ref(),
+        );
+        self.write_space();
+        self.emit_expression(Some(&*node_as_tagged_template_expression.template), None);
     }
 
     pub(super) fn emit_type_assertion_expression(&self, node: &Node /*TypeAssertion*/) {
-        unimplemented!()
+        self.write_punctuation("<");
+        let node_as_type_assertion = node.as_type_assertion();
+        self.emit(Some(&*node_as_type_assertion.type_), None);
+        self.write_punctuation(">");
+        self.emit_expression(
+            Some(&*node_as_type_assertion.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_parenthesized_expression(
         &self,
         node: &Node, /*ParenthesizedExpression*/
     ) {
-        unimplemented!()
+        let open_paren_pos = self.emit_token_with_comment(
+            SyntaxKind::OpenParenToken,
+            node.pos(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        let node_as_parenthesized_expression = node.as_parenthesized_expression();
+        let indented = self.write_line_separators_and_indent_before(
+            &node_as_parenthesized_expression.expression,
+            node,
+        );
+        self.emit_expression(Some(&*node_as_parenthesized_expression.expression), None);
+        self.write_line_separators_after(&node_as_parenthesized_expression.expression, node);
+        self.decrease_indent_if(indented, None);
     }
 
     pub(super) fn emit_function_expression(&self, node: &Node /*FunctionExpression*/) {
-        unimplemented!()
+        self.generate_name_if_needed(node.as_function_expression().maybe_name().as_deref());
+        self.emit_function_declaration_or_expression(node);
     }
 
     pub(super) fn emit_arrow_function(&self, node: &Node /*ArrowFunction*/) {
-        unimplemented!()
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit_signature_and_body(node, |node: &Node| self.emit_arrow_function_head(node));
+    }
+
+    pub(super) fn emit_arrow_function_head(&self, node: &Node /*ArrowFunction*/) {
+        let node_as_arrow_function = node.as_arrow_function();
+        self.emit_type_parameters(
+            node,
+            node_as_arrow_function.maybe_type_parameters().as_ref(),
+        );
+        self.emit_parameters_for_arrow(node, &node_as_arrow_function.parameters());
+        self.emit_type_annotation(node_as_arrow_function.maybe_type());
+        self.write_space();
+        self.emit(
+            Some(&*node_as_arrow_function.equals_greater_than_token),
+            None,
+        );
     }
 
     pub(super) fn emit_delete_expression(&self, node: &Node /*DeleteExpression*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::DeleteKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_expression(
+            Some(&*node.as_delete_expression().expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_type_of_expression(&self, node: &Node /*TypeOfExpression*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::TypeOfKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_expression(
+            Some(&*node.as_type_of_expression().expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_void_expression(&self, node: &Node /*VoidExpression*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::VoidKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_expression(
+            Some(&*node.as_void_expression().expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_await_expression(&self, node: &Node /*AwaitExpression*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::AwaitKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_expression(
+            Some(&*node.as_await_expression().expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_prefix_unary_expression(&self, node: &Node /*PrefixUnaryExpression*/) {
-        unimplemented!()
+        let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+        self.write_token_text(
+            node_as_prefix_unary_expression.operator,
+            |text: &str| self.write_operator(text),
+            None,
+        );
+        if self.should_emit_whitespace_before_operand(node) {
+            self.write_space();
+        }
+        self.emit_expression(
+            Some(&*node_as_prefix_unary_expression.operand),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_operand_of_prefix_unary(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+    }
+
+    pub(super) fn should_emit_whitespace_before_operand(
+        &self,
+        node: &Node, /*PrefixUnaryExpression*/
+    ) -> bool {
+        let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+        let operand = &node_as_prefix_unary_expression.operand;
+        operand.kind() == SyntaxKind::PrefixUnaryExpression
+            && (node_as_prefix_unary_expression.operator == SyntaxKind::PlusToken
+                && matches!(
+                    operand.as_prefix_unary_expression().operator,
+                    SyntaxKind::PlusToken | SyntaxKind::PlusPlusToken
+                )
+                || node_as_prefix_unary_expression.operator == SyntaxKind::MinusToken
+                    && matches!(
+                        operand.as_prefix_unary_expression().operator,
+                        SyntaxKind::MinusToken | SyntaxKind::MinusMinusToken
+                    ))
     }
 
     pub(super) fn emit_postfix_unary_expression(
         &self,
         node: &Node, /*PostfixUnaryExpression*/
     ) {
-        unimplemented!()
+        let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
+        self.emit_expression(
+            Some(&*node_as_postfix_unary_expression.operand),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_operand_of_postfix_unary(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.write_token_text(
+            node_as_postfix_unary_expression.operator,
+            |text: &str| self.write_operator(text),
+            None,
+        );
+    }
+
+    pub(super) fn create_emit_binary_expression(&self) -> EmitBinaryExpression {
+        let trampoline = create_binary_expression_trampoline(
+            EmitBinaryExpressionStateMachine::new(self.rc_wrapper()),
+        );
+        EmitBinaryExpression::new(trampoline)
     }
 
     pub(super) fn emit_conditional_expression(&self, node: &Node /*ConditionalExpression*/) {
@@ -260,6 +551,13 @@ impl Printer {
     }
 
     pub(super) fn emit_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_function_declaration_or_expression(
+        &self,
+        node: &Node, /*FunctionDeclaration | FunctionExpression*/
+    ) {
         unimplemented!()
     }
 
@@ -890,7 +1188,19 @@ impl Printer {
         unimplemented!()
     }
 
-    pub(super) fn decrease_indent_if(&self, value1: bool, value2: bool) {
+    pub(super) fn decrease_indent_if(&self, value1: bool, value2: Option<bool>) {
+        unimplemented!()
+    }
+
+    pub(super) fn write_line_separators_and_indent_before(
+        &self,
+        node: &Node,
+        parent: &Node,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn write_line_separators_after(&self, node: &Node, parent: &Node) {
         unimplemented!()
     }
 
@@ -936,11 +1246,29 @@ impl Printer {
         unimplemented!()
     }
 
+    pub(super) fn generate_name_if_needed(&self, name: Option<&Node /*DeclarationName*/>) {
+        unimplemented!()
+    }
+
     pub(super) fn make_file_level_optimistic_unique_name(&self, name: &str) -> String {
         unimplemented!()
     }
 
     pub(super) fn pipeline_emit_with_comments(&self, hint: EmitHint, node: &Node) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_comments_before_node(&self, node: &Node) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_comments_after_node(
+        &self,
+        node: &Node,
+        saved_container_pos: isize,
+        saved_container_end: isize,
+        saved_declaration_list_container_end: isize,
+    ) {
         unimplemented!()
     }
 
@@ -961,8 +1289,289 @@ impl Printer {
         unimplemented!()
     }
 
+    pub(super) fn emit_source_maps_before_node(&self, node: &Node) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_source_maps_after_node(&self, node: &Node) {
+        unimplemented!()
+    }
+
     pub(super) fn set_source_map_source(&self, source: SourceMapSource) {
         unimplemented!()
+    }
+}
+
+pub struct EmitBinaryExpression {
+    trampoline: BinaryExpressionTrampoline<EmitBinaryExpressionStateMachine>,
+}
+
+impl EmitBinaryExpression {
+    pub fn new(trampoline: BinaryExpressionTrampoline<EmitBinaryExpressionStateMachine>) -> Self {
+        Self { trampoline }
+    }
+
+    pub fn call(&self, node: &Node /*BinaryExpression*/) {
+        self.trampoline.call(node, ());
+    }
+}
+
+pub struct WorkArea {
+    pub stack_index: isize,
+    pub preserve_source_newlines_stack: Vec<Option<bool>>,
+    pub container_pos_stack: Vec<isize>,
+    pub container_end_stack: Vec<isize>,
+    pub declaration_list_container_end_stack: Vec<isize>,
+    pub should_emit_comments_stack: Vec<bool>,
+    pub should_emit_source_maps_stack: Vec<bool>,
+}
+
+pub struct EmitBinaryExpressionStateMachine {
+    printer: Rc<Printer>,
+}
+
+impl EmitBinaryExpressionStateMachine {
+    pub fn new(printer: Rc<Printer>) -> Self {
+        Self { printer }
+    }
+
+    fn maybe_emit_expression(
+        &self,
+        next: &Node,   /*Expression*/
+        parent: &Node, /*BinaryExpression*/
+        side: LeftOrRight,
+    ) -> Option<Rc<Node>> {
+        let parenthesizer_rule: Rc<dyn Fn(&Node) -> Rc<Node>> = if side == LeftOrRight::Left {
+            Rc::new({
+                let parenthesizer = self.printer.parenthesizer();
+                let parent_operator_token_kind =
+                    parent.as_binary_expression().operator_token.kind();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_left_side_of_binary(
+                            synthetic_factory,
+                            parent_operator_token_kind,
+                            node,
+                        )
+                    })
+                }
+            })
+        } else {
+            Rc::new({
+                let parenthesizer = self.printer.parenthesizer();
+                let parent_operator_token_kind =
+                    parent.as_binary_expression().operator_token.kind();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_right_side_of_binary(
+                            synthetic_factory,
+                            parent_operator_token_kind,
+                            None,
+                            node,
+                        )
+                    })
+                }
+            })
+        };
+
+        let mut pipeline_phase = self.printer.get_pipeline_phase(
+            PipelinePhase::Notification,
+            EmitHint::Expression,
+            next,
+        );
+        let mut next = next.node_wrapper();
+        // per https://users.rust-lang.org/t/compare-function-pointers-for-equality/52339/3
+        if pipeline_phase as usize == Printer::pipeline_emit_with_substitution as usize {
+            Debug_.assert_is_defined(&self.printer.maybe_last_substitution(), None);
+            next = parenthesizer_rule(&*cast(
+                self.printer.maybe_last_substitution(),
+                |node: &Rc<Node>| is_expression(node),
+            ));
+            pipeline_phase = self.printer.get_next_pipeline_phase(
+                PipelinePhase::Substitution,
+                EmitHint::Expression,
+                &next,
+            );
+            self.printer.set_last_substitution(None);
+        }
+
+        if pipeline_phase as usize == Printer::pipeline_emit_with_comments as usize
+            || pipeline_phase as usize == Printer::pipeline_emit_with_source_maps as usize
+            || pipeline_phase as usize == Printer::pipeline_emit_with_hint as usize
+        {
+            if is_binary_expression(&next) {
+                return Some(next);
+            }
+        }
+
+        self.printer
+            .set_current_parenthesizer_rule(Some(parenthesizer_rule));
+        pipeline_phase(&self.printer, EmitHint::Expression, &next);
+        None
+    }
+}
+
+impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
+    type TResult = ();
+    type TOuterState = ();
+    type TState = Rc<RefCell<WorkArea>>;
+
+    fn on_enter(
+        &self,
+        node: &Node, /*BinaryExpression*/
+        mut state: Option<Rc<RefCell<WorkArea>>>,
+        _: (),
+    ) -> Rc<RefCell<WorkArea>> {
+        if let Some(state) = state.as_ref() {
+            let mut state = state.borrow_mut();
+            state.stack_index += 1;
+            state
+                .preserve_source_newlines_stack
+                .push(self.printer.maybe_preserve_source_newlines());
+            state.container_pos_stack.push(self.printer.container_pos());
+            state.container_end_stack.push(self.printer.container_end());
+            state
+                .declaration_list_container_end_stack
+                .push(self.printer.declaration_list_container_end());
+            let emit_comments = self.printer.should_emit_comments(node);
+            state.should_emit_comments_stack.push(emit_comments);
+            let emit_source_maps = self.printer.should_emit_source_maps(node);
+            state.should_emit_source_maps_stack.push(emit_source_maps);
+            self.printer.on_before_emit_node(Some(node));
+            if emit_comments {
+                self.printer.emit_comments_before_node(node);
+            }
+            if emit_source_maps {
+                self.printer.emit_source_maps_before_node(node);
+            }
+            self.printer.before_emit_node(node);
+        } else {
+            state = Some(Rc::new(RefCell::new(WorkArea {
+                stack_index: 0,
+                preserve_source_newlines_stack: vec![None],
+                container_pos_stack: vec![-1],
+                container_end_stack: vec![-1],
+                declaration_list_container_end_stack: vec![-1],
+                should_emit_comments_stack: vec![false],
+                should_emit_source_maps_stack: vec![false],
+            })));
+        }
+        let state = state.unwrap();
+        state
+    }
+
+    fn on_left(
+        &self,
+        next: &Node, /*Expression*/
+        _work_area: Rc<RefCell<WorkArea>>,
+        parent: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        self.maybe_emit_expression(next, parent, LeftOrRight::Left)
+    }
+
+    fn on_operator(
+        &self,
+        operator_token: &Node, /*BinaryOperatorToken*/
+        _state: Rc<RefCell<WorkArea>>,
+        node: &Node, /*BinaryExpression*/
+    ) {
+        let is_comma_operator = operator_token.kind() != SyntaxKind::CommaToken;
+        let node_as_binary_expression = node.as_binary_expression();
+        let lines_before_operator = self.printer.get_lines_between_nodes(
+            node,
+            &node_as_binary_expression.left,
+            operator_token,
+        );
+        let lines_after_operator = self.printer.get_lines_between_nodes(
+            node,
+            operator_token,
+            &node_as_binary_expression.right,
+        );
+        self.printer
+            .write_lines_and_indent(lines_before_operator, is_comma_operator);
+        self.printer
+            .emit_leading_comments_of_position(operator_token.pos());
+        self.printer.write_token_node(
+            operator_token,
+            if operator_token.kind() == SyntaxKind::InKeyword {
+                Printer::write_keyword
+            } else {
+                Printer::write_operator
+            },
+        );
+        self.printer
+            .emit_trailing_comments_of_position(operator_token.end(), Some(true), None);
+        self.printer
+            .write_lines_and_indent(lines_after_operator, true);
+    }
+
+    fn on_right(
+        &self,
+        next: &Node, /*Expression*/
+        _state: Rc<RefCell<WorkArea>>,
+        parent: &Node, /*BinaryExpression*/
+    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+        self.maybe_emit_expression(next, parent, LeftOrRight::Right)
+    }
+
+    fn on_exit(&self, node: &Node /*BinaryExpression*/, state: Rc<RefCell<WorkArea>>) -> () {
+        let node_as_binary_expression = node.as_binary_expression();
+        let lines_before_operator = self.printer.get_lines_between_nodes(
+            node,
+            &node_as_binary_expression.left,
+            &node_as_binary_expression.operator_token,
+        );
+        let lines_after_operator = self.printer.get_lines_between_nodes(
+            node,
+            &node_as_binary_expression.operator_token,
+            &node_as_binary_expression.right,
+        );
+        self.printer
+            .decrease_indent_if(lines_before_operator != 0, Some(lines_after_operator != 0));
+        {
+            let mut state = state.borrow_mut();
+            if state.stack_index > 0 {
+                let saved_preserve_source_newlines =
+                    state.preserve_source_newlines_stack.pop().unwrap();
+                let saved_container_pos = state.container_pos_stack.pop().unwrap();
+                let saved_container_end = state.container_end_stack.pop().unwrap();
+                let saved_declaration_list_container_end =
+                    state.declaration_list_container_end_stack.pop().unwrap();
+                let should_emit_comments = state.should_emit_comments_stack.pop().unwrap();
+                let should_emit_source_maps = state.should_emit_source_maps_stack.pop().unwrap();
+                self.printer.after_emit_node(saved_preserve_source_newlines);
+                if should_emit_source_maps {
+                    self.printer.emit_source_maps_after_node(node);
+                }
+                if should_emit_comments {
+                    self.printer.emit_comments_after_node(
+                        node,
+                        saved_container_pos,
+                        saved_container_end,
+                        saved_declaration_list_container_end,
+                    );
+                }
+                self.printer.on_after_emit_node(Some(node));
+                state.stack_index -= 1;
+            }
+        }
+        ()
+    }
+
+    fn implements_on_left(&self) -> bool {
+        true
+    }
+
+    fn implements_on_operator(&self) -> bool {
+        true
+    }
+
+    fn implements_on_right(&self) -> bool {
+        true
+    }
+
+    fn implements_fold_state(&self) -> bool {
+        false
     }
 }
 

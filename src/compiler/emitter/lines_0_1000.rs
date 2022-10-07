@@ -8,9 +8,9 @@ use crate::{
     get_new_line_character, is_expression, is_identifier, is_source_file, last_or_undefined,
     no_emit_notification, no_emit_substitution, BaseNodeFactorySynthetic, BundleFileInfo,
     BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind, Debug_,
-    DetachedCommentInfo, EmitHint, EmitTextWriter, Extension, ListFormat, Node, NodeArray, NodeId,
-    NodeInterface, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer, PrinterOptions,
-    SourceMapGenerator, SyntaxKind, TextRange,
+    DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension, ListFormat,
+    Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine, PrintHandlers,
+    Printer, PrinterOptions, SourceMapGenerator, SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -64,10 +64,13 @@ impl PipelinePhase {
 pub fn create_printer(
     printer_options: PrinterOptions,
     handlers: Option<Rc<dyn PrintHandlers>>,
-) -> Printer {
+) -> Rc<Printer> {
     let handlers = handlers.unwrap_or_else(|| Rc::new(DummyPrintHandlers));
-    let printer = Printer::new(printer_options, handlers);
+    let printer = Rc::new(Printer::new(printer_options, handlers));
+    *printer._rc_wrapper.borrow_mut() = Some(printer.clone());
     printer.reset();
+    *printer.emit_binary_expression.borrow_mut() =
+        Some(Rc::new(printer.create_emit_binary_expression()));
     printer
 }
 
@@ -108,6 +111,7 @@ impl Printer {
         };
         let record_internal_section = printer_options.record_internal_section;
         Self {
+            _rc_wrapper: RefCell::new(None),
             printer_options,
             handlers,
             extended_diagnostics,
@@ -152,7 +156,12 @@ impl Printer {
             current_parenthesizer_rule: RefCell::new(None),
             // const { enter: enterComment, exit: exitComment } = performance.createTimerIf(extendedDiagnostics, "commentTime", "beforeComment", "afterComment");
             parenthesizer: factory.with(|factory_| factory_.parenthesizer()),
+            emit_binary_expression: RefCell::new(None),
         }
+    }
+
+    pub(super) fn rc_wrapper(&self) -> Rc<Printer> {
+        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_current_source_file(&self) -> Option<Rc<Node>> {
@@ -358,6 +367,31 @@ impl Printer {
         self.source_maps_disabled.set(source_maps_disabled);
     }
 
+    pub(super) fn container_pos(&self) -> isize {
+        self.container_pos.get()
+    }
+
+    pub(super) fn set_container_pos(&self, container_pos: isize) {
+        self.container_pos.set(container_pos);
+    }
+
+    pub(super) fn container_end(&self) -> isize {
+        self.container_end.get()
+    }
+
+    pub(super) fn set_container_end(&self, container_end: isize) {
+        self.container_end.set(container_end);
+    }
+
+    pub(super) fn declaration_list_container_end(&self) -> isize {
+        self.declaration_list_container_end.get()
+    }
+
+    pub(super) fn set_declaration_list_container_end(&self, declaration_list_container_end: isize) {
+        self.declaration_list_container_end
+            .set(declaration_list_container_end);
+    }
+
     pub(super) fn maybe_current_line_map(&self) -> Ref<Option<Vec<usize>>> {
         self.current_line_map.borrow()
     }
@@ -418,8 +452,12 @@ impl Printer {
         // unimplemented!()
     }
 
+    pub(super) fn emit_binary_expression_rc(&self) -> Rc<EmitBinaryExpression> {
+        self.emit_binary_expression.borrow().clone().unwrap()
+    }
+
     pub(super) fn emit_binary_expression(&self, node: &Node /*BinaryExpression*/) {
-        unimplemented!()
+        self.emit_binary_expression_rc().call(node)
     }
 
     pub fn print_node(

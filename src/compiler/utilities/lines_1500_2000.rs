@@ -698,7 +698,7 @@ pub fn is_in_expression_context(node: &Node) -> bool {
                 || ptr::eq(&*for_in_statement.expression, node)
         }
         SyntaxKind::TypeAssertionExpression => {
-            ptr::eq(node, &*parent.as_type_assertion_expression().expression)
+            ptr::eq(node, &*parent.as_type_assertion().expression)
         }
         SyntaxKind::AsExpression => ptr::eq(node, &*parent.as_as_expression().expression),
         SyntaxKind::TemplateSpan => ptr::eq(node, &*parent.as_template_span().expression),

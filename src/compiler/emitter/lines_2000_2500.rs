@@ -888,7 +888,7 @@ impl Printer {
         }
         self.write_lines_and_indent(lines_after_dot, false);
         self.emit(Some(&*node_as_property_access_expression.name), None);
-        self.decrease_indent_if(lines_before_dot != 0, lines_after_dot != 0);
+        self.decrease_indent_if(lines_before_dot != 0, Some(lines_after_dot != 0));
     }
 
     pub(super) fn may_need_dot_dot_for_property_access(

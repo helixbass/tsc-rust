@@ -10,13 +10,15 @@ use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
-    BaseNodeFactorySynthetic, CommentRange, EmitHint, FileIncludeReason, ModuleKind, MultiMap,
-    NewLineKind, NodeArray, NodeId, ParenthesizerRules, Path, RedirectTargetsMap, ScriptTarget,
-    SortedArray, SourceMapSource, SymlinkCache, SyntaxKind, TempFlags, TextRange,
+    BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint, FileIncludeReason,
+    ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules, Path,
+    RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SymlinkCache, SyntaxKind,
+    TempFlags, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
 pub struct Printer {
+    pub _rc_wrapper: RefCell<Option<Rc<Printer>>>,
     pub printer_options: PrinterOptions,
     pub handlers: Rc<dyn PrintHandlers>,
     pub extended_diagnostics: bool,
@@ -61,6 +63,7 @@ pub struct Printer {
     pub last_substitution: RefCell<Option<Rc<Node>>>,
     pub current_parenthesizer_rule: RefCell<Option<Rc<dyn Fn(&Node) -> Rc<Node>>>>,
     pub parenthesizer: Rc<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>,
+    pub emit_binary_expression: RefCell<Option<Rc<EmitBinaryExpression>>>,
 }
 
 #[derive(Copy, Clone)]
@@ -857,6 +860,9 @@ bitflags! {
         const ObjectLiteralExpressionProperties = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits | Self::Indented.bits | Self::Braces.bits | Self::NoSpaceIfEmpty.bits;
 
         const ArrayLiteralExpressionElements = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::Indented.bits | Self::SquareBrackets.bits;
+
+        const CallExpressionArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Parenthesis.bits;
+        const NewExpressionArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Parenthesis.bits | Self::OptionalIfUndefined.bits;
 
         const TemplateExpressionSpans = Self::SingleLine.bits | Self::NoInterveningComments.bits;
 

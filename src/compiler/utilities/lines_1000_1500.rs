@@ -612,7 +612,7 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                     return matches!(parent.as_signature_declaration().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
                 }
                 SyntaxKind::TypeAssertionExpression => {
-                    return Rc::ptr_eq(&node, &parent.as_type_assertion_expression().type_);
+                    return Rc::ptr_eq(&node, &parent.as_type_assertion().type_);
                 }
                 SyntaxKind::CallExpression => {
                     return contains_rc(
