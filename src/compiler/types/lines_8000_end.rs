@@ -854,6 +854,7 @@ bitflags! {
         const IntersectionTypeConstituents = Self::AmpersandDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
         const ObjectBindingPatternElements = Self::SingleLine.bits | Self::AllowTrailingComma.bits | Self::SpaceBetweenBraces.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::NoSpaceIfEmpty.bits;
         const ArrayBindingPatternElements = Self::SingleLine.bits | Self::AllowTrailingComma.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::NoSpaceIfEmpty.bits;
+        const ObjectLiteralExpressionProperties = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits | Self::Indented.bits | Self::Braces.bits | Self::NoSpaceIfEmpty.bits;
 
         const ArrayLiteralExpressionElements = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::Indented.bits | Self::SquareBrackets.bits;
 

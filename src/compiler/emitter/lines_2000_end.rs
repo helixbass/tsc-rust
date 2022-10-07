@@ -6,13 +6,16 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    get_emit_flags, get_literal_text, get_parse_tree_node, id_text, is_identifier,
-    positions_are_on_same_line, skip_trivia, token_to_string, with_synthetic_factory, EmitFlags,
-    EmitHint, FunctionLikeDeclarationInterface, GetLiteralTextFlags, HasInitializerInterface,
-    HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, ListFormat, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, Printer, ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike,
-    SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
+    for_each, get_constant_value, get_emit_flags, get_literal_text, get_parse_tree_node, id_text,
+    is_access_expression, is_finite, is_identifier, is_json_source_file, is_numeric_literal,
+    positions_are_on_same_line, set_text_range_pos_end, skip_partially_emitted_expressions,
+    skip_trivia, string_contains, token_to_string, with_synthetic_factory,
+    with_synthetic_factory_and_factory, EmitFlags, EmitHint, FunctionLikeDeclarationInterface,
+    GetLiteralTextFlags, HasInitializerInterface, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, ListFormat,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, SourceFileLike, SourceFilePrologueInfo,
+    SourceMapSource, StringOrNumber, Symbol, SyntaxKind, TokenFlags,
 };
 
 impl Printer {
@@ -778,21 +781,183 @@ impl Printer {
         &self,
         node: &Node, /*ObjectLiteralExpression*/
     ) {
-        unimplemented!()
+        let node_as_object_literal_expression = node.as_object_literal_expression();
+        for_each(
+            &node_as_object_literal_expression.properties,
+            |property: &Rc<Node>, _| -> Option<()> {
+                self.generate_member_names(Some(&**property));
+                None
+            },
+        );
+
+        let indented_flag = get_emit_flags(node).intersects(EmitFlags::Indented);
+        if indented_flag {
+            self.increase_indent();
+        }
+
+        let prefer_new_line = if node_as_object_literal_expression.multi_line == Some(true) {
+            ListFormat::PreferNewLine
+        } else {
+            ListFormat::None
+        };
+        let allow_trailing_comma = if self
+            .current_source_file()
+            .as_source_file()
+            .language_version()
+            >= ScriptTarget::ES5
+            && !is_json_source_file(&self.current_source_file())
+        {
+            ListFormat::AllowTrailingComma
+        } else {
+            ListFormat::None
+        };
+        self.emit_list(
+            Some(node),
+            Some(&node_as_object_literal_expression.properties),
+            ListFormat::ObjectLiteralExpressionProperties | allow_trailing_comma | prefer_new_line,
+            None,
+            None,
+            None,
+        );
+
+        if indented_flag {
+            self.decrease_indent();
+        }
     }
 
     pub(super) fn emit_property_access_expression(
         &self,
         node: &Node, /*PropertyAccessExpression*/
     ) {
-        unimplemented!()
+        let node_as_property_access_expression = node.as_property_access_expression();
+        self.emit_expression(
+            Some(&*node_as_property_access_expression.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        let token = node_as_property_access_expression
+            .question_dot_token
+            .clone()
+            .unwrap_or_else(|| {
+                let token: Rc<Node> =
+                    with_synthetic_factory_and_factory(|synthetic_factory, factory| {
+                        factory
+                            .create_token(synthetic_factory, SyntaxKind::DotToken)
+                            .into()
+                    });
+                set_text_range_pos_end(
+                    &*token,
+                    node_as_property_access_expression.expression.end(),
+                    node_as_property_access_expression.name.pos(),
+                );
+                token
+            });
+        let lines_before_dot = self.get_lines_between_nodes(
+            node,
+            &node_as_property_access_expression.expression,
+            &token,
+        );
+        let lines_after_dot =
+            self.get_lines_between_nodes(node, &token, &node_as_property_access_expression.name);
+
+        self.write_lines_and_indent(lines_before_dot, false);
+
+        let should_emit_dot_dot = token.kind() != SyntaxKind::QuestionDotToken
+            && self.may_need_dot_dot_for_property_access(
+                &node_as_property_access_expression.expression,
+            )
+            && !self.writer().has_trailing_comment()
+            && !self.writer().has_trailing_whitespace();
+
+        if should_emit_dot_dot {
+            self.write_punctuation(".");
+        }
+
+        if node_as_property_access_expression
+            .question_dot_token
+            .is_some()
+        {
+            self.emit(Some(&*token), None);
+        } else {
+            self.emit_token_with_comment(
+                token.kind(),
+                node_as_property_access_expression.expression.end(),
+                |text: &str| self.write_punctuation(text),
+                node,
+                None,
+            );
+        }
+        self.write_lines_and_indent(lines_after_dot, false);
+        self.emit(Some(&*node_as_property_access_expression.name), None);
+        self.decrease_indent_if(lines_before_dot != 0, lines_after_dot != 0);
+    }
+
+    pub(super) fn may_need_dot_dot_for_property_access(
+        &self,
+        expression: &Node, /*Expression*/
+    ) -> bool {
+        let ref expression = skip_partially_emitted_expressions(expression);
+        if is_numeric_literal(expression) {
+            let text = self.get_literal_text_of_node(expression, Some(true), false);
+            return expression.as_numeric_literal().numeric_literal_flags == TokenFlags::None
+                && !string_contains(&text, token_to_string(SyntaxKind::DotToken).unwrap());
+        } else if is_access_expression(expression) {
+            let constant_value = get_constant_value(expression);
+            return matches!(
+                constant_value,
+                Some(StringOrNumber::Number(constant_value)) if is_finite(&constant_value) &&
+                    constant_value.value().floor() == constant_value.value()
+            );
+        }
+        false
     }
 
     pub(super) fn emit_element_access_expression(
         &self,
         node: &Node, /*ElementAccessExpression*/
     ) {
-        unimplemented!()
+        let node_as_element_access_expression = node.as_element_access_expression();
+        self.emit_expression(
+            Some(&*node_as_element_access_expression.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        self.emit(
+            node_as_element_access_expression
+                .question_dot_token
+                .as_deref(),
+            None,
+        );
+        self.emit_token_with_comment(
+            SyntaxKind::OpenBracketToken,
+            node_as_element_access_expression.expression.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_expression(
+            Some(&*node_as_element_access_expression.argument_expression),
+            None,
+        );
+        self.emit_token_with_comment(
+            SyntaxKind::CloseBracketToken,
+            node_as_element_access_expression.argument_expression.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
     }
 
     pub(super) fn emit_call_expression(&self, node: &Node /*CallExpression*/) {
@@ -1664,6 +1829,27 @@ impl Printer {
         unimplemented!()
     }
 
+    pub(super) fn write_lines_and_indent(
+        &self,
+        line_count: usize,
+        write_space_if_not_indenting: bool,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn decrease_indent_if(&self, value1: bool, value2: bool) {
+        unimplemented!()
+    }
+
+    pub(super) fn get_lines_between_nodes(
+        &self,
+        parent: &Node,
+        node1: &Node,
+        node2: &Node,
+    ) -> usize {
+        unimplemented!()
+    }
+
     pub(super) fn get_text_of_node(&self, node: &Node, include_trivia: Option<bool>) -> String {
         if false {
             unimplemented!()
@@ -1690,6 +1876,10 @@ impl Printer {
     }
 
     pub(super) fn pop_name_generation_scope(&self, node: Option<&Node>) {
+        unimplemented!()
+    }
+
+    pub(super) fn generate_member_names(&self, node: Option<&Node>) {
         unimplemented!()
     }
 

@@ -70,8 +70,8 @@ pub use compiler::factory::base_node_factory::{
 use compiler::factory::emit_helpers::compare_emit_helpers;
 pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
 pub use compiler::factory::emit_node::{
-    add_emit_flags, add_synthetic_leading_comment, dispose_emit_nodes, get_emit_helpers,
-    set_comment_range, set_emit_flags, set_synthetic_leading_comments,
+    add_emit_flags, add_synthetic_leading_comment, dispose_emit_nodes, get_constant_value,
+    get_emit_helpers, set_comment_range, set_emit_flags, set_synthetic_leading_comments,
 };
 use compiler::factory::emit_node::{
     get_snippet_element, get_starts_on_new_line, set_starts_on_new_line,

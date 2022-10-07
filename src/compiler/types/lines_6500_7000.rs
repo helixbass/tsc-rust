@@ -14,7 +14,7 @@ use super::{
 };
 use crate::{
     CancellationToken, Cloneable, ModuleResolutionCache, ParseConfigHost, ParsedCommandLine, Path,
-    ProgramBuildInfo, SymlinkCache,
+    ProgramBuildInfo, StringOrNumber, SymlinkCache,
 };
 
 pub trait ModuleResolutionHost {
@@ -527,12 +527,6 @@ impl fmt::Debug for SourceMapSourceConcrete {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum StringOrUsize {
-    String(String),
-    Usize(usize),
-}
-
 #[derive(Debug, Default)]
 pub struct EmitNode {
     pub annotated_nodes: Option<Vec<Rc<Node>>>,
@@ -542,7 +536,7 @@ pub struct EmitNode {
     pub comment_range: Option<BaseTextRange>,
     pub source_map_range: Option<Rc<SourceMapRange>>,
     pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Rc<SourceMapRange>>>>,
-    pub constant_value: Option<StringOrUsize>,
+    pub constant_value: Option<StringOrNumber>,
     pub external_helpers_module_name: Option<Rc<Node /*Identifier*/>>,
     pub external_helpers: Option<bool>,
     pub helpers: Option<Vec<Rc<EmitHelper>>>,

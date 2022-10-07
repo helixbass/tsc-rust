@@ -4,8 +4,8 @@ use std::rc::Rc;
 
 use crate::{
     get_parse_tree_node, get_source_file_of_node, is_parse_tree_node, Debug_, EmitFlags,
-    EmitHelper, EmitNode, Node, NodeInterface, ReadonlyTextRange, SnippetElement, SyntaxKind,
-    SynthesizedComment,
+    EmitHelper, EmitNode, Node, NodeInterface, ReadonlyTextRange, SnippetElement, StringOrNumber,
+    SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> Rc<RefCell<EmitNode>> {
@@ -101,6 +101,11 @@ pub fn add_synthetic_leading_comment(
 ) /*-> Rc<Node>*/
 {
     unimplemented!()
+}
+
+pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
 }
 
 pub fn get_emit_helpers(node: &Node) -> Option<Vec<Rc<EmitHelper>>> {
