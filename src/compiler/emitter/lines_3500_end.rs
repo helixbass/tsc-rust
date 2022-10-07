@@ -6,13 +6,9 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    for_each, get_comment_range, get_emit_flags, get_literal_text, id_text, is_block,
-    is_identifier, is_let, is_module_declaration, is_var_const, node_is_synthesized,
-    range_is_on_single_line, token_to_string, with_synthetic_factory, EmitFlags, EmitHint,
-    GetLiteralTextFlags, HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface,
-    InterfaceOrClassLikeDeclarationInterface, ListFormat, NamedDeclarationInterface, Node,
-    NodeArray, NodeFlags, NodeInterface, Printer, ReadonlyTextRange, SourceFilePrologueInfo,
-    SourceMapSource, Symbol, SyntaxKind, TextRange,
+    get_literal_text, id_text, is_identifier, token_to_string, EmitFlags, EmitHint,
+    GetLiteralTextFlags, ListFormat, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
+    SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind, TextRange,
 };
 
 impl Printer {
