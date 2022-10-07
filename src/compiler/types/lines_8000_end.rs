@@ -866,6 +866,7 @@ bitflags! {
         const TemplateExpressionSpans = Self::SingleLine.bits | Self::NoInterveningComments.bits;
         const SingleLineBlockStatements = Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
         const MultiLineBlockStatements = Self::Indented.bits | Self::MultiLine.bits;
+        const VariableDeclarationList = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
 
         const TypeArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
         const TypeParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;

@@ -6,52 +6,189 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    get_literal_text, id_text, is_identifier, token_to_string, EmitHint, GetLiteralTextFlags,
-    ListFormat, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFilePrologueInfo,
-    SourceMapSource, Symbol, SyntaxKind,
+    for_each, get_emit_flags, get_literal_text, id_text, is_block, is_identifier, is_let,
+    is_var_const, node_is_synthesized, range_is_on_single_line, token_to_string,
+    with_synthetic_factory, EmitFlags, EmitHint, GetLiteralTextFlags, HasInitializerInterface,
+    HasTypeInterface, ListFormat, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    Printer, ReadonlyTextRange, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
 };
 
 impl Printer {
     pub(super) fn emit_switch_statement(&self, node: &Node /*SwitchStatement*/) {
-        unimplemented!()
+        let open_paren_pos = self.emit_token_with_comment(
+            SyntaxKind::SwitchKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit_token_with_comment(
+            SyntaxKind::OpenParenToken,
+            open_paren_pos,
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        let node_as_switch_statement = node.as_switch_statement();
+        self.emit_expression(Some(&*node_as_switch_statement.expression), None);
+        self.emit_token_with_comment(
+            SyntaxKind::CloseParenToken,
+            node_as_switch_statement.expression.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit(Some(&*node_as_switch_statement.case_block), None);
     }
 
     pub(super) fn emit_labeled_statement(&self, node: &Node /*LabeledStatement*/) {
-        unimplemented!()
+        let node_as_labeled_statement = node.as_labeled_statement();
+        self.emit(Some(&*node_as_labeled_statement.label), None);
+        self.emit_token_with_comment(
+            SyntaxKind::ColonToken,
+            node_as_labeled_statement.label.end(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.write_space();
+        self.emit(Some(&*node_as_labeled_statement.statement), None);
     }
 
     pub(super) fn emit_throw_statement(&self, node: &Node /*ThrowStatement*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::ThrowKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.emit_expression_with_leading_space(Some(&*node.as_throw_statement().expression), None);
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_try_statement(&self, node: &Node /*TryStatement*/) {
-        unimplemented!()
+        self.emit_token_with_comment(
+            SyntaxKind::TryKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let node_as_try_statement = node.as_try_statement();
+        self.emit(Some(&*node_as_try_statement.try_block), None);
+        if let Some(node_catch_clause) = node_as_try_statement.catch_clause.as_ref() {
+            self.write_line_or_space(node, &node_as_try_statement.try_block, node_catch_clause);
+            self.emit(Some(&**node_catch_clause), None);
+        }
+        if let Some(node_finally_block) = node_as_try_statement.finally_block.as_ref() {
+            self.write_line_or_space(
+                node,
+                node_as_try_statement
+                    .catch_clause
+                    .as_ref()
+                    .unwrap_or(&node_as_try_statement.try_block),
+                node_finally_block,
+            );
+            self.emit_token_with_comment(
+                SyntaxKind::FinallyKeyword,
+                node_as_try_statement
+                    .catch_clause
+                    .as_ref()
+                    .unwrap_or(&node_as_try_statement.try_block)
+                    .end(),
+                |text: &str| self.write_keyword(text),
+                node,
+                None,
+            );
+            self.write_space();
+            self.emit(Some(&**node_finally_block), None);
+        }
     }
 
     pub(super) fn emit_debugger_statement(&self, node: &Node /*DebuggerStatement*/) {
-        unimplemented!()
+        self.write_token(
+            SyntaxKind::DebuggerStatement,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            None,
+        );
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_variable_declaration(&self, node: &Node /*VariableDeclaration*/) {
-        unimplemented!()
+        let node_as_variable_declaration = node.as_variable_declaration();
+        self.emit(node_as_variable_declaration.maybe_name().as_deref(), None);
+        self.emit(
+            node_as_variable_declaration.exclamation_token.as_deref(),
+            None,
+        );
+        self.emit_type_annotation(node_as_variable_declaration.maybe_type());
+        self.emit_initializer(
+            node_as_variable_declaration.maybe_initializer(),
+            node_as_variable_declaration.maybe_type().map_or_else(
+                || node_as_variable_declaration.name().end(),
+                |node_type| node_type.end(),
+            ),
+            node,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_variable_declaration_list(
         &self,
         node: &Node, /*VariableDeclarationList*/
     ) {
-        unimplemented!()
+        self.write_keyword(if is_let(node) {
+            "let"
+        } else if is_var_const(node) {
+            "const"
+        } else {
+            "var"
+        });
+        self.write_space();
+        self.emit_list(
+            Some(node),
+            Some(&node.as_variable_declaration_list().declarations),
+            ListFormat::VariableDeclarationList,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
-        unimplemented!()
+        self.emit_function_declaration_or_expression(node);
     }
 
     pub(super) fn emit_function_declaration_or_expression(
         &self,
         node: &Node, /*FunctionDeclaration | FunctionExpression*/
     ) {
-        unimplemented!()
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword("function");
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        self.emit(
+            node_as_function_like_declaration
+                .maybe_asterisk_token()
+                .as_deref(),
+            None,
+        );
+        self.write_space();
+        self.emit_identifier_name(node_as_function_like_declaration.maybe_name().as_deref());
+        self.emit_signature_and_body(node, |node: &Node| self.emit_signature_head(node));
     }
 
     pub(super) fn emit_signature_and_body<TEmitSignatureHead: FnMut(&Node)>(
@@ -59,14 +196,118 @@ impl Printer {
         node: &Node, /*FunctionLikeDeclaration*/
         mut emit_signature_head: TEmitSignatureHead,
     ) {
-        unimplemented!()
+        let node_as_function_like_declaration = node.as_function_like_declaration();
+        let body = node_as_function_like_declaration.maybe_body();
+        if let Some(body) = body.as_ref() {
+            if is_block(body) {
+                let indented_flag = get_emit_flags(node).intersects(EmitFlags::Indented);
+                if indented_flag {
+                    self.increase_indent();
+                }
+
+                self.push_name_generation_scope(Some(node));
+                for_each(
+                    node_as_function_like_declaration.parameters(),
+                    |parameter: &Rc<Node>, _| -> Option<()> {
+                        self.generate_names(Some(&**parameter));
+                        None
+                    },
+                );
+                self.generate_names(node_as_function_like_declaration.maybe_body().as_deref());
+
+                emit_signature_head(node);
+                self.emit_block_function_body(body);
+                self.pop_name_generation_scope(Some(node));
+
+                if indented_flag {
+                    self.decrease_indent();
+                }
+            } else {
+                emit_signature_head(node);
+                self.write_space();
+                self.emit_expression(
+                    Some(&**body),
+                    Some(Rc::new({
+                        let parenthesizer = self.parenthesizer();
+                        move |node: &Node| {
+                            with_synthetic_factory(|synthetic_factory| {
+                                parenthesizer.parenthesize_concise_body_of_arrow_function(
+                                    synthetic_factory,
+                                    node,
+                                )
+                            })
+                        }
+                    })),
+                );
+            }
+        } else {
+            emit_signature_head(node);
+            self.write_trailing_semicolon();
+        }
     }
 
     pub(super) fn emit_signature_head(
         &self,
         node: &Node, /*FunctionDeclaration | FunctionExpression | MethodDeclaration | AccessorDeclaration | ConstructorDeclaration*/
     ) {
-        unimplemented!()
+        let node_as_signature_declaration = node.as_signature_declaration();
+        self.emit_type_parameters(
+            node,
+            node_as_signature_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+        );
+        self.emit_parameters(node, &node_as_signature_declaration.parameters());
+        self.emit_type_annotation(node_as_signature_declaration.maybe_type().as_deref());
+    }
+
+    pub(super) fn should_emit_block_function_body_on_single_line(
+        &self,
+        body: &Node, /*Block*/
+    ) -> bool {
+        if get_emit_flags(body).intersects(EmitFlags::SingleLine) {
+            return true;
+        }
+
+        let body_as_block = body.as_block();
+        if body_as_block.multi_line == Some(true) {
+            return false;
+        }
+
+        if !node_is_synthesized(body) && !range_is_on_single_line(body, &self.current_source_file())
+        {
+            return false;
+        }
+
+        if self.get_leading_line_terminator_count(
+            Some(body),
+            &body_as_block.statements,
+            ListFormat::PreserveLines,
+        ) > 0
+            || self.get_closing_line_terminator_count(
+                Some(body),
+                &body_as_block.statements,
+                ListFormat::PreserveLines,
+            ) > 0
+        {
+            return false;
+        }
+
+        let mut previous_statement: Option<Rc<Node /*Statement*/>> = None;
+        for statement in &body_as_block.statements {
+            if self.get_separating_line_terminator_count(
+                previous_statement.as_deref(),
+                statement,
+                ListFormat::PreserveLines,
+            ) > 0
+            {
+                return false;
+            }
+
+            previous_statement = Some(statement.node_wrapper());
+        }
+
+        true
     }
 
     pub(super) fn emit_block_function_body(&self, body: &Node /*Block*/) {
@@ -731,6 +972,33 @@ impl Printer {
         unimplemented!()
     }
 
+    pub(super) fn get_leading_line_terminator_count(
+        &self,
+        parent_node: Option<&Node>,
+        children: &[Rc<Node>],
+        format: ListFormat,
+    ) -> usize {
+        unimplemented!()
+    }
+
+    pub(super) fn get_separating_line_terminator_count(
+        &self,
+        previous_node: Option<&Node>,
+        next_node: &Node,
+        format: ListFormat,
+    ) -> usize {
+        unimplemented!()
+    }
+
+    pub(super) fn get_closing_line_terminator_count(
+        &self,
+        parent_node: Option<&Node>,
+        children: &[Rc<Node>],
+        format: ListFormat,
+    ) -> usize {
+        unimplemented!()
+    }
+
     pub(super) fn write_line_separators_and_indent_before(
         &self,
         node: &Node,
@@ -782,6 +1050,10 @@ impl Printer {
     }
 
     pub(super) fn pop_name_generation_scope(&self, node: Option<&Node>) {
+        unimplemented!()
+    }
+
+    pub(super) fn generate_names(&self, node: Option<&Node>) {
         unimplemented!()
     }
 

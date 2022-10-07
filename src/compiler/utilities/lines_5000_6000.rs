@@ -22,9 +22,9 @@ use crate::{
     DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     Extension, MapLike, ModifierFlags, NamedDeclarationInterface, NewLineKind, Node, NodeFlags,
-    NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransformFlags, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, __String,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, Signature, SignatureFlags, SignatureKind,
+    SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransformFlags,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, __String,
 };
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
@@ -231,6 +231,13 @@ pub fn get_new_line_character<TGetNewLine: Fn() -> String>(
     } else {
         get_sys().new_line().to_owned()
     }
+}
+
+pub fn range_is_on_single_line<TRange: ReadonlyTextRange>(
+    range: &TRange,
+    source_file: &Node, /*SourceFile*/
+) -> bool {
+    unimplemented!()
 }
 
 pub fn positions_are_on_same_line(
