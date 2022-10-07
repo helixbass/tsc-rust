@@ -79,8 +79,9 @@ use compiler::factory::emit_node::{
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
     create_node_factory, factory, set_original_node, synthetic_factory, with_factory,
-    with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, NodeFactoryFlags, StringOrNumber,
-    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKindOrRcNode,
+    with_synthetic_factory, with_synthetic_factory_and_factory, BaseNodeFactorySynthetic,
+    NodeFactoryFlags, StringOrNumber, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
+    SyntaxKindOrRcNode,
 };
 pub use compiler::factory::node_tests::{
     is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,
@@ -352,7 +353,7 @@ pub use compiler::types::{
     ScriptReferenceHost, ScriptTarget, SemicolonClassElement, SetAccessorDeclaration,
     ShorthandPropertyAssignment, Signature, SignatureDeclarationBase,
     SignatureDeclarationInterface, SignatureFlags, SignatureKind,
-    SignatureOptionalCallSignatureCache, SnippetElement, SourceFile, SourceFileLike,
+    SignatureOptionalCallSignatureCache, SnippetElement, SnippetKind, SourceFile, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceFilePrologueInfo, SourceMapGenerator, SourceMapRange,
     SourceMapSource, SourceTextAsChars, SpreadAssignment, SpreadElement, StringLiteral,
     StringLiteralType, StringMappingType, StringOrNodeArray, StructureIsReused, SubstitutionType,

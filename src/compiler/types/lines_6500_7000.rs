@@ -551,19 +551,7 @@ pub struct EmitNode {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum SnippetElement {
-    TabStop(TabStop),
-    Placeholder(Placeholder),
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct TabStop {
-    pub kind: SnippetKind,
-    pub order: usize,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Placeholder {
+pub struct SnippetElement {
     pub kind: SnippetKind,
     pub order: usize,
 }

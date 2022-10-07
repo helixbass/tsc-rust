@@ -9,11 +9,12 @@ use crate::{
     compare_emit_helpers, get_emit_flags, get_emit_helpers, get_external_helpers_module_name,
     get_literal_text, get_parse_tree_node, has_recorded_external_helpers, id_text, is_identifier,
     is_source_file, is_template_literal_kind, is_unparsed_source, positions_are_on_same_line,
-    skip_trivia, stable_sort, token_to_string, BundleFileSection, BundleFileSectionKind, Debug_,
-    EmitFlags, EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, GetLiteralTextFlags,
-    HasTypeArgumentsInterface, HasTypeInterface, ListFormat, ModuleKind, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SnippetElement, SortedArray,
-    SourceFileLike, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind, TextRange,
+    skip_trivia, stable_sort, token_to_string, with_synthetic_factory, BundleFileSection,
+    BundleFileSectionKind, Debug_, EmitFlags, EmitHelper, EmitHelperBase, EmitHelperText, EmitHint,
+    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
+    SnippetElement, SnippetKind, SortedArray, SourceFileLike, SourceFilePrologueInfo,
+    SourceMapSource, Symbol, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -253,7 +254,30 @@ impl Printer {
     }
 
     pub(super) fn emit_snippet_node(&self, hint: EmitHint, node: &Node, snippet: SnippetElement) {
-        unimplemented!()
+        match snippet.kind {
+            SnippetKind::Placeholder => {
+                self.emit_placeholder(hint, node, snippet);
+            }
+            SnippetKind::TabStop => {
+                self.emit_tab_stop(snippet);
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub(super) fn emit_placeholder(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        snippet: SnippetElement, /*Placeholder*/
+    ) {
+        self.non_escaping_write(&format!("${{{}:", snippet.order));
+        self.pipeline_emit_with_hint_worker(hint, node, Some(false));
+        self.non_escaping_write("}");
+    }
+
+    pub(super) fn emit_tab_stop(&self, snippet: SnippetElement /*TabStop*/) {
+        self.non_escaping_write(&format!("${}", snippet.order));
     }
 
     pub(super) fn emit_identifier(&self, node: &Node /*Identifier*/) {
@@ -263,25 +287,81 @@ impl Printer {
         } else {
             self.write(&text_of_node);
         }
+        self.emit_list(
+            Some(node),
+            node.as_identifier().maybe_type_arguments().as_ref(),
+            ListFormat::TypeParameters,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_private_identifier(&self, node: &Node /*PrivateIdentifier*/) {
-        unimplemented!()
+        let text_of_node = self.get_text_of_node(node, Some(false));
+        if let Some(symbol) = node.maybe_symbol() {
+            self.write_symbol(&text_of_node, &symbol);
+        } else {
+            self.write(&text_of_node);
+        }
     }
 
     pub(super) fn emit_qualified_name(&self, node: &Node /*QualifiedName*/) {
-        unimplemented!()
+        let node_as_qualified_name = node.as_qualified_name();
+        self.emit_entity_name(&node_as_qualified_name.left);
+        self.write_punctuation(".");
+        self.emit(Some(&*node_as_qualified_name.right), None);
+    }
+
+    pub(super) fn emit_entity_name(&self, node: &Node /*EntityName*/) {
+        if node.kind() == SyntaxKind::Identifier {
+            self.emit_expression(Some(node), None);
+        } else {
+            self.emit(Some(node), None);
+        }
     }
 
     pub(super) fn emit_computed_property_name(&self, node: &Node /*ComputedPropertyName*/) {
-        unimplemented!()
+        self.write_punctuation("[");
+        self.emit_expression(
+            Some(&*node.as_computed_property_name().expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_expression_of_computed_property_name(
+                            synthetic_factory,
+                            node,
+                        )
+                    })
+                }
+            })),
+        );
+        self.write_punctuation("]");
     }
 
     pub(super) fn emit_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
-        unimplemented!()
+        let node_as_type_parameter_declaration = node.as_type_parameter_declaration();
+        self.emit(
+            node_as_type_parameter_declaration.maybe_name().as_deref(),
+            None,
+        );
+        if let Some(node_constraint) = node_as_type_parameter_declaration.constraint.as_ref() {
+            self.write_space();
+            self.write_keyword("extends");
+            self.write_space();
+            self.emit(Some(&**node_constraint), None);
+        }
+        if let Some(node_default) = node_as_type_parameter_declaration.default.as_ref() {
+            self.write_space();
+            self.write_operator("=");
+            self.write_space();
+            self.emit(Some(&**node_default), None);
+        }
     }
 
     pub(super) fn emit_parameter(&self, node: &Node /*ParameterDeclaration*/) {
+        // self.emit_decorators();
         unimplemented!()
     }
 
@@ -1292,12 +1372,20 @@ impl Printer {
         self.writer().write_keyword(s);
     }
 
+    pub(super) fn write_operator(&self, s: &str) {
+        unimplemented!()
+    }
+
     pub(super) fn write_space(&self) {
         self.writer().write_space(" ");
     }
 
     pub(super) fn write_property(&self, s: &str) {
         self.writer().write_property(s);
+    }
+
+    pub(super) fn non_escaping_write(&self, s: &str) {
+        unimplemented!()
     }
 
     pub(super) fn write_line(&self, count: Option<usize>) {

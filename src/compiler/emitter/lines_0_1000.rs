@@ -6,11 +6,11 @@ use super::{create_brackets_map, TempFlags};
 use crate::{
     factory, file_extension_is, get_emit_module_kind_from_module_and_target,
     get_new_line_character, is_expression, is_identifier, is_source_file, last_or_undefined,
-    no_emit_notification, no_emit_substitution, BundleFileInfo, BundleFileSection,
-    BundleFileSectionInterface, BundleFileSectionKind, Debug_, DetachedCommentInfo, EmitHint,
-    EmitTextWriter, Extension, ListFormat, Node, NodeArray, NodeId, NodeInterface,
-    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, SourceMapGenerator, SyntaxKind,
-    TextRange,
+    no_emit_notification, no_emit_substitution, BaseNodeFactorySynthetic, BundleFileInfo,
+    BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind, Debug_,
+    DetachedCommentInfo, EmitHint, EmitTextWriter, Extension, ListFormat, Node, NodeArray, NodeId,
+    NodeInterface, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer, PrinterOptions,
+    SourceMapGenerator, SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -404,6 +404,10 @@ impl Printer {
         current_parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
     ) {
         *self.current_parenthesizer_rule.borrow_mut() = current_parenthesizer_rule;
+    }
+
+    pub(super) fn parenthesizer(&self) -> Rc<dyn ParenthesizerRules<BaseNodeFactorySynthetic>> {
+        self.parenthesizer.clone()
     }
 
     pub(super) fn enter_comment(&self) {
