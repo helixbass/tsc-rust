@@ -1572,6 +1572,14 @@ impl Node {
     pub fn as_unparsed_synthetic_reference(&self) -> &UnparsedSyntheticReference {
         enum_unwrapped!(self, [Node, UnparsedSyntheticReference])
     }
+
+    pub fn as_call_signature_declaration(&self) -> &CallSignatureDeclaration {
+        enum_unwrapped!(self, [Node, CallSignatureDeclaration])
+    }
+
+    pub fn as_construct_signature_declaration(&self) -> &ConstructSignatureDeclaration {
+        enum_unwrapped!(self, [Node, ConstructSignatureDeclaration])
+    }
 }
 
 #[derive(Debug)]

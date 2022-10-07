@@ -7,10 +7,12 @@ use std::rc::Rc;
 use super::brackets;
 use crate::{
     get_emit_flags, get_literal_text, get_parse_tree_node, id_text, is_identifier,
-    positions_are_on_same_line, skip_trivia, token_to_string, EmitFlags, EmitHint,
-    GetLiteralTextFlags, HasTypeArgumentsInterface, HasTypeInterface, ListFormat,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SourceFileLike, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
+    positions_are_on_same_line, skip_trivia, token_to_string, with_synthetic_factory, EmitFlags,
+    EmitHint, FunctionLikeDeclarationInterface, GetLiteralTextFlags, HasInitializerInterface,
+    HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, ListFormat, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, Printer, ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike,
+    SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
 };
 
 impl Printer {
@@ -35,73 +37,237 @@ impl Printer {
     }
 
     pub(super) fn emit_parameter(&self, node: &Node /*ParameterDeclaration*/) {
-        // self.emit_decorators();
-        unimplemented!()
+        let node_as_parameter_declaration = node.as_parameter_declaration();
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit(
+            node_as_parameter_declaration.dot_dot_dot_token.as_deref(),
+            None,
+        );
+        self.emit_node_with_writer(
+            node_as_parameter_declaration.maybe_name().as_deref(),
+            Printer::write_parameter,
+        );
+        self.emit(
+            node_as_parameter_declaration.question_token.as_deref(),
+            None,
+        );
+        if matches!(
+            node.maybe_parent(),
+            Some(node_parent) if node_parent.kind() == SyntaxKind::JSDocFunctionType &&
+                node_as_parameter_declaration.maybe_name().is_none()
+        ) {
+            self.emit(node_as_parameter_declaration.maybe_type().as_deref(), None);
+        } else {
+            self.emit_type_annotation(node_as_parameter_declaration.maybe_type().as_deref());
+        }
+        self.emit_initializer(
+            node_as_parameter_declaration.maybe_initializer(),
+            if let Some(node_type) = node_as_parameter_declaration.maybe_type() {
+                node_type.end()
+            } else if let Some(node_question_token) =
+                node_as_parameter_declaration.question_token.as_ref()
+            {
+                node_question_token.end()
+            } else if let Some(node_name) = node_as_parameter_declaration.maybe_name() {
+                node_name.end()
+            } else if let Some(node_modifiers) = node.maybe_modifiers().as_ref() {
+                node_modifiers.end()
+            } else if let Some(node_decorators) = node.maybe_decorators().as_ref() {
+                node_decorators.end()
+            } else {
+                node.pos()
+            },
+            node,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_decorator(&self, node: &Node /*Decorator*/) {
-        unimplemented!()
+        self.write_punctuation("@");
+        self.emit_expression(
+            Some(&*node.as_decorator().expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_property_signature(&self, node: &Node /*PropertySignature*/) {
         let node_as_property_signature = node.as_property_signature();
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
         self.emit_node_with_writer(
             Some(&*node_as_property_signature.name()),
             Printer::write_property,
         );
+        self.emit(node_as_property_signature.question_token.as_deref(), None);
         self.emit_type_annotation(node_as_property_signature.maybe_type());
         self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_property_declaration(&self, node: &Node /*PropertyDeclaration*/) {
-        unimplemented!()
+        let node_as_property_declaration = node.as_property_declaration();
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.emit(node_as_property_declaration.maybe_name().as_deref(), None);
+        self.emit(node_as_property_declaration.question_token.as_deref(), None);
+        self.emit(
+            node_as_property_declaration.exclamation_token.as_deref(),
+            None,
+        );
+        self.emit_type_annotation(node_as_property_declaration.maybe_type().as_deref());
+        self.emit_initializer(
+            node_as_property_declaration.maybe_initializer(),
+            if let Some(node_type) = node_as_property_declaration.maybe_type() {
+                node_type.end()
+            } else if let Some(node_question_token) =
+                node_as_property_declaration.question_token.as_ref()
+            {
+                node_question_token.end()
+            } else {
+                node_as_property_declaration.name().pos()
+            },
+            node,
+            None,
+        );
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_method_signature(&self, node: &Node /*MethodSignature*/) {
-        unimplemented!()
+        self.push_name_generation_scope(Some(node));
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        let node_as_method_signature = node.as_method_signature();
+        self.emit(node_as_method_signature.maybe_name().as_deref(), None);
+        self.emit(node_as_method_signature.question_token.as_deref(), None);
+        self.emit_type_parameters(
+            node,
+            node_as_method_signature.maybe_type_parameters().as_ref(),
+        );
+        self.emit_parameters(node, &node_as_method_signature.parameters());
+        self.emit_type_annotation(node_as_method_signature.maybe_type());
+        self.write_trailing_semicolon();
+        self.pop_name_generation_scope(Some(node));
     }
 
     pub(super) fn emit_method_declaration(&self, node: &Node /*MethodDeclaration*/) {
-        unimplemented!()
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        let node_as_method_declaration = node.as_method_declaration();
+        self.emit(
+            node_as_method_declaration.maybe_asterisk_token().as_deref(),
+            None,
+        );
+        self.emit(node_as_method_declaration.maybe_name().as_deref(), None);
+        self.emit(
+            node_as_method_declaration.maybe_question_token().as_deref(),
+            None,
+        );
+        self.emit_signature_and_body(node, |node: &Node| self.emit_signature_head(node));
     }
 
     pub(super) fn emit_class_static_block_declaration(
         &self,
         node: &Node, /*ClassStaticBlockDeclaration*/
     ) {
-        unimplemented!()
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword("static");
+        self.emit_block_function_body(&node.as_class_static_block_declaration().body);
     }
 
     pub(super) fn emit_constructor(&self, node: &Node /*ConstructorDeclaration*/) {
-        unimplemented!()
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword("constructor");
+        self.emit_signature_and_body(node, |node: &Node| self.emit_signature_head(node));
     }
 
     pub(super) fn emit_accessor_declaration(&self, node: &Node /*AccessorDeclaration*/) {
-        unimplemented!()
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword(if node.kind() == SyntaxKind::GetAccessor {
+            "get"
+        } else {
+            "set"
+        });
+        self.write_space();
+        self.emit(node.as_named_declaration().maybe_name().as_deref(), None);
+        self.emit_signature_and_body(node, |node: &Node| self.emit_signature_head(node));
     }
 
     pub(super) fn emit_call_signature(&self, node: &Node /*CallSignatureDeclaration*/) {
-        // unimplemented!()
-        self.write_punctuation("TODO call signature");
+        self.push_name_generation_scope(Some(node));
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        let node_as_call_signature_declaration = node.as_call_signature_declaration();
+        self.emit_type_parameters(
+            node,
+            node_as_call_signature_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+        );
+        self.emit_parameters(node, &node_as_call_signature_declaration.parameters());
+        self.emit_type_annotation(node_as_call_signature_declaration.maybe_type());
+        self.write_trailing_semicolon();
+        self.pop_name_generation_scope(Some(node));
     }
 
     pub(super) fn emit_construct_signature(
         &self,
         node: &Node, /*ConstructSignatureDeclaration*/
     ) {
-        unimplemented!()
+        self.push_name_generation_scope(Some(node));
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        self.write_keyword("new");
+        self.write_space();
+        let node_as_construct_signature_declaration = node.as_construct_signature_declaration();
+        self.emit_type_parameters(
+            node,
+            node_as_construct_signature_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+        );
+        self.emit_parameters(node, &node_as_construct_signature_declaration.parameters());
+        self.emit_type_annotation(node_as_construct_signature_declaration.maybe_type());
+        self.write_trailing_semicolon();
+        self.pop_name_generation_scope(Some(node));
     }
 
     pub(super) fn emit_index_signature(&self, node: &Node /*IndexSignatureDeclaration*/) {
-        unimplemented!()
+        self.emit_decorators(node, node.maybe_decorators().as_ref());
+        self.emit_modifiers(node, node.maybe_modifiers().as_ref());
+        let node_as_index_signature_declaration = node.as_index_signature_declaration();
+        self.emit_parameters_for_index_signature(
+            node,
+            &node_as_index_signature_declaration.parameters(),
+        );
+        self.emit_type_annotation(node_as_index_signature_declaration.maybe_type());
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_template_type_span(&self, node: &Node /*TemplateLiteralTypeSpan*/) {
-        unimplemented!()
+        let node_as_template_literal_type_span = node.as_template_literal_type_span();
+        self.emit(Some(&*node_as_template_literal_type_span.type_), None);
+        self.emit(Some(&*node_as_template_literal_type_span.literal), None);
     }
 
     pub(super) fn emit_semicolon_class_element(&self) {
-        unimplemented!()
+        self.write_trailing_semicolon();
     }
 
     pub(super) fn emit_type_predicate(&self, node: &Node /*TypePredicateNode*/) {
@@ -577,6 +743,25 @@ impl Printer {
         unimplemented!()
     }
 
+    pub(super) fn emit_signature_and_body<TEmitSignatureHead: FnMut(&Node)>(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration*/
+        mut emit_signature_head: TEmitSignatureHead,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_signature_head(
+        &self,
+        node: &Node, /*FunctionDeclaration | FunctionExpression | MethodDeclaration | AccessorDeclaration | ConstructorDeclaration*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_block_function_body(&self, body: &Node /*Block*/) {
+        unimplemented!()
+    }
+
     pub(super) fn emit_class_declaration(&self, node: &Node /*ClassDeclaration*/) {
         unimplemented!()
     }
@@ -867,9 +1052,13 @@ impl Printer {
         self.write.set(saved_write);
     }
 
-    pub(super) fn emit_type_annotation<TNodeRef: Borrow<Node>>(
+    pub(super) fn emit_modifiers(&self, node: &Node, modifiers: Option<&NodeArray /*<Modifier>*/>) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_type_annotation<TNode: Borrow<Node>>(
         &self,
-        node: Option<TNodeRef /*TypeNode*/>,
+        node: Option<TNode /*TypeNode*/>,
     ) {
         if let Some(node) = node {
             let node = node.borrow();
@@ -877,6 +1066,24 @@ impl Printer {
             self.write_space();
             self.emit(Some(node), None);
         }
+    }
+
+    pub(super) fn emit_initializer<TNode: Borrow<Node>>(
+        &self,
+        node: Option<TNode /*Expression*/>,
+        equal_comment_start_pos: isize,
+        container: &Node,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_decorators(
+        &self,
+        parent_node: &Node,
+        decorators: Option<&NodeArray /*<Decorator>*/>,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn emit_type_arguments(
@@ -893,6 +1100,30 @@ impl Printer {
             None,
             None,
         );
+    }
+
+    pub(super) fn emit_type_parameters(
+        &self,
+        parent_node: &Node, /*SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration | ClassDeclaration | ClassExpression*/
+        type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_parameters(
+        &self,
+        parent_node: &Node,
+        parameters: &NodeArray, /*<ParameterDeclaration>*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_parameters_for_index_signature(
+        &self,
+        parent_node: &Node,
+        parameters: &NodeArray, /*<ParameterDeclaration>*/
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn write_delimiter(&self, format: ListFormat) {
@@ -1050,6 +1281,10 @@ impl Printer {
         unimplemented!()
     }
 
+    pub(super) fn write_parameter(&self, s: &str) {
+        unimplemented!()
+    }
+
     pub(super) fn write_space(&self) {
         self.writer().write_space(" ");
     }
@@ -1119,6 +1354,14 @@ impl Printer {
         let flags = GetLiteralTextFlags::None;
 
         get_literal_text(node, self.maybe_current_source_file(), flags)
+    }
+
+    pub(super) fn push_name_generation_scope(&self, node: Option<&Node>) {
+        unimplemented!()
+    }
+
+    pub(super) fn pop_name_generation_scope(&self, node: Option<&Node>) {
+        unimplemented!()
     }
 
     pub(super) fn make_file_level_optimistic_unique_name(&self, name: &str) -> String {
