@@ -9,7 +9,7 @@ use crate::{
     stable_sort, with_synthetic_factory, BundleFileSection, BundleFileSectionKind, Debug_,
     EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, HasTypeArgumentsInterface, ListFormat,
     ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
-    SnippetElement, SnippetKind, SortedArray, SyntaxKind, TextRange,
+    SnippetElement, SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -212,8 +212,10 @@ impl Printer {
 
     pub(super) fn write_unparsed_node(&self, unparsed: &Node /*UnparsedNode*/) {
         self.writer().raw_write(
-            &unparsed.parent().as_unparsed_source().text[TryInto::<usize>::try_into(unparsed.pos())
-                .unwrap()
+            &(*unparsed.parent().as_unparsed_source().text())[TryInto::<usize>::try_into(
+                unparsed.pos(),
+            )
+            .unwrap()
                 ..TryInto::<usize>::try_into(unparsed.end()).unwrap()],
         );
     }

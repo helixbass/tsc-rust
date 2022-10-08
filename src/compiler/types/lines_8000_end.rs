@@ -880,9 +880,11 @@ bitflags! {
         const CaseOrDefaultClauseStatements = Self::Indented.bits | Self::MultiLine.bits | Self::NoTrailingNewLine.bits | Self::OptionalIfEmpty.bits;
         const HeritageClauseTypes = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
 
+        const Decorators = Self::MultiLine.bits | Self::Optional.bits | Self::SpaceAfterList.bits;
         const TypeArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
         const TypeParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
-
+        const Parameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Parenthesis.bits;
+        const IndexSignatureParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Indented.bits | Self::SquareBrackets.bits;
         const JSDocComment = Self::MultiLine.bits | Self::AsteriskDelimited.bits;
     }
 }

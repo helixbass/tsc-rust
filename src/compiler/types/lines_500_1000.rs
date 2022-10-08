@@ -9,7 +9,8 @@ use crate::{
     HasChildrenInterface, HasDotDotDotTokenInterface, HasLeftAndRightInterface,
     HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
     HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
-    JsxOpeningLikeElementInterface, SyntheticExpression, UnparsedSyntheticReference,
+    JsxOpeningLikeElementInterface, SourceFileLike, SyntheticExpression,
+    UnparsedSyntheticReference,
 };
 
 use super::{
@@ -986,6 +987,14 @@ impl Node {
             Node::JSDocAugmentsTag(node) => node,
             Node::JSDocImplementsTag(node) => node,
             _ => panic!("Expected JSDoc heritage tag"),
+        }
+    }
+
+    pub fn as_source_file_like(&self) -> &dyn SourceFileLike {
+        match self {
+            Node::SourceFile(node) => node,
+            Node::UnparsedSource(node) => node,
+            _ => panic!("Expected source file like"),
         }
     }
 

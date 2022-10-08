@@ -544,6 +544,8 @@ pub struct BaseSignatureDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
     parameters: NodeArray, /*<ParameterDeclaration>*/
     type_: Option<Rc<Node /*TypeNode*/>>,
+    // TODO
+    // /* @internal */ typeArguments?: NodeArray<TypeNode>;
 }
 
 impl BaseSignatureDeclaration {

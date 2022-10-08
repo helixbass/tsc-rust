@@ -800,7 +800,8 @@ impl HasOldFileOfCurrentEmitInterface for InputFiles {
 pub struct UnparsedSource {
     _node: BaseNode,
     pub file_name: String,
-    pub text: String,
+    text: RefCell<String>,
+    text_as_chars: RefCell<SourceTextAsChars>,
     pub prologues: Vec<Rc<Node /*UnparsedPrologue*/>>,
     pub helpers: Option<Vec<Rc<EmitHelper /*UnscopedEmitHelper*/>>>,
 
@@ -816,7 +817,6 @@ pub struct UnparsedSource {
     pub(crate) old_file_of_current_emit: Option<bool>,
 }
 
-// TODO: implement SourceFileLike for UnparsedSource
 impl UnparsedSource {
     pub fn new(
         base_node: BaseNode,
@@ -828,13 +828,15 @@ impl UnparsedSource {
         referenced_files: Vec<FileReference>,
         lib_reference_directives: Vec<FileReference>,
     ) -> Self {
+        let text_as_chars = text.chars().collect::<Vec<_>>();
         Self {
             _node: base_node,
             prologues,
             synthetic_references,
             texts,
             file_name,
-            text,
+            text: RefCell::new(text),
+            text_as_chars: RefCell::new(text_as_chars),
             referenced_files,
             lib_reference_directives,
             helpers: None,
@@ -856,6 +858,33 @@ impl HasTextsInterface for UnparsedSource {
 impl HasOldFileOfCurrentEmitInterface for UnparsedSource {
     fn maybe_old_file_of_current_emit(&self) -> Option<bool> {
         self.old_file_of_current_emit
+    }
+}
+
+impl SourceFileLike for UnparsedSource {
+    fn text(&self) -> Ref<String> {
+        self.text.borrow()
+    }
+
+    fn text_as_chars(&self) -> Ref<SourceTextAsChars> {
+        self.text_as_chars.borrow()
+    }
+
+    fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {
+        unimplemented!()
+    }
+
+    fn line_map(&self) -> Ref<Vec<usize>> {
+        unimplemented!()
+    }
+
+    fn maybe_get_position_of_line_and_character(
+        &self,
+        line: usize,
+        character: usize,
+        allow_edits: Option<bool>,
+    ) -> Option<usize> {
+        unimplemented!()
     }
 }
 

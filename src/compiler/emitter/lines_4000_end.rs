@@ -6,9 +6,12 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    get_literal_text, id_text, is_identifier, is_prologue_directive, is_source_file,
-    token_to_string, BundleFileSection, EmitHint, GetLiteralTextFlags, ListFormat,
-    LiteralLikeNodeInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
+    get_emit_flags, get_literal_text, get_shebang, id_text, is_arrow_function, is_block,
+    is_empty_statement, is_function_like, is_identifier, is_prologue_directive, is_source_file,
+    is_unparsed_source, single_or_undefined, some, token_to_string, with_synthetic_factory,
+    BundleFileSection, Debug_, EmitFlags, EmitHint, GetLiteralTextFlags, HasInitializerInterface,
+    HasTypeInterface, HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
     SourceFileLike, SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression,
     SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind, UnparsedSectionInterface,
 };
@@ -156,7 +159,30 @@ impl Printer {
         &self,
         source_file_or_bundle: &Node, /*Bundle | SourceFile | UnparsedSource*/
     ) -> bool {
-        unimplemented!()
+        if is_source_file(source_file_or_bundle) || is_unparsed_source(source_file_or_bundle) {
+            let source_file_or_bundle_as_source_file_like =
+                source_file_or_bundle.as_source_file_like();
+            let shebang = get_shebang(&source_file_or_bundle_as_source_file_like.text_as_chars());
+            if let Some(shebang) = shebang {
+                self.write_comment(&shebang.into_iter().collect::<String>());
+                self.write_line(None);
+                return true;
+            }
+        } else {
+            let source_file_or_bundle_as_bundle = source_file_or_bundle.as_bundle();
+            for prepend in &source_file_or_bundle_as_bundle.prepends {
+                Debug_.assert_node(Some(&**prepend), Some(is_unparsed_source), None);
+                if self.emit_shebang_if_needed(prepend) {
+                    return true;
+                }
+            }
+            for source_file in &source_file_or_bundle_as_bundle.source_files {
+                if self.emit_shebang_if_needed(source_file) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     pub(super) fn emit_node_with_writer(&self, node: Option<&Node>, writer: fn(&Printer, &str)) {
@@ -171,7 +197,17 @@ impl Printer {
     }
 
     pub(super) fn emit_modifiers(&self, node: &Node, modifiers: Option<&NodeArray /*<Modifier>*/>) {
-        unimplemented!()
+        if let Some(modifiers) = modifiers.filter(|modifiers| !modifiers.is_empty()) {
+            self.emit_list(
+                Some(node),
+                Some(modifiers),
+                ListFormat::Modifiers,
+                None,
+                None,
+                None,
+            );
+            self.write_space();
+        }
     }
 
     pub(super) fn emit_type_annotation<TNode: Borrow<Node>>(
@@ -193,21 +229,39 @@ impl Printer {
         container: &Node,
         parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
     ) {
-        unimplemented!()
+        if let Some(node) = node {
+            let node = node.borrow();
+            self.write_space();
+            self.emit_token_with_comment(
+                SyntaxKind::EqualsToken,
+                equal_comment_start_pos,
+                |text: &str| self.write_operator(text),
+                container,
+                None,
+            );
+            self.write_space();
+            self.emit_expression(Some(node), parenthesizer_rule);
+        }
     }
 
     pub(super) fn emit_node_with_prefix<TPrefixWriter: FnMut(&str), TEmit: FnMut(&Node)>(
         &self,
         prefix: &str,
-        prefix_writer: TPrefixWriter,
+        mut prefix_writer: TPrefixWriter,
         node: Option<&Node>,
         emit: TEmit,
     ) {
-        unimplemented!()
+        if let Some(node) = node {
+            prefix_writer(prefix);
+            self.emit(Some(node), None);
+        }
     }
 
     pub(super) fn emit_with_leading_space(&self, node: Option<&Node>) {
-        unimplemented!()
+        if let Some(node) = node {
+            self.write_space();
+            self.emit(Some(node), None);
+        }
     }
 
     pub(super) fn emit_expression_with_leading_space(
@@ -215,15 +269,33 @@ impl Printer {
         node: Option<&Node>,
         parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
     ) {
-        unimplemented!()
+        if let Some(node) = node {
+            self.write_space();
+            self.emit_expression(Some(node), parenthesizer_rule);
+        }
     }
 
     pub(super) fn emit_with_trailing_space(&self, node: Option<&Node>) {
-        unimplemented!()
+        if let Some(node) = node {
+            self.emit(Some(node), None);
+            self.write_space();
+        }
     }
 
     pub(super) fn emit_embedded_statement(&self, parent: &Node, node: &Node /*Statement*/) {
-        unimplemented!()
+        if is_block(node) || get_emit_flags(parent).intersects(EmitFlags::SingleLine) {
+            self.write_space();
+            self.emit(Some(node), None);
+        } else {
+            self.write_line(None);
+            self.increase_indent();
+            if is_empty_statement(node) {
+                self.pipeline_emit(EmitHint::EmbeddedStatement, node, None);
+            } else {
+                self.emit(Some(node), None);
+            }
+            self.decrease_indent();
+        }
     }
 
     pub(super) fn emit_decorators(
@@ -231,7 +303,14 @@ impl Printer {
         parent_node: &Node,
         decorators: Option<&NodeArray /*<Decorator>*/>,
     ) {
-        unimplemented!()
+        self.emit_list(
+            Some(parent_node),
+            decorators,
+            ListFormat::Decorators,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_type_arguments(
@@ -243,8 +322,14 @@ impl Printer {
             Some(parent_node),
             type_arguments,
             ListFormat::TypeArguments,
-            // TODO: this is wrong, should be parenthesizer.parenthesizeMemberOfElementType
-            None,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
+                    })
+                }
+            })),
             None,
             None,
         );
@@ -255,7 +340,20 @@ impl Printer {
         parent_node: &Node, /*SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration | ClassDeclaration | ClassExpression*/
         type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
     ) {
-        unimplemented!()
+        if is_function_like(Some(parent_node)) {
+            // TODO
+            // && parentNode.typeArguments {
+            //     return emitTypeArguments(parentNode, parentNode.typeArguments);
+            // }
+        }
+        self.emit_list(
+            Some(parent_node),
+            type_parameters,
+            ListFormat::TypeParameters,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_parameters(
@@ -263,7 +361,56 @@ impl Printer {
         parent_node: &Node,
         parameters: &NodeArray, /*<ParameterDeclaration>*/
     ) {
-        unimplemented!()
+        self.emit_list(
+            Some(parent_node),
+            Some(parameters),
+            ListFormat::Parameters,
+            None,
+            None,
+            None,
+        );
+    }
+
+    pub(super) fn can_emit_simple_arrow_head(
+        &self,
+        parent_node: &Node,     /*FunctionTypeNode | ArrowFunction*/
+        parameters: &NodeArray, /*<ParameterDeclaration>*/
+    ) -> bool {
+        let parameter = single_or_undefined(Some(parameters));
+        matches!(
+            parameter,
+            Some(parameter) if parameter.pos() == parent_node.pos() &&
+                is_arrow_function(parent_node) && {
+                    let parent_node_as_arrow_function = parent_node.as_arrow_function();
+                    let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
+                    parent_node_as_arrow_function.maybe_type().is_none() &&
+                        !some(
+                            parent_node.maybe_decorators().as_deref(),
+                            Option::<fn(&Rc<Node>) -> bool>::None
+                        ) &&
+                        !some(
+                            parent_node.maybe_modifiers().as_deref(),
+                            Option::<fn(&Rc<Node>) -> bool>::None
+                        ) &&
+                        !some(
+                            parent_node_as_arrow_function.maybe_type_parameters().as_deref(),
+                            Option::<fn(&Rc<Node>) -> bool>::None
+                        ) &&
+                        !some(
+                            parameter.maybe_decorators().as_deref(),
+                            Option::<fn(&Rc<Node>) -> bool>::None
+                        ) &&
+                        !some(
+                            parameter.maybe_modifiers().as_deref(),
+                            Option::<fn(&Rc<Node>) -> bool>::None
+                        ) &&
+                        parameter_as_parameter_declaration.dot_dot_dot_token.is_none() &&
+                        parameter_as_parameter_declaration.question_token.is_none() &&
+                        parameter_as_parameter_declaration.maybe_type().is_none() &&
+                        parameter_as_parameter_declaration.maybe_initializer().is_none() &&
+                        is_identifier(&parameter_as_parameter_declaration.name())
+                }
+        )
     }
 
     pub(super) fn emit_parameters_for_arrow(
@@ -271,7 +418,18 @@ impl Printer {
         parent_node: &Node,     /*FunctionTypeNode | ArrowFunction*/
         parameters: &NodeArray, /*<ParameterDeclaration>*/
     ) {
-        unimplemented!()
+        if self.can_emit_simple_arrow_head(parent_node, parameters) {
+            self.emit_list(
+                Some(parent_node),
+                Some(parameters),
+                ListFormat::Parameters & !ListFormat::Parenthesis,
+                None,
+                None,
+                None,
+            );
+        } else {
+            self.emit_parameters(parent_node, parameters);
+        }
     }
 
     pub(super) fn emit_parameters_for_index_signature(
@@ -279,7 +437,14 @@ impl Printer {
         parent_node: &Node,
         parameters: &NodeArray, /*<ParameterDeclaration>*/
     ) {
-        unimplemented!()
+        self.emit_list(
+            Some(parent_node),
+            Some(parameters),
+            ListFormat::IndexSignatureParameters,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn write_delimiter(&self, format: ListFormat) {
@@ -292,7 +457,16 @@ impl Printer {
                 self.write_space();
                 self.write_punctuation("|");
             }
-            _ => unimplemented!(),
+            ListFormat::AsteriskDelimited => {
+                self.write_space();
+                self.write_punctuation("*");
+                self.write_space();
+            }
+            ListFormat::AmpersandDelimited => {
+                self.write_space();
+                self.write_punctuation("&");
+            }
+            _ => (),
         }
     }
 
