@@ -281,7 +281,7 @@ impl Printer {
         ) > 0
             || self.get_closing_line_terminator_count(
                 Some(body),
-                &body_as_block.statements,
+                (&body_as_block.statements).into(),
                 ListFormat::PreserveLines,
             ) > 0
         {

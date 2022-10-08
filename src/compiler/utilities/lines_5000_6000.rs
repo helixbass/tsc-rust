@@ -251,6 +251,17 @@ pub fn range_start_positions_are_on_same_line<
     unimplemented!()
 }
 
+pub fn range_end_positions_are_on_same_line<
+    TRange1: ReadonlyTextRange,
+    TRange2: ReadonlyTextRange,
+>(
+    range1: &TRange1,
+    range2: &TRange2,
+    source_file: &Node, /*SourceFile*/
+) -> bool {
+    unimplemented!()
+}
+
 pub fn range_end_is_on_same_line_as_range_start<
     TRange1: ReadonlyTextRange,
     TRange2: ReadonlyTextRange,
@@ -283,6 +294,15 @@ pub fn positions_are_on_same_line(
 }
 
 pub fn get_lines_between_position_and_preceding_non_whitespace_character(
+    pos: isize,
+    stop_pos: isize,
+    source_file: &Node, /*SourceFile*/
+    include_comments: Option<bool>,
+) -> usize {
+    unimplemented!()
+}
+
+pub fn get_lines_between_position_and_next_non_whitespace_character(
     pos: isize,
     stop_pos: isize,
     source_file: &Node, /*SourceFile*/

@@ -712,8 +712,11 @@ impl Printer {
 
             self.record_bundle_file_internal_section_end(previous_source_file_text_kind);
 
-            let closing_line_terminator_count =
-                self.get_closing_line_terminator_count(parent_node.as_deref(), children, format);
+            let closing_line_terminator_count = self.get_closing_line_terminator_count(
+                parent_node.as_deref(),
+                children.into(),
+                format,
+            );
             if closing_line_terminator_count != 0 {
                 self.write_line(Some(closing_line_terminator_count));
             } else if format.intersects(ListFormat::SpaceAfterList | ListFormat::SpaceBetweenBraces)

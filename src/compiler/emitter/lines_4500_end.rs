@@ -3,17 +3,20 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use std::ptr;
 use std::rc::Rc;
 
 use super::brackets;
 use crate::{
     are_option_rcs_equal, get_emit_flags,
+    get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
-    get_starts_on_new_line, guess_indentation, id_text, is_identifier, node_is_synthesized,
-    position_is_synthesized, range_end_is_on_same_line_as_range_start, range_is_on_single_line,
+    get_starts_on_new_line, guess_indentation, id_text, is_identifier, last_or_undefined,
+    node_is_synthesized, position_is_synthesized, range_end_is_on_same_line_as_range_start,
+    range_end_positions_are_on_same_line, range_is_on_single_line,
     range_start_positions_are_on_same_line, token_to_string, EmitFlags, EmitHint,
-    GetLiteralTextFlags, ListFormat, Node, NodeInterface, Printer, ReadonlyTextRange,
+    GetLiteralTextFlags, ListFormat, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
     SourceMapSource, SyntaxKind,
 };
 
@@ -288,10 +291,77 @@ impl Printer {
     pub(super) fn get_closing_line_terminator_count(
         &self,
         parent_node: Option<&Node>,
-        children: &[Rc<Node>],
+        children: RefNodeArrayOrSlice,
         format: ListFormat,
     ) -> usize {
-        unimplemented!()
+        if format.intersects(ListFormat::PreserveLines)
+            || self.maybe_preserve_source_newlines() == Some(true)
+        {
+            if format.intersects(ListFormat::PreferNewLine) {
+                return 1;
+            }
+
+            let last_child = last_or_undefined(children.as_slice());
+            if last_child.is_none() {
+                return if match parent_node {
+                    None => true,
+                    Some(parent_node) => {
+                        range_is_on_single_line(parent_node, &self.current_source_file())
+                    }
+                } {
+                    0
+                } else {
+                    1
+                };
+            }
+            let last_child = last_child.unwrap();
+            if let Some(parent_node) = parent_node.filter(|&parent_node| {
+                !position_is_synthesized(parent_node.pos())
+                    && !node_is_synthesized(&**last_child)
+                    && match last_child.maybe_parent().as_ref() {
+                        None => true,
+                        Some(last_child_parent) => ptr::eq(&**last_child_parent, parent_node),
+                    }
+            }) {
+                if self.maybe_preserve_source_newlines() == Some(true) {
+                    let end = if let RefNodeArrayOrSlice::NodeArray(children) = children {
+                        if !position_is_synthesized(children.end()) {
+                            children.end()
+                        } else {
+                            last_child.end()
+                        }
+                    } else {
+                        last_child.end()
+                    };
+                    return self.get_effective_lines(|include_comments| {
+                        get_lines_between_position_and_next_non_whitespace_character(
+                            end,
+                            parent_node.end(),
+                            &self.current_source_file(),
+                            Some(include_comments),
+                        )
+                    });
+                }
+                return if range_end_positions_are_on_same_line(
+                    parent_node,
+                    &**last_child,
+                    &self.current_source_file(),
+                ) {
+                    0
+                } else {
+                    1
+                };
+            }
+            if self.synthesized_node_starts_on_new_line(last_child, format) {
+                return 1;
+            }
+        }
+        if format.intersects(ListFormat::MultiLine)
+            && !format.intersects(ListFormat::NoTrailingNewLine)
+        {
+            return 1;
+        }
+        0
     }
 
     pub(super) fn get_effective_lines<TGetLineDifference: FnMut(bool) -> usize>(
@@ -462,6 +532,33 @@ impl Printer {
 
     pub(super) fn set_source_map_source(&self, source: SourceMapSource) {
         unimplemented!()
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum RefNodeArrayOrSlice<'a> {
+    NodeArray(&'a NodeArray),
+    Slice(&'a [Rc<Node>]),
+}
+
+impl<'a> RefNodeArrayOrSlice<'a> {
+    pub fn as_slice(&'a self) -> &'a [Rc<Node>] {
+        match *self {
+            Self::NodeArray(value) => &*value,
+            Self::Slice(value) => value,
+        }
+    }
+}
+
+impl<'a> From<&'a NodeArray> for RefNodeArrayOrSlice<'a> {
+    fn from(value: &'a NodeArray) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
+impl<'a> From<&'a [Rc<Node>]> for RefNodeArrayOrSlice<'a> {
+    fn from(value: &'a [Rc<Node>]) -> Self {
+        Self::Slice(value)
     }
 }
 
