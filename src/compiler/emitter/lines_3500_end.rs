@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
@@ -6,13 +7,16 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    for_each_leading_comment_range, for_each_trailing_comment_range,
-    get_line_and_character_of_position, get_literal_text, id_text, is_identifier,
-    is_jsx_closing_element, is_jsx_opening_element, node_is_synthesized, token_to_string,
-    with_synthetic_factory, EmitFlags, EmitHint, GetLiteralTextFlags, HasTypeArgumentsInterface,
-    ListFormat, LiteralLikeNodeInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, SourceFileLike, SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind,
-    TextRange,
+    for_each_leading_comment_range, for_each_trailing_comment_range, get_comment_range,
+    get_emit_flags, get_line_and_character_of_position, get_literal_text,
+    get_text_of_jsdoc_comment, id_text, is_identifier, is_jsx_closing_element,
+    is_jsx_opening_element, is_prologue_directive, is_unparsed_source, node_is_synthesized,
+    range_start_positions_are_on_same_line, token_to_string, with_factory, with_synthetic_factory,
+    EmitFlags, EmitHint, FileReference, GetLiteralTextFlags, HasInitializerInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, JSDocTagInterface,
+    JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike,
+    SourceFilePrologueInfo, SourceMapSource, StrOrNodeArrayRef, Symbol, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -293,102 +297,526 @@ impl Printer {
         statements: &NodeArray, /*<Statement>*/
         colon_pos: isize,
     ) {
-        unimplemented!()
+        let emit_as_single_statement = statements.len() == 1
+            && (node_is_synthesized(parent_node)
+                || node_is_synthesized(&*statements[0])
+                || range_start_positions_are_on_same_line(
+                    parent_node,
+                    &*statements[0],
+                    &self.current_source_file(),
+                ));
+
+        let mut format = ListFormat::CaseOrDefaultClauseStatements;
+        if emit_as_single_statement {
+            self.write_token(
+                SyntaxKind::ColonToken,
+                colon_pos,
+                |text: &str| self.write_punctuation(text),
+                Some(parent_node),
+            );
+            self.write_space();
+            format &= !(ListFormat::MultiLine | ListFormat::Indented);
+        } else {
+            self.emit_token_with_comment(
+                SyntaxKind::ColonToken,
+                colon_pos,
+                |text: &str| self.write_punctuation(text),
+                parent_node,
+                None,
+            );
+        }
+        self.emit_list(
+            Some(parent_node),
+            Some(statements),
+            format,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_heritage_clause(&self, node: &Node /*HeritageClause*/) {
-        unimplemented!()
+        self.write_space();
+        let node_as_heritage_clause = node.as_heritage_clause();
+        self.write_token_text(
+            node_as_heritage_clause.token,
+            |text: &str| self.write_keyword(text),
+            None,
+        );
+        self.write_space();
+        self.emit_list(
+            Some(node),
+            Some(&node_as_heritage_clause.types),
+            ListFormat::HeritageClauseTypes,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_catch_clause(&self, node: &Node /*CatchClause*/) {
-        unimplemented!()
+        let open_paren_pos = self.emit_token_with_comment(
+            SyntaxKind::CatchKeyword,
+            node.pos(),
+            |text: &str| self.write_keyword(text),
+            node,
+            None,
+        );
+        self.write_space();
+        let node_as_catch_clause = node.as_catch_clause();
+        if let Some(node_variable_declaration) = node_as_catch_clause.variable_declaration.as_ref()
+        {
+            self.emit_token_with_comment(
+                SyntaxKind::OpenParenToken,
+                open_paren_pos,
+                |text: &str| self.write_punctuation(text),
+                node,
+                None,
+            );
+            self.emit(Some(&**node_variable_declaration), None);
+            self.emit_token_with_comment(
+                SyntaxKind::CloseParenToken,
+                node_variable_declaration.end(),
+                |text: &str| self.write_punctuation(text),
+                node,
+                None,
+            );
+            self.write_space();
+        }
+        self.emit(Some(&*node_as_catch_clause.block), None);
     }
 
     pub(super) fn emit_property_assignment(&self, node: &Node /*PropertyAssignment*/) {
-        unimplemented!()
+        let node_as_property_assignment = node.as_property_assignment();
+        self.emit(node_as_property_assignment.maybe_name().as_deref(), None);
+        self.write_punctuation(":");
+        self.write_space();
+        let ref initializer = node_as_property_assignment.maybe_initializer().unwrap();
+        if !get_emit_flags(initializer).intersects(EmitFlags::NoLeadingComments) {
+            let comment_range = get_comment_range(initializer);
+            self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
+        }
+        self.emit_expression(
+            Some(&**initializer),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_shorthand_property_assignment(
         &self,
         node: &Node, /*ShorthandPropertyAssignment*/
     ) {
-        unimplemented!()
+        let node_as_shorthand_property_assignment = node.as_shorthand_property_assignment();
+        self.emit(
+            node_as_shorthand_property_assignment
+                .maybe_name()
+                .as_deref(),
+            None,
+        );
+        if let Some(node_object_assignment_initializer) = node_as_shorthand_property_assignment
+            .object_assignment_initializer
+            .as_ref()
+        {
+            self.write_space();
+            self.write_punctuation("=");
+            self.write_space();
+            self.emit_expression(
+                Some(&**node_object_assignment_initializer),
+                Some(Rc::new({
+                    let parenthesizer = self.parenthesizer();
+                    move |node: &Node| {
+                        with_synthetic_factory(|synthetic_factory| {
+                            parenthesizer.parenthesize_expression_for_disallowed_comma(
+                                synthetic_factory,
+                                node,
+                            )
+                        })
+                    }
+                })),
+            );
+        }
     }
 
     pub(super) fn emit_spread_assignment(&self, node: &Node /*SpreadAssignment*/) {
-        unimplemented!()
+        let node_as_spread_assignment = node.as_spread_assignment();
+        // if (node.expression) {
+        self.emit_token_with_comment(
+            SyntaxKind::DotDotDotToken,
+            node.pos(),
+            |text: &str| self.write_punctuation(text),
+            node,
+            None,
+        );
+        self.emit_expression(
+            Some(&*node_as_spread_assignment.expression),
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
+        // }
     }
 
     pub(super) fn emit_enum_member(&self, node: &Node /*EnumMember*/) {
-        unimplemented!()
+        let node_as_enum_member = node.as_enum_member();
+        self.emit(node_as_enum_member.maybe_name().as_deref(), None);
+        self.emit_initializer(
+            node_as_enum_member.initializer.as_deref(),
+            node_as_enum_member.name.end(),
+            node,
+            Some(Rc::new({
+                let parenthesizer = self.parenthesizer();
+                move |node: &Node| {
+                    with_synthetic_factory(|synthetic_factory| {
+                        parenthesizer
+                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
+                    })
+                }
+            })),
+        );
     }
 
     pub(super) fn emit_jsdoc(&self, node: &Node /*JSDoc*/) {
-        unimplemented!()
+        self.write("/**");
+        let node_as_jsdoc = node.as_jsdoc();
+        if let Some(node_comment) = node_as_jsdoc.comment.as_ref() {
+            let text = get_text_of_jsdoc_comment(Some(node_comment));
+            if let Some(text) = text.filter(|text| !text.is_empty()) {
+                lazy_static! {
+                    static ref lines_regex: Regex = Regex::new(r"\r\n?|\n").unwrap();
+                }
+                let lines = lines_regex.split(&text);
+                for line in lines {
+                    self.write_line(None);
+                    self.write_space();
+                    self.write_punctuation("*");
+                    self.write_space();
+                    self.write(line);
+                }
+            }
+        }
+        if let Some(node_tags) = node_as_jsdoc.tags.as_ref() {
+            if node_tags.len() == 1
+                && node_tags[0].kind() == SyntaxKind::JSDocTypeTag
+                && node_as_jsdoc.comment.is_none()
+            {
+                self.write_space();
+                self.emit(Some(&*node_tags[0]), None);
+            } else {
+                self.emit_list(
+                    Some(node),
+                    Some(node_tags),
+                    ListFormat::JSDocComment,
+                    None,
+                    None,
+                    None,
+                );
+            }
+        }
+        self.write_space();
+        self.write("*/");
     }
 
     pub(super) fn emit_jsdoc_simple_typed_tag(
         &self,
-        node: &Node, /*JSDocTypeTag | JSDocThisTag | JSDocEnumTag | JSDocReturnTag*/
+        tag: &Node, /*JSDocTypeTag | JSDocThisTag | JSDocEnumTag | JSDocReturnTag*/
     ) {
-        unimplemented!()
+        let tag_as_base_jsdoc_type_like_tag = tag.as_base_jsdoc_type_like_tag();
+        self.emit_jsdoc_tag_name(&tag_as_base_jsdoc_type_like_tag.tag_name());
+        self.emit_jsdoc_type_expression(
+            tag_as_base_jsdoc_type_like_tag
+                .maybe_type_expression()
+                .as_deref(),
+        );
+        self.emit_jsdoc_comment(
+            tag_as_base_jsdoc_type_like_tag
+                .maybe_comment()
+                .map(Into::into),
+        );
     }
 
-    pub(super) fn emit_jsdoc_see_tag(&self, node: &Node /*JSDocSeeTag*/) {
-        unimplemented!()
+    pub(super) fn emit_jsdoc_see_tag(&self, tag: &Node /*JSDocSeeTag*/) {
+        let tag_as_jsdoc_see_tag = tag.as_jsdoc_see_tag();
+        self.emit_jsdoc_tag_name(&tag_as_jsdoc_see_tag.tag_name());
+        self.emit(tag_as_jsdoc_see_tag.name.as_deref(), None);
+        self.emit_jsdoc_comment(tag_as_jsdoc_see_tag.maybe_comment().map(Into::into));
     }
 
     pub(super) fn emit_jsdoc_name_reference(&self, node: &Node /*JSDocNameReference*/) {
-        unimplemented!()
+        self.write_space();
+        self.write_punctuation("{");
+        self.emit(Some(&*node.as_jsdoc_name_reference().name), None);
+        self.write_punctuation("}");
     }
 
     pub(super) fn emit_jsdoc_heritage_tag(
         &self,
-        node: &Node, /*JSDocImplementsTag | JSDocAugmentsTag*/
+        tag: &Node, /*JSDocImplementsTag | JSDocAugmentsTag*/
     ) {
-        unimplemented!()
+        let tag_as_jsdoc_heritage_tag = tag.as_jsdoc_heritage_tag();
+        self.emit_jsdoc_tag_name(&tag_as_jsdoc_heritage_tag.tag_name());
+        self.write_space();
+        self.write_punctuation("{");
+        self.emit(Some(&*tag_as_jsdoc_heritage_tag.class()), None);
+        self.write_punctuation("}");
+        self.emit_jsdoc_comment(tag_as_jsdoc_heritage_tag.maybe_comment().map(Into::into));
     }
 
-    pub(super) fn emit_jsdoc_template_tag(&self, node: &Node /*JSDocTemplateTag*/) {
-        unimplemented!()
+    pub(super) fn emit_jsdoc_template_tag(&self, tag: &Node /*JSDocTemplateTag*/) {
+        let tag_as_jsdoc_template_tag = tag.as_jsdoc_template_tag();
+        self.emit_jsdoc_tag_name(&tag_as_jsdoc_template_tag.tag_name());
+        self.emit_jsdoc_type_expression(tag_as_jsdoc_template_tag.constraint.as_deref());
+        self.write_space();
+        self.emit_list(
+            Some(tag),
+            Some(&tag_as_jsdoc_template_tag.type_parameters),
+            ListFormat::CommaListElements,
+            None,
+            None,
+            None,
+        );
+        self.emit_jsdoc_comment(tag_as_jsdoc_template_tag.maybe_comment().map(Into::into));
     }
 
-    pub(super) fn emit_jsdoc_typedef_tag(&self, node: &Node /*JSDocTypedefTag*/) {
-        unimplemented!()
+    pub(super) fn emit_jsdoc_typedef_tag(&self, tag: &Node /*JSDocTypedefTag*/) {
+        let tag_as_jsdoc_typedef_tag = tag.as_jsdoc_typedef_tag();
+        self.emit_jsdoc_tag_name(&tag_as_jsdoc_typedef_tag.tag_name());
+        if let Some(tag_type_expression) = tag_as_jsdoc_typedef_tag.type_expression.as_ref() {
+            if tag_type_expression.kind() == SyntaxKind::JSDocTypeExpression {
+                self.emit_jsdoc_type_expression(Some(&**tag_type_expression));
+            } else {
+                self.write_space();
+                self.write_punctuation("{");
+                self.write("Object");
+                if tag_type_expression.as_jsdoc_type_literal().is_array_type {
+                    self.write_punctuation("[");
+                    self.write_punctuation("]");
+                }
+                self.write_punctuation("}");
+            }
+        }
+        if let Some(tag_full_name) = tag_as_jsdoc_typedef_tag.full_name.as_ref() {
+            self.write_space();
+            self.emit(Some(&**tag_full_name), None);
+        }
+        self.emit_jsdoc_comment(tag_as_jsdoc_typedef_tag.maybe_comment().map(Into::into));
+        if let Some(tag_type_expression) =
+            tag_as_jsdoc_typedef_tag
+                .type_expression
+                .as_ref()
+                .filter(|tag_type_expression| {
+                    tag_type_expression.kind() == SyntaxKind::JSDocTypeLiteral
+                })
+        {
+            self.emit_jsdoc_type_literal(tag_type_expression);
+        }
     }
 
-    pub(super) fn emit_jsdoc_callback_tag(&self, node: &Node /*JSDocCallbackTag*/) {
-        unimplemented!()
+    pub(super) fn emit_jsdoc_callback_tag(&self, tag: &Node /*JSDocCallbackTag*/) {
+        let tag_as_jsdoc_callback_tag = tag.as_jsdoc_callback_tag();
+        self.emit_jsdoc_tag_name(&tag_as_jsdoc_callback_tag.tag_name());
+        if let Some(tag_name) = tag_as_jsdoc_callback_tag.name.as_ref() {
+            self.write_space();
+            self.emit(Some(&**tag_name), None);
+        }
+        self.emit_jsdoc_comment(tag_as_jsdoc_callback_tag.maybe_comment().map(Into::into));
+        self.emit_jsdoc_signature(&tag_as_jsdoc_callback_tag.type_expression);
     }
 
-    pub(super) fn emit_jsdoc_simple_tag(&self, node: &Node /*JSDocTag*/) {
-        unimplemented!()
+    pub(super) fn emit_jsdoc_simple_tag(&self, tag: &Node /*JSDocTag*/) {
+        let tag_as_jsdoc_tag = tag.as_jsdoc_tag();
+        self.emit_jsdoc_tag_name(&tag_as_jsdoc_tag.tag_name());
+        self.emit_jsdoc_comment(tag_as_jsdoc_tag.maybe_comment().map(Into::into));
     }
 
-    pub(super) fn emit_jsdoc_type_literal(&self, node: &Node /*JSDocTypeLiteral*/) {
-        unimplemented!()
+    pub(super) fn emit_jsdoc_type_literal(&self, lit: &Node /*JSDocTypeLiteral*/) {
+        self.emit_list(
+            Some(lit),
+            Some(&with_factory(|factory| {
+                factory.create_node_array(
+                    lit.as_jsdoc_type_literal().js_doc_property_tags.clone(),
+                    None,
+                )
+            })),
+            ListFormat::JSDocComment,
+            None,
+            None,
+            None,
+        );
     }
 
-    pub(super) fn emit_jsdoc_signature(&self, node: &Node /*JSDocSignature*/) {
-        unimplemented!()
+    pub(super) fn emit_jsdoc_signature(&self, sig: &Node /*JSDocSignature*/) {
+        let sig_as_jsdoc_signature = sig.as_jsdoc_signature();
+        if let Some(sig_type_parameters) = sig_as_jsdoc_signature.maybe_type_parameters().as_ref() {
+            self.emit_list(
+                Some(sig),
+                Some(&with_factory(|factory| {
+                    factory.create_node_array(Some(sig_type_parameters.clone()), None)
+                })),
+                ListFormat::JSDocComment,
+                None,
+                None,
+                None,
+            );
+        }
+        // if (sig.parameters) {
+        self.emit_list(
+            Some(sig),
+            Some(&with_factory(|factory| {
+                factory.create_node_array(Some(sig_as_jsdoc_signature.parameters.clone()), None)
+            })),
+            ListFormat::JSDocComment,
+            None,
+            None,
+            None,
+        );
+        // }
+        if let Some(sig_type) = sig_as_jsdoc_signature.type_.as_ref() {
+            self.write_line(None);
+            self.write_space();
+            self.write_punctuation("*");
+            self.write_space();
+            self.emit(Some(&**sig_type), None);
+        }
     }
 
-    pub(super) fn emit_jsdoc_property_like_tag(&self, node: &Node /*JSDocPropertyLikeTag*/) {
-        unimplemented!()
+    pub(super) fn emit_jsdoc_property_like_tag(&self, param: &Node /*JSDocPropertyLikeTag*/) {
+        let param_as_jsdoc_property_like_tag = param.as_jsdoc_property_like_tag();
+        self.emit_jsdoc_tag_name(&param_as_jsdoc_property_like_tag.tag_name());
+        self.emit_jsdoc_type_expression(
+            param_as_jsdoc_property_like_tag.type_expression.as_deref(),
+        );
+        self.write_space();
+        if param_as_jsdoc_property_like_tag.is_bracketed {
+            self.write_punctuation("[");
+        }
+        self.emit(Some(&*param_as_jsdoc_property_like_tag.name), None);
+        if param_as_jsdoc_property_like_tag.is_bracketed {
+            self.write_punctuation("]");
+        }
+        self.emit_jsdoc_comment(
+            param_as_jsdoc_property_like_tag
+                .maybe_comment()
+                .map(Into::into),
+        );
     }
 
-    pub(super) fn emit_jsdoc_type_expression(&self, node: &Node /*JSDocTypeExpression*/) {
-        unimplemented!()
+    pub(super) fn emit_jsdoc_tag_name(&self, tag_name: &Node /*Identifier*/) {
+        self.write_punctuation("@");
+        self.emit(Some(tag_name), None);
+    }
+
+    pub(super) fn emit_jsdoc_comment(&self, comment: Option<StrOrNodeArrayRef>) {
+        let text = get_text_of_jsdoc_comment(comment);
+        if let Some(text) = text.filter(|text| !text.is_empty()) {
+            self.write_space();
+            self.write(&text);
+        }
+    }
+
+    pub(super) fn emit_jsdoc_type_expression(
+        &self,
+        type_expression: Option<&Node /*JSDocTypeExpression*/>,
+    ) {
+        if let Some(type_expression) = type_expression {
+            self.write_space();
+            self.write_punctuation("{");
+            self.emit(
+                Some(&*type_expression.as_jsdoc_type_expression().type_),
+                None,
+            );
+            self.write_punctuation("}");
+        }
     }
 
     pub(super) fn emit_source_file(&self, node: &Node /*SourceFile*/) {
-        unimplemented!()
+        self.write_line(None);
+        let statements = &node.as_source_file().statements;
+        // if (emitBodyWithDetachedComments) {
+        let should_emit_detached_comment = statements.is_empty()
+            || !is_prologue_directive(&statements[0])
+            || node_is_synthesized(&*statements[0]);
+        if should_emit_detached_comment {
+            self.emit_body_with_detached_comments(node, statements, |node: &Node| {
+                self.emit_source_file_worker(node)
+            });
+            return;
+        }
+        // }
+        self.emit_source_file_worker(node);
     }
 
     pub(super) fn emit_synthetic_triple_slash_references_if_needed(
         &self,
         node: &Node, /*Bundle*/
     ) {
+        let node_as_bundle = node.as_bundle();
+        let default_references: Vec<FileReference> = vec![];
+        self.emit_triple_slash_directives(
+            node_as_bundle.has_no_default_lib == Some(true),
+            node_as_bundle
+                .synthetic_file_references
+                .as_ref()
+                .unwrap_or(&default_references),
+            node_as_bundle
+                .synthetic_type_references
+                .as_ref()
+                .unwrap_or(&default_references),
+            node_as_bundle
+                .synthetic_lib_references
+                .as_ref()
+                .unwrap_or(&default_references),
+        );
+        for prepend in &node_as_bundle.prepends {
+            if is_unparsed_source(prepend) {
+                if let Some(prepend_synthetic_references) =
+                    prepend.as_unparsed_source().synthetic_references.as_ref()
+                {
+                    for ref_ in prepend_synthetic_references {
+                        self.emit(Some(&**ref_), None);
+                        self.write_line(None);
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn emit_triple_slash_directives_if_needed(&self, node: &Node /*SourceFile*/) {
+        let node_as_source_file = node.as_source_file();
+        if node_as_source_file.is_declaration_file() {
+            self.emit_triple_slash_directives(
+                node_as_source_file.has_no_default_lib(),
+                &node_as_source_file.referenced_files(),
+                &node_as_source_file.type_reference_directives(),
+                &node_as_source_file.lib_reference_directives(),
+            );
+        }
+    }
+
+    pub(super) fn emit_triple_slash_directives(
+        &self,
+        has_no_default_lib: bool,
+        files: &[FileReference],
+        types: &[FileReference],
+        libs: &[FileReference],
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_source_file_worker(&self, node: &Node /*SourceFile*/) {
         unimplemented!()
     }
 

@@ -638,7 +638,9 @@ impl Printer {
                 }
                 SyntaxKind::InputFiles => Debug_.fail(Some("InputFiles should not be printed")),
 
-                SyntaxKind::JSDocTypeExpression => return self.emit_jsdoc_type_expression(&node),
+                SyntaxKind::JSDocTypeExpression => {
+                    return self.emit_jsdoc_type_expression(Some(&node))
+                }
                 SyntaxKind::JSDocNameReference => return self.emit_jsdoc_name_reference(&node),
                 SyntaxKind::JSDocAllType => return self.write_punctuation("*"),
                 SyntaxKind::JSDocUnknownType => return self.write_punctuation("?"),

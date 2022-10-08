@@ -240,6 +240,17 @@ pub fn range_is_on_single_line<TRange: ReadonlyTextRange>(
     unimplemented!()
 }
 
+pub fn range_start_positions_are_on_same_line<
+    TRange1: ReadonlyTextRange,
+    TRange2: ReadonlyTextRange,
+>(
+    range1: &TRange1,
+    range2: &TRange2,
+    source_file: &Node, /*SourceFile*/
+) -> bool {
+    unimplemented!()
+}
+
 pub fn positions_are_on_same_line(
     pos1: usize,
     pos2: usize,

@@ -8,8 +8,8 @@ use crate::{
     CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
     HasChildrenInterface, HasDotDotDotTokenInterface, HasLeftAndRightInterface,
     HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
-    HasTagNameInterface, HasTextsInterface, InferenceContext, JsxOpeningLikeElementInterface,
-    SyntheticExpression, UnparsedSyntheticReference,
+    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
+    JsxOpeningLikeElementInterface, SyntheticExpression, UnparsedSyntheticReference,
 };
 
 use super::{
@@ -981,6 +981,14 @@ impl Node {
         }
     }
 
+    pub fn as_jsdoc_heritage_tag(&self) -> &dyn JSDocHeritageTagInterface {
+        match self {
+            Node::JSDocAugmentsTag(node) => node,
+            Node::JSDocImplementsTag(node) => node,
+            _ => panic!("Expected JSDoc heritage tag"),
+        }
+    }
+
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
         enum_unwrapped!(self, [Node, VariableDeclarationList])
     }
@@ -1607,6 +1615,14 @@ impl Node {
 
     pub fn as_namespace_export_declaration(&self) -> &NamespaceExportDeclaration {
         enum_unwrapped!(self, [Node, NamespaceExportDeclaration])
+    }
+
+    pub fn as_jsdoc_see_tag(&self) -> &JSDocSeeTag {
+        enum_unwrapped!(self, [Node, JSDocSeeTag])
+    }
+
+    pub fn as_jsdoc_name_reference(&self) -> &JSDocNameReference {
+        enum_unwrapped!(self, [Node, JSDocNameReference])
     }
 }
 

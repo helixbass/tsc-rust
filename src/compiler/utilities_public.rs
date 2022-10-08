@@ -8,9 +8,10 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    HasTypeArgumentsInterface, ReadonlyTextRange, TextSpan, __String, combine_paths,
-    compare_diagnostics, contains, create_compiler_diagnostic, entity_name_to_string, every, find,
-    flat_map, get_assignment_declaration_kind, get_directory_path, get_effective_modifier_flags,
+    HasTypeArgumentsInterface, ReadonlyTextRange, StringOrNodeArray, TextSpan, __String,
+    combine_paths, compare_diagnostics, contains, create_compiler_diagnostic,
+    entity_name_to_string, every, find, flat_map, get_assignment_declaration_kind,
+    get_directory_path, get_effective_modifier_flags,
     get_effective_modifier_flags_always_include_jsdoc,
     get_element_or_property_access_argument_expression_or_name, get_emit_script_target,
     get_jsdoc_comments_and_tags, get_jsdoc_type_parameter_declarations, has_syntactic_modifier,
@@ -1070,7 +1071,7 @@ pub fn get_all_jsdoc_tags_of_kind(node: &Node, kind: SyntaxKind) -> Vec<Rc<Node 
         .collect()
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum StrOrNodeArrayRef<'a> {
     Str(&'a str),
     NodeArray(&'a NodeArray),
@@ -1085,6 +1086,15 @@ impl<'a> From<&'a str> for StrOrNodeArrayRef<'a> {
 impl<'a> From<&'a NodeArray> for StrOrNodeArrayRef<'a> {
     fn from(value: &'a NodeArray) -> Self {
         Self::NodeArray(value)
+    }
+}
+
+impl<'a> From<&'a StringOrNodeArray> for StrOrNodeArrayRef<'a> {
+    fn from(value: &'a StringOrNodeArray) -> Self {
+        match value {
+            StringOrNodeArray::String(value) => Self::Str(value),
+            StringOrNodeArray::NodeArray(value) => Self::NodeArray(value),
+        }
     }
 }
 

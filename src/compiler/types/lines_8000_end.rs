@@ -860,7 +860,7 @@ bitflags! {
         const ObjectLiteralExpressionProperties = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits | Self::Indented.bits | Self::Braces.bits | Self::NoSpaceIfEmpty.bits;
         const ImportClauseEntries = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits | Self::Indented.bits | Self::Braces.bits | Self::NoSpaceIfEmpty.bits;
         const ArrayLiteralExpressionElements = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::Indented.bits | Self::SquareBrackets.bits;
-
+        const CommaListElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
         const CallExpressionArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Parenthesis.bits;
         const NewExpressionArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Parenthesis.bits | Self::OptionalIfUndefined.bits;
         const TemplateExpressionSpans = Self::SingleLine.bits | Self::NoInterveningComments.bits;
@@ -877,9 +877,13 @@ bitflags! {
         const NamedImportsOrExportsElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::NoSpaceIfEmpty.bits;
         const JsxElementOrFragmentChildren = Self::SingleLine.bits | Self::NoInterveningComments.bits;
         const JsxElementAttributes = Self::SingleLine.bits | Self::SpaceBetweenSiblings.bits | Self::NoInterveningComments.bits;
+        const CaseOrDefaultClauseStatements = Self::Indented.bits | Self::MultiLine.bits | Self::NoTrailingNewLine.bits | Self::OptionalIfEmpty.bits;
+        const HeritageClauseTypes = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
 
         const TypeArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
         const TypeParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
+
+        const JSDocComment = Self::MultiLine.bits | Self::AsteriskDelimited.bits;
     }
 }
 
