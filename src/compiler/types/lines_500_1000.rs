@@ -1624,6 +1624,10 @@ impl Node {
     pub fn as_jsdoc_name_reference(&self) -> &JSDocNameReference {
         enum_unwrapped!(self, [Node, JSDocNameReference])
     }
+
+    pub fn as_partially_emitted_expression(&self) -> &PartiallyEmittedExpression {
+        enum_unwrapped!(self, [Node, PartiallyEmittedExpression])
+    }
 }
 
 #[derive(Debug)]

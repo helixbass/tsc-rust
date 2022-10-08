@@ -7,8 +7,8 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    for_each_leading_comment_range, for_each_trailing_comment_range, get_comment_range,
-    get_emit_flags, get_line_and_character_of_position, get_literal_text,
+    find_index, for_each, for_each_leading_comment_range, for_each_trailing_comment_range,
+    get_comment_range, get_emit_flags, get_line_and_character_of_position, get_literal_text,
     get_text_of_jsdoc_comment, id_text, is_identifier, is_jsx_closing_element,
     is_jsx_opening_element, is_prologue_directive, is_unparsed_source, node_is_synthesized,
     range_start_positions_are_on_same_line, token_to_string, with_factory, with_synthetic_factory,
@@ -925,28 +925,115 @@ impl Printer {
     }
 
     pub(super) fn emit_source_file_worker(&self, node: &Node /*SourceFile*/) {
-        unimplemented!()
+        let statements = &node.as_source_file().statements;
+        self.push_name_generation_scope(Some(node));
+        for_each(statements, |statement: &Rc<Node>, _| -> Option<()> {
+            self.generate_names(Some(&**statement));
+            None
+        });
+        self.emit_helpers(node);
+        let index = find_index(
+            statements,
+            |statement: &Rc<Node>, _| !is_prologue_directive(statement),
+            None,
+        );
+        self.emit_triple_slash_directives_if_needed(node);
+        self.emit_list(
+            Some(node),
+            Some(statements),
+            ListFormat::MultiLine,
+            None,
+            Some(index.unwrap_or_else(|| statements.len())),
+            None,
+        );
+        self.pop_name_generation_scope(Some(node));
     }
 
     pub(super) fn emit_partially_emitted_expression(
         &self,
         node: &Node, /*PartiallyEmittedExpression*/
     ) {
-        unimplemented!()
+        self.emit_expression(
+            Some(&*node.as_partially_emitted_expression().expression),
+            None,
+        );
     }
 
     pub(super) fn emit_comma_list(&self, node: &Node /*CommaListExpression*/) {
-        unimplemented!()
+        self.emit_expression_list(
+            Some(node),
+            Some(&node.as_comma_list_expression().elements),
+            ListFormat::CommaListElements,
+            None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn emit_prologue_directives(
         &self,
         statements: &[Rc<Node>],
         source_file: Option<&Node /*SourceFile*/>,
-        seen_prologue_directives: Option<&mut HashSet<String>>,
+        seen_prologue_directives: &mut Option<HashSet<String>>,
         record_bundle_file_section: Option<bool /*true*/>,
     ) -> usize {
-        unimplemented!()
+        let mut needs_to_set_source_file = source_file.is_some();
+        for i in 0..statements.len() {
+            let statement = &statements[i];
+            if is_prologue_directive(statement) {
+                let should_emit_prologue_directive =
+                    seen_prologue_directives
+                        .as_ref()
+                        .map_or(true, |seen_prologue_directives| {
+                            !seen_prologue_directives.contains(
+                                &*statement
+                                    .as_expression_statement()
+                                    .expression
+                                    .as_string_literal()
+                                    .text(),
+                            )
+                        });
+                if should_emit_prologue_directive {
+                    if needs_to_set_source_file {
+                        needs_to_set_source_file = false;
+                        self.set_source_file(source_file);
+                    }
+                    self.write_line(None);
+                    let pos = self.writer().get_text_pos();
+                    self.emit(Some(&**statement), None);
+                    if record_bundle_file_section == Some(true) {
+                        if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
+                            bundle_file_info.sections.push(Rc::new(
+                                BundleFileSection::new_prologue(
+                                    statement
+                                        .as_expression_statement()
+                                        .expression
+                                        .as_string_literal()
+                                        .text()
+                                        .clone(),
+                                    pos.try_into().unwrap(),
+                                    self.writer().get_text_pos().try_into().unwrap(),
+                                ),
+                            ));
+                        }
+                    }
+                    if let Some(seen_prologue_directives) = seen_prologue_directives.as_mut() {
+                        seen_prologue_directives.insert(
+                            statement
+                                .as_expression_statement()
+                                .expression
+                                .as_string_literal()
+                                .text()
+                                .clone(),
+                        );
+                    }
+                }
+            } else {
+                return i;
+            }
+        }
+
+        return statements.len();
     }
 
     pub(super) fn emit_prologue_directives_if_needed(

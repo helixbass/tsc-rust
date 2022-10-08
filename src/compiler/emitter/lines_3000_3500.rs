@@ -348,7 +348,7 @@ impl Printer {
     ) {
         let body_as_block = body.as_block();
         let statement_offset =
-            self.emit_prologue_directives(&body_as_block.statements, None, None, None);
+            self.emit_prologue_directives(&body_as_block.statements, None, &mut None, None);
         let pos = self.writer().get_text_pos();
         self.emit_helpers(body);
         if statement_offset == 0
