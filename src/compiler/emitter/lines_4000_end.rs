@@ -1,23 +1,14 @@
-use regex::Regex;
 use std::borrow::{Borrow, Cow};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    find_index, for_each, for_each_leading_comment_range, for_each_trailing_comment_range,
-    get_comment_range, get_emit_flags, get_line_and_character_of_position, get_literal_text,
-    get_text_of_jsdoc_comment, id_text, is_identifier, is_jsx_closing_element,
-    is_jsx_opening_element, is_prologue_directive, is_unparsed_source, node_is_synthesized,
-    range_start_positions_are_on_same_line, token_to_string, with_factory, with_synthetic_factory,
-    BundleFileSection, BundleFileSectionKind, EmitFlags, EmitHint, FileReference,
-    GetLiteralTextFlags, HasInitializerInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, JSDocTagInterface, JSDocTypeLikeTagInterface, ListFormat,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, SourceFileLike, SourceFilePrologueInfo, SourceMapSource, StrOrNodeArrayRef,
-    Symbol, SyntaxKind, TextRange,
+    get_literal_text, id_text, is_identifier, token_to_string, EmitHint, GetLiteralTextFlags,
+    ListFormat, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFilePrologueInfo,
+    SourceMapSource, Symbol, SyntaxKind, TextRange,
 };
 
 impl Printer {
