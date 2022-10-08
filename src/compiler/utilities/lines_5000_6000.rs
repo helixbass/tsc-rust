@@ -251,12 +251,44 @@ pub fn range_start_positions_are_on_same_line<
     unimplemented!()
 }
 
+pub fn range_end_is_on_same_line_as_range_start<
+    TRange1: ReadonlyTextRange,
+    TRange2: ReadonlyTextRange,
+>(
+    range1: &TRange1,
+    range2: &TRange2,
+    source_file: &Node, /*SourceFile*/
+) -> bool {
+    unimplemented!()
+}
+
+pub fn get_lines_between_range_end_and_range_start<
+    TRange1: ReadonlyTextRange,
+    TRange2: ReadonlyTextRange,
+>(
+    range1: &TRange1,
+    range2: &TRange2,
+    source_file: &Node, /*SourceFile*/
+    include_second_range_comments: bool,
+) -> usize {
+    unimplemented!()
+}
+
 pub fn positions_are_on_same_line(
     pos1: usize,
     pos2: usize,
     source_file: &Node, /*SourceFile*/
 ) -> bool {
     get_lines_between_positions(source_file.as_source_file(), pos1, pos2) == 0
+}
+
+pub fn get_lines_between_position_and_preceding_non_whitespace_character(
+    pos: isize,
+    stop_pos: isize,
+    source_file: &Node, /*SourceFile*/
+    include_comments: Option<bool>,
+) -> usize {
+    unimplemented!()
 }
 
 pub fn is_watch_set(options: &CompilerOptions) -> bool {

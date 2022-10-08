@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -6,14 +7,22 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    get_literal_text, id_text, is_identifier, token_to_string, EmitHint, GetLiteralTextFlags,
-    ListFormat, Node, NodeInterface, Printer, ReadonlyTextRange, SourceMapSource, SyntaxKind,
+    are_option_rcs_equal, get_emit_flags,
+    get_lines_between_position_and_preceding_non_whitespace_character,
+    get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
+    get_starts_on_new_line, guess_indentation, id_text, is_identifier, node_is_synthesized,
+    position_is_synthesized, range_end_is_on_same_line_as_range_start, range_is_on_single_line,
+    range_start_positions_are_on_same_line, token_to_string, EmitFlags, EmitHint,
+    GetLiteralTextFlags, ListFormat, Node, NodeInterface, Printer, ReadonlyTextRange,
+    SourceMapSource, SyntaxKind,
 };
 
 impl Printer {
     pub(super) fn write_line(&self, count: Option<usize>) {
         let count = count.unwrap_or(1);
-        unimplemented!()
+        for i in 0..count {
+            self.writer().write_line(Some(i > 0));
+        }
     }
 
     pub(super) fn increase_indent(&self) {
@@ -28,14 +37,28 @@ impl Printer {
         &self,
         token: SyntaxKind,
         pos: isize,
-        mut writer: TWriter,
+        writer: TWriter,
         context_node: Option<&Node>,
     ) -> Option<isize> {
-        unimplemented!()
+        if !self.source_maps_disabled() {
+            Some(self.emit_token_with_source_map(
+                context_node,
+                token,
+                writer,
+                pos,
+                |token, writer, pos| {
+                    self.write_token_text(token, writer, Some(pos));
+                },
+            ))
+        } else {
+            self.write_token_text(token, writer, Some(pos))
+        }
     }
 
     pub(super) fn write_token_node(&self, node: &Node, writer: fn(&Printer, &str)) {
+        self.on_before_emit_token(Some(node));
         writer(self, token_to_string(node.kind()).unwrap());
+        self.on_after_emit_token(Some(node));
     }
 
     pub(super) fn write_token_text<TWriter: FnMut(&str)>(
@@ -61,11 +84,38 @@ impl Printer {
         prev_child_node: &Node,
         next_child_node: &Node,
     ) {
-        unimplemented!()
+        if get_emit_flags(parent_node).intersects(EmitFlags::SingleLine) {
+            self.write_space();
+        } else if self.maybe_preserve_source_newlines() == Some(true) {
+            let lines = self.get_lines_between_nodes(parent_node, prev_child_node, next_child_node);
+            if lines != 0 {
+                self.write_line(Some(lines));
+            } else {
+                self.write_space();
+            }
+        } else {
+            self.write_line(None);
+        }
     }
 
     pub(super) fn write_lines(&self, text: &str) {
-        unimplemented!()
+        lazy_static! {
+            static ref newline_regex: Regex = Regex::new(r"\r\n?|\n").unwrap();
+        }
+        let lines = newline_regex.split(text).collect::<Vec<_>>();
+        let indentation = guess_indentation(&lines);
+        for &line_text in &lines {
+            let line =
+                if let Some(indentation) = indentation.filter(|indentation| *indentation != 0) {
+                    &line_text[indentation..]
+                } else {
+                    line_text
+                };
+            if !line.is_empty() {
+                self.write_line(None);
+                self.write(line);
+            }
+        }
     }
 
     pub(super) fn write_lines_and_indent(
@@ -73,11 +123,21 @@ impl Printer {
         line_count: usize,
         write_space_if_not_indenting: bool,
     ) {
-        unimplemented!()
+        if line_count != 0 {
+            self.increase_indent();
+            self.write_line(Some(line_count));
+        } else if write_space_if_not_indenting {
+            self.write_space();
+        }
     }
 
     pub(super) fn decrease_indent_if(&self, value1: bool, value2: Option<bool>) {
-        unimplemented!()
+        if value1 {
+            self.decrease_indent();
+        }
+        if value2 == Some(true) {
+            self.decrease_indent();
+        }
     }
 
     pub(super) fn get_leading_line_terminator_count(
@@ -86,7 +146,81 @@ impl Printer {
         children: &[Rc<Node>],
         format: ListFormat,
     ) -> usize {
-        unimplemented!()
+        if format.intersects(ListFormat::PreserveLines)
+            || self.maybe_preserve_source_newlines() == Some(true)
+        {
+            if format.intersects(ListFormat::PreferNewLine) {
+                return 1;
+            }
+
+            let first_child = children.get(0);
+            if first_child.is_none() {
+                return if match parent_node {
+                    None => true,
+                    Some(parent_node) => {
+                        range_is_on_single_line(parent_node, &self.current_source_file())
+                    }
+                } {
+                    0
+                } else {
+                    1
+                };
+            }
+            let first_child = first_child.unwrap();
+            if Some(first_child.pos()) == self.maybe_next_list_element_pos() {
+                return 0;
+            }
+            if first_child.kind() == SyntaxKind::JsxText {
+                return 0;
+            }
+            if let Some(parent_node) = parent_node.filter(|&parent_node| {
+                !position_is_synthesized(parent_node.pos())
+                    && !node_is_synthesized(&**first_child)
+                    && match first_child.maybe_parent().as_ref() {
+                        None => true,
+                        Some(first_child_parent) => are_option_rcs_equal(
+                            get_original_node(
+                                Some(&**first_child_parent),
+                                Option::<fn(Option<Rc<Node>>) -> bool>::None,
+                            )
+                            .as_ref(),
+                            get_original_node(
+                                Some(parent_node),
+                                Option::<fn(Option<Rc<Node>>) -> bool>::None,
+                            )
+                            .as_ref(),
+                        ),
+                    }
+            }) {
+                if self.maybe_preserve_source_newlines() == Some(true) {
+                    return self.get_effective_lines(|include_comments| {
+                        get_lines_between_position_and_preceding_non_whitespace_character(
+                            first_child.pos(),
+                            parent_node.pos(),
+                            &self.current_source_file(),
+                            Some(include_comments),
+                        )
+                    });
+                }
+                return if range_start_positions_are_on_same_line(
+                    parent_node,
+                    &**first_child,
+                    &self.current_source_file(),
+                ) {
+                    0
+                } else {
+                    1
+                };
+            }
+            if self.synthesized_node_starts_on_new_line(first_child, format) {
+                return 1;
+            }
+        }
+        if format.intersects(ListFormat::MultiLine) {
+            1
+        } else {
+            0
+        }
     }
 
     pub(super) fn get_separating_line_terminator_count(
@@ -95,7 +229,60 @@ impl Printer {
         next_node: &Node,
         format: ListFormat,
     ) -> usize {
-        unimplemented!()
+        if format.intersects(ListFormat::PreserveLines)
+            || self.maybe_preserve_source_newlines() == Some(true)
+        {
+            if previous_node.is_none()
+            /*|| nextNode === undefined*/
+            {
+                return 0;
+            }
+            let previous_node = previous_node.unwrap();
+            if next_node.kind() == SyntaxKind::JsxText {
+                return 0;
+            } else if !node_is_synthesized(previous_node) && !node_is_synthesized(next_node) {
+                if self.maybe_preserve_source_newlines() == Some(true)
+                    && self.sibling_node_positions_are_comparable(previous_node, next_node)
+                {
+                    return self.get_effective_lines(|include_comments| {
+                        get_lines_between_range_end_and_range_start(
+                            previous_node,
+                            next_node,
+                            &self.current_source_file(),
+                            include_comments,
+                        )
+                    });
+                } else if self.maybe_preserve_source_newlines() != Some(true)
+                    && self.original_nodes_have_same_parent(previous_node, next_node)
+                {
+                    return if range_end_is_on_same_line_as_range_start(
+                        previous_node,
+                        next_node,
+                        &self.current_source_file(),
+                    ) {
+                        0
+                    } else {
+                        1
+                    };
+                }
+                return if format.intersects(ListFormat::PreferNewLine) {
+                    1
+                } else {
+                    0
+                };
+            } else if self.synthesized_node_starts_on_new_line(previous_node, format)
+                || self.synthesized_node_starts_on_new_line(next_node, format)
+            {
+                return 1;
+            }
+        } else if get_starts_on_new_line(next_node) {
+            return 1;
+        }
+        if format.intersects(ListFormat::MultiLine) {
+            1
+        } else {
+            0
+        }
     }
 
     pub(super) fn get_closing_line_terminator_count(
@@ -103,6 +290,13 @@ impl Printer {
         parent_node: Option<&Node>,
         children: &[Rc<Node>],
         format: ListFormat,
+    ) -> usize {
+        unimplemented!()
+    }
+
+    pub(super) fn get_effective_lines<TGetLineDifference: FnMut(bool) -> usize>(
+        &self,
+        get_line_difference: TGetLineDifference,
     ) -> usize {
         unimplemented!()
     }
@@ -116,6 +310,14 @@ impl Printer {
     }
 
     pub(super) fn write_line_separators_after(&self, node: &Node, parent: &Node) {
+        unimplemented!()
+    }
+
+    pub(super) fn synthesized_node_starts_on_new_line(
+        &self,
+        node: &Node,
+        format: ListFormat,
+    ) -> bool {
         unimplemented!()
     }
 
@@ -207,6 +409,18 @@ impl Printer {
         // unimplemented!()
     }
 
+    pub(super) fn original_nodes_have_same_parent(&self, nodeA: &Node, nodeB: &Node) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn sibling_node_positions_are_comparable(
+        &self,
+        previous_node: &Node,
+        next_node: &Node,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn emit_leading_comments_of_position(&self, pos: isize) {
         // unimplemented!()
     }
@@ -229,6 +443,20 @@ impl Printer {
     }
 
     pub(super) fn emit_source_maps_after_node(&self, node: &Node) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_token_with_source_map<
+        TWriter: FnMut(&str),
+        TEmitCallback: FnMut(SyntaxKind, TWriter, isize),
+    >(
+        &self,
+        node: Option<&Node>,
+        token: SyntaxKind,
+        writer: TWriter,
+        token_pos: isize,
+        emit_callback: TEmitCallback,
+    ) -> isize {
         unimplemented!()
     }
 
