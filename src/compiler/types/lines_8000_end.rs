@@ -34,7 +34,7 @@ pub struct Printer {
     pub reserved_names_stack: RefCell<Vec<HashSet<String>>>,
     pub reserved_names: RefCell<HashSet<String>>,
     pub preserve_source_newlines: Cell<Option<bool>>,
-    pub next_list_element_pos: Cell<Option<usize>>,
+    pub next_list_element_pos: Cell<Option<isize>>,
 
     pub writer: RefCell<Option<Rc<dyn EmitTextWriter>>>,
     pub own_writer: RefCell<Option<Rc<dyn EmitTextWriter>>>,

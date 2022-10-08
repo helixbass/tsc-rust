@@ -227,6 +227,14 @@ impl Printer {
         self.preserve_source_newlines.set(preserve_source_newlines);
     }
 
+    pub(super) fn maybe_next_list_element_pos(&self) -> Option<isize> {
+        self.next_list_element_pos.get()
+    }
+
+    pub(super) fn set_next_list_element_pos(&self, next_list_element_pos: Option<isize>) {
+        self.next_list_element_pos.set(next_list_element_pos);
+    }
+
     pub(super) fn maybe_writer(&self) -> Option<Rc<dyn EmitTextWriter>> {
         self.writer.borrow().clone()
     }

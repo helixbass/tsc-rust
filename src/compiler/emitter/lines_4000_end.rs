@@ -6,14 +6,15 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    get_emit_flags, get_literal_text, get_shebang, id_text, is_arrow_function, is_block,
-    is_empty_statement, is_function_like, is_identifier, is_prologue_directive, is_source_file,
-    is_unparsed_source, single_or_undefined, some, token_to_string, with_synthetic_factory,
-    BundleFileSection, Debug_, EmitFlags, EmitHint, GetLiteralTextFlags, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SourceFileLike, SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression,
-    SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind, UnparsedSectionInterface,
+    get_comment_range, get_emit_flags, get_literal_text, get_shebang, id_text, is_arrow_function,
+    is_block, is_empty_statement, is_function_like, is_identifier, is_prologue_directive,
+    is_source_file, is_unparsed_source, range_is_on_single_line, single_or_undefined, some,
+    token_to_string, with_synthetic_factory, BundleFileSection, BundleFileSectionKind, Debug_,
+    EmitFlags, EmitHint, GetLiteralTextFlags, HasInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike,
+    SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
+    SourceMapSource, Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
 };
 
 impl Printer {
@@ -538,7 +539,8 @@ impl Printer {
             Some(children) => start >= children.len(),
         } || count == 0;
         if is_empty && format.intersects(ListFormat::OptionalIfEmpty) {
-            // TODO
+            self.on_before_emit_node_array(children);
+            self.on_after_emit_node_array(children);
             return;
         }
 
@@ -551,50 +553,186 @@ impl Printer {
             }
         }
 
-        // TODO
+        self.on_before_emit_node_array(children);
 
-        let children = children.unwrap();
+        let parent_node = parent_node.map(|parent_node| parent_node.borrow().node_wrapper());
         if is_empty {
-            unimplemented!()
+            if format.intersects(ListFormat::MultiLine)
+                && !(self.maybe_preserve_source_newlines() == Some(true)
+                    && match parent_node.as_ref() {
+                        None => true,
+                        Some(parent_node) => {
+                            range_is_on_single_line(&**parent_node, &self.current_source_file())
+                        }
+                    })
+            {
+                self.write_line(None);
+            } else if format.intersects(ListFormat::SpaceBetweenBraces)
+                && !format.intersects(ListFormat::NoSpaceIfEmpty)
+            {
+                self.write_space();
+            }
         } else {
-            if false {
-                unimplemented!()
+            // Debug.type<NodeArray<Node>>(children);
+            let children = children.unwrap();
+            let may_emit_intervening_comments =
+                !format.intersects(ListFormat::NoInterveningComments);
+            let mut should_emit_intervening_comments = may_emit_intervening_comments;
+            let leading_line_terminator_count =
+                self.get_leading_line_terminator_count(parent_node.as_deref(), children, format);
+            if leading_line_terminator_count > 0 {
+                self.write_line(Some(leading_line_terminator_count));
+                should_emit_intervening_comments = false;
             } else if format.intersects(ListFormat::SpaceBetweenBraces) {
                 self.write_space();
             }
 
+            if format.intersects(ListFormat::Indented) {
+                self.increase_indent();
+            }
+
             let mut previous_sibling: Option<Rc<Node>> = None;
-            let children_iter = children.iter();
-            for child in children_iter.skip(start) {
-                if false {
-                    unimplemented!()
-                } else if let Some(previous_sibling) = previous_sibling.as_ref() {
+            let mut previous_source_file_text_kind: Option<BundleFileSectionKind> = None;
+            let mut should_decrease_indent_after_emit = false;
+            for i in 0..count {
+                let child = &children[start + i];
+
+                if format.intersects(ListFormat::AsteriskDelimited) {
+                    self.write_line(None);
                     self.write_delimiter(format);
+                } else if let Some(previous_sibling) = previous_sibling.as_ref() {
+                    if format.intersects(ListFormat::DelimitersMask)
+                        && previous_sibling.end()
+                            != parent_node
+                                .as_ref()
+                                .map_or(-1, |parent_node| parent_node.end())
+                    {
+                        self.emit_leading_comments_of_position(previous_sibling.end());
+                    }
+                    self.write_delimiter(format);
+                    self.record_bundle_file_internal_section_end(previous_source_file_text_kind);
+
+                    let separating_line_terminator_count = self
+                        .get_separating_line_terminator_count(
+                            Some(previous_sibling),
+                            child,
+                            format,
+                        );
+                    if separating_line_terminator_count > 0 {
+                        if format & (ListFormat::LinesMask | ListFormat::Indented)
+                            == ListFormat::SingleLine
+                        {
+                            self.increase_indent();
+                            should_decrease_indent_after_emit = true;
+                        }
+
+                        self.write_line(Some(separating_line_terminator_count));
+                        should_emit_intervening_comments = false;
+                    } else if
+                    /*previousSibling &&*/
+                    format.intersects(ListFormat::SpaceBetweenSiblings) {
+                        self.write_space();
+                    }
                 }
 
-                if false {
-                    unimplemented!()
-                } else if previous_sibling.is_some()
-                    && format.intersects(ListFormat::SpaceBetweenSiblings)
-                {
-                    self.write_space();
+                previous_source_file_text_kind =
+                    self.record_bundle_file_internal_section_start(child);
+                if should_emit_intervening_comments {
+                    // if (emitTrailingCommentsOfPosition) {
+                    let comment_range = get_comment_range(child);
+                    self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
+                    // }
+                } else {
+                    should_emit_intervening_comments = may_emit_intervening_comments;
                 }
 
-                emit(
-                    self,
-                    Some(&**child),
-                    None, // TODO: this is wrong
-                );
+                self.set_next_list_element_pos(Some(child.pos()));
+                emit(self, Some(&**child), parenthesizer_rule.clone());
+
+                if should_decrease_indent_after_emit {
+                    self.decrease_indent();
+                    should_decrease_indent_after_emit = false;
+                }
 
                 previous_sibling = Some(child.clone());
             }
 
-            if false {
-                unimplemented!()
+            let emit_flags = previous_sibling
+                .as_ref()
+                .map_or(EmitFlags::None, |previous_sibling| {
+                    get_emit_flags(previous_sibling)
+                });
+            let skip_trailing_comments =
+                self.comments_disabled() || emit_flags.intersects(EmitFlags::NoTrailingComments);
+            let has_trailing_comma = children.has_trailing_comma
+                && format.intersects(ListFormat::AllowTrailingComma)
+                && format.intersects(ListFormat::CommaDelimited);
+            if has_trailing_comma {
+                if let Some(previous_sibling) = previous_sibling
+                    .as_ref()
+                    .filter(|_| !skip_trailing_comments)
+                {
+                    self.emit_token_with_comment(
+                        SyntaxKind::CommaToken,
+                        previous_sibling.end(),
+                        |text: &str| self.write_punctuation(text),
+                        previous_sibling,
+                        None,
+                    );
+                } else {
+                    self.write_punctuation(",");
+                }
+            }
+
+            if let Some(previous_sibling) = previous_sibling.as_ref() {
+                if parent_node
+                    .as_ref()
+                    .map_or(-1, |parent_node| parent_node.end())
+                    != previous_sibling.end()
+                    && format.intersects(ListFormat::DelimitersMask)
+                    && !skip_trailing_comments
+                {
+                    self.emit_leading_comments_of_position(
+                        if has_trailing_comma {
+                            let children_end = children.end();
+                            if children_end != 0 {
+                                Some(children_end)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                        .unwrap_or_else(|| previous_sibling.end()),
+                    );
+                }
+            }
+
+            if format.intersects(ListFormat::Indented) {
+                self.decrease_indent();
+            }
+
+            self.record_bundle_file_internal_section_end(previous_source_file_text_kind);
+
+            let closing_line_terminator_count =
+                self.get_closing_line_terminator_count(parent_node.as_deref(), children, format);
+            if closing_line_terminator_count != 0 {
+                self.write_line(Some(closing_line_terminator_count));
             } else if format.intersects(ListFormat::SpaceAfterList | ListFormat::SpaceBetweenBraces)
             {
                 self.write_space();
             }
+        }
+
+        self.on_after_emit_node_array(children);
+
+        if format.intersects(ListFormat::BracketsMask) {
+            if is_empty {
+                if let Some(children) = children {
+                    self.emit_leading_comments_of_position(children.end());
+                }
+            }
+            self.write_punctuation(get_closing_bracket(format));
         }
     }
 
