@@ -736,16 +736,16 @@ impl Printer {
         }
     }
 
-    pub(super) fn write_base(&self, s: &str) {
-        self.writer().write(s);
-    }
-
     pub(super) fn write_literal(&self, s: &str) {
-        unimplemented!()
+        self.writer().write_literal(s);
     }
 
     pub(super) fn write_string_literal(&self, s: &str) {
         self.writer().write_string_literal(s);
+    }
+
+    pub(super) fn write_base(&self, s: &str) {
+        self.writer().write(s);
     }
 
     pub(super) fn write_symbol(&self, s: &str, sym: &Symbol) {
@@ -765,11 +765,11 @@ impl Printer {
     }
 
     pub(super) fn write_operator(&self, s: &str) {
-        unimplemented!()
+        self.writer().write_operator(s);
     }
 
     pub(super) fn write_parameter(&self, s: &str) {
-        unimplemented!()
+        self.writer().write_parameter(s);
     }
 
     pub(super) fn write_comment(&self, s: &str) {
@@ -785,7 +785,11 @@ impl Printer {
     }
 
     pub(super) fn non_escaping_write(&self, s: &str) {
-        unimplemented!()
+        if self.writer().is_non_escaping_write_supported() {
+            self.writer().non_escaping_write(s);
+        } else {
+            self.writer().write(s);
+        }
     }
 
     pub(super) fn write_line(&self, count: Option<usize>) {

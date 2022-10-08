@@ -181,6 +181,10 @@ impl EmitTextWriter for SingleLineStringWriter {
     fn has_trailing_whitespace(&self) -> bool {
         !self.str().is_empty() && is_white_space_like(self.str().chars().last().unwrap())
     }
+
+    fn is_non_escaping_write_supported(&self) -> bool {
+        false
+    }
 }
 
 impl SymbolWriter for SingleLineStringWriter {

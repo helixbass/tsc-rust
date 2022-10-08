@@ -654,6 +654,7 @@ pub trait EmitTextWriter: SymbolWriter {
         None
     }
     fn non_escaping_write(&self, text: &str) {}
+    fn is_non_escaping_write_supported(&self) -> bool;
 }
 
 pub trait ModuleSpecifierResolutionHost {

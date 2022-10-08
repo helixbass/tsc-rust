@@ -269,6 +269,14 @@ impl EmitTextWriter for TextWriter {
         !self.output().is_empty()
             && is_white_space_like(self.output_as_chars()[self.output_as_chars().len() - 1])
     }
+
+    fn get_text_pos_with_write_line(&self) -> Option<usize> {
+        unimplemented!()
+    }
+
+    fn is_non_escaping_write_supported(&self) -> bool {
+        false
+    }
 }
 
 impl SymbolWriter for TextWriter {
@@ -469,6 +477,18 @@ impl EmitTextWriter for TrailingSemicolonDeferringWriter {
 
     fn has_trailing_whitespace(&self) -> bool {
         self.writer.has_trailing_whitespace()
+    }
+
+    fn get_text_pos_with_write_line(&self) -> Option<usize> {
+        self.writer.get_text_pos_with_write_line()
+    }
+
+    fn non_escaping_write(&self, text: &str) {
+        self.writer.non_escaping_write(text)
+    }
+
+    fn is_non_escaping_write_supported(&self) -> bool {
+        self.writer.is_non_escaping_write_supported()
     }
 }
 
