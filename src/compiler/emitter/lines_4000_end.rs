@@ -1,29 +1,155 @@
 use std::borrow::{Borrow, Cow};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    get_literal_text, id_text, is_identifier, token_to_string, EmitHint, GetLiteralTextFlags,
-    ListFormat, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFilePrologueInfo,
-    SourceMapSource, Symbol, SyntaxKind, TextRange,
+    get_literal_text, id_text, is_identifier, is_prologue_directive, is_source_file,
+    token_to_string, BundleFileSection, EmitHint, GetLiteralTextFlags, ListFormat,
+    LiteralLikeNodeInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
+    SourceFileLike, SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression,
+    SourceFilePrologueInfo, SourceMapSource, Symbol, SyntaxKind, UnparsedSectionInterface,
 };
 
 impl Printer {
+    pub(super) fn emit_unparsed_prologues(
+        &self,
+        prologues: &[Rc<Node /*UnparsedPrologue*/>],
+        seen_prologue_directives: &mut HashSet<String>,
+    ) {
+        for prologue in prologues {
+            let prologue_as_unparsed_prologue = prologue.as_unparsed_prologue();
+            if !seen_prologue_directives
+                .contains(prologue_as_unparsed_prologue.maybe_data().unwrap())
+            {
+                self.write_line(None);
+                let pos = self.writer().get_text_pos();
+                self.emit(Some(&**prologue), None);
+                if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
+                    bundle_file_info
+                        .sections
+                        .push(Rc::new(BundleFileSection::new_prologue(
+                            prologue_as_unparsed_prologue
+                                .maybe_data()
+                                .unwrap()
+                                .to_owned(),
+                            pos.try_into().unwrap(),
+                            self.writer().get_text_pos().try_into().unwrap(),
+                        )));
+                }
+                // if (seenPrologueDirectives) {
+                seen_prologue_directives.insert(
+                    prologue_as_unparsed_prologue
+                        .maybe_data()
+                        .unwrap()
+                        .to_owned(),
+                );
+                // }
+            }
+        }
+    }
+
     pub(super) fn emit_prologue_directives_if_needed(
         &self,
         source_file_or_bundle: &Node, /*Bundle | SourceFile*/
     ) {
-        unimplemented!()
+        if is_source_file(source_file_or_bundle) {
+            self.emit_prologue_directives(
+                &source_file_or_bundle.as_source_file().statements,
+                Some(source_file_or_bundle),
+                &mut None,
+                None,
+            );
+        } else {
+            let source_file_or_bundle_as_bundle = source_file_or_bundle.as_bundle();
+            let mut seen_prologue_directives: Option<HashSet<String>> = Some(HashSet::new());
+            for prepend in &source_file_or_bundle_as_bundle.prepends {
+                self.emit_unparsed_prologues(
+                    &prepend.as_unparsed_source().prologues,
+                    seen_prologue_directives.as_mut().unwrap(),
+                );
+            }
+            for source_file in &source_file_or_bundle_as_bundle.source_files {
+                self.emit_prologue_directives(
+                    &source_file.as_source_file().statements,
+                    Some(&**source_file),
+                    &mut seen_prologue_directives,
+                    Some(true),
+                );
+            }
+            self.set_source_file(None);
+        }
     }
 
     pub(super) fn get_prologue_directives_from_bundled_source_files(
         &self,
         bundle: &Node, /*Bundle*/
     ) -> Option<Vec<SourceFilePrologueInfo>> {
-        unimplemented!()
+        let mut seen_prologue_directives: HashSet<String> = HashSet::new();
+        let mut prologues: Option<Vec<SourceFilePrologueInfo>> = None;
+        let bundle_as_bundle = bundle.as_bundle();
+        for index in 0..bundle_as_bundle.source_files.len() {
+            let source_file = &bundle_as_bundle.source_files[index];
+            let mut directives: Option<Vec<SourceFilePrologueDirective>> = None;
+            let mut end = 0;
+            let source_file_as_source_file = source_file.as_source_file();
+            for statement in &source_file_as_source_file.statements {
+                if !is_prologue_directive(statement) {
+                    break;
+                }
+                let statement_as_expression_statement = statement.as_expression_statement();
+                if seen_prologue_directives.contains(
+                    &*statement_as_expression_statement
+                        .expression
+                        .as_string_literal()
+                        .text(),
+                ) {
+                    continue;
+                }
+                seen_prologue_directives.insert(
+                    statement_as_expression_statement
+                        .expression
+                        .as_string_literal()
+                        .text()
+                        .clone(),
+                );
+                directives
+                    .get_or_insert_with(|| vec![])
+                    .push(SourceFilePrologueDirective {
+                        pos: statement.pos(),
+                        end: statement.end(),
+                        expression: SourceFilePrologueDirectiveExpression {
+                            pos: statement_as_expression_statement.expression.pos(),
+                            end: statement_as_expression_statement.expression.end(),
+                            text: statement_as_expression_statement
+                                .expression
+                                .as_string_literal()
+                                .text()
+                                .clone(),
+                        },
+                    });
+                end = if end < statement.end() {
+                    statement.end()
+                } else {
+                    end
+                };
+            }
+            if let Some(directives) = directives {
+                prologues
+                    .get_or_insert_with(|| vec![])
+                    .push(SourceFilePrologueInfo {
+                        file: index,
+                        text: source_file_as_source_file.text_as_chars()
+                            [0..TryInto::<usize>::try_into(end).unwrap()]
+                            .into_iter()
+                            .collect(),
+                        directives,
+                    });
+            }
+        }
+        prologues
     }
 
     pub(super) fn emit_shebang_if_needed(

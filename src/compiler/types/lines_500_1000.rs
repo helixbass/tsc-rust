@@ -1628,6 +1628,10 @@ impl Node {
     pub fn as_partially_emitted_expression(&self) -> &PartiallyEmittedExpression {
         enum_unwrapped!(self, [Node, PartiallyEmittedExpression])
     }
+
+    pub fn as_unparsed_prologue(&self) -> &UnparsedPrologue {
+        enum_unwrapped!(self, [Node, UnparsedPrologue])
+    }
 }
 
 #[derive(Debug)]
