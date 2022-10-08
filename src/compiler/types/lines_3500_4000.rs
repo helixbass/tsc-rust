@@ -345,6 +345,10 @@ impl SourceFile {
         self.script_kind.set(script_kind);
     }
 
+    pub fn maybe_amd_dependencies(&self) -> Ref<Option<Vec<AmdDependency>>> {
+        self.amd_dependencies.borrow()
+    }
+
     pub fn amd_dependencies(&self) -> Ref<Vec<AmdDependency>> {
         Ref::map(self.amd_dependencies.borrow(), |option| {
             option.as_ref().unwrap()

@@ -12,11 +12,12 @@ use crate::{
     get_text_of_jsdoc_comment, id_text, is_identifier, is_jsx_closing_element,
     is_jsx_opening_element, is_prologue_directive, is_unparsed_source, node_is_synthesized,
     range_start_positions_are_on_same_line, token_to_string, with_factory, with_synthetic_factory,
-    EmitFlags, EmitHint, FileReference, GetLiteralTextFlags, HasInitializerInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, JSDocTagInterface,
-    JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike,
-    SourceFilePrologueInfo, SourceMapSource, StrOrNodeArrayRef, Symbol, SyntaxKind, TextRange,
+    BundleFileSection, BundleFileSectionKind, EmitFlags, EmitHint, FileReference,
+    GetLiteralTextFlags, HasInitializerInterface, HasTypeArgumentsInterface,
+    HasTypeParametersInterface, JSDocTagInterface, JSDocTypeLikeTagInterface, ListFormat,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
+    ReadonlyTextRange, SourceFileLike, SourceFilePrologueInfo, SourceMapSource, StrOrNodeArrayRef,
+    Symbol, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -813,7 +814,114 @@ impl Printer {
         types: &[FileReference],
         libs: &[FileReference],
     ) {
-        unimplemented!()
+        if has_no_default_lib {
+            let pos = self.writer().get_text_pos();
+            self.write_comment("/// <reference no-default-lib=\"true\"/>");
+            if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
+                bundle_file_info
+                    .sections
+                    .push(Rc::new(BundleFileSection::new_has_no_default_lib(
+                        None,
+                        pos.try_into().unwrap(),
+                        self.writer().get_text_pos().try_into().unwrap(),
+                    )));
+            }
+            self.write_line(None);
+        }
+        if let Some(current_source_file) = self.maybe_current_source_file().as_ref() {
+            if let Some(current_source_file_module_name) = current_source_file
+                .as_source_file()
+                .maybe_module_name()
+                .as_ref()
+                .filter(|current_source_file_module_name| {
+                    !current_source_file_module_name.is_empty()
+                })
+            {
+                self.write_comment(&format!(
+                    "/// <amd-module name=\"{}\" />",
+                    current_source_file_module_name,
+                ));
+                self.write_line(None);
+            }
+        }
+        if let Some(current_source_file) = self.maybe_current_source_file().as_ref() {
+            if let Some(current_source_file_amd_dependencies) = current_source_file
+                .as_source_file()
+                .maybe_amd_dependencies()
+                .as_ref()
+            {
+                for dep in current_source_file_amd_dependencies {
+                    if let Some(dep_name) =
+                        dep.name.as_ref().filter(|dep_name| !dep_name.is_empty())
+                    {
+                        self.write_comment(&format!(
+                            "/// <amd-dependency name=\"{}\" path=\"{}\" />",
+                            dep_name, dep.path,
+                        ));
+                    } else {
+                        self.write_comment(&format!(
+                            "/// <amd-dependency path=\"{}\" />",
+                            dep.path,
+                        ));
+                    }
+                    self.write_line(None);
+                }
+            }
+        }
+        for directive in files {
+            let pos = self.writer().get_text_pos();
+            self.write_comment(&format!(
+                "/// <reference path=\"{}\" />",
+                directive.file_name,
+            ));
+            if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
+                bundle_file_info
+                    .sections
+                    .push(Rc::new(BundleFileSection::new_reference(
+                        BundleFileSectionKind::Reference,
+                        directive.file_name.clone(),
+                        pos.try_into().unwrap(),
+                        self.writer().get_text_pos().try_into().unwrap(),
+                    )));
+            }
+            self.write_line(None);
+        }
+        for directive in types {
+            let pos = self.writer().get_text_pos();
+            self.write_comment(&format!(
+                "/// <reference types=\"{}\" />",
+                directive.file_name,
+            ));
+            if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
+                bundle_file_info
+                    .sections
+                    .push(Rc::new(BundleFileSection::new_reference(
+                        BundleFileSectionKind::Type,
+                        directive.file_name.clone(),
+                        pos.try_into().unwrap(),
+                        self.writer().get_text_pos().try_into().unwrap(),
+                    )));
+            }
+            self.write_line(None);
+        }
+        for directive in libs {
+            let pos = self.writer().get_text_pos();
+            self.write_comment(&format!(
+                "/// <reference lib=\"{}\" />",
+                directive.file_name,
+            ));
+            if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
+                bundle_file_info
+                    .sections
+                    .push(Rc::new(BundleFileSection::new_reference(
+                        BundleFileSectionKind::Lib,
+                        directive.file_name.clone(),
+                        pos.try_into().unwrap(),
+                        self.writer().get_text_pos().try_into().unwrap(),
+                    )));
+            }
+            self.write_line(None);
+        }
     }
 
     pub(super) fn emit_source_file_worker(&self, node: &Node /*SourceFile*/) {
@@ -1161,6 +1269,10 @@ impl Printer {
 
     pub(super) fn write_parameter(&self, s: &str) {
         unimplemented!()
+    }
+
+    pub(super) fn write_comment(&self, s: &str) {
+        self.writer().write_comment(s);
     }
 
     pub(super) fn write_space(&self) {
