@@ -67,10 +67,9 @@ pub fn add_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
     node
 }
 
-pub(crate) fn get_starts_on_new_line(node: &Node) -> bool {
+pub(crate) fn get_starts_on_new_line(node: &Node) -> Option<bool> {
     node.maybe_emit_node()
         .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
-        .unwrap_or(false)
 }
 
 pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Rc<Node>*/

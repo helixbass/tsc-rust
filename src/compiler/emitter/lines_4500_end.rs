@@ -15,7 +15,7 @@ use crate::{
     get_starts_on_new_line, guess_indentation, id_text, is_identifier, last_or_undefined,
     node_is_synthesized, position_is_synthesized, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line,
-    range_start_positions_are_on_same_line, token_to_string, EmitFlags, EmitHint,
+    range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags, EmitHint,
     GetLiteralTextFlags, ListFormat, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
     SourceMapSource, SyntaxKind,
 };
@@ -278,7 +278,7 @@ impl Printer {
             {
                 return 1;
             }
-        } else if get_starts_on_new_line(next_node) {
+        } else if get_starts_on_new_line(next_node) == Some(true) {
             return 1;
         }
         if format.intersects(ListFormat::MultiLine) {
@@ -366,9 +366,14 @@ impl Printer {
 
     pub(super) fn get_effective_lines<TGetLineDifference: FnMut(bool) -> usize>(
         &self,
-        get_line_difference: TGetLineDifference,
+        mut get_line_difference: TGetLineDifference,
     ) -> usize {
-        unimplemented!()
+        Debug_.assert(self.maybe_preserve_source_newlines() == Some(true), None);
+        let lines = get_line_difference(true);
+        if lines == 0 {
+            return get_line_difference(false);
+        }
+        lines
     }
 
     pub(super) fn write_line_separators_and_indent_before(
@@ -376,11 +381,35 @@ impl Printer {
         node: &Node,
         parent: &Node,
     ) -> bool {
-        unimplemented!()
+        let leading_newlines = if self.maybe_preserve_source_newlines() == Some(true) {
+            self.get_leading_line_terminator_count(
+                Some(parent),
+                &[node.node_wrapper()],
+                ListFormat::None,
+            )
+        } else {
+            0
+        };
+        if leading_newlines != 0 {
+            self.write_lines_and_indent(leading_newlines, false);
+        }
+        leading_newlines != 0
     }
 
     pub(super) fn write_line_separators_after(&self, node: &Node, parent: &Node) {
-        unimplemented!()
+        let trailing_newlines = if self.maybe_preserve_source_newlines() == Some(true) {
+            self.get_closing_line_terminator_count(
+                Some(parent),
+                // (&[node.node_wrapper()]).into(),
+                RefNodeArrayOrSlice::Slice(&[node.node_wrapper()]),
+                ListFormat::None,
+            )
+        } else {
+            0
+        };
+        if trailing_newlines != 0 {
+            self.write_line(Some(trailing_newlines));
+        }
     }
 
     pub(super) fn synthesized_node_starts_on_new_line(
@@ -388,7 +417,17 @@ impl Printer {
         node: &Node,
         format: ListFormat,
     ) -> bool {
-        unimplemented!()
+        if node_is_synthesized(node) {
+            let starts_on_new_line = get_starts_on_new_line(node);
+            if starts_on_new_line.is_none() {
+                return format.intersects(ListFormat::PreferNewLine);
+            }
+            let starts_on_new_line = starts_on_new_line.unwrap();
+
+            return starts_on_new_line;
+        }
+
+        format.intersects(ListFormat::PreferNewLine)
     }
 
     pub(super) fn get_lines_between_nodes(
