@@ -1,20 +1,13 @@
-use std::borrow::{Borrow, Cow};
-use std::collections::{HashMap, HashSet};
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    get_comment_range, get_emit_flags, get_literal_text, get_shebang, id_text, is_arrow_function,
-    is_block, is_empty_statement, is_function_like, is_identifier, is_prologue_directive,
-    is_source_file, is_unparsed_source, range_is_on_single_line, single_or_undefined, some,
-    token_to_string, with_synthetic_factory, BundleFileSection, BundleFileSectionKind, Debug_,
-    EmitFlags, EmitHint, GetLiteralTextFlags, HasInitializerInterface, HasTypeInterface,
-    HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike,
-    SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
-    SourceMapSource, Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
+    get_literal_text, id_text, is_identifier, token_to_string, EmitHint, GetLiteralTextFlags,
+    ListFormat, Node, NodeInterface, Printer, ReadonlyTextRange, SourceMapSource, SyntaxKind,
 };
 
 impl Printer {
