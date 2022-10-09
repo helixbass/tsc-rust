@@ -10,7 +10,7 @@ use std::rc::Rc;
 use super::brackets;
 use crate::{
     are_option_rcs_equal, escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
-    get_emit_flags, get_lines_between_position_and_next_non_whitespace_character,
+    for_each, get_emit_flags, get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
     get_source_file_of_node, get_source_text_of_node_from_source_file, get_starts_on_new_line,
@@ -19,8 +19,9 @@ use crate::{
     position_is_synthesized, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line,
     range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags, EmitHint,
-    GetLiteralTextFlags, ListFormat, LiteralLikeNodeInterface, Node, NodeArray, NodeInterface,
-    Printer, ReadonlyTextRange, ScriptTarget, SourceMapSource, SyntaxKind,
+    FunctionLikeDeclarationInterface, GetLiteralTextFlags, ListFormat, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, SourceMapSource, SyntaxKind,
 };
 
 impl Printer {
@@ -631,7 +632,142 @@ impl Printer {
     }
 
     pub(super) fn generate_names(&self, node: Option<&Node>) {
-        unimplemented!()
+        if node.is_none() {
+            return;
+        }
+        let node = node.unwrap();
+        match node.kind() {
+            SyntaxKind::Block => {
+                for_each(
+                    &node.as_block().statements,
+                    |statement: &Rc<Node>, _| -> Option<()> {
+                        self.generate_names(Some(statement));
+                        None
+                    },
+                );
+            }
+            SyntaxKind::LabeledStatement
+            | SyntaxKind::WithStatement
+            | SyntaxKind::DoStatement
+            | SyntaxKind::WhileStatement => {
+                self.generate_names(Some(&node.as_has_statement().statement()));
+            }
+            SyntaxKind::IfStatement => {
+                let node_as_if_statement = node.as_if_statement();
+                self.generate_names(Some(&node_as_if_statement.then_statement));
+                self.generate_names(node_as_if_statement.else_statement.as_deref());
+            }
+            SyntaxKind::ForStatement | SyntaxKind::ForOfStatement | SyntaxKind::ForInStatement => {
+                self.generate_names(node.as_has_initializer().maybe_initializer().as_deref());
+                self.generate_names(Some(&node.as_has_statement().statement()));
+            }
+            SyntaxKind::SwitchStatement => {
+                self.generate_names(Some(&node.as_switch_statement().case_block));
+            }
+            SyntaxKind::CaseBlock => {
+                for_each(
+                    &node.as_case_block().clauses,
+                    |clause: &Rc<Node>, _| -> Option<()> {
+                        self.generate_names(Some(clause));
+                        None
+                    },
+                );
+            }
+            SyntaxKind::CaseClause | SyntaxKind::DefaultClause => {
+                for_each(
+                    node.as_has_statements().statements(),
+                    |statement: &Rc<Node>, _| -> Option<()> {
+                        self.generate_names(Some(statement));
+                        None
+                    },
+                );
+            }
+            SyntaxKind::TryStatement => {
+                let node_as_try_statement = node.as_try_statement();
+                self.generate_names(Some(&node_as_try_statement.try_block));
+                self.generate_names(node_as_try_statement.catch_clause.as_deref());
+                self.generate_names(node_as_try_statement.finally_block.as_deref());
+            }
+            SyntaxKind::CatchClause => {
+                let node_as_catch_clause = node.as_catch_clause();
+                self.generate_names(node_as_catch_clause.variable_declaration.as_deref());
+                self.generate_names(Some(&node_as_catch_clause.block));
+            }
+            SyntaxKind::VariableStatement => {
+                self.generate_names(Some(&node.as_variable_statement().declaration_list));
+            }
+            SyntaxKind::VariableDeclarationList => {
+                for_each(
+                    &node.as_variable_declaration_list().declarations,
+                    |declaration: &Rc<Node>, _| -> Option<()> {
+                        self.generate_names(Some(declaration));
+                        None
+                    },
+                );
+            }
+            SyntaxKind::VariableDeclaration
+            | SyntaxKind::Parameter
+            | SyntaxKind::BindingElement
+            | SyntaxKind::ClassDeclaration => {
+                self.generate_name_if_needed(node.as_named_declaration().maybe_name().as_deref());
+            }
+            SyntaxKind::FunctionDeclaration => {
+                let node_as_function_declaration = node.as_function_declaration();
+                self.generate_name_if_needed(node_as_function_declaration.maybe_name().as_deref());
+                if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope) {
+                    for_each(
+                        node_as_function_declaration.parameters(),
+                        |parameter: &Rc<Node>, _| -> Option<()> {
+                            self.generate_names(Some(parameter));
+                            None
+                        },
+                    );
+                    self.generate_names(node_as_function_declaration.maybe_body().as_deref());
+                }
+            }
+            SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
+                for_each(
+                    node.as_has_elements().elements(),
+                    |element: &Rc<Node>, _| -> Option<()> {
+                        self.generate_names(Some(element));
+                        None
+                    },
+                );
+            }
+            SyntaxKind::ImportDeclaration => {
+                self.generate_names(node.as_import_declaration().import_clause.as_deref());
+            }
+            SyntaxKind::ImportClause => {
+                let node_as_import_clause = node.as_import_clause();
+                self.generate_name_if_needed(node_as_import_clause.name.as_deref());
+                self.generate_names(node_as_import_clause.named_bindings.as_deref());
+            }
+            SyntaxKind::NamespaceImport => {
+                self.generate_name_if_needed(Some(&node.as_namespace_import().name));
+            }
+            SyntaxKind::NamespaceExport => {
+                self.generate_name_if_needed(Some(&node.as_namespace_export().name));
+            }
+            SyntaxKind::NamedImports => {
+                for_each(
+                    &node.as_named_imports().elements,
+                    |element: &Rc<Node>, _| -> Option<()> {
+                        self.generate_names(Some(element));
+                        None
+                    },
+                );
+            }
+            SyntaxKind::ImportSpecifier => {
+                let node_as_import_specifier = node.as_import_specifier();
+                self.generate_name_if_needed(Some(
+                    node_as_import_specifier
+                        .property_name
+                        .as_deref()
+                        .unwrap_or(&*node_as_import_specifier.name),
+                ));
+            }
+            _ => (),
+        }
     }
 
     pub(super) fn generate_member_names(&self, node: Option<&Node>) {
