@@ -15,6 +15,9 @@ use typescript_rust::{
 };
 
 #[rstest]
+#[case("weakType.ts")]
+#[case("widenToAny1.ts")]
+#[case("widenToAny2.ts")]
 #[case("widenedTypes.ts")]
 #[case("withStatement.ts")]
 #[case("withStatementErrors.ts")]
@@ -196,7 +199,13 @@ impl FormatDiagnosticsHost for DummyFormatDiagnosticsHost {
 fn parse_baseline_errors(baseline_file_contents: &str) -> String {
     baseline_file_contents
         .split("\n")
-        .filter(|line| line.starts_with("tests/cases/compiler"))
+        // .filter(|line| line.starts_with("tests/cases/compiler"))
+        .take_while(|line| {
+            lazy_static! {
+                static ref blank_line_regex: Regex = Regex::new(r"^\s*$").unwrap();
+            }
+            !blank_line_regex.is_match(line)
+        })
         .map(|line| {
             line.replace(
                 "tests/cases/compiler",
