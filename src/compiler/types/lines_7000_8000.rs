@@ -174,7 +174,7 @@ pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory> {
 
 pub struct NodeFactory<TBaseNodeFactory> {
     pub flags: NodeFactoryFlags,
-    pub parenthesizer_rules: RefCell<Option<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>,
+    pub parenthesizer_rules: RefCell<Option<Rc<dyn ParenthesizerRules<TBaseNodeFactory>>>>,
     pub converters: RefCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,
 }
 
@@ -234,12 +234,7 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 
     fn is_emit_notification_enabled(&self, node: &Node) -> bool;
 
-    fn on_emit_node(
-        &self,
-        hint: EmitHint,
-        node: &Node,
-        emit_callback: &mut dyn FnMut(EmitHint, &Node),
-    );
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node));
 
     fn add_diagnostic(&self, diag: Rc<Diagnostic /*DiagnosticWithLocation*/>);
 }
@@ -255,7 +250,7 @@ pub trait TransformationResult {
         &self,
         hint: EmitHint,
         node: &Node,
-        emit_callback: &mut dyn FnMut(EmitHint, &Node),
+        emit_callback: &dyn Fn(EmitHint, &Node),
     );
 
     fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool>;

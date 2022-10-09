@@ -766,16 +766,16 @@ impl TypeChecker {
         let node_as_computed_property_name = node.as_computed_property_name();
         let links = self.get_node_links(&node_as_computed_property_name.expression);
         if (*links).borrow().resolved_type.is_none() {
-            if is_type_literal_node(&node.parent().parent())
+            if (is_type_literal_node(&node.parent().parent())
                 || is_class_like(&node.parent().parent())
-                || is_interface_declaration(&node.parent().parent())
-                    && is_binary_expression(&node_as_computed_property_name.expression)
-                    && node_as_computed_property_name
-                        .expression
-                        .as_binary_expression()
-                        .operator_token
-                        .kind()
-                        == SyntaxKind::InKeyword
+                || is_interface_declaration(&node.parent().parent()))
+                && is_binary_expression(&node_as_computed_property_name.expression)
+                && node_as_computed_property_name
+                    .expression
+                    .as_binary_expression()
+                    .operator_token
+                    .kind()
+                    == SyntaxKind::InKeyword
             {
                 let ret = self.error_type();
                 links.borrow_mut().resolved_type = Some(ret.clone());

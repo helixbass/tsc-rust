@@ -34,7 +34,7 @@ impl TypeChecker {
         type_predicate: &TypePredicate,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: TypeFormatFlags,
-        writer: Rc<RefCell<dyn EmitTextWriter>>,
+        writer: Rc<dyn EmitTextWriter>,
     ) {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -89,11 +89,17 @@ impl TypeChecker {
                 .remove_comments(Some(true))
                 .build()
                 .unwrap(),
+            None,
         );
         let source_file = enclosing_declaration
             .as_deref()
             .and_then(|enclosing_declaration| get_source_file_of_node(Some(enclosing_declaration)));
-        printer.write_node(EmitHint::Unspecified, &predicate, source_file, writer);
+        printer.write_node(
+            EmitHint::Unspecified,
+            &predicate,
+            source_file.as_deref(),
+            writer,
+        );
         // return writer;
     }
 

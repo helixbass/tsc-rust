@@ -3,8 +3,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    get_parse_tree_node, get_source_file_of_node, is_parse_tree_node, Debug_, EmitFlags, EmitNode,
-    Node, NodeInterface, ReadonlyTextRange, SyntaxKind, SynthesizedComment,
+    get_parse_tree_node, get_source_file_of_node, is_parse_tree_node, BaseTextRange, Debug_,
+    EmitFlags, EmitHelper, EmitNode, Node, NodeInterface, ReadonlyTextRange, SnippetElement,
+    StringOrNumber, SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: &Node) -> Rc<RefCell<EmitNode>> {
@@ -66,10 +67,9 @@ pub fn add_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
     node
 }
 
-pub(crate) fn get_starts_on_new_line(node: &Node) -> bool {
+pub(crate) fn get_starts_on_new_line(node: &Node) -> Option<bool> {
     node.maybe_emit_node()
         .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
-        .unwrap_or(false)
 }
 
 pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Rc<Node>*/
@@ -80,10 +80,22 @@ pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Rc<Node>*
     // node
 }
 
+pub fn get_comment_range(node: &Node) -> BaseTextRange {
+    // TODO: these semantics wouldn't work if the return value is treated mutably?
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().comment_range.clone())
+        .unwrap_or_else(|| BaseTextRange::new(node.pos(), node.end()))
+}
+
 pub fn set_comment_range<TRange: ReadonlyTextRange /*TextRange*/>(node: &Node, range: &TRange)
 /*-> Rc<Node>*/
 {
     // unimplemented!()
+}
+
+pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().leading_comments.clone())
 }
 
 pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
@@ -100,4 +112,24 @@ pub fn add_synthetic_leading_comment(
 ) /*-> Rc<Node>*/
 {
     unimplemented!()
+}
+
+pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().trailing_comments.clone())
+}
+
+pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
+}
+
+pub fn get_emit_helpers(node: &Node) -> Option<Vec<Rc<EmitHelper>>> {
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().helpers.clone())
+}
+
+pub(crate) fn get_snippet_element(node: &Node) -> Option<SnippetElement> {
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().snippet_element)
 }

@@ -2,29 +2,603 @@
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
-    CommentRange, FileIncludeReason, ModuleKind, MultiMap, NewLineKind, Path, RedirectTargetsMap,
-    ScriptTarget, SortedArray, SymlinkCache,
+    BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint, FileIncludeReason,
+    ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules, Path,
+    RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SymlinkCache, SyntaxKind,
+    TempFlags, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
 pub struct Printer {
-    pub current_source_file: Option<Rc<Node /*SourceFile*/>>,
-    pub writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
-    pub write: fn(&Printer, &str),
+    pub _rc_wrapper: RefCell<Option<Rc<Printer>>>,
+    pub printer_options: PrinterOptions,
+    pub handlers: Rc<dyn PrintHandlers>,
+    pub extended_diagnostics: bool,
+    pub new_line: String,
+    pub module_kind: ModuleKind,
+    pub current_source_file: RefCell<Option<Rc<Node /*SourceFile*/>>>,
+    pub bundled_helpers: RefCell<HashMap<String, bool>>,
+    pub node_id_to_generated_name: RefCell<HashMap<NodeId, String>>,
+    pub auto_generated_id_to_generated_name: RefCell<HashMap<usize, String>>,
+    pub generated_names: RefCell<HashSet<String>>,
+    pub temp_flags_stack: RefCell<Vec<TempFlags>>,
+    pub temp_flags: Cell<TempFlags>,
+    pub reserved_names_stack: RefCell<Vec<Rc<RefCell<HashSet<String>>>>>,
+    pub reserved_names: RefCell<Option<Rc<RefCell<HashSet<String>>>>>,
+    pub preserve_source_newlines: Cell<Option<bool>>,
+    pub next_list_element_pos: Cell<Option<isize>>,
+
+    pub writer: RefCell<Option<Rc<dyn EmitTextWriter>>>,
+    pub own_writer: RefCell<Option<Rc<dyn EmitTextWriter>>>,
+    pub write: Cell<fn(&Printer, &str)>,
+    pub is_own_file_emit: Cell<bool>,
+    pub bundle_file_info: RefCell<Option<BundleFileInfo>>,
+    pub relative_to_build_info: Option<Rc<dyn Fn(&str) -> String>>,
+    pub record_internal_section: Option<bool>,
+    pub source_file_text_pos: Cell<usize>,
+    pub source_file_text_kind: Cell<BundleFileSectionKind>,
+
+    pub source_maps_disabled: Cell<bool>,
+    pub source_map_generator: RefCell<Option<Rc<dyn SourceMapGenerator>>>,
+    pub source_map_source: RefCell<Option<SourceMapSource>>,
+    pub source_map_source_index: Cell<isize>,
+    pub most_recently_added_source_map_source: RefCell<Option<SourceMapSource>>,
+    pub most_recently_added_source_map_source_index: Cell<isize>,
+
+    pub container_pos: Cell<isize>,
+    pub container_end: Cell<isize>,
+    pub declaration_list_container_end: Cell<isize>,
+    pub current_line_map: RefCell<Option<Vec<usize>>>,
+    pub detached_comments_info: RefCell<Option<Vec<DetachedCommentInfo>>>,
+    pub has_written_comment: Cell<bool>,
+    pub comments_disabled: Cell<bool>,
+    pub last_substitution: RefCell<Option<Rc<Node>>>,
+    pub current_parenthesizer_rule: RefCell<Option<Rc<dyn Fn(&Node) -> Rc<Node>>>>,
+    pub parenthesizer: Rc<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>,
+    pub emit_binary_expression: RefCell<Option<Rc<EmitBinaryExpression>>>,
+}
+
+#[derive(Copy, Clone)]
+pub struct DetachedCommentInfo {
+    pub node_pos: isize,
+    pub detached_comment_end_pos: isize,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum BundleFileSectionKind {
+    Prologue,
+    EmitHelpers,
+    NoDefaultLib,
+    Reference,
+    Type,
+    Lib,
+    Prepend,
+    Text,
+    Internal,
+}
+
+impl BundleFileSectionKind {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Prologue => "prologue",
+            Self::EmitHelpers => "emitHelpers",
+            Self::NoDefaultLib => "no-default-lib",
+            Self::Reference => "reference",
+            Self::Type => "type",
+            Self::Lib => "lib",
+            Self::Prepend => "prepend",
+            Self::Text => "text",
+            Self::Internal => "internal",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BundleFileSectionBase {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    kind: BundleFileSectionKind,
+    data: Option<String>,
+}
+
+impl BundleFileSectionBase {
+    pub fn new(pos: isize, end: isize, kind: BundleFileSectionKind, data: Option<String>) -> Self {
+        Self {
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            kind,
+            data,
+        }
+    }
+}
+
+impl TextRange for BundleFileSectionBase {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
+    }
+}
+
+pub trait BundleFileSectionInterface: TextRange {
+    fn kind(&self) -> BundleFileSectionKind;
+    fn maybe_data(&self) -> Option<&String>;
+}
+
+impl BundleFileSectionInterface for BundleFileSectionBase {
+    fn kind(&self) -> BundleFileSectionKind {
+        self.kind
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self.data.as_ref()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BundleFilePrologue {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl BundleFilePrologue {
+    pub fn data(&self) -> &String {
+        self.maybe_data().unwrap()
+    }
+}
+
+impl TextRange for BundleFilePrologue {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFilePrologue {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BundleFileEmitHelpers {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl BundleFileEmitHelpers {
+    pub fn data(&self) -> &String {
+        self.maybe_data().unwrap()
+    }
+}
+
+impl TextRange for BundleFileEmitHelpers {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileEmitHelpers {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BundleFileHasNoDefaultLib {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl TextRange for BundleFileHasNoDefaultLib {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileHasNoDefaultLib {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BundleFileReference {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl BundleFileReference {
+    pub fn data(&self) -> &String {
+        self.maybe_data().unwrap()
+    }
+}
+
+impl TextRange for BundleFileReference {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileReference {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BundleFilePrepend {
+    _bundle_file_section_base: BundleFileSectionBase,
+    pub texts: Vec<Rc<BundleFileSection /*BundleFileTextLike*/>>,
+}
+
+impl BundleFilePrepend {
+    pub fn data(&self) -> &String {
+        self.maybe_data().unwrap()
+    }
+}
+
+impl TextRange for BundleFilePrepend {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFilePrepend {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BundleFileTextLike {
+    _bundle_file_section_base: BundleFileSectionBase,
+}
+
+impl TextRange for BundleFileTextLike {
+    fn pos(&self) -> isize {
+        self._bundle_file_section_base.pos()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self._bundle_file_section_base.set_pos(pos)
+    }
+
+    fn end(&self) -> isize {
+        self._bundle_file_section_base.end()
+    }
+
+    fn set_end(&self, end: isize) {
+        self._bundle_file_section_base.set_end(end)
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileTextLike {
+    fn kind(&self) -> BundleFileSectionKind {
+        self._bundle_file_section_base.kind()
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        self._bundle_file_section_base.maybe_data()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum BundleFileSection {
+    BundleFilePrologue(BundleFilePrologue),
+    BundleFileEmitHelpers(BundleFileEmitHelpers),
+    BundleFileHasNoDefaultLib(BundleFileHasNoDefaultLib),
+    BundleFileReference(BundleFileReference),
+    BundleFilePrepend(BundleFilePrepend),
+    BundleFileTextLike(BundleFileTextLike),
+}
+
+impl BundleFileSection {
+    pub fn new_prologue(data: String, pos: isize, end: isize) -> Self {
+        Self::BundleFilePrologue(BundleFilePrologue {
+            _bundle_file_section_base: BundleFileSectionBase::new(
+                pos,
+                end,
+                BundleFileSectionKind::Prologue,
+                Some(data),
+            ),
+        })
+    }
+
+    pub fn new_emit_helpers(data: String, pos: isize, end: isize) -> Self {
+        Self::BundleFileEmitHelpers(BundleFileEmitHelpers {
+            _bundle_file_section_base: BundleFileSectionBase::new(
+                pos,
+                end,
+                BundleFileSectionKind::EmitHelpers,
+                Some(data),
+            ),
+        })
+    }
+
+    pub fn new_has_no_default_lib(data: Option<String>, pos: isize, end: isize) -> Self {
+        Self::BundleFileEmitHelpers(BundleFileEmitHelpers {
+            _bundle_file_section_base: BundleFileSectionBase::new(
+                pos,
+                end,
+                BundleFileSectionKind::NoDefaultLib,
+                data,
+            ),
+        })
+    }
+
+    pub fn new_reference(
+        kind: BundleFileSectionKind,
+        data: String,
+        pos: isize,
+        end: isize,
+    ) -> Self {
+        Self::BundleFileReference(BundleFileReference {
+            _bundle_file_section_base: BundleFileSectionBase::new(pos, end, kind, Some(data)),
+        })
+    }
+
+    pub fn new_prepend(
+        data: String,
+        texts: Vec<Rc<BundleFileSection>>,
+        pos: isize,
+        end: isize,
+    ) -> Self {
+        Self::BundleFilePrepend(BundleFilePrepend {
+            _bundle_file_section_base: BundleFileSectionBase::new(
+                pos,
+                end,
+                BundleFileSectionKind::Prepend,
+                Some(data),
+            ),
+            texts,
+        })
+    }
+
+    pub fn new_text_like(
+        kind: BundleFileSectionKind,
+        data: Option<String>,
+        pos: isize,
+        end: isize,
+    ) -> Self {
+        Self::BundleFileTextLike(BundleFileTextLike {
+            _bundle_file_section_base: BundleFileSectionBase::new(pos, end, kind, data),
+        })
+    }
+}
+
+impl TextRange for BundleFileSection {
+    fn pos(&self) -> isize {
+        match self {
+            Self::BundleFilePrologue(value) => value.pos(),
+            Self::BundleFileEmitHelpers(value) => value.pos(),
+            Self::BundleFileHasNoDefaultLib(value) => value.pos(),
+            Self::BundleFileReference(value) => value.pos(),
+            Self::BundleFilePrepend(value) => value.pos(),
+            Self::BundleFileTextLike(value) => value.pos(),
+        }
+    }
+
+    fn set_pos(&self, pos: isize) {
+        match self {
+            Self::BundleFilePrologue(value) => value.set_pos(pos),
+            Self::BundleFileEmitHelpers(value) => value.set_pos(pos),
+            Self::BundleFileHasNoDefaultLib(value) => value.set_pos(pos),
+            Self::BundleFileReference(value) => value.set_pos(pos),
+            Self::BundleFilePrepend(value) => value.set_pos(pos),
+            Self::BundleFileTextLike(value) => value.set_pos(pos),
+        }
+    }
+
+    fn end(&self) -> isize {
+        match self {
+            Self::BundleFilePrologue(value) => value.end(),
+            Self::BundleFileEmitHelpers(value) => value.end(),
+            Self::BundleFileHasNoDefaultLib(value) => value.end(),
+            Self::BundleFileReference(value) => value.end(),
+            Self::BundleFilePrepend(value) => value.end(),
+            Self::BundleFileTextLike(value) => value.end(),
+        }
+    }
+
+    fn set_end(&self, end: isize) {
+        match self {
+            Self::BundleFilePrologue(value) => value.set_end(end),
+            Self::BundleFileEmitHelpers(value) => value.set_end(end),
+            Self::BundleFileHasNoDefaultLib(value) => value.set_end(end),
+            Self::BundleFileReference(value) => value.set_end(end),
+            Self::BundleFilePrepend(value) => value.set_end(end),
+            Self::BundleFileTextLike(value) => value.set_end(end),
+        }
+    }
+}
+
+impl BundleFileSectionInterface for BundleFileSection {
+    fn kind(&self) -> BundleFileSectionKind {
+        match self {
+            Self::BundleFilePrologue(value) => value.kind(),
+            Self::BundleFileEmitHelpers(value) => value.kind(),
+            Self::BundleFileHasNoDefaultLib(value) => value.kind(),
+            Self::BundleFileReference(value) => value.kind(),
+            Self::BundleFilePrepend(value) => value.kind(),
+            Self::BundleFileTextLike(value) => value.kind(),
+        }
+    }
+
+    fn maybe_data(&self) -> Option<&String> {
+        match self {
+            Self::BundleFilePrologue(value) => value.maybe_data(),
+            Self::BundleFileEmitHelpers(value) => value.maybe_data(),
+            Self::BundleFileHasNoDefaultLib(value) => value.maybe_data(),
+            Self::BundleFileReference(value) => value.maybe_data(),
+            Self::BundleFilePrepend(value) => value.maybe_data(),
+            Self::BundleFileTextLike(value) => value.maybe_data(),
+        }
+    }
+}
+
+pub struct SourceFilePrologueDirectiveExpression {
+    pub pos: isize,
+    pub end: isize,
+    pub text: String,
+}
+
+pub struct SourceFilePrologueDirective {
+    pub pos: isize,
+    pub end: isize,
+    pub expression: SourceFilePrologueDirectiveExpression,
+}
+
+pub struct SourceFilePrologueInfo {
+    pub file: usize,
+    pub text: String,
+    pub directives: Vec<SourceFilePrologueDirective>,
+}
+
+#[derive(Default)]
+pub struct SourceFileInfo {
+    pub helpers: Option<Vec<String>>,
+    pub prologues: Option<Vec<SourceFilePrologueInfo>>,
+}
+
+pub struct BundleFileInfo {
+    pub sections: Vec<Rc<BundleFileSection>>,
+    pub sources: Option<SourceFileInfo>,
 }
 
 pub(crate) type BuildInfo = ();
 
 pub trait PrintHandlers {
-    fn has_global_name(&self, name: &str) -> Option<bool>;
+    fn has_global_name(&self, name: &str) -> Option<bool> {
+        None
+    }
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {}
+    fn is_on_emit_node_supported(&self) -> bool;
+    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
+        None
+    }
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Rc<Node>> {
+        None
+    }
+    fn is_substitute_node_supported(&self) -> bool;
+    fn on_emit_source_map_of_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn Fn(EmitHint, &Node),
+    ) {
+    }
+    fn on_emit_source_map_of_token(
+        &self,
+        node: Option<&Node>,
+        token: SyntaxKind,
+        writer: &dyn Fn(&str),
+        pos: usize,
+        emit_callback: &dyn Fn(SyntaxKind, &dyn Fn(&str), usize) -> usize,
+    ) -> Option<usize> {
+        None
+    }
+    fn on_emit_source_map_of_position(&self, pos: usize) {}
+    fn on_set_source_file(&self, node: &Node /*SourceFile*/) {}
+    fn on_before_emit_node(&self, node: Option<&Node>) {}
+    fn on_after_emit_node(&self, node: Option<&Node>) {}
+    fn on_before_emit_node_array(&self, nodes: Option<&NodeArray>) {}
+    fn on_after_emit_node_array(&self, nodes: Option<&NodeArray>) {}
+    fn on_before_emit_token(&self, node: Option<&Node>) {}
+    fn on_after_emit_token(&self, node: Option<&Node>) {}
 }
 
 #[derive(Builder, Default)]
@@ -42,15 +616,16 @@ pub struct PrinterOptions {
     pub(crate) extended_diagnostics: Option<bool>,
     pub(crate) only_print_js_doc_style: Option<bool>,
     pub(crate) never_ascii_escape: Option<bool>,
-    pub(crate) write_bundle_info_file: Option<bool>,
+    pub(crate) write_bundle_file_info: Option<bool>,
     pub(crate) record_internal_section: Option<bool>,
     pub(crate) strip_internal: Option<bool>,
     pub(crate) preserve_source_newlines: Option<bool>,
     pub(crate) terminate_unterminated_literals: Option<bool>,
-    // pub(crate) relative_to_build_info: Option<fn(&str) -> String>,
+    pub(crate) relative_to_build_info: Option<Rc<dyn Fn(&str) -> String>>,
 }
 
-pub(crate) struct RawSourceMap {
+#[derive(Debug)]
+pub struct RawSourceMap {
     pub version: u32, /*3*/
     pub file: String,
     pub source_root: Option<String>,
@@ -60,13 +635,15 @@ pub(crate) struct RawSourceMap {
     pub names: Option<Vec<String>>,
 }
 
+pub trait SourceMapGenerator {}
+
 pub trait EmitTextWriter: SymbolWriter {
-    fn write(&mut self, s: &str);
-    fn write_trailing_semicolon(&mut self, text: &str);
-    fn write_comment(&mut self, text: &str);
+    fn write(&self, s: &str);
+    fn write_trailing_semicolon(&self, text: &str);
+    fn write_comment(&self, text: &str);
     fn get_text(&self) -> String;
-    fn raw_write(&mut self, text: &str);
-    fn write_literal(&mut self, text: &str);
+    fn raw_write(&self, text: &str);
+    fn write_literal(&self, text: &str);
     fn get_text_pos(&self) -> usize;
     fn get_line(&self) -> usize;
     fn get_column(&self) -> usize;
@@ -77,7 +654,8 @@ pub trait EmitTextWriter: SymbolWriter {
     fn get_text_pos_with_write_line(&self) -> Option<usize> {
         None
     }
-    fn non_escaping_write(&mut self, text: &str) {}
+    fn non_escaping_write(&self, text: &str) {}
+    fn is_non_escaping_write_supported(&self) -> bool;
 }
 
 pub trait ModuleSpecifierResolutionHost {
@@ -235,22 +813,81 @@ bitflags! {
         const None = 0;
 
         const SingleLine = 0;
+        const MultiLine = 1 << 0;
+        const PreserveLines = 1 << 1;
+        const LinesMask = Self::SingleLine.bits | Self::MultiLine.bits | Self::PreserveLines.bits;
 
+        const NotDelimited = 0;
         const BarDelimited = 1 << 2;
         const AmpersandDelimited = 1 << 3;
         const CommaDelimited = 1 << 4;
         const AsteriskDelimited = 1 << 5;
         const DelimitersMask = Self::BarDelimited.bits | Self::AmpersandDelimited.bits | Self::CommaDelimited.bits | Self::AsteriskDelimited.bits;
 
+        const AllowTrailingComma = 1 << 6;
+
+        const Indented = 1 << 7;
         const SpaceBetweenBraces = 1 << 8;
         const SpaceBetweenSiblings = 1 << 9;
 
+        const Braces = 1 << 10;
+        const Parenthesis = 1 << 11;
+        const AngleBrackets = 1 << 12;
+        const SquareBrackets = 1 << 13;
+        const BracketsMask = Self::Braces.bits | Self::Parenthesis.bits | Self::AngleBrackets.bits | Self::SquareBrackets.bits;
+
+        const OptionalIfUndefined = 1 << 14;
+        const OptionalIfEmpty = 1 << 15;
+        const Optional = Self::OptionalIfUndefined.bits | Self::OptionalIfEmpty.bits;
+
+        const PreferNewLine = 1 << 16;
+        const NoTrailingNewLine = 1 << 17;
+        const NoInterveningComments = 1 << 18;
+
         const NoSpaceIfEmpty = 1 << 19;
+        const SingleElement = 1 << 20;
         const SpaceAfterList = 1 << 21;
 
+        const Modifiers = Self::SingleLine.bits | Self::SpaceBetweenSiblings.bits | Self::NoInterveningComments.bits;
+        const HeritageClauses = Self::SingleLine.bits | Self::SpaceBetweenSiblings.bits;
         const SingleLineTypeLiteralMembers = Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits;
+        const MultiLineTypeLiteralMembers = Self::MultiLine.bits | Self::Indented.bits | Self::OptionalIfEmpty.bits;
 
+        const SingleLineTupleTypeElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const MultiLineTupleTypeElements = Self::CommaDelimited.bits | Self::Indented.bits | Self::SpaceBetweenSiblings.bits | Self::MultiLine.bits;
         const UnionTypeConstituents = Self::BarDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const IntersectionTypeConstituents = Self::AmpersandDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const ObjectBindingPatternElements = Self::SingleLine.bits | Self::AllowTrailingComma.bits | Self::SpaceBetweenBraces.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::NoSpaceIfEmpty.bits;
+        const ArrayBindingPatternElements = Self::SingleLine.bits | Self::AllowTrailingComma.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::NoSpaceIfEmpty.bits;
+        const ObjectLiteralExpressionProperties = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits | Self::Indented.bits | Self::Braces.bits | Self::NoSpaceIfEmpty.bits;
+        const ImportClauseEntries = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits | Self::Indented.bits | Self::Braces.bits | Self::NoSpaceIfEmpty.bits;
+        const ArrayLiteralExpressionElements = Self::PreserveLines.bits | Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::Indented.bits | Self::SquareBrackets.bits;
+        const CommaListElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const CallExpressionArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Parenthesis.bits;
+        const NewExpressionArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Parenthesis.bits | Self::OptionalIfUndefined.bits;
+        const TemplateExpressionSpans = Self::SingleLine.bits | Self::NoInterveningComments.bits;
+        const SingleLineBlockStatements = Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const MultiLineBlockStatements = Self::Indented.bits | Self::MultiLine.bits;
+        const VariableDeclarationList = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+        const SingleLineFunctionBodyStatements = Self::SingleLine.bits | Self::SpaceBetweenSiblings.bits | Self::SpaceBetweenBraces.bits;
+        const MultiLineFunctionBodyStatements = Self::MultiLine.bits;
+        const ClassHeritageClauses = Self::SingleLine.bits;
+        const ClassMembers = Self::Indented.bits | Self::MultiLine.bits;
+        const InterfaceMembers = Self::Indented.bits | Self::MultiLine.bits;
+        const EnumMembers = Self::CommaDelimited.bits | Self::Indented.bits | Self::MultiLine.bits;
+        const CaseBlockClauses = Self::Indented.bits | Self::MultiLine.bits;
+        const NamedImportsOrExportsElements = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::AllowTrailingComma.bits | Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::NoSpaceIfEmpty.bits;
+        const JsxElementOrFragmentChildren = Self::SingleLine.bits | Self::NoInterveningComments.bits;
+        const JsxElementAttributes = Self::SingleLine.bits | Self::SpaceBetweenSiblings.bits | Self::NoInterveningComments.bits;
+        const CaseOrDefaultClauseStatements = Self::Indented.bits | Self::MultiLine.bits | Self::NoTrailingNewLine.bits | Self::OptionalIfEmpty.bits;
+        const HeritageClauseTypes = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+
+        const Decorators = Self::MultiLine.bits | Self::Optional.bits | Self::SpaceAfterList.bits;
+        const TypeArguments = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
+        const TypeParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::AngleBrackets.bits | Self::Optional.bits;
+        const Parameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Parenthesis.bits;
+        const IndexSignatureParameters = Self::CommaDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits | Self::Indented.bits | Self::SquareBrackets.bits;
+        const JSDocComment = Self::MultiLine.bits | Self::AsteriskDelimited.bits;
     }
 }
 

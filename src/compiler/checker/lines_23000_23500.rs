@@ -1139,13 +1139,13 @@ impl TypeChecker {
                 let target = &flow_as_flow_reduce_label.target;
                 let target_as_flow_label = target.as_flow_label();
                 let save_antecedents = target_as_flow_label.maybe_antecedents().clone();
-                *target_as_flow_label.maybe_antecedents() =
+                *target_as_flow_label.maybe_antecedents_mut() =
                     Some(flow_as_flow_reduce_label.antecedents.clone());
                 let result = self.is_reachable_flow_node_worker(
                     flow_as_flow_reduce_label.antecedent.clone(),
                     false,
                 );
-                *target_as_flow_label.maybe_antecedents() = save_antecedents;
+                *target_as_flow_label.maybe_antecedents_mut() = save_antecedents;
                 return result;
             } else {
                 return !flags.intersects(FlowFlags::Unreachable);

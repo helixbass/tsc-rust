@@ -2,6 +2,7 @@
 name = "tsc-rust"
 version = "0.1.0"
 edition = "2018"
+default-run = "tsc-rust"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,3 +15,12 @@ local-macros = { path = "local-macros" }
 regex = "1.5.4"
 serde = { version = "1.0.133", features = ["derive", "rc"] }
 serde_json = "1.0.74"
+
+[dev-dependencies]
+rstest = "0.15.0"
+
+[lib]
+name = "typescript_rust"
+
+[[bin]]
+name = "tsc-rust"

@@ -623,7 +623,7 @@ impl BinderType {
                 &antecedent,
             )
         {
-            let mut label_antecedents = label_as_flow_label.maybe_antecedents();
+            let mut label_antecedents = label_as_flow_label.maybe_antecedents_mut();
             if label_antecedents.is_none() {
                 *label_antecedents = Some(vec![]);
             }

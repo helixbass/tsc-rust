@@ -573,6 +573,16 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
     ) -> Vec<Rc<Diagnostic>> {
+        // unimplemented!()
+        vec![]
+    }
+
+    pub fn get_declaration_diagnostics(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+    ) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+        // unimplemented!()
         vec![]
     }
 

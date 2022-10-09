@@ -229,11 +229,7 @@ pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Rc<Node> {
     node.node_wrapper()
 }
 
-pub fn no_emit_notification(
-    hint: EmitHint,
-    node: &Node,
-    callback: &mut dyn FnMut(EmitHint, &Node),
-) {
+pub fn no_emit_notification(hint: EmitHint, node: &Node, callback: &dyn Fn(EmitHint, &Node)) {
     callback(hint, node)
 }
 
@@ -1075,12 +1071,7 @@ impl TransformationContext for TransformNodesTransformationResult {
     }
 
     // TODO: need to support setting of onEmitNode?
-    fn on_emit_node(
-        &self,
-        hint: EmitHint,
-        node: &Node,
-        emit_callback: &mut dyn FnMut(EmitHint, &Node),
-    ) {
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
         no_emit_notification(hint, node, emit_callback)
     }
 
@@ -1115,7 +1106,7 @@ impl TransformationResult for TransformNodesTransformationResult {
         &self,
         hint: EmitHint,
         node: &Node,
-        emit_callback: &mut dyn FnMut(EmitHint, &Node),
+        emit_callback: &dyn Fn(EmitHint, &Node),
     ) {
         Debug_.assert(
             self.state() < TransformationState::Disposed,
@@ -1246,12 +1237,7 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn on_emit_node(
-        &self,
-        hint: EmitHint,
-        node: &Node,
-        emit_callback: &mut dyn FnMut(EmitHint, &Node),
-    ) {
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node)) {
         no_emit_notification(hint, node, emit_callback)
     }
 

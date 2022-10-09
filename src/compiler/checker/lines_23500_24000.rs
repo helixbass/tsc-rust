@@ -69,11 +69,11 @@ impl TypeChecker {
                 let flow_as_flow_reduce_label = flow.as_flow_reduce_label();
                 let target_as_flow_label = flow_as_flow_reduce_label.target.as_flow_label();
                 let save_antecedents = target_as_flow_label.maybe_antecedents().clone();
-                *target_as_flow_label.maybe_antecedents() =
+                *target_as_flow_label.maybe_antecedents_mut() =
                     Some(flow_as_flow_reduce_label.antecedents.clone());
                 let result = self
                     .is_post_super_flow_node(flow_as_flow_reduce_label.antecedent.clone(), false);
-                *target_as_flow_label.maybe_antecedents() = save_antecedents;
+                *target_as_flow_label.maybe_antecedents_mut() = save_antecedents;
                 return result;
             } else {
                 return flags.intersects(FlowFlags::Unreachable);
@@ -327,10 +327,11 @@ impl GetFlowTypeOfReference {
                 let flow_as_flow_reduce_label = flow.as_flow_reduce_label();
                 let target = &flow_as_flow_reduce_label.target.as_flow_label();
                 let save_antecedents = target.maybe_antecedents().clone();
-                *target.maybe_antecedents() = Some(flow_as_flow_reduce_label.antecedents.clone());
+                *target.maybe_antecedents_mut() =
+                    Some(flow_as_flow_reduce_label.antecedents.clone());
                 type_ =
                     Some(self.get_type_at_flow_node(flow_as_flow_reduce_label.antecedent.clone()));
-                *target.maybe_antecedents() = save_antecedents;
+                *target.maybe_antecedents_mut() = save_antecedents;
             } else if flags.intersects(FlowFlags::Start) {
                 let container = flow.as_flow_start().maybe_node();
                 if let Some(container) = container.as_ref().filter(|container| {
@@ -839,18 +840,17 @@ impl GetFlowTypeOfReference {
 
     pub(super) fn get_type_at_flow_loop_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> FlowType {
         let id = self.type_checker.get_flow_node_id(&flow);
-        let cache = self
-            .type_checker
-            .flow_loop_caches()
-            .get(&id)
-            .cloned()
-            .unwrap_or_else(|| {
-                let flow_loop_cache = Rc::new(RefCell::new(HashMap::new()));
-                self.type_checker
-                    .flow_loop_caches()
-                    .insert(id, flow_loop_cache.clone());
-                flow_loop_cache
-            });
+        let cache = {
+            let value = self.type_checker.flow_loop_caches().get(&id).cloned();
+            value
+        }
+        .unwrap_or_else(|| {
+            let flow_loop_cache = Rc::new(RefCell::new(HashMap::new()));
+            self.type_checker
+                .flow_loop_caches()
+                .insert(id, flow_loop_cache.clone());
+            flow_loop_cache
+        });
         let key = self.get_or_set_cache_key();
         if key.is_none() {
             return self.declared_type.clone().into();

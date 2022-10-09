@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::fmt;
 use std::io;
 use std::rc::Rc;
 
@@ -13,7 +14,7 @@ use super::{
 };
 use crate::{
     CancellationToken, Cloneable, ModuleResolutionCache, ParseConfigHost, ParsedCommandLine, Path,
-    ProgramBuildInfo, SymlinkCache,
+    ProgramBuildInfo, StringOrNumber, SymlinkCache,
 };
 
 pub trait ModuleResolutionHost {
@@ -496,17 +497,34 @@ impl TextRange for SourceMapRange {
 }
 
 #[derive(Debug)]
-pub struct SourceMapSource {
+pub enum SourceMapSource {
+    SourceFile(Rc<Node /*SourceFile*/>),
+    SourceMapSourceConcrete(SourceMapSourceConcrete),
+}
+
+impl From<Rc<Node /*SourceFile*/>> for SourceMapSource {
+    fn from(value: Rc<Node>) -> Self {
+        Self::SourceFile(value)
+    }
+}
+
+impl From<SourceMapSourceConcrete> for SourceMapSource {
+    fn from(value: SourceMapSourceConcrete) -> Self {
+        Self::SourceMapSourceConcrete(value)
+    }
+}
+
+pub struct SourceMapSourceConcrete {
     pub file_name: String,
     pub text: String,
     pub(crate) line_map: Vec<usize>,
-    pub skip_trivia: Option<fn(usize) -> usize>,
+    pub skip_trivia: Option<Rc<dyn Fn(usize) -> usize>>,
 }
 
-#[derive(Clone, Debug)]
-pub enum StringOrUsize {
-    String(String),
-    Usize(usize),
+impl fmt::Debug for SourceMapSourceConcrete {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SourceMapSource").finish()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -518,7 +536,7 @@ pub struct EmitNode {
     pub comment_range: Option<BaseTextRange>,
     pub source_map_range: Option<Rc<SourceMapRange>>,
     pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Rc<SourceMapRange>>>>,
-    pub constant_value: Option<StringOrUsize>,
+    pub constant_value: Option<StringOrNumber>,
     pub external_helpers_module_name: Option<Rc<Node /*Identifier*/>>,
     pub external_helpers: Option<bool>,
     pub helpers: Option<Vec<Rc<EmitHelper>>>,
@@ -526,25 +544,13 @@ pub struct EmitNode {
     pub snippet_element: Option<SnippetElement>,
 }
 
-#[derive(Debug)]
-pub enum SnippetElement {
-    TabStop(TabStop),
-    Placeholder(Placeholder),
-}
-
-#[derive(Debug)]
-pub struct TabStop {
+#[derive(Copy, Clone, Debug)]
+pub struct SnippetElement {
     pub kind: SnippetKind,
     pub order: usize,
 }
 
-#[derive(Debug)]
-pub struct Placeholder {
-    pub kind: SnippetKind,
-    pub order: usize,
-}
-
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SnippetKind {
     TabStop,
     Placeholder,
@@ -555,16 +561,40 @@ pub enum SnippetKind {
 pub trait EmitHelperBase {
     fn name(&self) -> &str;
     fn scoped(&self) -> bool;
-    fn text(&self) -> &str; // TODO: support callback value?
+    fn text(&self) -> EmitHelperText;
     fn priority(&self) -> Option<usize>;
     fn dependencies(&self) -> Option<&[Rc<EmitHelper>]>;
+}
+
+#[derive(Clone)]
+pub enum EmitHelperText {
+    String(String),
+    Callback(Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>),
+}
+
+impl fmt::Debug for EmitHelperText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EmitHelperText").finish()
+    }
+}
+
+impl From<String> for EmitHelperText {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>> for EmitHelperText {
+    fn from(value: Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>) -> Self {
+        Self::Callback(value)
+    }
 }
 
 #[derive(Debug)]
 pub struct ScopedEmitHelper {
     name: String,
     scoped: bool, /*true*/
-    text: String,
+    text: EmitHelperText,
     priority: Option<usize>,
     dependencies: Option<Vec<Rc<EmitHelper>>>,
 }
@@ -578,8 +608,8 @@ impl EmitHelperBase for ScopedEmitHelper {
         self.scoped
     }
 
-    fn text(&self) -> &str {
-        &self.text
+    fn text(&self) -> EmitHelperText {
+        self.text.clone()
     }
 
     fn priority(&self) -> Option<usize> {
@@ -610,8 +640,8 @@ impl EmitHelperBase for UnscopedEmitHelper {
         self.scoped
     }
 
-    fn text(&self) -> &str {
-        &self.text
+    fn text(&self) -> EmitHelperText {
+        self.text.clone().into()
     }
 
     fn priority(&self) -> Option<usize> {
@@ -644,7 +674,7 @@ impl EmitHelperBase for EmitHelper {
         }
     }
 
-    fn text(&self) -> &str {
+    fn text(&self) -> EmitHelperText {
         match self {
             Self::ScopedEmitHelper(emit_helper) => emit_helper.text(),
             Self::UnscopedEmitHelper(emit_helper) => emit_helper.text(),
@@ -748,8 +778,13 @@ bitflags! {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmitHint {
+    SourceFile,
     Expression,
+    IdentifierName,
+    MappedTypeParameter,
     Unspecified,
+    EmbeddedStatement,
+    JsxAttributeValue,
 }
 
 pub trait SourceFileMayBeEmittedHost {

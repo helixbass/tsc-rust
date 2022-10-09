@@ -212,8 +212,12 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_inference_context()
                     }
 
-                    fn maybe_flow_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::FlowNode>>> {
+                    fn maybe_flow_node(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Rc<crate::FlowNode>>> {
                         self.#first_field_name.maybe_flow_node()
+                    }
+
+                    fn maybe_flow_node_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::FlowNode>>> {
+                        self.#first_field_name.maybe_flow_node_mut()
                     }
 
                     fn set_flow_node(&self, flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
@@ -706,9 +710,15 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_flow_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::FlowNode>>> {
+                    fn maybe_flow_node(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Rc<crate::FlowNode>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_flow_node()),*
+                        }
+                    }
+
+                    fn maybe_flow_node_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::FlowNode>>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_flow_node_mut()),*
                         }
                     }
 

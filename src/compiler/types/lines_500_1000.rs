@@ -7,8 +7,10 @@ use std::rc::{Rc, Weak};
 use crate::{
     CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
     HasChildrenInterface, HasDotDotDotTokenInterface, HasLeftAndRightInterface,
-    HasMembersInterface, HasModuleSpecifierInterface, HasTagNameInterface, InferenceContext,
-    JsxOpeningLikeElementInterface, SyntheticExpression,
+    HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
+    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
+    JsxOpeningLikeElementInterface, SourceFileLike, SyntheticExpression,
+    UnparsedSyntheticReference,
 };
 
 use super::{
@@ -199,7 +201,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_next_container(&self, next_container: Option<Rc<Node>>);
     fn maybe_local_symbol(&self) -> Option<Rc<Symbol>>;
     fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>);
-    fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>>;
+    fn maybe_flow_node(&self) -> Ref<Option<Rc<FlowNode>>>;
+    fn maybe_flow_node_mut(&self) -> RefMut<Option<Rc<FlowNode>>>;
     fn set_flow_node(&self, emit_node: Option<Rc<FlowNode>>);
     fn maybe_emit_node(&self) -> Option<Rc<RefCell<EmitNode>>>;
     fn maybe_emit_node_mut(&self) -> RefMut<Option<Rc<RefCell<EmitNode>>>>;
@@ -404,6 +407,7 @@ pub enum Node {
     InputFiles(InputFiles),
     CommaListExpression(CommaListExpression),
     SyntaxList(SyntaxList),
+    UnparsedSyntheticReference(UnparsedSyntheticReference),
 }
 
 impl Node {
@@ -962,6 +966,38 @@ impl Node {
         }
     }
 
+    pub fn as_has_old_file_of_current_emit(&self) -> &dyn HasOldFileOfCurrentEmitInterface {
+        match self {
+            Node::InputFiles(node) => node,
+            Node::UnparsedSource(node) => node,
+            _ => panic!("Expected has old file of current emit"),
+        }
+    }
+
+    pub fn as_has_texts(&self) -> &dyn HasTextsInterface {
+        match self {
+            Node::UnparsedPrepend(node) => node,
+            Node::UnparsedSource(node) => node,
+            _ => panic!("Expected has texts"),
+        }
+    }
+
+    pub fn as_jsdoc_heritage_tag(&self) -> &dyn JSDocHeritageTagInterface {
+        match self {
+            Node::JSDocAugmentsTag(node) => node,
+            Node::JSDocImplementsTag(node) => node,
+            _ => panic!("Expected JSDoc heritage tag"),
+        }
+    }
+
+    pub fn as_source_file_like(&self) -> &dyn SourceFileLike {
+        match self {
+            Node::SourceFile(node) => node,
+            Node::UnparsedSource(node) => node,
+            _ => panic!("Expected source file like"),
+        }
+    }
+
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
         enum_unwrapped!(self, [Node, VariableDeclarationList])
     }
@@ -1254,7 +1290,7 @@ impl Node {
         enum_unwrapped!(self, [Node, ImportTypeNode])
     }
 
-    pub fn as_type_assertion_expression(&self) -> &TypeAssertion {
+    pub fn as_type_assertion(&self) -> &TypeAssertion {
         enum_unwrapped!(self, [Node, TypeAssertion])
     }
 
@@ -1537,6 +1573,74 @@ impl Node {
     pub fn as_jsdoc_callback_tag(&self) -> &JSDocCallbackTag {
         enum_unwrapped!(self, [Node, JSDocCallbackTag])
     }
+
+    pub fn as_comma_list_expression(&self) -> &CommaListExpression {
+        enum_unwrapped!(self, [Node, CommaListExpression])
+    }
+
+    pub fn as_bundle(&self) -> &Bundle {
+        enum_unwrapped!(self, [Node, Bundle])
+    }
+
+    pub fn as_unparsed_source(&self) -> &UnparsedSource {
+        enum_unwrapped!(self, [Node, UnparsedSource])
+    }
+
+    pub fn as_unparsed_synthetic_reference(&self) -> &UnparsedSyntheticReference {
+        enum_unwrapped!(self, [Node, UnparsedSyntheticReference])
+    }
+
+    pub fn as_call_signature_declaration(&self) -> &CallSignatureDeclaration {
+        enum_unwrapped!(self, [Node, CallSignatureDeclaration])
+    }
+
+    pub fn as_construct_signature_declaration(&self) -> &ConstructSignatureDeclaration {
+        enum_unwrapped!(self, [Node, ConstructSignatureDeclaration])
+    }
+
+    pub fn as_constructor_type_node(&self) -> &ConstructorTypeNode {
+        enum_unwrapped!(self, [Node, ConstructorTypeNode])
+    }
+
+    pub fn as_continue_statement(&self) -> &ContinueStatement {
+        enum_unwrapped!(self, [Node, ContinueStatement])
+    }
+
+    pub fn as_break_statement(&self) -> &BreakStatement {
+        enum_unwrapped!(self, [Node, BreakStatement])
+    }
+
+    pub fn as_namespace_import(&self) -> &NamespaceImport {
+        enum_unwrapped!(self, [Node, NamespaceImport])
+    }
+
+    pub fn as_assert_clause(&self) -> &AssertClause {
+        enum_unwrapped!(self, [Node, AssertClause])
+    }
+
+    pub fn as_assert_entry(&self) -> &AssertEntry {
+        enum_unwrapped!(self, [Node, AssertEntry])
+    }
+
+    pub fn as_namespace_export_declaration(&self) -> &NamespaceExportDeclaration {
+        enum_unwrapped!(self, [Node, NamespaceExportDeclaration])
+    }
+
+    pub fn as_jsdoc_see_tag(&self) -> &JSDocSeeTag {
+        enum_unwrapped!(self, [Node, JSDocSeeTag])
+    }
+
+    pub fn as_jsdoc_name_reference(&self) -> &JSDocNameReference {
+        enum_unwrapped!(self, [Node, JSDocNameReference])
+    }
+
+    pub fn as_partially_emitted_expression(&self) -> &PartiallyEmittedExpression {
+        enum_unwrapped!(self, [Node, PartiallyEmittedExpression])
+    }
+
+    pub fn as_unparsed_prologue(&self) -> &UnparsedPrologue {
+        enum_unwrapped!(self, [Node, UnparsedPrologue])
+    }
 }
 
 #[derive(Debug)]
@@ -1762,7 +1866,11 @@ impl NodeInterface for BaseNode {
         self.inference_context.borrow_mut()
     }
 
-    fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
+    fn maybe_flow_node(&self) -> Ref<Option<Rc<FlowNode>>> {
+        self.flow_node.borrow()
+    }
+
+    fn maybe_flow_node_mut(&self) -> RefMut<Option<Rc<FlowNode>>> {
         self.flow_node.borrow_mut()
     }
 

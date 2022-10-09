@@ -20,7 +20,7 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 thread_local! {
-    pub(crate) static option_declarations: Vec<Rc<CommandLineOption>> =
+    pub static option_declarations: Vec<Rc<CommandLineOption>> =
         common_options_with_build.with(|common_options_with_build_| {
             command_options_without_build.with(|command_options_without_build_| {
                 common_options_with_build_
@@ -512,7 +512,7 @@ pub(super) fn create_diagnostic_for_invalid_custom_type<
     )
 }
 
-pub(crate) fn parse_custom_type_option(
+pub fn parse_custom_type_option(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
     value: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,

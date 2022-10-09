@@ -7,12 +7,14 @@ use std::rc::Rc;
 use crate::{
     find_ancestor, first_or_undefined, for_each_child_recursively,
     get_effective_type_annotation_node, get_root_declaration, has_jsdoc_nodes,
-    has_syntactic_modifier, ignored_paths, is_expression_node, is_identifier, is_jsdoc_node,
-    is_parameter, is_part_of_type_query, is_shorthand_property_assignment, is_type_reference_node,
-    parameter_is_this_keyword, some, string_contains, CompilerOptions, FindAncestorCallbackReturn,
-    ForEachChildRecursivelyCallbackReturn, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeFlags, NodeInterface, PseudoBigInt, ReadonlyTextRange, Symbol, SymbolInterface,
-    SyntaxKind,
+    has_syntactic_modifier, ignored_paths, is_binary_expression, is_comma_list_expression,
+    is_expression_node, is_expression_statement, is_for_statement, is_identifier, is_jsdoc_node,
+    is_parameter, is_parenthesized_expression, is_part_of_type_query,
+    is_shorthand_property_assignment, is_type_reference_node, is_void_expression, last,
+    parameter_is_this_keyword, some, string_contains, CompilerOptions, Debug_,
+    FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
+    ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind,
 };
 
 pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
@@ -239,7 +241,53 @@ fn bind_parent_to_child(
 }
 
 pub fn expression_result_is_unused(node: &Node /*Expression*/) -> bool {
-    unimplemented!()
+    Debug_.assert_is_defined(&node.maybe_parent(), None);
+    let mut node = node.node_wrapper();
+    loop {
+        let parent = node.parent();
+        if is_parenthesized_expression(&parent) {
+            node = parent;
+            continue;
+        }
+        if is_expression_statement(&parent)
+            || is_void_expression(&parent)
+            || is_for_statement(&parent) && {
+                let parent_as_for_statement = parent.as_for_statement();
+                matches!(
+                    parent_as_for_statement.initializer.as_ref(),
+                    Some(parent_initializer) if Rc::ptr_eq(
+                        parent_initializer,
+                        &node
+                    )
+                ) || matches!(
+                    parent_as_for_statement.incrementor.as_ref(),
+                    Some(parent_incrementor) if Rc::ptr_eq(
+                        parent_incrementor,
+                        &node
+                    )
+                )
+            }
+        {
+            return true;
+        }
+        if is_comma_list_expression(&parent) {
+            if !Rc::ptr_eq(&node, last(&parent.as_comma_list_expression().elements)) {
+                return true;
+            }
+            node = parent;
+            continue;
+        }
+        if is_binary_expression(&parent)
+            && parent.as_binary_expression().operator_token.kind() == SyntaxKind::CommaToken
+        {
+            if Rc::ptr_eq(&node, &parent.as_binary_expression().left) {
+                return true;
+            }
+            node = parent;
+            continue;
+        }
+        return false;
+    }
 }
 
 pub fn contains_ignored_path(path: &str) -> bool {
@@ -247,6 +295,10 @@ pub fn contains_ignored_path(path: &str) -> bool {
         Some(&**ignored_paths),
         Some(|p: &&str| string_contains(path, *p)),
     )
+}
+
+pub fn get_containing_node_array(node: &Node) -> Option<NodeArray> {
+    unimplemented!()
 }
 
 pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/) -> bool {

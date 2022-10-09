@@ -42,7 +42,7 @@ impl TypeChecker {
         type_predicate: &TypePredicate,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+        writer: Option<Rc<dyn EmitTextWriter>>,
     ) -> String {
         let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
         if let Some(writer) = writer {
@@ -52,7 +52,7 @@ impl TypeChecker {
                 flags,
                 writer.clone(),
             );
-            RefCell::borrow(&writer).get_text()
+            writer.get_text()
         } else {
             using_single_line_string_writer(|writer| {
                 self.type_predicate_to_string_worker(

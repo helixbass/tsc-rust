@@ -67,9 +67,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         factory_.set_parenthesizer_rules(
             /*memoize(*/
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
-                Box::new(null_parenthesizer_rules())
+                Rc::new(null_parenthesizer_rules())
             } else {
-                Box::new(create_parenthesizer_rules(factory_.clone()))
+                Rc::new(create_parenthesizer_rules(factory_.clone()))
             },
         );
         factory_.set_converters(
@@ -93,18 +93,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub(crate) fn set_parenthesizer_rules(
         &self,
-        parenthesizer_rules: Box<dyn ParenthesizerRules<TBaseNodeFactory>>,
+        parenthesizer_rules: Rc<dyn ParenthesizerRules<TBaseNodeFactory>>,
     ) {
         *self.parenthesizer_rules.borrow_mut() = Some(parenthesizer_rules);
     }
 
-    pub(crate) fn parenthesizer_rules(&self) -> Ref<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
-        Ref::map(self.parenthesizer_rules.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub(crate) fn parenthesizer_rules(&self) -> Rc<dyn ParenthesizerRules<TBaseNodeFactory>> {
+        self.parenthesizer_rules.borrow().clone().unwrap()
     }
 
-    pub fn parenthesizer(&self) -> Ref<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
+    pub fn parenthesizer(&self) -> Rc<dyn ParenthesizerRules<TBaseNodeFactory>> {
         self.parenthesizer_rules()
     }
 

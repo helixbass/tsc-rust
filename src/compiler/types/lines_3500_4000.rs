@@ -15,12 +15,13 @@ use super::{
 };
 use crate::{
     ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
-    CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions, DiagnosticCache,
-    DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue, ModeAwareCache,
-    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    MultiMap, PackageId, ParseConfigFileHost, PragmaContext, RedirectTargetsMap,
-    ResolvedProjectReference, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
-    Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    BundleFileSection, CheckJsDirective, CompilerHost, ConfigFileSpecs, CreateProgramOptions,
+    DiagnosticCache, DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue,
+    ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
+    RawSourceMap, RedirectTargetsMap, ResolvedProjectReference, SourceOfProjectReferenceRedirect,
+    StructureIsReused, SymlinkCache, Type, TypeFlags, TypeInterface,
+    TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -342,6 +343,10 @@ impl SourceFile {
 
     pub fn set_script_kind(&self, script_kind: ScriptKind) {
         self.script_kind.set(script_kind);
+    }
+
+    pub fn maybe_amd_dependencies(&self) -> Ref<Option<Vec<AmdDependency>>> {
+        self.amd_dependencies.borrow()
     }
 
     pub fn amd_dependencies(&self) -> Ref<Vec<AmdDependency>> {
@@ -780,12 +785,23 @@ impl InputFiles {
     }
 }
 
+pub trait HasOldFileOfCurrentEmitInterface {
+    fn maybe_old_file_of_current_emit(&self) -> Option<bool>;
+}
+
+impl HasOldFileOfCurrentEmitInterface for InputFiles {
+    fn maybe_old_file_of_current_emit(&self) -> Option<bool> {
+        self.old_file_of_current_emit
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct UnparsedSource {
     _node: BaseNode,
     pub file_name: String,
-    pub text: String,
+    text: RefCell<String>,
+    text_as_chars: RefCell<SourceTextAsChars>,
     pub prologues: Vec<Rc<Node /*UnparsedPrologue*/>>,
     pub helpers: Option<Vec<Rc<EmitHelper /*UnscopedEmitHelper*/>>>,
 
@@ -799,9 +815,9 @@ pub struct UnparsedSource {
     pub synthetic_references: Option<Vec<Rc<Node /*UnparsedSyntheticReference*/>>>,
     pub texts: Vec<Rc<Node /*UnparsedSourceText*/>>,
     pub(crate) old_file_of_current_emit: Option<bool>,
+    pub(crate) parsed_source_map: RefCell<Option<Option<Rc<RawSourceMap>>>>,
 }
 
-// TODO: implement SourceFileLike for UnparsedSource
 impl UnparsedSource {
     pub fn new(
         base_node: BaseNode,
@@ -813,13 +829,15 @@ impl UnparsedSource {
         referenced_files: Vec<FileReference>,
         lib_reference_directives: Vec<FileReference>,
     ) -> Self {
+        let text_as_chars = text.chars().collect::<Vec<_>>();
         Self {
             _node: base_node,
             prologues,
             synthetic_references,
             texts,
             file_name,
-            text,
+            text: RefCell::new(text),
+            text_as_chars: RefCell::new(text_as_chars),
             referenced_files,
             lib_reference_directives,
             helpers: None,
@@ -828,7 +846,47 @@ impl UnparsedSource {
             source_map_path: None,
             source_map_text: None,
             old_file_of_current_emit: None,
+            parsed_source_map: RefCell::new(None),
         }
+    }
+}
+
+impl HasTextsInterface for UnparsedSource {
+    fn texts(&self) -> &[Rc<Node>] {
+        &self.texts
+    }
+}
+
+impl HasOldFileOfCurrentEmitInterface for UnparsedSource {
+    fn maybe_old_file_of_current_emit(&self) -> Option<bool> {
+        self.old_file_of_current_emit
+    }
+}
+
+impl SourceFileLike for UnparsedSource {
+    fn text(&self) -> Ref<String> {
+        self.text.borrow()
+    }
+
+    fn text_as_chars(&self) -> Ref<SourceTextAsChars> {
+        self.text_as_chars.borrow()
+    }
+
+    fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {
+        unimplemented!()
+    }
+
+    fn line_map(&self) -> Ref<Vec<usize>> {
+        unimplemented!()
+    }
+
+    fn maybe_get_position_of_line_and_character(
+        &self,
+        line: usize,
+        character: usize,
+        allow_edits: Option<bool>,
+    ) -> Option<usize> {
+        unimplemented!()
     }
 }
 
@@ -888,6 +946,16 @@ impl UnparsedPrepend {
     }
 }
 
+pub trait HasTextsInterface {
+    fn texts(&self) -> &[Rc<Node>];
+}
+
+impl HasTextsInterface for UnparsedPrepend {
+    fn texts(&self) -> &[Rc<Node>] {
+        &self.texts
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedTextLike {
@@ -898,6 +966,22 @@ impl UnparsedTextLike {
     pub fn new(base_unparsed_node: BaseUnparsedNode) -> Self {
         Self {
             _unparsed_node: base_unparsed_node,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "UnparsedSectionInterface")]
+pub struct UnparsedSyntheticReference {
+    _unparsed_node: BaseUnparsedNode,
+    pub section: Rc<BundleFileSection>,
+}
+
+impl UnparsedSyntheticReference {
+    pub fn new(base_unparsed_node: BaseUnparsedNode, section: Rc<BundleFileSection>) -> Self {
+        Self {
+            _unparsed_node: base_unparsed_node,
+            section,
         }
     }
 }

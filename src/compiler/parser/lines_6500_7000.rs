@@ -120,7 +120,7 @@ impl ParserType {
         match self.token() {
             SyntaxKind::VarKeyword => (),
             SyntaxKind::LetKeyword => {
-                flags |= NodeFlags::Const;
+                flags |= NodeFlags::Let;
             }
             SyntaxKind::ConstKeyword => {
                 flags |= NodeFlags::Const;

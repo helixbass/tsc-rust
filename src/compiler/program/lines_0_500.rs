@@ -1,4 +1,5 @@
-use std::cell::{Ref, RefCell};
+use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -8,14 +9,16 @@ use std::time;
 use std::time::SystemTime;
 
 use crate::{
-    combine_paths, convert_to_relative_path, create_get_canonical_file_name, create_source_file,
-    diagnostic_category_name, for_each, for_each_ancestor_directory_str, generate_djb2_hash,
-    get_default_lib_file_name, get_directory_path, get_line_and_character_of_position,
-    get_new_line_character, get_normalized_path_components, get_path_from_path_components, get_sys,
-    is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path,
-    write_file_ensuring_directories, CompilerHost, CompilerOptions, Diagnostic,
-    DiagnosticMessageText, DiagnosticRelatedInformationInterface, LineAndCharacter,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, Node, Path, ScriptTarget, System,
+    add_range, combine_paths, convert_to_relative_path, create_get_canonical_file_name,
+    create_source_file, diagnostic_category_name, for_each, for_each_ancestor_directory_str,
+    generate_djb2_hash, get_default_lib_file_name, get_directory_path, get_emit_declarations,
+    get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
+    get_path_from_path_components, get_sys, is_rooted_disk_path, is_watch_set,
+    missing_file_modified_time, normalize_path, sort_and_deduplicate_diagnostics,
+    write_file_ensuring_directories, CancellationTokenDebuggable, CompilerHost, CompilerOptions,
+    Diagnostic, DiagnosticMessageText, DiagnosticRelatedInformationInterface, LineAndCharacter,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, Node, NodeInterface, Path,
+    ProgramOrBuilderProgram, ScriptTarget, System,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -111,7 +114,8 @@ pub(super) fn create_compiler_host(
     create_compiler_host_worker(options, set_parent_nodes, None)
 }
 
-pub(crate) fn create_compiler_host_worker(
+/*pub(crate) fn create_compiler_host_worker(*/
+pub fn create_compiler_host_worker(
     options: Rc<CompilerOptions>,
     set_parent_nodes: Option<bool>,
     system: Option<Rc<dyn System>>,
@@ -504,10 +508,83 @@ pub(crate) fn change_compiler_host_like_to_use_cache<
     // unimplemented!()
 }
 
+pub fn get_pre_emit_diagnostics<TSourceFile: Borrow<Node>>(
+    program: &ProgramOrBuilderProgram,
+    source_file: Option<TSourceFile>,
+    cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+) -> Vec<Rc<Diagnostic>> {
+    let program = match program {
+        ProgramOrBuilderProgram::Program(program) => program,
+        _ => unimplemented!(),
+    };
+    let mut diagnostics: Vec<Rc<Diagnostic>> = vec![];
+    add_range(
+        &mut diagnostics,
+        Some(&program.get_config_file_parsing_diagnostics()),
+        None,
+        None,
+    );
+    add_range(
+        &mut diagnostics,
+        Some(&program.get_options_diagnostics(cancellation_token.clone())),
+        None,
+        None,
+    );
+    let source_file = source_file.map(|source_file| source_file.borrow().node_wrapper());
+    add_range(
+        &mut diagnostics,
+        Some(
+            &program.get_syntactic_diagnostics(source_file.as_deref(), cancellation_token.clone()),
+        ),
+        None,
+        None,
+    );
+    add_range(
+        &mut diagnostics,
+        Some(&program.get_global_diagnostics(cancellation_token.clone())),
+        None,
+        None,
+    );
+    add_range(
+        &mut diagnostics,
+        Some(&program.get_semantic_diagnostics(source_file.as_deref(), cancellation_token.clone())),
+        None,
+        None,
+    );
+
+    if get_emit_declarations(&program.get_compiler_options()) {
+        add_range(
+            &mut diagnostics,
+            Some(
+                &program.get_declaration_diagnostics(
+                    source_file.as_deref(),
+                    cancellation_token.clone(),
+                ),
+            ),
+            None,
+            None,
+        );
+    }
+
+    sort_and_deduplicate_diagnostics(&diagnostics).into()
+}
+
 pub trait FormatDiagnosticsHost {
     fn get_current_directory(&self) -> String;
     fn get_new_line(&self) -> &str;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
+}
+
+pub fn format_diagnostics<THost: FormatDiagnosticsHost>(
+    diagnostics: &[Rc<Diagnostic>],
+    host: &THost,
+) -> String {
+    let mut output = "".to_owned();
+
+    for diagnostic in diagnostics {
+        output.push_str(&format_diagnostic(diagnostic, host));
+    }
+    output
 }
 
 pub fn format_diagnostic<THost: FormatDiagnosticsHost>(

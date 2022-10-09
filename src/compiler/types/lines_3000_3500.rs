@@ -908,6 +908,16 @@ impl JSDocAugmentsTag {
     }
 }
 
+pub trait JSDocHeritageTagInterface: JSDocTagInterface {
+    fn class(&self) -> Rc<Node>;
+}
+
+impl JSDocHeritageTagInterface for JSDocAugmentsTag {
+    fn class(&self) -> Rc<Node> {
+        self.class.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocImplementsTag {
@@ -923,6 +933,12 @@ impl JSDocImplementsTag {
             _base_jsdoc_tag: base_jsdoc_tag,
             class,
         }
+    }
+}
+
+impl JSDocHeritageTagInterface for JSDocImplementsTag {
+    fn class(&self) -> Rc<Node> {
+        self.class.clone()
     }
 }
 
@@ -1468,7 +1484,11 @@ impl FlowLabel {
         }
     }
 
-    pub fn maybe_antecedents(&self) -> RefMut<Option<Vec<Rc<FlowNode>>>> {
+    pub fn maybe_antecedents(&self) -> Ref<Option<Vec<Rc<FlowNode>>>> {
+        self.antecedents.borrow()
+    }
+
+    pub fn maybe_antecedents_mut(&self) -> RefMut<Option<Vec<Rc<FlowNode>>>> {
         self.antecedents.borrow_mut()
     }
 

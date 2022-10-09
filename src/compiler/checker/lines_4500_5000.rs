@@ -235,7 +235,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
-        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+        writer: Option<Rc<dyn EmitTextWriter>>,
     ) -> String {
         let flags = flags.unwrap_or(SymbolFormatFlags::AllowAnyNodeKind);
         let mut node_flags = NodeBuilderFlags::IgnoreErrors;
@@ -258,7 +258,7 @@ impl TypeChecker {
         };
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let symbol_to_string_worker = |writer: Rc<RefCell<dyn EmitTextWriter>>| {
+        let symbol_to_string_worker = |writer: Rc<dyn EmitTextWriter>| {
             let entity = builder(
                 &self.node_builder(),
                 symbol,
@@ -278,6 +278,7 @@ impl TypeChecker {
                         .never_ascii_escape(Some(true))
                         .build()
                         .unwrap(),
+                    None,
                 )
             } else {
                 create_printer(
@@ -285,6 +286,7 @@ impl TypeChecker {
                         .remove_comments(Some(true))
                         .build()
                         .unwrap(),
+                    None,
                 )
             };
             let source_file = enclosing_declaration
@@ -292,12 +294,17 @@ impl TypeChecker {
                 .and_then(|enclosing_declaration| {
                     get_source_file_of_node(Some(enclosing_declaration))
                 });
-            printer.write_node(EmitHint::Unspecified, &entity, source_file, writer);
+            printer.write_node(
+                EmitHint::Unspecified,
+                &entity,
+                source_file.as_deref(),
+                writer,
+            );
             // writer
         };
         if let Some(writer) = writer {
             symbol_to_string_worker(writer.clone());
-            RefCell::borrow(&writer).get_text()
+            writer.get_text()
         } else {
             using_single_line_string_writer(symbol_to_string_worker)
         }
@@ -309,7 +316,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+        writer: Option<Rc<dyn EmitTextWriter>>,
     ) -> String {
         let flags = flags.unwrap_or(TypeFormatFlags::None);
         if let Some(writer) = writer {
@@ -320,9 +327,9 @@ impl TypeChecker {
                 kind,
                 writer.clone(),
             );
-            RefCell::borrow(&writer).get_text()
+            writer.get_text()
         } else {
-            using_single_line_string_writer(|writer: Rc<RefCell<dyn EmitTextWriter>>| {
+            using_single_line_string_writer(|writer: Rc<dyn EmitTextWriter>| {
                 self.signature_to_string_worker(
                     signature,
                     enclosing_declaration,
@@ -340,7 +347,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: TypeFormatFlags,
         kind: Option<SignatureKind>,
-        writer: Rc<RefCell<dyn EmitTextWriter>>,
+        writer: Rc<dyn EmitTextWriter>,
     ) {
         let sig_output: SyntaxKind;
         if flags.intersects(TypeFormatFlags::WriteArrowStyleSignature) {
@@ -375,6 +382,7 @@ impl TypeChecker {
                 .omit_trailing_semicolon(Some(true))
                 .build()
                 .unwrap(),
+            None,
         );
         let source_file = enclosing_declaration
             .as_deref()
@@ -382,10 +390,8 @@ impl TypeChecker {
         printer.write_node(
             EmitHint::Unspecified,
             &sig.unwrap(),
-            source_file,
-            Rc::new(RefCell::new(get_trailing_semicolon_deferring_writer(
-                writer,
-            ))),
+            source_file.as_deref(),
+            Rc::new(get_trailing_semicolon_deferring_writer(writer)),
         );
         // writer
     }
@@ -395,13 +401,13 @@ impl TypeChecker {
         type_: &Type,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+        writer: Option<Rc<dyn EmitTextWriter>>,
     ) -> String {
         let flags = flags.unwrap_or(
             TypeFormatFlags::AllowUniqueESSymbolType
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
         );
-        let writer = writer.unwrap_or_else(|| Rc::new(RefCell::new(create_text_writer(""))));
+        let writer = writer.unwrap_or_else(|| Rc::new(create_text_writer("")));
         let no_truncation = matches!(self.compiler_options.no_error_truncation, Some(true))
             || flags.intersects(TypeFormatFlags::NoTruncation);
         let enclosing_declaration = enclosing_declaration
@@ -428,13 +434,13 @@ impl TypeChecker {
             .remove_comments(Some(!ptr::eq(type_, &*self.unresolved_type())))
             .build()
             .unwrap();
-        let mut printer = create_printer(options);
+        let mut printer = create_printer(options, None);
         let source_file = enclosing_declaration
             .and_then(|enclosing_declaration| get_source_file_of_node(Some(enclosing_declaration)));
         printer.write_node(
             EmitHint::Unspecified,
             &type_node,
-            source_file,
+            source_file.as_deref(),
             writer.clone(),
         );
         let result = (*writer).borrow().get_text();
