@@ -5,8 +5,10 @@ use std::iter::FromIterator;
 
 use super::brackets;
 use crate::{
-    write_comment_range, EmitHint, ListFormat, Node, Printer, ReadonlyTextRange, SourceFileLike,
-    SourceMapSource, SyntaxKind,
+    emit_detached_comments, for_each_leading_comment_range, for_each_trailing_comment_range,
+    is_recognized_triple_slash_comment, last, write_comment_range, EmitHint, EmitTextWriter,
+    ListFormat, Node, Printer, ReadonlyTextRange, SourceFileLike, SourceMapSource,
+    SourceTextAsChars, SyntaxKind,
 };
 
 impl Printer {
@@ -134,9 +136,36 @@ impl Printer {
     >(
         &self,
         pos: isize,
-        cb: TCallback,
+        mut cb: TCallback,
     ) {
-        unimplemented!()
+        if let Some(current_source_file) = self.maybe_current_source_file().as_ref() {
+            if self.container_pos() == -1 || pos != self.container_pos() {
+                if self.has_detached_comments(pos) {
+                    self.for_each_leading_comment_without_detached_comments(cb);
+                } else {
+                    for_each_leading_comment_range(
+                        &current_source_file.as_source_file().text_as_chars(),
+                        pos.try_into().unwrap(),
+                        |pos: usize,
+                         end: usize,
+                         kind: SyntaxKind,
+                         has_trailing_new_line: bool,
+                         state: &isize|
+                         -> Option<()> {
+                            cb(
+                                pos.try_into().unwrap(),
+                                end.try_into().unwrap(),
+                                kind,
+                                has_trailing_new_line,
+                                *state,
+                            );
+                            None
+                        },
+                        &pos,
+                    );
+                }
+            }
+        }
     }
 
     pub(super) fn for_each_trailing_comment_to_emit<
@@ -144,20 +173,132 @@ impl Printer {
     >(
         &self,
         end: isize,
-        cb: TCallback,
+        mut cb: TCallback,
     ) {
-        unimplemented!()
+        if let Some(current_source_file) = self.maybe_current_source_file().as_ref() {
+            if self.container_end() == -1
+                || end != self.container_end() && end != self.declaration_list_container_end()
+            {
+                for_each_trailing_comment_range(
+                    &current_source_file.as_source_file().text_as_chars(),
+                    end.try_into().unwrap(),
+                    |pos: usize,
+                     end: usize,
+                     kind: SyntaxKind,
+                     has_trailing_new_line: bool,
+                     _state: &()|
+                     -> Option<()> {
+                        cb(
+                            pos.try_into().unwrap(),
+                            end.try_into().unwrap(),
+                            kind,
+                            has_trailing_new_line,
+                        );
+                        None
+                    },
+                    &(),
+                );
+            }
+        }
+    }
+
+    pub(super) fn has_detached_comments(&self, pos: isize) -> bool {
+        matches!(
+            self.maybe_detached_comments_info().as_ref(),
+            Some(detached_comments_info) if last(detached_comments_info).node_pos == pos
+        )
+    }
+
+    pub(super) fn for_each_leading_comment_without_detached_comments<
+        TCallback: FnMut(isize, isize, SyntaxKind, bool, isize),
+    >(
+        &self,
+        mut cb: TCallback,
+    ) {
+        let pos = last(&*self.detached_comments_info()).detached_comment_end_pos;
+        if self.detached_comments_info().len() - 1 != 0 {
+            self.detached_comments_info_mut().pop();
+        } else {
+            self.set_detached_comments_info(None);
+        }
+
+        for_each_leading_comment_range(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            pos.try_into().unwrap(),
+            |pos: usize,
+             end: usize,
+             kind: SyntaxKind,
+             has_trailing_new_line: bool,
+             state: &isize|
+             -> Option<()> {
+                cb(
+                    pos.try_into().unwrap(),
+                    end.try_into().unwrap(),
+                    kind,
+                    has_trailing_new_line,
+                    *state,
+                );
+                None
+            },
+            &pos,
+        );
     }
 
     pub(super) fn emit_detached_comments_and_update_comments_info<TRange: ReadonlyTextRange>(
         &self,
         range: &TRange,
     ) {
-        unimplemented!()
+        let current_detached_comment_info = emit_detached_comments(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            &*self.get_current_line_map(),
+            &*self.writer(),
+            |text: &SourceTextAsChars,
+             line_map: &[usize],
+             writer: &dyn EmitTextWriter,
+             comment_pos: isize,
+             comment_end: isize,
+             new_line: &str| {
+                self.emit_comment(text, line_map, writer, comment_pos, comment_end, new_line)
+            },
+            range,
+            &self.new_line,
+            self.comments_disabled(),
+        );
+    }
+
+    pub(super) fn emit_comment(
+        &self,
+        text: &SourceTextAsChars,
+        line_map: &[usize],
+        writer: &dyn EmitTextWriter,
+        comment_pos: isize,
+        comment_end: isize,
+        new_line: &str,
+    ) {
+        if !self.should_write_comment(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            comment_pos,
+        ) {
+            return;
+        }
+        self.emit_pos(comment_pos);
+        write_comment_range(
+            text,
+            line_map,
+            &*self.writer(),
+            comment_pos.try_into().unwrap(),
+            comment_end.try_into().unwrap(),
+            &self.new_line,
+        );
+        self.emit_pos(comment_end);
     }
 
     pub(super) fn is_triple_slash_comment(&self, comment_pos: isize, comment_end: isize) -> bool {
-        unimplemented!()
+        is_recognized_triple_slash_comment(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            comment_pos.try_into().unwrap(),
+            comment_end.try_into().unwrap(),
+        )
     }
 
     pub(super) fn pipeline_emit_with_source_maps(&self, hint: EmitHint, node: &Node) {

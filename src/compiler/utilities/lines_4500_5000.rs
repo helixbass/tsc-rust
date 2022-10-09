@@ -22,8 +22,8 @@ use crate::{
     is_pinned_comment, is_property_access_entity_name_expression, is_white_space_single_line, last,
     maybe_filter, maybe_text_char_at_index, skip_trivia, synthetic_factory, text_char_at_index,
     text_substring, trim_string, CharacterCodes, CommentRange, EmitTextWriter, Extension,
-    ModifierFlags, ModifiersArray, Node, NodeArray, NodeFlags, NodeInterface, SourceTextAsChars,
-    SyntaxKind, TextRange,
+    ModifierFlags, ModifiersArray, Node, NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange,
+    SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
@@ -98,9 +98,9 @@ pub fn get_effective_set_accessor_type_annotation_node(
     parameter.and_then(|parameter| get_effective_type_annotation_node(&parameter))
 }
 
-pub fn emit_new_line_before_leading_comments<TNode: TextRange>(
+pub fn emit_new_line_before_leading_comments<TNode: ReadonlyTextRange>(
     line_map: &[usize],
-    writer: &mut dyn EmitTextWriter,
+    writer: &dyn EmitTextWriter,
     node: &TNode,
     leading_comments: Option<&[CommentRange]>,
 ) {
@@ -114,7 +114,7 @@ pub fn emit_new_line_before_leading_comments<TNode: TextRange>(
 
 pub fn emit_new_line_before_leading_comments_of_position(
     line_map: &[usize],
-    writer: &mut dyn EmitTextWriter,
+    writer: &dyn EmitTextWriter,
     pos: isize,
     leading_comments: Option<&[CommentRange]>,
 ) {
@@ -152,7 +152,7 @@ pub fn emit_comments<
 >(
     text: &SourceTextAsChars,
     line_map: &[usize],
-    writer: &mut dyn EmitTextWriter,
+    writer: &dyn EmitTextWriter,
     comments: Option<&[TComment]>,
     leading_separator: bool,
     trailing_separator: bool,
@@ -197,11 +197,11 @@ pub fn emit_comments<
 
 pub fn emit_detached_comments<
     TWriteComment: FnMut(&SourceTextAsChars, &[usize], &dyn EmitTextWriter, isize, isize, &str),
-    TNode: TextRange,
+    TNode: ReadonlyTextRange,
 >(
     text: &SourceTextAsChars,
     line_map: &[usize],
-    writer: &mut dyn EmitTextWriter,
+    writer: &dyn EmitTextWriter,
     mut write_comment: TWriteComment,
     node: &TNode,
     new_line: &str,

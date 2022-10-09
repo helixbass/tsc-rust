@@ -68,8 +68,8 @@ pub struct Printer {
 
 #[derive(Copy, Clone)]
 pub struct DetachedCommentInfo {
-    pub node_pos: usize,
-    pub detached_comment_end_pos: usize,
+    pub node_pos: isize,
+    pub detached_comment_end_pos: isize,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

@@ -461,6 +461,24 @@ impl Printer {
         *self.current_line_map.borrow_mut() = current_line_map;
     }
 
+    pub(super) fn maybe_detached_comments_info(&self) -> Ref<Option<Vec<DetachedCommentInfo>>> {
+        self.detached_comments_info.borrow()
+    }
+
+    pub(super) fn detached_comments_info(&self) -> Ref<Vec<DetachedCommentInfo>> {
+        Ref::map(
+            self.detached_comments_info.borrow(),
+            |detached_comments_info| detached_comments_info.as_ref().unwrap(),
+        )
+    }
+
+    pub(super) fn detached_comments_info_mut(&self) -> RefMut<Vec<DetachedCommentInfo>> {
+        RefMut::map(
+            self.detached_comments_info.borrow_mut(),
+            |detached_comments_info| detached_comments_info.as_mut().unwrap(),
+        )
+    }
+
     pub(super) fn set_detached_comments_info(
         &self,
         detached_comments_info: Option<Vec<DetachedCommentInfo>>,
