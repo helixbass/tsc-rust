@@ -413,8 +413,8 @@ impl TypeChecker {
         if !Rc::ptr_eq(&relation, &self.identity_relation) {
             if Rc::ptr_eq(&relation, &self.comparable_relation)
                 && !target.flags().intersects(TypeFlags::Never)
-                && self.is_simple_type_related_to(&source, &target, &(*relation).borrow(), None)
-                || self.is_simple_type_related_to(&target, &source, &(*relation).borrow(), None)
+                && self.is_simple_type_related_to(&target, &source, &(*relation).borrow(), None)
+                || self.is_simple_type_related_to(&source, &target, &(*relation).borrow(), None)
             {
                 return true;
             }
