@@ -624,7 +624,8 @@ pub struct PrinterOptions {
     pub(crate) relative_to_build_info: Option<Rc<dyn Fn(&str) -> String>>,
 }
 
-pub(crate) struct RawSourceMap {
+#[derive(Debug)]
+pub struct RawSourceMap {
     pub version: u32, /*3*/
     pub file: String,
     pub source_root: Option<String>,

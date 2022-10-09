@@ -2,13 +2,14 @@ use bitflags::bitflags;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use std::rc::Rc;
 
-use super::brackets;
+use super::{brackets, PipelinePhase};
 use crate::{
     emit_detached_comments, for_each_leading_comment_range, for_each_trailing_comment_range,
-    is_recognized_triple_slash_comment, last, write_comment_range, EmitHint, EmitTextWriter,
-    ListFormat, Node, Printer, ReadonlyTextRange, SourceFileLike, SourceMapSource,
-    SourceTextAsChars, SyntaxKind,
+    is_recognized_triple_slash_comment, last, try_parse_raw_source_map, write_comment_range,
+    EmitHint, EmitTextWriter, ListFormat, Node, Printer, RawSourceMap, ReadonlyTextRange,
+    SourceFileLike, SourceMapSource, SourceTextAsChars, SyntaxKind,
 };
 
 impl Printer {
@@ -301,8 +302,30 @@ impl Printer {
         )
     }
 
+    pub(super) fn get_parsed_source_map(
+        &self,
+        node: &Node, /*UnparsedSource*/
+    ) -> Option<Rc<RawSourceMap>> {
+        let node_as_unparsed_source = node.as_unparsed_source();
+        if node_as_unparsed_source.parsed_source_map.borrow().is_none() {
+            if let Some(node_source_map_text) = node_as_unparsed_source.source_map_text.as_ref() {
+                *node_as_unparsed_source.parsed_source_map.borrow_mut() =
+                    Some(try_parse_raw_source_map(node_source_map_text).map(Rc::new));
+            }
+        }
+        let ret = node_as_unparsed_source
+            .parsed_source_map
+            .borrow()
+            .clone()
+            .flatten();
+        ret
+    }
+
     pub(super) fn pipeline_emit_with_source_maps(&self, hint: EmitHint, node: &Node) {
-        unimplemented!()
+        let pipeline_phase = self.get_next_pipeline_phase(PipelinePhase::SourceMaps, hint, node);
+        self.emit_source_maps_before_node(node);
+        pipeline_phase(self, hint, node);
+        self.emit_source_maps_after_node(node);
     }
 
     pub(super) fn emit_source_maps_before_node(&self, node: &Node) {

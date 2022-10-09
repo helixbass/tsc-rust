@@ -19,7 +19,7 @@ use crate::{
     DiagnosticCache, DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue,
     ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
-    RedirectTargetsMap, ResolvedProjectReference, SourceOfProjectReferenceRedirect,
+    RawSourceMap, RedirectTargetsMap, ResolvedProjectReference, SourceOfProjectReferenceRedirect,
     StructureIsReused, SymlinkCache, Type, TypeFlags, TypeInterface,
     TypeReferenceDirectiveResolutionCache, __String,
 };
@@ -815,6 +815,7 @@ pub struct UnparsedSource {
     pub synthetic_references: Option<Vec<Rc<Node /*UnparsedSyntheticReference*/>>>,
     pub texts: Vec<Rc<Node /*UnparsedSourceText*/>>,
     pub(crate) old_file_of_current_emit: Option<bool>,
+    pub(crate) parsed_source_map: RefCell<Option<Option<Rc<RawSourceMap>>>>,
 }
 
 impl UnparsedSource {
@@ -845,6 +846,7 @@ impl UnparsedSource {
             source_map_path: None,
             source_map_text: None,
             old_file_of_current_emit: None,
+            parsed_source_map: RefCell::new(None),
         }
     }
 }

@@ -234,6 +234,7 @@ pub use compiler::scanner::{
     reduce_each_trailing_comment_range, token_to_string, ErrorCallback, Scanner,
 };
 pub use compiler::semver::{Version, VersionRange};
+pub use compiler::sourcemap::try_parse_raw_source_map;
 use compiler::sys::{generate_djb2_hash, ignored_paths, missing_file_modified_time};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
@@ -256,7 +257,7 @@ pub use compiler::tsbuild_public::{
 use compiler::types::{
     diagnostic_category_name, AccessFlags, CommentDirectivesMap, EmitNode, ExternalEmitHelpers,
     FileIncludeKind, FileIncludeReason, IterationTypes, IterationTypesKey, JsxReferenceKind,
-    MemberOverrideStatus, ModulePath, ReadonlyPragmaMap, ReferencedFile,
+    MemberOverrideStatus, ModulePath, RawSourceMap, ReadonlyPragmaMap, ReferencedFile,
     SourceOfProjectReferenceRedirect, StringOrDiagnosticMessage, WideningContext,
 };
 pub use compiler::types::{

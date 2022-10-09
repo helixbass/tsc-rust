@@ -94,7 +94,8 @@ pub fn set_comment_range<TRange: ReadonlyTextRange /*TextRange*/>(node: &Node, r
 }
 
 pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
-    unimplemented!()
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().leading_comments.clone())
 }
 
 pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
@@ -114,7 +115,8 @@ pub fn add_synthetic_leading_comment(
 }
 
 pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
-    unimplemented!()
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().trailing_comments.clone())
 }
 
 pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNumber> {
@@ -128,5 +130,6 @@ pub fn get_emit_helpers(node: &Node) -> Option<Vec<Rc<EmitHelper>>> {
 }
 
 pub(crate) fn get_snippet_element(node: &Node) -> Option<SnippetElement> {
-    unimplemented!()
+    node.maybe_emit_node()
+        .and_then(|node_emit_node| (*node_emit_node).borrow().snippet_element)
 }
