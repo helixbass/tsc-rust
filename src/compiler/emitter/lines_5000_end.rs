@@ -1,27 +1,11 @@
-use regex::Regex;
-use std::borrow::Cow;
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
+use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::ptr;
 use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    are_option_rcs_equal, escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
-    for_each, get_emit_flags, get_lines_between_position_and_next_non_whitespace_character,
-    get_lines_between_position_and_preceding_non_whitespace_character,
-    get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
-    get_source_file_of_node, get_source_text_of_node_from_source_file, get_starts_on_new_line,
-    guess_indentation, id_text, is_binding_pattern, is_generated_identifier, is_identifier,
-    is_literal_expression, is_numeric_literal, is_private_identifier, last_or_undefined,
-    node_is_synthesized, position_is_synthesized, range_end_is_on_same_line_as_range_start,
-    range_end_positions_are_on_same_line, range_is_on_single_line,
-    range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags, EmitHint,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetLiteralTextFlags, ListFormat,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SourceMapSource, SyntaxKind,
+    EmitHint, GeneratedIdentifierFlags, ListFormat, Node, Printer, ReadonlyTextRange,
+    SourceMapSource, SyntaxKind,
 };
 
 impl Printer {

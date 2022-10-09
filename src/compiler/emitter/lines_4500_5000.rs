@@ -1,13 +1,12 @@
 use regex::Regex;
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::convert::TryInto;
-use std::iter::FromIterator;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{brackets, TempFlags};
+use super::TempFlags;
 use crate::{
     are_option_rcs_equal, escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
     for_each, get_emit_flags, get_lines_between_position_and_next_non_whitespace_character,
@@ -18,10 +17,10 @@ use crate::{
     is_literal_expression, is_numeric_literal, is_private_identifier, last_or_undefined,
     node_is_synthesized, position_is_synthesized, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line,
-    range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags, EmitHint,
+    range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags,
     FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetLiteralTextFlags, ListFormat,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SourceMapSource, SyntaxKind,
+    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
 };
 
 impl Printer {
