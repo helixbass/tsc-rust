@@ -212,7 +212,7 @@ impl Printer {
         self.set_current_line_map(None);
         self.set_detached_comments_info(None);
         if let Some(source_file) = source_file {
-            self.set_source_map_source(source_file.node_wrapper().into());
+            self.set_source_map_source(Rc::new(source_file.node_wrapper().into()));
         }
     }
 

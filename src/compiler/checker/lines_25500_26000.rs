@@ -371,10 +371,9 @@ impl TypeChecker {
         context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
         let declaration = node.parent();
-        let declaration_as_variable_declaration = declaration.as_variable_declaration();
         if has_initializer(&declaration)
             && matches!(
-                declaration_as_variable_declaration.maybe_initializer().as_deref(),
+                declaration.as_has_initializer().maybe_initializer().as_deref(),
                 Some(declaration_initializer) if ptr::eq(
                     node,
                     declaration_initializer
@@ -388,10 +387,10 @@ impl TypeChecker {
             if !matches!(
                 context_flags,
                 Some(context_flags) if context_flags.intersects(ContextFlags::SkipBindingPatterns)
-            ) && is_binding_pattern(declaration_as_variable_declaration.maybe_name())
+            ) && is_binding_pattern(declaration.as_named_declaration().maybe_name())
             {
                 return Some(self.get_type_from_binding_pattern(
-                    &declaration_as_variable_declaration.name(),
+                    &declaration.as_named_declaration().name(),
                     Some(true),
                     Some(false),
                 ));
