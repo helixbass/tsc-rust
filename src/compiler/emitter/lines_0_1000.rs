@@ -184,6 +184,10 @@ impl Printer {
         self.bundled_helpers.borrow_mut()
     }
 
+    pub(super) fn node_id_to_generated_name_mut(&self) -> RefMut<HashMap<NodeId, String>> {
+        self.node_id_to_generated_name.borrow_mut()
+    }
+
     pub(super) fn set_node_id_to_generated_name(
         &self,
         node_id_to_generated_name: HashMap<NodeId, String>,
@@ -201,6 +205,10 @@ impl Printer {
     ) {
         *self.auto_generated_id_to_generated_name.borrow_mut() =
             auto_generated_id_to_generated_name;
+    }
+
+    pub(super) fn generated_names(&self) -> Ref<HashSet<String>> {
+        self.generated_names.borrow()
     }
 
     pub(super) fn set_generated_names(&self, generated_names: HashSet<String>) {
@@ -240,6 +248,10 @@ impl Printer {
 
     pub(super) fn reserved_names(&self) -> Rc<RefCell<HashSet<String>>> {
         self.reserved_names.borrow().clone().unwrap()
+    }
+
+    pub(super) fn maybe_reserved_names(&self) -> Option<Rc<RefCell<HashSet<String>>>> {
+        self.reserved_names.borrow().clone()
     }
 
     pub(super) fn maybe_reserved_names_mut(&self) -> RefMut<Option<Rc<RefCell<HashSet<String>>>>> {

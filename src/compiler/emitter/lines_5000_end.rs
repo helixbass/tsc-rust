@@ -1,11 +1,14 @@
+use bitflags::bitflags;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    EmitHint, GeneratedIdentifierFlags, ListFormat, Node, Printer, ReadonlyTextRange,
-    SourceMapSource, SyntaxKind,
+    escape_leading_underscores, get_node_id, is_file_level_unique_name, is_node_descendant_of,
+    EmitHint, GeneratedIdentifierFlags, ListFormat, Node, NodeInterface, Printer,
+    ReadonlyTextRange, SourceMapSource, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl Printer {
@@ -14,7 +17,95 @@ impl Printer {
         node: &Node,
         flags: Option<GeneratedIdentifierFlags>,
     ) -> String {
-        unimplemented!()
+        let node_id = get_node_id(node);
+        self.node_id_to_generated_name_mut()
+            .entry(node_id)
+            .or_insert_with(|| self.generate_name_for_node(node, flags))
+            .clone()
+    }
+
+    pub(super) fn is_unique_name(&self, name: &str) -> bool {
+        self.is_file_level_unique_name(name)
+            && !self.generated_names().contains(name)
+            && !matches!(
+                self.maybe_reserved_names(),
+                Some(reserved_names) if (*reserved_names).borrow().contains(name)
+            )
+    }
+
+    pub(super) fn is_file_level_unique_name(&self, name: &str) -> bool {
+        self.maybe_current_source_file()
+            .as_ref()
+            .map_or(true, |current_source_file| {
+                is_file_level_unique_name(
+                    current_source_file,
+                    name,
+                    Some(|name: &str| self.has_global_name(name) == Some(true)),
+                )
+            })
+    }
+
+    pub(super) fn is_unique_local_name(&self, name: &str, container: &Node) -> bool {
+        let mut node = container.node_wrapper();
+        while is_node_descendant_of(&node, Some(container)) {
+            if let Some(node_locals) = node.maybe_locals().as_ref() {
+                let local = (**node_locals)
+                    .borrow()
+                    .get(&escape_leading_underscores(name))
+                    .cloned();
+                if matches!(
+                    local,
+                    Some(local) if local.flags().intersects(
+                        SymbolFlags::Value | SymbolFlags::ExportValue | SymbolFlags::Alias
+                    )
+                ) {
+                    return false;
+                }
+            }
+            node = node.maybe_next_container().unwrap();
+        }
+        true
+    }
+
+    pub(super) fn make_temp_variable_name(
+        &self,
+        flags: TempFlags,
+        reserved_in_nested_scopes: Option<bool>,
+    ) -> String {
+        if flags != TempFlags::Auto && !self.temp_flags().intersects(flags) {
+            let name = if flags == TempFlags::_I { "_i" } else { "_n" };
+            if self.is_unique_name(name) {
+                self.set_temp_flags(self.temp_flags() | flags);
+                if reserved_in_nested_scopes == Some(true) {
+                    self.reserve_name_in_nested_scopes(name);
+                }
+                return name.to_owned();
+            }
+        }
+        loop {
+            let count: usize = (self.temp_flags() & TempFlags::CountMask)
+                .bits()
+                .try_into()
+                .unwrap();
+            self.set_temp_flags(
+                // TODO: could probably avoid using unsafe here by not using a bitflags for
+                // TempFlags?
+                unsafe { TempFlags::from_bits_unchecked(self.temp_flags().bits() + 1) },
+            );
+            if count != 8 && count != 13 {
+                let name = if count < 26 {
+                    format!("_{}", &"abcdefghijklmnopqrstuvwxyz"[count..count + 1])
+                } else {
+                    format!("_{}", count - 26)
+                };
+                if self.is_unique_name(&name) {
+                    if reserved_in_nested_scopes == Some(true) {
+                        self.reserve_name_in_nested_scopes(&name);
+                        return name;
+                    }
+                }
+            }
+        }
     }
 
     pub(super) fn make_file_level_optimistic_unique_name(&self, name: &str) -> String {
@@ -25,6 +116,14 @@ impl Printer {
         &self,
         name: &Node, /*GeneratedIdentifier*/
     ) -> Rc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn generate_name_for_node(
+        &self,
+        name: &Node,
+        flags: Option<GeneratedIdentifierFlags>,
+    ) -> String {
         unimplemented!()
     }
 
@@ -141,9 +240,10 @@ pub(super) fn get_closing_bracket(format: ListFormat) -> &'static str {
         .1
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum TempFlags {
-    Auto = 0x00000000,
-    CountMask = 0x0FFFFFFF,
-    _I = 0x10000000,
+bitflags! {
+    pub struct TempFlags: u32 {
+        const Auto = 0x00000000;
+        const CountMask = 0x0FFFFFFF;
+        const _I = 0x10000000;
+    }
 }
