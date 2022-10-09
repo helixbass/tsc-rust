@@ -520,7 +520,7 @@ pub fn parse_custom_type_option(
     convert_json_option_of_custom_type(opt, Some(trim_string(value.unwrap_or(""))), errors)
 }
 
-pub(crate) fn parse_list_type_option(
+pub fn parse_list_type_option(
     opt: &CommandLineOption, /*CommandLineOptionOfListType*/
     value: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,
@@ -542,6 +542,20 @@ pub(crate) fn parse_list_type_option(
                     match validate_json_option_value(
                         &opt_as_command_line_option_of_list_type.element,
                         Some(&serde_json::Value::String(v.to_owned())),
+                        errors,
+                    ) {
+                        CompilerOptionsValue::String(v) => v,
+                        _ => panic!("Expected string"),
+                    }
+                })
+                .collect(),
+        ),
+        CommandLineOptionType::Map(_) => Some(
+            values
+                .filter_map(|v| {
+                    match parse_custom_type_option(
+                        &opt_as_command_line_option_of_list_type.element,
+                        Some(v),
                         errors,
                     ) {
                         CompilerOptionsValue::String(v) => v,
