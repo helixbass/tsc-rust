@@ -191,6 +191,10 @@ impl Printer {
         *self.node_id_to_generated_name.borrow_mut() = node_id_to_generated_name;
     }
 
+    pub(super) fn auto_generated_id_to_generated_name_mut(&self) -> RefMut<HashMap<usize, String>> {
+        self.auto_generated_id_to_generated_name.borrow_mut()
+    }
+
     pub(super) fn set_auto_generated_id_to_generated_name(
         &self,
         auto_generated_id_to_generated_name: HashMap<usize, String>,

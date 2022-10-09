@@ -14,14 +14,14 @@ use crate::{
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
     get_source_file_of_node, get_source_text_of_node_from_source_file, get_starts_on_new_line,
-    guess_indentation, id_text, is_generated_identifier, is_identifier, is_literal_expression,
-    is_numeric_literal, is_private_identifier, last_or_undefined, node_is_synthesized,
-    position_is_synthesized, range_end_is_on_same_line_as_range_start,
+    guess_indentation, id_text, is_binding_pattern, is_generated_identifier, is_identifier,
+    is_literal_expression, is_numeric_literal, is_private_identifier, last_or_undefined,
+    node_is_synthesized, position_is_synthesized, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line,
     range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags, EmitHint,
-    FunctionLikeDeclarationInterface, GetLiteralTextFlags, ListFormat, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    ScriptTarget, SignatureDeclarationInterface, SourceMapSource, SyntaxKind,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetLiteralTextFlags, ListFormat,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
+    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SourceMapSource, SyntaxKind,
 };
 
 impl Printer {
@@ -771,18 +771,71 @@ impl Printer {
     }
 
     pub(super) fn generate_member_names(&self, node: Option<&Node>) {
-        unimplemented!()
+        if node.is_none() {
+            return;
+        }
+        let node = node.unwrap();
+        if matches!(
+            node.kind(),
+            SyntaxKind::PropertyAssignment
+                | SyntaxKind::ShorthandPropertyAssignment
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+        ) {
+            self.generate_name_if_needed(node.as_named_declaration().maybe_name().as_deref())
+        }
     }
 
     pub(super) fn generate_name_if_needed(&self, name: Option<&Node /*DeclarationName*/>) {
-        unimplemented!()
+        if let Some(name) = name {
+            if is_generated_identifier(name) {
+                self.generate_name(name);
+            } else if is_binding_pattern(Some(name)) {
+                self.generate_names(Some(name));
+            }
+        }
     }
 
     pub(super) fn generate_name(&self, name: &Node /*GeneratedIdentifier*/) -> String {
+        let name_as_identifier = name.as_identifier();
+        if name_as_identifier.auto_generate_flags.unwrap() & GeneratedIdentifierFlags::KindMask
+            == GeneratedIdentifierFlags::Node
+        {
+            self.generate_name_cached(
+                &self.get_node_for_generated_name(name),
+                name_as_identifier.auto_generate_flags,
+            )
+        } else {
+            let auto_generate_id = name_as_identifier.auto_generate_id.unwrap();
+            self.auto_generated_id_to_generated_name_mut()
+                .entry(auto_generate_id)
+                .or_insert_with(|| self.make_name(name))
+                .clone()
+        }
+    }
+
+    pub(super) fn generate_name_cached(
+        &self,
+        node: &Node,
+        flags: Option<GeneratedIdentifierFlags>,
+    ) -> String {
         unimplemented!()
     }
 
     pub(super) fn make_file_level_optimistic_unique_name(&self, name: &str) -> String {
+        unimplemented!()
+    }
+
+    pub(super) fn get_node_for_generated_name(
+        &self,
+        name: &Node, /*GeneratedIdentifier*/
+    ) -> Rc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn make_name(&self, name: &Node /*GeneratedIdentifier*/) -> String {
         unimplemented!()
     }
 
