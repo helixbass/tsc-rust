@@ -15,6 +15,10 @@ use typescript_rust::{
 };
 
 #[rstest]
+#[case("widenedTypes.ts")]
+#[case("withStatement.ts")]
+#[case("withStatementErrors.ts")]
+#[case("withStatementNestedScope.ts")]
 #[case("wrappedRecursiveGenericType.ts")]
 #[case("yieldExpression1.ts")]
 #[case("yieldExpressionInFlowLoop.ts")]
