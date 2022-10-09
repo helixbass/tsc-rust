@@ -616,6 +616,7 @@ pub use compiler::watch_public::{
 };
 pub use compiler::watch_utilities::DirectoryStructureHost;
 pub use execute_command_line::execute_command_line::execute_command_line;
+pub use rust_helpers::debugging::{if_debugging, start_debugging, stop_debugging, while_debugging};
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::sys::{
     fs_readdir_sync_with_file_types, fs_stat_sync, is_windows, process_cwd, StatLike, Stats,

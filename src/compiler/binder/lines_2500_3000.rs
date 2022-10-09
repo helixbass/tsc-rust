@@ -234,11 +234,10 @@ impl BinderType {
                 self.bind_property_or_method_or_accessor(
                     node,
                     SymbolFlags::Method
-                        | if matches!(node.kind(), SyntaxKind::MethodDeclaration)
-                            && node
-                                .as_method_declaration()
-                                .maybe_question_token()
-                                .is_some()
+                        | if node
+                            .as_has_question_token()
+                            .maybe_question_token()
+                            .is_some()
                         {
                             SymbolFlags::Optional
                         } else {
