@@ -1022,6 +1022,13 @@ impl Node {
         enum_unwrapped!(self, [Node, ObjectLiteralExpression])
     }
 
+    pub fn maybe_as_identifier(&self) -> Option<&Identifier> {
+        match self {
+            Node::Identifier(value) => Some(value),
+            _ => None,
+        }
+    }
+
     pub fn as_identifier(&self) -> &Identifier {
         enum_unwrapped!(self, [Node, Identifier])
     }

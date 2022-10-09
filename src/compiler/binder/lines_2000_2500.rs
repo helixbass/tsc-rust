@@ -381,15 +381,20 @@ impl BinderType {
         self.set_current_flow(save_current_flow);
     }
 
-    pub(super) fn check_contextual_identifier(&self, node: &Node /*Identifier*/) {
+    pub(super) fn check_contextual_identifier(
+        &self,
+        node: &Node, /*Identifier (and whatever ThisKeyword is) */
+    ) {
         if self.file().as_source_file().parse_diagnostics().is_empty()
             && !node.flags().intersects(NodeFlags::Ambient)
             && !node.flags().intersects(NodeFlags::JSDoc)
             && !is_identifier_name(node)
         {
-            let node_as_identifier = node.as_identifier();
+            let node_original_keyword_kind = node
+                .maybe_as_identifier()
+                .and_then(|node| node.original_keyword_kind);
             if matches!(self.maybe_in_strict_mode(), Some(true))
-                && matches!(node_as_identifier.original_keyword_kind, Some(original_keyword_kind) if original_keyword_kind >= SyntaxKind::FirstFutureReservedWord && original_keyword_kind <= SyntaxKind::LastFutureReservedWord)
+                && matches!(node_original_keyword_kind, Some(original_keyword_kind) if original_keyword_kind >= SyntaxKind::FirstFutureReservedWord && original_keyword_kind <= SyntaxKind::LastFutureReservedWord)
             {
                 self.file()
                     .as_source_file()
@@ -402,10 +407,7 @@ impl BinderType {
                         )
                         .into(),
                     ));
-            } else if matches!(
-                node_as_identifier.original_keyword_kind,
-                Some(SyntaxKind::AwaitKeyword)
-            ) {
+            } else if matches!(node_original_keyword_kind, Some(SyntaxKind::AwaitKeyword)) {
                 if is_external_module(&self.file()) && is_in_top_level_context(node) {
                     self.file()
                         .as_source_file()
@@ -431,10 +433,8 @@ impl BinderType {
                             .into(),
                         ));
                 }
-            } else if matches!(
-                node_as_identifier.original_keyword_kind,
-                Some(SyntaxKind::YieldKeyword)
-            ) && node.flags().intersects(NodeFlags::YieldContext)
+            } else if matches!(node_original_keyword_kind, Some(SyntaxKind::YieldKeyword))
+                && node.flags().intersects(NodeFlags::YieldContext)
             {
                 self.file()
                     .as_source_file()
