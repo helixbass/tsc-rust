@@ -9,12 +9,17 @@ use std::rc::Rc;
 
 use typescript_rust::{
     create_compiler_host_worker, create_program, format_diagnostics, get_pre_emit_diagnostics,
-    get_sys, option_declarations, parse_custom_type_option, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
-    CompilerOptionsValue, CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, Node,
+    get_sys, option_declarations, parse_custom_type_option, parse_list_type_option,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
+    CompilerOptionsBuilder, CompilerOptionsValue, CreateProgramOptions, Diagnostic,
+    FormatDiagnosticsHost, Node,
 };
 
 #[rstest]
+#[case("variableDeclaratorResolvedDuringContextualTyping.ts")]
+// #[case("varianceMeasurement.ts")]
+#[case("voidArrayLit.ts")]
+// #[case("voidAsNonAmbiguousReturnType.ts")]
 #[case("weakType.ts")]
 #[case("widenToAny1.ts")]
 #[case("widenToAny2.ts")]
@@ -89,7 +94,9 @@ fn option_value(
         CommandLineOptionType::String => Some(value.to_owned()).into(),
         CommandLineOptionType::Number => unimplemented!(),
         CommandLineOptionType::Object => unimplemented!(),
-        CommandLineOptionType::List => unimplemented!(),
+        CommandLineOptionType::List => {
+            CompilerOptionsValue::VecString(parse_list_type_option(option, Some(value), errors))
+        }
         CommandLineOptionType::Map(_) => parse_custom_type_option(option, Some(value), errors),
     }
 }
