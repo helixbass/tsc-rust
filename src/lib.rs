@@ -73,7 +73,8 @@ use compiler::factory::emit_helpers::compare_emit_helpers;
 pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
 pub use compiler::factory::emit_node::{
     add_emit_flags, add_synthetic_leading_comment, dispose_emit_nodes, get_comment_range,
-    get_constant_value, get_emit_helpers, set_comment_range, set_emit_flags,
+    get_constant_value, get_emit_helpers, get_synthetic_leading_comments,
+    get_synthetic_trailing_comments, set_comment_range, set_emit_flags,
     set_synthetic_leading_comments,
 };
 use compiler::factory::emit_node::{
@@ -501,12 +502,13 @@ pub use compiler::utilities::{
     is_type_alias, is_type_node_kind, is_umd_export_symbol, is_valid_es_symbol_declaration,
     is_valid_type_only_alias_use_site, is_value_signature_declaration, is_var_const,
     is_variable_declaration_in_variable_statement, is_variable_like, is_variable_like_or_accessor,
-    is_watch_set, is_write_access, is_write_only_access, match_files, match_pattern_or_exact,
-    maybe_set_parent, min_and_max, modifier_to_flag, modifiers_to_flags,
-    no_truncation_maximum_truncation_length, node_can_be_decorated, node_is_decorated,
-    node_is_missing, node_is_present, node_is_synthesized, node_starts_new_lexical_environment,
-    object_allocator, options_have_changes, options_have_module_resolution_changes, out_file,
-    package_id_to_string, parameter_is_this_keyword, parse_pseudo_big_int, position_is_synthesized,
+    is_watch_set, is_write_access, is_write_only_access, make_identifier_from_module_name,
+    match_files, match_pattern_or_exact, maybe_set_parent, min_and_max, modifier_to_flag,
+    modifiers_to_flags, no_truncation_maximum_truncation_length, node_can_be_decorated,
+    node_is_decorated, node_is_missing, node_is_present, node_is_synthesized,
+    node_starts_new_lexical_environment, object_allocator, options_have_changes,
+    options_have_module_resolution_changes, out_file, package_id_to_string,
+    parameter_is_this_keyword, parse_pseudo_big_int, position_is_synthesized,
     positions_are_on_same_line, pseudo_big_int_to_string, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line, range_of_node,
     range_of_type_parameters, range_start_positions_are_on_same_line, read_json, remove_extension,

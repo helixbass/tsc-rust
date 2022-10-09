@@ -93,6 +93,10 @@ pub fn set_comment_range<TRange: ReadonlyTextRange /*TextRange*/>(node: &Node, r
     // unimplemented!()
 }
 
+pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
+    unimplemented!()
+}
+
 pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
 /*-> Rc<Node>*/
 {
@@ -106,6 +110,10 @@ pub fn add_synthetic_leading_comment(
     has_trailing_new_line: Option<bool>,
 ) /*-> Rc<Node>*/
 {
+    unimplemented!()
+}
+
+pub fn get_synthetic_trailing_comments(node: &Node) -> Option<Vec<Rc<SynthesizedComment>>> {
     unimplemented!()
 }
 

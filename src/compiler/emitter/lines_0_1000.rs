@@ -211,6 +211,10 @@ impl Printer {
         self.generated_names.borrow()
     }
 
+    pub(super) fn generated_names_mut(&self) -> RefMut<HashSet<String>> {
+        self.generated_names.borrow_mut()
+    }
+
     pub(super) fn set_generated_names(&self, generated_names: HashSet<String>) {
         *self.generated_names.borrow_mut() = generated_names;
     }
@@ -462,6 +466,14 @@ impl Printer {
         detached_comments_info: Option<Vec<DetachedCommentInfo>>,
     ) {
         *self.detached_comments_info.borrow_mut() = detached_comments_info;
+    }
+
+    pub(super) fn has_written_comment(&self) -> bool {
+        self.has_written_comment.get()
+    }
+
+    pub(super) fn set_has_written_comment(&self, has_written_comment: bool) {
+        self.has_written_comment.set(has_written_comment);
     }
 
     pub(super) fn comments_disabled(&self) -> bool {
