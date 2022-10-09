@@ -297,6 +297,10 @@ pub fn contains_ignored_path(path: &str) -> bool {
     )
 }
 
+pub fn get_containing_node_array(node: &Node) -> Option<NodeArray> {
+    unimplemented!()
+}
+
 pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/) -> bool {
     let node_as_function_like_declaration = node.as_function_like_declaration();
     if node_as_function_like_declaration

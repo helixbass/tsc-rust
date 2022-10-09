@@ -6,13 +6,15 @@ use std::rc::Rc;
 
 use super::{brackets, PipelinePhase};
 use crate::{
-    escape_leading_underscores, get_comment_range, get_emit_flags, get_external_module_name,
-    get_node_id, get_synthetic_leading_comments, get_synthetic_trailing_comments, id_text,
-    is_file_level_unique_name, is_identifier, is_node_descendant_of, is_string_literal,
-    make_identifier_from_module_name, maybe_for_each, Debug_, EmitFlags, EmitHint,
-    GeneratedIdentifierFlags, ListFormat, LiteralLikeNodeInterface, Node, NodeInterface, Printer,
-    ReadonlyTextRange, SourceMapSource, SymbolFlags, SymbolInterface, SyntaxKind,
-    SynthesizedComment, TextRange,
+    compute_line_starts, emit_new_line_before_leading_comment_of_position,
+    escape_leading_underscores, get_comment_range, get_containing_node_array, get_emit_flags,
+    get_external_module_name, get_node_id, get_original_node, get_synthetic_leading_comments,
+    get_synthetic_trailing_comments, id_text, is_file_level_unique_name, is_identifier,
+    is_jsdoc_like_text, is_node_descendant_of, is_pinned_comment, is_string_literal,
+    make_identifier_from_module_name, maybe_for_each, write_comment_range, Debug_, EmitFlags,
+    EmitHint, GeneratedIdentifierFlags, ListFormat, LiteralLikeNodeInterface, Node, NodeInterface,
+    Printer, ReadonlyTextRange, SourceFileLike, SourceMapSource, SourceTextAsChars, SymbolFlags,
+    SymbolInterface, SyntaxKind, SynthesizedComment, TextRange,
 };
 
 impl Printer {
@@ -467,11 +469,55 @@ impl Printer {
     }
 
     pub(super) fn emit_leading_synthesized_comment(&self, comment: &SynthesizedComment) {
-        unimplemented!()
+        if comment.has_leading_new_line == Some(true)
+            || comment.kind == SyntaxKind::SingleLineCommentTrivia
+        {
+            self.writer().write_line(None);
+        }
+        self.write_synthesized_comment(comment);
+        if comment.has_trailing_new_line == Some(true)
+            || comment.kind == SyntaxKind::SingleLineCommentTrivia
+        {
+            self.writer().write_line(None);
+        } else {
+            self.writer().write_space(" ");
+        }
     }
 
     pub(super) fn emit_trailing_synthesized_comment(&self, comment: &SynthesizedComment) {
-        unimplemented!()
+        if !self.writer().is_at_start_of_line() {
+            self.writer().write_space(" ");
+        }
+        self.write_synthesized_comment(comment);
+        if comment.has_trailing_new_line == Some(true) {
+            self.writer().write_line(None);
+        }
+    }
+
+    pub(super) fn write_synthesized_comment(&self, comment: &SynthesizedComment) {
+        let ref text = self.format_synthesized_comment(comment);
+        let ref text_as_chars = text.chars().collect::<Vec<_>>();
+        let line_map = if comment.kind == SyntaxKind::MultiLineCommentTrivia {
+            Some(compute_line_starts(text_as_chars))
+        } else {
+            None
+        };
+        write_comment_range(
+            text_as_chars,
+            line_map.as_ref().unwrap(),
+            &*self.writer(),
+            0,
+            text_as_chars.len(),
+            &self.new_line,
+        );
+    }
+
+    pub(super) fn format_synthesized_comment(&self, comment: &SynthesizedComment) -> String {
+        if comment.kind == SyntaxKind::MultiLineCommentTrivia {
+            format!("/*{}*/", comment.text)
+        } else {
+            format!("//{}", comment.text)
+        }
     }
 
     pub(super) fn emit_body_with_detached_comments<
@@ -481,13 +527,55 @@ impl Printer {
         &self,
         node: &Node,
         detached_range: &TDetachedRange,
-        emit_callback: TEmitCallback,
+        mut emit_callback: TEmitCallback,
     ) {
-        // unimplemented!()
+        self.enter_comment();
+        let pos = detached_range.pos();
+        let end = detached_range.end();
+        let emit_flags = get_emit_flags(node);
+        let skip_leading_comments = pos < 0 || emit_flags.intersects(EmitFlags::NoLeadingComments);
+        let skip_trailing_comments = self.comments_disabled()
+            || end < 0
+            || emit_flags.intersects(EmitFlags::NoTrailingComments);
+        if !skip_leading_comments {
+            self.emit_detached_comments_and_update_comments_info(detached_range);
+        }
+
+        self.exit_comment();
+        if emit_flags.intersects(EmitFlags::NoNestedComments) && !self.comments_disabled() {
+            self.set_comments_disabled(true);
+            emit_callback(node);
+            self.set_comments_disabled(false);
+        } else {
+            emit_callback(node);
+        }
+
+        self.enter_comment();
+        if !skip_trailing_comments {
+            self.emit_leading_comments(detached_range.end(), true);
+            if self.has_written_comment() && !self.writer().is_at_start_of_line() {
+                self.writer().write_line(None);
+            }
+        }
+        self.exit_comment();
     }
 
-    pub(super) fn original_nodes_have_same_parent(&self, nodeA: &Node, nodeB: &Node) -> bool {
-        unimplemented!()
+    pub(super) fn original_nodes_have_same_parent(&self, node_a: &Node, node_b: &Node) -> bool {
+        let ref node_a =
+            get_original_node(Some(node_a), Option::<fn(Option<Rc<Node>>) -> bool>::None).unwrap();
+        matches!(
+            node_a.maybe_parent().as_ref(),
+            Some(node_a_parent) if matches!(
+                get_original_node(
+                    Some(node_b),
+                    Option::<fn(Option<Rc<Node>>) -> bool>::None
+                ).unwrap().maybe_parent().as_ref(),
+                Some(node_b_parent) if Rc::ptr_eq(
+                    node_a_parent,
+                    node_b_parent,
+                )
+            )
+        )
     }
 
     pub(super) fn sibling_node_positions_are_comparable(
@@ -495,19 +583,216 @@ impl Printer {
         previous_node: &Node,
         next_node: &Node,
     ) -> bool {
-        unimplemented!()
+        if next_node.pos() < previous_node.end() {
+            return false;
+        }
+
+        let ref previous_node = get_original_node(
+            Some(previous_node),
+            Option::<fn(Option<Rc<Node>>) -> bool>::None,
+        )
+        .unwrap();
+        let ref next_node = get_original_node(
+            Some(next_node),
+            Option::<fn(Option<Rc<Node>>) -> bool>::None,
+        )
+        .unwrap();
+        let parent = previous_node.maybe_parent();
+        if match parent.as_ref() {
+            None => true,
+            Some(parent) => !matches!(
+                next_node.maybe_parent().as_ref(),
+                Some(next_node_parent) if Rc::ptr_eq(
+                    parent,
+                    next_node_parent,
+                )
+            ),
+        } {
+            return false;
+        }
+
+        let parent_node_array = get_containing_node_array(previous_node);
+        let prev_node_index = parent_node_array.as_ref().and_then(|parent_node_array| {
+            parent_node_array
+                .into_iter()
+                .position(|node| Rc::ptr_eq(node, previous_node))
+        });
+        matches!(
+            prev_node_index,
+            Some(prev_node_index) if matches!(
+                parent_node_array.as_ref().and_then(|parent_node_array| {
+                    parent_node_array.into_iter().position(|node| Rc::ptr_eq(node, next_node))
+                }),
+                Some(value) if value == prev_node_index + 1
+            )
+        )
     }
 
     pub(super) fn emit_leading_comments(&self, pos: isize, is_emitted_node: bool) {
-        // unimplemented!()
+        self.set_has_written_comment(false);
+
+        if is_emitted_node {
+            if pos == 0
+                && matches!(
+                    self.maybe_current_source_file(),
+                    Some(current_source_file) if current_source_file.as_source_file().is_declaration_file()
+                )
+            {
+                self.for_each_leading_comment_to_emit(
+                    pos,
+                    |comment_pos, comment_end, kind, has_trailing_new_line, range_pos| {
+                        self.emit_non_triple_slash_leading_comment(
+                            comment_pos,
+                            comment_end,
+                            kind,
+                            has_trailing_new_line,
+                            range_pos,
+                        )
+                    },
+                );
+            } else {
+                self.for_each_leading_comment_to_emit(
+                    pos,
+                    |comment_pos, comment_end, kind, has_trailing_new_line, range_pos| {
+                        self.emit_leading_comment(
+                            comment_pos,
+                            comment_end,
+                            kind,
+                            has_trailing_new_line,
+                            range_pos,
+                        )
+                    },
+                );
+            }
+        } else if pos == 0 {
+            self.for_each_leading_comment_to_emit(
+                pos,
+                |comment_pos, comment_end, kind, has_trailing_new_line, range_pos| {
+                    self.emit_triple_slash_leading_comment(
+                        comment_pos,
+                        comment_end,
+                        kind,
+                        has_trailing_new_line,
+                        range_pos,
+                    )
+                },
+            );
+        }
+    }
+
+    pub(super) fn emit_triple_slash_leading_comment(
+        &self,
+        comment_pos: isize,
+        comment_end: isize,
+        kind: SyntaxKind,
+        has_trailing_new_line: bool,
+        range_pos: isize,
+    ) {
+        if self.is_triple_slash_comment(comment_pos, comment_end) {
+            self.emit_leading_comment(
+                comment_pos,
+                comment_end,
+                kind,
+                has_trailing_new_line,
+                range_pos,
+            );
+        }
+    }
+
+    pub(super) fn emit_non_triple_slash_leading_comment(
+        &self,
+        comment_pos: isize,
+        comment_end: isize,
+        kind: SyntaxKind,
+        has_trailing_new_line: bool,
+        range_pos: isize,
+    ) {
+        if !self.is_triple_slash_comment(comment_pos, comment_end) {
+            self.emit_leading_comment(
+                comment_pos,
+                comment_end,
+                kind,
+                has_trailing_new_line,
+                range_pos,
+            );
+        }
+    }
+
+    pub(super) fn should_write_comment(&self, text: &SourceTextAsChars, pos: isize) -> bool {
+        if self.printer_options.only_print_js_doc_style == Some(true) {
+            return is_jsdoc_like_text(text, pos.try_into().unwrap())
+                || is_pinned_comment(text, pos.try_into().unwrap());
+        }
+        true
+    }
+
+    pub(super) fn emit_leading_comment(
+        &self,
+        comment_pos: isize,
+        comment_end: isize,
+        kind: SyntaxKind,
+        has_trailing_new_line: bool,
+        range_pos: isize,
+    ) {
+        if !self.should_write_comment(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            comment_pos,
+        ) {
+            return;
+        }
+        if !self.has_written_comment() {
+            emit_new_line_before_leading_comment_of_position(
+                &self.get_current_line_map(),
+                &*self.writer(),
+                range_pos,
+                comment_pos,
+            );
+            self.set_has_written_comment(true);
+        }
+
+        self.emit_pos(comment_pos);
+        write_comment_range(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.get_current_line_map(),
+            &*self.writer(),
+            comment_pos.try_into().unwrap(),
+            comment_end.try_into().unwrap(),
+            &self.new_line,
+        );
+        self.emit_pos(comment_end);
+
+        if has_trailing_new_line {
+            self.writer().write_line(None);
+        } else if kind == SyntaxKind::MultiLineCommentTrivia {
+            self.writer().write_space(" ");
+        }
     }
 
     pub(super) fn emit_leading_comments_of_position(&self, pos: isize) {
-        // unimplemented!()
+        if self.comments_disabled() || pos == -1 {
+            return;
+        }
+
+        self.emit_leading_comments(pos, true);
     }
 
     pub(super) fn emit_trailing_comments(&self, pos: isize) {
-        // unimplemented!()
+        self.for_each_trailing_comment_to_emit(
+            pos,
+            |comment_pos, comment_end, kind, has_trailing_new_line| {
+                self.emit_trailing_comment(comment_pos, comment_end, kind, has_trailing_new_line)
+            },
+        );
+    }
+
+    pub(super) fn emit_trailing_comment(
+        &self,
+        comment_pos: isize,
+        comment_end: isize,
+        _kind: SyntaxKind,
+        has_trailing_new_line: bool,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn emit_trailing_comments_of_position(
@@ -517,6 +802,37 @@ impl Printer {
         force_no_newline: Option<bool>,
     ) {
         // unimplemented!()
+    }
+
+    pub(super) fn for_each_leading_comment_to_emit<
+        TCallback: FnMut(isize, isize, SyntaxKind, bool, isize),
+    >(
+        &self,
+        pos: isize,
+        cb: TCallback,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn for_each_trailing_comment_to_emit<
+        TCallback: FnMut(isize, isize, SyntaxKind, bool),
+    >(
+        &self,
+        end: isize,
+        cb: TCallback,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_detached_comments_and_update_comments_info<TRange: ReadonlyTextRange>(
+        &self,
+        range: &TRange,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn is_triple_slash_comment(&self, comment_pos: isize, comment_end: isize) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn pipeline_emit_with_source_maps(&self, hint: EmitHint, node: &Node) {
@@ -542,6 +858,10 @@ impl Printer {
         token_pos: isize,
         emit_callback: TEmitCallback,
     ) -> isize {
+        unimplemented!()
+    }
+
+    pub(super) fn emit_pos(&self, pos: isize) {
         unimplemented!()
     }
 

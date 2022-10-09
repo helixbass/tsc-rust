@@ -134,7 +134,7 @@ pub fn emit_new_line_before_leading_comments_of_position(
 
 pub fn emit_new_line_before_leading_comment_of_position(
     line_map: &[usize],
-    writer: &mut dyn EmitTextWriter,
+    writer: &dyn EmitTextWriter,
     pos: isize,
     comment_pos: isize,
 ) {
@@ -290,12 +290,10 @@ pub struct DetachedCommentInfo {
     pub detached_comment_end_pos: isize,
 }
 
-pub fn write_comment_range<
-    TWriteComment: FnMut(&SourceTextAsChars, &[usize], &dyn EmitTextWriter, isize, isize, &str),
->(
+pub fn write_comment_range(
     text: &SourceTextAsChars,
     line_map: &[usize],
-    writer: &mut dyn EmitTextWriter,
+    writer: &dyn EmitTextWriter,
     comment_pos: usize,
     comment_end: usize,
     new_line: &str,
@@ -362,7 +360,7 @@ pub fn write_comment_range<
 fn write_trimmed_current_line(
     text: &SourceTextAsChars,
     comment_end: usize,
-    writer: &mut dyn EmitTextWriter,
+    writer: &dyn EmitTextWriter,
     new_line: &str,
     pos: usize,
     next_line_start: usize,
