@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use regex::{Captures, Regex};
+use std::cell::Cell;
 use std::ptr;
 use std::rc::Rc;
 
@@ -382,8 +383,11 @@ impl CheckTypeRelatedTo {
                 && !entry.intersects(RelationComparisonResult::Reported)
             {
             } else {
-                // if (outofbandVarianceMarkerHandler) {
-                if false {
+                if self
+                    .type_checker
+                    .maybe_outofband_variance_marker_handler()
+                    .is_some()
+                {
                     let saved = *entry & RelationComparisonResult::ReportsMask;
                     if saved.intersects(RelationComparisonResult::ReportsUnmeasurable) {
                         self.type_checker.instantiate_type(
@@ -486,15 +490,30 @@ impl CheckTypeRelatedTo {
                 self.set_expanding_flags(self.expanding_flags() | ExpandingFlags::Target);
             }
         }
-        // let originalHandler: typeof outofbandVarianceMarkerHandler;
-        let mut propagating_variance_flags = RelationComparisonResult::None;
-        // if (outofbandVarianceMarkerHandler) {
-        //     originalHandler = outofbandVarianceMarkerHandler;
-        //     outofbandVarianceMarkerHandler = onlyUnreliable => {
-        //         propagatingVarianceFlags |= onlyUnreliable ? RelationComparisonResult.ReportsUnreliable : RelationComparisonResult.ReportsUnmeasurable;
-        //         return originalHandler!(onlyUnreliable);
-        //     };
-        // }
+        let mut original_handler: Option<Rc<dyn Fn(bool)>> = None;
+        let propagating_variance_flags: Rc<Cell<RelationComparisonResult>> =
+            Rc::new(Cell::new(RelationComparisonResult::None));
+        if let Some(outofband_variance_marker_handler) =
+            self.type_checker.maybe_outofband_variance_marker_handler()
+        {
+            original_handler = Some(outofband_variance_marker_handler);
+            self.type_checker
+                .set_outofband_variance_marker_handler(Some(Rc::new({
+                    let propagating_variance_flags = propagating_variance_flags.clone();
+                    let original_handler = original_handler.clone();
+                    move |only_unreliable| {
+                        propagating_variance_flags.set(
+                            propagating_variance_flags.get()
+                                | if only_unreliable {
+                                    RelationComparisonResult::ReportsUnreliable
+                                } else {
+                                    RelationComparisonResult::ReportsUnmeasurable
+                                },
+                        );
+                        (original_handler.clone().unwrap())(only_unreliable);
+                    }
+                })));
+        }
 
         if self.expanding_flags() == ExpandingFlags::Both {
             // tracing?.instant(tracing.Phase.CheckTypes, "recursiveTypeRelatedTo_DepthLimit", {
@@ -512,9 +531,14 @@ impl CheckTypeRelatedTo {
         } else {
             Ternary::Maybe
         };
-        // if (outofbandVarianceMarkerHandler) {
-        //     outofbandVarianceMarkerHandler = originalHandler;
-        // }
+        if self
+            .type_checker
+            .maybe_outofband_variance_marker_handler()
+            .is_some()
+        {
+            self.type_checker
+                .set_outofband_variance_marker_handler(original_handler);
+        }
         if recursion_flags.intersects(RecursionFlags::Source) {
             self.set_source_depth(self.source_depth() - 1);
             self.maybe_source_stack()
@@ -536,7 +560,7 @@ impl CheckTypeRelatedTo {
                     for i in maybe_start..self.maybe_count() {
                         self.relation.borrow_mut().insert(
                             self.maybe_keys().as_ref().unwrap()[i].clone(),
-                            RelationComparisonResult::Succeeded | propagating_variance_flags,
+                            RelationComparisonResult::Succeeded | propagating_variance_flags.get(),
                         );
                     }
                 }
@@ -554,7 +578,7 @@ impl CheckTypeRelatedTo {
                 } else {
                     RelationComparisonResult::None
                 }) | RelationComparisonResult::Failed
-                    | propagating_variance_flags,
+                    | propagating_variance_flags.get(),
             );
             self.set_maybe_count(maybe_start);
             self.maybe_keys()
@@ -1794,14 +1818,15 @@ impl CheckTypeRelatedTo {
 pub(super) struct ReportUnmeasurableMarkers;
 impl TypeMapperCallback for ReportUnmeasurableMarkers {
     fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
-        if
-        /*(outofbandVarianceMarkerHandler*/
-        false
-            && (ptr::eq(p, &*checker.marker_super_type())
-                || ptr::eq(p, &*checker.marker_sub_type())
-                || ptr::eq(p, &*checker.marker_other_type()))
+        if let Some(outofband_variance_marker_handler) =
+            checker.maybe_outofband_variance_marker_handler()
         {
-            // outofbandVarianceMarkerHandler(/*onlyUnreliable*/ false);
+            if ptr::eq(p, &*checker.marker_super_type())
+                || ptr::eq(p, &*checker.marker_sub_type())
+                || ptr::eq(p, &*checker.marker_other_type())
+            {
+                outofband_variance_marker_handler(false);
+            }
         }
         p.type_wrapper()
     }
@@ -1810,14 +1835,15 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
 pub(super) struct ReportUnreliableMarkers;
 impl TypeMapperCallback for ReportUnreliableMarkers {
     fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
-        if
-        /*(outofbandVarianceMarkerHandler*/
-        false
-            && (ptr::eq(p, &*checker.marker_super_type())
-                || ptr::eq(p, &*checker.marker_sub_type())
-                || ptr::eq(p, &*checker.marker_other_type()))
+        if let Some(outofband_variance_marker_handler) =
+            checker.maybe_outofband_variance_marker_handler()
         {
-            // outofbandVarianceMarkerHandler(/*onlyUnreliable*/ true);
+            if ptr::eq(p, &*checker.marker_super_type())
+                || ptr::eq(p, &*checker.marker_sub_type())
+                || ptr::eq(p, &*checker.marker_other_type())
+            {
+                outofband_variance_marker_handler(true);
+            }
         }
         p.type_wrapper()
     }

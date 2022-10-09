@@ -802,7 +802,7 @@ pub fn create_type_checker(
 
         _jsx_namespace: RefCell::new(None),
         _jsx_factory_entity: RefCell::new(None),
-        // TODO: how to implement outofbandVarianceMarkerHandler?
+        outofband_variance_marker_handler: RefCell::new(None),
 
         subtype_relation: Rc::new(RefCell::new(HashMap::new())),
         strict_subtype_relation: Rc::new(RefCell::new(HashMap::new())),
@@ -3296,6 +3296,17 @@ impl TypeChecker {
 
     pub(super) fn typeof_type(&self) -> Rc<Type> {
         self.typeof_type.clone().unwrap()
+    }
+
+    pub(super) fn maybe_outofband_variance_marker_handler(&self) -> Option<Rc<dyn Fn(bool)>> {
+        self.outofband_variance_marker_handler.borrow().clone()
+    }
+
+    pub(super) fn set_outofband_variance_marker_handler(
+        &self,
+        outofband_variance_marker_handler: Option<Rc<dyn Fn(bool)>>,
+    ) {
+        *self.outofband_variance_marker_handler.borrow_mut() = outofband_variance_marker_handler;
     }
 
     pub(super) fn subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
