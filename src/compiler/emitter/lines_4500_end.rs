@@ -1,6 +1,7 @@
 use regex::Regex;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::ptr;
@@ -8,16 +9,18 @@ use std::rc::Rc;
 
 use super::brackets;
 use crate::{
-    are_option_rcs_equal, get_emit_flags,
-    get_lines_between_position_and_next_non_whitespace_character,
+    are_option_rcs_equal, escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
+    get_emit_flags, get_lines_between_position_and_next_non_whitespace_character,
     get_lines_between_position_and_preceding_non_whitespace_character,
     get_lines_between_range_end_and_range_start, get_literal_text, get_original_node,
-    get_starts_on_new_line, guess_indentation, id_text, is_identifier, last_or_undefined,
-    node_is_synthesized, position_is_synthesized, range_end_is_on_same_line_as_range_start,
+    get_source_file_of_node, get_source_text_of_node_from_source_file, get_starts_on_new_line,
+    guess_indentation, id_text, is_generated_identifier, is_identifier, is_literal_expression,
+    is_numeric_literal, is_private_identifier, last_or_undefined, node_is_synthesized,
+    position_is_synthesized, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line,
     range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags, EmitHint,
-    GetLiteralTextFlags, ListFormat, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SourceMapSource, SyntaxKind,
+    GetLiteralTextFlags, ListFormat, LiteralLikeNodeInterface, Node, NodeArray, NodeInterface,
+    Printer, ReadonlyTextRange, ScriptTarget, SourceMapSource, SyntaxKind,
 };
 
 impl Printer {
@@ -436,21 +439,95 @@ impl Printer {
         node1: &Node,
         node2: &Node,
     ) -> usize {
-        unimplemented!()
+        if get_emit_flags(parent).intersects(EmitFlags::NoIndentation) {
+            return 0;
+        }
+
+        let ref parent = self.skip_synthesized_parentheses(parent);
+        let ref node1 = self.skip_synthesized_parentheses(node1);
+        let ref node2 = self.skip_synthesized_parentheses(node2);
+
+        if get_starts_on_new_line(node2) == Some(true) {
+            return 1;
+        }
+
+        if !node_is_synthesized(&**parent)
+            && !node_is_synthesized(&**node1)
+            && !node_is_synthesized(&**node2)
+        {
+            if self.maybe_preserve_source_newlines() == Some(true) {
+                return self.get_effective_lines(|include_comments| {
+                    get_lines_between_range_end_and_range_start(
+                        &**node1,
+                        &**node2,
+                        &self.current_source_file(),
+                        include_comments,
+                    )
+                });
+            }
+            return if range_end_is_on_same_line_as_range_start(
+                &**node1,
+                &**node2,
+                &self.current_source_file(),
+            ) {
+                0
+            } else {
+                1
+            };
+        }
+
+        0
     }
 
     pub(super) fn is_empty_block(&self, block: &Node /*BlockLike*/) -> bool {
-        unimplemented!()
+        block.as_has_statements().statements().is_empty()
+            && range_end_is_on_same_line_as_range_start(block, block, &self.current_source_file())
+    }
+
+    pub(super) fn skip_synthesized_parentheses(&self, node: &Node) -> Rc<Node> {
+        let mut node = node.node_wrapper();
+        while node.kind() == SyntaxKind::ParenthesizedExpression && node_is_synthesized(&*node) {
+            node = node.as_parenthesized_expression().expression.clone();
+        }
+
+        node
     }
 
     pub(super) fn get_text_of_node(&self, node: &Node, include_trivia: Option<bool>) -> String {
-        if false {
-            unimplemented!()
-        } else if (is_identifier(node) || false) && true {
+        if is_generated_identifier(node) {
+            return self.generate_name(node);
+        } else if (is_identifier(node) || is_private_identifier(node))
+            && (node_is_synthesized(node)
+                || node.maybe_parent().is_none()
+                || self.maybe_current_source_file().is_none()
+                || node.maybe_parent().is_some()
+                    && matches!(
+                        self.maybe_current_source_file().as_ref(),
+                        Some(current_source_file) if !are_option_rcs_equal(
+                            get_source_file_of_node(Some(node)).as_ref(),
+                            get_original_node(
+                                Some(&**current_source_file),
+                                Option::<fn(Option<Rc<Node>>) -> bool>::None
+                            ).as_ref()
+                        )
+                    ))
+        {
             return id_text(node);
+        } else if node.kind() == SyntaxKind::StringLiteral
+            && node.as_string_literal().text_source_node.is_some()
+        {
+            return self.get_text_of_node(
+                node.as_string_literal().text_source_node.as_ref().unwrap(),
+                include_trivia,
+            );
+        } else if is_literal_expression(node)
+            && (node_is_synthesized(node) || node.maybe_parent().is_none())
+        {
+            return node.as_literal_like_node().text().clone();
         }
 
-        unimplemented!()
+        get_source_text_of_node_from_source_file(&self.current_source_file(), node, include_trivia)
+            .into_owned()
     }
 
     pub(super) fn get_literal_text_of_node(
@@ -459,17 +536,98 @@ impl Printer {
         never_ascii_escape: Option<bool>,
         jsx_attribute_escape: bool,
     ) -> Cow<'static, str> {
-        let flags = GetLiteralTextFlags::None;
+        if node.kind() == SyntaxKind::StringLiteral {
+            if let Some(text_source_node) = node.as_string_literal().text_source_node.as_ref() {
+                if is_identifier(text_source_node) || is_numeric_literal(text_source_node) {
+                    let text = if is_numeric_literal(text_source_node) {
+                        text_source_node.as_numeric_literal().text().clone()
+                    } else {
+                        self.get_text_of_node(text_source_node, None)
+                    };
+                    return if jsx_attribute_escape {
+                        escape_jsx_attribute_string(&text, None).into_owned().into()
+                    } else if never_ascii_escape == Some(true)
+                        || get_emit_flags(node).intersects(EmitFlags::NoAsciiEscaping)
+                    {
+                        format!("\"{}\"", escape_string(&text, None,)).into()
+                    } else {
+                        format!("\"{}\"", escape_non_ascii_string(&text, None,)).into()
+                    };
+                } else {
+                    return self.get_literal_text_of_node(
+                        text_source_node,
+                        never_ascii_escape,
+                        jsx_attribute_escape,
+                    );
+                }
+            }
+        }
+
+        let flags = if never_ascii_escape == Some(true) {
+            GetLiteralTextFlags::NeverAsciiEscape
+        } else {
+            GetLiteralTextFlags::None
+        } | if jsx_attribute_escape {
+            GetLiteralTextFlags::JsxAttributeEscape
+        } else {
+            GetLiteralTextFlags::None
+        } | if self.printer_options.terminate_unterminated_literals == Some(true) {
+            GetLiteralTextFlags::TerminateUnterminatedLiterals
+        } else {
+            GetLiteralTextFlags::None
+        } | if matches!(
+            self.printer_options.target,
+            Some(printer_options_target) if printer_options_target == ScriptTarget::ESNext
+        ) {
+            GetLiteralTextFlags::AllowNumericSeparator
+        } else {
+            GetLiteralTextFlags::None
+        };
 
         get_literal_text(node, self.maybe_current_source_file(), flags)
     }
 
     pub(super) fn push_name_generation_scope(&self, node: Option<&Node>) {
-        unimplemented!()
+        if matches!(
+            node,
+            Some(node) if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope)
+        ) {
+            return;
+        }
+        self.temp_flags_stack_mut().push(self.temp_flags());
+        self.set_temp_flags(TempFlags::Auto);
+        self.reserved_names_stack_mut()
+            .push(self.reserved_names().clone());
     }
 
     pub(super) fn pop_name_generation_scope(&self, node: Option<&Node>) {
-        unimplemented!()
+        if matches!(
+            node,
+            Some(node) if get_emit_flags(node).intersects(EmitFlags::ReuseTempVariableScope)
+        ) {
+            return;
+        }
+        self.set_temp_flags(self.temp_flags_stack_mut().pop().unwrap());
+        self.set_reserved_names(Some(self.reserved_names_stack_mut().pop().unwrap()));
+    }
+
+    pub(super) fn reserve_name_in_nested_scopes(&self, name: &str) {
+        let mut reserved_names = self.maybe_reserved_names_mut();
+        if match reserved_names.as_ref() {
+            None => true,
+            Some(reserved_names) => matches!(
+                last_or_undefined(&**self.reserved_names_stack()),
+                Some(value) if Rc::ptr_eq(
+                    reserved_names,
+                    value,
+                )
+            ),
+        } {
+            *reserved_names = Some(Rc::new(RefCell::new(HashSet::new())));
+        }
+        (*reserved_names.as_ref().unwrap())
+            .borrow_mut()
+            .insert(name.to_owned());
     }
 
     pub(super) fn generate_names(&self, node: Option<&Node>) {
@@ -481,6 +639,10 @@ impl Printer {
     }
 
     pub(super) fn generate_name_if_needed(&self, name: Option<&Node /*DeclarationName*/>) {
+        unimplemented!()
+    }
+
+    pub(super) fn generate_name(&self, name: &Node /*GeneratedIdentifier*/) -> String {
         unimplemented!()
     }
 

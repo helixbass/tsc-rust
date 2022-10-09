@@ -31,8 +31,8 @@ pub struct Printer {
     pub generated_names: RefCell<HashSet<String>>,
     pub temp_flags_stack: RefCell<Vec<TempFlags>>,
     pub temp_flags: Cell<TempFlags>,
-    pub reserved_names_stack: RefCell<Vec<HashSet<String>>>,
-    pub reserved_names: RefCell<HashSet<String>>,
+    pub reserved_names_stack: RefCell<Vec<Rc<RefCell<HashSet<String>>>>>,
+    pub reserved_names: RefCell<Option<Rc<RefCell<HashSet<String>>>>>,
     pub preserve_source_newlines: Cell<Option<bool>>,
     pub next_list_element_pos: Cell<Option<isize>>,
 

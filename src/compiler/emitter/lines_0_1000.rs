@@ -125,7 +125,7 @@ impl Printer {
             temp_flags_stack: RefCell::new(vec![]),
             temp_flags: Cell::new(TempFlags::Auto),
             reserved_names_stack: RefCell::new(vec![]),
-            reserved_names: RefCell::new(HashSet::new()),
+            reserved_names: RefCell::new(None),
             preserve_source_newlines: Cell::new(preserve_source_newlines),
             next_list_element_pos: Cell::new(None),
             writer: RefCell::new(None),
@@ -203,6 +203,10 @@ impl Printer {
         *self.generated_names.borrow_mut() = generated_names;
     }
 
+    pub(super) fn temp_flags_stack_mut(&self) -> RefMut<Vec<TempFlags>> {
+        self.temp_flags_stack.borrow_mut()
+    }
+
     pub(super) fn set_temp_flags_stack(&self, temp_flags_stack: Vec<TempFlags>) {
         *self.temp_flags_stack.borrow_mut() = temp_flags_stack;
     }
@@ -215,8 +219,31 @@ impl Printer {
         self.temp_flags.set(temp_flags);
     }
 
-    pub(super) fn set_reserved_names_stack(&self, reserved_names_stack: Vec<HashSet<String>>) {
+    pub(super) fn reserved_names_stack(&self) -> Ref<Vec<Rc<RefCell<HashSet<String>>>>> {
+        self.reserved_names_stack.borrow()
+    }
+
+    pub(super) fn reserved_names_stack_mut(&self) -> RefMut<Vec<Rc<RefCell<HashSet<String>>>>> {
+        self.reserved_names_stack.borrow_mut()
+    }
+
+    pub(super) fn set_reserved_names_stack(
+        &self,
+        reserved_names_stack: Vec<Rc<RefCell<HashSet<String>>>>,
+    ) {
         *self.reserved_names_stack.borrow_mut() = reserved_names_stack;
+    }
+
+    pub(super) fn reserved_names(&self) -> Rc<RefCell<HashSet<String>>> {
+        self.reserved_names.borrow().clone().unwrap()
+    }
+
+    pub(super) fn maybe_reserved_names_mut(&self) -> RefMut<Option<Rc<RefCell<HashSet<String>>>>> {
+        self.reserved_names.borrow_mut()
+    }
+
+    pub(super) fn set_reserved_names(&self, reserved_names: Option<Rc<RefCell<HashSet<String>>>>) {
+        *self.reserved_names.borrow_mut() = reserved_names;
     }
 
     pub(super) fn maybe_preserve_source_newlines(&self) -> Option<bool> {
