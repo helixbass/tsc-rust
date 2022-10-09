@@ -1,9 +1,13 @@
 use bitflags::bitflags;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::iter::FromIterator;
 
 use super::brackets;
-use crate::{EmitHint, ListFormat, Node, Printer, ReadonlyTextRange, SourceMapSource, SyntaxKind};
+use crate::{
+    write_comment_range, EmitHint, ListFormat, Node, Printer, ReadonlyTextRange, SourceFileLike,
+    SourceMapSource, SyntaxKind,
+};
 
 impl Printer {
     pub(super) fn emit_trailing_comment(
@@ -13,7 +17,30 @@ impl Printer {
         _kind: SyntaxKind,
         has_trailing_new_line: bool,
     ) {
-        unimplemented!()
+        if !self.should_write_comment(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            comment_pos,
+        ) {
+            return;
+        }
+        if !self.writer().is_at_start_of_line() {
+            self.writer().write_space(" ");
+        }
+
+        self.emit_pos(comment_pos);
+        write_comment_range(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.get_current_line_map(),
+            &*self.writer(),
+            comment_pos.try_into().unwrap(),
+            comment_end.try_into().unwrap(),
+            &self.new_line,
+        );
+        self.emit_pos(comment_end);
+
+        if has_trailing_new_line {
+            self.writer().write_line(None);
+        }
     }
 
     pub(super) fn emit_trailing_comments_of_position(
@@ -22,7 +49,84 @@ impl Printer {
         prefix_space: Option<bool>,
         force_no_newline: Option<bool>,
     ) {
-        // unimplemented!()
+        if self.comments_disabled() {
+            return;
+        }
+        self.enter_comment();
+        self.for_each_trailing_comment_to_emit(
+            pos,
+            |comment_pos, comment_end, kind, has_trailing_new_line| {
+                if prefix_space == Some(true) {
+                    self.emit_trailing_comment(
+                        comment_pos,
+                        comment_end,
+                        kind,
+                        has_trailing_new_line,
+                    )
+                } else if force_no_newline == Some(true) {
+                    self.emit_trailing_comment_of_position_no_newline(
+                        comment_pos,
+                        comment_end,
+                        kind,
+                    )
+                } else {
+                    self.emit_trailing_comment_of_position(
+                        comment_pos,
+                        comment_end,
+                        kind,
+                        has_trailing_new_line,
+                    )
+                }
+            },
+        );
+        self.exit_comment();
+    }
+
+    pub(super) fn emit_trailing_comment_of_position_no_newline(
+        &self,
+        comment_pos: isize,
+        comment_end: isize,
+        kind: SyntaxKind,
+    ) {
+        self.emit_pos(comment_pos);
+        write_comment_range(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.get_current_line_map(),
+            &*self.writer(),
+            comment_pos.try_into().unwrap(),
+            comment_end.try_into().unwrap(),
+            &self.new_line,
+        );
+        self.emit_pos(comment_end);
+
+        if kind == SyntaxKind::SingleLineCommentTrivia {
+            self.writer().write_line(None);
+        }
+    }
+
+    pub(super) fn emit_trailing_comment_of_position(
+        &self,
+        comment_pos: isize,
+        comment_end: isize,
+        _kind: SyntaxKind,
+        has_trailing_new_line: bool,
+    ) {
+        self.emit_pos(comment_pos);
+        write_comment_range(
+            &self.current_source_file().as_source_file().text_as_chars(),
+            &self.get_current_line_map(),
+            &*self.writer(),
+            comment_pos.try_into().unwrap(),
+            comment_end.try_into().unwrap(),
+            &self.new_line,
+        );
+        self.emit_pos(comment_end);
+
+        if has_trailing_new_line {
+            self.writer().write_line(None);
+        } else {
+            self.writer().write_space(" ");
+        }
     }
 
     pub(super) fn for_each_leading_comment_to_emit<
