@@ -610,7 +610,7 @@ impl TypeChecker {
             }
             TypeSystemPropertyName::ResolvedBaseConstructorType => target
                 .as_type()
-                .as_interface_type()
+                .as_not_actually_interface_type()
                 .maybe_resolved_base_constructor_type()
                 .is_some(),
             TypeSystemPropertyName::ResolvedReturnType => {
@@ -627,7 +627,7 @@ impl TypeChecker {
             TypeSystemPropertyName::ResolvedBaseTypes => matches!(
                 target
                     .as_type()
-                    .as_interface_type()
+                    .as_not_actually_interface_type()
                     .maybe_base_types_resolved(),
                 Some(true)
             ),
