@@ -397,7 +397,7 @@ pub fn for_each_child_returns<
             visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
-                        visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
+                        visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
                                     visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
@@ -541,7 +541,7 @@ pub fn for_each_child_returns<
             visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
-                        visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
+                        visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
                                     visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
@@ -637,7 +637,7 @@ pub fn for_each_child_returns<
             visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_ref()).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
-                        visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
+                        visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
                                     visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
