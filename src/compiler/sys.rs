@@ -193,7 +193,17 @@ impl SystemConcrete {
     }
 
     fn read_file_worker(&self, file_name: &str) -> io::Result<String> {
-        fs::read_to_string(file_name)
+        // TODO: will presumably need to support reading non-UTF8-encoded files,
+        // the Typescript version seems to sniff BOM's and then call Buffer.toString() to get a
+        // string
+        fs::read_to_string(file_name).map(|contents| {
+            let mut contents_chars = contents.chars();
+            if contents_chars.next() == Some('\u{FEFF}') {
+                contents_chars.collect()
+            } else {
+                contents
+            }
+        })
     }
 
     fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
