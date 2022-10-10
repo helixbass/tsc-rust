@@ -551,8 +551,12 @@ pub fn is_bundle_file_text_like(section: &BundleFileSection) -> bool {
     unimplemented!()
 }
 
-pub fn get_leftmost_access_expression(node: &Node /*Expression*/) -> Rc<Node /*Expression*/> {
-    unimplemented!()
+pub fn get_leftmost_access_expression(expr: &Node /*Expression*/) -> Rc<Node /*Expression*/> {
+    let mut expr = expr.node_wrapper();
+    while is_access_expression(&expr) {
+        expr = expr.as_has_expression().expression();
+    }
+    expr
 }
 
 pub fn get_leftmost_expression(
