@@ -636,7 +636,7 @@ impl CheckTypeRelatedTo {
     ) {
         let source_type = if self
             .type_checker
-            .symbol_value_declaration_is_context_sensitive(&source.symbol())
+            .symbol_value_declaration_is_context_sensitive(source.maybe_symbol().as_deref())
         {
             self.type_checker.type_to_string_(
                 source,
@@ -650,7 +650,7 @@ impl CheckTypeRelatedTo {
         };
         let target_type = if self
             .type_checker
-            .symbol_value_declaration_is_context_sensitive(&target.symbol())
+            .symbol_value_declaration_is_context_sensitive(target.maybe_symbol().as_deref())
         {
             self.type_checker.type_to_string_(
                 target,
