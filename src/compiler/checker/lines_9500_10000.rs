@@ -777,7 +777,7 @@ impl TypeChecker {
             }
             if !base_constructor_type.flags().intersects(TypeFlags::Any)
                 && !Rc::ptr_eq(&base_constructor_type, &self.null_widening_type())
-                && self.is_constructor_type(&base_constructor_type)
+                && !self.is_constructor_type(&base_constructor_type)
             {
                 let err = self.error(
                     Some(
