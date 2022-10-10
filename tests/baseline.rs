@@ -16,6 +16,7 @@ use typescript_rust::{
 };
 
 #[rstest]
+#[case("yieldExpressionInnerCommentEmit.ts")]
 #[case("unusedLocalsInMethod1.ts")]
 #[case("unusedLocalsInMethod2.ts")]
 #[case("unusedLocalsInMethod3.ts")]
@@ -246,7 +247,7 @@ fn compare_baselines(name: &str, diagnostics: &[Rc<Diagnostic>], case_file_conte
     let ref baseline_file_contents = fs::read_to_string(&format!(
         "typescript_src/tests/baselines/reference/{name}.errors.txt"
     ))
-    .unwrap();
+    .unwrap_or_else(|_| "".to_owned());
     let baseline_error_lines = parse_baseline_errors(baseline_file_contents);
     let formatted_diagnostic_lines = adjust_diagnostic_line_numbers_and_lib_file_paths(
         &format_diagnostics(diagnostics, &DummyFormatDiagnosticsHost),
