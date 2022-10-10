@@ -1606,6 +1606,9 @@ impl NodeBuilder {
             0,
         );
         if is_indexed_access_type_node(&entity_name) {
+            return entity_name;
+        }
+        if is_type_of {
             with_synthetic_factory_and_factory(|synthetic_factory_, factory_| {
                 factory_
                     .create_type_query_node(synthetic_factory_, entity_name)
