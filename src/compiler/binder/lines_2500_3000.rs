@@ -530,7 +530,7 @@ impl BinderType {
         if matches!(node.maybe_modifiers().as_ref(), Some(modifiers) if !modifiers.is_empty()) {
             self.file()
                 .as_source_file()
-                .bind_diagnostics()
+                .bind_diagnostics_mut()
                 .push(Rc::new(
                     create_diagnostic_for_node(
                         node,
@@ -552,7 +552,7 @@ impl BinderType {
         if let Some(diag) = diag {
             self.file()
                 .as_source_file()
-                .bind_diagnostics()
+                .bind_diagnostics_mut()
                 .push(Rc::new(create_diagnostic_for_node(node, diag, None).into()));
         } else {
             let file_symbol = self.file().symbol();

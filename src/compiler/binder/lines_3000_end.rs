@@ -576,7 +576,7 @@ impl BinderType {
             }
             self.file()
                 .as_source_file()
-                .bind_diagnostics()
+                .bind_diagnostics_mut()
                 .push(Rc::new(
                     create_diagnostic_for_node(
                         &symbol_export.maybe_declarations().as_ref().unwrap()[0],

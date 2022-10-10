@@ -2,9 +2,10 @@ use std::rc::Rc;
 
 use crate::{
     add_emit_flags, external_helpers_module_name_text, get_jsx_implicit_import_base,
-    get_jsx_runtime_import, is_external_module, is_source_file_js, normalize_path, set_parent,
-    with_synthetic_factory_and_factory, CancellationTokenDebuggable, Diagnostic, EmitFlags,
-    FileIncludeReason, Node, NodeArray, NodeFlags, NodeInterface, Program, SortedArray,
+    get_jsx_runtime_import, is_check_js_enabled_for_file, is_external_module, is_source_file_js,
+    normalize_path, set_parent, skip_type_checking, with_synthetic_factory_and_factory,
+    CancellationTokenDebuggable, Debug_, Diagnostic, EmitFlags, FileIncludeReason, Node, NodeArray,
+    NodeFlags, NodeInterface, Program, ScriptKind, SortedArray,
 };
 
 impl Program {
@@ -26,17 +27,83 @@ impl Program {
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic>> {
         // self.run_with_cancellation_token(|| {
+        if skip_type_checking(source_file, &self.options, |file_name: &str| {
+            self.is_source_of_project_reference_redirect_(file_name)
+        }) {
+            return vec![];
+        }
+
         let type_checker = self.get_diagnostics_producing_type_checker();
 
-        let include_bind_and_check_diagnostics = true;
+        let source_file_as_source_file = source_file.as_source_file();
+        Debug_.assert(
+            source_file_as_source_file
+                .maybe_bind_diagnostics()
+                .is_some(),
+            None,
+        );
+
+        let is_check_js = is_check_js_enabled_for_file(source_file, &self.options);
+        let is_ts_no_check = matches!(
+            source_file_as_source_file.maybe_check_js_directive().as_ref(),
+            Some(source_file_check_js_directive) if source_file_check_js_directive.enabled == false
+        );
+        let include_bind_and_check_diagnostics = !is_ts_no_check
+            && (matches!(
+                source_file_as_source_file.script_kind(),
+                ScriptKind::TS | ScriptKind::TSX | ScriptKind::External | ScriptKind::Deferred
+            ) || is_check_js);
+        let bind_diagnostics = if include_bind_and_check_diagnostics {
+            source_file_as_source_file.bind_diagnostics().clone()
+        } else {
+            vec![]
+        };
         let check_diagnostics = if include_bind_and_check_diagnostics {
             type_checker.get_diagnostics(Some(source_file), cancellation_token)
         } else {
             vec![]
         };
 
-        check_diagnostics
+        self.get_merged_bind_and_check_diagnostics(
+            source_file,
+            include_bind_and_check_diagnostics,
+            &[
+                Some(bind_diagnostics),
+                Some(check_diagnostics),
+                if is_check_js {
+                    source_file_as_source_file
+                        .maybe_js_doc_diagnostics()
+                        .clone()
+                } else {
+                    None
+                },
+            ],
+        )
         // })
+    }
+
+    pub(super) fn get_merged_bind_and_check_diagnostics(
+        &self,
+        source_file: &Node, /*SourceFile*/
+        include_bind_and_check_diagnostics: bool,
+        all_diagnostics: &[Option<Vec<Rc<Diagnostic>>>],
+    ) -> Vec<Rc<Diagnostic>> {
+        let flat_diagnostics = all_diagnostics
+            .into_iter()
+            .filter_map(|option| option.clone())
+            .flatten()
+            .collect::<Vec<_>>();
+        let source_file_as_source_file = source_file.as_source_file();
+        if !include_bind_and_check_diagnostics
+            || !matches!(
+                source_file_as_source_file.maybe_comment_directives().as_ref(),
+                Some(source_file_comment_directives) if !source_file_comment_directives.is_empty()
+            )
+        {
+            return flat_diagnostics;
+        }
+
+        unimplemented!()
     }
 
     pub(super) fn get_and_cache_diagnostics(

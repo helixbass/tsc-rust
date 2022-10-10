@@ -1848,7 +1848,14 @@ pub fn is_check_js_enabled_for_file(
     source_file: &Node, /*SourceFile*/
     compiler_options: &CompilerOptions,
 ) -> bool {
-    unimplemented!()
+    source_file
+        .as_source_file()
+        .maybe_check_js_directive()
+        .as_ref()
+        .map_or_else(
+            || compiler_options.check_js == Some(true),
+            |source_file_check_js_directive| source_file_check_js_directive.enabled,
+        )
 }
 
 lazy_static! {

@@ -501,7 +501,17 @@ impl SourceFile {
         *self.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
     }
 
-    pub fn bind_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+    pub fn maybe_bind_diagnostics(&self) -> Ref<Option<Vec<Rc<Diagnostic>>>> {
+        self.bind_diagnostics.borrow()
+    }
+
+    pub fn bind_diagnostics(&self) -> Ref<Vec<Rc<Diagnostic>>> {
+        Ref::map(self.bind_diagnostics.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    pub fn bind_diagnostics_mut(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
         RefMut::map(self.bind_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
@@ -577,7 +587,11 @@ impl SourceFile {
         self.ambient_module_names.borrow_mut()
     }
 
-    pub fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>> {
+    pub fn maybe_check_js_directive(&self) -> Ref<Option<CheckJsDirective>> {
+        self.check_js_directive.borrow()
+    }
+
+    pub fn maybe_check_js_directive_mut(&self) -> RefMut<Option<CheckJsDirective>> {
         self.check_js_directive.borrow_mut()
     }
 
