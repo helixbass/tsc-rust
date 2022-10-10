@@ -16,6 +16,7 @@ use typescript_rust::{
 };
 
 #[rstest]
+#[case("variableDeclarationInStrictMode1.ts")]
 #[case("variableDeclaratorResolvedDuringContextualTyping.ts")]
 // #[case("varianceMeasurement.ts")]
 #[case("voidArrayLit.ts")]
@@ -145,19 +146,24 @@ fn compare_baselines(name: &str, diagnostics: &[Rc<Diagnostic>], case_file_conte
     ))
     .unwrap();
     let baseline_error_lines = parse_baseline_errors(baseline_file_contents);
-    let formatted_diagnostic_lines = adjust_diagnostic_line_numbers(
+    let formatted_diagnostic_lines = adjust_diagnostic_line_numbers_and_lib_file_paths(
         &format_diagnostics(diagnostics, &DummyFormatDiagnosticsHost),
         case_file_contents,
     );
     assert_eq!(baseline_error_lines, formatted_diagnostic_lines,);
 }
 
-fn adjust_diagnostic_line_numbers(formatted_diagnostics: &str, case_file_contents: &str) -> String {
+fn adjust_diagnostic_line_numbers_and_lib_file_paths(
+    formatted_diagnostics: &str,
+    case_file_contents: &str,
+) -> String {
     let number_of_leading_lines_to_remove =
         get_number_of_leading_lines_to_remove(case_file_contents);
     lazy_static! {
         static ref formatted_diagnostic_regex: Regex =
             Regex::new(r"^(typescript_src/tests/cases/compiler/[^(]+\()(\d+)(,\d+\))").unwrap();
+        static ref lib_path_regex: Regex =
+            Regex::new(r"^[.\w/]*TypeScript/built/local/(.+)$").unwrap();
     }
     formatted_diagnostics
         .split("\n")
@@ -171,6 +177,11 @@ fn adjust_diagnostic_line_numbers(formatted_diagnostics: &str, case_file_content
                     &captures[3],
                 )
             })
+        })
+        .map(|line| {
+            lib_path_regex
+                .replace(&line, |captures: &Captures| format!("{}", &captures[1],))
+                .into_owned()
         })
         .collect::<Vec<_>>()
         .join("\n")
