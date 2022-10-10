@@ -16,6 +16,15 @@ use typescript_rust::{
 };
 
 #[rstest]
+#[case("useBeforeDeclaration_destructuring.ts")]
+#[case("useBeforeDeclaration_jsx.tsx")]
+#[case("useBeforeDeclaration_propertyAssignment.ts")]
+#[case("useBeforeDeclaration_superClass.ts")]
+#[case("useUnknownInCatchVariables01.ts")]
+#[case("validRegexp.ts")]
+#[case("varAndFunctionShareName.ts")]
+#[case("varArgConstructorMemberParameter.ts")]
+#[case("varArgWithNoParamName.ts")]
 #[case("varBlock.ts")]
 #[case("varNameConflictsWithImportInDifferentPartOfModule.ts")]
 #[case("vararg.ts")]
