@@ -194,9 +194,9 @@ impl TypeChecker {
             return false;
         }
         // TODO: should this be using eg a Type.as_has_fresh_type() "unwrapper-helper" instead?
-        // (same question in is_type_related_to() and get_normalized_type() below)
-        // or maybe this looks like it should be a trait that includes `maybe_fresh_type()` that
-        // both of these implement?
+        // (same question in is_type_related_to() and get_normalized_type() below, and in
+        // remove_redundant_literal_types()) or maybe this looks like it should be a trait that
+        // includes `maybe_fresh_type()` that both of these implement?
         match type_ {
             Type::IntrinsicType(intrinsic_type) => ptr::eq(
                 type_,
