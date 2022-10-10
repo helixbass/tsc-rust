@@ -29,7 +29,16 @@ fn is_use_strict_prologue(node: &Node /*ExpressionStatement*/) -> bool {
 pub fn find_use_strict_prologue(
     statements: &[Rc<Node /*Statement*/>],
 ) -> Option<Rc<Node /*Statement*/>> {
-    unimplemented!()
+    for statement in statements {
+        if is_prologue_directive(statement) {
+            if is_use_strict_prologue(statement) {
+                return Some(statement.clone());
+            }
+        } else {
+            break;
+        }
+    }
+    None
 }
 
 pub fn starts_with_use_strict(statements: &[Rc<Node>]) -> bool {
