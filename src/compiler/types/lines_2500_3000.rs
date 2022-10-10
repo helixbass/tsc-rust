@@ -908,10 +908,6 @@ impl CaseClause {
             fallthrough_flow_node: RefCell::new(None),
         }
     }
-
-    pub fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Rc<FlowNode>>) {
-        *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
-    }
 }
 
 impl HasStatementsInterface for CaseClause {
@@ -922,11 +918,16 @@ impl HasStatementsInterface for CaseClause {
 
 pub trait CaseOrDefaultClauseInterface: HasStatementsInterface {
     fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>>;
+    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Rc<FlowNode>>);
 }
 
 impl CaseOrDefaultClauseInterface for CaseClause {
     fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>> {
         self.fallthrough_flow_node.borrow().clone()
+    }
+
+    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Rc<FlowNode>>) {
+        *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
     }
 }
 
@@ -941,7 +942,7 @@ impl HasExpressionInterface for CaseClause {
 pub struct DefaultClause {
     _node: BaseNode,
     pub statements: NodeArray, /*<Statement>*/
-    pub(crate) fallthrough_flow_node: Option<Rc<FlowNode>>,
+    fallthrough_flow_node: RefCell<Option<Rc<FlowNode>>>,
 }
 
 impl DefaultClause {
@@ -949,7 +950,7 @@ impl DefaultClause {
         Self {
             _node: base_node,
             statements,
-            fallthrough_flow_node: None,
+            fallthrough_flow_node: RefCell::new(None),
         }
     }
 }
@@ -962,7 +963,11 @@ impl HasStatementsInterface for DefaultClause {
 
 impl CaseOrDefaultClauseInterface for DefaultClause {
     fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>> {
-        self.fallthrough_flow_node.clone()
+        self.fallthrough_flow_node.borrow().clone()
+    }
+
+    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Rc<FlowNode>>) {
+        *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
     }
 }
 

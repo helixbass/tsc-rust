@@ -543,7 +543,12 @@ impl BinderType {
         let mut i = 0;
         while i < clauses.len() {
             let clause_start = i;
-            while clauses[i].as_case_clause().statements.is_empty() && i + 1 < clauses.len() {
+            while clauses[i]
+                .as_case_or_default_clause()
+                .statements()
+                .is_empty()
+                && i + 1 < clauses.len()
+            {
                 self.bind(Some(&*clauses[i]));
                 i += 1;
             }
@@ -574,7 +579,7 @@ impl BinderType {
                 && matches!(self.options().no_fallthrough_cases_in_switch, Some(true))
             {
                 clause
-                    .as_case_clause()
+                    .as_case_or_default_clause()
                     .set_fallthrough_flow_node(Some(self.current_flow()));
             }
             i += 1;
