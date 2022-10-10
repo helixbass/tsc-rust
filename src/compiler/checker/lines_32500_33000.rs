@@ -706,7 +706,7 @@ impl TypeChecker {
                     &left_type,
                     TypeFlags::StringLike,
                     Some(true),
-                ) && self.is_type_assignable_to_kind(
+                ) || self.is_type_assignable_to_kind(
                     &right_type,
                     TypeFlags::StringLike,
                     Some(true),
