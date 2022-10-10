@@ -16,12 +16,15 @@ use typescript_rust::{
 };
 
 #[rstest]
+#[case("varBlock.ts")]
+#[case("varNameConflictsWithImportInDifferentPartOfModule.ts")]
+#[case("vararg.ts")]
 #[case("variableDeclarationInStrictMode1.ts")]
 #[case("variableDeclaratorResolvedDuringContextualTyping.ts")]
-// #[case("varianceMeasurement.ts")]
+// #[case("varianceMeasurement.ts")] // looks like it's finding the correct # of errors but not showing exactly the same diagnostics for some of them?
 #[case("voidArrayLit.ts")]
-// #[case("voidAsNonAmbiguousReturnType.ts")]
-#[case("weakType.ts")]
+// #[case("voidAsNonAmbiguousReturnType.ts")] // has more than one source file "inline"
+// #[case("weakType.ts")] // failing on sometimes flipping `Spoiler & Weak` vs `Weak & Spoiler`
 #[case("widenToAny1.ts")]
 #[case("widenToAny2.ts")]
 #[case("widenedTypes.ts")]
