@@ -75,7 +75,7 @@ impl NodeBuilder {
             /*&& getExportsOfSymbol(parent)*/
             {
                 let exports = self.type_checker.get_exports_of_symbol(parent);
-                for_each_entry_bool(&(*exports).borrow(), |ex: &Rc<Symbol>, name: &__String| {
+                for_each_entry_bool(&*(*exports).borrow(), |ex: &Rc<Symbol>, name: &__String| {
                     if self
                         .type_checker
                         .get_symbol_if_same_reference(ex, symbol)

@@ -907,7 +907,7 @@ impl TypeChecker {
     }
 
     pub(super) fn has_exported_members(&self, module_symbol: &Symbol) -> bool {
-        for_each_entry_bool(&(*module_symbol.exports()).borrow(), |_, id| {
+        for_each_entry_bool(&*(*module_symbol.exports()).borrow(), |_, id| {
             !id.eq_str("export=")
         })
     }

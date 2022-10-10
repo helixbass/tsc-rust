@@ -105,7 +105,7 @@ impl TypeChecker {
         &self,
         parent: &Symbol,
         early_symbols: Option<&SymbolTable>,
-        late_symbols: &mut UnderscoreEscapedMap<Rc<Symbol /*TransientSymbol*/>>,
+        late_symbols: &mut SymbolTable,
         decl: &Node, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
     ) -> Rc<Symbol> {
         Debug_.assert(
@@ -213,7 +213,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> Rc<RefCell<UnderscoreEscapedMap<Rc<Symbol>>>> {
+    ) -> Rc<RefCell<SymbolTable>> {
         let links = self.get_symbol_links(symbol);
         if self
             .get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)

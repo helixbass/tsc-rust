@@ -174,7 +174,7 @@ impl TypeChecker {
             return false;
         }
         for_each_entry_bool(
-            &(*self.get_exports_of_symbol(symbol)).borrow(),
+            &*(*self.get_exports_of_symbol(symbol)).borrow(),
             |p: &Rc<Symbol>, _| {
                 p.flags().intersects(SymbolFlags::Value)
                     && matches!(

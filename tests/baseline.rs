@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use pretty_assertions::assert_str_eq;
 use regex::{Captures, Regex};
 use rstest::rstest;
 use std::cell::RefCell;
@@ -5673,7 +5674,7 @@ fn compare_baselines(name: &str, diagnostics: &[Rc<Diagnostic>], case_file_conte
         &format_diagnostics(diagnostics, &DummyFormatDiagnosticsHost),
         case_file_contents,
     );
-    assert_eq!(baseline_error_lines, formatted_diagnostic_lines,);
+    assert_str_eq!(baseline_error_lines, formatted_diagnostic_lines);
 }
 
 fn adjust_diagnostic_line_numbers_and_lib_file_paths(

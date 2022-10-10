@@ -774,7 +774,7 @@ impl TypeChecker {
                     self.for_each_symbol_table_in_scope(
                         enclosing_declaration.as_deref(),
                         |t, _, _, _| {
-                            for_each_entry(&RefCell::borrow(&t), |s: &Rc<Symbol>, _| {
+                            for_each_entry(&*RefCell::borrow(&t), |s: &Rc<Symbol>, _| {
                                 if s.flags()
                                     .intersects(self.get_qualified_left_meaning(meaning))
                                     && Rc::ptr_eq(

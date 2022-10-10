@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use indexmap::IndexMap;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -182,7 +183,7 @@ impl Deref for __String {
 
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
-pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
+pub type SymbolTable = IndexMap<__String, Rc<Symbol>>;
 
 #[derive(Clone, Debug)]
 pub struct PatternAmbientModule {

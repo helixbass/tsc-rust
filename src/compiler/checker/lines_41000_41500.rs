@@ -512,7 +512,7 @@ impl TypeChecker {
                 module_symbol.flags().intersects(SymbolFlags::Value)
             } else {
                 for_each_entry_bool(
-                    &(*self.get_exports_of_module_(module_symbol)).borrow(),
+                    &*(*self.get_exports_of_module_(module_symbol)).borrow(),
                     |s: &Rc<Symbol>, _| self.is_value(s),
                 )
             });

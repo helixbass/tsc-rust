@@ -595,7 +595,7 @@ pub fn create_type_checker(
         substitution_types: RefCell::new(HashMap::new()),
         subtype_reduction_cache: RefCell::new(HashMap::new()),
         evolving_array_types: RefCell::new(HashMap::new()),
-        undefined_properties: RefCell::new(HashMap::new()),
+        undefined_properties: RefCell::new(SymbolTable::new()),
 
         unknown_symbol: None,
         resolving_symbol: None,
@@ -1346,7 +1346,7 @@ pub fn create_type_checker(
     ])));
     type_checker.typeof_type = Some(type_checker.create_typeof_type());
 
-    let mut builtin_globals: HashMap<__String, Rc<Symbol>> = HashMap::new();
+    let mut builtin_globals: SymbolTable = SymbolTable::new();
     builtin_globals.insert(
         type_checker.undefined_symbol().escaped_name().clone(),
         type_checker.undefined_symbol(),
