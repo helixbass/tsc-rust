@@ -534,11 +534,8 @@ impl TypeChecker {
                 .and_then(|closest_signature| closest_signature.declaration.as_ref())
                 .and_then(|closest_signature_declaration| {
                     closest_signature_declaration
-                        .as_has_arguments()
-                        .maybe_arguments()
-                })
-                .and_then(|closest_signature_declaration_arguments| {
-                    closest_signature_declaration_arguments
+                        .as_signature_declaration()
+                        .parameters()
                         .get(
                             if closest_signature
                                 .as_ref()
