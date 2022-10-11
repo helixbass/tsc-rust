@@ -24,13 +24,9 @@ pub enum FileWatcherEventKind {
     Deleted,
 }
 
-pub trait FileWatcherCallback {
-    fn call(&self, file_name: &str, event_kind: FileWatcherEventKind);
-}
+pub type FileWatcherCallback = Rc<dyn Fn(&str, FileWatcherEventKind)>;
 
-pub trait DirectoryWatcherCallback {
-    fn call(&self, file_name: &str);
-}
+pub type DirectoryWatcherCallback = Rc<dyn Fn(&str)>;
 
 pub(crate) fn missing_file_modified_time() -> SystemTime {
     UNIX_EPOCH
@@ -70,7 +66,7 @@ pub trait System: ConvertToTSConfigHost {
     fn watch_file(
         &self,
         path: &str,
-        callback: &dyn FileWatcherCallback,
+        callback: FileWatcherCallback,
         polling_interval: Option<u32>,
         options: Option<&WatchOptions>,
     ) -> Rc<dyn FileWatcher>;
@@ -78,7 +74,7 @@ pub trait System: ConvertToTSConfigHost {
     fn watch_directory(
         &self,
         path: &str,
-        callback: &dyn DirectoryWatcherCallback,
+        callback: DirectoryWatcherCallback,
         recursive: Option<bool>,
         options: Option<&WatchOptions>,
     ) -> Rc<dyn FileWatcher>;
@@ -402,7 +398,7 @@ impl System for SystemConcrete {
     fn watch_file(
         &self,
         path: &str,
-        callback: &dyn FileWatcherCallback,
+        callback: FileWatcherCallback,
         polling_interval: Option<u32>,
         options: Option<&WatchOptions>,
     ) -> Rc<dyn FileWatcher> {
@@ -412,7 +408,7 @@ impl System for SystemConcrete {
     fn watch_directory(
         &self,
         path: &str,
-        callback: &dyn DirectoryWatcherCallback,
+        callback: DirectoryWatcherCallback,
         recursive: Option<bool>,
         options: Option<&WatchOptions>,
     ) -> Rc<dyn FileWatcher> {
