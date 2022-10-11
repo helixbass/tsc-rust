@@ -715,10 +715,10 @@ impl TypeChecker {
         &self,
         node: &Node, /*BindingElementGrandparent*/
     ) -> Option<Rc<Type>> {
-        let symbol = self.get_symbol_of_node(node)?;
-        RefCell::borrow(&self.get_symbol_links(&symbol))
-            .type_
-            .clone()
+        let symbol = self.get_symbol_of_node(node);
+        symbol
+            .as_ref()
+            .and_then(|symbol| (*self.get_symbol_links(symbol)).borrow().type_.clone())
             .or_else(|| self.get_type_for_variable_like_declaration(node, false))
     }
 
