@@ -693,7 +693,7 @@ impl NodeBuilder {
                         .create_computed_property_name(
                             synthetic_factory_,
                             self.symbol_to_expression_(
-                                &name_type.as_unique_es_symbol_type().symbol,
+                                &name_type.symbol(),
                                 context,
                                 Some(SymbolFlags::Value),
                             ),

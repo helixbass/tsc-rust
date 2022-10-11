@@ -8,24 +8,25 @@ use std::rc::Rc;
 
 use super::CheckMode;
 use crate::{
-    create_symbol_table, find_last_index_returns_isize, for_each, for_each_child_recursively_bool,
-    get_check_flags, get_declaration_of_kind, get_effective_return_type_node,
-    get_effective_set_accessor_type_annotation_node, get_effective_type_annotation_node,
-    get_root_declaration, get_source_file_of_node, get_this_container, is_accessor,
-    is_binary_expression, is_bindable_static_element_access_expression, is_binding_element,
-    is_binding_pattern, is_call_expression,
-    is_catch_clause_variable_declaration_or_binding_element, is_class_declaration,
-    is_element_access_expression, is_enum_declaration, is_enum_member, is_function_declaration,
-    is_identifier, is_in_js_file, is_jsdoc_property_like_tag, is_json_source_file,
-    is_jsx_attribute, is_method_declaration, is_method_signature, is_numeric_literal,
-    is_object_literal_method, is_omitted_expression, is_parameter, is_property_access_expression,
-    is_property_assignment, is_property_declaration, is_property_signature,
-    is_prototype_property_assignment, is_shorthand_property_assignment, is_source_file,
-    is_string_literal_like, is_variable_declaration, last_or_undefined, map, CheckFlags, Debug_,
-    Diagnostics, ElementFlags, HasInitializerInterface, IndexInfo, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ScriptTarget, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeSystemPropertyName, __String,
+    are_option_rcs_equal, create_symbol_table, find_last_index_returns_isize, for_each,
+    for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
+    get_effective_return_type_node, get_effective_set_accessor_type_annotation_node,
+    get_effective_type_annotation_node, get_root_declaration, get_source_file_of_node,
+    get_this_container, is_accessor, is_binary_expression,
+    is_bindable_static_element_access_expression, is_binding_element, is_binding_pattern,
+    is_call_expression, is_catch_clause_variable_declaration_or_binding_element,
+    is_class_declaration, is_element_access_expression, is_enum_declaration, is_enum_member,
+    is_function_declaration, is_identifier, is_in_js_file, is_jsdoc_property_like_tag,
+    is_json_source_file, is_jsx_attribute, is_method_declaration, is_method_signature,
+    is_numeric_literal, is_object_literal_method, is_omitted_expression, is_parameter,
+    is_property_access_expression, is_property_assignment, is_property_declaration,
+    is_property_signature, is_prototype_property_assignment, is_shorthand_property_assignment,
+    is_source_file, is_string_literal_like, is_variable_declaration, last_or_undefined, map,
+    CheckFlags, Debug_, Diagnostics, ElementFlags, HasInitializerInterface, IndexInfo,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeSystemPropertyName,
+    __String,
 };
 
 impl TypeChecker {
@@ -335,9 +336,9 @@ impl TypeChecker {
             if type_.flags().intersects(TypeFlags::UniqueESSymbol)
                 && (is_binding_element(declaration)
                     || declaration.as_has_type().maybe_type().is_none())
-                && !matches!(
-                    type_.maybe_symbol(),
-                    Some(type_symbol) if matches!(self.get_symbol_of_node(declaration), Some(symbol_of_node) if Rc::ptr_eq(&type_symbol, &symbol_of_node))
+                && !are_option_rcs_equal(
+                    type_.maybe_symbol().as_ref(),
+                    self.get_symbol_of_node(declaration).as_ref(),
                 )
             {
                 type_ = self.es_symbol_type();

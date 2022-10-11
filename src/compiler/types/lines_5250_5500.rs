@@ -86,17 +86,17 @@ impl LiteralTypeInterface for BaseLiteralType {
 #[type_type]
 pub struct UniqueESSymbolType {
     _type: BaseType,
-    pub symbol: Rc<Symbol>, // TODO: in Typescript this would overwrite the base Type.symbol field so presumably should also be using that here instead?
     pub escaped_name: __String,
 }
 
 impl UniqueESSymbolType {
     pub fn new(base_type: BaseType, symbol: Rc<Symbol>, escaped_name: __String) -> Self {
-        Self {
+        let ret = Self {
             _type: base_type,
-            symbol,
             escaped_name,
-        }
+        };
+        ret.set_symbol(Some(symbol));
+        ret
     }
 }
 

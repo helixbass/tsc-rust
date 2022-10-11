@@ -227,10 +227,7 @@ impl TypeChecker {
         if name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
             return Some(format!(
                 "[{}]",
-                self.get_name_of_symbol_as_written(
-                    &name_type.as_unique_es_symbol_type().symbol,
-                    context
-                )
+                self.get_name_of_symbol_as_written(&name_type.symbol(), context)
             ));
         }
         None
