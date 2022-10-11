@@ -355,12 +355,13 @@ impl TypeChecker {
             && symbol.escaped_name() == &InternalSymbolName::Computed()
         {
             let links = self.get_symbol_links(symbol);
-            if (*links).borrow().late_symbol.is_none()
-                && some(
-                    symbol.maybe_declarations().as_deref(),
-                    Some(|declaration: &Rc<Node>| self.has_late_bindable_name(declaration)),
-                )
-            {
+            if {
+                let value = (*links).borrow().late_symbol.is_none();
+                value
+            } && some(
+                symbol.maybe_declarations().as_deref(),
+                Some(|declaration: &Rc<Node>| self.has_late_bindable_name(declaration)),
+            ) {
                 let parent = self.get_merged_symbol(symbol.maybe_parent()).unwrap();
                 if some(
                     symbol.maybe_declarations().as_deref(),
