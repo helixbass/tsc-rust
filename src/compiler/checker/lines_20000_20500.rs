@@ -679,7 +679,7 @@ impl TypeChecker {
         format!("{},{}{}", source.id(), target.id(), post_fix)
     }
 
-    pub(super) fn for_each_property<TReturn, TCallback: FnMut(&Symbol) -> TReturn>(
+    pub(super) fn for_each_property<TReturn, TCallback: FnMut(&Symbol) -> Option<TReturn>>(
         &self,
         prop: &Symbol,
         callback: &mut TCallback,
@@ -701,7 +701,7 @@ impl TypeChecker {
             }
             return None;
         }
-        Some(callback(prop))
+        callback(prop)
     }
 
     pub(super) fn for_each_property_bool<TCallback: FnMut(&Symbol) -> bool>(
