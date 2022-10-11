@@ -577,7 +577,7 @@ impl Scanner {
         let save_start_pos = self.start_pos();
         let save_token_pos = self.token_pos();
         let save_token = self.token();
-        let save_token_value = self.token_value();
+        let save_token_value = self.maybe_token_value();
         let save_token_flags = self.token_flags();
         let result = callback();
 
@@ -587,7 +587,7 @@ impl Scanner {
             self.set_start_pos(save_start_pos);
             self.set_token_pos(save_token_pos);
             self.set_token(save_token);
-            self.set_token_value(save_token_value);
+            self.set_maybe_token_value(save_token_value);
             self.set_token_flags(save_token_flags);
         }
         result
