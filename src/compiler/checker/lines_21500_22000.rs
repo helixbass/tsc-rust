@@ -756,8 +756,8 @@ impl InferTypes {
                         None => true,
                         Some(inference_priority) => self.priority() < inference_priority,
                     } {
-                        *inference.maybe_candidates() = None;
-                        *inference.maybe_contra_candidates() = None;
+                        *inference.maybe_candidates_mut() = None;
+                        *inference.maybe_contra_candidates_mut() = None;
                         inference.set_top_level(true);
                         inference.set_priority(Some(self.priority()));
                     }
@@ -772,10 +772,10 @@ impl InferTypes {
                                 &candidate,
                             ) {
                                 if inference.maybe_contra_candidates().is_none() {
-                                    *inference.maybe_contra_candidates() = Some(vec![]);
+                                    *inference.maybe_contra_candidates_mut() = Some(vec![]);
                                 }
                                 inference
-                                    .maybe_contra_candidates()
+                                    .maybe_contra_candidates_mut()
                                     .as_mut()
                                     .unwrap()
                                     .push(candidate);
@@ -784,10 +784,10 @@ impl InferTypes {
                         } else if !contains_rc(inference.maybe_candidates().as_deref(), &candidate)
                         {
                             if inference.maybe_candidates().is_none() {
-                                *inference.maybe_candidates() = Some(vec![]);
+                                *inference.maybe_candidates_mut() = Some(vec![]);
                             }
                             inference
-                                .maybe_candidates()
+                                .maybe_candidates_mut()
                                 .as_mut()
                                 .unwrap()
                                 .push(candidate);

@@ -857,15 +857,27 @@ impl InferenceInfo {
         }
     }
 
-    pub fn maybe_candidates(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_candidates(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.candidates.borrow()
+    }
+
+    pub fn maybe_candidates_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.candidates.borrow_mut()
     }
 
-    pub fn maybe_contra_candidates(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_contra_candidates(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.contra_candidates.borrow()
+    }
+
+    pub fn maybe_contra_candidates_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.contra_candidates.borrow_mut()
     }
 
-    pub fn maybe_inferred_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_inferred_type(&self) -> Option<Rc<Type>> {
+        self.inferred_type.borrow().clone()
+    }
+
+    pub fn maybe_inferred_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
         self.inferred_type.borrow_mut()
     }
 

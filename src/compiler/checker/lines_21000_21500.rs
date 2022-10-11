@@ -735,7 +735,7 @@ impl TypeChecker {
     pub(super) fn clear_cached_inferences(&self, inferences: &[Rc<InferenceInfo>]) {
         for inference in inferences {
             if !inference.is_fixed() {
-                *inference.maybe_inferred_type() = None;
+                *inference.maybe_inferred_type_mut() = None;
             }
         }
     }
@@ -761,7 +761,7 @@ impl TypeChecker {
             inference.type_parameter.clone(),
             inference.maybe_candidates().clone(),
             inference.maybe_contra_candidates().clone(),
-            inference.maybe_inferred_type().clone(),
+            inference.maybe_inferred_type(),
             inference.maybe_priority(),
             inference.top_level(),
             inference.is_fixed(),
