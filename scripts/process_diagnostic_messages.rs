@@ -23,9 +23,12 @@ enum DiagnosticCategory {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct DiagnosticMessageSpec {
     category: DiagnosticCategory,
     code: u32,
+    elided_in_compatability_pyramid: Option<bool>,
+    // TODO: also need to parse reportsUnnecessary and reportsDeprecated?
 }
 
 fn main() {
@@ -101,12 +104,14 @@ pub mod Diagnostics {{
         category: DiagnosticCategory,
         key: &'static str,
         message: &'static str,
+        elided_in_compatability_pyramid: Option<bool>,
     ) -> DiagnosticMessage {{
         DiagnosticMessage::new(
             code,
             category,
             key,
             message.into(),
+            elided_in_compatability_pyramid,
         )
     }}
 
@@ -121,13 +126,22 @@ pub mod Diagnostics {{
         .map(|(key, value)| (key.to_string(), *value))
         .collect();
     entries.sort_by(|a, b| a.1.code.cmp(&b.1.code));
-    for (name, DiagnosticMessageSpec { code, category }) in entries.into_iter() {
+    for (
+        name,
+        DiagnosticMessageSpec {
+            code,
+            category,
+            elided_in_compatability_pyramid,
+        },
+    ) in entries.into_iter()
+    {
         let prop_name = convert_property_name(&name);
         result.push_str(&format!(
             "    lazy_static! {{
         pub static ref {}: DiagnosticMessage = diag(
             {},
             DiagnosticCategory::{:?},
+            {:?},
             {:?},
             {:?},
         );
@@ -137,7 +151,8 @@ pub mod Diagnostics {{
             code,
             category,
             create_key(&prop_name, code),
-            name
+            name,
+            elided_in_compatability_pyramid,
         ));
     }
     result.push_str(

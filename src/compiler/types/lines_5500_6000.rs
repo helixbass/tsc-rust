@@ -1100,13 +1100,14 @@ impl DiagnosticMessage {
         category: DiagnosticCategory,
         key: &'static str,
         message: Cow<'static, str>,
+        elided_in_compatability_pyramid: Option<bool>,
     ) -> Self {
         Self {
             code,
             category,
             key,
             message,
-            elided_in_compatability_pyramid: Arc::new(Mutex::new(None)),
+            elided_in_compatability_pyramid: Arc::new(Mutex::new(elided_in_compatability_pyramid)),
         }
     }
 
