@@ -535,7 +535,7 @@ use typescript_rust::{
 #[case("callWithWrongNumberOfTypeArguments.ts")]
 #[case("callbackArgsDifferByOptionality.ts")]
 #[case("callbacksDontShareTypes.ts")]
-#[case("callsOnComplexSignatures.tsx")]
+#[case("callsOnComplexSignatures.tsx")] // failing on not loading /// <reference path="/.lib/..."> directive
 #[case("cannotInvokeNewOnErrorExpression.ts")]
 #[case("cannotInvokeNewOnIndexExpression.ts")]
 #[case("captureSuperPropertyAccessInSuperCall01.ts")]
