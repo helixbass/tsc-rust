@@ -194,7 +194,8 @@ impl BinderType {
                     self.declare_module_member(node, symbol_flags, symbol_excludes);
                 } else {
                     {
-                        let mut block_scope_container_locals = block_scope_container.maybe_locals();
+                        let mut block_scope_container_locals =
+                            block_scope_container.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
                             *block_scope_container_locals =
                                 Some(Rc::new(RefCell::new(create_symbol_table(None))));
@@ -214,7 +215,7 @@ impl BinderType {
             }
             _ => {
                 {
-                    let mut block_scope_container_locals = block_scope_container.maybe_locals();
+                    let mut block_scope_container_locals = block_scope_container.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
                         *block_scope_container_locals =
                             Some(Rc::new(RefCell::new(create_symbol_table(None))));

@@ -603,7 +603,7 @@ impl TypeChecker {
                 Vec<Rc<Node /*VariableDeclaration*/>>,
             ),
         > = HashMap::new();
-        for local in (**node_with_locals.locals()).borrow().values() {
+        for local in (*node_with_locals.locals()).borrow().values() {
             if if local.flags().intersects(SymbolFlags::TypeParameter) {
                 !(local.flags().intersects(SymbolFlags::Variable)
                     && !matches!(

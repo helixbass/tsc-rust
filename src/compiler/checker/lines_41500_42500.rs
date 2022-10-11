@@ -764,7 +764,7 @@ impl TypeChecker {
                 continue;
             }
             if !is_external_or_common_js_module(file) {
-                let file_global_this_symbol = (**file.locals())
+                let file_global_this_symbol = (*file.locals())
                     .borrow()
                     .get(&__String::new("globalThis".to_owned()))
                     .cloned();
