@@ -576,7 +576,7 @@ impl BinderType {
             }
             self.file()
                 .as_source_file()
-                .bind_diagnostics()
+                .bind_diagnostics_mut()
                 .push(Rc::new(
                     create_diagnostic_for_node(
                         &symbol_export.maybe_declarations().as_ref().unwrap()[0],
@@ -799,7 +799,7 @@ impl BinderType {
         if is_jsdoc_template_tag(&node.parent()) {
             let container = get_effective_container_for_jsdoc_template_tag(&node.parent());
             if let Some(container) = container {
-                let mut container_locals = container.maybe_locals();
+                let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
                     *container_locals = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }
@@ -822,7 +822,7 @@ impl BinderType {
         } else if node.parent().kind() == SyntaxKind::InferType {
             let container = self.get_infer_type_container(&node.parent());
             if let Some(container) = container {
-                let mut container_locals = container.maybe_locals();
+                let mut container_locals = container.maybe_locals_mut();
                 if container_locals.is_none() {
                     *container_locals = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }

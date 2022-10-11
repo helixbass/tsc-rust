@@ -12,8 +12,8 @@ use crate::{
     get_declaration_of_kind, is_function_type_node, is_identifier, is_method_signature, map,
     same_map, some, ElementFlags, FindAncestorCallbackReturn, IndexInfo, NamedDeclarationInterface,
     ReverseMappedType, SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeComparer,
-    TypeMapper, TypeMapperCallback, TypeReferenceInterface, __String, declaration_name_to_string,
-    for_each_bool, get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, for_each_bool,
+    get_name_of_declaration, get_object_flags, get_source_file_of_node,
     is_call_signature_declaration, is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind,
     DiagnosticMessage, Diagnostics, InferenceContext, InferenceFlags, InferenceInfo, Node,
     NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
@@ -391,7 +391,7 @@ impl TypeChecker {
                         || is_function_type_node(&param.parent()))
                     && param
                         .parent()
-                        .as_function_like_declaration()
+                        .as_signature_declaration()
                         .parameters()
                         .into_iter()
                         .position(|parameter: &Rc<Node>| ptr::eq(param, &**parameter))
@@ -735,7 +735,7 @@ impl TypeChecker {
     pub(super) fn clear_cached_inferences(&self, inferences: &[Rc<InferenceInfo>]) {
         for inference in inferences {
             if !inference.is_fixed() {
-                *inference.maybe_inferred_type() = None;
+                *inference.maybe_inferred_type_mut() = None;
             }
         }
     }
@@ -761,7 +761,7 @@ impl TypeChecker {
             inference.type_parameter.clone(),
             inference.maybe_candidates().clone(),
             inference.maybe_contra_candidates().clone(),
-            inference.maybe_inferred_type().clone(),
+            inference.maybe_inferred_type(),
             inference.maybe_priority(),
             inference.top_level(),
             inference.is_fixed(),

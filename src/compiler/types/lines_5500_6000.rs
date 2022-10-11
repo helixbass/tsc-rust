@@ -643,11 +643,19 @@ impl Signature {
         self.this_parameter.borrow_mut()
     }
 
-    pub fn maybe_resolved_return_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_resolved_return_type(&self) -> Option<Rc<Type>> {
+        self.resolved_return_type.borrow().clone()
+    }
+
+    pub fn maybe_resolved_return_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
         self.resolved_return_type.borrow_mut()
     }
 
-    pub fn maybe_resolved_type_predicate(&self) -> RefMut<Option<Rc<TypePredicate>>> {
+    pub fn maybe_resolved_type_predicate(&self) -> Option<Rc<TypePredicate>> {
+        self.resolved_type_predicate.borrow().clone()
+    }
+
+    pub fn maybe_resolved_type_predicate_mut(&self) -> RefMut<Option<Rc<TypePredicate>>> {
         self.resolved_type_predicate.borrow_mut()
     }
 
@@ -857,15 +865,27 @@ impl InferenceInfo {
         }
     }
 
-    pub fn maybe_candidates(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_candidates(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.candidates.borrow()
+    }
+
+    pub fn maybe_candidates_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.candidates.borrow_mut()
     }
 
-    pub fn maybe_contra_candidates(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_contra_candidates(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.contra_candidates.borrow()
+    }
+
+    pub fn maybe_contra_candidates_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.contra_candidates.borrow_mut()
     }
 
-    pub fn maybe_inferred_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_inferred_type(&self) -> Option<Rc<Type>> {
+        self.inferred_type.borrow().clone()
+    }
+
+    pub fn maybe_inferred_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
         self.inferred_type.borrow_mut()
     }
 
@@ -1088,13 +1108,14 @@ impl DiagnosticMessage {
         category: DiagnosticCategory,
         key: &'static str,
         message: Cow<'static, str>,
+        elided_in_compatability_pyramid: Option<bool>,
     ) -> Self {
         Self {
             code,
             category,
             key,
             message,
-            elided_in_compatability_pyramid: Arc::new(Mutex::new(None)),
+            elided_in_compatability_pyramid: Arc::new(Mutex::new(elided_in_compatability_pyramid)),
         }
     }
 

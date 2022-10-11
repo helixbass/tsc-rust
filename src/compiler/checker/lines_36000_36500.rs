@@ -603,7 +603,7 @@ impl TypeChecker {
                 Vec<Rc<Node /*VariableDeclaration*/>>,
             ),
         > = HashMap::new();
-        for local in (**node_with_locals.locals()).borrow().values() {
+        for local in (*node_with_locals.locals()).borrow().values() {
             if if local.flags().intersects(SymbolFlags::TypeParameter) {
                 !(local.flags().intersects(SymbolFlags::Variable)
                     && !matches!(
@@ -616,7 +616,7 @@ impl TypeChecker {
                     Some(local_is_referenced) => local_is_referenced != SymbolFlags::None,
                 }) || local.maybe_export_symbol().is_some()
             } {
-                return;
+                continue;
             }
 
             if let Some(local_declarations) = local.maybe_declarations().as_ref() {

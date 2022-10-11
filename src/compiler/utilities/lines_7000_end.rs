@@ -327,7 +327,7 @@ pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/)
 }
 
 pub fn is_infinity_or_nan_string(name: &str) -> bool {
-    unimplemented!()
+    matches!(name, "Infinity" | "-Infinity" | "NaN")
 }
 
 pub fn is_catch_clause_variable_declaration(node: &Node) -> bool {

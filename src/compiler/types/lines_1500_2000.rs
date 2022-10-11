@@ -6,7 +6,8 @@ use std::rc::Rc;
 use super::{
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
     BaseSignatureDeclaration, BaseVariableLikeDeclaration, FlowNode, HasExpressionInterface,
-    HasQuestionTokenInterface, HasTypeInterface, Node, NodeArray, SyntaxKind, Type,
+    HasQuestionTokenInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
+    SyntaxKind, Type,
 };
 use local_macros::ast_type;
 
@@ -35,6 +36,20 @@ pub struct SemicolonClassElement {
 impl SemicolonClassElement {
     pub fn new(base_node: BaseNode) -> Self {
         Self { _node: base_node }
+    }
+}
+
+impl NamedDeclarationInterface for SemicolonClassElement {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        None
+    }
+
+    fn name(&self) -> Rc<Node> {
+        unreachable!()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        unreachable!()
     }
 }
 
@@ -1066,4 +1081,20 @@ pub struct SyntheticExpression {
     pub is_spread: bool,
     pub type_: Rc<Type>,
     pub tuple_name_source: Option<Rc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
+}
+
+impl SyntheticExpression {
+    pub fn new(
+        base_node: BaseNode,
+        is_spread: bool,
+        type_: Rc<Type>,
+        tuple_name_source: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            is_spread,
+            type_,
+            tuple_name_source,
+        }
+    }
 }

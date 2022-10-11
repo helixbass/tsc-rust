@@ -9,17 +9,17 @@ use super::{CheckMode, IterationUse, JsxNames};
 use crate::{
     concatenate, filter, get_enclosing_block_scope_container, get_jsdoc_enum_tag,
     get_strict_option_value, has_static_modifier, is_assignment_target, is_binary_expression,
-    is_class_expression, is_class_like, is_computed_property_name,
-    is_function_expression_or_arrow_function, is_in_js_file, is_in_json_file,
-    is_interface_declaration, is_known_symbol, is_named_declaration, is_object_literal_method,
-    is_property_declaration, is_type_literal_node, length, parameter_is_this_keyword,
-    reduce_left_no_initial_value_optional, same_map, unescape_leading_underscores, CheckFlags,
-    ContextFlags, Debug_, Diagnostics, ElementFlags, ExternalEmitHelpers, HasInitializerInterface,
-    IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface, NodeCheckFlags, ScriptTarget,
-    Signature, SignatureFlags, SignatureKind, SymbolFlags, Ternary, TransientSymbolInterface,
-    TypeMapper, UnionReduction, __String, create_symbol_table, get_object_flags, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    is_class_expression, is_computed_property_name, is_function_expression_or_arrow_function,
+    is_in_js_file, is_in_json_file, is_interface_declaration, is_known_symbol,
+    is_named_declaration, is_object_literal_method, is_property_declaration, is_type_literal_node,
+    length, maybe_is_class_like, parameter_is_this_keyword, reduce_left_no_initial_value_optional,
+    same_map, unescape_leading_underscores, CheckFlags, ContextFlags, Debug_, Diagnostics,
+    ElementFlags, ExternalEmitHelpers, HasInitializerInterface, IndexInfo, InterfaceTypeInterface,
+    NamedDeclarationInterface, NodeCheckFlags, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper, UnionReduction,
+    __String, create_symbol_table, get_object_flags, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -767,7 +767,7 @@ impl TypeChecker {
         let links = self.get_node_links(&node_as_computed_property_name.expression);
         if (*links).borrow().resolved_type.is_none() {
             if (is_type_literal_node(&node.parent().parent())
-                || is_class_like(&node.parent().parent())
+                || maybe_is_class_like(node.parent().maybe_parent())
                 || is_interface_declaration(&node.parent().parent()))
                 && is_binary_expression(&node_as_computed_property_name.expression)
                 && node_as_computed_property_name

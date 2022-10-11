@@ -105,7 +105,7 @@ impl TypeChecker {
         &self,
         parent: &Symbol,
         early_symbols: Option<&SymbolTable>,
-        late_symbols: &mut UnderscoreEscapedMap<Rc<Symbol /*TransientSymbol*/>>,
+        late_symbols: &mut SymbolTable,
         decl: &Node, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
     ) -> Rc<Symbol> {
         Debug_.assert(
@@ -213,7 +213,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> Rc<RefCell<UnderscoreEscapedMap<Rc<Symbol>>>> {
+    ) -> Rc<RefCell<SymbolTable>> {
         let links = self.get_symbol_links(symbol);
         if self
             .get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)
@@ -355,12 +355,13 @@ impl TypeChecker {
             && symbol.escaped_name() == &InternalSymbolName::Computed()
         {
             let links = self.get_symbol_links(symbol);
-            if (*links).borrow().late_symbol.is_none()
-                && some(
-                    symbol.maybe_declarations().as_deref(),
-                    Some(|declaration: &Rc<Node>| self.has_late_bindable_name(declaration)),
-                )
-            {
+            if {
+                let value = (*links).borrow().late_symbol.is_none();
+                value
+            } && some(
+                symbol.maybe_declarations().as_deref(),
+                Some(|declaration: &Rc<Node>| self.has_late_bindable_name(declaration)),
+            ) {
                 let parent = self.get_merged_symbol(symbol.maybe_parent()).unwrap();
                 if some(
                     symbol.maybe_declarations().as_deref(),
@@ -609,8 +610,8 @@ impl TypeChecker {
         *sig.maybe_type_parameters_mut() = type_parameters;
         sig.set_parameters(parameters);
         *sig.maybe_this_parameter_mut() = this_parameter;
-        *sig.maybe_resolved_return_type() = resolved_return_type;
-        *sig.maybe_resolved_type_predicate() = resolved_type_predicate;
+        *sig.maybe_resolved_return_type_mut() = resolved_return_type;
+        *sig.maybe_resolved_type_predicate_mut() = resolved_type_predicate;
         sig.set_min_argument_count(min_argument_count);
         sig
     }
@@ -845,7 +846,7 @@ impl TypeChecker {
                 *sig.maybe_type_parameters_mut() = class_type_as_interface_type
                     .maybe_local_type_parameters()
                     .map(ToOwned::to_owned);
-                *sig.maybe_resolved_return_type() = Some(class_type.type_wrapper());
+                *sig.maybe_resolved_return_type_mut() = Some(class_type.type_wrapper());
                 sig.flags = if is_abstract {
                     sig.flags | SignatureFlags::Abstract
                 } else {

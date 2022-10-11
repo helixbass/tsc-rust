@@ -1739,6 +1739,17 @@ pub struct FlowArrayMutation {
     pub antecedent: Rc<FlowNode>,
 }
 
+impl FlowArrayMutation {
+    pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Rc<Node>) -> Self {
+        Self {
+            flags: Cell::new(flags),
+            id: Cell::new(None),
+            node,
+            antecedent,
+        }
+    }
+}
+
 impl FlowNodeBase for FlowArrayMutation {
     fn flags(&self) -> FlowFlags {
         self.flags.get()

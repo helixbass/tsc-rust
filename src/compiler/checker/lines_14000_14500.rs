@@ -15,6 +15,7 @@ use crate::{
     TypeInterface, TypePredicate, TypePredicateKind, TypeReferenceInterface,
     UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
 };
+use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn create_normalized_type_reference(
@@ -599,7 +600,20 @@ impl TypeChecker {
                     && flags.intersects(TypeFlags::Undefined)
                     && includes.intersects(TypeFlags::Void)
                 || self.is_fresh_literal_type(&t)
-                    && self.contains_type(types, &t.as_literal_type().regular_type());
+                    && self.contains_type(
+                        types,
+                        &*match &*t {
+                            Type::IntrinsicType(intrinsic_type) => enum_unwrapped!(
+                                intrinsic_type,
+                                [IntrinsicType, FreshableIntrinsicType]
+                            )
+                            .regular_type()
+                            .upgrade()
+                            .unwrap(),
+                            Type::LiteralType(literal_type) => literal_type.regular_type(),
+                            _ => panic!("Expected IntrinsicType or LiteralType"),
+                        },
+                    );
             if remove {
                 ordered_remove_item_at(types, i);
             }

@@ -1167,7 +1167,7 @@ impl TypeChecker {
             let mut members = create_symbol_table(None);
             let exported_type_as_resolved_type = exported_type.as_resolved_type();
             copy_entries(
-                &RefCell::borrow(&exported_type_as_resolved_type.members()),
+                &*RefCell::borrow(&exported_type_as_resolved_type.members()),
                 &mut members,
             );
             let initial_size = members.len();

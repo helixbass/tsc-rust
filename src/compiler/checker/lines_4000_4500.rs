@@ -47,7 +47,7 @@ impl TypeChecker {
                 return Some(quick.clone());
             }
         }
-        for_each_entry(&exports, |exported: &Rc<Symbol>, _| {
+        for_each_entry(&*exports, |exported: &Rc<Symbol>, _| {
             if self
                 .get_symbol_if_same_reference(exported, symbol)
                 .is_some()
@@ -653,7 +653,7 @@ impl TypeChecker {
         }
 
         let result: Option<Vec<Rc<Symbol>>> = for_each_entry(
-            &RefCell::borrow(&symbols),
+            &*RefCell::borrow(&symbols),
             |symbol_from_symbol_table, _| {
                 if symbol_from_symbol_table
                     .flags()

@@ -86,17 +86,17 @@ impl LiteralTypeInterface for BaseLiteralType {
 #[type_type]
 pub struct UniqueESSymbolType {
     _type: BaseType,
-    pub symbol: Rc<Symbol>, // TODO: in Typescript this would overwrite the base Type.symbol field so presumably should also be using that here instead?
     pub escaped_name: __String,
 }
 
 impl UniqueESSymbolType {
     pub fn new(base_type: BaseType, symbol: Rc<Symbol>, escaped_name: __String) -> Self {
-        Self {
+        let ret = Self {
             _type: base_type,
-            symbol,
             escaped_name,
-        }
+        };
+        ret.set_symbol(Some(symbol));
+        ret
     }
 }
 
@@ -365,6 +365,10 @@ pub struct BaseObjectType {
     instantiations: RefCell<Option<HashMap<String, Rc<Type>>>>,
     // FreshObjectLiteralType fields
     regular_type: RefCell<Option<Rc<Type /*ResolvedType*/>>>,
+    // "not actually interface type" fields
+    not_actually_interface_type_resolved_base_types: RefCell<Option<Rc<Vec<Rc<Type>>>>>,
+    not_actually_interface_type_base_types_resolved: Cell<Option<bool>>,
+    not_actually_interface_type_resolved_base_constructor_type: RefCell<Option<Rc<Type>>>,
 }
 
 impl BaseObjectType {
@@ -382,7 +386,36 @@ impl BaseObjectType {
             mapper: None,
             instantiations: RefCell::new(None),
             regular_type: RefCell::new(None),
+            not_actually_interface_type_resolved_base_types: RefCell::new(None),
+            not_actually_interface_type_base_types_resolved: Cell::new(None),
+            not_actually_interface_type_resolved_base_constructor_type: RefCell::new(None),
         }
+    }
+
+    pub fn not_actually_interface_type_maybe_resolved_base_types(
+        &self,
+    ) -> RefMut<Option<Rc<Vec<Rc<Type>>>>> {
+        self.not_actually_interface_type_resolved_base_types
+            .borrow_mut()
+    }
+
+    pub fn not_actually_interface_type_maybe_base_types_resolved(&self) -> Option<bool> {
+        self.not_actually_interface_type_base_types_resolved.get()
+    }
+
+    pub fn not_actually_interface_type_set_base_types_resolved(
+        &self,
+        base_types_resolved: Option<bool>,
+    ) {
+        self.not_actually_interface_type_base_types_resolved
+            .set(base_types_resolved);
+    }
+
+    pub fn not_actually_interface_type_maybe_resolved_base_constructor_type(
+        &self,
+    ) -> RefMut<Option<Rc<Type>>> {
+        self.not_actually_interface_type_resolved_base_constructor_type
+            .borrow_mut()
     }
 }
 
@@ -520,6 +553,63 @@ impl FreshObjectLiteralTypeInterface for BaseObjectType {
     }
 }
 
+pub enum NotActuallyInterfaceType<'a> {
+    InterfaceType(&'a InterfaceType),
+    BaseObjectType(&'a BaseObjectType),
+}
+
+impl NotActuallyInterfaceType<'_> {
+    pub fn maybe_resolved_base_types(&self) -> RefMut<Option<Rc<Vec<Rc<Type>>>>> {
+        match self {
+            Self::InterfaceType(value) => value.maybe_resolved_base_types(),
+            Self::BaseObjectType(value) => {
+                value.not_actually_interface_type_maybe_resolved_base_types()
+            }
+        }
+    }
+
+    pub fn maybe_base_types_resolved(&self) -> Option<bool> {
+        match self {
+            Self::InterfaceType(value) => value.maybe_base_types_resolved(),
+            Self::BaseObjectType(value) => {
+                value.not_actually_interface_type_maybe_base_types_resolved()
+            }
+        }
+    }
+
+    pub fn set_base_types_resolved(&self, base_types_resolved: Option<bool>) {
+        match self {
+            Self::InterfaceType(value) => value.set_base_types_resolved(base_types_resolved),
+            Self::BaseObjectType(value) => {
+                value.not_actually_interface_type_set_base_types_resolved(base_types_resolved)
+            }
+        }
+    }
+
+    pub fn object_flags(&self) -> ObjectFlags {
+        match self {
+            Self::InterfaceType(value) => value.object_flags(),
+            Self::BaseObjectType(value) => value.object_flags(),
+        }
+    }
+
+    pub fn set_members(&self, members: Option<Rc<RefCell<SymbolTable>>>) {
+        match self {
+            Self::InterfaceType(value) => value.set_members(members),
+            Self::BaseObjectType(value) => value.set_members(members),
+        }
+    }
+
+    pub fn maybe_resolved_base_constructor_type(&self) -> RefMut<Option<Rc<Type>>> {
+        match self {
+            Self::InterfaceType(value) => value.maybe_resolved_base_constructor_type(),
+            Self::BaseObjectType(value) => {
+                value.not_actually_interface_type_maybe_resolved_base_constructor_type()
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
@@ -590,7 +680,13 @@ impl BaseInterfaceType {
     }
 }
 
-pub trait InterfaceTypeInterface {
+pub trait InterfaceTypeInterface:
+    ObjectFlagsTypeInterface
+    + ObjectTypeInterface
+    + ResolvableTypeInterface
+    + ResolvedTypeInterface
+    + FreshObjectLiteralTypeInterface
+{
     fn maybe_type_parameters(&self) -> Option<&[Rc<Type>]>;
     fn maybe_outer_type_parameters(&self) -> Option<&[Rc<Type>]>;
     fn maybe_local_type_parameters(&self) -> Option<&[Rc<Type>]>;

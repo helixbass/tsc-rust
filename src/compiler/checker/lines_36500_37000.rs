@@ -757,7 +757,10 @@ impl TypeChecker {
                 .declaration_list
                 .as_variable_declaration_list()
                 .declarations,
-            |declaration, _| Some(self.check_source_element(Some(&**declaration))),
+            |declaration, _| -> Option<()> {
+                self.check_source_element(Some(&**declaration));
+                None
+            },
         );
     }
 

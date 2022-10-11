@@ -75,7 +75,7 @@ impl NodeBuilder {
             /*&& getExportsOfSymbol(parent)*/
             {
                 let exports = self.type_checker.get_exports_of_symbol(parent);
-                for_each_entry_bool(&(*exports).borrow(), |ex: &Rc<Symbol>, name: &__String| {
+                for_each_entry_bool(&*(*exports).borrow(), |ex: &Rc<Symbol>, name: &__String| {
                     if self
                         .type_checker
                         .get_symbol_if_same_reference(ex, symbol)
@@ -693,7 +693,7 @@ impl NodeBuilder {
                         .create_computed_property_name(
                             synthetic_factory_,
                             self.symbol_to_expression_(
-                                &name_type.as_unique_es_symbol_type().symbol,
+                                &name_type.symbol(),
                                 context,
                                 Some(SymbolFlags::Value),
                             ),

@@ -355,7 +355,7 @@ impl TypeChecker {
                 if !signatures.is_empty() && mixin_count > 0 {
                     signatures = map(&signatures, |s: &Rc<Signature>, _| {
                         let clone = self.clone_signature(s);
-                        *clone.maybe_resolved_return_type() = Some(self.include_mixin_type(
+                        *clone.maybe_resolved_return_type_mut() = Some(self.include_mixin_type(
                             &self.get_return_type_of_signature(s.clone()),
                             types,
                             mixin_flags.as_ref(),

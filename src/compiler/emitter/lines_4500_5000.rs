@@ -597,7 +597,7 @@ impl Printer {
         self.temp_flags_stack_mut().push(self.temp_flags());
         self.set_temp_flags(TempFlags::Auto);
         self.reserved_names_stack_mut()
-            .push(self.reserved_names().clone());
+            .push(self.maybe_reserved_names());
     }
 
     pub(super) fn pop_name_generation_scope(&self, node: Option<&Node>) {
@@ -608,7 +608,7 @@ impl Printer {
             return;
         }
         self.set_temp_flags(self.temp_flags_stack_mut().pop().unwrap());
-        self.set_reserved_names(Some(self.reserved_names_stack_mut().pop().unwrap()));
+        self.set_reserved_names(self.reserved_names_stack_mut().pop().unwrap());
     }
 
     pub(super) fn reserve_name_in_nested_scopes(&self, name: &str) {
@@ -616,7 +616,7 @@ impl Printer {
         if match reserved_names.as_ref() {
             None => true,
             Some(reserved_names) => matches!(
-                last_or_undefined(&**self.reserved_names_stack()),
+                last_or_undefined(&**self.reserved_names_stack()).cloned().flatten().as_ref(),
                 Some(value) if Rc::ptr_eq(
                     reserved_names,
                     value,

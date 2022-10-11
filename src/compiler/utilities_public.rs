@@ -526,7 +526,7 @@ pub fn unescape_leading_underscores(identifier: &__String) -> String {
 }
 
 pub fn id_text(identifier_or_private_name: &Node, /*Identifier | PrivateIdentifier*/) -> String {
-    unescape_leading_underscores(&identifier_or_private_name.as_identifier().escaped_text)
+    unescape_leading_underscores(&identifier_or_private_name.as_member_name().escaped_text())
 }
 
 pub fn symbol_name(symbol: &Symbol) -> String {

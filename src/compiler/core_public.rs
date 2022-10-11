@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use std::collections::{hash_map, hash_set, HashMap, HashSet};
 use std::hash::Hash;
 use std::ops::Deref;
@@ -85,6 +86,24 @@ impl<'hash_map, TKey: Eq + Hash, TValue> ReadonlyCollection<&'hash_map TKey>
 
     fn keys(&self) -> Self::Iter {
         HashMap::keys(self)
+    }
+}
+
+impl<'hash_map, TKey: Eq + Hash, TValue> ReadonlyCollection<&'hash_map TKey>
+    for &'hash_map IndexMap<TKey, TValue>
+{
+    type Iter = indexmap::map::Keys<'hash_map, TKey, TValue>;
+
+    fn size(&self) -> usize {
+        self.len()
+    }
+
+    fn has(&self, key: &TKey) -> bool {
+        self.contains_key(key)
+    }
+
+    fn keys(&self) -> Self::Iter {
+        IndexMap::keys(self)
     }
 }
 

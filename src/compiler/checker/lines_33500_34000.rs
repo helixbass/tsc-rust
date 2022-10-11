@@ -17,7 +17,7 @@ use crate::{
     parse_pseudo_big_int, skip_parentheses, some, ContextFlags, Diagnostics, ElementFlags,
     InferenceContext, InferenceFlags, InferenceInfo, InferencePriority, NamedDeclarationInterface,
     Node, NodeFlags, NodeInterface, PseudoBigInt, SignatureKind, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {

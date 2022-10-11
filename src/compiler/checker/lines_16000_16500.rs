@@ -6,18 +6,19 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find_index, maybe_add_range, maybe_filter, InferenceContext, InferenceInfo, IntrinsicType,
-    ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, TypeMapperCallback,
-    TypeReferenceInterface, __String, get_assignment_declaration_kind, get_check_flags,
-    get_host_signature_from_jsdoc, get_symbol_id, get_this_container, is_binary_expression,
-    is_class_like, is_constructor_declaration, is_function_expression, is_node_descendant_of,
+    find_index, is_constructor_declaration, is_function_expression, is_node_descendant_of,
     is_object_literal_expression, is_private_identifier_class_element_declaration, is_static,
-    is_valid_es_symbol_declaration, map, pseudo_big_int_to_string, some, AssignmentDeclarationKind,
-    BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics, FunctionLikeDeclarationInterface,
-    IndexInfo, InterfaceTypeInterface, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
-    Number, NumberLiteralType, PseudoBigInt, Signature, SignatureFlags, StringLiteralType,
-    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UniqueESSymbolType,
+    is_valid_es_symbol_declaration, map, maybe_add_range, maybe_filter, pseudo_big_int_to_string,
+    some, AssignmentDeclarationKind, BaseLiteralType, BigIntLiteralType, CheckFlags, Diagnostics,
+    FunctionLikeDeclarationInterface, IndexInfo, InferenceContext, InferenceInfo,
+    InterfaceTypeInterface, IntrinsicType, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
+    Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
+    PseudoBigInt, Signature, SignatureFlags, StringLiteralType, StringOrNumber, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
+    TypeReferenceInterface, UniqueESSymbolType, __String, get_assignment_declaration_kind,
+    get_check_flags, get_host_signature_from_jsdoc, get_symbol_id, get_this_container,
+    is_binary_expression, is_class_like, maybe_is_class_like,
 };
 use local_macros::enum_unwrapped;
 
@@ -33,7 +34,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
                 prop.maybe_declarations().as_ref(),
-                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Rc<Node>| is_class_like(&decl.parent()))
+                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Rc<Node>| maybe_is_class_like(decl.maybe_parent()))
             ))
     }
 
@@ -194,9 +195,9 @@ impl TypeChecker {
             return false;
         }
         // TODO: should this be using eg a Type.as_has_fresh_type() "unwrapper-helper" instead?
-        // (same question in is_type_related_to() and get_normalized_type() below)
-        // or maybe this looks like it should be a trait that includes `maybe_fresh_type()` that
-        // both of these implement?
+        // (same question in is_type_related_to() and get_normalized_type() below, and in
+        // remove_redundant_literal_types()) or maybe this looks like it should be a trait that
+        // includes `maybe_fresh_type()` that both of these implement?
         match type_ {
             Type::IntrinsicType(intrinsic_type) => ptr::eq(
                 type_,

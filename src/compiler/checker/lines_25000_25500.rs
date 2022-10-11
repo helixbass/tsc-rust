@@ -15,12 +15,13 @@ use crate::{
     is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
     is_iteration_statement, is_method_declaration, is_object_literal_expression,
     is_property_assignment, is_property_declaration, is_source_file, is_static, is_super_call,
-    is_super_property, length, node_starts_new_lexical_environment, push_if_unique_rc,
-    text_range_contains_position_inclusive, AssignmentDeclarationKind, DiagnosticMessage,
-    Diagnostics, FindAncestorCallbackReturn, HasTypeInterface, InterfaceTypeInterface,
-    InternalSymbolName, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags,
-    NodeInterface, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
+    is_super_property, length, maybe_is_class_like, node_starts_new_lexical_environment,
+    push_if_unique_rc, text_range_contains_position_inclusive, AssignmentDeclarationKind,
+    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, HasTypeInterface,
+    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeArray, NodeCheckFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
+    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -494,7 +495,7 @@ impl TypeChecker {
             }
         }
 
-        if is_class_like(&container.parent()) {
+        if maybe_is_class_like(container.maybe_parent()) {
             let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
             let type_ = if is_static(&container) {
                 self.get_type_of_symbol(&symbol)
@@ -546,7 +547,7 @@ impl TypeChecker {
                 return self.get_explicit_type_of_symbol(signature_this_parameter, None);
             }
         }
-        if is_class_like(&container.parent()) {
+        if maybe_is_class_like(container.maybe_parent()) {
             let symbol = self.get_symbol_of_node(&container.parent()).unwrap();
             return if is_static(&container) {
                 Some(self.get_type_of_symbol(&symbol))

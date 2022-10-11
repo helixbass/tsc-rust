@@ -812,7 +812,11 @@ impl Scanner {
             } else if self.token_flags().intersects(TokenFlags::OctalSpecifier) {
                 u32::from_str_radix(&self.token_value()[2..], 8).unwrap()
             } else {
-                u32::from_str_radix(&self.token_value(), 10).unwrap()
+                if self.token_flags().intersects(TokenFlags::HexSpecifier) {
+                    u32::from_str_radix(&self.token_value()[2..], 16).unwrap()
+                } else {
+                    u32::from_str_radix(&self.token_value(), 10).unwrap()
+                }
             };
             self.set_token_value(numeric_value.to_string());
             SyntaxKind::NumericLiteral

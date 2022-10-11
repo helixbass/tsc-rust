@@ -10,7 +10,7 @@ use crate::{
     BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind, Debug_,
     DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension, ListFormat,
     Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine, PrintHandlers,
-    Printer, PrinterOptions, SourceMapGenerator, SyntaxKind, TextRange,
+    Printer, PrinterOptions, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -235,23 +235,21 @@ impl Printer {
         self.temp_flags.set(temp_flags);
     }
 
-    pub(super) fn reserved_names_stack(&self) -> Ref<Vec<Rc<RefCell<HashSet<String>>>>> {
+    pub(super) fn reserved_names_stack(&self) -> Ref<Vec<Option<Rc<RefCell<HashSet<String>>>>>> {
         self.reserved_names_stack.borrow()
     }
 
-    pub(super) fn reserved_names_stack_mut(&self) -> RefMut<Vec<Rc<RefCell<HashSet<String>>>>> {
+    pub(super) fn reserved_names_stack_mut(
+        &self,
+    ) -> RefMut<Vec<Option<Rc<RefCell<HashSet<String>>>>>> {
         self.reserved_names_stack.borrow_mut()
     }
 
     pub(super) fn set_reserved_names_stack(
         &self,
-        reserved_names_stack: Vec<Rc<RefCell<HashSet<String>>>>,
+        reserved_names_stack: Vec<Option<Rc<RefCell<HashSet<String>>>>>,
     ) {
         *self.reserved_names_stack.borrow_mut() = reserved_names_stack;
-    }
-
-    pub(super) fn reserved_names(&self) -> Rc<RefCell<HashSet<String>>> {
-        self.reserved_names.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_reserved_names(&self) -> Option<Rc<RefCell<HashSet<String>>>> {
@@ -420,6 +418,48 @@ impl Printer {
 
     pub(super) fn set_source_maps_disabled(&self, source_maps_disabled: bool) {
         self.source_maps_disabled.set(source_maps_disabled);
+    }
+
+    pub(super) fn source_map_generator(&self) -> Rc<dyn SourceMapGenerator> {
+        self.source_map_generator.borrow().clone().unwrap()
+    }
+
+    pub(super) fn set_source_map_source_(&self, source_map_source: Option<Rc<SourceMapSource>>) {
+        *self.source_map_source.borrow_mut() = source_map_source;
+    }
+
+    pub(super) fn source_map_source_index(&self) -> isize {
+        self.source_map_source_index.get()
+    }
+
+    pub(super) fn set_source_map_source_index(&self, source_map_source_index: isize) {
+        self.source_map_source_index.set(source_map_source_index);
+    }
+
+    pub(super) fn maybe_most_recently_added_source_map_source(
+        &self,
+    ) -> Option<Rc<SourceMapSource>> {
+        self.most_recently_added_source_map_source.borrow().clone()
+    }
+
+    pub(super) fn set_most_recently_added_source_map_source(
+        &self,
+        most_recently_added_source_map_source: Option<Rc<SourceMapSource>>,
+    ) {
+        *self.most_recently_added_source_map_source.borrow_mut() =
+            most_recently_added_source_map_source;
+    }
+
+    pub(super) fn most_recently_added_source_map_source_index(&self) -> isize {
+        self.most_recently_added_source_map_source_index.get()
+    }
+
+    pub(super) fn set_most_recently_added_source_map_source_index(
+        &self,
+        most_recently_added_source_map_source_index: isize,
+    ) {
+        self.most_recently_added_source_map_source_index
+            .set(most_recently_added_source_map_source_index);
     }
 
     pub(super) fn container_pos(&self) -> isize {

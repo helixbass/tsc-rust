@@ -653,7 +653,7 @@ impl TypeChecker {
                                         .intersects(TypeFlags::UniqueESSymbol)
                                     {
                                         let symbol_name = self.get_fully_qualified_name(
-                                            &index_type.as_unique_es_symbol_type().symbol,
+                                            &index_type.symbol(),
                                             Some(access_expression),
                                         );
                                         error_info = Some(chain_diagnostic_messages(

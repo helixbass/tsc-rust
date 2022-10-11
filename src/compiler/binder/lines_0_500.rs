@@ -1080,7 +1080,7 @@ impl BinderType {
                                         )
                                         .into(),
                                     );
-                                    self.file().as_source_file().bind_diagnostics().push(
+                                    self.file().as_source_file().bind_diagnostics_mut().push(
                                         if multiple_default_exports {
                                             add_related_info(
                                                 &diag,
@@ -1129,7 +1129,10 @@ impl BinderType {
                                 .into(),
                             );
                             add_related_info(&diag, related_information);
-                            self.file().as_source_file().bind_diagnostics().push(diag);
+                            self.file()
+                                .as_source_file()
+                                .bind_diagnostics_mut()
+                                .push(diag);
 
                             symbol = Some(self.create_symbol(SymbolFlags::None, name).wrap());
                         }

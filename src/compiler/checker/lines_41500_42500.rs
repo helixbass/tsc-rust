@@ -13,15 +13,15 @@ use crate::{
     for_each_entry_bool, get_all_accessor_declarations, get_declaration_of_kind,
     get_effective_modifier_flags, get_external_module_name, get_first_identifier,
     get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
-    is_binding_pattern, is_class_like, is_declaration, is_declaration_readonly,
-    is_effective_external_module, is_entity_name, is_enum_const, is_expression,
-    is_function_declaration, is_function_like, is_generated_identifier, is_get_accessor,
-    is_global_scope_augmentation, is_identifier, is_jsdoc_parameter_tag, is_named_declaration,
-    is_private_identifier_class_element_declaration, is_property_access_expression,
-    is_property_declaration, is_qualified_name, is_set_accessor, is_string_literal,
-    is_type_only_import_or_export_declaration, is_var_const, is_variable_declaration,
-    is_variable_like_or_accessor, modifier_to_flag, node_can_be_decorated, node_is_present,
-    parse_isolated_entity_name, should_preserve_const_enums, some, token_to_string, try_cast,
+    is_binding_pattern, is_declaration, is_declaration_readonly, is_effective_external_module,
+    is_entity_name, is_enum_const, is_expression, is_function_declaration, is_function_like,
+    is_generated_identifier, is_get_accessor, is_global_scope_augmentation, is_identifier,
+    is_jsdoc_parameter_tag, is_named_declaration, is_private_identifier_class_element_declaration,
+    is_property_access_expression, is_property_declaration, is_qualified_name, is_set_accessor,
+    is_string_literal, is_type_only_import_or_export_declaration, is_var_const,
+    is_variable_declaration, is_variable_like_or_accessor, maybe_is_class_like, modifier_to_flag,
+    node_can_be_decorated, node_is_present, parse_isolated_entity_name,
+    should_preserve_const_enums, some, token_to_string, try_cast,
     with_synthetic_factory_and_factory, Debug_, Diagnostics, ExternalEmitHelpers,
     FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType, ModifierFlags,
     NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, ObjectFlags,
@@ -174,7 +174,7 @@ impl TypeChecker {
             return false;
         }
         for_each_entry_bool(
-            &(*self.get_exports_of_symbol(symbol)).borrow(),
+            &*(*self.get_exports_of_symbol(symbol)).borrow(),
             |p: &Rc<Symbol>, _| {
                 p.flags().intersects(SymbolFlags::Value)
                     && matches!(
@@ -764,7 +764,7 @@ impl TypeChecker {
                 continue;
             }
             if !is_external_or_common_js_module(file) {
-                let file_global_this_symbol = (**file.locals())
+                let file_global_this_symbol = (*file.locals())
                     .borrow()
                     .get(&__String::new("globalThis".to_owned()))
                     .cloned();
@@ -1281,7 +1281,7 @@ impl TypeChecker {
                 }
                 if node.kind() == SyntaxKind::IndexSignature
                     && (modifier.kind() != SyntaxKind::StaticKeyword
-                        || !is_class_like(&node.parent()))
+                        || !maybe_is_class_like(node.maybe_parent()))
                 {
                     return self.grammar_error_on_node(
                         modifier,
@@ -1504,7 +1504,7 @@ impl TypeChecker {
                             &Diagnostics::_0_modifier_must_precede_1_modifier,
                             Some(vec!["export".to_owned(), "async".to_owned()]),
                         );
-                    } else if is_class_like(&node.parent()) {
+                    } else if maybe_is_class_like(node.maybe_parent()) {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_appear_on_class_elements_of_this_kind,
@@ -1562,7 +1562,9 @@ impl TypeChecker {
                             &Diagnostics::_0_modifier_cannot_be_used_in_an_ambient_context,
                             Some(vec!["override".to_owned()]),
                         );
-                    } else if is_class_like(&node.parent()) && !is_property_declaration(node) {
+                    } else if maybe_is_class_like(node.maybe_parent())
+                        && !is_property_declaration(node)
+                    {
                         return self.grammar_error_on_node(
                             modifier,
                             &Diagnostics::_0_modifier_cannot_appear_on_class_elements_of_this_kind,

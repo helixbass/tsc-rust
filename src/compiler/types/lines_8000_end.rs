@@ -31,7 +31,7 @@ pub struct Printer {
     pub generated_names: RefCell<HashSet<String>>,
     pub temp_flags_stack: RefCell<Vec<TempFlags>>,
     pub temp_flags: Cell<TempFlags>,
-    pub reserved_names_stack: RefCell<Vec<Rc<RefCell<HashSet<String>>>>>,
+    pub reserved_names_stack: RefCell<Vec<Option<Rc<RefCell<HashSet<String>>>>>>,
     pub reserved_names: RefCell<Option<Rc<RefCell<HashSet<String>>>>>,
     pub preserve_source_newlines: Cell<Option<bool>>,
     pub next_list_element_pos: Cell<Option<isize>>,
@@ -48,9 +48,9 @@ pub struct Printer {
 
     pub source_maps_disabled: Cell<bool>,
     pub source_map_generator: RefCell<Option<Rc<dyn SourceMapGenerator>>>,
-    pub source_map_source: RefCell<Option<SourceMapSource>>,
+    pub source_map_source: RefCell<Option<Rc<SourceMapSource>>>,
     pub source_map_source_index: Cell<isize>,
-    pub most_recently_added_source_map_source: RefCell<Option<SourceMapSource>>,
+    pub most_recently_added_source_map_source: RefCell<Option<Rc<SourceMapSource>>>,
     pub most_recently_added_source_map_source_index: Cell<isize>,
 
     pub container_pos: Cell<isize>,
@@ -635,7 +635,9 @@ pub struct RawSourceMap {
     pub names: Option<Vec<String>>,
 }
 
-pub trait SourceMapGenerator {}
+pub trait SourceMapGenerator {
+    fn add_source(&self, file_name: &str) -> usize;
+}
 
 pub trait EmitTextWriter: SymbolWriter {
     fn write(&self, s: &str);

@@ -227,10 +227,7 @@ impl TypeChecker {
         if name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
             return Some(format!(
                 "[{}]",
-                self.get_name_of_symbol_as_written(
-                    &name_type.as_unique_es_symbol_type().symbol,
-                    context
-                )
+                self.get_name_of_symbol_as_written(&name_type.symbol(), context)
             ));
         }
         None
@@ -610,7 +607,7 @@ impl TypeChecker {
             }
             TypeSystemPropertyName::ResolvedBaseConstructorType => target
                 .as_type()
-                .as_interface_type()
+                .as_not_actually_interface_type()
                 .maybe_resolved_base_constructor_type()
                 .is_some(),
             TypeSystemPropertyName::ResolvedReturnType => {
@@ -627,7 +624,7 @@ impl TypeChecker {
             TypeSystemPropertyName::ResolvedBaseTypes => matches!(
                 target
                     .as_type()
-                    .as_interface_type()
+                    .as_not_actually_interface_type()
                     .maybe_base_types_resolved(),
                 Some(true)
             ),
@@ -715,10 +712,10 @@ impl TypeChecker {
         &self,
         node: &Node, /*BindingElementGrandparent*/
     ) -> Option<Rc<Type>> {
-        let symbol = self.get_symbol_of_node(node)?;
-        RefCell::borrow(&self.get_symbol_links(&symbol))
-            .type_
-            .clone()
+        let symbol = self.get_symbol_of_node(node);
+        symbol
+            .as_ref()
+            .and_then(|symbol| (*self.get_symbol_links(symbol)).borrow().type_.clone())
             .or_else(|| self.get_type_for_variable_like_declaration(node, false))
     }
 

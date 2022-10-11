@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::{Borrow, Cow};
-use std::cell::{RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -500,10 +500,20 @@ impl TypeChecker {
             *cache.maybe_variances() = Some(vec![]);
             let mut variances: Vec<VarianceFlags> = vec![];
             for tp in &type_parameters {
-                let mut unmeasurable = false;
-                let mut unreliable = false;
-                // const oldHandler = outofbandVarianceMarkerHandler;
-                // outofbandVarianceMarkerHandler = (onlyUnreliable) => onlyUnreliable ? unreliable = true : unmeasurable = true;
+                let unmeasurable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
+                let unreliable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
+                let old_handler = self.maybe_outofband_variance_marker_handler();
+                self.set_outofband_variance_marker_handler(Some(Rc::new({
+                    let unmeasurable = unmeasurable.clone();
+                    let unreliable = unreliable.clone();
+                    move |only_unreliable| {
+                        if only_unreliable {
+                            unreliable.set(true);
+                        } else {
+                            unmeasurable.set(true);
+                        }
+                    }
+                })));
                 let type_with_super = create_marker_type(&cache, tp, &self.marker_super_type());
                 let type_with_sub = create_marker_type(&cache, tp, &self.marker_sub_type());
                 let mut variance =
@@ -524,12 +534,12 @@ impl TypeChecker {
                 {
                     variance = VarianceFlags::Independent;
                 }
-                // outofbandVarianceMarkerHandler = oldHandler;
-                if unmeasurable || unreliable {
-                    if unmeasurable {
+                self.set_outofband_variance_marker_handler(old_handler);
+                if unmeasurable.get() || unreliable.get() {
+                    if unmeasurable.get() {
                         variance |= VarianceFlags::Unmeasurable;
                     }
-                    if unreliable {
+                    if unreliable.get() {
                         variance |= VarianceFlags::Unreliable;
                     }
                 }
@@ -669,7 +679,7 @@ impl TypeChecker {
         format!("{},{}{}", source.id(), target.id(), post_fix)
     }
 
-    pub(super) fn for_each_property<TReturn, TCallback: FnMut(&Symbol) -> TReturn>(
+    pub(super) fn for_each_property<TReturn, TCallback: FnMut(&Symbol) -> Option<TReturn>>(
         &self,
         prop: &Symbol,
         callback: &mut TCallback,
@@ -691,7 +701,7 @@ impl TypeChecker {
             }
             return None;
         }
-        Some(callback(prop))
+        callback(prop)
     }
 
     pub(super) fn for_each_property_bool<TCallback: FnMut(&Symbol) -> bool>(

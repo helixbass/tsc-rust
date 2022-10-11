@@ -10,10 +10,10 @@ use crate::{
     for_each, get_containing_function, get_effective_type_annotation_node, get_function_flags,
     get_immediately_invoked_function_expression, get_object_flags, get_source_file_of_node,
     get_this_parameter, has_initializer, index_of_node, is_access_expression, is_binding_element,
-    is_binding_pattern, is_class_like, is_computed_non_literal_name,
-    is_defaulted_expando_initializer, is_expression, is_function_like, is_identifier,
-    is_import_call, is_in_js_file, is_jsx_opening_like_element, is_parameter,
-    is_private_identifier, is_property_access_expression, is_static, last_or_undefined,
+    is_binding_pattern, is_computed_non_literal_name, is_defaulted_expando_initializer,
+    is_expression, is_function_like, is_identifier, is_import_call, is_in_js_file,
+    is_jsx_opening_like_element, is_parameter, is_private_identifier,
+    is_property_access_expression, is_static, last_or_undefined, maybe_is_class_like,
     walk_up_parenthesized_expressions, AccessFlags, ContextFlags, FunctionFlags,
     HasInitializerInterface, InferenceContext, NamedDeclarationInterface, Node, NodeInterface,
     Number, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
@@ -35,7 +35,7 @@ impl TypeChecker {
         if is_call_expression {
             return container.kind() == SyntaxKind::Constructor;
         } else {
-            if is_class_like(&container.parent())
+            if maybe_is_class_like(container.maybe_parent())
                 || container.parent().kind() == SyntaxKind::ObjectLiteralExpression
             {
                 if is_static(container) {
@@ -371,10 +371,9 @@ impl TypeChecker {
         context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
         let declaration = node.parent();
-        let declaration_as_variable_declaration = declaration.as_variable_declaration();
         if has_initializer(&declaration)
             && matches!(
-                declaration_as_variable_declaration.maybe_initializer().as_deref(),
+                declaration.as_has_initializer().maybe_initializer().as_deref(),
                 Some(declaration_initializer) if ptr::eq(
                     node,
                     declaration_initializer
@@ -388,10 +387,10 @@ impl TypeChecker {
             if !matches!(
                 context_flags,
                 Some(context_flags) if context_flags.intersects(ContextFlags::SkipBindingPatterns)
-            ) && is_binding_pattern(declaration_as_variable_declaration.maybe_name())
+            ) && is_binding_pattern(declaration.as_named_declaration().maybe_name())
             {
                 return Some(self.get_type_from_binding_pattern(
-                    &declaration_as_variable_declaration.name(),
+                    &declaration.as_named_declaration().name(),
                     Some(true),
                     Some(false),
                 ));

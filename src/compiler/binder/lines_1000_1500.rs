@@ -9,9 +9,9 @@ use crate::{
     concatenate, is_binary_expression, is_dotted_name,
     is_logical_or_coalescing_assignment_operator, is_optional_chain, is_outermost_optional_chain,
     is_parenthesized_expression, is_prefix_unary_expression, skip_parentheses,
-    unused_label_is_error, Diagnostics, FlowAssignment, FlowCall, FlowFlags, FlowNode,
-    FlowNodeBase, FlowSwitchClause, HasInitializerInterface, SyntaxKind, __String, for_each_bool,
-    NamedDeclarationInterface, Node, NodeInterface,
+    unused_label_is_error, Diagnostics, FlowArrayMutation, FlowAssignment, FlowCall, FlowFlags,
+    FlowNode, FlowNodeBase, FlowSwitchClause, HasInitializerInterface, SyntaxKind, __String,
+    for_each_bool, NamedDeclarationInterface, Node, NodeInterface,
 };
 
 impl BinderType {
@@ -43,7 +43,11 @@ impl BinderType {
     ) -> Rc<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
         let result: Rc<FlowNode> = Rc::new(init_flow_node(
-            FlowAssignment::new(flags, antecedent, node.node_wrapper()).into(),
+            if flags.intersects(FlowFlags::ArrayMutation) {
+                FlowArrayMutation::new(flags, antecedent, node.node_wrapper()).into()
+            } else {
+                FlowAssignment::new(flags, antecedent, node.node_wrapper()).into()
+            },
         ));
         if let Some(current_exception_target) = self.maybe_current_exception_target() {
             self.add_antecedent(&current_exception_target, result.clone());
@@ -539,7 +543,12 @@ impl BinderType {
         let mut i = 0;
         while i < clauses.len() {
             let clause_start = i;
-            while clauses[i].as_case_clause().statements.is_empty() && i + 1 < clauses.len() {
+            while clauses[i]
+                .as_case_or_default_clause()
+                .statements()
+                .is_empty()
+                && i + 1 < clauses.len()
+            {
                 self.bind(Some(&*clauses[i]));
                 i += 1;
             }
@@ -570,7 +579,7 @@ impl BinderType {
                 && matches!(self.options().no_fallthrough_cases_in_switch, Some(true))
             {
                 clause
-                    .as_case_clause()
+                    .as_case_or_default_clause()
                     .set_fallthrough_flow_node(Some(self.current_flow()));
             }
             i += 1;

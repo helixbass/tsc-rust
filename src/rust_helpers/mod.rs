@@ -2,6 +2,7 @@ use std::convert::{TryFrom, TryInto};
 use std::mem;
 use std::rc::Rc;
 
+pub mod debugging;
 pub mod number;
 pub mod sys;
 pub mod weak_self;

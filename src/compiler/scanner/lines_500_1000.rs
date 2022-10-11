@@ -4,7 +4,7 @@ use regex::Regex;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 
-use super::{code_point_at, is_line_break, is_unicode_identifier_start, is_white_space_like};
+use super::{is_line_break, is_unicode_identifier_start, is_white_space_like, maybe_code_point_at};
 use crate::{
     maybe_text_char_at_index, position_is_synthesized, text_char_at_index, text_len,
     text_substring, CharacterCodes, CommentDirective, CommentKind, CommentRange, Debug_,
@@ -308,7 +308,7 @@ pub(super) fn iterate_comment_ranges<
 >(
     reduce: bool,
     text: &SourceTextAsChars,
-    mut pos: usize,
+    mut pos: isize,
     trailing: bool,
     mut cb: TCallback,
     state: &TState,
@@ -325,20 +325,23 @@ pub(super) fn iterate_comment_ranges<
         collecting = true;
         let shebang = get_shebang(text);
         if let Some(shebang) = shebang {
-            pos = shebang.len();
+            pos = shebang.len().try_into().unwrap();
         }
     }
-    while pos >= 0 && pos < text_len(text) {
-        let ch = text_char_at_index(text, pos);
+    while pos >= 0 && TryInto::<usize>::try_into(pos).unwrap() < text_len(text) {
+        let mut pos_as_usize: usize = pos.try_into().unwrap();
+        let ch = text_char_at_index(text, pos_as_usize);
         match ch {
             CharacterCodes::carriage_return => {
                 if matches!(
-                    maybe_text_char_at_index(text, pos + 1),
+                    maybe_text_char_at_index(text, pos_as_usize + 1),
                     Some(CharacterCodes::line_feed)
                 ) {
                     pos += 1;
+                    pos_as_usize += 1;
                 }
                 pos += 1;
+                pos_as_usize += 1;
                 if trailing {
                     break;
                 }
@@ -352,6 +355,7 @@ pub(super) fn iterate_comment_ranges<
             }
             CharacterCodes::line_feed => {
                 pos += 1;
+                pos_as_usize += 1;
                 if trailing {
                     break;
                 }
@@ -368,10 +372,11 @@ pub(super) fn iterate_comment_ranges<
             | CharacterCodes::form_feed
             | CharacterCodes::space => {
                 pos += 1;
+                pos_as_usize += 1;
                 continue;
             }
             CharacterCodes::slash => {
-                let next_char = maybe_text_char_at_index(text, pos + 1);
+                let next_char = maybe_text_char_at_index(text, pos_as_usize + 1);
                 let mut has_trailing_new_line = false;
                 if matches!(
                     next_char,
@@ -383,28 +388,32 @@ pub(super) fn iterate_comment_ranges<
                     } else {
                         SyntaxKind::MultiLineCommentTrivia
                     };
-                    let start_pos = pos;
+                    let start_pos = pos_as_usize;
                     pos += 2;
+                    pos_as_usize += 2;
                     if next_char == CharacterCodes::slash {
-                        while pos < text_len(text) {
-                            if is_line_break(text_char_at_index(text, pos)) {
+                        while pos_as_usize < text_len(text) {
+                            if is_line_break(text_char_at_index(text, pos_as_usize)) {
                                 has_trailing_new_line = true;
                                 break;
                             }
                             pos += 1;
+                            pos_as_usize += 1;
                         }
                     } else {
-                        while pos < text_len(text) {
-                            if text_char_at_index(text, pos) == CharacterCodes::asterisk
+                        while pos_as_usize < text_len(text) {
+                            if text_char_at_index(text, pos_as_usize) == CharacterCodes::asterisk
                                 && matches!(
-                                    maybe_text_char_at_index(text, pos + 1),
+                                    maybe_text_char_at_index(text, pos_as_usize + 1),
                                     Some(CharacterCodes::slash)
                                 )
                             {
                                 pos += 2;
+                                pos_as_usize += 2;
                                 break;
                             }
                             pos += 1;
+                            pos_as_usize += 1;
                         }
                     }
 
@@ -424,7 +433,7 @@ pub(super) fn iterate_comment_ranges<
                         }
 
                         pending_pos = Some(start_pos);
-                        pending_end = Some(pos);
+                        pending_end = Some(pos_as_usize);
                         pending_kind = Some(kind);
                         pending_has_trailing_new_line = Some(has_trailing_new_line);
                         has_pending_comment_range = true;
@@ -441,6 +450,7 @@ pub(super) fn iterate_comment_ranges<
                         pending_has_trailing_new_line = Some(true);
                     }
                     pos += 1;
+                    pos_as_usize += 1;
                     continue;
                 }
                 break;
@@ -468,7 +478,7 @@ pub fn for_each_leading_comment_range<
     TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> TMemo,
 >(
     text: &SourceTextAsChars,
-    pos: usize,
+    pos: isize,
     mut cb: TCallback,
     state: &TState, // TODO: expose a for_each_leading_comment_no_state variant (with different callback args and no state arg)?
 ) -> Option<TMemo> {
@@ -491,7 +501,7 @@ pub fn for_each_trailing_comment_range<
     TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> TMemo,
 >(
     text: &SourceTextAsChars,
-    pos: usize,
+    pos: isize,
     mut cb: TCallback,
     state: &TState,
 ) -> Option<TMemo> {
@@ -514,7 +524,7 @@ pub fn reduce_each_leading_comment_range<
     TCallback: FnMut(usize, usize, CommentKind, bool, &TState, TMemo) -> TMemo,
 >(
     text: &SourceTextAsChars,
-    pos: usize,
+    pos: isize,
     mut cb: TCallback,
     state: &TState,
     initial: TMemo,
@@ -539,7 +549,7 @@ pub fn reduce_each_trailing_comment_range<
     TCallback: FnMut(usize, usize, CommentKind, bool, &TState, TMemo) -> TMemo,
 >(
     text: &SourceTextAsChars,
-    pos: usize,
+    pos: isize,
     mut cb: TCallback,
     state: &TState,
     initial: TMemo,
@@ -582,14 +592,14 @@ pub(super) fn append_comment_range(
 
 pub fn get_leading_comment_ranges(
     text: &SourceTextAsChars,
-    pos: usize,
+    pos: isize,
 ) -> Option<Vec<CommentRange>> {
     reduce_each_leading_comment_range(text, pos, append_comment_range, &(), None)
 }
 
 pub fn get_trailing_comment_ranges(
     text: &SourceTextAsChars,
-    pos: usize,
+    pos: isize,
 ) -> Option<Vec<CommentRange>> {
     reduce_each_trailing_comment_range(text, pos, append_comment_range, &(), None)
 }
@@ -655,8 +665,11 @@ pub fn is_identifier_text(
     language_version: Option<ScriptTarget>,
     identifier_variant: Option<LanguageVariant>,
 ) -> bool {
-    let ch = code_point_at(&name.chars().collect(), 0);
-    if !is_identifier_start(ch, language_version) {
+    let ch = maybe_code_point_at(&name.chars().collect(), 0);
+    if !matches!(
+        ch,
+        Some(ch) if is_identifier_start(ch, language_version)
+    ) {
         return false;
     }
 

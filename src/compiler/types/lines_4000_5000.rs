@@ -131,7 +131,6 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 
 pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
 
-#[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub(crate) host: Rc<dyn TypeCheckerHostDebuggable>,
@@ -381,6 +380,7 @@ pub struct TypeChecker {
 
     pub(crate) _jsx_namespace: RefCell<Option<__String>>,
     pub(crate) _jsx_factory_entity: RefCell<Option<Rc<Node /*EntityName*/>>>,
+    pub(crate) outofband_variance_marker_handler: RefCell<Option<Rc<dyn Fn(bool)>>>,
 
     pub(crate) subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     pub(crate) strict_subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -392,6 +392,12 @@ pub struct TypeChecker {
     pub(crate) builtin_globals: RefCell<Option<SymbolTable>>,
 
     pub(crate) suggested_extensions: Vec<(&'static str, &'static str)>,
+}
+
+impl fmt::Debug for TypeChecker {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TypeChecker").finish()
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

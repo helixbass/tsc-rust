@@ -401,7 +401,6 @@ impl CheckTypeRelatedTo {
                 } else {
                     path = format!("{}[{}]", path, str);
                 }
-                break;
             } else if msg.code == Diagnostics::Call_signature_return_types_0_and_1_are_incompatible.code ||
                 msg.code == Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible.code ||
                 msg.code == Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code ||
@@ -429,7 +428,6 @@ impl CheckTypeRelatedTo {
                     };
                     path = format!("{}{}({})", prefix, path, params);
                 }
-                break;
             } else if msg.code == Diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target.code {
                 secondary_root_errors.insert(0, (&Diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target, args));
             } else if msg.code == Diagnostics::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target.code {
@@ -636,7 +634,7 @@ impl CheckTypeRelatedTo {
     ) {
         let source_type = if self
             .type_checker
-            .symbol_value_declaration_is_context_sensitive(&source.symbol())
+            .symbol_value_declaration_is_context_sensitive(source.maybe_symbol().as_deref())
         {
             self.type_checker.type_to_string_(
                 source,
@@ -650,7 +648,7 @@ impl CheckTypeRelatedTo {
         };
         let target_type = if self
             .type_checker
-            .symbol_value_declaration_is_context_sensitive(&target.symbol())
+            .symbol_value_declaration_is_context_sensitive(target.maybe_symbol().as_deref())
         {
             self.type_checker.type_to_string_(
                 target,

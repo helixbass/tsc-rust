@@ -182,7 +182,7 @@ impl Printer {
             {
                 for_each_trailing_comment_range(
                     &current_source_file.as_source_file().text_as_chars(),
-                    end.try_into().unwrap(),
+                    end,
                     |pos: usize,
                      end: usize,
                      kind: SyntaxKind,
@@ -354,7 +354,45 @@ impl Printer {
         unimplemented!()
     }
 
-    pub(super) fn set_source_map_source(&self, source: SourceMapSource) {
+    pub(super) fn set_source_map_source(&self, source: Rc<SourceMapSource>) {
+        if self.source_maps_disabled() {
+            return;
+        }
+
+        self.set_source_map_source_(Some(source.clone()));
+
+        if matches!(
+            self.maybe_most_recently_added_source_map_source().as_ref(),
+            Some(most_recently_added_source_map_source) if Rc::ptr_eq(
+                &source,
+                most_recently_added_source_map_source
+            )
+        ) {
+            self.set_source_map_source_index(self.most_recently_added_source_map_source_index());
+            return;
+        }
+
+        if self.is_json_source_map_source(&source) {
+            return;
+        }
+
+        self.set_source_map_source_index(
+            self.source_map_generator()
+                .add_source(&source.file_name())
+                .try_into()
+                .unwrap(),
+        );
+        if self.printer_options.inline_sources == Some(true) {
+            // self.source_map_generator()
+            //     .set_source_content()
+            unimplemented!()
+        }
+
+        self.set_most_recently_added_source_map_source(Some(source));
+        self.set_most_recently_added_source_map_source_index(self.source_map_source_index());
+    }
+
+    pub(super) fn is_json_source_map_source(&self, source_file: &SourceMapSource) -> bool {
         unimplemented!()
     }
 }

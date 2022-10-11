@@ -502,6 +502,15 @@ pub enum SourceMapSource {
     SourceMapSourceConcrete(SourceMapSourceConcrete),
 }
 
+impl SourceMapSource {
+    pub fn file_name(&self) -> String {
+        match self {
+            Self::SourceFile(value) => value.as_source_file().file_name().clone(),
+            Self::SourceMapSourceConcrete(value) => value.file_name.clone(),
+        }
+    }
+}
+
 impl From<Rc<Node /*SourceFile*/>> for SourceMapSource {
     fn from(value: Rc<Node>) -> Self {
         Self::SourceFile(value)

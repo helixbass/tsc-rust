@@ -739,6 +739,7 @@ impl ParserType {
                         None,
                     )
                     .into();
+                continue;
             }
 
             if (question_dot_token.is_some() || !self.in_decorator_context())

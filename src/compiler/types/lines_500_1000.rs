@@ -194,8 +194,10 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
-    fn maybe_locals(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
-    fn locals(&self) -> RefMut<Rc<RefCell<SymbolTable>>>;
+    fn maybe_locals(&self) -> Option<Rc<RefCell<SymbolTable>>>;
+    fn maybe_locals_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
+    fn locals(&self) -> Rc<RefCell<SymbolTable>>;
+    fn locals_mut(&self) -> RefMut<Rc<RefCell<SymbolTable>>>;
     fn set_locals(&self, locals: Option<Rc<RefCell<SymbolTable>>>);
     fn maybe_next_container(&self) -> Option<Rc<Node>>;
     fn set_next_container(&self, next_container: Option<Rc<Node>>);
@@ -464,6 +466,7 @@ impl Node {
             Node::PropertyAccessExpression(node) => Some(node),
             Node::NamespaceImport(node) => Some(node),
             Node::SpreadAssignment(node) => Some(node),
+            Node::SemicolonClassElement(node) => Some(node),
             _ => None,
         }
     }
@@ -475,7 +478,8 @@ impl Node {
 
     pub fn as_member_name(&self) -> &dyn MemberNameInterface {
         match self {
-            Node::Identifier(identifier) => identifier,
+            Node::Identifier(node) => node,
+            Node::PrivateIdentifier(node) => node,
             _ => panic!("Expected member name"),
         }
     }
@@ -775,15 +779,22 @@ impl Node {
         }
     }
 
+    pub fn maybe_as_interface_or_class_like_declaration(
+        &self,
+    ) -> Option<&dyn InterfaceOrClassLikeDeclarationInterface> {
+        match self {
+            Node::ClassDeclaration(node) => Some(node),
+            Node::ClassExpression(node) => Some(node),
+            Node::InterfaceDeclaration(node) => Some(node),
+            _ => None,
+        }
+    }
+
     pub fn as_interface_or_class_like_declaration(
         &self,
     ) -> &dyn InterfaceOrClassLikeDeclarationInterface {
-        match self {
-            Node::ClassDeclaration(node) => node,
-            Node::ClassExpression(node) => node,
-            Node::InterfaceDeclaration(node) => node,
-            _ => panic!("Expected interface or class like declaration"),
-        }
+        self.maybe_as_interface_or_class_like_declaration()
+            .expect("Expected interface or class like declaration")
     }
 
     pub fn as_has_statements(&self) -> &dyn HasStatementsInterface {
@@ -1020,6 +1031,13 @@ impl Node {
 
     pub fn as_object_literal_expression(&self) -> &ObjectLiteralExpression {
         enum_unwrapped!(self, [Node, ObjectLiteralExpression])
+    }
+
+    pub fn maybe_as_identifier(&self) -> Option<&Identifier> {
+        match self {
+            Node::Identifier(value) => Some(value),
+            _ => None,
+        }
     }
 
     pub fn as_identifier(&self) -> &Identifier {
@@ -1818,11 +1836,19 @@ impl NodeInterface for BaseNode {
         *self.symbol.borrow_mut() = Some(symbol);
     }
 
-    fn maybe_locals(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_locals(&self) -> Option<Rc<RefCell<SymbolTable>>> {
+        self.locals.borrow().clone()
+    }
+
+    fn maybe_locals_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
         self.locals.borrow_mut()
     }
 
-    fn locals(&self) -> RefMut<Rc<RefCell<SymbolTable>>> {
+    fn locals(&self) -> Rc<RefCell<SymbolTable>> {
+        self.locals.borrow().clone().unwrap()
+    }
+
+    fn locals_mut(&self) -> RefMut<Rc<RefCell<SymbolTable>>> {
         RefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 

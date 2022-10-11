@@ -17,9 +17,9 @@ use crate::{
     is_property_access_expression, is_prototype_access, is_shorthand_property_assignment,
     is_special_property_declaration, is_static, is_this_initialized_declaration,
     remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
-    Diagnostics, HasQuestionTokenInterface, InternalSymbolName, SymbolTable, SyntaxKind, __String,
-    is_exports_identifier, is_identifier, is_module_exports_access_expression, is_source_file,
-    Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface,
+    Diagnostics, InternalSymbolName, SymbolTable, SyntaxKind, __String, is_exports_identifier,
+    is_identifier, is_module_exports_access_expression, is_source_file, Node, NodeInterface,
+    Symbol, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -234,11 +234,10 @@ impl BinderType {
                 self.bind_property_or_method_or_accessor(
                     node,
                     SymbolFlags::Method
-                        | if matches!(node.kind(), SyntaxKind::MethodDeclaration)
-                            && node
-                                .as_method_declaration()
-                                .maybe_question_token()
-                                .is_some()
+                        | if node
+                            .as_has_question_token()
+                            .maybe_question_token()
+                            .is_some()
                         {
                             SymbolFlags::Optional
                         } else {
@@ -531,7 +530,7 @@ impl BinderType {
         if matches!(node.maybe_modifiers().as_ref(), Some(modifiers) if !modifiers.is_empty()) {
             self.file()
                 .as_source_file()
-                .bind_diagnostics()
+                .bind_diagnostics_mut()
                 .push(Rc::new(
                     create_diagnostic_for_node(
                         node,
@@ -553,7 +552,7 @@ impl BinderType {
         if let Some(diag) = diag {
             self.file()
                 .as_source_file()
-                .bind_diagnostics()
+                .bind_diagnostics_mut()
                 .push(Rc::new(create_diagnostic_for_node(node, diag, None).into()));
         } else {
             let file_symbol = self.file().symbol();

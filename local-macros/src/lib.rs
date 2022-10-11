@@ -164,12 +164,20 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_symbol(symbol);
                     }
 
-                    fn maybe_locals(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                    fn maybe_locals(&self) -> ::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>> {
                         self.#first_field_name.maybe_locals()
                     }
 
-                    fn locals(&self) -> ::std::cell::RefMut<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>> {
+                    fn maybe_locals_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        self.#first_field_name.maybe_locals_mut()
+                    }
+
+                    fn locals(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
                         self.#first_field_name.locals()
+                    }
+
+                    fn locals_mut(&self) -> ::std::cell::RefMut<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>> {
+                        self.#first_field_name.locals_mut()
                     }
 
                     fn set_locals(&self, locals: ::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>) {
@@ -638,15 +646,27 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_locals(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                    fn maybe_locals(&self) -> ::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_locals()),*
                         }
                     }
 
-                    fn locals(&self) -> ::std::cell::RefMut<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>> {
+                    fn maybe_locals_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_locals_mut()),*
+                        }
+                    }
+
+                    fn locals(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.locals()),*
+                        }
+                    }
+
+                    fn locals_mut(&self) -> ::std::cell::RefMut<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.locals_mut()),*
                         }
                     }
 

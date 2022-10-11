@@ -122,7 +122,7 @@ impl BinderType {
                 if current_kind == ElementKind::Property && existing_kind == ElementKind::Property {
                     let file = self.file();
                     let span = get_error_span_for_node(&file, &identifier);
-                    file.as_source_file().bind_diagnostics().push(
+                    file.as_source_file().bind_diagnostics_mut().push(
                         Rc::new(
                             create_file_diagnostic(
                                 &file,
@@ -194,7 +194,8 @@ impl BinderType {
                     self.declare_module_member(node, symbol_flags, symbol_excludes);
                 } else {
                     {
-                        let mut block_scope_container_locals = block_scope_container.maybe_locals();
+                        let mut block_scope_container_locals =
+                            block_scope_container.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
                             *block_scope_container_locals =
                                 Some(Rc::new(RefCell::new(create_symbol_table(None))));
@@ -214,7 +215,7 @@ impl BinderType {
             }
             _ => {
                 {
-                    let mut block_scope_container_locals = block_scope_container.maybe_locals();
+                    let mut block_scope_container_locals = block_scope_container.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
                         *block_scope_container_locals =
                             Some(Rc::new(RefCell::new(create_symbol_table(None))));
@@ -381,19 +382,24 @@ impl BinderType {
         self.set_current_flow(save_current_flow);
     }
 
-    pub(super) fn check_contextual_identifier(&self, node: &Node /*Identifier*/) {
+    pub(super) fn check_contextual_identifier(
+        &self,
+        node: &Node, /*Identifier (and whatever ThisKeyword is) */
+    ) {
         if self.file().as_source_file().parse_diagnostics().is_empty()
             && !node.flags().intersects(NodeFlags::Ambient)
             && !node.flags().intersects(NodeFlags::JSDoc)
             && !is_identifier_name(node)
         {
-            let node_as_identifier = node.as_identifier();
+            let node_original_keyword_kind = node
+                .maybe_as_identifier()
+                .and_then(|node| node.original_keyword_kind);
             if matches!(self.maybe_in_strict_mode(), Some(true))
-                && matches!(node_as_identifier.original_keyword_kind, Some(original_keyword_kind) if original_keyword_kind >= SyntaxKind::FirstFutureReservedWord && original_keyword_kind <= SyntaxKind::LastFutureReservedWord)
+                && matches!(node_original_keyword_kind, Some(original_keyword_kind) if original_keyword_kind >= SyntaxKind::FirstFutureReservedWord && original_keyword_kind <= SyntaxKind::LastFutureReservedWord)
             {
                 self.file()
                     .as_source_file()
-                    .bind_diagnostics()
+                    .bind_diagnostics_mut()
                     .push(Rc::new(
                         create_diagnostic_for_node(
                             node,
@@ -402,14 +408,11 @@ impl BinderType {
                         )
                         .into(),
                     ));
-            } else if matches!(
-                node_as_identifier.original_keyword_kind,
-                Some(SyntaxKind::AwaitKeyword)
-            ) {
+            } else if matches!(node_original_keyword_kind, Some(SyntaxKind::AwaitKeyword)) {
                 if is_external_module(&self.file()) && is_in_top_level_context(node) {
                     self.file()
                         .as_source_file()
-                        .bind_diagnostics()
+                        .bind_diagnostics_mut()
                         .push(Rc::new(
                             create_diagnostic_for_node(
                                 node,
@@ -421,7 +424,7 @@ impl BinderType {
                 } else if node.flags().intersects(NodeFlags::AwaitContext) {
                     self.file()
                         .as_source_file()
-                        .bind_diagnostics()
+                        .bind_diagnostics_mut()
                         .push(Rc::new(
                             create_diagnostic_for_node(
                                 node,
@@ -431,14 +434,12 @@ impl BinderType {
                             .into(),
                         ));
                 }
-            } else if matches!(
-                node_as_identifier.original_keyword_kind,
-                Some(SyntaxKind::YieldKeyword)
-            ) && node.flags().intersects(NodeFlags::YieldContext)
+            } else if matches!(node_original_keyword_kind, Some(SyntaxKind::YieldKeyword))
+                && node.flags().intersects(NodeFlags::YieldContext)
             {
                 self.file()
                     .as_source_file()
-                    .bind_diagnostics()
+                    .bind_diagnostics_mut()
                     .push(Rc::new(
                         create_diagnostic_for_node(
                             node,
@@ -480,7 +481,7 @@ impl BinderType {
             let file = self.file();
             let file_as_source_file = file.as_source_file();
             if file_as_source_file.parse_diagnostics().is_empty() {
-                file_as_source_file.bind_diagnostics().push(Rc::new(
+                file_as_source_file.bind_diagnostics_mut().push(Rc::new(
                     create_diagnostic_for_node(
                         node,
                         &Diagnostics::constructor_is_a_reserved_word,
@@ -532,7 +533,7 @@ impl BinderType {
                     get_error_span_for_node(&self.file(), &node_as_delete_expression.expression);
                 self.file()
                     .as_source_file()
-                    .bind_diagnostics()
+                    .bind_diagnostics_mut()
                     .push(Rc::new(
                         create_file_diagnostic(
                             &self.file(),
@@ -563,12 +564,11 @@ impl BinderType {
         let name = name.borrow();
         if name.kind() == SyntaxKind::Identifier {
             let identifier = name;
-            let identifier_as_identifier = identifier.as_identifier();
             if self.is_eval_or_arguments_identifier(identifier) {
                 let span = get_error_span_for_node(&self.file(), name);
                 self.file()
                     .as_source_file()
-                    .bind_diagnostics()
+                    .bind_diagnostics_mut()
                     .push(Rc::new(
                         create_file_diagnostic(
                             &self.file(),
@@ -651,7 +651,7 @@ impl BinderType {
                 let error_span = get_error_span_for_node(&self.file(), node);
                 self.file()
                     .as_source_file()
-                    .bind_diagnostics()
+                    .bind_diagnostics_mut()
                     .push(Rc::new(
                         create_file_diagnostic(
                             &self.file(),
@@ -675,7 +675,7 @@ impl BinderType {
             {
                 self.file()
                     .as_source_file()
-                    .bind_diagnostics()
+                    .bind_diagnostics_mut()
                     .push(Rc::new(
                         create_diagnostic_for_node(
                             node,
@@ -757,7 +757,7 @@ impl BinderType {
         let span = get_span_of_token_at_position(&self.file(), node.pos().try_into().unwrap());
         self.file()
             .as_source_file()
-            .bind_diagnostics()
+            .bind_diagnostics_mut()
             .push(Rc::new(
                 create_file_diagnostic(&self.file(), span.start, span.length, message, args).into(),
             ));
@@ -806,7 +806,10 @@ impl BinderType {
             .into(),
         );
         if is_error {
-            self.file().as_source_file().bind_diagnostics().push(diag);
+            self.file()
+                .as_source_file()
+                .bind_diagnostics_mut()
+                .push(diag);
         } else {
             diag.set_category(DiagnosticCategory::Suggestion);
             let file = self.file();

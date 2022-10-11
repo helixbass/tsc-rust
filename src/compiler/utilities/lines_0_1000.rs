@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use indexmap::IndexMap;
 use regex::Regex;
 use std::borrow::{Borrow, Cow};
 use std::cell::{Ref, RefCell, RefMut};
@@ -383,10 +384,11 @@ pub fn for_each_ancestor<
 pub fn for_each_entry<
     TKey,
     TValue,
+    TMap: IntoIterator<Item = (TKey, TValue)>,
     TReturn,
-    TCallback: FnMut(&TValue, &TKey) -> Option<TReturn>,
+    TCallback: FnMut(TValue, TKey) -> Option<TReturn>,
 >(
-    map: &HashMap<TKey, TValue>, /*ReadonlyESMap*/
+    map: TMap, /*ReadonlyESMap*/
     mut callback: TCallback,
 ) -> Option<TReturn> {
     for (key, value) in map {
@@ -398,8 +400,13 @@ pub fn for_each_entry<
     None
 }
 
-pub fn for_each_entry_bool<TKey, TValue, TCallback: FnMut(&TValue, &TKey) -> bool>(
-    map: &HashMap<TKey, TValue>, /*ReadonlyESMap*/
+pub fn for_each_entry_bool<
+    TKey,
+    TValue,
+    TMap: IntoIterator<Item = (TKey, TValue)>,
+    TCallback: FnMut(TValue, TKey) -> bool,
+>(
+    map: TMap, /*ReadonlyESMap*/
     mut callback: TCallback,
 ) -> bool {
     for (key, value) in map {
@@ -431,8 +438,8 @@ pub fn for_each_key<
 }
 
 pub fn copy_entries<TKey: Clone + Eq + Hash, TValue: Clone>(
-    source: &HashMap<TKey, TValue>,
-    target: &mut HashMap<TKey, TValue>,
+    source: &IndexMap<TKey, TValue>,
+    target: &mut IndexMap<TKey, TValue>,
 ) {
     for (key, value) in source {
         target.insert(key.clone(), value.clone());

@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use indexmap::IndexMap;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -17,7 +18,8 @@ use super::{
 use crate::{
     BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
     InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, NodeId,
-    ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface, WeakSelf,
+    NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface,
+    WeakSelf,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -181,7 +183,7 @@ impl Deref for __String {
 
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
-pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
+pub type SymbolTable = IndexMap<__String, Rc<Symbol>>;
 
 #[derive(Clone, Debug)]
 pub struct PatternAmbientModule {
@@ -492,6 +494,18 @@ impl Type {
         match self {
             Type::ObjectType(ObjectType::InterfaceType(type_)) => Some(type_),
             _ => None,
+        }
+    }
+
+    pub fn as_not_actually_interface_type<'a>(&'a self) -> NotActuallyInterfaceType<'a> {
+        match self {
+            Type::ObjectType(ObjectType::InterfaceType(value)) => {
+                NotActuallyInterfaceType::InterfaceType(value)
+            }
+            Type::ObjectType(ObjectType::BaseObjectType(value)) => {
+                NotActuallyInterfaceType::BaseObjectType(value)
+            }
+            _ => panic!("Expected not actually interface type"),
         }
     }
 
