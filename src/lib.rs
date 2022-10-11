@@ -236,7 +236,9 @@ pub use compiler::scanner::{
 pub use compiler::semver::{Version, VersionRange};
 pub use compiler::sourcemap::try_parse_raw_source_map;
 use compiler::sys::{generate_djb2_hash, ignored_paths, missing_file_modified_time};
-pub use compiler::sys::{get_sys, DirectoryWatcherCallback, FileWatcherCallback, System};
+pub use compiler::sys::{
+    get_sys, DirectoryWatcherCallback, FileWatcher, FileWatcherCallback, System,
+};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
 pub use compiler::transformer::{
     no_emit_notification, no_emit_substitution, null_transformation_context,
