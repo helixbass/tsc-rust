@@ -6,7 +6,8 @@ use std::rc::Rc;
 use super::{
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
     BaseSignatureDeclaration, BaseVariableLikeDeclaration, FlowNode, HasExpressionInterface,
-    HasQuestionTokenInterface, HasTypeInterface, Node, NodeArray, SyntaxKind, Type,
+    HasQuestionTokenInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
+    SyntaxKind, Type,
 };
 use local_macros::ast_type;
 
@@ -35,6 +36,20 @@ pub struct SemicolonClassElement {
 impl SemicolonClassElement {
     pub fn new(base_node: BaseNode) -> Self {
         Self { _node: base_node }
+    }
+}
+
+impl NamedDeclarationInterface for SemicolonClassElement {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        None
+    }
+
+    fn name(&self) -> Rc<Node> {
+        unreachable!()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        unreachable!()
     }
 }
 

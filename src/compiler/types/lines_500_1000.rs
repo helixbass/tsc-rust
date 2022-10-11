@@ -464,6 +464,7 @@ impl Node {
             Node::PropertyAccessExpression(node) => Some(node),
             Node::NamespaceImport(node) => Some(node),
             Node::SpreadAssignment(node) => Some(node),
+            Node::SemicolonClassElement(node) => Some(node),
             _ => None,
         }
     }
