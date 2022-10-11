@@ -401,7 +401,6 @@ impl CheckTypeRelatedTo {
                 } else {
                     path = format!("{}[{}]", path, str);
                 }
-                break;
             } else if msg.code == Diagnostics::Call_signature_return_types_0_and_1_are_incompatible.code ||
                 msg.code == Diagnostics::Construct_signature_return_types_0_and_1_are_incompatible.code ||
                 msg.code == Diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1.code ||
@@ -429,7 +428,6 @@ impl CheckTypeRelatedTo {
                     };
                     path = format!("{}{}({})", prefix, path, params);
                 }
-                break;
             } else if msg.code == Diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target.code {
                 secondary_root_errors.insert(0, (&Diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target, args));
             } else if msg.code == Diagnostics::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target.code {
