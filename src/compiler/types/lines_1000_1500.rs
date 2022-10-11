@@ -465,6 +465,12 @@ impl PrivateIdentifier {
     }
 }
 
+impl MemberNameInterface for PrivateIdentifier {
+    fn escaped_text(&self) -> __String {
+        self.escaped_text.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct Decorator {

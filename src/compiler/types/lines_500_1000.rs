@@ -475,7 +475,8 @@ impl Node {
 
     pub fn as_member_name(&self) -> &dyn MemberNameInterface {
         match self {
-            Node::Identifier(identifier) => identifier,
+            Node::Identifier(node) => node,
+            Node::PrivateIdentifier(node) => node,
             _ => panic!("Expected member name"),
         }
     }
