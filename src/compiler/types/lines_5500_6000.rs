@@ -643,11 +643,19 @@ impl Signature {
         self.this_parameter.borrow_mut()
     }
 
-    pub fn maybe_resolved_return_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_resolved_return_type(&self) -> Option<Rc<Type>> {
+        self.resolved_return_type.borrow().clone()
+    }
+
+    pub fn maybe_resolved_return_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
         self.resolved_return_type.borrow_mut()
     }
 
-    pub fn maybe_resolved_type_predicate(&self) -> RefMut<Option<Rc<TypePredicate>>> {
+    pub fn maybe_resolved_type_predicate(&self) -> Option<Rc<TypePredicate>> {
+        self.resolved_type_predicate.borrow().clone()
+    }
+
+    pub fn maybe_resolved_type_predicate_mut(&self) -> RefMut<Option<Rc<TypePredicate>>> {
         self.resolved_type_predicate.borrow_mut()
     }
 

@@ -610,8 +610,8 @@ impl TypeChecker {
         *sig.maybe_type_parameters_mut() = type_parameters;
         sig.set_parameters(parameters);
         *sig.maybe_this_parameter_mut() = this_parameter;
-        *sig.maybe_resolved_return_type() = resolved_return_type;
-        *sig.maybe_resolved_type_predicate() = resolved_type_predicate;
+        *sig.maybe_resolved_return_type_mut() = resolved_return_type;
+        *sig.maybe_resolved_type_predicate_mut() = resolved_type_predicate;
         sig.set_min_argument_count(min_argument_count);
         sig
     }
@@ -846,7 +846,7 @@ impl TypeChecker {
                 *sig.maybe_type_parameters_mut() = class_type_as_interface_type
                     .maybe_local_type_parameters()
                     .map(ToOwned::to_owned);
-                *sig.maybe_resolved_return_type() = Some(class_type.type_wrapper());
+                *sig.maybe_resolved_return_type_mut() = Some(class_type.type_wrapper());
                 sig.flags = if is_abstract {
                     sig.flags | SignatureFlags::Abstract
                 } else {

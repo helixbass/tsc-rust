@@ -456,7 +456,7 @@ impl TypeChecker {
         if signature.maybe_resolved_type_predicate().is_none() {
             if let Some(signature_target) = signature.target.as_ref() {
                 let target_type_predicate = self.get_type_predicate_of_signature(signature_target);
-                *signature.maybe_resolved_type_predicate() =
+                *signature.maybe_resolved_type_predicate_mut() =
                     Some(if let Some(target_type_predicate) = target_type_predicate {
                         Rc::new(self.instantiate_type_predicate(
                             &target_type_predicate,
@@ -468,7 +468,7 @@ impl TypeChecker {
             } else if let Some(signature_composite_signatures) =
                 signature.composite_signatures.as_ref()
             {
-                *signature.maybe_resolved_type_predicate() = Some(
+                *signature.maybe_resolved_type_predicate_mut() = Some(
                     self.get_union_or_intersection_type_predicate(
                         signature_composite_signatures,
                         signature.composite_kind,
@@ -490,7 +490,7 @@ impl TypeChecker {
                         jsdoc_predicate = self.get_type_predicate_of_signature(&jsdoc_signature);
                     }
                 }
-                *signature.maybe_resolved_type_predicate() = Some(
+                *signature.maybe_resolved_type_predicate_mut() = Some(
                     if let Some(type_) = type_.filter(|type_| is_type_predicate_node(type_)) {
                         Rc::new(
                             self.create_type_predicate_from_type_predicate_node(&type_, signature),
@@ -661,7 +661,7 @@ impl TypeChecker {
                 }
                 type_ = self.any_type();
             }
-            *signature.maybe_resolved_return_type() = Some(type_);
+            *signature.maybe_resolved_return_type_mut() = Some(type_);
         }
         signature.maybe_resolved_return_type().clone().unwrap()
     }
@@ -771,7 +771,7 @@ impl TypeChecker {
                 *new_return_signature.maybe_type_parameters_mut() =
                     Some(inferred_type_parameters.to_owned());
                 let new_instantiated_signature = self.clone_signature(&instantiated_signature);
-                *new_instantiated_signature.maybe_resolved_return_type() =
+                *new_instantiated_signature.maybe_resolved_return_type_mut() =
                     Some(self.get_or_create_type_from_signature(Rc::new(new_return_signature)));
                 return Rc::new(new_instantiated_signature);
             }
