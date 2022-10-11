@@ -274,7 +274,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         tuple_name_source: Option<Rc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
     ) -> SyntheticExpression {
         let is_spread = is_spread.unwrap_or(false);
-        unimplemented!()
+        let node = self.create_base_node(base_factory, SyntaxKind::SyntheticExpression);
+        let node = SyntheticExpression::new(node, is_spread, type_, tuple_name_source);
+        node
     }
 
     pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Rc<Node> {

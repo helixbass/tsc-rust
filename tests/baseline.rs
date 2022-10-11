@@ -960,6 +960,7 @@ use typescript_rust::{
 #[case("concatTuples.ts")]
 #[case("conditionalAnyCheckTypePicksBothBranches.ts")]
 #[case("conditionalEqualityTestingNullability.ts")]
+// this seems to be "non-deterministic" in terms of whether the indented error text shows `number` vs `string` (that appears to be controlled by type ID ordering via getUnionType() and I saw different results when running manually with/without --skipLibCheck for example)
 #[case("conditionalExpression1.ts")]
 #[case("conditionalExpressionNewLine1.ts")]
 #[case("conditionalExpressionNewLine10.ts")]

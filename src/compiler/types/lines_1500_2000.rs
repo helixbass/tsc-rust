@@ -1067,3 +1067,19 @@ pub struct SyntheticExpression {
     pub type_: Rc<Type>,
     pub tuple_name_source: Option<Rc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
 }
+
+impl SyntheticExpression {
+    pub fn new(
+        base_node: BaseNode,
+        is_spread: bool,
+        type_: Rc<Type>,
+        tuple_name_source: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            is_spread,
+            type_,
+            tuple_name_source,
+        }
+    }
+}
