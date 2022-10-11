@@ -14,10 +14,9 @@ use crate::{
     is_statement, is_type_alias, length, map, maybe_concatenate, skip_parentheses,
     walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType, CheckFlags, Diagnostics,
     HasTypeArgumentsInterface, InterfaceTypeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectTypeInterface, SubstitutionType, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeReference, TypeReferenceInterface,
-    TypeSystemPropertyName,
+    ObjectFlagsTypeInterface, SubstitutionType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    TypeMapper, TypeReference, TypeReferenceInterface, TypeSystemPropertyName,
 };
 
 impl TypeChecker {

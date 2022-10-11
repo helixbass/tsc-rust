@@ -17,9 +17,9 @@ use crate::{
     is_property_access_expression, is_prototype_access, is_shorthand_property_assignment,
     is_special_property_declaration, is_static, is_this_initialized_declaration,
     remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
-    Diagnostics, HasQuestionTokenInterface, InternalSymbolName, SymbolTable, SyntaxKind, __String,
-    is_exports_identifier, is_identifier, is_module_exports_access_expression, is_source_file,
-    Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface,
+    Diagnostics, InternalSymbolName, SymbolTable, SyntaxKind, __String, is_exports_identifier,
+    is_identifier, is_module_exports_access_expression, is_source_file, Node, NodeInterface,
+    Symbol, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

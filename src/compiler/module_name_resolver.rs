@@ -927,6 +927,7 @@ pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Rc<PerModuleNameCache>;
+    fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache;
 }
 
 pub trait PackageJsonInfoCache {
@@ -1393,6 +1394,10 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
             || self.create_per_module_name_cache(),
         )
     }
+
+    fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache {
+        self
+    }
 }
 
 impl PackageJsonInfoCache for ModuleResolutionCache {
@@ -1615,10 +1620,10 @@ pub fn resolve_module_name(
                 result = Some(classic_name_resolver(
                     module_name,
                     containing_file,
-                    &compiler_options,
+                    compiler_options.clone(),
                     host,
                     cache.as_deref(),
-                    redirected_reference.as_deref(),
+                    redirected_reference.clone(),
                 ));
             }
             _ => {
@@ -2360,6 +2365,17 @@ fn move_to_next_directory_separator_if_available(path: &str, prev_separator_inde
     }
 }
 
+fn load_module_from_file_no_package_id(
+    extensions: Extensions,
+    candidate: &str,
+    only_record_failures: bool,
+    state: &ModuleResolutionState,
+) -> Option<Resolved> {
+    no_package_id(
+        load_module_from_file(extensions, candidate, only_record_failures, state).as_ref(),
+    )
+}
+
 fn load_module_from_file(
     extensions: Extensions,
     candidate: &str,
@@ -2971,6 +2987,22 @@ fn load_module_from_nearest_node_modules_directory(
     )
 }
 
+fn load_module_from_nearest_node_modules_directory_types_scope(
+    module_name: &str,
+    directory: &str,
+    state: &ModuleResolutionState,
+) -> SearchResult<Resolved> {
+    load_module_from_nearest_node_modules_directory_worker(
+        Extensions::DtsOnly,
+        module_name,
+        directory,
+        state,
+        true,
+        None,
+        None,
+    )
+}
+
 fn load_module_from_nearest_node_modules_directory_worker(
     extensions: Extensions,
     module_name: &str,
@@ -3401,12 +3433,125 @@ fn try_find_non_relative_module_name_in_cache(
 pub fn classic_name_resolver<TCache: NonRelativeModuleNameResolutionCache>(
     module_name: &str,
     containing_file: &str,
-    compiler_options: &CompilerOptions,
+    compiler_options: Rc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<&TCache>,
-    redirected_reference: Option<&ResolvedProjectReference>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
 ) -> Rc<ResolvedModuleWithFailedLookupLocations> {
-    unimplemented!()
+    let trace_enabled = is_trace_enabled(&compiler_options, host);
+    let failed_lookup_locations: RefCell<Vec<String>> = RefCell::new(vec![]);
+    let state = ModuleResolutionState {
+        compiler_options: compiler_options.clone(),
+        host,
+        trace_enabled,
+        failed_lookup_locations,
+        package_json_info_cache: cache.map(|cache| cache.as_dyn_package_json_info_cache()),
+        features: NodeResolutionFeatures::None,
+        conditions: vec![],
+        result_from_cache: RefCell::new(None),
+    };
+    let ref containing_directory = get_directory_path(containing_file);
+
+    let resolved = classic_name_resolver_try_resolve(
+        module_name,
+        containing_directory,
+        &state,
+        cache,
+        redirected_reference.clone(),
+        Extensions::TypeScript,
+    )
+    .or_else(|| {
+        classic_name_resolver_try_resolve(
+            module_name,
+            containing_directory,
+            &state,
+            cache,
+            redirected_reference.clone(),
+            Extensions::JavaScript,
+        )
+    });
+    let ModuleResolutionState {
+        failed_lookup_locations: state_failed_lookup_locations,
+        result_from_cache: state_result_from_cache,
+        ..
+    } = state;
+    create_resolved_module_with_failed_lookup_locations(
+        resolved.and_then(|resolved| resolved.value),
+        Some(false),
+        state_failed_lookup_locations.into_inner(),
+        state_result_from_cache.into_inner(),
+    )
+}
+
+fn classic_name_resolver_try_resolve<TCache: NonRelativeModuleNameResolutionCache>(
+    module_name: &str,
+    containing_directory: &str,
+    state: &ModuleResolutionState,
+    cache: Option<&TCache>,
+    redirected_reference: Option<Rc<ResolvedProjectReference>>,
+    extensions: Extensions,
+) -> SearchResult<Resolved> {
+    let resolved_using_settings = try_load_module_using_optional_resolution_settings(
+        extensions,
+        module_name,
+        containing_directory,
+        Rc::new(load_module_from_file_no_package_id),
+        state,
+    );
+    if let Some(resolved_using_settings) = resolved_using_settings {
+        return Some(SearchResultPresent {
+            value: Some(resolved_using_settings),
+        });
+    }
+
+    if !is_external_module_name_relative(module_name) {
+        let per_module_name_cache = cache.map(|cache| {
+            cache.get_or_create_cache_for_module_name(
+                module_name,
+                None,
+                redirected_reference.clone(),
+            )
+        });
+        let resolved = for_each_ancestor_directory(
+            &containing_directory.to_owned().into(),
+            |directory: &Path| {
+                let resolution_from_cache = try_find_non_relative_module_name_in_cache(
+                    per_module_name_cache.as_deref(),
+                    module_name,
+                    directory,
+                    state,
+                );
+                if resolution_from_cache.is_some() {
+                    return resolution_from_cache;
+                }
+                let ref search_name =
+                    normalize_path(&combine_paths(directory, &[Some(module_name)]));
+                to_search_result(load_module_from_file_no_package_id(
+                    extensions,
+                    search_name,
+                    false,
+                    state,
+                ))
+            },
+        );
+        if resolved.is_some() {
+            return resolved;
+        }
+        if extensions == Extensions::TypeScript {
+            return load_module_from_nearest_node_modules_directory_types_scope(
+                module_name,
+                containing_directory,
+                state,
+            );
+        }
+    } else {
+        let ref candidate =
+            normalize_path(&combine_paths(containing_directory, &[Some(module_name)]));
+        return to_search_result(load_module_from_file_no_package_id(
+            extensions, candidate, false, state,
+        ));
+    }
+    None
 }
 
 type SearchResult<TValue> = Option<SearchResultPresent<TValue>>;

@@ -11,8 +11,8 @@ use crate::{
     append_if_unique_rc, arrays_equal, contains, contains_rc, create_scanner, every, filter,
     get_check_flags, get_object_flags, map, some, CheckFlags, ElementFlags, InferenceInfo,
     InferencePriority, Node, ObjectFlags, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface,
-    UnionReduction, VarianceFlags,
+    SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    VarianceFlags,
 };
 
 impl TypeChecker {

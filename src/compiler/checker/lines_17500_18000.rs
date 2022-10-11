@@ -15,7 +15,7 @@ use crate::{
     DiagnosticMessage, Diagnostics, LiteralTypeInterface, Node, NodeInterface, ObjectFlags,
     ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags, SymbolInterface,
     Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
-    TypePredicateKind, TypeReferenceInterface,
+    TypePredicateKind,
 };
 use local_macros::enum_unwrapped;
 

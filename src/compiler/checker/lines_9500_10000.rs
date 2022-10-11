@@ -16,10 +16,9 @@ use crate::{
     is_source_file, is_type_alias, length, maybe_append_if_unique_rc, maybe_first_defined,
     maybe_map, maybe_same_map, resolving_empty_array, same_map, some, AssignmentDeclarationKind,
     CheckFlags, Debug_, Diagnostics, ElementFlags, HasTypeArgumentsInterface,
-    InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectTypeInterface, Signature, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypeSystemPropertyName,
+    InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface, ObjectFlags, Signature,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeSystemPropertyName,
 };
 
 impl TypeChecker {
