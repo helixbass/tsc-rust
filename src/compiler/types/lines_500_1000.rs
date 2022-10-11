@@ -775,15 +775,22 @@ impl Node {
         }
     }
 
+    pub fn maybe_as_interface_or_class_like_declaration(
+        &self,
+    ) -> Option<&dyn InterfaceOrClassLikeDeclarationInterface> {
+        match self {
+            Node::ClassDeclaration(node) => Some(node),
+            Node::ClassExpression(node) => Some(node),
+            Node::InterfaceDeclaration(node) => Some(node),
+            _ => None,
+        }
+    }
+
     pub fn as_interface_or_class_like_declaration(
         &self,
     ) -> &dyn InterfaceOrClassLikeDeclarationInterface {
-        match self {
-            Node::ClassDeclaration(node) => node,
-            Node::ClassExpression(node) => node,
-            Node::InterfaceDeclaration(node) => node,
-            _ => panic!("Expected interface or class like declaration"),
-        }
+        self.maybe_as_interface_or_class_like_declaration()
+            .expect("Expected interface or class like declaration")
     }
 
     pub fn as_has_statements(&self) -> &dyn HasStatementsInterface {

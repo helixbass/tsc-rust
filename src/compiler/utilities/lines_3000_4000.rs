@@ -157,11 +157,11 @@ pub fn get_effective_base_type_node(
 }
 
 pub fn get_class_extends_heritage_element(
-    node: &Node, /*ClassLikeDeclaration | InterfaceDeclaration*/
+    node: &Node, /*ClassLikeDeclaration | InterfaceDeclaration (or maybe also eg FunctionDeclaration)*/
 ) -> Option<Rc<Node>> {
     let heritage_clause = get_heritage_clause(
-        node.as_interface_or_class_like_declaration()
-            .maybe_heritage_clauses(),
+        node.maybe_as_interface_or_class_like_declaration()
+            .and_then(|node| node.maybe_heritage_clauses()),
         SyntaxKind::ExtendsKeyword,
     )?;
     let heritage_clause_as_heritage_clause = heritage_clause.as_heritage_clause();
