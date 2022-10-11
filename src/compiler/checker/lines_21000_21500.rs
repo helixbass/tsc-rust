@@ -391,7 +391,7 @@ impl TypeChecker {
                         || is_function_type_node(&param.parent()))
                     && param
                         .parent()
-                        .as_function_like_declaration()
+                        .as_signature_declaration()
                         .parameters()
                         .into_iter()
                         .position(|parameter: &Rc<Node>| ptr::eq(param, &**parameter))
