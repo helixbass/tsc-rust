@@ -4,7 +4,7 @@ use regex::Regex;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 
-use super::{code_point_at, is_line_break, is_unicode_identifier_start, is_white_space_like};
+use super::{is_line_break, is_unicode_identifier_start, is_white_space_like, maybe_code_point_at};
 use crate::{
     maybe_text_char_at_index, position_is_synthesized, text_char_at_index, text_len,
     text_substring, CharacterCodes, CommentDirective, CommentKind, CommentRange, Debug_,
@@ -665,8 +665,11 @@ pub fn is_identifier_text(
     language_version: Option<ScriptTarget>,
     identifier_variant: Option<LanguageVariant>,
 ) -> bool {
-    let ch = code_point_at(&name.chars().collect(), 0);
-    if !is_identifier_start(ch, language_version) {
+    let ch = maybe_code_point_at(&name.chars().collect(), 0);
+    if !matches!(
+        ch,
+        Some(ch) if is_identifier_start(ch, language_version)
+    ) {
         return false;
     }
 
