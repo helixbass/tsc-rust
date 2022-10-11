@@ -10,10 +10,10 @@ use crate::{
     for_each, get_containing_function, get_effective_type_annotation_node, get_function_flags,
     get_immediately_invoked_function_expression, get_object_flags, get_source_file_of_node,
     get_this_parameter, has_initializer, index_of_node, is_access_expression, is_binding_element,
-    is_binding_pattern, is_class_like, is_computed_non_literal_name,
-    is_defaulted_expando_initializer, is_expression, is_function_like, is_identifier,
-    is_import_call, is_in_js_file, is_jsx_opening_like_element, is_parameter,
-    is_private_identifier, is_property_access_expression, is_static, last_or_undefined,
+    is_binding_pattern, is_computed_non_literal_name, is_defaulted_expando_initializer,
+    is_expression, is_function_like, is_identifier, is_import_call, is_in_js_file,
+    is_jsx_opening_like_element, is_parameter, is_private_identifier,
+    is_property_access_expression, is_static, last_or_undefined, maybe_is_class_like,
     walk_up_parenthesized_expressions, AccessFlags, ContextFlags, FunctionFlags,
     HasInitializerInterface, InferenceContext, NamedDeclarationInterface, Node, NodeInterface,
     Number, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
@@ -35,7 +35,7 @@ impl TypeChecker {
         if is_call_expression {
             return container.kind() == SyntaxKind::Constructor;
         } else {
-            if is_class_like(&container.parent())
+            if maybe_is_class_like(container.maybe_parent())
                 || container.parent().kind() == SyntaxKind::ObjectLiteralExpression
             {
                 if is_static(container) {

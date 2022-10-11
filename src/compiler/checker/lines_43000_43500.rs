@@ -9,13 +9,13 @@ use crate::{
     add_related_info, create_diagnostic_for_node, first, get_containing_function,
     get_function_flags, get_set_accessor_value_parameter, get_source_file_of_node,
     get_this_parameter, has_effective_readonly_modifier, has_syntactic_modifier, id_text,
-    is_binding_pattern, is_class_like, is_comma_sequence, is_declaration_readonly,
-    is_effective_external_module, is_element_access_expression, is_entity_name_expression,
-    is_for_of_statement, is_function_like_or_class_static_block_declaration, is_identifier,
-    is_in_js_file, is_in_top_level_context, is_iteration_statement, is_jsdoc_type_expression,
-    is_jsdoc_type_tag, is_let, is_private_identifier, is_property_access_expression, is_static,
+    is_binding_pattern, is_comma_sequence, is_declaration_readonly, is_effective_external_module,
+    is_element_access_expression, is_entity_name_expression, is_for_of_statement,
+    is_function_like_or_class_static_block_declaration, is_identifier, is_in_js_file,
+    is_in_top_level_context, is_iteration_statement, is_jsdoc_type_expression, is_jsdoc_type_tag,
+    is_let, is_private_identifier, is_property_access_expression, is_static,
     is_string_or_numeric_literal_like, is_var_const, is_variable_declaration,
-    is_variable_declaration_in_variable_statement, last, token_to_string,
+    is_variable_declaration_in_variable_statement, last, maybe_is_class_like, token_to_string,
     walk_up_parenthesized_types, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformation, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasQuestionTokenInterface, HasTypeInterface, ModifierFlags,
@@ -615,7 +615,7 @@ impl TypeChecker {
         }
 
         let node_as_named_declaration = node.as_named_declaration();
-        if is_class_like(&node.parent()) {
+        if maybe_is_class_like(node.maybe_parent()) {
             if self.language_version < ScriptTarget::ES2015
                 && is_private_identifier(&node_as_named_declaration.name())
             {

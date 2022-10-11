@@ -14,9 +14,9 @@ use crate::{
     is_jsdoc_member_name, is_jsdoc_name_reference, is_named_declaration,
     is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_shorthand_property_assignment, is_source_file, is_string_literal, is_variable_declaration,
-    some, try_cast, ClassLikeDeclarationInterface, Debug_, FindAncestorCallbackReturn,
-    HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, SyntaxKind, TypePredicate, TypePredicateKind,
+    maybe_is_class_like, some, try_cast, ClassLikeDeclarationInterface, Debug_,
+    FindAncestorCallbackReturn, HasInitializerInterface, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, SyntaxKind, TypePredicate, TypePredicateKind,
 };
 
 pub fn introduces_arguments_exotic_object(node: &Node) -> bool {
@@ -242,7 +242,7 @@ pub fn get_this_container(node: &Node, include_arrow_functions: bool) -> Rc<Node
         node = maybe_parent.unwrap();
         match node.kind() {
             SyntaxKind::ComputedPropertyName => {
-                if is_class_like(&node.parent().parent()) {
+                if maybe_is_class_like(node.parent().maybe_parent()) {
                     return node;
                 }
                 node = node.parent();
