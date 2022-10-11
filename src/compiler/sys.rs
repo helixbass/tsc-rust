@@ -1,6 +1,6 @@
+use encoding_rs_io::DecodeReaderBytes;
 use std::borrow::Cow;
-use std::fs::Metadata;
-use std::io;
+use std::io::{self, Read};
 use std::path::Path;
 use std::process;
 use std::rc::Rc;
@@ -193,17 +193,21 @@ impl SystemConcrete {
     }
 
     fn read_file_worker(&self, file_name: &str) -> io::Result<String> {
-        // TODO: will presumably need to support reading non-UTF8-encoded files,
-        // the Typescript version seems to sniff BOM's and then call Buffer.toString() to get a
-        // string
-        fs::read_to_string(file_name).map(|contents| {
-            let mut contents_chars = contents.chars();
-            if contents_chars.next() == Some('\u{FEFF}') {
-                contents_chars.collect()
-            } else {
-                contents
-            }
-        })
+        fs::read(file_name)
+            .and_then(|contents| {
+                let mut string_buffer = String::with_capacity(contents.len());
+                let mut decoder = DecodeReaderBytes::new(&*contents);
+                let result = decoder.read_to_string(&mut string_buffer);
+                result.map(|_| string_buffer)
+            })
+            .map(|contents| {
+                let mut contents_chars = contents.chars();
+                if contents_chars.next() == Some('\u{FEFF}') {
+                    contents_chars.collect()
+                } else {
+                    contents
+                }
+            })
     }
 
     fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
