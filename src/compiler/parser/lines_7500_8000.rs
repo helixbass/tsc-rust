@@ -464,7 +464,20 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                             } else if let Some(margin) = margin {
                                 if indent + whitespace_chars.len() > margin {
                                     self.comments()
-                                        .push(whitespace_chars[margin - indent..].into_iter().collect());
+                                        .push(whitespace_chars[(
+                                            // this looks like `margin - indent` can be negative so
+                                            // mimic the behavior of .slice() with a negative
+                                            // argument (and avoid usize underflow)
+                                            if indent > margin {
+                                                if indent > whitespace_chars.len() + margin {
+                                                    0
+                                                } else {
+                                                    whitespace_chars.len() + margin - indent
+                                                }
+                                            } else {
+                                                margin - indent
+                                            }
+                                        )..].into_iter().collect());
                                 }
                             }
                             indent += whitespace_chars.len();
