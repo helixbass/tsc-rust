@@ -693,7 +693,7 @@ impl TypeChecker {
                             t.clone()
                         }
                     }),
-                    None,
+                    Some(UnionReduction::Subtype),
                     Option::<&Symbol>::None,
                     None,
                     Option::<&Type>::None,
