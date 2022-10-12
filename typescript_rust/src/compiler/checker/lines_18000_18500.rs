@@ -1537,7 +1537,7 @@ impl CheckTypeRelatedTo {
                         Some(RecursionFlags::Both),
                         Some(report_errors),
                         None, None,
-                    ) != Ternary::False
+                    ) == Ternary::False
                 ) {
                     if report_errors {
                         self.report_incompatible_error(
