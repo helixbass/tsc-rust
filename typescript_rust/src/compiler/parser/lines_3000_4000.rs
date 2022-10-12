@@ -1063,8 +1063,7 @@ impl ParserType {
                     self.next_token();
                     type_ = self
                         .finish_node(
-                            self.factory
-                                .create_jsdoc_non_nullable_type(self, Some(type_)),
+                            self.factory.create_jsdoc_nullable_type(self, Some(type_)),
                             pos,
                             None,
                         )
