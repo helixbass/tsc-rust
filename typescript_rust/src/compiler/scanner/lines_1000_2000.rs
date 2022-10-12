@@ -1089,7 +1089,9 @@ impl Scanner {
                         }
                     }
 
-                    if self.text_char_at_index(self.pos() + 1) == CharacterCodes::asterisk {
+                    if self.maybe_text_char_at_index(self.pos() + 1)
+                        == Some(CharacterCodes::asterisk)
+                    {
                         self.increment_pos_by(2);
                         if matches!(
                             self.maybe_text_char_at_index(self.pos()),
