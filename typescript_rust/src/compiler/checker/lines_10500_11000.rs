@@ -14,7 +14,7 @@ use crate::{
     get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
     has_static_modifier, has_syntactic_modifier, is_binary_expression, is_dynamic_name,
     is_element_access_expression, is_in_js_file, last_or_undefined, length, map, map_defined,
-    maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
+    maybe_concatenate, maybe_for_each, maybe_map, range_equals_rc, same_map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
     ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature,
@@ -991,6 +991,49 @@ impl TypeChecker {
                     }
                 }
             }
+        }
+        if length(result.as_deref()) == 0 && index_with_length_over_one != Some(-1) {
+            let master_list = &signature_lists[if let Some(index_with_length_over_one) =
+                index_with_length_over_one
+            {
+                TryInto::<usize>::try_into(index_with_length_over_one).unwrap()
+            } else {
+                0
+            }];
+            let mut results: Option<Vec<Rc<Signature>>> = Some(master_list.clone());
+            for signatures in signature_lists {
+                if !ptr::eq(signatures, master_list) {
+                    let signature = signatures.get(0);
+                    Debug_.assert(signature.is_some(), Some("getUnionSignatures bails early on empty signature lists and should not have empty lists on second pass"));
+                    let signature = signature.unwrap();
+                    results = if matches!(
+                        signature.maybe_type_parameters().as_ref(),
+                        Some(signature_type_parameters) if some(
+                            results.as_deref(),
+                            Some(|s: &Rc<Signature>| matches!(
+                                s.maybe_type_parameters().as_ref(),
+                                Some(s_type_parameters) if !self.compare_type_parameters_identical(
+                                    Some(signature_type_parameters),
+                                    Some(s_type_parameters),
+                                )
+                            ))
+                        )
+                    ) {
+                        None
+                    } else {
+                        maybe_map(results.as_ref(), |sig: &Rc<Signature>, _| {
+                            Rc::new(self.combine_signatures_of_union_members(
+                                sig.clone(),
+                                signature.clone(),
+                            ))
+                        })
+                    };
+                    if results.is_none() {
+                        break;
+                    }
+                }
+            }
+            result = results;
         }
         result.unwrap_or_else(|| vec![])
     }
