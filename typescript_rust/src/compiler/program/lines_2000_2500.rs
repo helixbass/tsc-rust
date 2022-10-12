@@ -138,11 +138,11 @@ impl Program {
         flat_diagnostics: &[Rc<Diagnostic>],
     ) -> DiagnosticsWithPrecedingDirectives {
         let mut directives = create_comment_directives_map(source_file, comment_directives);
-        let diagnostics = flat_diagnostics
+        let diagnostics: Vec<Rc<Diagnostic>> = flat_diagnostics
             .into_iter()
             .filter(|diagnostic| {
                 self.mark_preceding_comment_directive_line(diagnostic, &mut directives)
-                    .is_some()
+                    .is_none()
             })
             .cloned()
             .collect();
