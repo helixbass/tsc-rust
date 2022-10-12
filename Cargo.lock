@@ -512,7 +512,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tsc-rust"
+name = "typescript_rust"
 version = "0.1.0"
 dependencies = [
  "bitflags",
