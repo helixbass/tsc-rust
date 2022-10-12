@@ -16,10 +16,10 @@ use crate::{
     same_map, unescape_leading_underscores, CheckFlags, ContextFlags, Debug_, Diagnostics,
     ElementFlags, ExternalEmitHelpers, HasInitializerInterface, IndexInfo, InterfaceTypeInterface,
     NamedDeclarationInterface, NodeCheckFlags, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper, UnionReduction,
-    __String, create_symbol_table, get_object_flags, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    SignatureKind, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper,
+    TypeReferenceInterface, UnionReduction, __String, create_symbol_table, get_object_flags, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -711,7 +711,11 @@ impl TypeChecker {
         if !get_object_flags(type_).intersects(ObjectFlags::Reference) {
             return type_.type_wrapper();
         }
-        if type_.as_type_reference().maybe_literal_type().is_none() {
+        if type_
+            .as_type_reference_interface()
+            .maybe_literal_type()
+            .is_none()
+        {
             let literal_type = self.clone_type_reference(type_);
             let literal_type_as_type_reference = literal_type.as_type_reference();
             literal_type_as_type_reference.set_object_flags(
@@ -719,12 +723,11 @@ impl TypeChecker {
                     | ObjectFlags::ArrayLiteral
                     | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
-            *type_.as_type_reference().maybe_literal_type() = Some(literal_type);
+            *type_.as_type_reference_interface().maybe_literal_type_mut() = Some(literal_type);
         }
         type_
-            .as_type_reference()
+            .as_type_reference_interface()
             .maybe_literal_type()
-            .clone()
             .unwrap()
     }
 

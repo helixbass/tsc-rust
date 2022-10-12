@@ -358,7 +358,7 @@ impl TypeChecker {
 
     pub(super) fn clone_type_reference(&self, source: &Type /*TypeReference*/) -> Rc<Type> {
         let type_ = self.create_type(source.flags());
-        let source_as_type_reference = source.as_type_reference();
+        let source_as_type_reference = source.as_type_reference_interface();
         let type_ = BaseObjectType::new(type_, source_as_type_reference.object_flags());
         let type_: Rc<Type> = TypeReference::new(
             type_,

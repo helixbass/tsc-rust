@@ -646,6 +646,7 @@ pub struct BaseInterfaceType {
     pub target: RefCell<Option<Rc<Type /*GenericType*/>>>,
     pub node: RefCell<Option<Rc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>,
     pub resolved_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
+    literal_type: RefCell<Option<Rc<Type /*TypeReference*/>>>,
     cached_equivalent_base_type: RefCell<Option<Rc<Type>>>,
 }
 
@@ -675,6 +676,7 @@ impl BaseInterfaceType {
             target: RefCell::new(None),
             node: RefCell::new(None),
             resolved_type_arguments: RefCell::new(None),
+            literal_type: RefCell::new(None),
             cached_equivalent_base_type: RefCell::new(None),
         }
     }
@@ -828,6 +830,14 @@ impl TypeReferenceInterface for BaseInterfaceType {
         self.node.borrow_mut()
     }
 
+    fn maybe_literal_type(&self) -> Option<Rc<Type>> {
+        self.literal_type.borrow().clone()
+    }
+
+    fn maybe_literal_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
+        self.literal_type.borrow_mut()
+    }
+
     fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.resolved_type_arguments.borrow_mut()
     }
@@ -866,10 +876,6 @@ impl TypeReference {
             cached_equivalent_base_type: RefCell::new(None),
         }
     }
-
-    pub fn maybe_literal_type(&self) -> RefMut<Option<Rc<Type>>> {
-        self.literal_type.borrow_mut()
-    }
 }
 
 pub trait TypeReferenceInterface: ObjectTypeInterface {
@@ -878,6 +884,8 @@ pub trait TypeReferenceInterface: ObjectTypeInterface {
     fn maybe_node(&self) -> Option<Rc<Node>>;
     fn maybe_node_mut(&self) -> RefMut<Option<Rc<Node>>>;
     fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+    fn maybe_literal_type(&self) -> Option<Rc<Type>>;
+    fn maybe_literal_type_mut(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_cached_equivalent_base_type(&self) -> RefMut<Option<Rc<Type>>>;
 }
 
@@ -900,6 +908,14 @@ impl TypeReferenceInterface for TypeReference {
 
     fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.resolved_type_arguments.borrow_mut()
+    }
+
+    fn maybe_literal_type(&self) -> Option<Rc<Type>> {
+        self.literal_type.borrow().clone()
+    }
+
+    fn maybe_literal_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
+        self.literal_type.borrow_mut()
     }
 
     fn maybe_cached_equivalent_base_type(&self) -> RefMut<Option<Rc<Type>>> {

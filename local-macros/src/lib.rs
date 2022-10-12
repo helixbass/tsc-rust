@@ -1688,6 +1688,14 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_resolved_type_arguments()
                     }
 
+                    fn maybe_literal_type(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
+                        self.#first_field_name.maybe_literal_type()
+                    }
+
+                    fn maybe_literal_type_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.maybe_literal_type_mut()
+                    }
+
                     fn maybe_cached_equivalent_base_type(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
                         self.#first_field_name.maybe_cached_equivalent_base_type()
                     }
@@ -2354,6 +2362,18 @@ fn get_type_enum_interface_impl(
                     fn maybe_resolved_type_arguments(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Type>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_type_arguments()),*
+                        }
+                    }
+
+                    fn maybe_literal_type(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_literal_type()),*
+                        }
+                    }
+
+                    fn maybe_literal_type_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_literal_type_mut()),*
                         }
                     }
 
