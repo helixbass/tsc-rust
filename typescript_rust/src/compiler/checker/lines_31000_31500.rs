@@ -835,8 +835,8 @@ impl TypeChecker {
         if signature_has_rest_parameter(signature) {
             let rest_type = self.get_type_of_symbol(&signature.parameters()[length - 1]);
             if self.is_tuple_type(&rest_type) {
-                let rest_type_target_as_tuple_type =
-                    rest_type.as_type_reference().target.as_tuple_type();
+                let rest_type_target = rest_type.as_type_reference_interface().target();
+                let rest_type_target_as_tuple_type = rest_type_target.as_tuple_type();
                 return length + rest_type_target_as_tuple_type.fixed_length
                     - if rest_type_target_as_tuple_type.has_rest_element {
                         0
@@ -931,8 +931,8 @@ impl TypeChecker {
                 self.get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1]);
             return !self.is_tuple_type(&rest_type)
                 || rest_type
-                    .as_type_reference()
-                    .target
+                    .as_type_reference_interface()
+                    .target()
                     .as_tuple_type()
                     .has_rest_element;
         }
@@ -946,8 +946,8 @@ impl TypeChecker {
             if !self.is_tuple_type(&rest_type) {
                 return Some(rest_type);
             }
-            let rest_type_target_as_tuple_type =
-                rest_type.as_type_reference().target.as_tuple_type();
+            let rest_type_target = rest_type.as_type_reference_interface().target();
+            let rest_type_target_as_tuple_type = rest_type_target.as_tuple_type();
             if rest_type_target_as_tuple_type.has_rest_element {
                 return Some(self.slice_tuple_type(
                     &rest_type,
