@@ -902,7 +902,9 @@ impl TypeChecker {
             } else {
                 min_argument_count - 1
             };
-            while i >= 0 {
+            loop
+            /*while (i >= 0)*/
+            {
                 let type_ = self.get_type_at_position(signature, i);
                 if self
                     .filter_type(&type_, |type_| self.accepts_void(type_))
@@ -912,7 +914,11 @@ impl TypeChecker {
                     break;
                 }
                 min_argument_count = i;
-                i -= 1;
+                if i == 0 {
+                    break;
+                } else {
+                    i -= 1;
+                }
             }
             signature.set_resolved_min_argument_count(min_argument_count);
         }
