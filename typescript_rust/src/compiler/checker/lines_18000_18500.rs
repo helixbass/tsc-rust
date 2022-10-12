@@ -29,7 +29,7 @@ pub(super) struct CheckTypeRelatedTo {
     pub source: Rc<Type>,
     pub target: Rc<Type>,
     pub relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-    pub error_node: Option<Rc<Node>>,
+    pub error_node: RefCell<Option<Rc<Node>>>,
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
     pub containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
     pub error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
@@ -66,7 +66,7 @@ impl CheckTypeRelatedTo {
             source: source.type_wrapper(),
             target: target.type_wrapper(),
             relation,
-            error_node,
+            error_node: RefCell::new(error_node),
             head_message,
             containing_message_chain,
             error_output_container,
@@ -96,6 +96,14 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn rc_wrapper(&self) -> Rc<CheckTypeRelatedTo> {
         self._rc_wrapper.borrow().clone().unwrap()
+    }
+
+    pub(super) fn maybe_error_node(&self) -> Option<Rc<Node>> {
+        self.error_node.borrow().clone()
+    }
+
+    pub(super) fn set_error_node(&self, error_node: Option<Rc<Node>>) {
+        *self.error_node.borrow_mut() = error_node;
     }
 
     pub(super) fn maybe_error_info(&self) -> RefMut<Option<Rc<DiagnosticMessageChain>>> {
@@ -187,7 +195,7 @@ impl CheckTypeRelatedTo {
     pub(super) fn call(&self) -> bool {
         Debug_.assert(
             !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation)
-                || self.error_node.is_none(),
+                || self.maybe_error_node().is_none(),
             Some("no error reporting in identity checking"),
         );
 
@@ -195,7 +203,7 @@ impl CheckTypeRelatedTo {
             &self.source,
             &self.target,
             Some(RecursionFlags::Both),
-            Some(self.error_node.is_some()),
+            Some(self.maybe_error_node().is_some()),
             self.head_message.clone(),
             None,
         );
@@ -205,8 +213,7 @@ impl CheckTypeRelatedTo {
         if self.overflow() {
             // tracing?.instant(tracing.Phase.CheckTypes, "checkTypeRelatedTo_DepthLimit", { sourceId: source.id, targetId: target.id, depth: sourceDepth, targetDepth });
             let diag = self.type_checker.error(
-                self.error_node
-                    .clone()
+                self.maybe_error_node()
                     .or_else(|| self.type_checker.maybe_current_node()),
                 &Diagnostics::Excessive_stack_depth_comparing_types_0_and_1,
                 Some(vec![
@@ -246,7 +253,7 @@ impl CheckTypeRelatedTo {
 
             let mut related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
             if let Some(head_message) = self.head_message.as_ref() {
-                if let Some(error_node) = self.error_node.as_ref() {
+                if let Some(error_node) = self.maybe_error_node().as_ref() {
                     if result == Ternary::False {
                         if let Some(source_symbol) = self.source.maybe_symbol() {
                             let links = self.type_checker.get_symbol_links(&source_symbol);
@@ -286,7 +293,7 @@ impl CheckTypeRelatedTo {
             }
             let diag: Rc<Diagnostic> = Rc::new(
                 create_diagnostic_for_node_from_message_chain(
-                    self.error_node.as_ref().unwrap(),
+                    self.maybe_error_node().as_ref().unwrap(),
                     self.maybe_error_info()
                         .as_deref()
                         .map(Clone::clone)
@@ -310,7 +317,7 @@ impl CheckTypeRelatedTo {
                 self.type_checker.diagnostics().add(diag);
             }
         }
-        if self.error_node.is_some() {
+        if self.maybe_error_node().is_some() {
             if let Some(error_output_container) =
                 self.error_output_container
                     .as_ref()
@@ -464,7 +471,7 @@ impl CheckTypeRelatedTo {
         message: Cow<'static, DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) {
-        Debug_.assert(self.error_node.is_some(), None);
+        Debug_.assert(self.maybe_error_node().is_some(), None);
         if !self.incompatible_stack().is_empty() {
             self.report_incompatible_stack();
         }
@@ -1190,12 +1197,13 @@ impl CheckTypeRelatedTo {
                 && target.flags().intersects(TypeFlags::Intersection)
             {
                 let target_types = target.as_union_or_intersection_type_interface().types();
-                let intrinsic_attributes = self
-                    .type_checker
-                    .get_jsx_type(&JsxNames::IntrinsicAttributes, self.error_node.as_deref());
+                let intrinsic_attributes = self.type_checker.get_jsx_type(
+                    &JsxNames::IntrinsicAttributes,
+                    self.maybe_error_node().as_deref(),
+                );
                 let intrinsic_class_attributes = self.type_checker.get_jsx_type(
                     &JsxNames::IntrinsicClassAttributes,
-                    self.error_node.as_deref(),
+                    self.maybe_error_node().as_deref(),
                 );
                 if !self.type_checker.is_error_type(&intrinsic_attributes)
                     && !self.type_checker.is_error_type(&intrinsic_class_attributes)
@@ -1385,20 +1393,21 @@ impl CheckTypeRelatedTo {
                             self.type_checker.filter_type(&reduced_target, |type_| {
                                 self.type_checker.is_excess_property_check_target(type_)
                             });
-                        let mut error_node = match self.error_node.as_ref() {
-                            None => Debug_.fail(None),
-                            Some(error_node) => error_node.clone(),
-                        };
-                        if is_jsx_attributes(&error_node)
-                            || is_jsx_opening_like_element(&error_node)
-                            || is_jsx_opening_like_element(&error_node.parent())
+                        if self.maybe_error_node().is_none() {
+                            Debug_.fail(None);
+                        }
+                        let ref error_node_present = self.maybe_error_node().unwrap();
+                        if is_jsx_attributes(error_node_present)
+                            || is_jsx_opening_like_element(error_node_present)
+                            || is_jsx_opening_like_element(&error_node_present.parent())
                         {
                             if let Some(prop_value_declaration) = prop
                                 .maybe_value_declaration()
                                 .filter(|prop_value_declaration| {
                                     is_jsx_attribute(prop_value_declaration)
                                         && are_option_rcs_equal(
-                                            get_source_file_of_node(Some(&*error_node)).as_ref(),
+                                            get_source_file_of_node(Some(&**error_node_present))
+                                                .as_ref(),
                                             get_source_file_of_node(Some(
                                                 &*prop_value_declaration.as_jsx_attribute().name,
                                             ))
@@ -1406,7 +1415,9 @@ impl CheckTypeRelatedTo {
                                         )
                                 })
                             {
-                                error_node = prop_value_declaration.as_jsx_attribute().name.clone();
+                                self.set_error_node(Some(
+                                    prop_value_declaration.as_jsx_attribute().name.clone(),
+                                ));
                             }
                             let prop_name = self.type_checker.symbol_to_string_(
                                 &prop,
@@ -1481,13 +1492,13 @@ impl CheckTypeRelatedTo {
                                 ).is_some() &&
                                 are_option_rcs_equal(
                                     get_source_file_of_node(object_literal_declaration.as_deref()).as_ref(),
-                                    get_source_file_of_node(Some(&*error_node)).as_ref(),
+                                    get_source_file_of_node(Some(&**error_node_present)).as_ref(),
                                 )
                             ) {
                                 let prop_declaration = prop_value_declaration;
                                 Debug_.assert_node(Some(&*prop_declaration), Some(|node: &Node| is_object_literal_element_like(node)), None);
 
-                                error_node = prop_declaration.clone();
+                                self.set_error_node(Some(prop_declaration.clone()));
 
                                 let name = prop_declaration.as_named_declaration().name();
                                 if is_identifier(&name) {
