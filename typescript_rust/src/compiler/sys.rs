@@ -1,6 +1,5 @@
-use encoding_rs_io::DecodeReaderBytes;
 use std::borrow::Cow;
-use std::io::{self, Read};
+use std::io::{self};
 use std::path::Path;
 use std::process;
 use std::rc::Rc;
@@ -9,8 +8,9 @@ use std::{env, fs};
 
 use crate::{
     combine_paths, empty_file_system_entries, fs_readdir_sync_with_file_types, fs_stat_sync,
-    is_windows, match_files, process_cwd, ConvertToTSConfigHost, ExitStatus, FileSystemEntries,
-    RequireResult, StatLike, Stats, WatchFileKind, WatchOptions,
+    is_windows, match_files, process_cwd, read_file_and_strip_leading_byte_order_mark,
+    ConvertToTSConfigHost, ExitStatus, FileSystemEntries, RequireResult, StatLike, Stats,
+    WatchFileKind, WatchOptions,
 };
 
 pub(crate) fn generate_djb2_hash(data: &str) -> String {
@@ -189,21 +189,7 @@ impl SystemConcrete {
     }
 
     fn read_file_worker(&self, file_name: &str) -> io::Result<String> {
-        fs::read(file_name)
-            .and_then(|contents| {
-                let mut string_buffer = String::with_capacity(contents.len());
-                let mut decoder = DecodeReaderBytes::new(&*contents);
-                let result = decoder.read_to_string(&mut string_buffer);
-                result.map(|_| string_buffer)
-            })
-            .map(|contents| {
-                let mut contents_chars = contents.chars();
-                if contents_chars.next() == Some('\u{FEFF}') {
-                    contents_chars.collect()
-                } else {
-                    contents
-                }
-            })
+        read_file_and_strip_leading_byte_order_mark(file_name)
     }
 
     fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {

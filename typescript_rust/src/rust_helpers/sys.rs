@@ -1,6 +1,7 @@
+use encoding_rs_io::DecodeReaderBytes;
 use std::env;
 use std::fs::{self, DirEntry, Metadata};
-use std::io;
+use std::io::{self, Read};
 
 /*const*/
 pub fn is_windows() -> bool {
@@ -87,4 +88,22 @@ impl StatLike for Stats {
 
 pub fn fs_stat_sync(path: &str) -> Option<Stats> {
     fs::metadata(path).map(|metadata| Stats::new(metadata)).ok()
+}
+
+pub fn read_file_and_strip_leading_byte_order_mark(file_name: &str) -> io::Result<String> {
+    fs::read(file_name)
+        .and_then(|contents| {
+            let mut string_buffer = String::with_capacity(contents.len());
+            let mut decoder = DecodeReaderBytes::new(&*contents);
+            let result = decoder.read_to_string(&mut string_buffer);
+            result.map(|_| string_buffer)
+        })
+        .map(|contents| {
+            let mut contents_chars = contents.chars();
+            if contents_chars.next() == Some('\u{FEFF}') {
+                contents_chars.collect()
+            } else {
+                contents
+            }
+        })
 }

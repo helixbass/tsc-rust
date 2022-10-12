@@ -5,7 +5,10 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
 
-use super::{is_line_break, is_unicode_identifier_start, is_white_space_like, maybe_code_point_at};
+use super::{
+    is_line_break, is_unicode_identifier_part, is_unicode_identifier_start, is_white_space_like,
+    maybe_code_point_at,
+};
 use crate::{
     maybe_text_char_at_index, position_is_synthesized, text_char_at_index, text_len,
     text_substring, CharacterCodes, CommentDirective, CommentKind, CommentRange, Debug_,
@@ -658,7 +661,7 @@ pub fn is_identifier_part(
             _ => false,
         }
         || ch > CharacterCodes::max_ascii_character
-            && is_unicode_identifier_start(ch, language_version)
+            && is_unicode_identifier_part(ch, language_version)
 }
 
 pub fn is_identifier_text(

@@ -11,9 +11,9 @@ use std::rc::Rc;
 use typescript_rust::{
     create_compiler_host_worker, create_program, format_diagnostics, get_pre_emit_diagnostics,
     get_sys, option_declarations, parse_custom_type_option, parse_list_type_option,
-    CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
-    CompilerOptionsBuilder, CompilerOptionsValue, CreateProgramOptions, Diagnostic,
-    FormatDiagnosticsHost, Node,
+    read_file_and_strip_leading_byte_order_mark, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
+    CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, Node,
 };
 
 #[rstest]
@@ -5560,7 +5560,7 @@ use typescript_rust::{
 #[case("yieldStringLiteral.ts")]
 fn run_compiler_baseline(#[case] case_filename: &str) {
     let case_file_path = format!("typescript_src/tests/cases/compiler/{case_filename}");
-    let case_file_contents = fs::read_to_string(&case_file_path).unwrap();
+    let case_file_contents = read_file_and_strip_leading_byte_order_mark(&case_file_path).unwrap();
     let compiler_settings = extract_compiler_settings(&case_file_contents);
     let mut options: CompilerOptions = CompilerOptionsBuilder::default()
         .no_resolve(Some(false))
