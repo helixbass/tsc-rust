@@ -1027,7 +1027,7 @@ impl TypeChecker {
                                             declaration,
                                             ModifierFlags::Readonly,
                                         ),
-                                        None,
+                                        Some(declaration.clone()),
                                     )));
                                 }
                                 Option::<()>::None
