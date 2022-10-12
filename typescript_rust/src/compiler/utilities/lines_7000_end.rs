@@ -22,8 +22,11 @@ pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>
     options: &CompilerOptions,
     is_source_of_project_reference_redirect: TIsSourceOfProjectReferenceRedirect,
 ) -> bool {
-    // unimplemented!()
-    false
+    let source_file_as_source_file = source_file.as_source_file();
+    (options.skip_lib_check == Some(true) && source_file_as_source_file.is_declaration_file()
+        || options.skip_default_lib_check == Some(true)
+            && source_file_as_source_file.has_no_default_lib())
+        || is_source_of_project_reference_redirect(&source_file_as_source_file.file_name())
 }
 
 pub fn parse_pseudo_big_int(string_value: &str) -> String {

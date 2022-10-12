@@ -1450,7 +1450,10 @@ impl TypeCheckerHost for Program {
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
-        unimplemented!()
+        self.use_source_of_project_reference_redirect()
+            && self
+                .get_resolved_project_reference_to_redirect(file_name)
+                .is_some()
     }
 
     fn get_common_source_directory(&self) -> Option<String> {
