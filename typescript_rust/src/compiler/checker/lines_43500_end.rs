@@ -750,8 +750,8 @@ impl TypeChecker {
                         let overlap_obj_flags = source_object_flags & get_object_flags(target);
                         if overlap_obj_flags.intersects(ObjectFlags::Reference) {
                             return Rc::ptr_eq(
-                                &source.as_type_reference().target,
-                                &target.as_type_reference().target,
+                                &source.as_type_reference_interface().target(),
+                                &target.as_type_reference_interface().target(),
                             );
                         }
                         if overlap_obj_flags.intersects(ObjectFlags::Anonymous) {

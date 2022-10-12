@@ -5308,6 +5308,7 @@ use typescript_rust::{
 #[case("unionTypeWithLeadingOperator.ts")]
 #[case("unionTypeWithRecursiveSubtypeReduction1.ts")]
 #[case("unionTypeWithRecursiveSubtypeReduction2.ts")]
+// looks like this is probably actually resolving the "any" (recursive?) part of the type wrong vs being a type-printing issue?
 #[case("unionTypeWithRecursiveSubtypeReduction3.ts")]
 #[case("unionWithIndexSignature.ts")]
 #[case("uniqueSymbolAllowsIndexInObjectWithIndexSignature.ts")]
