@@ -622,7 +622,11 @@ impl TypeChecker {
         depth: Option<usize>,
     ) -> String {
         let depth = depth.unwrap_or(0);
-        let mut result = type_.as_type_reference().target.id().to_string();
+        let mut result = type_
+            .as_type_reference_interface()
+            .target()
+            .id()
+            .to_string();
         for t in &self.get_type_arguments(type_) {
             if self.is_unconstrained_type_parameter(t) {
                 let mut index = type_parameters
