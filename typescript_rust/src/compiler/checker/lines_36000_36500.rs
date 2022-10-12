@@ -879,10 +879,14 @@ impl TypeChecker {
         match name.kind() {
             SyntaxKind::Identifier => id_text(name),
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => self
-                .binding_name_text(&**cast_present(
-                    first(&**name.as_has_elements().elements()),
-                    |element: &&Rc<Node>| is_binding_element(element),
-                )),
+                .binding_name_text(
+                    &*cast_present(
+                        first(&**name.as_has_elements().elements()),
+                        |element: &&Rc<Node>| is_binding_element(element),
+                    )
+                    .as_binding_element()
+                    .name(),
+                ),
             _ => Debug_.assert_never(name, None),
         }
     }
