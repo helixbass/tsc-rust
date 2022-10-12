@@ -1,0 +1,16 @@
+[package]
+name = "typescript_services_rust"
+version = "0.1.0"
+edition = "2021"
+default-run = "tsserver-rust"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tsc-rust = { git = "https://github.com/helixbass/tsc-rust", rev = "fa1079d5" }
+
+[lib]
+name = "typescript_services_rust"
+
+[[bin]]
+name = "tsserver-rust"

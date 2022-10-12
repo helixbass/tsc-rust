@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "typescript_rust",
+    "typescript_services_rust",
     "local-macros",
 ]
