@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use indexmap::IndexMap;
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
@@ -158,7 +158,7 @@ impl TypeChecker {
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
-        let mut type_membership_map: HashMap<String, Rc<Type>> = HashMap::new();
+        let mut type_membership_map: IndexMap<String, Rc<Type>> = IndexMap::new();
         let includes =
             self.add_types_to_intersection(&mut type_membership_map, TypeFlags::None, types);
         let mut type_set: Vec<Rc<Type>> = type_membership_map.values().map(Clone::clone).collect();

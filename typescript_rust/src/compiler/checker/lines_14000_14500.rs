@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use indexmap::IndexMap;
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
@@ -983,7 +983,7 @@ impl TypeChecker {
 
     pub(super) fn add_type_to_intersection(
         &self,
-        type_set: &mut HashMap<String, Rc<Type>>,
+        type_set: &mut IndexMap<String, Rc<Type>>,
         mut includes: TypeFlags,
         type_: &Type,
     ) -> TypeFlags {
@@ -1029,7 +1029,7 @@ impl TypeChecker {
 
     pub(super) fn add_types_to_intersection(
         &self,
-        type_set: &mut HashMap<String, Rc<Type>>,
+        type_set: &mut IndexMap<String, Rc<Type>>,
         mut includes: TypeFlags,
         types: &[Rc<Type>],
     ) -> TypeFlags {
