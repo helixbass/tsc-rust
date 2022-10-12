@@ -253,7 +253,7 @@ pub struct NodeLinks {
     pub jsx_namespace: Option<Option<Rc<Symbol>>>,
     pub jsx_implicit_import_container: Option<Option<Rc<Symbol>>>,
     pub context_free_type: Option<Rc<Type>>,
-    pub deferred_nodes: Option<HashMap<NodeId, Rc<Node>>>,
+    pub deferred_nodes: Option<IndexMap<NodeId, Rc<Node>>>,
     pub captured_block_scope_bindings: Option<Vec<Rc<Symbol>>>,
     pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub is_exhaustive: Option<bool>,

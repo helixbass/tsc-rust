@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use indexmap::IndexMap;
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::UnusedKind;
@@ -459,7 +459,7 @@ impl TypeChecker {
         {
             let mut links = links.borrow_mut();
             if links.deferred_nodes.is_none() {
-                links.deferred_nodes = Some(HashMap::new());
+                links.deferred_nodes = Some(IndexMap::new());
             }
             let id = get_node_id(node);
             links
@@ -472,14 +472,29 @@ impl TypeChecker {
 
     pub(super) fn check_deferred_nodes(&self, context: &Node /*SourceFile*/) {
         let links = self.get_node_links(context);
-        let links_deferred_nodes = (*links)
-            .borrow()
-            .deferred_nodes
-            .as_ref()
-            .map(|links_deferred_nodes| links_deferred_nodes.values().cloned().collect::<Vec<_>>());
-        if let Some(links_deferred_nodes) = links_deferred_nodes.as_ref() {
-            for links_deferred_node in links_deferred_nodes {
-                self.check_deferred_node(links_deferred_node);
+        let links_deferred_nodes_is_some = {
+            let value = (*links).borrow().deferred_nodes.is_some();
+            value
+        };
+        if links_deferred_nodes_is_some {
+            let mut i = 0;
+            while i < {
+                let value = (*links).borrow().deferred_nodes.as_ref().unwrap().len();
+                value
+            } {
+                self.check_deferred_node(&*{
+                    let value = (*links)
+                        .borrow()
+                        .deferred_nodes
+                        .as_ref()
+                        .unwrap()
+                        .values()
+                        .nth(i)
+                        .cloned()
+                        .unwrap();
+                    value
+                });
+                i += 1;
             }
         }
     }
