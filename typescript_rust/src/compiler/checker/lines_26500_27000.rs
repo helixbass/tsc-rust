@@ -16,10 +16,10 @@ use crate::{
     same_map, unescape_leading_underscores, CheckFlags, ContextFlags, Debug_, Diagnostics,
     ElementFlags, ExternalEmitHelpers, HasInitializerInterface, IndexInfo, InterfaceTypeInterface,
     NamedDeclarationInterface, NodeCheckFlags, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper,
-    TypeReferenceInterface, UnionReduction, __String, create_symbol_table, get_object_flags, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
+    SignatureKind, SymbolFlags, Ternary, TransientSymbolInterface, TypeMapper, UnionReduction,
+    __String, create_symbol_table, get_object_flags, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {

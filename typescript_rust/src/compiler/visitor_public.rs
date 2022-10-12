@@ -1,7 +1,11 @@
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
-use crate::{Node, NodeArray, NodeInterface, SyntaxKind, TransformationContext, VisitResult};
+use crate::{
+    single_or_undefined, Debug_, Node, NodeArray, NodeInterface, SyntaxKind, TransformationContext,
+    VisitResult,
+};
 
 pub fn visit_node<
     TNode: Borrow<Node>,
@@ -14,7 +18,30 @@ pub fn visit_node<
     test: Option<TTest>,
     lift: Option<TLift>,
 ) -> Option<Rc<Node>> {
-    unimplemented!()
+    let node = node?;
+    let node = node.borrow();
+    let mut visitor = visitor?;
+
+    let visited = visitor(node);
+    if matches!(
+        visited.as_ref(),
+        Some(visited) if visited.len() == 1 &&
+            ptr::eq(
+                &*visited[0],
+                node,
+            )
+    ) {
+        return Some(node.node_wrapper());
+    }
+    let visited = visited?;
+    let visited_node = if let Some(lift) = lift {
+        Some(lift(&visited))
+    } else {
+        extract_single_node(&visited)
+    };
+
+    Debug_.assert_node(visited_node.as_deref(), test, None);
+    visited_node
 }
 
 pub fn visit_nodes<TVisitor: FnMut(&Node) -> VisitResult, TTest: Fn(&Node) -> bool>(
@@ -74,4 +101,9 @@ pub fn visit_each_child<
 
     // unimplemented!()
     Some(node.node_wrapper())
+}
+
+fn extract_single_node(nodes: &[Rc<Node>]) -> Option<Rc<Node>> {
+    Debug_.assert(nodes.len() <= 1, Some("Too many nodes written to output."));
+    single_or_undefined(Some(nodes)).cloned()
 }
