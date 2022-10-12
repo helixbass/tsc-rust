@@ -169,7 +169,7 @@ impl BinderType {
     ) -> Rc<Symbol> {
         let symbol = self.create_symbol(symbol_flags, name).wrap();
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
-            symbol.set_parent(Some(self.container().symbol()));
+            symbol.set_parent(self.container().maybe_symbol());
         }
         self.file()
             .as_source_file()
