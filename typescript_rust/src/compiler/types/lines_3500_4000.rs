@@ -178,7 +178,7 @@ pub struct SourceFile {
 
     line_map: RefCell<Option<Vec<usize>>>,
     classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
-    comment_directives: RefCell<Option<Vec<CommentDirective>>>,
+    comment_directives: RefCell<Option<Vec<Rc<CommentDirective>>>>,
     resolved_modules:
         RefCell<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
@@ -547,11 +547,17 @@ impl SourceFile {
         *self.classifiable_names.borrow_mut() = classifiable_names;
     }
 
-    pub fn maybe_comment_directives(&self) -> Ref<Option<Vec<CommentDirective>>> {
+    pub fn maybe_comment_directives(&self) -> Ref<Option<Vec<Rc<CommentDirective>>>> {
         self.comment_directives.borrow()
     }
 
-    pub fn set_comment_directives(&self, comment_directives: Option<Vec<CommentDirective>>) {
+    pub fn comment_directives(&self) -> Ref<Vec<Rc<CommentDirective>>> {
+        Ref::map(self.comment_directives.borrow(), |comment_directives| {
+            comment_directives.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_comment_directives(&self, comment_directives: Option<Vec<Rc<CommentDirective>>>) {
         *self.comment_directives.borrow_mut() = comment_directives;
     }
 

@@ -1,11 +1,16 @@
+use regex::Regex;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    add_emit_flags, external_helpers_module_name_text, get_jsx_implicit_import_base,
-    get_jsx_runtime_import, is_check_js_enabled_for_file, is_external_module, is_source_file_js,
-    normalize_path, set_parent, skip_type_checking, with_synthetic_factory_and_factory,
-    CancellationTokenDebuggable, Debug_, Diagnostic, EmitFlags, FileIncludeReason, Node, NodeArray,
-    NodeFlags, NodeInterface, Program, ScriptKind, SortedArray,
+    add_emit_flags, compute_line_and_character_of_position, create_comment_directives_map,
+    create_diagnostic_for_range, external_helpers_module_name_text, get_jsx_implicit_import_base,
+    get_jsx_runtime_import, get_line_starts, is_check_js_enabled_for_file, is_external_module,
+    is_source_file_js, normalize_path, set_parent, skip_type_checking,
+    with_synthetic_factory_and_factory, CancellationTokenDebuggable, CommentDirective,
+    CommentDirectivesMap, Debug_, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
+    EmitFlags, FileIncludeReason, Node, NodeArray, NodeFlags, NodeInterface, Program, ScriptKind,
+    SortedArray, SourceFileLike,
 };
 
 impl Program {
@@ -103,7 +108,98 @@ impl Program {
             return flat_diagnostics;
         }
 
-        unimplemented!()
+        let DiagnosticsWithPrecedingDirectives {
+            mut diagnostics,
+            directives,
+        } = self.get_diagnostics_with_preceding_directives(
+            source_file,
+            source_file_as_source_file.comment_directives().as_ref(),
+            &flat_diagnostics,
+        );
+
+        for error_expectation in directives.get_unused_expectations() {
+            diagnostics.push(Rc::new(
+                create_diagnostic_for_range(
+                    source_file,
+                    &error_expectation.range,
+                    &Diagnostics::Unused_ts_expect_error_directive,
+                )
+                .into(),
+            ));
+        }
+
+        diagnostics
+    }
+
+    pub(super) fn get_diagnostics_with_preceding_directives(
+        &self,
+        source_file: &Node, /*SourceFile*/
+        comment_directives: &[Rc<CommentDirective>],
+        flat_diagnostics: &[Rc<Diagnostic>],
+    ) -> DiagnosticsWithPrecedingDirectives {
+        let mut directives = create_comment_directives_map(source_file, comment_directives);
+        let diagnostics = flat_diagnostics
+            .into_iter()
+            .filter(|diagnostic| {
+                self.mark_preceding_comment_directive_line(diagnostic, &mut directives)
+                    .is_some()
+            })
+            .cloned()
+            .collect();
+
+        DiagnosticsWithPrecedingDirectives {
+            diagnostics,
+            directives,
+        }
+    }
+
+    pub(super) fn mark_preceding_comment_directive_line(
+        &self,
+        diagnostic: &Diagnostic,
+        directives: &mut CommentDirectivesMap,
+    ) -> Option<usize> {
+        let ref file = diagnostic.maybe_file()?;
+        let start = diagnostic.start();
+
+        let file_as_source_file = file.as_source_file();
+        let ref line_starts = get_line_starts(file_as_source_file);
+        let line =
+            compute_line_and_character_of_position(line_starts, start.try_into().unwrap()).line;
+        if line == 0 {
+            return None;
+        }
+        let mut line = line - 1;
+        let file_text_as_chars = file_as_source_file.text_as_chars();
+        loop
+        /*while (line >= 0)*/
+        {
+            if directives.mark_used(line) {
+                return Some(line);
+            }
+
+            let line_text: String = if line == line_starts.len() - 1 {
+                &file_text_as_chars[line_starts[line]..]
+            } else {
+                &file_text_as_chars[line_starts[line]..line_starts[line + 1]]
+            }
+            .into_iter()
+            .collect();
+            let line_text = line_text.trim();
+            lazy_static! {
+                static ref comment_regex: Regex = Regex::new(r"^(\s*)//(.*)$").unwrap();
+            }
+            if !line_text.is_empty() && !comment_regex.is_match(line_text) {
+                return None;
+            }
+
+            if line == 0 {
+                break;
+            } else {
+                line -= 1;
+            }
+        }
+
+        None
     }
 
     pub(super) fn get_and_cache_diagnostics(
@@ -246,4 +342,9 @@ impl Program {
         *file_as_source_file.maybe_ambient_module_names() =
             Some(ambient_modules.unwrap_or_else(|| vec![]));
     }
+}
+
+pub struct DiagnosticsWithPrecedingDirectives {
+    pub diagnostics: Vec<Rc<Diagnostic>>,
+    pub directives: CommentDirectivesMap,
 }

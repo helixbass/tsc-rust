@@ -4,3 +4,7 @@ members = [
     "typescript_services_rust",
     "local-macros",
 ]
+
+[profile.test]
+# opt-level = 3
+# codegen-units = 16

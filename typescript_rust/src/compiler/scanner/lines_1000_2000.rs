@@ -1076,7 +1076,7 @@ impl Scanner {
 
                         /*self.set_comment_directives(*/
                         self.append_if_comment_directive(
-                            self.maybe_comment_directives(),
+                            self.maybe_comment_directives_mut(),
                             &self.text_substring(self.token_pos(), self.pos()),
                             &comment_directive_reg_ex_single_line,
                             self.token_pos(),
@@ -1127,7 +1127,7 @@ impl Scanner {
 
                         /*self.set_comment_directives(*/
                         self.append_if_comment_directive(
-                            self.maybe_comment_directives(),
+                            self.maybe_comment_directives_mut(),
                             &self.text_substring(last_line_start, self.pos()),
                             &comment_directive_reg_ex_multi_line,
                             last_line_start

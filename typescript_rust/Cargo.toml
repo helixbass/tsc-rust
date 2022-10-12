@@ -28,7 +28,3 @@ name = "typescript_rust"
 
 [[bin]]
 name = "tsc-rust"
-
-[profile.test]
-# opt-level = 3
-# codegen-units = 16

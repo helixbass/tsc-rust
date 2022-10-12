@@ -153,9 +153,9 @@ pub fn create_diagnostic_for_file_from_message_chain(
     ))
 }
 
-fn create_diagnostic_for_range<TRange: TextRange>(
+pub fn create_diagnostic_for_range<TRange: TextRange>(
     source_file: &Node, /*SourceFile*/
-    range: TRange,
+    range: &TRange,
     message: &DiagnosticMessage,
 ) -> DiagnosticWithLocation {
     DiagnosticWithLocation::new(BaseDiagnostic::new(

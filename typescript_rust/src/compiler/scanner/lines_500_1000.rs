@@ -3,6 +3,7 @@
 use regex::Regex;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
+use std::rc::Rc;
 
 use super::{is_line_break, is_unicode_identifier_start, is_white_space_like, maybe_code_point_at};
 use crate::{
@@ -712,7 +713,7 @@ pub struct Scanner /*<'on_error>*/ {
     pub(super) token: RefCell<Option<SyntaxKind>>,
     pub(super) token_value: RefCell<Option<String>>,
     pub(super) token_flags: RefCell<Option<TokenFlags>>,
-    pub(super) comment_directives: RefCell<Option<Vec<CommentDirective>>>,
+    pub(super) comment_directives: RefCell<Option<Vec<Rc<CommentDirective>>>>,
     pub(super) in_jsdoc_type: Cell<isize>,
 }
 
@@ -845,7 +846,11 @@ impl Scanner {
         self.set_token_flags(self.token_flags() | flag);
     }
 
-    pub(super) fn maybe_comment_directives(&self) -> RefMut<Option<Vec<CommentDirective>>> {
+    pub(super) fn maybe_comment_directives(&self) -> Ref<Option<Vec<Rc<CommentDirective>>>> {
+        self.comment_directives.borrow()
+    }
+
+    pub(super) fn maybe_comment_directives_mut(&self) -> RefMut<Option<Vec<Rc<CommentDirective>>>> {
         self.comment_directives.borrow_mut()
     }
 
@@ -909,7 +914,7 @@ impl Scanner {
         self.token_flags().intersects(TokenFlags::Unterminated)
     }
 
-    pub fn get_comment_directives(&self) -> Ref<Option<Vec<CommentDirective>>> {
+    pub fn get_comment_directives(&self) -> Ref<Option<Vec<Rc<CommentDirective>>>> {
         self.comment_directives.borrow()
     }
 

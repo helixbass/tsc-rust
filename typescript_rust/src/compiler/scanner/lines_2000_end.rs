@@ -3,6 +3,7 @@
 use regex::Regex;
 use std::cell::{Ref, RefMut};
 use std::convert::TryInto;
+use std::rc::Rc;
 
 use super::{
     is_conflict_marker_trivia, is_identifier_part, is_identifier_start, is_line_break,
@@ -172,7 +173,7 @@ impl Scanner {
 
     pub(super) fn append_if_comment_directive(
         &self,
-        mut comment_directives: RefMut<Option<Vec<CommentDirective>>>,
+        mut comment_directives: RefMut<Option<Vec<Rc<CommentDirective>>>>,
         text: &str,
         comment_directive_reg_ex: &Regex,
         line_start: usize,
@@ -194,13 +195,13 @@ impl Scanner {
         /*return*/
         append(
             &mut comment_directives,
-            Some(CommentDirective {
+            Some(Rc::new(CommentDirective {
                 range: BaseTextRange::new(
                     line_start.try_into().unwrap(),
                     self.pos().try_into().unwrap(),
                 ),
                 type_,
-            }),
+            })),
         )
     }
 
@@ -618,7 +619,7 @@ impl Scanner {
         self.set_token(save_token);
         self.set_maybe_token_value(save_token_value);
         self.set_token_flags(save_token_flags);
-        *self.maybe_comment_directives() = save_error_expectations;
+        *self.maybe_comment_directives_mut() = save_error_expectations;
 
         result
     }
@@ -642,7 +643,7 @@ impl Scanner {
     }
 
     pub fn clear_comment_directives(&self) {
-        *self.maybe_comment_directives() = None;
+        *self.maybe_comment_directives_mut() = None;
     }
 
     pub fn set_text(
