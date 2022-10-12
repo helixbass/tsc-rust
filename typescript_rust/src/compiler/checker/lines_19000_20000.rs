@@ -1203,9 +1203,9 @@ impl CheckTypeRelatedTo {
         let save_error_info = self.capture_error_calculation_state();
         let incompatible_reporter: fn(&Self, &Signature, &Signature) -> fn(&Self, &Type, &Type) =
             if kind == SignatureKind::Construct {
-                Self::report_incompatible_call_signature_return
-            } else {
                 Self::report_incompatible_construct_signature_return
+            } else {
+                Self::report_incompatible_call_signature_return
             };
         let source_object_flags = get_object_flags(source);
         let target_object_flags = get_object_flags(target);
