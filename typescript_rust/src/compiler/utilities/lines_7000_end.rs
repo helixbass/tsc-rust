@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
@@ -11,7 +12,7 @@ use crate::{
     is_expression_node, is_expression_statement, is_for_statement, is_identifier, is_jsdoc_node,
     is_parameter, is_parenthesized_expression, is_part_of_type_query,
     is_shorthand_property_assignment, is_type_reference_node, is_void_expression, last,
-    parameter_is_this_keyword, some, string_contains, CompilerOptions, Debug_,
+    parameter_is_this_keyword, some, string_contains, CharacterCodes, CompilerOptions, Debug_,
     FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
     ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind,
@@ -30,7 +31,89 @@ pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>
 }
 
 pub fn parse_pseudo_big_int(string_value: &str) -> String {
-    string_value.to_string()
+    let string_value = string_value.chars().collect::<Vec<_>>();
+    let log_2_base: usize;
+    match string_value.get(1).copied() {
+        Some(CharacterCodes::b) | Some(CharacterCodes::B) => {
+            log_2_base = 1;
+        }
+        Some(CharacterCodes::o) | Some(CharacterCodes::O) => {
+            log_2_base = 3;
+        }
+        Some(CharacterCodes::x) | Some(CharacterCodes::X) => {
+            log_2_base = 4;
+        }
+        _ => {
+            let n_index = string_value.len() - 1;
+            let mut non_zero_start = 0;
+            while string_value.get(non_zero_start).copied() == Some(CharacterCodes::_0) {
+                non_zero_start += 1;
+            }
+            return if non_zero_start < n_index {
+                string_value[non_zero_start..n_index].into_iter().collect()
+            } else {
+                "0".to_owned()
+            };
+        }
+    }
+
+    let start_index = 2;
+    let end_index = string_value.len() - 1;
+    let bits_needed = (end_index - start_index) * log_2_base;
+    let mut segments: Vec<u16> =
+        vec![0; (bits_needed >> 4) + if bits_needed & 15 != 0 { 1 } else { 0 }];
+    let mut i = end_index - 1;
+    let mut bit_offset = 0;
+    while i >= start_index {
+        let segment = bit_offset >> 4;
+        let digit_char = string_value[i];
+        let digit: u32 = if digit_char <= CharacterCodes::_9 {
+            Into::<u32>::into(digit_char) - Into::<u32>::into(CharacterCodes::_0)
+        } else {
+            10 + Into::<u32>::into(digit_char)
+                - Into::<u32>::into(if digit_char <= CharacterCodes::F {
+                    CharacterCodes::A
+                } else {
+                    CharacterCodes::a
+                })
+        };
+        let shifted_digit = digit << (bit_offset & 15);
+        segments[segment] |= TryInto::<u16>::try_into(shifted_digit).unwrap();
+        let residual = shifted_digit >> 16;
+        if residual != 0 {
+            segments[segment + 1] |= TryInto::<u16>::try_into(residual).unwrap();
+        }
+        i -= 1;
+        bit_offset += log_2_base;
+    }
+
+    let mut base_10_value = "".to_owned();
+    let mut first_nonzero_segment = segments.len() - 1;
+    let mut segments_remaining = true;
+    while segments_remaining {
+        let mut mod_10 = 0;
+        segments_remaining = false;
+        let mut segment = first_nonzero_segment;
+        loop
+        /*while (segment >= 0)*/
+        {
+            let new_segment = mod_10 << 16 | Into::<u32>::into(segments[segment]);
+            let segment_value: u32 = (new_segment / 10) | 0;
+            segments[segment] = TryInto::<u16>::try_into(segment_value).unwrap();
+            mod_10 = new_segment - segment_value * 10;
+            if segment_value != 0 && !segments_remaining {
+                first_nonzero_segment = segment;
+                segments_remaining = true;
+            }
+            if segment == 0 {
+                break;
+            } else {
+                segment -= 1;
+            }
+        }
+        base_10_value.insert_str(0, &format!("{}", mod_10));
+    }
+    base_10_value
 }
 
 pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
