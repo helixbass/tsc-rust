@@ -826,7 +826,7 @@ impl TypeChecker {
             return self.void_type();
         }
 
-        if node.kind() == SyntaxKind::NewKeyword {
+        if node.kind() == SyntaxKind::NewExpression {
             let declaration = signature.declaration.as_ref();
 
             if let Some(declaration) = declaration.filter(|declaration| {
