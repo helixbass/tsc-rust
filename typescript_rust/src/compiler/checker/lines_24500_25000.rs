@@ -1105,7 +1105,7 @@ impl TypeChecker {
                 if self.no_implicit_any {
                     self.error(
                         get_name_of_declaration(Some(&*declaration)),
-                        &Diagnostics::Variable_0_implicitly_has_type_1_in_some_locations_but_a_better_type_may_be_inferred_from_usage,
+                        &Diagnostics::Variable_0_implicitly_has_type_1_in_some_locations_where_its_type_cannot_be_determined,
                         Some(vec![
                             self.symbol_to_string_(
                                 &symbol,

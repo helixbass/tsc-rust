@@ -507,8 +507,8 @@ impl TypeChecker {
                 if self.is_array_type(&type_)
                     || self.is_tuple_type(&type_)
                         && type_
-                            .as_type_reference()
-                            .target
+                            .as_type_reference_interface()
+                            .target()
                             .as_tuple_type()
                             .combined_flags
                             .intersects(ElementFlags::Rest)
