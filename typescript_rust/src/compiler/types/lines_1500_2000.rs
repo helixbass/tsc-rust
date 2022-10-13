@@ -5,9 +5,9 @@ use std::rc::Rc;
 
 use super::{
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
-    BaseSignatureDeclaration, BaseVariableLikeDeclaration, FlowNode, HasExpressionInterface,
-    HasQuestionTokenInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
-    SyntaxKind, Type,
+    BaseSignatureDeclaration, BaseVariableLikeDeclaration, FlowNode, HasElementsInterface,
+    HasExpressionInterface, HasQuestionTokenInterface, HasTypeInterface, NamedDeclarationInterface,
+    Node, NodeArray, SyntaxKind, Type,
 };
 use local_macros::ast_type;
 
@@ -461,6 +461,12 @@ impl TupleTypeNode {
             _node: base_node,
             elements,
         }
+    }
+}
+
+impl HasElementsInterface for TupleTypeNode {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
     }
 }
 

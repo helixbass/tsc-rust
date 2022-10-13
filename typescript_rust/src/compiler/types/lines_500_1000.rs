@@ -699,6 +699,10 @@ impl Node {
             Node::ArrayBindingPattern(node) => node,
             Node::NamedImports(node) => node,
             Node::NamedExports(node) => node,
+            Node::CommaListExpression(node) => node,
+            Node::AssertClause(node) => node,
+            Node::TupleTypeNode(node) => node,
+            Node::ArrayLiteralExpression(node) => node,
             _ => panic!("Expected has elements"),
         }
     }

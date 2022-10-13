@@ -156,6 +156,12 @@ impl AssertClause {
     }
 }
 
+impl HasElementsInterface for AssertClause {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct NamespaceImport {

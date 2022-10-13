@@ -420,6 +420,12 @@ impl CommaListExpression {
     }
 }
 
+impl HasElementsInterface for CommaListExpression {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct EmptyStatement {

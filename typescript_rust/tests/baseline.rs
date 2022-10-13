@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use pretty_assertions::assert_str_eq;
 use regex::{Captures, Regex};
@@ -5718,10 +5719,20 @@ lazy_static! {
 }
 
 fn get_number_of_leading_lines_to_remove(case_file_contents: &str) -> usize {
-    case_file_contents
-        .split("\n")
-        .take_while(|&line| option_regex.is_match(line) || whitespace_only_regex.is_match(line))
-        .count()
+    let lines = case_file_contents.split("\n");
+    let mut number_of_leading_lines = 0;
+    let lines_after_leading = lines.skip_while(|&line| {
+        let should_remove = option_regex.is_match(line) || whitespace_only_regex.is_match(line);
+        if should_remove {
+            number_of_leading_lines += 1;
+        }
+        should_remove
+    });
+    let number_of_lines_after_some_actual_file_contents_but_presumably_before_the_line_numbers_of_any_diagnostics =
+        option_regex
+            .find_iter(&Itertools::intersperse(lines_after_leading, "\n").collect::<String>())
+            .count();
+    number_of_leading_lines + number_of_lines_after_some_actual_file_contents_but_presumably_before_the_line_numbers_of_any_diagnostics
 }
 
 struct DummyFormatDiagnosticsHost;

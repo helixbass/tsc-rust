@@ -5,9 +5,9 @@ use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
-    BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
-    SyntaxKind,
+    BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasElementsInterface,
+    HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    NamedDeclarationInterface, Node, NodeArray, SyntaxKind,
 };
 use local_macros::ast_type;
 
@@ -389,6 +389,12 @@ impl ArrayLiteralExpression {
             elements,
             multi_line,
         }
+    }
+}
+
+impl HasElementsInterface for ArrayLiteralExpression {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
     }
 }
 
