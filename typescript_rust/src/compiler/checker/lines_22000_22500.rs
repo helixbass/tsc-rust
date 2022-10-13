@@ -381,8 +381,8 @@ impl InferTypes {
                     let start_length = if self.type_checker.is_tuple_type(source) {
                         cmp::min(
                             source
-                                .as_type_reference()
-                                .target
+                                .as_type_reference_interface()
+                                .target()
                                 .as_tuple_type()
                                 .fixed_length,
                             target_target_as_tuple_type.fixed_length,
@@ -393,7 +393,7 @@ impl InferTypes {
                     let end_length = cmp::min(
                         if self.type_checker.is_tuple_type(source) {
                             self.type_checker.get_end_element_count(
-                                &source.as_type_reference().target,
+                                &source.as_type_reference_interface().target(),
                                 ElementFlags::Fixed,
                             )
                         } else {

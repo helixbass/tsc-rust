@@ -740,7 +740,11 @@ impl CheckTypeRelatedTo {
                 if !target_target_as_tuple_type.readonly
                     && (self.type_checker.is_readonly_array_type(source)
                         || self.type_checker.is_tuple_type(source)
-                            && source.as_type_reference().target.as_tuple_type().readonly)
+                            && source
+                                .as_type_reference_interface()
+                                .target()
+                                .as_tuple_type()
+                                .readonly)
                 {
                     return Ternary::False;
                 }
@@ -748,8 +752,8 @@ impl CheckTypeRelatedTo {
                 let target_arity = self.type_checker.get_type_reference_arity(target);
                 let source_rest_flag = if self.type_checker.is_tuple_type(source) {
                     source
-                        .as_type_reference()
-                        .target
+                        .as_type_reference_interface()
+                        .target()
                         .as_tuple_type()
                         .combined_flags
                         & ElementFlags::Rest
@@ -759,7 +763,11 @@ impl CheckTypeRelatedTo {
                 let target_rest_flag =
                     target_target_as_tuple_type.combined_flags & ElementFlags::Rest;
                 let source_min_length = if self.type_checker.is_tuple_type(source) {
-                    source.as_type_reference().target.as_tuple_type().min_length
+                    source
+                        .as_type_reference_interface()
+                        .target()
+                        .as_tuple_type()
+                        .min_length
                 } else {
                     0
                 };

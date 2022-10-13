@@ -829,7 +829,7 @@ impl TypeChecker {
                 return type_symbol.into();
             }
             if self.is_tuple_type(type_) {
-                return type_.as_type_reference().target.clone().into();
+                return type_.as_type_reference_interface().target().into();
             }
         }
         if type_.flags().intersects(TypeFlags::TypeParameter) {

@@ -109,7 +109,8 @@ impl TypeChecker {
         source: &Type, /*TupleTypeReference*/
         target: &Type, /*TupleTypeReference*/
     ) -> bool {
-        let source_target_as_tuple_type = source.as_type_reference().target.as_tuple_type();
+        let source_target = source.as_type_reference_interface().target();
+        let source_target_as_tuple_type = source_target.as_tuple_type();
         let target_target_as_tuple_type = target.as_type_reference().target.as_tuple_type();
         !target_target_as_tuple_type
             .combined_flags

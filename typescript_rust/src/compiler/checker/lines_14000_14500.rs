@@ -137,9 +137,13 @@ impl TypeChecker {
                             &mut expanded_types,
                             &mut expanded_declarations,
                             t,
-                            type_.as_tuple_type().target().as_tuple_type().element_flags[n],
                             type_
+                                .as_type_reference()
+                                .target()
                                 .as_tuple_type()
+                                .element_flags[n],
+                            type_
+                                .as_type_reference()
                                 .target()
                                 .as_tuple_type()
                                 .labeled_element_declarations
