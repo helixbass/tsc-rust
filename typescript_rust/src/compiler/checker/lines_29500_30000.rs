@@ -651,7 +651,7 @@ impl TypeChecker {
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(Some(node)).unwrap(),
                         type_arguments,
-                        &Diagnostics::No_overload_expects_0_arguments_but_overloads_do_exist_that_expect_either_1_or_2_arguments,
+                        &Diagnostics::No_overload_expects_0_type_arguments_but_overloads_do_exist_that_expect_either_1_or_2_type_arguments,
                         Some(vec![
                             arg_count.to_string(),
                             below_arg_count.to_string(),
