@@ -667,18 +667,18 @@ pub fn is_in_expression_context(node: &Node) -> bool {
             matches!(parent.as_has_initializer().maybe_initializer(), Some(initializer) if ptr::eq(&*initializer, node))
         }
         SyntaxKind::ExpressionStatement => {
-            ptr::eq(&*node.as_expression_statement().expression, node)
+            ptr::eq(&*parent.as_expression_statement().expression, node)
         }
-        SyntaxKind::IfStatement => ptr::eq(&*node.as_if_statement().expression, node),
-        SyntaxKind::DoStatement => ptr::eq(&*node.as_do_statement().expression, node),
-        SyntaxKind::WhileStatement => ptr::eq(&*node.as_while_statement().expression, node),
+        SyntaxKind::IfStatement => ptr::eq(&*parent.as_if_statement().expression, node),
+        SyntaxKind::DoStatement => ptr::eq(&*parent.as_do_statement().expression, node),
+        SyntaxKind::WhileStatement => ptr::eq(&*parent.as_while_statement().expression, node),
         SyntaxKind::ReturnStatement => {
-            matches!(node.as_return_statement().expression.as_ref(), Some(expression) if ptr::eq(&**expression, node))
+            matches!(parent.as_return_statement().expression.as_ref(), Some(expression) if ptr::eq(&**expression, node))
         }
-        SyntaxKind::WithStatement => ptr::eq(&*node.as_with_statement().expression, node),
-        SyntaxKind::SwitchStatement => ptr::eq(&*node.as_switch_statement().expression, node),
-        SyntaxKind::CaseClause => ptr::eq(&*node.as_case_clause().expression, node),
-        SyntaxKind::ThrowStatement => ptr::eq(&*node.as_throw_statement().expression, node),
+        SyntaxKind::WithStatement => ptr::eq(&*parent.as_with_statement().expression, node),
+        SyntaxKind::SwitchStatement => ptr::eq(&*parent.as_switch_statement().expression, node),
+        SyntaxKind::CaseClause => ptr::eq(&*parent.as_case_clause().expression, node),
+        SyntaxKind::ThrowStatement => ptr::eq(&*parent.as_throw_statement().expression, node),
         SyntaxKind::ForStatement => {
             let for_statement = parent.as_for_statement();
             matches!(for_statement.initializer.as_ref(), Some(initializer) if ptr::eq(&**initializer, node) && initializer.kind() != SyntaxKind::VariableDeclarationList)
