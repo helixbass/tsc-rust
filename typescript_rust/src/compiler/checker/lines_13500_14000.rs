@@ -1138,7 +1138,7 @@ impl TypeChecker {
         );
         let type_as_interface_type = type_.as_interface_type();
         type_as_interface_type.set_target(type_.clone());
-        *type_as_interface_type.maybe_resolved_type_arguments() = type_parameters;
+        *type_as_interface_type.maybe_resolved_type_arguments_mut() = type_parameters;
         type_as_interface_type.set_declared_properties(properties);
         type_as_interface_type.set_declared_call_signatures(vec![]);
         type_as_interface_type.set_declared_construct_signatures(vec![]);

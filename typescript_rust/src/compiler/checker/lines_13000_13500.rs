@@ -452,14 +452,14 @@ impl TypeChecker {
                 }
             };
             if self.pop_type_resolution() {
-                *type_as_type_reference.maybe_resolved_type_arguments() =
+                *type_as_type_reference.maybe_resolved_type_arguments_mut() =
                     if let Some(type_mapper) = type_as_type_reference.maybe_mapper() {
                         self.instantiate_types(Some(&type_arguments), Some(type_mapper))
                     } else {
                         Some(type_arguments)
                     };
             } else {
-                *type_as_type_reference.maybe_resolved_type_arguments() = Some(
+                *type_as_type_reference.maybe_resolved_type_arguments_mut() = Some(
                     type_as_type_reference
                         .target()
                         .as_interface_type()

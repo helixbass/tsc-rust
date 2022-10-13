@@ -225,7 +225,7 @@ impl TypeChecker {
             );
             type_as_interface_type.genericize(instantiations);
             type_as_interface_type.set_target(type_.clone());
-            *type_as_interface_type.maybe_resolved_type_arguments() = type_as_interface_type
+            *type_as_interface_type.maybe_resolved_type_arguments_mut() = type_as_interface_type
                 .maybe_type_parameters()
                 .map(ToOwned::to_owned);
             original_links.borrow_mut().declared_type = Some(type_.clone());

@@ -838,7 +838,11 @@ impl TypeReferenceInterface for BaseInterfaceType {
         self.literal_type.borrow_mut()
     }
 
-    fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    fn maybe_resolved_type_arguments(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.resolved_type_arguments.borrow()
+    }
+
+    fn maybe_resolved_type_arguments_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.resolved_type_arguments.borrow_mut()
     }
 
@@ -883,7 +887,8 @@ pub trait TypeReferenceInterface: ObjectTypeInterface {
     fn set_target(&self, target: Rc<Type>);
     fn maybe_node(&self) -> Option<Rc<Node>>;
     fn maybe_node_mut(&self) -> RefMut<Option<Rc<Node>>>;
-    fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+    fn maybe_resolved_type_arguments(&self) -> Ref<Option<Vec<Rc<Type>>>>;
+    fn maybe_resolved_type_arguments_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
     fn maybe_literal_type(&self) -> Option<Rc<Type>>;
     fn maybe_literal_type_mut(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_cached_equivalent_base_type(&self) -> RefMut<Option<Rc<Type>>>;
@@ -906,7 +911,11 @@ impl TypeReferenceInterface for TypeReference {
         self.node.borrow_mut()
     }
 
-    fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    fn maybe_resolved_type_arguments(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+        self.resolved_type_arguments.borrow()
+    }
+
+    fn maybe_resolved_type_arguments_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.resolved_type_arguments.borrow_mut()
     }
 
