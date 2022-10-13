@@ -243,12 +243,17 @@ impl TypeChecker {
         target: Option<TTarget>,
         overwrite_empty: bool,
     ) -> bool {
-        let mut alias_declaration_links = alias_declaration_links.borrow_mut();
         if let Some(target) = target {
             let target = target.borrow();
-            if alias_declaration_links.type_only_declaration.is_none()
+            if alias_declaration_links
+                .borrow()
+                .type_only_declaration
+                .is_none()
                 || overwrite_empty
-                    && matches!(alias_declaration_links.type_only_declaration, Some(None))
+                    && matches!(
+                        alias_declaration_links.borrow().type_only_declaration,
+                        Some(None)
+                    )
             {
                 let export_symbol = target
                     .maybe_exports()
@@ -269,19 +274,23 @@ impl TypeChecker {
                             })
                             .map(Clone::clone)
                         });
-                alias_declaration_links.type_only_declaration = Some(type_only.or_else(|| {
-                    match RefCell::borrow(&self.get_symbol_links(&export_symbol))
-                        .type_only_declaration
-                        .clone()
-                    {
-                        Some(type_only_declaration) => type_only_declaration,
-                        None => None,
-                    }
-                }));
+                alias_declaration_links.borrow_mut().type_only_declaration =
+                    Some(type_only.or_else(|| {
+                        match RefCell::borrow(&self.get_symbol_links(&export_symbol))
+                            .type_only_declaration
+                            .clone()
+                        {
+                            Some(type_only_declaration) => type_only_declaration,
+                            None => None,
+                        }
+                    }));
             }
         }
         matches!(
-            alias_declaration_links.type_only_declaration.as_ref(),
+            alias_declaration_links
+                .borrow()
+                .type_only_declaration
+                .as_ref(),
             Some(Some(_))
         )
     }
