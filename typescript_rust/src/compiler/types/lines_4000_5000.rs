@@ -1222,7 +1222,7 @@ bitflags! {
         const HasNonUniformType = 1 << 6;
         const HasLiteralType = 1 << 7;
         const ContainsPublic = 1 << 8;
-        const ContainsProtected = 1 << 3;
+        const ContainsProtected = 1 << 9;
         const ContainsPrivate = 1 << 10;
         const ContainsStatic = 1 << 11;
         const Late = 1 << 12;
