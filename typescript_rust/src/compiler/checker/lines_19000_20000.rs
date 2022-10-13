@@ -680,7 +680,7 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None, None,
                         ),
-                        (&props[0..3]).into_iter().map(|p: &Rc<Symbol>|
+                        (&props[0..4]).into_iter().map(|p: &Rc<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
