@@ -4973,7 +4973,7 @@ use typescript_rust::{
 #[case("taggedTemplateStringsWithUnicodeEscapesES6.ts")]
 #[case("taggedTemplateStringsWithWhitespaceEscapes.ts")]
 #[case("taggedTemplateStringsWithWhitespaceEscapesES6.ts")]
-#[case("taggedTemplateWithoutDeclaredHelper.ts*")]
+#[case("taggedTemplateWithoutDeclaredHelper.ts")]
 #[case("taggedTemplatesInDifferentScopes.ts")]
 #[case("taggedTemplatesInModuleAndGlobal.ts")]
 #[case("taggedTemplatesWithIncompleteNoSubstitutionTemplate1.ts")]

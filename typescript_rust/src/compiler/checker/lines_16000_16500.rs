@@ -157,14 +157,21 @@ impl TypeChecker {
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
-            return type_.as_literal_type().get_or_initialize_fresh_type(self);
+            return match type_ {
+                Type::LiteralType(type_) => type_.get_or_initialize_fresh_type(self),
+                Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
+                    type_.fresh_type().upgrade().unwrap()
+                }
+                _ => unreachable!(),
+            };
         }
         type_.type_wrapper()
     }
 
     pub(super) fn get_regular_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
-            // TODO: this seems like it should be encapsulated behind an abstraction?
+            // TODO: this seems like it should be encapsulated behind an abstraction (also above in
+            // get_fresh_type_of_literal_type())?
             match type_ {
                 Type::LiteralType(type_) => type_.regular_type(),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
