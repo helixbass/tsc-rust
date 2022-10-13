@@ -611,6 +611,7 @@ impl Program {
         concatenate(
             filter_semantic_diagnostics(
                 self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token),
+                &self.options,
             ),
             self.get_program_diagnostics(source_file),
         )

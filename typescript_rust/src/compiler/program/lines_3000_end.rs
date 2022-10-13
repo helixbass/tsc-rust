@@ -13,8 +13,8 @@ use crate::{
     remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
     resolve_config_file_project_name, set_resolved_module, supported_js_extensions_flat,
     to_file_name_lower_case, Comparison, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticMessage, Diagnostics,
-    DirectoryStructureHost, Extension, FileIncludeKind, FileIncludeReason,
+    ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    Diagnostics, DirectoryStructureHost, Extension, FileIncludeKind, FileIncludeReason,
     FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
     FileReference, ModuleResolutionHost, ModuleResolutionHostOverrider, NamedDeclarationInterface,
@@ -554,8 +554,17 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
     }
 }
 
-pub(super) fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {
+pub(super) fn filter_semantic_diagnostics(
+    diagnostic: Vec<Rc<Diagnostic>>,
+    option: &CompilerOptions,
+) -> Vec<Rc<Diagnostic>> {
     diagnostic
+        .into_iter()
+        .filter(|d| match d.maybe_skipped_on().as_ref() {
+            None => true,
+            Some(d_skipped_on) => option.get_value(d_skipped_on).as_option_bool() != Some(true),
+        })
+        .collect()
 }
 
 pub trait CompilerHostLike {
