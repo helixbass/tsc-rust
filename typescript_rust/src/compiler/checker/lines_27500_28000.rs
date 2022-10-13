@@ -757,9 +757,8 @@ impl TypeChecker {
                 } else {
                     this_type
                 }
-                .as_type_reference()
-                .target
-                .clone(),
+                .as_type_reference_interface()
+                .target(),
             );
         }
         let enclosing_class = enclosing_class.unwrap();
