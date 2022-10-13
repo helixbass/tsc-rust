@@ -250,7 +250,11 @@ impl TypeChecker {
     pub(super) fn is_mutable_array_or_tuple(&self, type_: &Type) -> bool {
         self.is_array_type(type_) && !self.is_readonly_array_type(type_)
             || self.is_tuple_type(type_)
-                && !type_.as_type_reference().target.as_tuple_type().readonly
+                && !type_
+                    .as_type_reference_interface()
+                    .target()
+                    .as_tuple_type()
+                    .readonly
     }
 
     pub(super) fn get_element_type_of_array_type(&self, type_: &Type) -> Option<Rc<Type>> {
