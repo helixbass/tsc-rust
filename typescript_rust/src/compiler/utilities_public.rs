@@ -1487,8 +1487,14 @@ pub(crate) fn is_function_like_or_class_static_block_declaration<TNode: Borrow<N
 }
 
 pub(crate) fn is_function_like_declaration(node: &Node) -> bool {
-    /*node &&*/
     is_function_like_declaration_kind(node.kind())
+}
+
+pub(crate) fn maybe_is_function_like_declaration(node: Option<&Node>) -> bool {
+    matches!(
+        node,
+        Some(node) if is_function_like_declaration(node)
+    )
 }
 
 pub(crate) fn is_boolean_literal(node: &Node) -> bool {
