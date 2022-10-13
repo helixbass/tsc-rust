@@ -523,7 +523,7 @@ impl TypeChecker {
         let type_ =
             self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap());
         let type_as_interface_type = type_.as_interface_type();
-        let type_parameters = type_as_interface_type.maybe_type_parameters();
+        let type_parameters = type_as_interface_type.maybe_local_type_parameters();
         if let Some(type_parameters) = type_parameters {
             let num_type_arguments = length(
                 node.as_has_type_arguments()
@@ -1030,7 +1030,11 @@ impl TypeChecker {
         node: &Node, /*NodeWithTypeArguments*/
         symbol: Option<TSymbol>,
     ) -> bool {
-        if let Some(type_arguments) = node.as_has_type_arguments().maybe_type_arguments().as_ref() {
+        if node
+            .as_has_type_arguments()
+            .maybe_type_arguments()
+            .is_some()
+        {
             self.error(
                 Some(node),
                 &Diagnostics::Type_0_is_not_generic,
