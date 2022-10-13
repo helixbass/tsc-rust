@@ -526,10 +526,8 @@ impl TypeChecker {
                 } else {
                     base_type.clone()
                 };
-                self.add_inherited_members(
-                    &mut members.borrow_mut(),
-                    &self.get_properties_of_type(&instantiated_base_type),
-                );
+                let properties = self.get_properties_of_type(&instantiated_base_type);
+                self.add_inherited_members(&mut members.borrow_mut(), &properties);
                 call_signatures = concatenate(
                     call_signatures,
                     self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Call),
