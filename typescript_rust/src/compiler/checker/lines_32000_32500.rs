@@ -750,7 +750,7 @@ impl TypeChecker {
                     _ => self.boolean_type(),
                 }
             }
-            SyntaxKind::PlusPlusToken => {
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken => {
                 let ok = self.check_arithmetic_operand_type(&node_as_prefix_unary_expression.operand, &self.check_non_null_type(&operand_type, &node_as_prefix_unary_expression.operand), &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type, None);
                 if ok {
                     self.check_reference_expression(
