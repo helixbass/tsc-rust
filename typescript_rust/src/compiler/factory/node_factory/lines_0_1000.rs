@@ -11,14 +11,14 @@ use super::{
 };
 use crate::{
     create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
-    get_text_of_identifier_or_literal, is_identifier, null_node_converters,
+    get_text_of_identifier_or_literal, id_text, is_identifier, null_node_converters,
     null_parenthesizer_rules, pseudo_big_int_to_string, starts_with, string_to_token,
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
     BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, ClassLikeDeclarationBase,
     ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
-    GeneratedIdentifierFlags, HasInitializerInterface, HasTypeInterface,
+    GeneratedIdentifierFlags, HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, Identifier, InterfaceOrClassLikeDeclarationInterface,
     LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
     NodeInterface, Number, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
@@ -26,6 +26,7 @@ use crate::{
     SignatureDeclarationInterface, StringLiteral, StringOrNodeArray, SyntaxKind, TokenFlags,
     TransformFlags,
 };
+use local_macros::enum_unwrapped;
 
 thread_local! {
     pub(super) static next_auto_generate_id: RefCell<usize> = RefCell::new(0);
@@ -1165,13 +1166,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn update_identifier(
+    pub fn update_identifier<TTypeArguments: Into<MaybeChangedNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        node: &Node, /*Identifier*/
-        type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
+        node: &Node,                    /*Identifier*/
+        type_arguments: TTypeArguments, /*<TypeNode | TypeParameterDeclaration>*/
     ) -> Rc<Node> {
-        unimplemented!()
+        let type_arguments = type_arguments.into();
+        let node_type_arguments = node.as_identifier().maybe_type_arguments();
+        if has_option_node_array_changed(node_type_arguments.as_ref(), &type_arguments) {
+            self.update(
+                self.create_identifier(
+                    base_factory,
+                    &id_text(node),
+                    type_arguments.into_update_value(node_type_arguments.as_ref()),
+                    None,
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_private_identifier(
@@ -1255,6 +1271,42 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(transform_flags);
         }
         node
+    }
+}
+
+pub fn has_option_node_array_changed(
+    existing: Option<&NodeArray>,
+    maybe_changed: &MaybeChangedNodeArray,
+) -> bool {
+    match maybe_changed {
+        MaybeChangedNodeArray::Unchanged => false,
+        MaybeChangedNodeArray::Changed(None) => existing.is_some(),
+        _ => true,
+    }
+}
+
+pub enum MaybeChangedNodeArray {
+    Unchanged,
+    Changed(Option<NodeArray>),
+}
+
+impl MaybeChangedNodeArray {
+    pub fn into_update_value(self, existing_value: Option<&NodeArray>) -> Option<NodeArray> {
+        match self {
+            // TODO: I think this doesn't technically match the Typescript version's semantics
+            // since we're not sharing identity in the "reuse existing" case, but I guess that
+            // would only matter if there are cases where the "updated node" or "existing node"
+            // then mutate the NodeArray (do NodeArray's ever get mutated?) (and the
+            // shared-identity both-get-mutated semantics is "used" somewhere)?
+            Self::Unchanged => existing_value.cloned(),
+            Self::Changed(value) => value,
+        }
+    }
+}
+
+impl From<Option<NodeArray>> for MaybeChangedNodeArray {
+    fn from(value: Option<NodeArray>) -> Self {
+        Self::Changed(value)
     }
 }
 

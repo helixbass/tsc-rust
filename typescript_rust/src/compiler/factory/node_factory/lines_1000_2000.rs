@@ -4,17 +4,18 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
-    has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
-    is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
-    CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
-    ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
-    ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface, FunctionTypeNode,
-    GetAccessorDeclaration, HasInitializerInterface, HasQuestionTokenInterface,
-    IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
-    ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration,
-    PropertySignature, QualifiedName, RestTypeNode, SetAccessorDeclaration, StringOrRcNode,
-    SyntaxKind, TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
+    has_option_node_array_changed, has_static_modifier, is_computed_property_name,
+    is_exclamation_token, is_question_token, is_this_identifier, modifiers_to_flags, ArrayTypeNode,
+    BaseNode, BaseNodeFactory, CallSignatureDeclaration, ClassStaticBlockDeclaration,
+    ComputedPropertyName, ConditionalTypeNode, ConstructSignatureDeclaration,
+    ConstructorDeclaration, ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface,
+    FunctionTypeNode, GetAccessorDeclaration, HasInitializerInterface, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, IndexSignatureDeclaration, IntersectionTypeNode,
+    MaybeChangedNodeArray, MethodDeclaration, MethodSignature, ModifierFlags,
+    NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration, PropertySignature,
+    QualifiedName, RestTypeNode, SetAccessorDeclaration, StringOrRcNode, SyntaxKind,
+    TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
     TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
@@ -673,14 +674,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn update_type_reference_node(
+    pub fn update_type_reference_node<TTypeArguments: Into<MaybeChangedNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*TypeReferenceNode*/
         type_name: Rc<Node /*EntityName*/>,
-        type_arguments: Option<NodeArray /*<TypeNode>*/>,
+        type_arguments: TTypeArguments, /*<TypeNode>*/
     ) -> Rc<Node> {
-        unimplemented!()
+        let type_arguments = type_arguments.into();
+        let node_as_type_reference_node = node.as_type_reference_node();
+        let node_type_arguments = node_as_type_reference_node.maybe_type_arguments();
+        if !Rc::ptr_eq(&node_as_type_reference_node.type_name, &type_name)
+            || has_option_node_array_changed(node_type_arguments.as_ref(), &type_arguments)
+        {
+            self.update(
+                self.create_type_reference_node(
+                    base_factory,
+                    type_name,
+                    type_arguments.into_update_value(node_type_arguments.as_ref()),
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
     }
 
     pub fn create_function_type_node<

@@ -936,7 +936,7 @@ impl NodeBuilder {
                             factory_.update_identifier(
                                 synthetic_factory_,
                                 &qualifier_present,
-                                type_arguments.map(Clone::clone),
+                                type_arguments.cloned(),
                             )
                         })
                     }));
@@ -950,7 +950,7 @@ impl NodeBuilder {
                                 factory_.update_identifier(
                                     synthetic_factory_,
                                     &qualifier_present.as_qualified_name().right,
-                                    type_arguments.map(Clone::clone),
+                                    type_arguments.cloned(),
                                 ),
                             )
                         })
@@ -998,7 +998,7 @@ impl NodeBuilder {
                         factory_.update_identifier(
                             synthetic_factory_,
                             &type_name,
-                            type_arguments.map(Clone::clone),
+                            type_arguments.cloned(),
                         )
                     })
                 });
@@ -1012,7 +1012,7 @@ impl NodeBuilder {
                             factory_.update_identifier(
                                 synthetic_factory_,
                                 &type_name.as_qualified_name().right,
-                                type_arguments.map(Clone::clone),
+                                type_arguments.cloned(),
                             ),
                         )
                     })
@@ -1036,7 +1036,7 @@ impl NodeBuilder {
                         synthetic_factory_,
                         root,
                         type_name,
-                        type_arguments.map(Clone::clone),
+                        type_arguments.cloned(),
                     )
                 })
             })
