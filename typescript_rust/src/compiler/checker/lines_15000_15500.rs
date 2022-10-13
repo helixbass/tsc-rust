@@ -489,7 +489,15 @@ impl TypeChecker {
                                     access_expression,
                                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                                     Some(vec![
-                                        index_type.as_string_literal_type().value.clone(),
+                                        match index_type {
+                                            Type::LiteralType(LiteralType::StringLiteralType(
+                                                index_type,
+                                            )) => index_type.value.clone(),
+                                            Type::LiteralType(LiteralType::NumberLiteralType(
+                                                index_type,
+                                            )) => index_type.value.to_string(),
+                                            _ => panic!("Expected string or number literal type"),
+                                        },
                                         self.type_to_string_(
                                             object_type,
                                             Option::<&Node>::None,
