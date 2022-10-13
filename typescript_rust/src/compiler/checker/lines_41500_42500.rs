@@ -205,11 +205,7 @@ impl TypeChecker {
 
     pub(super) fn get_node_check_flags(&self, node: &Node) -> NodeCheckFlags {
         let node_id = node.maybe_id().unwrap_or(0);
-        if
-        /*nodeId < 0 ||*/
-        node_id >= self.node_links().len() {
-            return NodeCheckFlags::None;
-        }
+        /*if (nodeId < 0 || nodeId >= nodeLinks.length) return 0;*/
         self.node_links()
             .get(&node_id)
             .cloned()
