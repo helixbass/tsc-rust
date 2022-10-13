@@ -131,7 +131,7 @@ impl TypeChecker {
                             )
                         {
                             result.push(base_type);
-                            i += count - 1;
+                            i += count - 1 + 1;
                             continue;
                         }
                     }
