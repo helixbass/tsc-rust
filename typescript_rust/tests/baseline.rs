@@ -4451,7 +4451,7 @@ use typescript_rust::{
 #[case("recursiveIdenticalOverloadResolution.ts")]
 #[case("recursiveInference1.ts")]
 #[case("recursiveInferenceBug.ts")]
-// #[case("recursiveInheritance.ts")] stack overflowing
+#[case("recursiveInheritance.ts")]
 #[case("recursiveInheritance2.ts")]
 #[case("recursiveInheritance3.ts")]
 #[case("recursiveInheritanceGeneric.ts")]
