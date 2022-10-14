@@ -4,16 +4,17 @@ use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
 use crate::{
-    combine_paths, factory, file_extension_is, get_base_file_name,
+    combine_paths, compute_common_source_directory_of_filenames, directory_separator_str, factory,
+    file_extension_is, get_base_file_name, get_directory_path,
     get_emit_module_kind_from_module_and_target, get_new_line_character,
-    get_relative_path_from_directory, is_expression, is_identifier, is_incremental_compilation,
-    is_option_str_empty, is_source_file, last_or_undefined, no_emit_notification,
-    no_emit_substitution, out_file, remove_file_extension, resolve_path, BaseNodeFactorySynthetic,
-    BundleFileInfo, BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind,
-    CompilerOptions, Debug_, DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter,
-    Extension, ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules,
-    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, SourceMapGenerator, SourceMapSource,
-    SyntaxKind, TextRange,
+    get_normalized_absolute_path, get_relative_path_from_directory, is_expression, is_identifier,
+    is_incremental_compilation, is_option_str_empty, is_source_file, last_or_undefined,
+    no_emit_notification, no_emit_substitution, normalize_slashes, out_file, remove_file_extension,
+    resolve_path, BaseNodeFactorySynthetic, BundleFileInfo, BundleFileSection,
+    BundleFileSectionInterface, BundleFileSectionKind, CompilerOptions, Debug_,
+    DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension, ListFormat,
+    Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine, PrintHandlers,
+    Printer, PrinterOptions, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -87,6 +88,56 @@ pub(crate) fn get_output_declaration_file_name<TGetCommonSourceDirectory: FnMut(
     get_common_source_directory: Option<&mut TGetCommonSourceDirectory>,
 ) -> String {
     unimplemented!()
+}
+
+pub(crate) fn get_common_source_directory<
+    TEmittedFiles: FnMut() -> Vec<String>,
+    TGetCanonicalFileName: FnMut(&str) -> String,
+    TCheckSourceFilesBelongToPath: FnMut(&str),
+>(
+    options: &CompilerOptions,
+    mut emitted_files: TEmittedFiles,
+    current_directory: &str,
+    get_canonical_file_name: TGetCanonicalFileName,
+    check_source_files_belong_to_path: Option<TCheckSourceFilesBelongToPath>,
+) -> String {
+    let mut common_source_directory: String;
+    if let Some(options_root_dir) = options
+        .root_dir
+        .as_ref()
+        .filter(|options_root_dir| !options_root_dir.is_empty())
+    {
+        common_source_directory =
+            get_normalized_absolute_path(options_root_dir, Some(current_directory));
+        if let Some(mut check_source_files_belong_to_path) = check_source_files_belong_to_path {
+            check_source_files_belong_to_path(options_root_dir);
+        }
+    } else if let Some(options_config_file_path) =
+        options
+            .config_file_path
+            .as_ref()
+            .filter(|options_config_file_path| {
+                !options_config_file_path.is_empty() && options.composite == Some(true)
+            })
+    {
+        common_source_directory = get_directory_path(&normalize_slashes(options_config_file_path));
+        if let Some(mut check_source_files_belong_to_path) = check_source_files_belong_to_path {
+            check_source_files_belong_to_path(&common_source_directory);
+        }
+    } else {
+        common_source_directory = compute_common_source_directory_of_filenames(
+            &emitted_files(),
+            current_directory,
+            get_canonical_file_name,
+        );
+    }
+
+    if !common_source_directory.is_empty()
+        && &common_source_directory[common_source_directory.len() - 1..] != directory_separator_str
+    {
+        common_source_directory.push_str(directory_separator_str);
+    }
+    common_source_directory
 }
 
 pub(crate) fn get_common_source_directory_of_config(

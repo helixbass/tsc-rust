@@ -65,7 +65,8 @@ pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::{create_printer, get_ts_build_info_emit_output_file_path, TempFlags};
 use compiler::emitter::{
-    get_common_source_directory_of_config, get_output_declaration_file_name, EmitBinaryExpression,
+    get_common_source_directory, get_common_source_directory_of_config,
+    get_output_declaration_file_name, EmitBinaryExpression,
 };
 pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
@@ -204,7 +205,7 @@ pub use compiler::path::{
     starts_with_directory, to_path, PathAndParts, StringOrBool,
 };
 use compiler::program::{
-    change_compiler_host_like_to_use_cache,
+    change_compiler_host_like_to_use_cache, compute_common_source_directory_of_filenames,
     /*create_compiler_host_worker,*/ format_color_and_reset, get_mode_for_resolution_at_index,
     get_mode_for_usage_location, get_module_name_string_literal_at, get_referenced_file_location,
     is_reference_file_location, is_referenced_file, DiagnosticCache,

@@ -194,6 +194,14 @@ impl Program {
         }
     }
 
+    pub fn check_source_files_belong_to_path(
+        &self,
+        source_files: &[Rc<Node /*SourceFile*/>],
+        root_directory: &str,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub fn parse_project_reference_config_file(
         &self,
         ref_: &ProjectReference,
@@ -917,7 +925,8 @@ impl Program {
         if self.options.no_emit != Some(true)
             && self.options.suppress_output_path_check != Some(true)
         {
-            unimplemented!()
+            // TODO
+            // unimplemented!()
             // let emit_host = self.get_emit_host();
         }
     }

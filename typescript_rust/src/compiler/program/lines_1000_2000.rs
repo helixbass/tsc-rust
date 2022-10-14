@@ -5,12 +5,13 @@ use std::rc::Rc;
 use super::filter_semantic_diagnostics;
 use crate::{
     compare_values, concatenate, contains, contains_path, create_type_checker,
-    file_extension_is_one_of, get_base_file_name, get_mode_for_resolution_at_index,
-    get_normalized_absolute_path, get_resolved_module, is_trace_enabled, libs,
-    node_modules_path_part, out_file, package_id_to_string, remove_prefix, remove_suffix,
-    string_contains, to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison,
-    CompilerOptions, CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension,
-    FileIncludeReason, MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
+    file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
+    get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
+    is_trace_enabled, libs, map_defined, node_modules_path_part, out_file, package_id_to_string,
+    remove_prefix, remove_suffix, source_file_may_be_emitted, string_contains,
+    to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison, CompilerOptions,
+    CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension, FileIncludeReason,
+    MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceOfProjectReferenceRedirect,
     StringOrRcNode, StructureIsReused, TypeChecker, TypeCheckerHost, WriteFileCallback,
 };
@@ -270,7 +271,34 @@ impl Program {
     }
 
     pub fn get_common_source_directory(&self) -> String {
-        unimplemented!()
+        self.maybe_common_source_directory_mut()
+            .get_or_insert_with(|| {
+                let emitted_files = filter(&**self.files(), |file: &Rc<Node>| {
+                    source_file_may_be_emitted(file, self, None)
+                });
+                get_common_source_directory(
+                    &self.options,
+                    || {
+                        map_defined(Some(&emitted_files), |file: &Rc<Node>, _| {
+                            let file_as_source_file = file.as_source_file();
+                            if file_as_source_file.is_declaration_file() {
+                                None
+                            } else {
+                                Some(file_as_source_file.file_name().clone())
+                            }
+                        })
+                    },
+                    &self.current_directory(),
+                    |file_name: &str| self.get_canonical_file_name(file_name),
+                    Some(|common_source_directory: &str| {
+                        self.check_source_files_belong_to_path(
+                            &emitted_files,
+                            common_source_directory,
+                        );
+                    }),
+                )
+            })
+            .clone()
     }
 
     pub(super) fn resolve_module_names_reusing_old_state(

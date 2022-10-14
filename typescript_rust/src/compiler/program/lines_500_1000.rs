@@ -1025,6 +1025,10 @@ impl Program {
         Ref::map(self.files.borrow(), |files| files.as_ref().unwrap())
     }
 
+    pub(super) fn maybe_common_source_directory_mut(&self) -> RefMut<Option<String>> {
+        self.common_source_directory.borrow_mut()
+    }
+
     pub(super) fn get_default_library_file_name(&self) -> Ref<String> {
         if self
             .get_default_library_file_name_memoized
