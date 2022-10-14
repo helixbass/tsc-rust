@@ -121,11 +121,11 @@ pub fn compare_diagnostics_skip_related_information<
     if compared != Comparison::EqualTo {
         return compared;
     }
-    compared = compare_values(Some(d1.start()), Some(d2.start()));
+    compared = compare_values(d1.maybe_start(), d2.maybe_start());
     if compared != Comparison::EqualTo {
         return compared;
     }
-    compared = compare_values(Some(d1.length()), Some(d2.length()));
+    compared = compare_values(d1.maybe_length(), d2.maybe_length());
     if compared != Comparison::EqualTo {
         return compared;
     }

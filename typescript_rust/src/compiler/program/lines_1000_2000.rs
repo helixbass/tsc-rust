@@ -8,7 +8,7 @@ use crate::{
     file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
     get_mode_for_resolution_at_index, get_normalized_absolute_path, get_resolved_module,
     is_trace_enabled, libs, map_defined, node_modules_path_part, out_file, package_id_to_string,
-    remove_prefix, remove_suffix, source_file_may_be_emitted, string_contains,
+    remove_prefix, remove_suffix, skip_type_checking, source_file_may_be_emitted, string_contains,
     to_path as to_path_helper, trace, CancellationTokenDebuggable, Comparison, CompilerOptions,
     CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitResult, Extension, FileIncludeReason,
     MultiMap, Node, Path, Program, ResolvedModuleFull, ResolvedProjectReference,
@@ -612,8 +612,32 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
     ) -> Vec<Rc<Diagnostic>> {
-        // unimplemented!()
-        vec![]
+        if skip_type_checking(source_file, &self.options, |file_name: &str| {
+            self.is_source_of_project_reference_redirect_(file_name)
+        }) {
+            return vec![];
+        }
+
+        let source_file_as_source_file = source_file.as_source_file();
+        let program_diagnostics_in_file = self
+            .program_diagnostics()
+            .get_diagnostics(Some(&source_file_as_source_file.file_name()));
+        if !matches!(
+            source_file_as_source_file.maybe_comment_directives().as_ref(),
+            Some(source_file_comment_directives) if !source_file_comment_directives.is_empty()
+        ) {
+            return program_diagnostics_in_file;
+        }
+
+        self.get_diagnostics_with_preceding_directives(
+            source_file,
+            source_file_as_source_file
+                .maybe_comment_directives()
+                .as_ref()
+                .unwrap(),
+            &program_diagnostics_in_file,
+        )
+        .diagnostics
     }
 
     pub fn get_declaration_diagnostics(

@@ -1265,6 +1265,9 @@ fn compare_comparable_values<TValue: Eq + Ord>(
             }
         }
     }
+    if a.is_none() && b.is_none() {
+        return Comparison::EqualTo;
+    }
     if a.is_none() {
         return Comparison::LessThan;
     } else if b.is_none() {

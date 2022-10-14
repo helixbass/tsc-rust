@@ -3,14 +3,15 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    add_emit_flags, compute_line_and_character_of_position, create_comment_directives_map,
-    create_diagnostic_for_range, external_helpers_module_name_text, get_jsx_implicit_import_base,
-    get_jsx_runtime_import, get_line_starts, is_check_js_enabled_for_file, is_external_module,
-    is_source_file_js, normalize_path, set_parent, skip_type_checking,
+    add_emit_flags, compute_line_and_character_of_position, concatenate,
+    create_comment_directives_map, create_diagnostic_for_range, external_helpers_module_name_text,
+    get_jsx_implicit_import_base, get_jsx_runtime_import, get_line_starts,
+    is_check_js_enabled_for_file, is_external_module, is_source_file_js, normalize_path,
+    set_parent, skip_type_checking, sort_and_deduplicate_diagnostics,
     with_synthetic_factory_and_factory, CancellationTokenDebuggable, CommentDirective,
     CommentDirectivesMap, Debug_, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
-    EmitFlags, FileIncludeReason, Node, NodeArray, NodeFlags, NodeInterface, Program, ScriptKind,
-    SortedArray, SourceFileLike,
+    EmitFlags, FileIncludeReason, Node, NodeArray, NodeFlags, NodeInterface, Program,
+    ResolvedProjectReference, ScriptKind, SortedArray, SourceFileLike,
 };
 
 impl Program {
@@ -220,19 +221,51 @@ impl Program {
         &self,
         _cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> SortedArray<Rc<Diagnostic>> {
-        SortedArray::new(vec![])
+        sort_and_deduplicate_diagnostics(&concatenate(
+            self.program_diagnostics().get_global_diagnostics(),
+            self.get_options_diagnostics_of_config_file(),
+        ))
+    }
+
+    pub fn get_options_diagnostics_of_config_file(&self) -> Vec<Rc<Diagnostic>> {
+        let options_config_file = self.options.config_file.as_ref();
+        if options_config_file.is_none() {
+            return vec![];
+        }
+        let options_config_file = options_config_file.unwrap();
+        let mut diagnostics = self
+            .program_diagnostics()
+            .get_diagnostics(Some(&**options_config_file.as_source_file().file_name()));
+        self.for_each_resolved_project_reference(
+            |resolved_ref: Rc<ResolvedProjectReference>| -> Option<()> {
+                diagnostics.append(&mut self.program_diagnostics().get_diagnostics(Some(
+                    &**resolved_ref.source_file.as_source_file().file_name(),
+                )));
+                None
+            },
+        );
+        diagnostics
     }
 
     pub fn get_global_diagnostics(
         &self,
         _cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> SortedArray<Rc<Diagnostic>> {
-        SortedArray::new(vec![])
+        if !self.root_names().is_empty() {
+            sort_and_deduplicate_diagnostics(
+                &self
+                    .get_diagnostics_producing_type_checker()
+                    .get_global_diagnostics(),
+            )
+        } else {
+            vec![].into()
+        }
     }
 
     pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
-        // unimplemented!()
-        vec![]
+        self.maybe_config_file_parsing_diagnostics()
+            .clone()
+            .unwrap_or_else(|| vec![])
     }
 
     pub fn process_root_file(
