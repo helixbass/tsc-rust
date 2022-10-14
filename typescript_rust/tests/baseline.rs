@@ -3024,7 +3024,7 @@ use typescript_rust::{
 #[case("interfaceClassMerging.ts")]
 #[case("interfaceClassMerging2.ts")]
 #[case("interfaceContextualType.ts")]
-// #[case("interfaceDeclaration1.ts")] stack-overflowing
+#[case("interfaceDeclaration1.ts")]
 #[case("interfaceDeclaration2.ts")]
 #[case("interfaceDeclaration3.ts")]
 #[case("interfaceDeclaration4.ts")]

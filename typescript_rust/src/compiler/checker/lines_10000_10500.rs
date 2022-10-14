@@ -179,6 +179,21 @@ impl TypeChecker {
                 links = merged.as_transient_symbol().symbol_links();
             }
 
+            let temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface =
+                self.create_object_type(kind, Some(&*symbol));
+            let temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface: Rc<Type> =
+                BaseInterfaceType::new(
+                    temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .into();
+            original_links.borrow_mut().declared_type =
+                Some(temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface.clone());
+            links.borrow_mut().declared_type =
+                Some(temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface.clone());
             let type_ = self.create_object_type(kind, Some(&*symbol));
             let outer_type_parameters =
                 self.get_outer_type_parameters_of_class_or_interface(&symbol);
