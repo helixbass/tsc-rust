@@ -564,7 +564,10 @@ impl Program {
     }
 
     pub fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
-        unimplemented!()
+        self.source_files_found_searching_node_modules()
+            .get(&**file.as_source_file().path())
+            .copied()
+            == Some(true)
     }
 
     pub fn is_source_file_default_library(&self, file: &Node /*SourceFile*/) -> bool {
