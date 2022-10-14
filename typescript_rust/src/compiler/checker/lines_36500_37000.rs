@@ -490,8 +490,8 @@ impl TypeChecker {
             && node_is_missing(
                 get_containing_function(node)
                     .unwrap()
-                    .as_function_like_declaration()
-                    .maybe_body(),
+                    .maybe_as_function_like_declaration()
+                    .and_then(|node| node.maybe_body()),
             )
         {
             self.error(
