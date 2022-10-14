@@ -486,6 +486,14 @@ impl CompilerHost for CompilerHostConcrete {
         self.system.create_directory(d)
     }
 
+    fn is_on_release_old_source_file_supported(&self) -> bool {
+        false
+    }
+
+    fn is_on_release_parsed_command_line_supported(&self) -> bool {
+        false
+    }
+
     fn create_hash(&self, data: &str) -> Option<String> {
         if self.system.is_create_hash_supported() {
             Some(self.system.create_hash(data))

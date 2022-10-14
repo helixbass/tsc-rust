@@ -206,6 +206,20 @@ impl Program {
         unimplemented!()
     }
 
+    pub fn verify_compiler_options(&self) {
+        unimplemented!()
+    }
+
+    pub fn create_diagnostic_explaining_file<TFile: Borrow<Node>>(
+        &self,
+        file: Option<TFile>,
+        file_processing_reason: Option<&FileIncludeReason>,
+        diagnostic: &'static DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) -> Rc<Diagnostic> {
+        unimplemented!()
+    }
+
     pub fn add_file_preprocessing_file_explaining_diagnostic<TFile: Borrow<Node>>(
         &self,
         file: Option<TFile>,

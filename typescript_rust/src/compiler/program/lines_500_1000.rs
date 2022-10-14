@@ -1,5 +1,6 @@
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
 use std::io;
 use std::rc::Rc;
 
@@ -11,24 +12,27 @@ use super::{
     UpdateHostForUseSourceOfProjectReferenceRedirectReturn,
 };
 use crate::{
-    clone, combine_paths, create_diagnostic_collection, create_module_resolution_cache,
-    create_multi_map, create_type_reference_directive_resolution_cache, extension_from_path,
+    clone, combine_paths, create_diagnostic_collection, create_file_diagnostic,
+    create_module_resolution_cache, create_multi_map,
+    create_type_reference_directive_resolution_cache, extension_from_path,
     file_extension_is_one_of, for_each, get_automatic_type_directive_names, get_directory_path,
     get_emit_module_resolution_kind, get_package_scope_for_path, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module, get_sys, is_import_call,
     is_import_equals_declaration, map_defined, maybe_for_each, options_have_changes,
     resolve_module_name, resolve_type_reference_directive, source_file_affecting_compiler_options,
     stable_sort, walk_up_parenthesized_expressions, AutomaticTypeDirectiveFile, CompilerHost,
-    CompilerOptions, CreateProgramOptions, Diagnostic, DiagnosticCollection, Extension,
-    FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics, LibFile, ModuleKind,
-    ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId,
-    PackageJsonInfoCache, ParsedCommandLine, Path, Program, ProjectReference, RedirectTargetsMap,
-    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    RootFile, ScriptReferenceHost, SourceFile, SourceOfProjectReferenceRedirect, StructureIsReused,
+    CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection, Extension,
+    FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
+    FilePreprocessingDiagnosticsKind, LibFile, ModuleKind, ModuleResolutionCache,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId, PackageJsonInfoCache,
+    ParsedCommandLine, Path, Program, ProjectReference, RedirectTargetsMap, ReferencedFile,
+    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
+    ScriptReferenceHost, SourceFile, SourceOfProjectReferenceRedirect, StructureIsReused,
     SymlinkCache, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeReferenceDirectiveResolutionCache,
 };
+use local_macros::enum_unwrapped;
 
 pub trait LoadWithLocalCacheLoader<TValue> {
     fn call(
@@ -422,6 +426,16 @@ impl ReferenceFileLocationOrSyntheticReferenceFileLocation {
             Self::ReferenceFileLocation(location) => location.file.clone(),
             Self::SyntheticReferenceFileLocation(location) => location.file.clone(),
         }
+    }
+
+    pub fn as_reference_file_location(&self) -> &ReferenceFileLocation {
+        enum_unwrapped!(
+            self,
+            [
+                ReferenceFileLocationOrSyntheticReferenceFileLocation,
+                ReferenceFileLocation
+            ]
+        )
     }
 }
 
@@ -911,8 +925,69 @@ impl Program {
             *self.processing_other_files.borrow_mut() = None;
         }
 
-        // unimplemented!()
+        Debug_.assert(self.maybe_missing_file_paths().is_some(), None);
 
+        if let Some(old_program) = self.maybe_old_program().as_ref() {
+            if self.host().is_on_release_old_source_file_supported() {
+                unimplemented!()
+            }
+        }
+
+        if let Some(old_program) = self.maybe_old_program().as_ref() {
+            if self.host().is_on_release_parsed_command_line_supported() {
+                unimplemented!()
+            }
+        }
+
+        *self.type_reference_directive_resolution_cache.borrow_mut() = None;
+
+        self.set_old_program(None);
+
+        on_program_create_complete();
+
+        self.maybe_file_processing_diagnostics().as_ref().map(|file_processing_diagnostics| {
+            for diagnostic in file_processing_diagnostics {
+                match diagnostic.kind() {
+                    FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic => {
+                        let diagnostic_as_file_explaining_diagnostic = diagnostic.as_file_explaining_diagnostic();
+                        self.program_diagnostics().add(
+                            self.create_diagnostic_explaining_file(
+                                diagnostic_as_file_explaining_diagnostic.file.as_ref().and_then(|diagnostic_file| {
+                                    self.get_source_file_by_path(diagnostic_file)
+                                }),
+                                Some(&diagnostic_as_file_explaining_diagnostic.file_processing_reason),
+                                diagnostic_as_file_explaining_diagnostic.diagnostic,
+                                Some(diagnostic_as_file_explaining_diagnostic.args.clone().unwrap_or_else(|| vec![]))
+                            )
+                        );
+                    }
+                    FilePreprocessingDiagnosticsKind::FilePreprocessingReferencedDiagnostic => {
+                        let diagnostic_as_referenced_diagnostic = diagnostic.as_referenced_diagnostic();
+                        let referenced_file_location = get_referenced_file_location(
+                            |path: &Path| self.get_source_file_by_path(path),
+                            &diagnostic_as_referenced_diagnostic.reason,
+                        );
+                        let referenced_file_location_as_reference_file_location = referenced_file_location.as_reference_file_location();
+                        let file = &referenced_file_location_as_reference_file_location.file;
+                        let pos = referenced_file_location_as_reference_file_location.pos;
+                        let end = referenced_file_location_as_reference_file_location.end;
+                        self.program_diagnostics().add(
+                            Rc::new(
+                                create_file_diagnostic(
+                                    file,
+                                    /*Debug.checkDefined(*/pos.try_into().unwrap()/*)*/,
+                                    /*Debug.checkDefined(*/(end/*)*/ - pos).try_into().unwrap(),
+                                    diagnostic_as_referenced_diagnostic.diagnostic,
+                                    Some(diagnostic_as_referenced_diagnostic.args.clone().unwrap_or_else(|| vec![]))
+                                ).into()
+                            )
+                        );
+                    }
+                }
+            }
+        });
+
+        self.verify_compiler_options();
         // performance.mark("afterProgram");
         // performance.measure("Program", "beforeProgram", "afterProgram");
         // tracing?.pop();
@@ -982,6 +1057,10 @@ impl Program {
 
     pub(super) fn maybe_old_program(&self) -> Option<Rc<Program>> {
         self.old_program.borrow().clone()
+    }
+
+    pub(super) fn set_old_program(&self, old_program: Option<Rc<Program>>) {
+        *self.old_program.borrow_mut() = old_program;
     }
 
     pub(super) fn host(&self) -> Rc<dyn CompilerHost> {

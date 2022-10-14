@@ -345,6 +345,7 @@ pub trait CompilerHost: ModuleResolutionHost {
         has_source_file_by_path: bool,
     ) {
     }
+    fn is_on_release_old_source_file_supported(&self) -> bool;
     fn on_release_parsed_command_line(
         &self,
         config_file_name: &str,
@@ -352,6 +353,7 @@ pub trait CompilerHost: ModuleResolutionHost {
         option_options: &CompilerOptions,
     ) {
     }
+    fn is_on_release_parsed_command_line_supported(&self) -> bool;
     fn has_invalidated_resolution(&self, source_file: &Path) -> Option<bool> {
         None
     }

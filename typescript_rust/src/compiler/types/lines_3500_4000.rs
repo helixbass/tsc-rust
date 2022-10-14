@@ -1170,6 +1170,35 @@ pub enum FilePreprocessingDiagnostics {
     FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic),
 }
 
+impl FilePreprocessingDiagnostics {
+    pub fn kind(&self) -> FilePreprocessingDiagnosticsKind {
+        match self {
+            Self::FilePreprocessingReferencedDiagnostic(value) => value.kind,
+            Self::FilePreprocessingFileExplainingDiagnostic(value) => value.kind,
+        }
+    }
+
+    pub fn as_referenced_diagnostic(&self) -> &FilePreprocessingReferencedDiagnostic {
+        enum_unwrapped!(
+            self,
+            [
+                FilePreprocessingDiagnostics,
+                FilePreprocessingReferencedDiagnostic
+            ]
+        )
+    }
+
+    pub fn as_file_explaining_diagnostic(&self) -> &FilePreprocessingFileExplainingDiagnostic {
+        enum_unwrapped!(
+            self,
+            [
+                FilePreprocessingDiagnostics,
+                FilePreprocessingFileExplainingDiagnostic
+            ]
+        )
+    }
+}
+
 pub struct Program {
     pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
     pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
