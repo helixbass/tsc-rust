@@ -4,13 +4,16 @@ use std::rc::Rc;
 
 use super::{create_brackets_map, TempFlags};
 use crate::{
-    factory, file_extension_is, get_emit_module_kind_from_module_and_target,
-    get_new_line_character, is_expression, is_identifier, is_source_file, last_or_undefined,
-    no_emit_notification, no_emit_substitution, BaseNodeFactorySynthetic, BundleFileInfo,
-    BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind, Debug_,
-    DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension, ListFormat,
-    Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine, PrintHandlers,
-    Printer, PrinterOptions, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
+    combine_paths, factory, file_extension_is, get_base_file_name,
+    get_emit_module_kind_from_module_and_target, get_new_line_character,
+    get_relative_path_from_directory, is_expression, is_identifier, is_incremental_compilation,
+    is_option_str_empty, is_source_file, last_or_undefined, no_emit_notification,
+    no_emit_substitution, out_file, remove_file_extension, resolve_path, BaseNodeFactorySynthetic,
+    BundleFileInfo, BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind,
+    CompilerOptions, Debug_, DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter,
+    Extension, ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules,
+    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, SourceMapGenerator, SourceMapSource,
+    SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -20,6 +23,61 @@ lazy_static! {
 
 pub(crate) fn is_build_info_file(file: &str) -> bool {
     file_extension_is(file, Extension::TsBuildInfo.to_str())
+}
+
+pub fn get_ts_build_info_emit_output_file_path(options: &CompilerOptions) -> Option<String> {
+    let config_file = options.config_file_path.as_ref();
+    if !is_incremental_compilation(options) {
+        return None;
+    }
+    if !is_option_str_empty(options.ts_build_info_file.as_deref()) {
+        return options.ts_build_info_file.clone();
+    }
+    let out_path = out_file(options);
+    let build_info_extension_less: String;
+    if let Some(out_path) = out_path.filter(|out_path| !out_path.is_empty()) {
+        build_info_extension_less = remove_file_extension(out_path).to_owned();
+    } else {
+        let config_file = config_file?;
+        let config_file_extension_less = remove_file_extension(config_file);
+        build_info_extension_less = if let Some(options_out_dir) = options
+            .out_dir
+            .as_ref()
+            .filter(|options_out_dir| !options_out_dir.is_empty())
+        {
+            if let Some(options_root_dir) = options
+                .root_dir
+                .as_ref()
+                .filter(|options_root_dir| !options_root_dir.is_empty())
+            {
+                resolve_path(
+                    options_out_dir,
+                    &[Some(&get_relative_path_from_directory(
+                        options_root_dir,
+                        config_file_extension_less,
+                        Option::<fn(&str) -> String>::None,
+                        Some(true),
+                    ))],
+                )
+            } else {
+                combine_paths(
+                    options_out_dir,
+                    &[Some(&get_base_file_name(
+                        config_file_extension_less,
+                        None,
+                        None,
+                    ))],
+                )
+            }
+        } else {
+            config_file_extension_less.to_owned()
+        };
+    }
+    Some(format!(
+        "{}{}",
+        build_info_extension_less,
+        Extension::TsBuildInfo.to_str()
+    ))
 }
 
 pub(crate) fn get_output_declaration_file_name<TGetCommonSourceDirectory: FnMut() -> String>(

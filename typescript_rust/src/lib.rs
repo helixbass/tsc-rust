@@ -63,7 +63,7 @@ pub use compiler::core_public::{
 };
 pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
-pub use compiler::emitter::{create_printer, TempFlags};
+pub use compiler::emitter::{create_printer, get_ts_build_info_emit_output_file_path, TempFlags};
 use compiler::emitter::{
     get_common_source_directory_of_config, get_output_declaration_file_name, EmitBinaryExpression,
 };

@@ -5,7 +5,7 @@ use std::io;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
-use super::{get_mode_for_resolution_at_index, SourceFileImportsList};
+use super::{for_each_project_reference, get_mode_for_resolution_at_index, SourceFileImportsList};
 use crate::{
     compare_paths, contains_path, create_compiler_diagnostic,
     create_diagnostic_for_node_in_source_file, create_file_diagnostic, create_symlink_cache,
@@ -13,24 +13,24 @@ use crate::{
     get_base_file_name, get_directory_path, get_emit_declarations, get_emit_module_kind,
     get_emit_module_resolution_kind, get_emit_script_target, get_error_span_for_node,
     get_property_assignment, get_root_length, get_spelling_suggestion, get_strict_option_value,
-    get_ts_config_object_literal_expression, has_json_module_emit_enabled,
-    has_zero_or_one_asterisk_character, inverse_jsx_option_map, is_declaration_file_name,
-    is_external_module, is_identifier_text, is_in_js_file, is_incremental_compilation,
-    is_object_literal_expression, is_option_str_empty, is_source_file_js, lib_map, libs,
-    maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
-    remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
-    resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
-    string_contains, supported_js_extensions_flat, to_file_name_lower_case, version, Comparison,
-    CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, Debug_, Diagnostic,
-    DiagnosticInterface, DiagnosticMessage, Diagnostics, DirectoryStructureHost, Extension,
-    FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
-    FilePreprocessingDiagnosticsKind, FilePreprocessingFileExplainingDiagnostic,
-    FilePreprocessingReferencedDiagnostic, FileReference, JsxEmit, ModuleKind,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ParseConfigFileHost,
-    ParseConfigHost, Path, Program, ProjectReference, ReferencedFile, ResolvedConfigFileName,
-    ResolvedModuleFull, ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget,
-    SymlinkCache, SyntaxKind,
+    get_ts_build_info_emit_output_file_path, get_ts_config_object_literal_expression,
+    has_json_module_emit_enabled, has_zero_or_one_asterisk_character, inverse_jsx_option_map,
+    is_declaration_file_name, is_external_module, is_identifier_text, is_in_js_file,
+    is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
+    is_source_file_js, lib_map, libs, maybe_for_each, out_file, parse_isolated_entity_name,
+    path_is_absolute, path_is_relative, remove_file_extension, remove_prefix, remove_suffix,
+    resolution_extension_is_ts_or_json, resolve_config_file_project_name, set_resolved_module,
+    source_file_may_be_emitted, string_contains, supported_js_extensions_flat,
+    to_file_name_lower_case, version, Comparison, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    Diagnostics, DirectoryStructureHost, Extension, FileIncludeKind, FileIncludeReason,
+    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
+    FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
+    FileReference, JsxEmit, ModuleKind, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    ParseConfigFileHost, ParseConfigHost, Path, Program, ProjectReference, ReferencedFile,
+    ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference, ScriptKind,
+    ScriptReferenceHost, ScriptTarget, SymlinkCache, SyntaxKind,
 };
 
 impl Program {
@@ -959,7 +959,114 @@ impl Program {
     }
 
     pub fn verify_project_references(&self) {
-        unimplemented!()
+        let build_info_path = if self.options.suppress_output_path_check != Some(true) {
+            get_ts_build_info_emit_output_file_path(&self.options)
+        } else {
+            None
+        };
+        for_each_project_reference(
+            self.maybe_project_references().as_deref(),
+            self.maybe_resolved_project_references().as_deref(),
+            |resolved_ref: Option<Rc<ResolvedProjectReference>>,
+             parent: Option<&ResolvedProjectReference>,
+             index|
+             -> Option<()> {
+                let ref_ = if let Some(parent) = parent {
+                    parent.command_line.project_references.clone().unwrap()
+                } else {
+                    self.maybe_project_references().clone().unwrap()
+                }[index]
+                    .clone();
+                let parent_file = parent.map(|parent| parent.source_file.clone());
+                if resolved_ref.is_none() {
+                    self.create_diagnostic_for_reference(
+                        parent_file.as_deref(),
+                        index,
+                        &Diagnostics::File_0_not_found,
+                        Some(vec![ref_.path.clone()]),
+                    );
+                    return None;
+                }
+                let resolved_ref = resolved_ref.unwrap();
+                let options = &resolved_ref.command_line.options;
+                if options.composite != Some(true) || options.no_emit == Some(true) {
+                    let inputs = if let Some(parent) = parent {
+                        parent.command_line.file_names.clone()
+                    } else {
+                        self.root_names().clone()
+                    };
+                    if !inputs.is_empty() {
+                        if options.composite != Some(true) {
+                            self.create_diagnostic_for_reference(
+                                parent_file.as_deref(),
+                                index,
+                                &Diagnostics::Referenced_project_0_must_have_setting_composite_Colon_true,
+                                Some(vec![
+                                    ref_.path.clone()
+                                ])
+                            );
+                        }
+                        if options.no_emit == Some(true) {
+                            self.create_diagnostic_for_reference(
+                                parent_file.as_deref(),
+                                index,
+                                &Diagnostics::Referenced_project_0_may_not_disable_emit,
+                                Some(vec![ref_.path.clone()]),
+                            );
+                        }
+                    }
+                }
+                if ref_.prepend == Some(true) {
+                    let out = out_file(options);
+                    if let Some(out) = out.filter(|out| !out.is_empty()) {
+                        if !self.host().file_exists(out) {
+                            self.create_diagnostic_for_reference(
+                                parent_file.as_deref(),
+                                index,
+                                &Diagnostics::Output_file_0_from_project_1_does_not_exist,
+                                Some(vec![out.to_owned(), ref_.path.clone()]),
+                            );
+                        }
+                    } else {
+                        self.create_diagnostic_for_reference(
+                            parent_file.as_deref(),
+                            index,
+                            &Diagnostics::Cannot_prepend_project_0_because_it_does_not_have_outFile_set,
+                            Some(vec![
+                                ref_.path.clone()
+                            ])
+                        );
+                    }
+                }
+                if parent.is_none() {
+                    if let Some(build_info_path) =
+                        build_info_path.as_ref().filter(|build_info_path| {
+                            Some(*build_info_path)
+                                == get_ts_build_info_emit_output_file_path(options).as_ref()
+                        })
+                    {
+                        self.create_diagnostic_for_reference(
+                            parent_file.as_deref(),
+                            index,
+                            &Diagnostics::Cannot_write_file_0_because_it_will_overwrite_tsbuildinfo_file_generated_by_referenced_project_1,
+                            Some(vec![
+                                build_info_path.clone(),
+                                ref_.path.clone()
+                            ])
+                        );
+                        self.has_emit_blocking_diagnostics()
+                            .insert(self.to_path(build_info_path), true);
+                    }
+                }
+                None
+            },
+            Option::<
+                fn(
+                    Option<&[Rc<ProjectReference>]>,
+                    Option<&ResolvedProjectReference>,
+                ) -> Option<()>,
+            >::None,
+        );
     }
 
     pub fn create_diagnostic_for_option_path_key_value(
@@ -1006,6 +1113,16 @@ impl Program {
         args: Option<Vec<String>>,
     ) {
         self.create_diagnostic_for_option(false, option1, None, message, args);
+    }
+
+    pub fn create_diagnostic_for_reference<TSourceFile: Borrow<Node>>(
+        &self,
+        source_file: Option<TSourceFile /*JsonSourceFile*/>,
+        index: usize,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
+        unimplemented!()
     }
 
     pub fn create_diagnostic_for_option(
