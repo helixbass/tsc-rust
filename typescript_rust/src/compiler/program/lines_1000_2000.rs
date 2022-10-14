@@ -269,6 +269,10 @@ impl Program {
         Rc::new(move |file_name| self_clone.to_path(file_name))
     }
 
+    pub fn get_common_source_directory(&self) -> String {
+        unimplemented!()
+    }
+
     pub(super) fn resolve_module_names_reusing_old_state(
         &self,
         module_names: &[String],
@@ -529,6 +533,10 @@ impl Program {
         &self,
     ) -> Ref<Option<Vec<Option<Rc<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
+    }
+
+    pub fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
+        unimplemented!()
     }
 
     pub fn is_source_file_default_library(&self, file: &Node /*SourceFile*/) -> bool {

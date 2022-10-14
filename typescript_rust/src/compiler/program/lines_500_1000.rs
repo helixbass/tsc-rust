@@ -28,8 +28,8 @@ use crate::{
     ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId, PackageJsonInfoCache,
     ParsedCommandLine, Path, Program, ProjectReference, RedirectTargetsMap, ReferencedFile,
     ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
-    ScriptReferenceHost, SourceFile, SourceOfProjectReferenceRedirect, StructureIsReused,
-    SymlinkCache, TypeCheckerHost, TypeCheckerHostDebuggable,
+    ScriptReferenceHost, SourceFile, SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect,
+    StructureIsReused, SymlinkCache, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeReferenceDirectiveResolutionCache,
 };
 use local_macros::enum_unwrapped;
@@ -556,7 +556,10 @@ impl Program {
         let rc = Rc::new(Program {
             _rc_wrapper: RefCell::new(None),
             create_program_options: RefCell::new(Some(create_program_options)),
+            root_names: RefCell::new(None),
             options,
+            config_file_parsing_diagnostics: RefCell::new(None),
+            project_references: RefCell::new(None),
             processing_default_lib_files: RefCell::new(None),
             processing_other_files: RefCell::new(None),
             files: RefCell::new(None),
@@ -627,6 +630,9 @@ impl Program {
             host,
             ..
         } = self.create_program_options.borrow_mut().take().unwrap();
+        *self.root_names.borrow_mut() = Some(root_names);
+        *self.config_file_parsing_diagnostics.borrow_mut() = config_file_parsing_diagnostics;
+        *self.project_references.borrow_mut() = project_references;
         *self.old_program.borrow_mut() = old_program;
 
         // tracing?.push(tracing.Phase.Program, "createProgram", { configFilePath: options.configFilePath, rootDir: options.rootDir }, /*separateBeginAndEnd*/ true);
@@ -772,7 +778,7 @@ impl Program {
             *self.processing_default_lib_files.borrow_mut() = Some(vec![]);
             *self.processing_other_files.borrow_mut() = Some(vec![]);
 
-            if let Some(project_references) = project_references.as_ref() {
+            if let Some(project_references) = self.maybe_project_references().as_ref() {
                 if self.resolved_project_references.borrow().is_none() {
                     *self.resolved_project_references.borrow_mut() = Some(
                         project_references
@@ -787,7 +793,7 @@ impl Program {
             }
 
             // tracing?.push(tracing.Phase.Program, "processRootFiles", { count: rootNames.length });
-            for_each(&root_names, |name, index| {
+            for_each(&*self.root_names(), |name, index| {
                 self.process_root_file(
                     name,
                     false,
@@ -801,7 +807,7 @@ impl Program {
             });
             // tracing?.pop();
 
-            let type_references = if !root_names.is_empty() {
+            let type_references = if !self.root_names().is_empty() {
                 get_automatic_type_directive_names(
                     &self.options,
                     self.host().as_dyn_module_resolution_host(),
@@ -847,7 +853,7 @@ impl Program {
                 // tracing?.pop();
             }
 
-            if !root_names.is_empty() && self.maybe_skip_default_lib() != Some(true) {
+            if !self.root_names().is_empty() && self.maybe_skip_default_lib() != Some(true) {
                 let default_library_file_name = self.get_default_library_file_name();
                 if self.options.lib.is_none() && *default_library_file_name != "" {
                     self.process_root_file(
@@ -1001,6 +1007,20 @@ impl Program {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
+    pub(super) fn root_names(&self) -> Ref<Vec<String>> {
+        Ref::map(self.root_names.borrow(), |root_names| {
+            root_names.as_ref().unwrap()
+        })
+    }
+
+    pub(super) fn maybe_config_file_parsing_diagnostics(&self) -> Ref<Option<Vec<Rc<Diagnostic>>>> {
+        self.config_file_parsing_diagnostics.borrow()
+    }
+
+    pub(super) fn maybe_project_references(&self) -> Ref<Option<Vec<Rc<ProjectReference>>>> {
+        self.project_references.borrow()
+    }
+
     pub(super) fn files(&self) -> Ref<Vec<Rc<Node>>> {
         Ref::map(self.files.borrow(), |files| files.as_ref().unwrap())
     }
@@ -1138,10 +1158,18 @@ impl Program {
         )
     }
 
-    pub(super) fn maybe_compiler_options_object_literal_syntax(
+    pub(super) fn maybe_compiler_options_object_literal_syntax(&self) -> Option<Option<Rc<Node>>> {
+        self._compiler_options_object_literal_syntax
+            .borrow()
+            .clone()
+    }
+
+    pub(super) fn set_compiler_options_object_literal_syntax(
         &self,
-    ) -> RefMut<Option<Option<Rc<Node>>>> {
-        self._compiler_options_object_literal_syntax.borrow_mut()
+        compiler_options_object_literal_syntax: Option<Option<Rc<Node>>>,
+    ) {
+        *self._compiler_options_object_literal_syntax.borrow_mut() =
+            compiler_options_object_literal_syntax;
     }
 
     pub(super) fn maybe_module_resolution_cache(
@@ -1541,3 +1569,24 @@ impl TypeCheckerHost for Program {
 }
 
 impl TypeCheckerHostDebuggable for Program {}
+
+impl SourceFileMayBeEmittedHost for Program {
+    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+        self.get_compiler_options()
+    }
+
+    fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool {
+        self.is_source_file_from_external_library(file)
+    }
+
+    fn get_resolved_project_reference_to_redirect(
+        &self,
+        file_name: &str,
+    ) -> Option<Rc<ResolvedProjectReference>> {
+        self.get_resolved_project_reference_to_redirect(file_name)
+    }
+
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        self.is_source_of_project_reference_redirect_(file_name)
+    }
+}

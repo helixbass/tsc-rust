@@ -113,3 +113,10 @@ pub fn push_or_replace<TValue>(vec: &mut Vec<TValue>, index: usize, value: TValu
         vec[index] = value;
     }
 }
+
+pub fn is_option_str_empty(value: Option<&str>) -> bool {
+    !matches!(
+        value,
+        Some(value) if !value.is_empty()
+    )
+}

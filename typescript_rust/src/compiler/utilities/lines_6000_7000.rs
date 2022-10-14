@@ -780,6 +780,10 @@ pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
     )
 }
 
+pub fn has_zero_or_one_asterisk_character(str_: &str) -> bool {
+    unimplemented!()
+}
+
 #[derive(Debug)]
 pub struct SymlinkedDirectory {
     pub real: String,

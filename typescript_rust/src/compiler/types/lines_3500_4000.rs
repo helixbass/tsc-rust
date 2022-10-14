@@ -19,9 +19,9 @@ use crate::{
     DiagnosticCache, DiagnosticCollection, DiagnosticMessage, Extension, FilesByNameValue,
     ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
-    RawSourceMap, RedirectTargetsMap, ResolvedProjectReference, SourceOfProjectReferenceRedirect,
-    StructureIsReused, SymlinkCache, Type, TypeFlags, TypeInterface,
-    TypeReferenceDirectiveResolutionCache, __String,
+    ProjectReference, RawSourceMap, RedirectTargetsMap, ResolvedProjectReference,
+    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type, TypeFlags,
+    TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1202,7 +1202,10 @@ impl FilePreprocessingDiagnostics {
 pub struct Program {
     pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
     pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
+    pub(crate) root_names: RefCell<Option<Vec<String>>>,
     pub(crate) options: Rc<CompilerOptions>,
+    pub(crate) config_file_parsing_diagnostics: RefCell<Option<Vec<Rc<Diagnostic>>>>,
+    pub(crate) project_references: RefCell<Option<Vec<Rc<ProjectReference>>>>,
     pub(crate) processing_default_lib_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
     pub(crate) processing_other_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
     pub(crate) files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,

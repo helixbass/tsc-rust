@@ -804,7 +804,7 @@ pub trait SourceFileMayBeEmittedHost {
     fn get_resolved_project_reference_to_redirect(
         &self,
         file_name: &str,
-    ) -> Option<ResolvedProjectReference>;
+    ) -> Option<Rc<ResolvedProjectReference>>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
 }
 

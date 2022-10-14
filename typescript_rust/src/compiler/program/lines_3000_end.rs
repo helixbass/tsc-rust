@@ -2,25 +2,35 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::io;
+use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::{get_mode_for_resolution_at_index, SourceFileImportsList};
 use crate::{
-    compare_paths, contains_path, create_diagnostic_for_node_in_source_file, create_symlink_cache,
-    file_extension_is, file_extension_is_one_of, get_allow_js_compiler_option, get_directory_path,
-    get_property_assignment, get_spelling_suggestion, get_strict_option_value,
-    is_declaration_file_name, is_in_js_file, lib_map, libs, maybe_for_each, out_file,
+    compare_paths, contains_path, create_compiler_diagnostic,
+    create_diagnostic_for_node_in_source_file, create_file_diagnostic, create_symlink_cache,
+    file_extension_is, file_extension_is_one_of, find, get_allow_js_compiler_option,
+    get_base_file_name, get_directory_path, get_emit_declarations, get_emit_module_kind,
+    get_emit_module_resolution_kind, get_emit_script_target, get_error_span_for_node,
+    get_property_assignment, get_root_length, get_spelling_suggestion, get_strict_option_value,
+    get_ts_config_object_literal_expression, has_json_module_emit_enabled,
+    has_zero_or_one_asterisk_character, inverse_jsx_option_map, is_declaration_file_name,
+    is_external_module, is_identifier_text, is_in_js_file, is_incremental_compilation,
+    is_object_literal_expression, is_option_str_empty, is_source_file_js, lib_map, libs,
+    maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
     remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
-    resolve_config_file_project_name, set_resolved_module, supported_js_extensions_flat,
-    to_file_name_lower_case, Comparison, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    Diagnostics, DirectoryStructureHost, Extension, FileIncludeKind, FileIncludeReason,
-    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
-    FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
-    FileReference, ModuleResolutionHost, ModuleResolutionHostOverrider, NamedDeclarationInterface,
-    Node, NodeFlags, NodeInterface, ParseConfigFileHost, ParseConfigHost, Path, Program,
-    ProjectReference, ReferencedFile, ResolvedConfigFileName, ResolvedModuleFull,
-    ResolvedProjectReference, ScriptReferenceHost, SymlinkCache, SyntaxKind,
+    resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
+    string_contains, supported_js_extensions_flat, to_file_name_lower_case, version, Comparison,
+    CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, Debug_, Diagnostic,
+    DiagnosticInterface, DiagnosticMessage, Diagnostics, DirectoryStructureHost, Extension,
+    FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
+    FilePreprocessingDiagnosticsKind, FilePreprocessingFileExplainingDiagnostic,
+    FilePreprocessingReferencedDiagnostic, FileReference, JsxEmit, ModuleKind,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ParseConfigFileHost,
+    ParseConfigHost, Path, Program, ProjectReference, ReferencedFile, ResolvedConfigFileName,
+    ResolvedModuleFull, ResolvedProjectReference, ScriptKind, ScriptReferenceHost, ScriptTarget,
+    SymlinkCache, SyntaxKind,
 };
 
 impl Program {
@@ -207,7 +217,709 @@ impl Program {
     }
 
     pub fn verify_compiler_options(&self) {
-        unimplemented!()
+        let is_nightly = string_contains(version, "dev");
+        if !is_nightly {
+            if get_emit_module_kind(&self.options) == ModuleKind::Node12 {
+                self.create_option_value_diagnostic(
+                    "module",
+                    &Diagnostics::Compiler_option_0_of_value_1_is_unstable_Use_nightly_TypeScript_to_silence_this_error_Try_updating_with_npm_install_D_typescript_next,
+                    Some(vec![
+                        "module".to_owned(),
+                        "node12".to_owned(),
+                    ])
+                );
+            } else if get_emit_module_kind(&self.options) == ModuleKind::NodeNext {
+                self.create_option_value_diagnostic(
+                    "module",
+                    &Diagnostics::Compiler_option_0_of_value_1_is_unstable_Use_nightly_TypeScript_to_silence_this_error_Try_updating_with_npm_install_D_typescript_next,
+                    Some(vec![
+                        "module".to_owned(),
+                        "nodenext".to_owned(),
+                    ])
+                );
+            } else if get_emit_module_resolution_kind(&self.options) == ModuleResolutionKind::Node12
+            {
+                self.create_option_value_diagnostic(
+                    "moduleResolution",
+                    &Diagnostics::Compiler_option_0_of_value_1_is_unstable_Use_nightly_TypeScript_to_silence_this_error_Try_updating_with_npm_install_D_typescript_next,
+                    Some(vec![
+                        "moduleResolution".to_owned(),
+                        "node12".to_owned(),
+                    ])
+                );
+            } else if get_emit_module_resolution_kind(&self.options)
+                == ModuleResolutionKind::NodeNext
+            {
+                self.create_option_value_diagnostic(
+                    "moduleResolution",
+                    &Diagnostics::Compiler_option_0_of_value_1_is_unstable_Use_nightly_TypeScript_to_silence_this_error_Try_updating_with_npm_install_D_typescript_next,
+                    Some(vec![
+                        "moduleResolution".to_owned(),
+                        "nodenext".to_owned(),
+                    ])
+                );
+            }
+        }
+        if self.options.strict_property_initialization == Some(true)
+            && !get_strict_option_value(&self.options, "strictNullChecks")
+        {
+            self.create_diagnostic_for_option_name(
+                &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
+                "strictPropertyInitialization",
+                Some("strictNullChecks"),
+                None,
+            );
+        }
+        if self.options.exact_optional_property_types == Some(true)
+            && !get_strict_option_value(&self.options, "strictNullChecks")
+        {
+            self.create_diagnostic_for_option_name(
+                &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
+                "exactOptionalPropertyTypes",
+                Some("strictNullChecks"),
+                None,
+            );
+        }
+
+        if self.options.isolated_modules == Some(true) {
+            if !is_option_str_empty(self.options.out.as_deref()) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_with_option_1,
+                    "out",
+                    Some("isolatedModules"),
+                    None,
+                );
+            }
+
+            if !is_option_str_empty(self.options.out_file.as_deref()) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_with_option_1,
+                    "outFile",
+                    Some("isolatedModules"),
+                    None,
+                );
+            }
+        }
+
+        if self.options.inline_source_map == Some(true) {
+            if self.options.source_map == Some(true) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_with_option_1,
+                    "sourceMap",
+                    Some("inlineSourceMap"),
+                    None,
+                );
+            }
+
+            if !is_option_str_empty(self.options.map_root.as_deref()) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_with_option_1,
+                    "mapRoot",
+                    Some("inlineSourceMap"),
+                    None,
+                );
+            }
+        }
+
+        if self.options.composite == Some(true) {
+            if self.options.declaration == Some(false) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Composite_projects_may_not_disable_declaration_emit,
+                    "declaration",
+                    None,
+                    None,
+                );
+            }
+            if self.options.incremental == Some(false) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Composite_projects_may_not_disable_incremental_compilation,
+                    "declaration",
+                    None,
+                    None,
+                );
+            }
+        }
+
+        let output_file = out_file(&self.options);
+        if !is_option_str_empty(self.options.ts_build_info_file.as_deref()) {
+            if !is_incremental_compilation(&self.options) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                    "tsBuildInfoFile",
+                    Some("incremental"),
+                    Some("composite"),
+                );
+            }
+        } else if self.options.incremental == Some(true)
+            && is_option_str_empty(output_file)
+            && is_option_str_empty(self.options.config_file_path.as_deref())
+        {
+            self.program_diagnostics().add(
+                Rc::new(
+                    create_compiler_diagnostic(
+                        &Diagnostics::Option_incremental_can_only_be_specified_using_tsconfig_emitting_to_single_file_or_when_option_tsBuildInfoFile_is_specified,
+                        None,
+                    ).into()
+                )
+            );
+        }
+
+        self.verify_project_references();
+
+        if self.options.composite == Some(true) {
+            let root_paths: HashSet<Path> = HashSet::from_iter(
+                self.root_names()
+                    .iter()
+                    .map(|root_name| self.to_path(root_name)),
+            );
+            for file in &*self.files() {
+                if source_file_may_be_emitted(file, self, None)
+                    && !root_paths.contains(&*file.as_source_file().path())
+                {
+                    self.add_program_diagnostic_explaining_file(
+                        file,
+                        &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern,
+                        Some(vec![
+                            file.as_source_file().file_name().clone(),
+                            self.options.config_file_path.clone().unwrap_or_else(|| "".to_owned())
+                        ])
+                    );
+                }
+            }
+        }
+
+        if let Some(options_paths) = self.options.paths.as_ref() {
+            for key in options_paths.keys() {
+                // if (!hasProperty(options.paths, key)) {
+                //     continue;
+                // }
+                if !has_zero_or_one_asterisk_character(key) {
+                    self.create_diagnostic_for_option_paths(
+                        true,
+                        key,
+                        &Diagnostics::Pattern_0_can_have_at_most_one_Asterisk_character,
+                        Some(vec![key.clone()]),
+                    );
+                }
+                // if (isArray(options.paths[key])) {
+                let options_paths_value = options_paths.get(key).unwrap();
+                let len = options_paths_value.len();
+                if len == 0 {
+                    self.create_diagnostic_for_option_paths(
+                        false,
+                        key,
+                        &Diagnostics::Substitutions_for_pattern_0_shouldn_t_be_an_empty_array,
+                        Some(vec![key.clone()]),
+                    );
+                }
+                for i in 0..len {
+                    let subst = &options_paths_value[i];
+                    // TODO: this stuff is more in the realm of compiler option "type validation" than "compatible values"?
+                    // const typeOfSubst = typeof subst;
+                    // if (typeOfSubst === "string") {
+                    if !has_zero_or_one_asterisk_character(subst) {
+                        self.create_diagnostic_for_option_path_key_value(
+                            key,
+                            i,
+                            &Diagnostics::Substitution_0_in_pattern_1_can_have_at_most_one_Asterisk_character,
+                            Some(vec![
+                                subst.clone(),
+                                key.clone(),
+                            ])
+                        );
+                    }
+                    if is_option_str_empty(self.options.base_url.as_deref())
+                        && !path_is_relative(subst)
+                        && !path_is_absolute(subst)
+                    {
+                        self.create_diagnostic_for_option_path_key_value(
+                            key,
+                            i,
+                            &Diagnostics::Non_relative_paths_are_not_allowed_when_baseUrl_is_not_set_Did_you_forget_a_leading_Slash,
+                            None,
+                        );
+                    }
+                    // } else {
+                    //     createDiagnosticForOptionPathKeyValue(key, i, Diagnostics.Substitution_0_for_pattern_1_has_incorrect_type_expected_string_got_2, subst, key, typeOfSubst);
+                    // }
+                }
+                // } else {
+                //     createDiagnosticForOptionPaths(/*onKey*/ false, key, Diagnostics.Substitutions_for_pattern_0_should_be_an_array, key);
+                // }
+            }
+        }
+
+        if self.options.source_map != Some(true) && self.options.inline_source_map != Some(true) {
+            if self.options.inline_sources == Some(true) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_can_only_be_used_when_either_option_inlineSourceMap_or_option_sourceMap_is_provided,
+                    "inlineSources",
+                    None, None,
+                );
+            }
+            if !is_option_str_empty(self.options.source_root.as_deref()) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_can_only_be_used_when_either_option_inlineSourceMap_or_option_sourceMap_is_provided,
+                    "sourceRoot",
+                    None, None,
+                );
+            }
+        }
+
+        if !is_option_str_empty(self.options.out.as_deref())
+            && !is_option_str_empty(self.options.out_file.as_deref())
+        {
+            self.create_diagnostic_for_option_name(
+                &Diagnostics::Option_0_cannot_be_specified_with_option_1,
+                "out",
+                Some("outFile"),
+                None,
+            );
+        }
+
+        if !is_option_str_empty(self.options.map_root.as_deref())
+            && !(self.options.source_map == Some(true)
+                || self.options.declaration_map == Some(true))
+        {
+            self.create_diagnostic_for_option_name(
+                &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                "mapRoot",
+                Some("sourceMap"),
+                Some("declarationMap"),
+            );
+        }
+
+        if !is_option_str_empty(self.options.declaration_dir.as_deref()) {
+            if !get_emit_declarations(&self.options) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                    "declarationDir",
+                    Some("declaration"),
+                    Some("composite"),
+                );
+            }
+            if !is_option_str_empty(output_file) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
+                    "declarationDir",
+                    Some(if !is_option_str_empty(self.options.out.as_deref()) {
+                        "out"
+                    } else {
+                        "outFile"
+                    }),
+                    None,
+                );
+            }
+        }
+
+        if self.options.declaration_map == Some(true) && !get_emit_declarations(&self.options) {
+            self.create_diagnostic_for_option_name(
+                &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                "declarationMap",
+                Some("declaration"),
+                Some("composite"),
+            );
+        }
+
+        if self.options.lib.is_some() && self.options.no_lib == Some(true) {
+            self.create_diagnostic_for_option_name(
+                &Diagnostics::Option_0_cannot_be_specified_with_option_1,
+                "lib",
+                Some("noLib"),
+                None,
+            );
+        }
+
+        if self.options.no_implicit_use_strict == Some(true)
+            && get_strict_option_value(&self.options, "alwaysStrict")
+        {
+            self.create_diagnostic_for_option_name(
+                &Diagnostics::Option_0_cannot_be_specified_with_option_1,
+                "noImplicitUseStrict",
+                Some("alwaysStrict"),
+                None,
+            );
+        }
+
+        let language_version = get_emit_script_target(&self.options);
+
+        let first_non_ambient_external_module_source_file =
+            find(&**self.files(), |f: &Rc<Node>, _| {
+                is_external_module(f) && !f.as_source_file().is_declaration_file()
+            })
+            .cloned();
+        if self.options.isolated_modules == Some(true) {
+            if self.options.module == Some(ModuleKind::None)
+                && language_version < ScriptTarget::ES2015
+            {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_isolatedModules_can_only_be_used_when_either_option_module_is_provided_or_option_target_is_ES2015_or_higher,
+                    "isolatedModules",
+                    Some("target"),
+                    None,
+                );
+            }
+
+            if self.options.preserve_const_enums == Some(false) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_preserveConstEnums_cannot_be_disabled_when_isolatedModules_is_enabled,
+                    "preserveConstEnums",
+                    Some("isolatedModules"),
+                    None,
+                );
+            }
+
+            let first_non_external_module_source_file = find(&**self.files(), |f: &Rc<Node>, _| {
+                !is_external_module(f)
+                    && !is_source_file_js(f)
+                    && !f.as_source_file().is_declaration_file()
+                    && f.as_source_file().script_kind() != ScriptKind::JSON
+            })
+            .cloned();
+            if let Some(first_non_external_module_source_file) =
+                first_non_external_module_source_file.as_ref()
+            {
+                let span = get_error_span_for_node(
+                    first_non_external_module_source_file,
+                    first_non_external_module_source_file,
+                );
+                self.program_diagnostics().add(
+                    Rc::new(
+                        create_file_diagnostic(
+                            first_non_external_module_source_file,
+                            span.start,
+                            span.length,
+                            &Diagnostics::_0_cannot_be_compiled_under_isolatedModules_because_it_is_considered_a_global_script_file_Add_an_import_export_or_an_empty_export_statement_to_make_it_a_module,
+                            Some(vec![
+                                get_base_file_name(
+                                    &first_non_external_module_source_file.as_source_file().file_name(),
+                                    None, None,
+                                )
+                            ])
+                        ).into()
+                    )
+                );
+            }
+        } else if let Some(first_non_ambient_external_module_source_file) =
+            first_non_ambient_external_module_source_file.as_ref()
+        {
+            if language_version < ScriptTarget::ES2015
+                && self.options.module == Some(ModuleKind::None)
+            {
+                let span = get_error_span_for_node(
+                    first_non_ambient_external_module_source_file,
+                    first_non_ambient_external_module_source_file,
+                );
+                self.program_diagnostics().add(
+                    Rc::new(
+                        create_file_diagnostic(
+                            first_non_ambient_external_module_source_file,
+                            span.start,
+                            span.length,
+                            &Diagnostics::Cannot_use_imports_exports_or_module_augmentations_when_module_is_none,
+                            None,
+                        ).into()
+                    )
+                );
+            }
+        }
+
+        if !is_option_str_empty(output_file) && self.options.emit_declaration_only != Some(true) {
+            if matches!(
+                self.options.module,
+                Some(options_module) if !matches!(
+                    options_module,
+                    ModuleKind::AMD | ModuleKind::System
+                )
+            ) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Only_amd_and_system_modules_are_supported_alongside_0,
+                    if !is_option_str_empty(self.options.out.as_deref()) {
+                        "out"
+                    } else {
+                        "outFile"
+                    },
+                    Some("module"),
+                    None,
+                );
+            } else if self.options.module.is_none() {
+                if let Some(first_non_ambient_external_module_source_file) =
+                    first_non_ambient_external_module_source_file.as_ref()
+                {
+                    let span = get_error_span_for_node(
+                        first_non_ambient_external_module_source_file,
+                        &first_non_ambient_external_module_source_file
+                            .as_source_file()
+                            .maybe_external_module_indicator()
+                            .unwrap(),
+                    );
+                    self.program_diagnostics().add(
+                        Rc::new(
+                            create_file_diagnostic(
+                                first_non_ambient_external_module_source_file,
+                                span.start,
+                                span.length,
+                                &Diagnostics::Cannot_compile_modules_using_option_0_unless_the_module_flag_is_amd_or_system,
+                                Some(vec![
+                                    if !is_option_str_empty(self.options.out.as_deref()) {
+                                        "out"
+                                    } else {
+                                        "outFile"
+                                    }.to_owned(),
+                                ])
+                            ).into()
+                        )
+                    );
+                }
+            }
+        }
+
+        if self.options.resolve_json_module == Some(true) {
+            if !matches!(
+                get_emit_module_resolution_kind(&self.options),
+                ModuleResolutionKind::NodeJs
+                    | ModuleResolutionKind::Node12
+                    | ModuleResolutionKind::NodeNext
+            ) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_resolveJsonModule_cannot_be_specified_without_node_module_resolution_strategy,
+                    "resolveJsonModule",
+                    None, None,
+                );
+            } else if !has_json_module_emit_enabled(&self.options) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_resolveJsonModule_can_only_be_specified_when_module_code_generation_is_commonjs_amd_es2015_or_esNext,
+                    "resolveJsonModule",
+                    Some("module"),
+                    None,
+                );
+            }
+        }
+
+        if !is_option_str_empty(self.options.out_dir.as_deref())
+            || !is_option_str_empty(self.options.root_dir.as_deref())
+            || !is_option_str_empty(self.options.source_root.as_deref())
+            || !is_option_str_empty(self.options.map_root.as_deref())
+        {
+            let dir = self.get_common_source_directory();
+
+            if !is_option_str_empty(self.options.out_dir.as_deref())
+                && dir.is_empty()
+                && self
+                    .files()
+                    .iter()
+                    .any(|file| get_root_length(&file.as_source_file().file_name()) > 1)
+            {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Cannot_find_the_common_subdirectory_path_for_the_input_files,
+                    "outDir",
+                    None,
+                    None,
+                );
+            }
+        }
+
+        if self.options.use_define_for_class_fields == Some(true)
+            && language_version == ScriptTarget::ES3
+        {
+            self.create_diagnostic_for_option_name(
+                &Diagnostics::Option_0_cannot_be_specified_when_option_target_is_ES3,
+                "useDefineForClassFields",
+                None,
+                None,
+            );
+        }
+
+        if self.options.check_js == Some(true) && !get_allow_js_compiler_option(&self.options) {
+            self.program_diagnostics().add(Rc::new(
+                create_compiler_diagnostic(
+                    &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
+                    Some(vec!["checkJs".to_owned(), "allowJs".to_owned()]),
+                )
+                .into(),
+            ));
+        }
+
+        if self.options.emit_declaration_only == Some(true) {
+            if !get_emit_declarations(&self.options) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                    "emitDeclarationOnly",
+                    Some("declaration"),
+                    Some("composite")
+                );
+            }
+
+            if self.options.no_emit == Some(true) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_with_option_1,
+                    "emitDeclarationOnly",
+                    Some("noEmit"),
+                    None,
+                );
+            }
+        }
+
+        if self.options.emit_decorator_metadata == Some(true)
+            && self.options.experimental_decorators != Some(true)
+        {
+            self.create_diagnostic_for_option_name(
+                &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
+                "emitDecoratorMetadata",
+                Some("experimentalDecorators"),
+                None,
+            );
+        }
+
+        if let Some(options_jsx_factory) = self
+            .options
+            .jsx_factory
+            .as_ref()
+            .filter(|options_jsx_factory| !options_jsx_factory.is_empty())
+        {
+            if !is_option_str_empty(self.options.react_namespace.as_deref()) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_with_option_1,
+                    "reactNamespace",
+                    Some("jsxFactory"),
+                    None,
+                );
+            }
+            if matches!(
+                self.options.jsx,
+                Some(JsxEmit::ReactJSX) | Some(JsxEmit::ReactJSXDev)
+            ) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_when_option_jsx_is_1,
+                    "jsxFactory",
+                    inverse_jsx_option_map.with(|inverse_jsx_option_map_| {
+                        inverse_jsx_option_map_
+                            .get(&self.options.jsx.unwrap())
+                            .copied()
+                    }),
+                    None,
+                );
+            }
+            if parse_isolated_entity_name(options_jsx_factory.clone(), language_version).is_none() {
+                self.create_option_value_diagnostic(
+                    "jsxFactory",
+                    &Diagnostics::Invalid_value_for_jsxFactory_0_is_not_a_valid_identifier_or_qualified_name,
+                    Some(vec![
+                        options_jsx_factory.clone()
+                    ])
+                );
+            }
+        } else if let Some(options_react_namespace) =
+            self.options
+                .react_namespace
+                .as_ref()
+                .filter(|options_react_namespace| {
+                    !options_react_namespace.is_empty()
+                        && !is_identifier_text(
+                            options_react_namespace,
+                            Some(language_version),
+                            None,
+                        )
+                })
+        {
+            self.create_option_value_diagnostic(
+                "reactNamespace",
+                &Diagnostics::Invalid_value_for_reactNamespace_0_is_not_a_valid_identifier,
+                Some(vec![options_react_namespace.clone()]),
+            );
+        }
+
+        if let Some(options_jsx_fragment_factory) = self
+            .options
+            .jsx_fragment_factory
+            .as_ref()
+            .filter(|options_jsx_fragment_factory| !options_jsx_fragment_factory.is_empty())
+        {
+            if is_option_str_empty(self.options.jsx_factory.as_deref()) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
+                    "jsxFragmentFactory",
+                    Some("jsxFactory"),
+                    None,
+                );
+            }
+            if matches!(
+                self.options.jsx,
+                Some(JsxEmit::ReactJSX) | Some(JsxEmit::ReactJSXDev)
+            ) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_when_option_jsx_is_1,
+                    "jsxFragmentFactory",
+                    inverse_jsx_option_map.with(|inverse_jsx_option_map_| {
+                        inverse_jsx_option_map_
+                            .get(&self.options.jsx.unwrap())
+                            .copied()
+                    }),
+                    None,
+                );
+            }
+            if parse_isolated_entity_name(options_jsx_fragment_factory.clone(), language_version)
+                .is_none()
+            {
+                self.create_option_value_diagnostic(
+                    "jsxFragmentFactory",
+                    &Diagnostics::Invalid_value_for_jsxFragmentFactory_0_is_not_a_valid_identifier_or_qualified_name,
+                    Some(vec![
+                        options_jsx_fragment_factory.clone()
+                    ])
+                );
+            }
+        }
+
+        if !is_option_str_empty(self.options.react_namespace.as_deref()) {
+            if matches!(
+                self.options.jsx,
+                Some(JsxEmit::ReactJSX) | Some(JsxEmit::ReactJSXDev)
+            ) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_when_option_jsx_is_1,
+                    "reactNamespace",
+                    inverse_jsx_option_map.with(|inverse_jsx_option_map_| {
+                        inverse_jsx_option_map_
+                            .get(&self.options.jsx.unwrap())
+                            .copied()
+                    }),
+                    None,
+                );
+            }
+        }
+
+        if !is_option_str_empty(self.options.jsx_import_source.as_deref()) {
+            if self.options.jsx == Some(JsxEmit::React) {
+                self.create_diagnostic_for_option_name(
+                    &Diagnostics::Option_0_cannot_be_specified_when_option_jsx_is_1,
+                    "jsxImportSource",
+                    inverse_jsx_option_map.with(|inverse_jsx_option_map_| {
+                        inverse_jsx_option_map_
+                            .get(&self.options.jsx.unwrap())
+                            .copied()
+                    }),
+                    None,
+                );
+            }
+        }
+
+        if self.options.preserve_value_imports == Some(true)
+            && get_emit_module_kind(&self.options) < ModuleKind::ES2015
+        {
+            self.create_option_value_diagnostic(
+                "importsNotUsedAsValues",
+                &Diagnostics::Option_preserveValueImports_can_only_be_used_when_module_is_set_to_es2015_or_later,
+                None,
+            );
+        }
+
+        if self.options.no_emit != Some(true)
+            && self.options.suppress_output_path_check != Some(true)
+        {
+            unimplemented!()
+            // let emit_host = self.get_emit_host();
+        }
     }
 
     pub fn create_diagnostic_explaining_file<TFile: Borrow<Node>>(
@@ -234,6 +946,119 @@ impl Program {
             diagnostic,
             args,
         }))
+    }
+
+    pub fn add_program_diagnostic_explaining_file(
+        &self,
+        file: &Node, /*SourceFile*/
+        diagnostic: &'static DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
+        self.program_diagnostics()
+            .add(self.create_diagnostic_explaining_file(Some(file), None, diagnostic, args));
+    }
+
+    pub fn verify_project_references(&self) {
+        unimplemented!()
+    }
+
+    pub fn create_diagnostic_for_option_path_key_value(
+        &self,
+        key: &str,
+        value_index: usize,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
+        unimplemented!()
+    }
+
+    pub fn create_diagnostic_for_option_paths(
+        &self,
+        on_key: bool,
+        key: &str,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
+        unimplemented!()
+    }
+
+    pub fn create_diagnostic_for_option_name(
+        &self,
+        message: &DiagnosticMessage,
+        option1: &str,
+        option2: Option<&str>,
+        option3: Option<&str>,
+    ) {
+        let mut args = vec![option1.to_owned()];
+        if let Some(option2) = option2 {
+            args.push(option2.to_owned());
+        }
+        if let Some(option3) = option3 {
+            args.push(option3.to_owned());
+        }
+        self.create_diagnostic_for_option(true, option1, option2, message, Some(args));
+    }
+
+    pub fn create_option_value_diagnostic(
+        &self,
+        option1: &str,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
+        self.create_diagnostic_for_option(false, option1, None, message, args);
+    }
+
+    pub fn create_diagnostic_for_option(
+        &self,
+        on_key: bool,
+        option1: &str,
+        option2: Option<&str>,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
+        let compiler_options_object_literal_syntax =
+            self.get_compiler_options_object_literal_syntax();
+        let need_compiler_diagnostic = match compiler_options_object_literal_syntax.as_ref() {
+            None => true,
+            Some(compiler_options_object_literal_syntax) => !self
+                .create_option_diagnostic_in_object_literal_syntax(
+                    compiler_options_object_literal_syntax,
+                    on_key,
+                    option1,
+                    option2,
+                    message,
+                    args.clone(),
+                ),
+        };
+
+        if need_compiler_diagnostic {
+            self.program_diagnostics()
+                .add(Rc::new(create_compiler_diagnostic(message, args).into()));
+        }
+    }
+
+    pub fn get_compiler_options_object_literal_syntax(&self) -> Option<Rc<Node>> {
+        if self
+            .maybe_compiler_options_object_literal_syntax()
+            .is_none()
+        {
+            self.set_compiler_options_object_literal_syntax(Some(None));
+            let json_object_literal =
+                get_ts_config_object_literal_expression(self.options.config_file.as_deref());
+            if let Some(json_object_literal) = json_object_literal.as_ref() {
+                for prop in get_property_assignment(json_object_literal, "compilerOptions", None) {
+                    let prop_as_property_assignment = prop.as_property_assignment();
+                    if is_object_literal_expression(&prop_as_property_assignment.initializer) {
+                        self.set_compiler_options_object_literal_syntax(Some(Some(
+                            prop_as_property_assignment.initializer.clone(),
+                        )));
+                        break;
+                    }
+                }
+            }
+        }
+        self.maybe_compiler_options_object_literal_syntax()
+            .flatten()
     }
 
     pub fn create_option_diagnostic_in_object_literal_syntax(
