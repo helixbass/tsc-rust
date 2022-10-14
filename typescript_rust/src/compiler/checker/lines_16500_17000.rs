@@ -275,11 +275,9 @@ impl TypeChecker {
         mapped_type: &Type, /*MappedType*/
         mapper: TypeMapper,
     ) -> Rc<Type> {
-        let tuple_type_as_type_reference = tuple_type.as_type_reference();
-        let element_flags = &tuple_type_as_type_reference
-            .target
-            .as_tuple_type()
-            .element_flags;
+        let tuple_type_as_type_reference = tuple_type.as_type_reference_interface();
+        let tuple_type_target = tuple_type_as_type_reference.target();
+        let element_flags = &tuple_type_target.as_tuple_type().element_flags;
         let element_types = map(&self.get_type_arguments(tuple_type), |_, i| {
             self.instantiate_mapped_type_template(
                 mapped_type,
@@ -308,10 +306,8 @@ impl TypeChecker {
         } else {
             element_flags.clone()
         };
-        let new_readonly = self.get_modified_readonly_state(
-            tuple_type_as_type_reference.target.as_tuple_type().readonly,
-            modifiers,
-        );
+        let new_readonly =
+            self.get_modified_readonly_state(tuple_type_target.as_tuple_type().readonly, modifiers);
         if contains_rc(Some(&element_types), &self.error_type()) {
             self.error_type()
         } else {
@@ -319,8 +315,7 @@ impl TypeChecker {
                 &element_types,
                 Some(&new_tuple_modifiers),
                 Some(new_readonly),
-                tuple_type_as_type_reference
-                    .target
+                tuple_type_target
                     .as_tuple_type()
                     .labeled_element_declarations
                     .as_deref(),

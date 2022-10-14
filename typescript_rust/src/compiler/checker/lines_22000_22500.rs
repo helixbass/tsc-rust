@@ -356,6 +356,21 @@ impl InferTypes {
                 self.infer_from_types(source_name_type, target_name_type);
             }
         }
+        if get_object_flags(target).intersects(ObjectFlags::Mapped)
+            && target
+                .as_mapped_type()
+                .declaration
+                .as_mapped_type_node()
+                .name_type
+                .is_none()
+        {
+            let ref constraint_type = self
+                .type_checker
+                .get_constraint_type_from_mapped_type(target);
+            if self.infer_to_mapped_type(source, target, constraint_type) {
+                return;
+            }
+        }
         if !self.type_checker.types_definitely_unrelated(source, target) {
             if self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source) {
                 if self.type_checker.is_tuple_type(target) {
