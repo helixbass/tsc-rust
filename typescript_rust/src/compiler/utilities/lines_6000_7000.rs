@@ -287,8 +287,18 @@ pub fn get_emit_module_resolution_kind(compiler_options: &CompilerOptions) -> Mo
     module_resolution.unwrap()
 }
 
-pub fn has_json_module_emit_enabled(compiler_options: &CompilerOptions) -> bool {
-    unimplemented!()
+pub fn has_json_module_emit_enabled(options: &CompilerOptions) -> bool {
+    matches!(
+        get_emit_module_kind(options),
+        ModuleKind::CommonJS
+            | ModuleKind::AMD
+            | ModuleKind::ES2015
+            | ModuleKind::ES2020
+            | ModuleKind::ES2022
+            | ModuleKind::ESNext
+            | ModuleKind::Node12
+            | ModuleKind::NodeNext
+    )
 }
 
 pub fn unreachable_code_is_error(options: &CompilerOptions) -> bool {

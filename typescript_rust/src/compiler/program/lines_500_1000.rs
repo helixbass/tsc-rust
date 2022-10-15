@@ -956,7 +956,7 @@ impl Program {
                 match diagnostic.kind() {
                     FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic => {
                         let diagnostic_as_file_explaining_diagnostic = diagnostic.as_file_explaining_diagnostic();
-                        self.program_diagnostics().add(
+                        self.program_diagnostics_mut().add(
                             self.create_diagnostic_explaining_file(
                                 diagnostic_as_file_explaining_diagnostic.file.as_ref().and_then(|diagnostic_file| {
                                     self.get_source_file_by_path(diagnostic_file)
@@ -977,7 +977,7 @@ impl Program {
                         let file = &referenced_file_location_as_reference_file_location.file;
                         let pos = referenced_file_location_as_reference_file_location.pos;
                         let end = referenced_file_location_as_reference_file_location.end;
-                        self.program_diagnostics().add(
+                        self.program_diagnostics_mut().add(
                             Rc::new(
                                 create_file_diagnostic(
                                     file,
@@ -1122,7 +1122,13 @@ impl Program {
         self.resolved_type_reference_directives.borrow_mut()
     }
 
-    pub(super) fn program_diagnostics(&self) -> RefMut<DiagnosticCollection> {
+    pub(super) fn program_diagnostics(&self) -> Ref<DiagnosticCollection> {
+        Ref::map(self.program_diagnostics.borrow(), |program_diagnostics| {
+            program_diagnostics.as_ref().unwrap()
+        })
+    }
+
+    pub(super) fn program_diagnostics_mut(&self) -> RefMut<DiagnosticCollection> {
         RefMut::map(
             self.program_diagnostics.borrow_mut(),
             |program_diagnostics| program_diagnostics.as_mut().unwrap(),

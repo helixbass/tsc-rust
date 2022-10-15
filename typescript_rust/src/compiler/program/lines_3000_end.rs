@@ -362,7 +362,7 @@ impl Program {
             && is_option_str_empty(output_file)
             && is_option_str_empty(self.options.config_file_path.as_deref())
         {
-            self.program_diagnostics().add(
+            self.program_diagnostics_mut().add(
                 Rc::new(
                     create_compiler_diagnostic(
                         &Diagnostics::Option_incremental_can_only_be_specified_using_tsconfig_emitting_to_single_file_or_when_option_tsBuildInfoFile_is_specified,
@@ -591,7 +591,7 @@ impl Program {
                     first_non_external_module_source_file,
                     first_non_external_module_source_file,
                 );
-                self.program_diagnostics().add(
+                self.program_diagnostics_mut().add(
                     Rc::new(
                         create_file_diagnostic(
                             first_non_external_module_source_file,
@@ -618,7 +618,7 @@ impl Program {
                     first_non_ambient_external_module_source_file,
                     first_non_ambient_external_module_source_file,
                 );
-                self.program_diagnostics().add(
+                self.program_diagnostics_mut().add(
                     Rc::new(
                         create_file_diagnostic(
                             first_non_ambient_external_module_source_file,
@@ -661,7 +661,7 @@ impl Program {
                             .maybe_external_module_indicator()
                             .unwrap(),
                     );
-                    self.program_diagnostics().add(
+                    self.program_diagnostics_mut().add(
                         Rc::new(
                             create_file_diagnostic(
                                 first_non_ambient_external_module_source_file,
@@ -739,7 +739,7 @@ impl Program {
         }
 
         if self.options.check_js == Some(true) && !get_allow_js_compiler_option(&self.options) {
-            self.program_diagnostics().add(Rc::new(
+            self.program_diagnostics_mut().add(Rc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Option_0_cannot_be_specified_without_specifying_option_1,
                     Some(vec!["checkJs".to_owned(), "allowJs".to_owned()]),
@@ -963,7 +963,7 @@ impl Program {
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        self.program_diagnostics()
+        self.program_diagnostics_mut()
             .add(self.create_diagnostic_explaining_file(Some(file), None, diagnostic, args));
     }
 
@@ -1158,7 +1158,7 @@ impl Program {
         };
 
         if need_compiler_diagnostic {
-            self.program_diagnostics()
+            self.program_diagnostics_mut()
                 .add(Rc::new(create_compiler_diagnostic(message, args).into()));
         }
     }
@@ -1198,7 +1198,7 @@ impl Program {
     ) -> bool {
         let props = get_property_assignment(object_literal, key1, key2);
         for prop in &props {
-            self.program_diagnostics().add(Rc::new(
+            self.program_diagnostics_mut().add(Rc::new(
                 create_diagnostic_for_node_in_source_file(
                     self.options.config_file.as_ref().unwrap(),
                     &*if on_key {
@@ -1218,7 +1218,7 @@ impl Program {
     pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Rc<Diagnostic>) {
         self.has_emit_blocking_diagnostics()
             .insert(self.to_path(emit_file_name), true);
-        self.program_diagnostics().add(diag);
+        self.program_diagnostics_mut().add(diag);
     }
 
     pub fn is_emitted_file(&self, file: &str) -> bool {

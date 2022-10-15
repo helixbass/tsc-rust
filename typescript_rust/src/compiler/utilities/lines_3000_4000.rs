@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use regex::{Captures, Regex};
 use std::borrow::{Borrow, Cow};
+use std::cell::Cell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -798,8 +799,17 @@ impl DiagnosticCollection {
             non_file_diagnostics: SortedArray::<Rc<Diagnostic>>::new(vec![]),
             files_with_diagnostics: SortedArray::<String>::new(vec![]),
             file_diagnostics: HashMap::<String, SortedArray<Rc<Diagnostic>>>::new(),
-            has_read_non_file_diagnostics: false,
+            has_read_non_file_diagnostics: Cell::new(false),
         }
+    }
+
+    fn has_read_non_file_diagnostics(&self) -> bool {
+        self.has_read_non_file_diagnostics.get()
+    }
+
+    fn set_has_read_non_file_diagnostics(&self, has_read_non_file_diagnostics: bool) {
+        self.has_read_non_file_diagnostics
+            .set(has_read_non_file_diagnostics);
     }
 
     pub fn lookup(&self, diagnostic: Rc<Diagnostic>) -> Option<Rc<Diagnostic>> {
@@ -854,8 +864,8 @@ impl DiagnosticCollection {
                 |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| compare_diagnostics(&**a, &**b),
             );
         } else {
-            if self.has_read_non_file_diagnostics {
-                self.has_read_non_file_diagnostics = false;
+            if self.has_read_non_file_diagnostics() {
+                self.set_has_read_non_file_diagnostics(false);
                 self.non_file_diagnostics = SortedArray::new(vec![]);
             }
 
@@ -868,8 +878,8 @@ impl DiagnosticCollection {
         }
     }
 
-    pub fn get_global_diagnostics(&mut self) -> Vec<Rc<Diagnostic>> {
-        self.has_read_non_file_diagnostics = true;
+    pub fn get_global_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+        self.set_has_read_non_file_diagnostics(true);
         self.non_file_diagnostics.to_vec()
     }
 
