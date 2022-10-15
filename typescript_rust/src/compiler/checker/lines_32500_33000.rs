@@ -572,7 +572,7 @@ impl TypeChecker {
                 }
 
                 let left_type = self.check_non_null_type(left_type, left);
-                let right_type = self.check_non_null_type(right_type, left);
+                let right_type = self.check_non_null_type(right_type, right);
 
                 let mut suggested_operator: Option<SyntaxKind> = None;
                 if left_type.flags().intersects(TypeFlags::BooleanLike)

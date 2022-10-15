@@ -129,7 +129,7 @@ use typescript_rust::{
 #[case("alwaysStrictModule.ts")]
 #[case("alwaysStrictModule2.ts")] // NOT RUNNABLE
 #[case("alwaysStrictModule3.ts")]
-#[case("alwaysStrictModule4.ts")] // FAILING
+#[case("alwaysStrictModule4.ts")]
 #[case("alwaysStrictModule5.ts")]
 #[case("alwaysStrictModule6.ts")]
 #[case("alwaysStrictNoImplicitUseStrict.ts")]
@@ -453,10 +453,10 @@ use typescript_rust::{
 #[case("bigintIndex.ts")] // NOT RUNNABLE
 #[case("bigintWithLib.ts")]
 #[case("bigintWithoutLib.ts")]
-#[case("binaryArithmatic1.ts")] // FAILING
-#[case("binaryArithmatic2.ts")] // FAILING
-#[case("binaryArithmatic3.ts")] // FAILING
-#[case("binaryArithmatic4.ts")] // FAILING
+#[case("binaryArithmatic1.ts")]
+#[case("binaryArithmatic2.ts")]
+#[case("binaryArithmatic3.ts")]
+#[case("binaryArithmatic4.ts")]
 #[case("binaryArithmeticControlFlowGraphNotTooLarge.ts")]
 #[case("bind1.ts")]
 #[case("bind2.ts")]
