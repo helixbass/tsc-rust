@@ -839,7 +839,7 @@ impl CheckTypeRelatedTo {
                 let end_count = cmp::min(
                     if self.type_checker.is_tuple_type(source) {
                         self.type_checker.get_end_element_count(
-                            &source.as_type_reference().target,
+                            &source.as_type_reference_interface().target(),
                             ElementFlags::NonRest,
                         )
                     } else {
