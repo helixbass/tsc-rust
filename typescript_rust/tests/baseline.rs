@@ -984,7 +984,7 @@ use typescript_rust::{
 #[case("conditionalTypeRelaxingConstraintAssignability.ts")]
 #[case("conditionalTypeSimplification.ts")]
 #[case("conditionalTypeSubclassExtendsTypeParam.ts")]
-#[case("conditionalTypeVarianceBigArrayConstraintsPerformance.ts")] // FAILING on Program.create_diagnostic_explaining_file() not implemented
+#[case("conditionalTypeVarianceBigArrayConstraintsPerformance.ts")] // NOT RUNNABLE on .lib directive
 #[case("conditionalTypesASI.ts")]
 #[case("conditionalTypesSimplifyWhenTrivial.ts")]
 #[case("conditionallyDuplicateOverloadsCausedByOverloadResolution.ts")]
@@ -1160,7 +1160,7 @@ use typescript_rust::{
 #[case("contextualTypingOfObjectLiterals.ts")]
 #[case("contextualTypingOfObjectLiterals2.ts")]
 #[case("contextualTypingOfOptionalMembers.tsx")] // NOT RUNNABLE
-#[case("contextualTypingOfTooShortOverloads.ts")] // FAILING
+#[case("contextualTypingOfTooShortOverloads.ts")] // FAILING 1141
 #[case("contextualTypingTwoInstancesOfSameTypeParameter.ts")]
 #[case("contextualTypingWithFixedTypeParameters1.ts")] // FAILING
 #[case("contextualTypingWithGenericAndNonGenericSignature.ts")]
@@ -1193,8 +1193,8 @@ use typescript_rust::{
 #[case("contravariantInferenceAndTypeGuard.ts")]
 #[case("contravariantTypeAliasInference.ts")]
 #[case("controlFlowAnalysisOnBareThisKeyword.ts")]
-#[case("controlFlowArrayErrors.ts")] // FAILING
-#[case("controlFlowArrays.ts")] // FAILING
+#[case("controlFlowArrayErrors.ts")] // FAILING 1174
+#[case("controlFlowArrays.ts")] // FAILING 1175
 #[case("controlFlowBreakContinueWithLabel.ts")]
 #[case("controlFlowCaching.ts")]
 #[case("controlFlowCommaExpressionAssertionWithinTernary.ts")]
@@ -1237,7 +1237,7 @@ use typescript_rust::{
 #[case("crashRegressionTest.ts")]
 #[case("createArray.ts")]
 #[case("curiousNestedConditionalEvaluationResult.ts")]
-#[case("customAsyncIterator.ts")] // FAILING
+#[case("customAsyncIterator.ts")]
 #[case("customEventDetail.ts")]
 #[case("cyclicGenericTypeInstantiation.ts")]
 #[case("cyclicGenericTypeInstantiationInference.ts")]
@@ -1346,7 +1346,7 @@ use typescript_rust::{
 #[case("declarationEmitDefaultExport1.ts")]
 #[case("declarationEmitDefaultExport2.ts")]
 #[case("declarationEmitDefaultExport3.ts")]
-#[case("declarationEmitDefaultExport4.ts")] // FAILING
+#[case("declarationEmitDefaultExport4.ts")]
 #[case("declarationEmitDefaultExport5.ts")]
 #[case("declarationEmitDefaultExport6.ts")]
 #[case("declarationEmitDefaultExport7.ts")]
