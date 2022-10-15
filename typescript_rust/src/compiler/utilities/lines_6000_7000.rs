@@ -19,17 +19,39 @@ use crate::{
     for_each, format_string_from_args, get_directory_path, get_locale_specific_message,
     get_normalized_path_components, get_string_comparer, has_extension, index_of,
     index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map, normalize_path,
-    remove_trailing_directory_separator, skip_trivia, some, sort, to_path, BaseTextRange,
-    CharacterCodes, CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
-    CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
-    FileExtensionInfo, JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind,
-    MultiMap, Node, NodeArray, NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName,
-    PragmaName, ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
-    ScriptTarget, SourceFileLike, TypeAcquisition, WatchOptions,
+    remove_trailing_directory_separator, skip_trivia, some, sort, to_path, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, BaseTextRange, CharacterCodes, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
+    CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
+    MapLike, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path,
+    Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
+    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
+    WatchOptions,
 };
 use local_macros::enum_unwrapped;
+
+pub fn create_compiler_diagnostic_from_message_chain(
+    chain: DiagnosticMessageChain,
+    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+) -> BaseDiagnostic {
+    BaseDiagnostic::new(
+        BaseDiagnosticRelatedInformation::new(
+            chain.category,
+            chain.code,
+            None,
+            None,
+            None,
+            if chain.next.is_some() {
+                Into::<DiagnosticMessageText>::into(chain)
+            } else {
+                Into::<DiagnosticMessageText>::into(chain.message_text)
+            },
+        ),
+        related_information,
+    )
+}
 
 pub fn chain_diagnostic_messages(
     details: Option<DiagnosticMessageChain>,

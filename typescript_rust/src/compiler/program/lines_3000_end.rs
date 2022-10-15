@@ -1,28 +1,34 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
 use std::io;
 use std::iter::FromIterator;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{for_each_project_reference, get_mode_for_resolution_at_index, SourceFileImportsList};
 use crate::{
-    compare_paths, contains_path, create_compiler_diagnostic,
-    create_diagnostic_for_node_in_source_file, create_file_diagnostic, create_symlink_cache,
-    file_extension_is, file_extension_is_one_of, find, get_allow_js_compiler_option,
-    get_base_file_name, get_directory_path, get_emit_declarations, get_emit_module_kind,
-    get_emit_module_resolution_kind, get_emit_script_target, get_error_span_for_node,
-    get_property_assignment, get_root_length, get_spelling_suggestion, get_strict_option_value,
+    chain_diagnostic_messages, chain_diagnostic_messages_multiple, compare_paths, contains_path,
+    create_compiler_diagnostic, create_compiler_diagnostic_from_message_chain,
+    create_diagnostic_for_node_in_source_file, create_file_diagnostic,
+    create_file_diagnostic_from_message_chain, create_symlink_cache, explain_if_file_is_redirect,
+    file_extension_is, file_extension_is_one_of, file_include_reason_to_diagnostics, find,
+    get_allow_js_compiler_option, get_base_file_name, get_directory_path, get_emit_declarations,
+    get_emit_module_kind, get_emit_module_resolution_kind, get_emit_script_target,
+    get_error_span_for_node, get_property_assignment, get_referenced_file_location,
+    get_root_length, get_spelling_suggestion, get_strict_option_value,
     get_ts_build_info_emit_output_file_path, get_ts_config_object_literal_expression,
     has_json_module_emit_enabled, has_zero_or_one_asterisk_character, inverse_jsx_option_map,
     is_declaration_file_name, is_external_module, is_identifier_text, is_in_js_file,
     is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
-    is_source_file_js, lib_map, libs, maybe_for_each, out_file, parse_isolated_entity_name,
-    path_is_absolute, path_is_relative, remove_file_extension, remove_prefix, remove_suffix,
-    resolution_extension_is_ts_or_json, resolve_config_file_project_name, set_resolved_module,
-    source_file_may_be_emitted, string_contains, supported_js_extensions_flat,
-    to_file_name_lower_case, version, Comparison, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs,
+    maybe_for_each, out_file, parse_isolated_entity_name, path_is_absolute, path_is_relative,
+    remove_file_extension, remove_prefix, remove_suffix, resolution_extension_is_ts_or_json,
+    resolve_config_file_project_name, set_resolved_module, source_file_may_be_emitted,
+    string_contains, supported_js_extensions_flat, to_file_name_lower_case, version, Comparison,
+    CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, Debug_, Diagnostic,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
     Diagnostics, DirectoryStructureHost, Extension, FileIncludeKind, FileIncludeReason,
     FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind,
     FilePreprocessingFileExplainingDiagnostic, FilePreprocessingReferencedDiagnostic,
@@ -934,11 +940,137 @@ impl Program {
     pub fn create_diagnostic_explaining_file<TFile: Borrow<Node>>(
         &self,
         file: Option<TFile>,
-        file_processing_reason: Option<&FileIncludeReason>,
+        mut file_processing_reason: Option<&FileIncludeReason>,
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {
-        unimplemented!()
+        let mut file_include_reasons: Option<Vec<DiagnosticMessageChain>> = None;
+        let mut related_info: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
+        let mut location_reason = if is_referenced_file(file_processing_reason) {
+            file_processing_reason
+        } else {
+            None
+        };
+        let file = file.map(|file| file.borrow().node_wrapper());
+        let file_reasons = self.file_reasons();
+        if let Some(file) = file.as_ref() {
+            if let Some(reasons) = file_reasons.get(&*file.as_source_file().path()) {
+                for reason in reasons {
+                    self.process_reason(
+                        &mut file_include_reasons,
+                        &mut location_reason,
+                        &mut related_info,
+                        &mut file_processing_reason,
+                        reason,
+                    );
+                }
+            }
+        }
+        if file_processing_reason.is_some() {
+            let file_processing_reason_present = file_processing_reason.unwrap();
+            self.process_reason(
+                &mut file_include_reasons,
+                &mut location_reason,
+                &mut related_info,
+                &mut file_processing_reason,
+                file_processing_reason_present,
+            );
+        }
+        if location_reason.is_some()
+            && matches!(
+                file_include_reasons.as_ref(),
+                Some(file_include_reasons) if file_include_reasons.len() == 1
+            )
+        {
+            file_include_reasons = None;
+        }
+        let location = location_reason.map(|location_reason| {
+            get_referenced_file_location(
+                |path: &Path| self.get_source_file_by_path(path),
+                location_reason.as_referenced_file(),
+            )
+        });
+        let file_include_reason_details = file_include_reasons.map(|file_include_reasons| {
+            chain_diagnostic_messages_multiple(
+                file_include_reasons,
+                &Diagnostics::The_file_is_in_the_program_because_Colon,
+                None,
+            )
+        });
+        let redirect_info = file
+            .as_ref()
+            .and_then(|file| explain_if_file_is_redirect(file, Option::<fn(&str) -> String>::None));
+        let chain = if let Some(mut redirect_info) = redirect_info {
+            chain_diagnostic_messages_multiple(
+                if let Some(file_include_reason_details) = file_include_reason_details {
+                    redirect_info.insert(0, file_include_reason_details);
+                    redirect_info
+                } else {
+                    redirect_info
+                },
+                diagnostic,
+                args,
+            )
+        } else {
+            chain_diagnostic_messages(file_include_reason_details, diagnostic, args)
+        };
+        if let Some(location) = location.filter(|location| is_reference_file_location(location)) {
+            let location_as_reference_file_location = location.as_reference_file_location();
+            Rc::new(
+                create_file_diagnostic_from_message_chain(
+                    &location_as_reference_file_location.file,
+                    location_as_reference_file_location.pos.try_into().unwrap(),
+                    (location_as_reference_file_location.end
+                        - location_as_reference_file_location.pos)
+                        .try_into()
+                        .unwrap(),
+                    chain,
+                    related_info,
+                )
+                .into(),
+            )
+        } else {
+            Rc::new(create_compiler_diagnostic_from_message_chain(chain, related_info).into())
+        }
+    }
+
+    pub fn process_reason<'a>(
+        &self,
+        file_include_reasons: &mut Option<Vec<DiagnosticMessageChain>>,
+        location_reason: &mut Option<&'a FileIncludeReason>,
+        related_info: &mut Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+        file_processing_reason: &mut Option<&FileIncludeReason>,
+        reason: &'a FileIncludeReason,
+    ) {
+        file_include_reasons.get_or_insert_with(|| vec![]).push(
+            file_include_reason_to_diagnostics(self, reason, Option::<fn(&str) -> String>::None),
+        );
+        if location_reason.is_none() && is_referenced_file(Some(reason)) {
+            *location_reason = Some(reason);
+        } else if !matches!(
+            *location_reason,
+            Some(location_reason) if ptr::eq(
+                location_reason,
+                reason
+            )
+        ) {
+            if let Some(related_information) =
+                self.file_include_reason_to_related_information(reason)
+            {
+                related_info
+                    .get_or_insert_with(|| vec![])
+                    .push(related_information);
+            }
+        }
+        if matches!(
+            *file_processing_reason,
+            Some(file_processing_reason) if ptr::eq(
+                reason,
+                file_processing_reason
+            )
+        ) {
+            *file_processing_reason = None
+        }
     }
 
     pub fn add_file_preprocessing_file_explaining_diagnostic<TFile: Borrow<Node>>(
@@ -965,6 +1097,13 @@ impl Program {
     ) {
         self.program_diagnostics_mut()
             .add(self.create_diagnostic_explaining_file(Some(file), None, diagnostic, args));
+    }
+
+    pub fn file_include_reason_to_related_information(
+        &self,
+        reason: &FileIncludeReason,
+    ) -> Option<Rc<DiagnosticRelatedInformation /*DiagnosticWithLocation*/>> {
+        unimplemented!()
     }
 
     pub fn verify_project_references(&self) {

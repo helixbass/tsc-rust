@@ -643,7 +643,7 @@ impl Program {
     ) {
         if let Some(file) = file {
             let file = file.borrow();
-            self.file_reasons()
+            self.file_reasons_mut()
                 .add(file.as_source_file().path().clone(), reason.clone());
         }
     }

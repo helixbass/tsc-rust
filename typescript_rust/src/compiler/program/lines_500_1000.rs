@@ -1102,7 +1102,11 @@ impl Program {
             .borrow_mut()
     }
 
-    pub(super) fn file_reasons(&self) -> RefMut<MultiMap<Path, FileIncludeReason>> {
+    pub(super) fn file_reasons(&self) -> Ref<MultiMap<Path, FileIncludeReason>> {
+        self.file_reasons.borrow()
+    }
+
+    pub(super) fn file_reasons_mut(&self) -> RefMut<MultiMap<Path, FileIncludeReason>> {
         self.file_reasons.borrow_mut()
     }
 

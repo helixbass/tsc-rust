@@ -106,7 +106,7 @@ fn assert_diagnostic_location<TFile: Borrow<Node>>(
     }
 }
 
-fn create_file_diagnostic_from_message_chain(
+pub fn create_file_diagnostic_from_message_chain(
     file: &Node, /*SourceFile*/
     start: isize,
     length: isize,
