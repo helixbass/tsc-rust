@@ -10,11 +10,12 @@ use std::path::Path;
 use std::rc::Rc;
 
 use typescript_rust::{
-    create_compiler_host_worker, create_program, format_diagnostics, get_pre_emit_diagnostics,
-    get_sys, option_declarations, parse_custom_type_option, parse_list_type_option,
-    read_file_and_strip_leading_byte_order_mark, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
-    CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, Node,
+    create_compiler_host_worker, create_program, format_diagnostics, get_emit_script_target,
+    get_pre_emit_diagnostics, get_sys, option_declarations, parse_custom_type_option,
+    parse_list_type_option, read_file_and_strip_leading_byte_order_mark, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
+    CompilerOptionsValue, CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, NewLineKind,
+    Node,
 };
 
 #[rstest]
@@ -5568,6 +5569,14 @@ fn run_compiler_baseline(#[case] case_filename: &str) {
         .build()
         .unwrap();
     set_compiler_options_from_harness_settings(&compiler_settings, &mut options);
+    options.target = Some(get_emit_script_target(&options));
+    options.new_line = Some(
+        options
+            .new_line
+            .unwrap_or(NewLineKind::CarriageReturnLineFeed),
+    );
+    options.no_error_truncation = Some(true);
+    options.skip_default_lib_check = Some(options.skip_default_lib_check.unwrap_or(true));
     let options = Rc::new(options);
     let host = create_compiler_host_worker(options.clone(), None, Some(get_sys()));
     let program = create_program(CreateProgramOptions {
