@@ -863,7 +863,7 @@ impl InferTypes {
                 &self.type_checker.get_type_arguments(&target),
                 &self
                     .type_checker
-                    .get_variances(&source.as_type_reference().target),
+                    .get_variances(&source.as_type_reference_interface().target()),
             );
         } else if source.flags().intersects(TypeFlags::Index)
             && target.flags().intersects(TypeFlags::Index)
