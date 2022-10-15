@@ -4216,7 +4216,7 @@ use typescript_rust::{
 #[case("pathsValidation5.ts")] // NOT RUNNABLE
 #[case("performanceComparisonOfStructurallyIdenticalInterfacesWithGenericSignatures.ts")]
 #[case("pinnedComments1.ts")]
-#[case("potentiallyUncalledDecorators.ts")] // FAILING on decorator stuff
+#[case("potentiallyUncalledDecorators.ts")]
 #[case("prefixIncrementAsOperandOfPlusExpression.ts")]
 #[case("prefixUnaryOperatorsOnExportedVariables.ts")]
 #[case("prefixedNumberLiteralAssignToNumberLiteralType.ts")]
@@ -4394,7 +4394,7 @@ use typescript_rust::{
 #[case("reactNamespaceJSXEmit.tsx")]
 #[case("reactNamespaceMissingDeclaration.tsx")]
 #[case("reactReadonlyHOCAssignabilityReal.tsx")] // NOT RUNNABLE on .lib directive
-#[case("reactReduxLikeDeferredInferenceAllowsAssignment.ts")] // FAILING
+#[case("reactReduxLikeDeferredInferenceAllowsAssignment.ts")] // FAILING 4375
 #[case("reactSFCAndFunctionResolvable.tsx")] // NOT RUNNABLE on .lib directive
 #[case("reactTagNameComponentWithPropsNoOOM.tsx")] // NOT RUNNABLE on .lib directive
 #[case("reactTagNameComponentWithPropsNoOOM2.tsx")] // NOT RUNNABLE on .lib directive
@@ -4558,7 +4558,7 @@ use typescript_rust::{
 #[case("resolveModuleNameWithSameLetDeclarationName2.ts")]
 #[case("resolveNameWithNamspace.ts")] // NOT RUNNABLE
 #[case("resolveTypeAliasWithSameLetDeclarationName1.ts")]
-#[case("resolvingClassDeclarationWhenInBaseTypeResolution.ts")] // FAILING on borrow error
+#[case("resolvingClassDeclarationWhenInBaseTypeResolution.ts")] // FAILING 4539 on borrow error
 #[case("restArgAssignmentCompat.ts")]
 #[case("restArgMissingName.ts")]
 #[case("restElementWithNumberPropertyName.ts")]

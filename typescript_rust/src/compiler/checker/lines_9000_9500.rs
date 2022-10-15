@@ -444,7 +444,7 @@ impl TypeChecker {
                     result.set_value_declaration(file_symbol_value_declaration);
                 }
                 if let Some(file_symbol_members) = file_symbol.maybe_members().as_ref() {
-                    *result.maybe_members() = Some(Rc::new(RefCell::new(
+                    *result.maybe_members_mut() = Some(Rc::new(RefCell::new(
                         RefCell::borrow(file_symbol_members).clone(),
                     )));
                 }

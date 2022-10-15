@@ -74,7 +74,7 @@ impl BinderType {
             .create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type())
             .wrap();
         self.add_declaration_to_symbol(&type_literal_symbol, node, SymbolFlags::TypeLiteral);
-        let mut type_literal_symbol_members = type_literal_symbol.maybe_members();
+        let mut type_literal_symbol_members = type_literal_symbol.maybe_members_mut();
         *type_literal_symbol_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
         type_literal_symbol_members
             .as_ref()

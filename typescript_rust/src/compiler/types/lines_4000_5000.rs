@@ -859,7 +859,8 @@ pub trait SymbolInterface {
     fn set_declarations(&self, declarations: Vec<Rc<Node>>);
     fn maybe_value_declaration(&self) -> Option<Rc<Node>>;
     fn set_value_declaration(&self, node: Rc<Node>);
-    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
+    fn maybe_members(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>>;
+    fn maybe_members_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
     fn maybe_exports(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>>;
     fn maybe_exports_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
@@ -1012,12 +1013,16 @@ impl SymbolInterface for BaseSymbol {
         *self.value_declaration.borrow_mut() = Some(node);
     }
 
-    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_members(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>> {
+        self.members.borrow()
+    }
+
+    fn maybe_members_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
         self.members.borrow_mut()
     }
 
     fn members(&self) -> Rc<RefCell<SymbolTable>> {
-        self.members.borrow_mut().as_ref().unwrap().clone()
+        self.members.borrow().as_ref().unwrap().clone()
     }
 
     fn maybe_exports(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>> {

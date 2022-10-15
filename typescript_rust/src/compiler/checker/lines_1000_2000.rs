@@ -543,7 +543,7 @@ impl TypeChecker {
             result.set_const_enum_only_module(Some(true));
         }
         if let Some(symbol_members) = symbol.maybe_members().as_ref() {
-            *result.maybe_members() = Some(Rc::new(RefCell::new(
+            *result.maybe_members_mut() = Some(Rc::new(RefCell::new(
                 RefCell::borrow(symbol_members).clone(),
             )));
         }
@@ -603,7 +603,7 @@ impl TypeChecker {
                 );
             }
             if let Some(source_members) = source.maybe_members().as_ref() {
-                let mut target_members = target.maybe_members();
+                let mut target_members = target.maybe_members_mut();
                 if target_members.is_none() {
                     *target_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }

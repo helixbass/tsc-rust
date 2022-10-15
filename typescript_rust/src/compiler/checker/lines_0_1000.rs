@@ -1187,7 +1187,7 @@ pub fn create_type_checker(
 
     let empty_type_literal_symbol =
         type_checker.create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type(), None);
-    *empty_type_literal_symbol.maybe_members() =
+    *empty_type_literal_symbol.maybe_members_mut() =
         Some(Rc::new(RefCell::new(create_symbol_table(None))));
     type_checker.empty_type_literal_symbol = Some(empty_type_literal_symbol.into());
     type_checker.empty_type_literal_type = Some(type_checker.create_anonymous_type(

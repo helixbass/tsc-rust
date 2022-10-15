@@ -283,7 +283,7 @@ impl BinderType {
         let namespace_symbol = namespace_symbol.unwrap();
 
         let symbol_table = if is_prototype_property {
-            let mut namespace_symbol_members = namespace_symbol.maybe_members();
+            let mut namespace_symbol_members = namespace_symbol.maybe_members_mut();
             if namespace_symbol_members.is_none() {
                 *namespace_symbol_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
             }

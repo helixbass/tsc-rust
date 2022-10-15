@@ -1231,7 +1231,7 @@ impl TypeChecker {
             result.set_value_declaration(value_symbol_value_declaration);
         }
         if let Some(type_symbol_members) = type_symbol.maybe_members().as_ref() {
-            *result.maybe_members() = Some(Rc::new(RefCell::new(
+            *result.maybe_members_mut() = Some(Rc::new(RefCell::new(
                 RefCell::borrow(type_symbol_members).clone(),
             )));
         }

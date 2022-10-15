@@ -2608,8 +2608,12 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_value_declaration(node)
                     }
 
-                    fn maybe_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                    fn maybe_members(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
                         self.#first_field_name.maybe_members()
+                    }
+
+                    fn maybe_members_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        self.#first_field_name.maybe_members_mut()
                     }
 
                     fn members(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
@@ -2796,9 +2800,15 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                    fn maybe_members(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_members()),*
+                        }
+                    }
+
+                    fn maybe_members_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_members_mut()),*
                         }
                     }
 

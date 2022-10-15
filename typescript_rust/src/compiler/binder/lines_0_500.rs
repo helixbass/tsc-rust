@@ -789,7 +789,7 @@ impl BinderType {
                 | SymbolFlags::TypeLiteral
                 | SymbolFlags::ObjectLiteral,
         ) {
-            let mut members = symbol.maybe_members();
+            let mut members = symbol.maybe_members_mut();
             if members.is_none() {
                 *members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
             }

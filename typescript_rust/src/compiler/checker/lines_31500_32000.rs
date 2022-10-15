@@ -286,7 +286,7 @@ impl TypeChecker {
         let members = Rc::new(RefCell::new(create_symbol_table(Some(&[
             target_property_symbol,
         ]))));
-        *symbol.maybe_members() = Some(members.clone());
+        *symbol.maybe_members_mut() = Some(members.clone());
         self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
     }
 

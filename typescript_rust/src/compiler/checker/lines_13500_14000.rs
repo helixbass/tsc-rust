@@ -354,7 +354,7 @@ impl TypeChecker {
             let members = Rc::new(RefCell::new(create_symbol_table(Some(&vec![
                 meta_property_symbol,
             ]))));
-            *symbol.maybe_members() = Some(members.clone());
+            *symbol.maybe_members_mut() = Some(members.clone());
 
             *self.maybe_deferred_global_import_meta_expression_type() =
                 Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![]));

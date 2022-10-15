@@ -291,7 +291,7 @@ impl TypeChecker {
             result.set_const_enum_only_module(Some(true));
         }
         if let Some(symbol_members) = symbol.maybe_members().as_ref() {
-            *result.maybe_members() = Some(Rc::new(RefCell::new(
+            *result.maybe_members_mut() = Some(Rc::new(RefCell::new(
                 RefCell::borrow(symbol_members).clone(),
             )));
         }

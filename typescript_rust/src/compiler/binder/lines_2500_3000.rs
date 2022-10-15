@@ -841,7 +841,7 @@ impl BinderType {
                     if let Some(constructor_symbol_value_declaration) =
                         constructor_symbol.maybe_value_declaration()
                     {
-                        let mut constructor_symbol_members = constructor_symbol.maybe_members();
+                        let mut constructor_symbol_members = constructor_symbol.maybe_members_mut();
                         if constructor_symbol_members.is_none() {
                             *constructor_symbol_members =
                                 Some(Rc::new(RefCell::new(create_symbol_table(None))));

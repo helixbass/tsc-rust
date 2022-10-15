@@ -612,7 +612,7 @@ impl TypeChecker {
                 }
             }
             {
-                let mut inferred_members = inferred.maybe_members();
+                let mut inferred_members = inferred.maybe_members_mut();
                 if inferred_members.is_none() {
                     *inferred_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }
