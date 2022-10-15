@@ -25,6 +25,11 @@ pub trait ModuleResolutionHost {
         overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
     );
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
+    fn set_overriding_read_file(
+        &self,
+        overriding_read_file: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
+    fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>>;
     fn trace(&self, s: &str) {}
     fn is_trace_supported(&self) -> bool;
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
@@ -123,6 +128,17 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
         ParseConfigHost::read_file(self, file_name)
     }
 
+    fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>> {
+        unreachable!()
+    }
+
+    fn set_overriding_read_file(
+        &self,
+        overriding_read_file: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
     fn trace(&self, s: &str) {
         ParseConfigHost::trace(self, s)
     }
@@ -138,9 +154,19 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
 pub trait ModuleResolutionHostOverrider {
     fn file_exists(&self, file_name: &str) -> bool;
+    fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    );
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
         None
     }
+    fn create_directory(&self, directory: &str);
     fn realpath(&self, path: &str) -> Option<String> {
         None
     }
@@ -294,6 +320,19 @@ pub trait CompilerHost: ModuleResolutionHost {
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Rc<Node /*SourceFile*/>]>,
     );
+    fn write_file_non_overridden(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    );
+    fn is_write_file_supported(&self) -> bool;
+    fn set_overriding_write_file(
+        &self,
+        overriding_write_file: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
     fn use_case_sensitive_file_names(&self) -> bool;
@@ -371,6 +410,12 @@ pub trait CompilerHost: ModuleResolutionHost {
     }
 
     fn create_directory(&self, directory: &str) {}
+    fn create_directory_non_overridden(&self, directory: &str) {}
+    fn is_create_directory_supported(&self) -> bool;
+    fn set_overriding_create_directory(
+        &self,
+        overriding_create_directory: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    );
     fn get_symlink_cache(&self) -> Option<Rc<SymlinkCache>> {
         None
     }

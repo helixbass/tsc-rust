@@ -1656,6 +1656,25 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             .and_then(|symlinked_files| symlinked_files.get(&(self.host_to_path)(s)).cloned())
             .or_else(|| self.host_compiler_host.realpath_non_overridden(s))
     }
+
+    fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
+        unreachable!()
+    }
+
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    ) {
+        unreachable!()
+    }
+
+    fn create_directory(&self, directory: &str) {
+        unreachable!()
+    }
 }
 
 pub(super) fn filter_semantic_diagnostics(

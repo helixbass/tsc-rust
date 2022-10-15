@@ -321,20 +321,24 @@ pub(super) fn perform_compilation<
     let file_names = &config.file_names;
     let options = config.options.clone();
     let project_references = &config.project_references;
-    let host = create_compiler_host_worker(options.clone(), None, Some(sys.clone()));
-    let current_directory = host.get_current_directory();
+    let host: Rc<dyn CompilerHost> = Rc::new(create_compiler_host_worker(
+        options.clone(),
+        None,
+        Some(sys.clone()),
+    ));
+    let current_directory = CompilerHost::get_current_directory(&*host);
     let get_canonical_file_name =
-        create_get_canonical_file_name(host.use_case_sensitive_file_names());
+        create_get_canonical_file_name(CompilerHost::use_case_sensitive_file_names(&*host));
     change_compiler_host_like_to_use_cache(
-        &host,
-        |file_name| {
-            to_path(file_name, Some(&current_directory), |file_name| {
-                get_canonical_file_name(file_name)
-            })
-        },
-        Option::<
-            fn(&str, ScriptTarget, Option<&mut dyn FnMut(&str)>, Option<bool>) -> Option<Rc<Node>>,
-        >::None,
+        host.clone(),
+        Rc::new({
+            move |file_name| {
+                to_path(file_name, Some(&current_directory), |file_name| {
+                    get_canonical_file_name(file_name)
+                })
+            }
+        }),
+        None,
     );
 
     enable_statistics_and_tracing(&*sys, &options, false);
@@ -343,7 +347,7 @@ pub(super) fn perform_compilation<
         root_names: config.file_names.clone(),
         options: options.clone(),
         project_references: project_references.clone(),
-        host: Some(Rc::new(host)),
+        host: Some(host),
         config_file_parsing_diagnostics: Some(get_config_file_parsing_diagnostics(config)),
         old_program: None,
     };

@@ -156,6 +156,17 @@ impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionH
         self.host.read_file(file_name).unwrap()
     }
 
+    fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>> {
+        unreachable!()
+    }
+
+    fn set_overriding_read_file(
+        &self,
+        overriding_read_file: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+    ) {
+        unreachable!()
+    }
+
     fn is_trace_supported(&self) -> bool {
         unreachable!()
     }
