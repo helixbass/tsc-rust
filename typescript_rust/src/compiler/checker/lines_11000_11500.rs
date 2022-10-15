@@ -406,7 +406,7 @@ impl TypeChecker {
                     false,
                     false,
                     |a, b| self.compare_types_identical(a, b),
-                ) != Ternary::False
+                ) == Ternary::False
             }) {
                 append(signatures, Some(sig.clone()));
             }
