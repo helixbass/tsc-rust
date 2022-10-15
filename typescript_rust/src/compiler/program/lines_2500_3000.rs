@@ -681,7 +681,10 @@ impl Program {
     }
 
     pub fn get_project_reference_redirect_(&self, file_name: &str) -> Option<String> {
-        unimplemented!()
+        let referenced_project = self.get_project_reference_redirect_project(file_name);
+        referenced_project.as_ref().map(|referenced_project| {
+            self.get_project_reference_output_name(referenced_project, file_name)
+        })
     }
 
     pub fn get_project_reference_redirect_project(
