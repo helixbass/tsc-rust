@@ -113,7 +113,7 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
         }
 
         let mut diagnostics = self.diagnostics.borrow_mut();
-        diagnostics[0] = diagnostic;
+        diagnostics.push(diagnostic);
         self.system.write(&format!(
             "{}{}",
             format_diagnostics_with_color_and_context(&diagnostics, &*self.host),
@@ -335,9 +335,9 @@ pub fn get_error_summary_text(error_count: usize, new_line: &str) -> String {
     }
     let d = create_compiler_diagnostic(
         if error_count == 1 {
-            &Diagnostics::Found_1_error_Watching_for_file_changes
+            &Diagnostics::Found_1_error
         } else {
-            &Diagnostics::Found_0_errors_Watching_for_file_changes
+            &Diagnostics::Found_0_errors
         },
         Some(vec![error_count.to_string()]),
     );

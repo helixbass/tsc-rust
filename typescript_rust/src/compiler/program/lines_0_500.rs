@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::cmp;
@@ -13,12 +14,14 @@ use crate::{
     create_source_file, diagnostic_category_name, for_each, for_each_ancestor_directory_str,
     generate_djb2_hash, get_default_lib_file_name, get_directory_path, get_emit_declarations,
     get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
-    get_path_from_path_components, get_sys, is_rooted_disk_path, is_watch_set,
-    missing_file_modified_time, normalize_path, sort_and_deduplicate_diagnostics,
-    write_file_ensuring_directories, CancellationTokenDebuggable, CompilerHost, CompilerOptions,
-    Diagnostic, DiagnosticMessageText, DiagnosticRelatedInformationInterface, LineAndCharacter,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, Node, NodeInterface, Path,
-    ProgramOrBuilderProgram, ScriptTarget, System,
+    get_path_from_path_components, get_position_of_line_and_character, get_sys,
+    is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path, pad_left,
+    sort_and_deduplicate_diagnostics, trim_string_end, write_file_ensuring_directories,
+    CancellationTokenDebuggable, CompilerHost, CompilerOptions, Debug_, Diagnostic,
+    DiagnosticCategory, DiagnosticInterface, DiagnosticMessageText,
+    DiagnosticRelatedInformationInterface, LineAndCharacter, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, Node, NodeInterface, Path, ProgramOrBuilderProgram,
+    ScriptTarget, SourceFileLike, System,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -637,16 +640,266 @@ impl ForegroundColorEscapeSequences {
     pub const Blue: &'static str = "\u{001b}[94m";
     pub const Cyan: &'static str = "\u{001b}[96m";
 }
+const gutter_style_sequence: &str = "\u{001b}[7m";
+const gutter_separator: &str = " ";
+const reset_escape_sequence: &str = "\u{001b}[0m";
+const ellipsis: &str = "...";
+const half_indent: &str = "  ";
+const indent_: &str = "    ";
+fn get_category_format(category: DiagnosticCategory) -> &'static str /*ForegroundColorEscapeSequences*/
+{
+    match category {
+        DiagnosticCategory::Error => ForegroundColorEscapeSequences::Red,
+        DiagnosticCategory::Warning => ForegroundColorEscapeSequences::Yellow,
+        DiagnosticCategory::Suggestion => Debug_.fail(Some(
+            "Should never get an Info diagnostic on the command line.",
+        )),
+        DiagnosticCategory::Message => ForegroundColorEscapeSequences::Blue,
+    }
+}
 
 pub(crate) fn format_color_and_reset(text: &str, format_style: &str) -> String {
-    unimplemented!()
+    format!("{}{}{}", format_style, text, reset_escape_sequence)
+}
+
+fn format_code_span<THost: FormatDiagnosticsHost>(
+    file: &Node, /*SourceFile*/
+    start: isize,
+    length: isize,
+    indent: &str,
+    squiggle_color: &str, /*ForegroundColorEscapeSequences*/
+    host: &THost,
+) -> String {
+    let start_as_usize: usize = start.try_into().unwrap();
+    let length_as_usize: usize = length.try_into().unwrap();
+    let file_as_source_file = file.as_source_file();
+    let LineAndCharacter {
+        line: first_line,
+        character: first_line_char,
+    } = get_line_and_character_of_position(file_as_source_file, start_as_usize);
+    let LineAndCharacter {
+        line: last_line,
+        character: last_line_char,
+    } = get_line_and_character_of_position(file_as_source_file, start_as_usize + length_as_usize);
+    let file_text = file_as_source_file.text_as_chars();
+    let last_line_in_file =
+        get_line_and_character_of_position(file_as_source_file, file_text.len()).line;
+
+    let has_more_than_five_lines = last_line - first_line >= 4;
+    let mut gutter_width = (last_line + 1).to_string().len();
+    if has_more_than_five_lines {
+        gutter_width = cmp::max(ellipsis.len(), gutter_width);
+    }
+
+    let mut context = "".to_owned();
+    let mut i = first_line;
+    while i <= last_line {
+        context.push_str(host.get_new_line());
+        if has_more_than_five_lines && first_line + 1 < i && i < last_line - 1 {
+            context.push_str(&format!(
+                "{}{}{}{}",
+                indent,
+                format_color_and_reset(
+                    &pad_left(ellipsis, gutter_width, None,),
+                    gutter_style_sequence,
+                ),
+                gutter_separator,
+                host.get_new_line(),
+            ));
+            i = last_line - 1;
+        }
+
+        let line_start = get_position_of_line_and_character(file_as_source_file, i, 0, None);
+        let line_end = if i < last_line_in_file {
+            get_position_of_line_and_character(file_as_source_file, i + 1, 0, None)
+        } else {
+            file_text.len()
+        };
+        let line_content: String = file_text[line_start..line_end].into_iter().collect();
+        let line_content = trim_string_end(&line_content);
+        lazy_static! {
+            static ref tab_regex: Regex = Regex::new(r"\t").unwrap();
+        }
+        let line_content = tab_regex.replace_all(line_content, " ");
+
+        context.push_str(&format!(
+            "{}{}{}",
+            indent,
+            format_color_and_reset(
+                &pad_left(&(i + 1).to_string(), gutter_width, None,),
+                gutter_style_sequence,
+            ),
+            gutter_separator,
+        ));
+        context.push_str(&format!("{}{}", line_content, host.get_new_line()));
+
+        context.push_str(&format!(
+            "{}{}{}",
+            indent,
+            format_color_and_reset(&pad_left("", gutter_width, None,), gutter_style_sequence,),
+            gutter_separator,
+        ));
+        context.push_str(squiggle_color);
+        lazy_static! {
+            static ref dot_regex: Regex = Regex::new(r".").unwrap();
+        }
+        if i == first_line {
+            let last_char_for_line = if i == last_line {
+                Some(last_line_char)
+            } else {
+                None
+            };
+
+            lazy_static! {
+                static ref non_space_regex: Regex = Regex::new(r"\S").unwrap();
+            }
+            // TODO: this needs to be chars/bytes-aware?
+            context.push_str(&non_space_regex.replace_all(&line_content[0..first_line_char], " "));
+            context.push_str(&dot_regex.replace_all(
+                if let Some(last_char_for_line) = last_char_for_line {
+                    &line_content[first_line_char..last_char_for_line]
+                } else {
+                    &line_content[first_line_char..]
+                },
+                "~",
+            ));
+        } else if i == last_line {
+            context.push_str(&dot_regex.replace_all(&line_content[0..last_line_char], "~"));
+        } else {
+            context.push_str(&dot_regex.replace_all(&line_content, "~"));
+        }
+        context.push_str(reset_escape_sequence);
+        i += 1;
+    }
+    context
+}
+
+pub(crate) fn format_location<THost: FormatDiagnosticsHost, TColor: Fn(&str, &str) -> String>(
+    file: &Node, /*SourceFile*/
+    start: isize,
+    host: &THost,
+    color: Option<TColor>,
+) -> String {
+    let color_present = |text: &str, format_style: &str| {
+        if let Some(color) = color.as_ref() {
+            color(text, format_style)
+        } else {
+            format_color_and_reset(text, format_style)
+        }
+    };
+    let file_as_source_file = file.as_source_file();
+    let LineAndCharacter {
+        line: first_line,
+        character: first_line_char,
+    } = get_line_and_character_of_position(file_as_source_file, start.try_into().unwrap());
+    let relative_file_name = /*host ? */convert_to_relative_path(
+        &file_as_source_file.file_name(),
+        &host.get_current_directory(),
+        |file_name: &str| host.get_canonical_file_name(file_name)
+    ) /*: file.fileName*/;
+
+    let mut output = "".to_owned();
+    output.push_str(&color_present(
+        &relative_file_name,
+        ForegroundColorEscapeSequences::Cyan,
+    ));
+    output.push_str(":");
+    output.push_str(&color_present(
+        &format!("{}", first_line + 1),
+        ForegroundColorEscapeSequences::Yellow,
+    ));
+    output.push_str(":");
+    output.push_str(&color_present(
+        &format!("{}", first_line_char + 1),
+        ForegroundColorEscapeSequences::Yellow,
+    ));
+    output
 }
 
 pub fn format_diagnostics_with_color_and_context<THost: FormatDiagnosticsHost>(
     diagnostics: &[Rc<Diagnostic>],
     host: &THost,
 ) -> String {
-    unimplemented!()
+    let mut output = "".to_owned();
+    for diagnostic in diagnostics {
+        if let Some(diagnostic_file) = diagnostic.maybe_file().as_ref() {
+            let file = diagnostic_file;
+            let start = diagnostic.start();
+            output.push_str(&format_location(
+                file,
+                start,
+                host,
+                Option::<fn(&str, &str) -> String>::None,
+            ));
+            output.push_str(" - ");
+        }
+
+        output.push_str(&format_color_and_reset(
+            &diagnostic_category_name(diagnostic.category(), None),
+            get_category_format(diagnostic.category()),
+        ));
+        output.push_str(&format_color_and_reset(
+            &format!(" TS{}: ", diagnostic.code()),
+            ForegroundColorEscapeSequences::Grey,
+        ));
+        output.push_str(&flatten_diagnostic_message_text(
+            Some(diagnostic.message_text()),
+            host.get_new_line(),
+            None,
+        ));
+
+        if let Some(diagnostic_file) = diagnostic.maybe_file().as_ref() {
+            output.push_str(host.get_new_line());
+            output.push_str(&format_code_span(
+                diagnostic_file,
+                diagnostic.start(),
+                diagnostic.length(),
+                "",
+                get_category_format(diagnostic.category()),
+                host,
+            ));
+        }
+        if let Some(diagnostic_related_information) =
+            diagnostic.maybe_related_information().as_ref()
+        {
+            output.push_str(host.get_new_line());
+            for related_information in diagnostic_related_information {
+                let file = related_information.maybe_file();
+                let start = related_information.maybe_start();
+                let length = related_information.maybe_length();
+                let message_text = related_information.message_text();
+                if let Some(file) = file.as_ref() {
+                    output.push_str(host.get_new_line());
+                    output.push_str(&format!(
+                        "{}{}",
+                        half_indent,
+                        format_location(
+                            file,
+                            start.unwrap(),
+                            host,
+                            Option::<fn(&str, &str) -> String>::None
+                        )
+                    ));
+                    output.push_str(&format_code_span(
+                        file,
+                        start.unwrap(),
+                        length.unwrap(),
+                        indent_,
+                        ForegroundColorEscapeSequences::Cyan,
+                        host,
+                    ));
+                }
+                output.push_str(host.get_new_line());
+                output.push_str(&format!(
+                    "{}{}",
+                    indent_,
+                    flatten_diagnostic_message_text(Some(message_text), host.get_new_line(), None,)
+                ));
+            }
+        }
+        output.push_str(host.get_new_line());
+    }
+    output
 }
 
 pub fn flatten_diagnostic_message_text(

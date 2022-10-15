@@ -163,11 +163,11 @@ pub fn compare_diagnostics_skip_related_information<
 }
 
 fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
-    if d1.related_information().is_none() && d2.related_information().is_none() {
+    if d1.maybe_related_information().is_none() && d2.maybe_related_information().is_none() {
         return Comparison::EqualTo;
     }
-    if let Some(d1_related_information) = d1.related_information().as_ref() {
-        if let Some(d2_related_information) = d2.related_information().as_ref() {
+    if let Some(d1_related_information) = d1.maybe_related_information().as_ref() {
+        if let Some(d2_related_information) = d2.maybe_related_information().as_ref() {
             let compared = compare_values(
                 Some(d1_related_information.len()),
                 Some(d2_related_information.len()),
@@ -191,7 +191,7 @@ fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
             return Comparison::EqualTo;
         }
     }
-    if d1.related_information().is_some() {
+    if d1.maybe_related_information().is_some() {
         Comparison::LessThan
     } else {
         Comparison::GreaterThan
@@ -1941,7 +1941,7 @@ pub fn add_related_info(
     if related_information.is_empty() {
         return /*diagnostic*/;
     }
-    let mut diagnostic_related_information = diagnostic.related_information_mut();
+    let mut diagnostic_related_information = diagnostic.maybe_related_information_mut();
     if diagnostic_related_information.is_none() {
         *diagnostic_related_information = Some(vec![]);
     }

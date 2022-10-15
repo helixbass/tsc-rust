@@ -766,8 +766,8 @@ pub fn attach_file_to_diagnostic(
         ),
         None,
     ));
-    if let Some(related_information) = diagnostic.related_information().as_ref() {
-        *diagnostic_with_location.related_information_mut() = Some(
+    if let Some(related_information) = diagnostic.maybe_related_information().as_ref() {
+        *diagnostic_with_location.maybe_related_information_mut() = Some(
             related_information
                 .iter()
                 .map(|related| {

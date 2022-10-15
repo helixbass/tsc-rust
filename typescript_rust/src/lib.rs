@@ -53,8 +53,8 @@ pub use compiler::core::{
     reduce_left, reduce_left_no_initial_value, reduce_left_no_initial_value_optional,
     relative_complement, remove_prefix, remove_suffix, replace_element, same_map, set_ui_locale,
     single_element_array, single_or_undefined, some, sort, sort_and_deduplicate, stable_sort,
-    starts_with, string_contains, sum, to_file_name_lower_case, trim_string, trim_string_start,
-    try_add_to_set, try_cast, AssertionLevel, Cloneable, MultiMap, Pattern,
+    starts_with, string_contains, sum, to_file_name_lower_case, trim_string, trim_string_end,
+    trim_string_start, try_add_to_set, try_cast, AssertionLevel, Cloneable, MultiMap, Pattern,
     UnderscoreEscapedMultiMap,
 };
 pub use compiler::core_public::{

@@ -802,7 +802,7 @@ impl TypeChecker {
                     continue;
                 }
                 {
-                    let mut err_related_information = err.related_information_mut();
+                    let mut err_related_information = err.maybe_related_information_mut();
                     if err_related_information.is_none() {
                         *err_related_information = Some(vec![]);
                     }
@@ -818,9 +818,9 @@ impl TypeChecker {
                 let follow_on_message: Rc<DiagnosticRelatedInformation> = Rc::new(
                     create_diagnostic_for_node(&adjusted_node, &Diagnostics::and_here, None).into(),
                 );
-                if length(err.related_information().as_deref()) >= 5
+                if length(err.maybe_related_information().as_deref()) >= 5
                     || some(
-                        err.related_information().as_deref(),
+                        err.maybe_related_information().as_deref(),
                         Some(|r: &Rc<DiagnosticRelatedInformation>| {
                             compare_diagnostics(&**r, &*follow_on_message) == Comparison::EqualTo
                                 || compare_diagnostics(&**r, &*leading_message)
@@ -832,7 +832,7 @@ impl TypeChecker {
                 }
                 add_related_info(
                     &err,
-                    vec![if length(err.related_information().as_deref()) == 0 {
+                    vec![if length(err.maybe_related_information().as_deref()) == 0 {
                         leading_message
                     } else {
                         follow_on_message

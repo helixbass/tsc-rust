@@ -917,7 +917,9 @@ impl TypeChecker {
                     );
                     let related: Vec<Rc<DiagnosticRelatedInformation>> =
                         flat_map(Some(&*diags), |d: &Rc<Diagnostic>, _| {
-                            d.related_information().clone().unwrap_or_else(|| vec![])
+                            d.maybe_related_information()
+                                .clone()
+                                .unwrap_or_else(|| vec![])
                         });
                     let diag: Rc<Diagnostic>;
                     if every(&diags, |d: &Rc<Diagnostic>, _| {
