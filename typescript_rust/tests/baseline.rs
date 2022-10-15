@@ -10,12 +10,12 @@ use std::path::Path;
 use std::rc::Rc;
 
 use typescript_rust::{
-    create_compiler_host_worker, create_program, format_diagnostics, get_emit_script_target,
-    get_pre_emit_diagnostics, get_sys, option_declarations, parse_custom_type_option,
-    parse_list_type_option, read_file_and_strip_leading_byte_order_mark, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
-    CompilerOptionsValue, CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, NewLineKind,
-    Node,
+    create_compiler_host_worker, create_program, format_diagnostics,
+    format_diagnostics_with_color_and_context, get_emit_script_target, get_pre_emit_diagnostics,
+    get_sys, option_declarations, parse_custom_type_option, parse_list_type_option,
+    read_file_and_strip_leading_byte_order_mark, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
+    CreateProgramOptions, Diagnostic, FormatDiagnosticsHost, NewLineKind, Node,
 };
 
 #[rstest]
@@ -5580,7 +5580,7 @@ fn run_compiler_baseline(#[case] case_filename: &str) {
     let host = create_compiler_host_worker(options.clone(), None, Some(get_sys()));
     let program = create_program(CreateProgramOptions {
         root_names: vec![case_file_path],
-        options,
+        options: options.clone(),
         host: Some(Rc::new(host)),
         project_references: None,
         old_program: None,
@@ -5596,6 +5596,7 @@ fn run_compiler_baseline(#[case] case_filename: &str) {
             .unwrap(),
         &errors,
         &case_file_contents,
+        options.pretty,
     )
 }
 
@@ -5675,14 +5676,23 @@ fn extract_compiler_settings(case_file_contents: &str) -> HashMap<&str, &str> {
     opts
 }
 
-fn compare_baselines(name: &str, diagnostics: &[Rc<Diagnostic>], case_file_contents: &str) {
+fn compare_baselines(
+    name: &str,
+    diagnostics: &[Rc<Diagnostic>],
+    case_file_contents: &str,
+    pretty: Option<bool>,
+) {
     let ref baseline_file_contents = fs::read_to_string(&format!(
         "typescript_src/tests/baselines/reference/{name}.errors.txt"
     ))
     .unwrap_or_else(|_| "".to_owned());
     let baseline_error_lines = parse_baseline_errors(baseline_file_contents);
     let formatted_diagnostic_lines = adjust_diagnostic_line_numbers_and_lib_file_paths(
-        &format_diagnostics(diagnostics, &DummyFormatDiagnosticsHost),
+        &if pretty == Some(true) {
+            format_diagnostics_with_color_and_context(diagnostics, &DummyFormatDiagnosticsHost)
+        } else {
+            format_diagnostics(diagnostics, &DummyFormatDiagnosticsHost)
+        },
         case_file_contents,
     );
     assert_str_eq!(baseline_error_lines, formatted_diagnostic_lines);
@@ -5760,15 +5770,35 @@ impl FormatDiagnosticsHost for DummyFormatDiagnosticsHost {
 }
 
 fn parse_baseline_errors(baseline_file_contents: &str) -> String {
-    baseline_file_contents
+    lazy_static! {
+        static ref delimiter_line_regex: Regex = Regex::new(r"(?m)^==== ").unwrap();
+    }
+
+    if baseline_file_contents.is_empty() {
+        return "".to_owned();
+    }
+
+    let delimiter_line_start_pos = delimiter_line_regex
+        .find(baseline_file_contents)
+        .unwrap()
+        .start();
+
+    let lines_until_delimiter_line = baseline_file_contents[0..delimiter_line_start_pos]
         .split("\n")
-        // .filter(|line| line.starts_with("tests/cases/compiler"))
-        .take_while(|line| {
+        .collect::<Vec<_>>();
+    let lines_until_delimiter_line_reversed = lines_until_delimiter_line
+        .into_iter()
+        .rev()
+        .skip_while(|line| {
             lazy_static! {
                 static ref blank_line_regex: Regex = Regex::new(r"^\s*$").unwrap();
             }
-            !blank_line_regex.is_match(line)
+            blank_line_regex.is_match(line)
         })
+        .collect::<Vec<_>>();
+    lines_until_delimiter_line_reversed
+        .into_iter()
+        .rev()
         .map(|line| {
             line.replace(
                 "tests/cases/compiler",
