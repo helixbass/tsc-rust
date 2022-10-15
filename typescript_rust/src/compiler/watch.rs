@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::io;
 use std::marker::PhantomData;
 use std::rc::Rc;
@@ -554,7 +555,7 @@ pub fn file_include_reason_to_diagnostics<TFileNameConvertor: Fn(&str) -> String
             get_referenced_file_location(|path| program.get_source_file_by_path(path), reason);
         let reference_text = match &reference_location {
             ReferenceFileLocationOrSyntheticReferenceFileLocation::ReferenceFileLocation(reference_location) =>
-                text_substring(&reference_location.file.as_source_file().text_as_chars(), reference_location.pos, reference_location.end),
+                text_substring(&reference_location.file.as_source_file().text_as_chars(), reference_location.pos.try_into().unwrap(), reference_location.end.try_into().unwrap()),
             ReferenceFileLocationOrSyntheticReferenceFileLocation::SyntheticReferenceFileLocation(reference_location) =>
                 format!("\"{}\"", reference_location.text),
         };

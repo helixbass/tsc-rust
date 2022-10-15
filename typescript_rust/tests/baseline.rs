@@ -1416,8 +1416,8 @@ use typescript_rust::{
 #[case("declarationEmitInterfaceWithNonEntityNameExpressionHeritage.ts")]
 #[case("declarationEmitInvalidExport.ts")] // OUT OF SCOPE transformation error
 #[case("declarationEmitInvalidReference.ts")]
-#[case("declarationEmitInvalidReference2.ts")] // FAILING
-#[case("declarationEmitInvalidReferenceAllowJs.ts")] // FAILING
+#[case("declarationEmitInvalidReference2.ts")] // FAILING 1397
+#[case("declarationEmitInvalidReferenceAllowJs.ts")] // FAILING 1398
 #[case("declarationEmitLambdaWithMissingTypeParameterNoCrash.ts")] // OUT OF SCOPE transformation error
 #[case("declarationEmitLocalClassDeclarationMixin.ts")]
 #[case("declarationEmitLocalClassHasRequiredDeclare.ts")]

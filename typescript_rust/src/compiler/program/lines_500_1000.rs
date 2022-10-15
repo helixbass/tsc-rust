@@ -19,18 +19,18 @@ use crate::{
     get_emit_module_resolution_kind, get_package_scope_for_path, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module, get_sys, is_import_call,
     is_import_equals_declaration, map_defined, maybe_for_each, options_have_changes,
-    resolve_module_name, resolve_type_reference_directive, source_file_affecting_compiler_options,
-    stable_sort, walk_up_parenthesized_expressions, AutomaticTypeDirectiveFile, CompilerHost,
-    CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection, Extension,
-    FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
-    FilePreprocessingDiagnosticsKind, LibFile, ModuleKind, ModuleResolutionCache,
-    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId, PackageJsonInfoCache,
-    ParsedCommandLine, Path, Program, ProjectReference, RedirectTargetsMap, ReferencedFile,
-    ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile,
-    ScriptReferenceHost, SourceFile, SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect,
-    StructureIsReused, SymlinkCache, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeReferenceDirectiveResolutionCache,
+    resolve_module_name, resolve_type_reference_directive, skip_trivia,
+    source_file_affecting_compiler_options, stable_sort, to_file_name_lower_case,
+    walk_up_parenthesized_expressions, AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions,
+    CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection, Extension, FileIncludeKind,
+    FileIncludeReason, FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind, LibFile,
+    ModuleKind, ModuleResolutionCache, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, PackageId,
+    PackageJsonInfoCache, ParsedCommandLine, Path, Program, ProjectReference, ReadonlyTextRange,
+    RedirectTargetsMap, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
+    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
+    TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
 };
 use local_macros::enum_unwrapped;
 
@@ -386,8 +386,8 @@ pub(crate) fn is_referenced_file(reason: Option<&FileIncludeReason>) -> bool {
 #[derive(Debug)]
 pub(crate) struct ReferenceFileLocation {
     pub file: Rc<Node /*SourceFile*/>,
-    pub pos: usize,
-    pub end: usize,
+    pub pos: isize,
+    pub end: isize,
     pub package_id: Option<PackageId>,
 }
 
@@ -439,13 +439,106 @@ impl ReferenceFileLocationOrSyntheticReferenceFileLocation {
     }
 }
 
+impl From<ReferenceFileLocation> for ReferenceFileLocationOrSyntheticReferenceFileLocation {
+    fn from(value: ReferenceFileLocation) -> Self {
+        Self::ReferenceFileLocation(value)
+    }
+}
+
+impl From<SyntheticReferenceFileLocation>
+    for ReferenceFileLocationOrSyntheticReferenceFileLocation
+{
+    fn from(value: SyntheticReferenceFileLocation) -> Self {
+        Self::SyntheticReferenceFileLocation(value)
+    }
+}
+
 pub(crate) fn get_referenced_file_location<
     TGetSourceFileByPath: FnMut(&Path) -> Option<Rc<Node /*SourceFile*/>>,
 >(
-    get_source_file_by_path: TGetSourceFileByPath,
+    mut get_source_file_by_path: TGetSourceFileByPath,
     ref_: &ReferencedFile,
 ) -> ReferenceFileLocationOrSyntheticReferenceFileLocation {
-    unimplemented!()
+    let ref file = Debug_.check_defined(get_source_file_by_path(&ref_.file), None);
+    let kind = ref_.kind;
+    let index = ref_.index;
+    let mut pos: Option<isize> = None;
+    let mut end: Option<isize> = None;
+    let mut package_id: Option<PackageId> = None;
+    let file_as_source_file = file.as_source_file();
+    match kind {
+        FileIncludeKind::Import => {
+            let import_literal = get_module_name_string_literal_at(file_as_source_file, index);
+            let import_literal_text = import_literal.as_literal_like_node().text();
+            package_id = file_as_source_file
+                .maybe_resolved_modules()
+                .as_ref()
+                .and_then(|file_resolved_modules| {
+                    file_resolved_modules
+                        .get(
+                            &import_literal_text,
+                            get_mode_for_resolution_at_index(file_as_source_file, index),
+                        )
+                        .flatten()
+                })
+                .and_then(|resolved_module| resolved_module.package_id.clone());
+            if import_literal.pos() == -1 {
+                return SyntheticReferenceFileLocation {
+                    file: file.node_wrapper(),
+                    package_id,
+                    text: import_literal_text.clone(),
+                }
+                .into();
+            }
+            pos = Some(skip_trivia(
+                &file_as_source_file.text_as_chars(),
+                import_literal.pos(),
+                None,
+                None,
+                None,
+            ));
+            end = Some(import_literal.end());
+        }
+        FileIncludeKind::ReferenceFile => {
+            let file_referenced_files = file_as_source_file.referenced_files();
+            pos = Some(file_referenced_files[index].pos());
+            end = Some(file_referenced_files[index].end());
+        }
+        FileIncludeKind::TypeReferenceDirective => {
+            let file_type_reference_directives = file_as_source_file.type_reference_directives();
+            pos = Some(file_type_reference_directives[index].pos());
+            end = Some(file_type_reference_directives[index].end());
+            package_id = file_as_source_file
+                .maybe_resolved_type_reference_directive_names()
+                .as_ref()
+                .and_then(|file_resolved_type_reference_directive_names| {
+                    file_resolved_type_reference_directive_names
+                        .get(
+                            &to_file_name_lower_case(
+                                &file_type_reference_directives[index].file_name,
+                            ),
+                            file_as_source_file.maybe_implied_node_format(),
+                        )
+                        .flatten()
+                })
+                .and_then(|resolved| resolved.package_id.clone());
+        }
+        FileIncludeKind::LibReferenceDirective => {
+            let file_lib_reference_directives = file_as_source_file.lib_reference_directives();
+            pos = Some(file_lib_reference_directives[index].pos());
+            end = Some(file_lib_reference_directives[index].end());
+        }
+        _ => {
+            Debug_.assert_never(kind, None);
+        }
+    }
+    ReferenceFileLocation {
+        file: file.node_wrapper(),
+        pos: pos.unwrap(),
+        end: end.unwrap(),
+        package_id,
+    }
+    .into()
 }
 
 pub fn get_config_file_parsing_diagnostics(
