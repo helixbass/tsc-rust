@@ -92,7 +92,7 @@ impl Scanner {
         let main_fragment = self.scan_number_fragment(on_error);
         let mut decimal_fragment: Option<String> = None;
         let mut scientific_fragment: Option<String> = None;
-        if self.text_char_at_index(self.pos()) == CharacterCodes::dot {
+        if self.maybe_text_char_at_index(self.pos()) == Some(CharacterCodes::dot) {
             self.increment_pos();
             decimal_fragment = Some(self.scan_number_fragment(on_error));
         }
@@ -167,9 +167,12 @@ impl Scanner {
         is_scientific: Option<bool>,
     ) {
         let is_scientific = is_scientific.unwrap_or(false);
-        if !is_identifier_start(
-            code_point_at(&self.text(), self.pos()),
-            Some(self.language_version),
+        if !matches!(
+            maybe_code_point_at(&self.text(), self.pos()),
+            Some(ch) if is_identifier_start(
+                ch,
+                Some(self.language_version),
+            )
         ) {
             return;
         }
@@ -796,7 +799,7 @@ impl Scanner {
     }
 
     pub(super) fn check_big_int_suffix(&self) -> SyntaxKind {
-        if self.text_char_at_index(self.pos()) == CharacterCodes::n {
+        if self.maybe_text_char_at_index(self.pos()) == Some(CharacterCodes::n) {
             self.set_token_value(format!("{}n", self.token_value()));
             if self
                 .token_flags()
