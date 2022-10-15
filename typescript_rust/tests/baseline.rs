@@ -20,15 +20,15 @@ use typescript_rust::{
 
 #[rstest]
 #[case("2dArrays.ts")]
-#[case("APISample_Watch.ts")]
-#[case("APISample_WatchWithDefaults.ts")]
-#[case("APISample_WatchWithOwnWatchHost.ts")]
-#[case("APISample_compile.ts")]
-#[case("APISample_jsdoc.ts")]
-#[case("APISample_linter.ts")]
-#[case("APISample_parseConfig.ts")]
-#[case("APISample_transform.ts")]
-#[case("APISample_watcher.ts")]
+#[case("APISample_Watch.ts")] // NOT RUNNABLE
+#[case("APISample_WatchWithDefaults.ts")] // NOT RUNNABLE
+#[case("APISample_WatchWithOwnWatchHost.ts")] // NOT RUNNABLE
+#[case("APISample_compile.ts")] // NOT RUNNABLE
+#[case("APISample_jsdoc.ts")] // NOT RUNNABLE
+#[case("APISample_linter.ts")] // NOT RUNNABLE
+#[case("APISample_parseConfig.ts")] // NOT RUNNABLE
+#[case("APISample_transform.ts")] // NOT RUNNABLE
+#[case("APISample_watcher.ts")] // NOT RUNNABLE
 #[case("ArrowFunctionExpression1.ts")]
 #[case("ClassDeclaration10.ts")]
 #[case("ClassDeclaration11.ts")]
@@ -73,7 +73,7 @@ use typescript_rust::{
 #[case("accessStaticMemberFromInstanceMethod01.ts")]
 #[case("accessorAccidentalCallDiagnostic.ts")]
 #[case("accessorBodyInTypeContext.ts")]
-#[case("accessorDeclarationEmitVisibilityErrors.ts")]
+#[case("accessorDeclarationEmitVisibilityErrors.ts")] // OUT OF SCOPE transformer error
 #[case("accessorParameterAccessibilityModifier.ts")]
 #[case("accessorWithInitializer.ts")]
 #[case("accessorWithLineTerminator.ts")]
@@ -88,53 +88,53 @@ use typescript_rust::{
 #[case("addMoreCallSignaturesToBaseSignature.ts")]
 #[case("addMoreCallSignaturesToBaseSignature2.ts")]
 #[case("addMoreOverloadsToBaseSignature.ts")]
-#[case("aliasAssignments.ts")]
+#[case("aliasAssignments.ts")] // NOT RUNNABLE
 #[case("aliasBug.ts")]
-#[case("aliasDoesNotDuplicateSignatures.ts")]
+#[case("aliasDoesNotDuplicateSignatures.ts")] // NOT RUNNABLE
 #[case("aliasErrors.ts")]
 #[case("aliasInaccessibleModule.ts")]
 #[case("aliasInaccessibleModule2.ts")]
 #[case("aliasOfGenericFunctionWithRestBehavedSameAsUnaliased.ts")]
-#[case("aliasOnMergedModuleInterface.ts")]
-#[case("aliasUsageInAccessorsOfClass.ts")]
-#[case("aliasUsageInArray.ts")]
-#[case("aliasUsageInFunctionExpression.ts")]
-#[case("aliasUsageInGenericFunction.ts")]
-#[case("aliasUsageInIndexerOfClass.ts")]
-#[case("aliasUsageInObjectLiteral.ts")]
-#[case("aliasUsageInOrExpression.ts")]
-#[case("aliasUsageInTypeArgumentOfExtendsClause.ts")]
-#[case("aliasUsageInVarAssignment.ts")]
-#[case("aliasUsedAsNameValue.ts")]
-#[case("aliasWithInterfaceExportAssignmentUsedInVarInitializer.ts")]
+#[case("aliasOnMergedModuleInterface.ts")] // NOT RUNNABLE
+#[case("aliasUsageInAccessorsOfClass.ts")] // NOT RUNNABLE
+#[case("aliasUsageInArray.ts")] // NOT RUNNABLE
+#[case("aliasUsageInFunctionExpression.ts")] // NOT RUNNABLE
+#[case("aliasUsageInGenericFunction.ts")] // NOT RUNNABLE
+#[case("aliasUsageInIndexerOfClass.ts")] // NOT RUNNABLE
+#[case("aliasUsageInObjectLiteral.ts")] // NOT RUNNABLE
+#[case("aliasUsageInOrExpression.ts")] // NOT RUNNABLE
+#[case("aliasUsageInTypeArgumentOfExtendsClause.ts")] // NOT RUNNABLE
+#[case("aliasUsageInVarAssignment.ts")] // NOT RUNNABLE
+#[case("aliasUsedAsNameValue.ts")] // NOT RUNNABLE
+#[case("aliasWithInterfaceExportAssignmentUsedInVarInitializer.ts")] // NOT RUNNABLE
 #[case("aliasesInSystemModule1.ts")]
 #[case("aliasesInSystemModule2.ts")]
-#[case("allowImportClausesToMergeWithTypes.ts")]
-#[case("allowJsClassThisTypeCrash.ts")]
-#[case("allowJscheckJsTypeParameterNoCrash.ts")]
-#[case("allowSyntheticDefaultImports1.ts")]
-#[case("allowSyntheticDefaultImports10.ts")]
-#[case("allowSyntheticDefaultImports2.ts")]
-#[case("allowSyntheticDefaultImports3.ts")]
-#[case("allowSyntheticDefaultImports4.ts")]
-#[case("allowSyntheticDefaultImports5.ts")]
-#[case("allowSyntheticDefaultImports6.ts")]
-#[case("allowSyntheticDefaultImports7.ts")]
-#[case("allowSyntheticDefaultImports8.ts")]
-#[case("allowSyntheticDefaultImports9.ts")]
-#[case("allowSyntheticDefaultImportsCanPaintCrossModuleDeclaration.ts")]
+#[case("allowImportClausesToMergeWithTypes.ts")] // NOT RUNNABLE
+#[case("allowJsClassThisTypeCrash.ts")] // NOT RUNNABLE
+#[case("allowJscheckJsTypeParameterNoCrash.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports1.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports10.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports2.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports3.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports4.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports5.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports6.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports7.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports8.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImports9.ts")] // NOT RUNNABLE
+#[case("allowSyntheticDefaultImportsCanPaintCrossModuleDeclaration.ts")] // NOT RUNNABLE
 #[case("alwaysStrict.ts")]
 #[case("alwaysStrictAlreadyUseStrict.ts")]
 #[case("alwaysStrictES6.ts")]
 #[case("alwaysStrictModule.ts")]
-#[case("alwaysStrictModule2.ts")]
+#[case("alwaysStrictModule2.ts")] // NOT RUNNABLE
 #[case("alwaysStrictModule3.ts")]
-#[case("alwaysStrictModule4.ts")]
+#[case("alwaysStrictModule4.ts")] // FAILING
 #[case("alwaysStrictModule5.ts")]
 #[case("alwaysStrictModule6.ts")]
 #[case("alwaysStrictNoImplicitUseStrict.ts")]
-#[case("ambientClassDeclarationWithExtends.ts")]
-#[case("ambientClassDeclaredBeforeBase.ts")]
+#[case("ambientClassDeclarationWithExtends.ts")] // NOT RUNNABLE
+#[case("ambientClassDeclaredBeforeBase.ts")] // NOT RUNNABLE
 #[case("ambientClassMergesOverloadsWithInterface.ts")]
 #[case("ambientClassOverloadForFunction.ts")]
 #[case("ambientConstLiterals.ts")]
@@ -146,13 +146,13 @@ use typescript_rust::{
 #[case("ambientEnumElementInitializer5.ts")]
 #[case("ambientEnumElementInitializer6.ts")]
 #[case("ambientErrors1.ts")]
-#[case("ambientExportDefaultErrors.ts")]
+#[case("ambientExportDefaultErrors.ts")] // NOT RUNNABLE
 #[case("ambientExternalModuleInAnotherExternalModule.ts")]
 #[case("ambientExternalModuleReopen.ts")]
-#[case("ambientExternalModuleWithInternalImportDeclaration.ts")]
+#[case("ambientExternalModuleWithInternalImportDeclaration.ts")] // NOT RUNNABLE
 #[case("ambientExternalModuleWithRelativeExternalImportDeclaration.ts")]
 #[case("ambientExternalModuleWithRelativeModuleName.ts")]
-#[case("ambientExternalModuleWithoutInternalImportDeclaration.ts")]
+#[case("ambientExternalModuleWithoutInternalImportDeclaration.ts")] // NOT RUNNABLE
 #[case("ambientFundule.ts")]
 #[case("ambientGetters.ts")]
 #[case("ambientModuleExports.ts")]
@@ -160,25 +160,25 @@ use typescript_rust::{
 #[case("ambientModuleWithTemplateLiterals.ts")]
 #[case("ambientModules.ts")]
 #[case("ambientNameRestrictions.ts")]
-#[case("ambientRequireFunction.ts")]
+#[case("ambientRequireFunction.ts")] // NOT RUNNABLE
 #[case("ambientStatement1.ts")]
 #[case("ambientWithStatements.ts")]
 #[case("ambiguousCallsWhereReturnTypesAgree.ts")]
 #[case("ambiguousGenericAssertion1.ts")]
 #[case("ambiguousOverload.ts")]
 #[case("ambiguousOverloadResolution.ts")]
-#[case("amdDeclarationEmitNoExtraDeclare.ts")]
+#[case("amdDeclarationEmitNoExtraDeclare.ts")] // NOT RUNNABLE
 #[case("amdDependencyComment1.ts")]
 #[case("amdDependencyComment2.ts")]
 #[case("amdDependencyCommentName1.ts")]
 #[case("amdDependencyCommentName2.ts")]
 #[case("amdDependencyCommentName3.ts")]
 #[case("amdDependencyCommentName4.ts")]
-#[case("amdModuleBundleNoDuplicateDeclarationEmitComments.ts")]
-#[case("amdModuleConstEnumUsage.ts")]
+#[case("amdModuleBundleNoDuplicateDeclarationEmitComments.ts")] // NOT RUNNABLE
+#[case("amdModuleConstEnumUsage.ts")] // NOT RUNNABLE
 #[case("amdModuleName1.ts")]
 #[case("amdModuleName2.ts")]
-#[case("anonClassDeclarationEmitIsAnon.ts")]
+#[case("anonClassDeclarationEmitIsAnon.ts")] // NOT RUNNABLE
 #[case("anonterface.ts")]
 #[case("anonymousClassDeclarationDoesntPrintWithReadonly.ts")]
 #[case("anonymousClassExpression1.ts")]
@@ -199,28 +199,28 @@ use typescript_rust::{
 #[case("argumentsAsPropertyName.ts")]
 #[case("argumentsAsPropertyName2.ts")]
 #[case("argumentsBindsToFunctionScopeArgumentList.ts")]
-#[case("argumentsObjectCreatesRestForJs.ts")]
+#[case("argumentsObjectCreatesRestForJs.ts")] // NOT RUNNABLE
 #[case("argumentsObjectIterator01_ES5.ts")]
 #[case("argumentsObjectIterator01_ES6.ts")]
 #[case("argumentsObjectIterator02_ES5.ts")]
 #[case("argumentsObjectIterator02_ES6.ts")]
 #[case("argumentsObjectIterator03_ES5.ts")]
 #[case("argumentsObjectIterator03_ES6.ts")]
-#[case("argumentsReferenceInConstructor1_Js.ts")]
-#[case("argumentsReferenceInConstructor2_Js.ts")]
-#[case("argumentsReferenceInConstructor3_Js.ts")]
-#[case("argumentsReferenceInConstructor4_Js.ts")]
-#[case("argumentsReferenceInConstructor5_Js.ts")]
-#[case("argumentsReferenceInConstructor6_Js.ts")]
-#[case("argumentsReferenceInConstructor7_Js.ts")]
-#[case("argumentsReferenceInMethod1_Js.ts")]
-#[case("argumentsReferenceInMethod2_Js.ts")]
-#[case("argumentsReferenceInMethod3_Js.ts")]
-#[case("argumentsReferenceInMethod4_Js.ts")]
-#[case("argumentsReferenceInMethod5_Js.ts")]
-#[case("argumentsReferenceInMethod6_Js.ts")]
-#[case("argumentsReferenceInMethod7_Js.ts")]
-#[case("argumentsReferenceInObjectLiteral_Js.ts")]
+#[case("argumentsReferenceInConstructor1_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInConstructor2_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInConstructor3_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInConstructor4_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInConstructor5_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInConstructor6_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInConstructor7_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInMethod1_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInMethod2_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInMethod3_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInMethod4_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInMethod5_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInMethod6_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInMethod7_Js.ts")] // NOT RUNNABLE
+#[case("argumentsReferenceInObjectLiteral_Js.ts")] // NOT RUNNABLE
 #[case("argumentsUsedInClassFieldInitializerOrStaticInitializationBlock.ts")]
 #[case("argumentsUsedInObjectLiteralProperty.ts")]
 #[case("arithAssignTyping.ts")]
@@ -243,7 +243,7 @@ use typescript_rust::{
 #[case("arrayConcatMap.ts")]
 #[case("arrayConstructors1.ts")]
 #[case("arrayEvery.ts")]
-#[case("arrayFakeFlatNoCrashInferenceDeclarations.ts")]
+#[case("arrayFakeFlatNoCrashInferenceDeclarations.ts")] // OUT OF SCOPE transformer error
 #[case("arrayFilter.ts")]
 #[case("arrayFind.ts")]
 #[case("arrayFlatMap.ts")]
@@ -258,7 +258,7 @@ use typescript_rust::{
 #[case("arrayLiteralContextualType.ts")]
 #[case("arrayLiteralInNonVarArgParameter.ts")]
 #[case("arrayLiteralTypeInference.ts")]
-#[case("arrayOfExportedClass.ts")]
+#[case("arrayOfExportedClass.ts")] // NOT RUNNABLE
 #[case("arrayOfSubtypeIsAssignableToReadonlyArray.ts")]
 #[case("arrayReferenceWithoutTypeArgs.ts")]
 #[case("arraySigChecking.ts")]
@@ -374,23 +374,23 @@ use typescript_rust::{
 #[case("asyncFunctionReturnType.ts")]
 #[case("asyncFunctionTempVariableScoping.ts")]
 #[case("asyncFunctionWithForStatementNoInitializer.ts")]
-#[case("asyncFunctionsAcrossFiles.ts")]
+#[case("asyncFunctionsAcrossFiles.ts")] // NOT RUNNABLE
 #[case("asyncFunctionsAndStrictNullChecks.ts")]
 #[case("asyncIIFE.ts")]
 #[case("asyncImportNestedYield.ts")]
 #[case("augmentArray.ts")]
-#[case("augmentExportEquals1.ts")]
-#[case("augmentExportEquals1_1.ts")]
-#[case("augmentExportEquals2.ts")]
-#[case("augmentExportEquals2_1.ts")]
-#[case("augmentExportEquals3.ts")]
-#[case("augmentExportEquals3_1.ts")]
-#[case("augmentExportEquals4.ts")]
-#[case("augmentExportEquals4_1.ts")]
-#[case("augmentExportEquals5.ts")]
-#[case("augmentExportEquals6.ts")]
-#[case("augmentExportEquals6_1.ts")]
-#[case("augmentExportEquals7.ts")]
+#[case("augmentExportEquals1.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals1_1.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals2.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals2_1.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals3.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals3_1.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals4.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals4_1.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals5.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals6.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals6_1.ts")] // NOT RUNNABLE
+#[case("augmentExportEquals7.ts")] // NOT RUNNABLE
 #[case("augmentedClassWithPrototypePropertyOnModule.ts")]
 #[case("augmentedTypeBracketNamedPropertyAccess.ts")]
 #[case("augmentedTypesClass.ts")]
@@ -426,10 +426,10 @@ use typescript_rust::{
 #[case("badArrayIndex.ts")]
 #[case("badArraySyntax.ts")]
 #[case("badExternalModuleReference.ts")]
-#[case("badInferenceLowerPriorityThanGoodInference.ts")]
+#[case("badInferenceLowerPriorityThanGoodInference.ts")] // FAILING
 #[case("badOverloadError.ts")]
 #[case("badThisBinding.ts")]
-#[case("bangInModuleName.ts")]
+#[case("bangInModuleName.ts")] // NOT RUNNABLE
 #[case("baseCheck.ts")]
 #[case("baseClassImprovedMismatchErrors.ts")]
 #[case("baseConstraintOfDecorator.ts")]
@@ -450,18 +450,18 @@ use typescript_rust::{
 #[case("bigIntWithTargetES3.ts")]
 #[case("bigIntWithTargetLessThanES2016.ts")]
 #[case("bigint64ArraySubarray.ts")]
-#[case("bigintIndex.ts")]
+#[case("bigintIndex.ts")] // NOT RUNNABLE
 #[case("bigintWithLib.ts")]
 #[case("bigintWithoutLib.ts")]
-#[case("binaryArithmatic1.ts")]
-#[case("binaryArithmatic2.ts")]
-#[case("binaryArithmatic3.ts")]
-#[case("binaryArithmatic4.ts")]
+#[case("binaryArithmatic1.ts")] // FAILING
+#[case("binaryArithmatic2.ts")] // FAILING
+#[case("binaryArithmatic3.ts")] // FAILING
+#[case("binaryArithmatic4.ts")] // FAILING
 #[case("binaryArithmeticControlFlowGraphNotTooLarge.ts")]
 #[case("bind1.ts")]
 #[case("bind2.ts")]
-#[case("binderBinaryExpressionStress.ts")]
-#[case("binderBinaryExpressionStressJs.ts")]
+#[case("binderBinaryExpressionStress.ts")] // NOT RUNNABLE
+#[case("binderBinaryExpressionStressJs.ts")] // NOT RUNNABLE
 #[case("bindingPatternInParameter01.ts")]
 #[case("bindingPatternOmittedExpressionNesting.ts")]
 #[case("binopAssignmentShouldHaveType.ts")]
@@ -475,7 +475,7 @@ use typescript_rust::{
 #[case("blockScopedBindingsReassignedInLoop4.ts")]
 #[case("blockScopedBindingsReassignedInLoop5.ts")]
 #[case("blockScopedBindingsReassignedInLoop6.ts")]
-#[case("blockScopedClassDeclarationAcrossFiles.ts")]
+#[case("blockScopedClassDeclarationAcrossFiles.ts")] // NOT RUNNABLE
 #[case("blockScopedEnumVariablesUseBeforeDef.ts")]
 #[case("blockScopedEnumVariablesUseBeforeDef_preserve.ts")]
 #[case("blockScopedFunctionDeclarationES5.ts")]
@@ -484,7 +484,7 @@ use typescript_rust::{
 #[case("blockScopedFunctionDeclarationInStrictModule.ts")]
 #[case("blockScopedFunctionDeclarationStrictES5.ts")]
 #[case("blockScopedFunctionDeclarationStrictES6.ts")]
-#[case("blockScopedNamespaceDifferentFile.ts")]
+#[case("blockScopedNamespaceDifferentFile.ts")] // NOT RUNNABLE
 #[case("blockScopedSameNameFunctionDeclarationES5.ts")]
 #[case("blockScopedSameNameFunctionDeclarationES6.ts")]
 #[case("blockScopedSameNameFunctionDeclarationStrictES5.ts")]
@@ -496,7 +496,7 @@ use typescript_rust::{
 #[case("bom-utf8.ts")]
 #[case("booleanAssignment.ts")]
 #[case("booleanFilterAnyArray.ts")]
-#[case("booleanLiteralsContextuallyTypedFromUnion.tsx")]
+#[case("booleanLiteralsContextuallyTypedFromUnion.tsx")] // NOT RUNNABLE
 #[case("breakInIterationOrSwitchStatement1.ts")]
 #[case("breakInIterationOrSwitchStatement2.ts")]
 #[case("breakInIterationOrSwitchStatement3.ts")]
@@ -509,17 +509,17 @@ use typescript_rust::{
 #[case("breakTarget4.ts")]
 #[case("breakTarget5.ts")]
 #[case("breakTarget6.ts")]
-#[case("bundledDtsLateExportRenaming.ts")]
-#[case("cacheResolutions.ts")]
-#[case("cachedModuleResolution1.ts")]
-#[case("cachedModuleResolution2.ts")]
-#[case("cachedModuleResolution3.ts")]
-#[case("cachedModuleResolution4.ts")]
-#[case("cachedModuleResolution5.ts")]
-#[case("cachedModuleResolution6.ts")]
-#[case("cachedModuleResolution7.ts")]
-#[case("cachedModuleResolution8.ts")]
-#[case("cachedModuleResolution9.ts")]
+#[case("bundledDtsLateExportRenaming.ts")] // NOT RUNNABLE
+#[case("cacheResolutions.ts")] // NOT RUNNABLE
+#[case("cachedModuleResolution1.ts")] // NOT RUNNABLE
+#[case("cachedModuleResolution2.ts")] // NOT RUNNABLE
+#[case("cachedModuleResolution3.ts")] // NOT RUNNABLE
+#[case("cachedModuleResolution4.ts")] // NOT RUNNABLE
+#[case("cachedModuleResolution5.ts")] // NOT RUNNABLE
+#[case("cachedModuleResolution6.ts")] // NOT RUNNABLE
+#[case("cachedModuleResolution7.ts")] // NOT RUNNABLE
+#[case("cachedModuleResolution8.ts")] // NOT RUNNABLE
+#[case("cachedModuleResolution9.ts")] // NOT RUNNABLE
 #[case("callConstructAssignment.ts")]
 #[case("callExpressionWithMissingTypeArgument1.ts")]
 #[case("callExpressionWithTypeParameterConstrainedToOuterTypeParameter.ts")]
@@ -537,7 +537,7 @@ use typescript_rust::{
 #[case("callWithWrongNumberOfTypeArguments.ts")]
 #[case("callbackArgsDifferByOptionality.ts")]
 #[case("callbacksDontShareTypes.ts")]
-#[case("callsOnComplexSignatures.tsx")] // failing on not loading /// <reference path="/.lib/..."> directive
+#[case("callsOnComplexSignatures.tsx")] // NOT RUNNABLE on .lib directive
 #[case("cannotInvokeNewOnErrorExpression.ts")]
 #[case("cannotInvokeNewOnIndexExpression.ts")]
 #[case("captureSuperPropertyAccessInSuperCall01.ts")]
@@ -569,7 +569,7 @@ use typescript_rust::{
 #[case("capturedParametersInInitializers1.ts")]
 #[case("capturedParametersInInitializers2.ts")]
 #[case("capturedVarInLoop.ts")]
-#[case("caseInsensitiveFileSystemWithCapsImportTypeDeclarations.ts")]
+#[case("caseInsensitiveFileSystemWithCapsImportTypeDeclarations.ts")] // NOT RUNNABLE
 #[case("castExpressionParentheses.ts")]
 #[case("castFunctionExpressionShouldBeParenthesized.ts")]
 #[case("castNewObjectBug.ts")]
@@ -586,35 +586,35 @@ use typescript_rust::{
 #[case("chainedAssignmentChecking.ts")]
 #[case("chainedCallsWithTypeParameterConstrainedToOtherTypeParameter.ts")]
 #[case("chainedCallsWithTypeParameterConstrainedToOtherTypeParameter2.ts")]
-#[case("chainedImportAlias.ts")]
+#[case("chainedImportAlias.ts")] // NOT RUNNABLE
 #[case("chainedSpecializationToObjectTypeLiteral.ts")]
-#[case("checkDestructuringShorthandAssigment.ts")]
+#[case("checkDestructuringShorthandAssigment.ts")] // NOT RUNNABLE
 #[case("checkDestructuringShorthandAssigment2.ts")]
 #[case("checkForObjectTooStrict.ts")]
-#[case("checkIndexConstraintOfJavascriptClassExpression.ts")]
+#[case("checkIndexConstraintOfJavascriptClassExpression.ts")] // NOT RUNNABLE
 #[case("checkInfiniteExpansionTermination.ts")]
 #[case("checkInfiniteExpansionTermination2.ts")]
-#[case("checkInterfaceBases.ts")]
-#[case("checkJsFiles.ts")]
-#[case("checkJsFiles2.ts")]
-#[case("checkJsFiles3.ts")]
-#[case("checkJsFiles4.ts")]
-#[case("checkJsFiles5.ts")]
-#[case("checkJsFiles6.ts")]
-#[case("checkJsFiles7.ts")]
-#[case("checkJsFiles_noErrorLocation.ts")]
-#[case("checkJsFiles_skipDiagnostics.ts")]
-#[case("checkJsObjectLiteralHasCheckedKeyof.ts")]
-#[case("checkJsObjectLiteralIndexSignatures.ts")]
-#[case("checkJsTypeDefNoUnusedLocalMarked.ts")]
-#[case("checkJsdocTypeTagOnExportAssignment1.ts")]
-#[case("checkJsdocTypeTagOnExportAssignment2.ts")]
-#[case("checkJsdocTypeTagOnExportAssignment3.ts")]
-#[case("checkJsdocTypeTagOnExportAssignment4.ts")]
-#[case("checkJsdocTypeTagOnExportAssignment5.ts")]
-#[case("checkJsdocTypeTagOnExportAssignment6.ts")]
-#[case("checkJsdocTypeTagOnExportAssignment7.ts")]
-#[case("checkMergedGlobalUMDSymbol.ts")]
+#[case("checkInterfaceBases.ts")] // NOT RUNNABLE
+#[case("checkJsFiles.ts")] // NOT RUNNABLE
+#[case("checkJsFiles2.ts")] // NOT RUNNABLE
+#[case("checkJsFiles3.ts")] // NOT RUNNABLE
+#[case("checkJsFiles4.ts")] // NOT RUNNABLE
+#[case("checkJsFiles5.ts")] // NOT RUNNABLE
+#[case("checkJsFiles6.ts")] // NOT RUNNABLE
+#[case("checkJsFiles7.ts")] // NOT RUNNABLE
+#[case("checkJsFiles_noErrorLocation.ts")] // NOT RUNNABLE
+#[case("checkJsFiles_skipDiagnostics.ts")] // NOT RUNNABLE
+#[case("checkJsObjectLiteralHasCheckedKeyof.ts")] // NOT RUNNABLE
+#[case("checkJsObjectLiteralIndexSignatures.ts")] // NOT RUNNABLE
+#[case("checkJsTypeDefNoUnusedLocalMarked.ts")] // NOT RUNNABLE
+#[case("checkJsdocTypeTagOnExportAssignment1.ts")] // NOT RUNNABLE
+#[case("checkJsdocTypeTagOnExportAssignment2.ts")] // NOT RUNNABLE
+#[case("checkJsdocTypeTagOnExportAssignment3.ts")] // NOT RUNNABLE
+#[case("checkJsdocTypeTagOnExportAssignment4.ts")] // NOT RUNNABLE
+#[case("checkJsdocTypeTagOnExportAssignment5.ts")] // NOT RUNNABLE
+#[case("checkJsdocTypeTagOnExportAssignment6.ts")] // NOT RUNNABLE
+#[case("checkJsdocTypeTagOnExportAssignment7.ts")] // NOT RUNNABLE
+#[case("checkMergedGlobalUMDSymbol.ts")] // NOT RUNNABLE
 #[case("checkSuperCallBeforeThisAccess.ts")]
 #[case("checkSuperCallBeforeThisAccessing1.ts")]
 #[case("checkSuperCallBeforeThisAccessing2.ts")]
@@ -624,7 +624,7 @@ use typescript_rust::{
 #[case("checkSuperCallBeforeThisAccessing6.ts")]
 #[case("checkSuperCallBeforeThisAccessing7.ts")]
 #[case("checkSuperCallBeforeThisAccessing8.ts")]
-#[case("checkSuperCallBeforeThisAccessing9.ts")]
+#[case("checkSuperCallBeforeThisAccessing9.ts")] // NOT RUNNABLE
 #[case("checkSwitchStatementIfCaseTypeIsString.ts")]
 #[case("checkTypePredicateForRedundantProperties.ts")]
 #[case("circularBaseTypes.ts")]
@@ -636,14 +636,14 @@ use typescript_rust::{
 #[case("circularModuleImports.ts")]
 #[case("circularObjectLiteralAccessors.ts")]
 #[case("circularOptionalityRemoval.ts")]
-#[case("circularReferenceInImport.ts")]
+#[case("circularReferenceInImport.ts")] // NOT RUNNABLE
 #[case("circularTypeofWithFunctionModule.ts")]
-#[case("circularlyConstrainedMappedTypeContainingConditionalNoInfiniteInstantiationDepth.ts")]
+#[case("circularlyConstrainedMappedTypeContainingConditionalNoInfiniteInstantiationDepth.ts")] // FAILING
 #[case("circularlyReferentialInterfaceAccessNoCrash.ts")]
 #[case("circularlySimplifyingConditionalTypesNoCrash.ts")]
 #[case("class2.ts")]
 #[case("classAttributeInferenceTemplate.ts")]
-#[case("classAttributeInferenceTemplateJS.ts")]
+#[case("classAttributeInferenceTemplateJS.ts")] // NOT RUNNABLE
 #[case("classBlockScoping.ts")]
 #[case("classCannotExtendVar.ts")]
 #[case("classDeclarationBlockScoping1.ts")]
@@ -656,8 +656,8 @@ use typescript_rust::{
 #[case("classExpressionAssignment.ts")]
 #[case("classExpressionExtendingAbstractClass.ts")]
 #[case("classExpressionInClassStaticDeclarations.ts")]
-#[case("classExpressionNames.ts")]
-#[case("classExpressionPropertyModifiers.ts")]
+#[case("classExpressionNames.ts")] // NOT RUNNABLE
+#[case("classExpressionPropertyModifiers.ts")] // NOT RUNNABLE
 #[case("classExpressionTest1.ts")]
 #[case("classExpressionTest2.ts")]
 #[case("classExpressionWithDecorator1.ts")]
@@ -670,10 +670,10 @@ use typescript_rust::{
 #[case("classExpressionWithStaticPropertiesES63.ts")]
 #[case("classExpressionWithStaticPropertiesES64.ts")]
 #[case("classExpressions.ts")]
-#[case("classExtendingAny.ts")]
+#[case("classExtendingAny.ts")] // NOT RUNNABLE
 #[case("classExtendingQualifiedName.ts")]
 #[case("classExtendingQualifiedName2.ts")]
-#[case("classExtendsAcrossFiles.ts")]
+#[case("classExtendsAcrossFiles.ts")] // NOT RUNNABLE
 #[case("classExtendsClauseClassMergedWithModuleNotReferingConstructor.ts")]
 #[case("classExtendsClauseClassNotReferringConstructor.ts")]
 #[case("classExtendsInterface.ts")]
@@ -704,9 +704,9 @@ use typescript_rust::{
 #[case("classInheritence.ts")]
 #[case("classMemberInitializerScoping.ts")]
 #[case("classMemberInitializerWithLamdaScoping.ts")]
-#[case("classMemberInitializerWithLamdaScoping2.ts")]
-#[case("classMemberInitializerWithLamdaScoping3.ts")]
-#[case("classMemberInitializerWithLamdaScoping4.ts")]
+#[case("classMemberInitializerWithLamdaScoping2.ts")] // NOT RUNNABLE
+#[case("classMemberInitializerWithLamdaScoping3.ts")] // NOT RUNNABLE
+#[case("classMemberInitializerWithLamdaScoping4.ts")] // NOT RUNNABLE
 #[case("classMemberInitializerWithLamdaScoping5.ts")]
 #[case("classMemberWithMissingIdentifier.ts")]
 #[case("classMemberWithMissingIdentifier2.ts")]
@@ -737,7 +737,7 @@ use typescript_rust::{
 #[case("cloduleAcrossModuleDefinitions.ts")]
 #[case("cloduleAndTypeParameters.ts")]
 #[case("cloduleGenericOnSelfMember.ts")]
-#[case("cloduleSplitAcrossFiles.ts")]
+#[case("cloduleSplitAcrossFiles.ts")] // NOT RUNNABLE
 #[case("cloduleStaticMembers.ts")]
 #[case("cloduleTest1.ts")]
 #[case("cloduleTest2.ts")]
@@ -769,22 +769,22 @@ use typescript_rust::{
 #[case("collisionCodeGenModuleWithModuleReopening.ts")]
 #[case("collisionCodeGenModuleWithPrivateMember.ts")]
 #[case("collisionCodeGenModuleWithUnicodeNames.ts")]
-#[case("collisionExportsRequireAndAlias.ts")]
-#[case("collisionExportsRequireAndAmbientClass.ts")]
-#[case("collisionExportsRequireAndAmbientEnum.ts")]
+#[case("collisionExportsRequireAndAlias.ts")] // NOT RUNNABLE
+#[case("collisionExportsRequireAndAmbientClass.ts")] // NOT RUNNABLE
+#[case("collisionExportsRequireAndAmbientEnum.ts")] // NOT RUNNABLE
 #[case("collisionExportsRequireAndAmbientFunction.ts")]
 #[case("collisionExportsRequireAndAmbientFunctionInGlobalFile.ts")]
-#[case("collisionExportsRequireAndAmbientModule.ts")]
-#[case("collisionExportsRequireAndAmbientVar.ts")]
-#[case("collisionExportsRequireAndClass.ts")]
-#[case("collisionExportsRequireAndEnum.ts")]
+#[case("collisionExportsRequireAndAmbientModule.ts")] // NOT RUNNABLE
+#[case("collisionExportsRequireAndAmbientVar.ts")] // NOT RUNNABLE
+#[case("collisionExportsRequireAndClass.ts")] // NOT RUNNABLE
+#[case("collisionExportsRequireAndEnum.ts")] // NOT RUNNABLE
 #[case("collisionExportsRequireAndFunction.ts")]
 #[case("collisionExportsRequireAndFunctionInGlobalFile.ts")]
 #[case("collisionExportsRequireAndInternalModuleAlias.ts")]
 #[case("collisionExportsRequireAndInternalModuleAliasInGlobalFile.ts")]
-#[case("collisionExportsRequireAndModule.ts")]
+#[case("collisionExportsRequireAndModule.ts")] // NOT RUNNABLE
 #[case("collisionExportsRequireAndUninstantiatedModule.ts")]
-#[case("collisionExportsRequireAndVar.ts")]
+#[case("collisionExportsRequireAndVar.ts")] // NOT RUNNABLE
 #[case("collisionRestParameterArrowFunctions.ts")]
 #[case("collisionRestParameterClassConstructor.ts")]
 #[case("collisionRestParameterClassMethod.ts")]
@@ -833,12 +833,12 @@ use typescript_rust::{
 #[case("commentInMethodCall.ts")]
 #[case("commentInNamespaceDeclarationWithIdentifierPathName.ts")]
 #[case("commentLeadingCloseBrace.ts")]
-#[case("commentOnAmbientClass1.ts")]
-#[case("commentOnAmbientEnum.ts")]
-#[case("commentOnAmbientModule.ts")]
+#[case("commentOnAmbientClass1.ts")] // NOT RUNNABLE
+#[case("commentOnAmbientEnum.ts")] // NOT RUNNABLE
+#[case("commentOnAmbientModule.ts")] // NOT RUNNABLE
 #[case("commentOnAmbientVariable1.ts")]
-#[case("commentOnAmbientVariable2.ts")]
-#[case("commentOnAmbientfunction.ts")]
+#[case("commentOnAmbientVariable2.ts")] // NOT RUNNABLE
+#[case("commentOnAmbientfunction.ts")] // NOT RUNNABLE
 #[case("commentOnArrayElement1.ts")]
 #[case("commentOnArrayElement10.ts")]
 #[case("commentOnArrayElement11.ts")]
@@ -862,19 +862,19 @@ use typescript_rust::{
 #[case("commentOnClassAccessor2.ts")]
 #[case("commentOnClassMethod1.ts")]
 #[case("commentOnDecoratedClassDeclaration.ts")]
-#[case("commentOnElidedModule1.ts")]
+#[case("commentOnElidedModule1.ts")] // NOT RUNNABLE
 #[case("commentOnExportEnumDeclaration.ts")]
 #[case("commentOnExpressionStatement1.ts")]
 #[case("commentOnIfStatement1.ts")]
 #[case("commentOnImportStatement1.ts")]
 #[case("commentOnImportStatement2.ts")]
 #[case("commentOnImportStatement3.ts")]
-#[case("commentOnInterface1.ts")]
+#[case("commentOnInterface1.ts")] // NOT RUNNABLE
 #[case("commentOnParameter1.ts")]
 #[case("commentOnParameter2.ts")]
 #[case("commentOnParameter3.ts")]
 #[case("commentOnParenthesizedExpressionOpenParen1.ts")]
-#[case("commentOnSignature1.ts")]
+#[case("commentOnSignature1.ts")] // NOT RUNNABLE
 #[case("commentOnSimpleArrowFunctionBody1.ts")]
 #[case("commentOnStaticMember1.ts")]
 #[case("commentWithUnreasonableIndentationLevel01.ts")]
@@ -893,23 +893,23 @@ use typescript_rust::{
 #[case("commentsCommentParsing.ts")]
 #[case("commentsDottedModuleName.ts")]
 #[case("commentsEnums.ts")]
-#[case("commentsExternalModules.ts")]
-#[case("commentsExternalModules2.ts")]
-#[case("commentsExternalModules3.ts")]
+#[case("commentsExternalModules.ts")] // NOT RUNNABLE
+#[case("commentsExternalModules2.ts")] // NOT RUNNABLE
+#[case("commentsExternalModules3.ts")] // NOT RUNNABLE
 #[case("commentsFormatting.ts")]
 #[case("commentsFunction.ts")]
 #[case("commentsInheritance.ts")]
 #[case("commentsInterface.ts")]
 #[case("commentsModules.ts")]
-#[case("commentsMultiModuleMultiFile.ts")]
+#[case("commentsMultiModuleMultiFile.ts")] // NOT RUNNABLE
 #[case("commentsMultiModuleSingleFile.ts")]
-#[case("commentsOnJSXExpressionsArePreserved.tsx")]
+#[case("commentsOnJSXExpressionsArePreserved.tsx")] // NOT RUNNABLE
 #[case("commentsOnObjectLiteral1.ts")]
 #[case("commentsOnObjectLiteral2.ts")]
 #[case("commentsOnObjectLiteral3.ts")]
 #[case("commentsOnObjectLiteral4.ts")]
 #[case("commentsOnPropertyOfObjectLiteral1.ts")]
-#[case("commentsOnRequireStatement.ts")]
+#[case("commentsOnRequireStatement.ts")] // NOT RUNNABLE
 #[case("commentsOnReturnStatement1.ts")]
 #[case("commentsOnStaticMembers.ts")]
 #[case("commentsOverloads.ts")]
@@ -919,36 +919,36 @@ use typescript_rust::{
 #[case("commentsVariableStatement1.ts")]
 #[case("commentsdoNotEmitComments.ts")]
 #[case("commentsemitComments.ts")]
-#[case("commonJsExportTypeDeclarationError.ts")]
-#[case("commonJsImportClassExpression.ts")]
-#[case("commonJsIsolatedModules.ts")]
-#[case("commonJsUnusedLocals.ts")]
-#[case("commonMissingSemicolons.ts")]
-#[case("commonSourceDir1.ts")]
-#[case("commonSourceDir2.ts")]
-#[case("commonSourceDir3.ts")]
-#[case("commonSourceDir4.ts")]
-#[case("commonSourceDir5.ts")]
-#[case("commonSourceDir6.ts")]
-#[case("commonSourceDirectory.ts")]
-#[case("commonSourceDirectory_dts.ts")]
-#[case("commonjsAccessExports.ts")]
-#[case("commonjsSafeImport.ts")]
+#[case("commonJsExportTypeDeclarationError.ts")] // NOT RUNNABLE
+#[case("commonJsImportClassExpression.ts")] // NOT RUNNABLE
+#[case("commonJsIsolatedModules.ts")] // NOT RUNNABLE
+#[case("commonJsUnusedLocals.ts")] // NOT RUNNABLE
+#[case("commonMissingSemicolons.ts")] // NOT RUNNABLE
+#[case("commonSourceDir1.ts")] // NOT RUNNABLE
+#[case("commonSourceDir2.ts")] // NOT RUNNABLE
+#[case("commonSourceDir3.ts")] // NOT RUNNABLE
+#[case("commonSourceDir4.ts")] // NOT RUNNABLE
+#[case("commonSourceDir5.ts")] // NOT RUNNABLE
+#[case("commonSourceDir6.ts")] // NOT RUNNABLE
+#[case("commonSourceDirectory.ts")] // NOT RUNNABLE
+#[case("commonSourceDirectory_dts.ts")] // NOT RUNNABLE
+#[case("commonjsAccessExports.ts")] // NOT RUNNABLE
+#[case("commonjsSafeImport.ts")] // NOT RUNNABLE
 #[case("compareTypeParameterConstrainedByLiteralToLiteral.ts")]
 #[case("comparisonOfPartialDeepAndIndexedAccessTerminatesWithoutError.ts")]
-#[case("compilerOptionsDeclarationAndNoEmit.ts")]
-#[case("compilerOptionsOutAndNoEmit.ts")]
-#[case("compilerOptionsOutDirAndNoEmit.ts")]
-#[case("compilerOptionsOutFileAndNoEmit.ts")]
+#[case("compilerOptionsDeclarationAndNoEmit.ts")] // NOT RUNNABLE
+#[case("compilerOptionsOutAndNoEmit.ts")] // NOT RUNNABLE
+#[case("compilerOptionsOutDirAndNoEmit.ts")] // NOT RUNNABLE
+#[case("compilerOptionsOutFileAndNoEmit.ts")] // NOT RUNNABLE
 #[case("complexClassRelationships.ts")]
 #[case("complexNarrowingWithAny.ts")]
-#[case("complexRecursiveCollections.ts")]
+#[case("complexRecursiveCollections.ts")] // NOT RUNNABLE
 #[case("complicatedGenericRecursiveBaseClassReference.ts")]
 #[case("complicatedIndexedAccessKeyofReliesOnKeyofNeverUpperBound.ts")]
 #[case("complicatedIndexesOfIntersectionsAreInferencable.ts")]
 #[case("complicatedPrivacy.ts")]
 #[case("compositeGenericFunction.ts")]
-#[case("compositeWithNodeModulesSourceFile.ts")]
+#[case("compositeWithNodeModulesSourceFile.ts")] // NOT RUNNABLE
 #[case("compoundVarDecl1.ts")]
 #[case("computedPropertiesInDestructuring1.ts")]
 #[case("computedPropertiesInDestructuring1_ES6.ts")]
@@ -962,8 +962,8 @@ use typescript_rust::{
 #[case("concatTuples.ts")]
 #[case("conditionalAnyCheckTypePicksBothBranches.ts")]
 #[case("conditionalEqualityTestingNullability.ts")]
-// this seems to be "non-deterministic" in terms of whether the indented error text shows `number` vs `string` (that appears to be controlled by type ID ordering via getUnionType() and I saw different results when running manually with/without --skipLibCheck for example)
 #[case("conditionalExpression1.ts")]
+// this seems to be "non-deterministic" in terms of whether the indented error text shows `number` vs `string` (that appears to be controlled by type ID ordering via getUnionType() and I saw different results when running manually with/without --skipLibCheck for example)
 #[case("conditionalExpressionNewLine1.ts")]
 #[case("conditionalExpressionNewLine10.ts")]
 #[case("conditionalExpressionNewLine2.ts")]
@@ -984,7 +984,7 @@ use typescript_rust::{
 #[case("conditionalTypeRelaxingConstraintAssignability.ts")]
 #[case("conditionalTypeSimplification.ts")]
 #[case("conditionalTypeSubclassExtendsTypeParam.ts")]
-#[case("conditionalTypeVarianceBigArrayConstraintsPerformance.ts")]
+#[case("conditionalTypeVarianceBigArrayConstraintsPerformance.ts")] // FAILING on Program.create_diagnostic_explaining_file() not implemented
 #[case("conditionalTypesASI.ts")]
 #[case("conditionalTypesSimplifyWhenTrivial.ts")]
 #[case("conditionallyDuplicateOverloadsCausedByOverloadResolution.ts")]
@@ -1000,11 +1000,11 @@ use typescript_rust::{
 #[case("constDeclarationShadowedByVarDeclaration.ts")]
 #[case("constDeclarationShadowedByVarDeclaration2.ts")]
 #[case("constDeclarationShadowedByVarDeclaration3.ts")]
-#[case("constDeclarations-access.ts")]
+#[case("constDeclarations-access.ts")] // NOT RUNNABLE
 #[case("constDeclarations-access2.ts")]
 #[case("constDeclarations-access3.ts")]
 #[case("constDeclarations-access4.ts")]
-#[case("constDeclarations-access5.ts")]
+#[case("constDeclarations-access5.ts")] // NOT RUNNABLE
 #[case("constDeclarations-ambient-errors.ts")]
 #[case("constDeclarations-ambient.ts")]
 #[case("constDeclarations-errors.ts")]
@@ -1013,31 +1013,31 @@ use typescript_rust::{
 #[case("constDeclarations-scopes.ts")]
 #[case("constDeclarations-scopes2.ts")]
 #[case("constDeclarations-useBeforeDefinition.ts")]
-#[case("constDeclarations-useBeforeDefinition2.ts")]
+#[case("constDeclarations-useBeforeDefinition2.ts")] // NOT RUNNABLE
 #[case("constDeclarations-validContexts.ts")]
 #[case("constDeclarations.ts")]
 #[case("constDeclarations2.ts")]
 #[case("constEnumBadPropertyNames.ts")]
-#[case("constEnumDeclarations.ts")]
-#[case("constEnumErrors.ts")]
-#[case("constEnumExternalModule.ts")]
-#[case("constEnumMergingWithValues1.ts")]
-#[case("constEnumMergingWithValues2.ts")]
-#[case("constEnumMergingWithValues3.ts")]
-#[case("constEnumMergingWithValues4.ts")]
-#[case("constEnumMergingWithValues5.ts")]
-#[case("constEnumNamespaceReferenceCausesNoImport.ts")]
-#[case("constEnumNamespaceReferenceCausesNoImport2.ts")]
-#[case("constEnumNoEmitReexport.ts")]
-#[case("constEnumNoPreserveDeclarationReexport.ts")]
+#[case("constEnumDeclarations.ts")] // FAILING on Number not implemented stuff
+#[case("constEnumErrors.ts")] // FAILING
+#[case("constEnumExternalModule.ts")] // NOT RUNNABLE
+#[case("constEnumMergingWithValues1.ts")] // NOT RUNNABLE
+#[case("constEnumMergingWithValues2.ts")] // NOT RUNNABLE
+#[case("constEnumMergingWithValues3.ts")] // NOT RUNNABLE
+#[case("constEnumMergingWithValues4.ts")] // NOT RUNNABLE
+#[case("constEnumMergingWithValues5.ts")] // NOT RUNNABLE
+#[case("constEnumNamespaceReferenceCausesNoImport.ts")] // NOT RUNNABLE
+#[case("constEnumNamespaceReferenceCausesNoImport2.ts")] // NOT RUNNABLE
+#[case("constEnumNoEmitReexport.ts")] // NOT RUNNABLE
+#[case("constEnumNoPreserveDeclarationReexport.ts")] // NOT RUNNABLE
 #[case("constEnumOnlyModuleMerging.ts")]
-#[case("constEnumPreserveEmitNamedExport1.ts")]
-#[case("constEnumPreserveEmitNamedExport2.ts")]
-#[case("constEnumPreserveEmitReexport.ts")]
+#[case("constEnumPreserveEmitNamedExport1.ts")] // NOT RUNNABLE
+#[case("constEnumPreserveEmitNamedExport2.ts")] // NOT RUNNABLE
+#[case("constEnumPreserveEmitReexport.ts")] // NOT RUNNABLE
 #[case("constEnumSyntheticNodesComments.ts")]
-#[case("constEnumToStringNoComments.ts")]
-#[case("constEnumToStringWithComments.ts")]
-#[case("constEnums.ts")]
+#[case("constEnumToStringNoComments.ts")] // FAILING on Number stuff
+#[case("constEnumToStringWithComments.ts")] // FAILING on Number stuff
+#[case("constEnums.ts")] // FAILING on Number stuff
 #[case("constInClassExpression.ts")]
 #[case("constIndexedAccess.ts")]
 #[case("constWithNonNull.ts")]
@@ -1081,7 +1081,7 @@ use typescript_rust::{
 #[case("constructorsWithSpecializedSignatures.ts")]
 #[case("contextSensitiveReturnTypeInference.ts")]
 #[case("contextualExpressionTypecheckingDoesntBlowStack.ts")]
-#[case("contextualOverloadListFromArrayUnion.ts")]
+#[case("contextualOverloadListFromArrayUnion.ts")] // NOT RUNNABLE
 #[case("contextualOverloadListFromUnionWithPrimitiveNoImplicitAny.ts")]
 #[case("contextualPropertyOfGenericMappedType.ts")]
 #[case("contextualReturnTypeOfIIFE.ts")]
@@ -1159,16 +1159,16 @@ use typescript_rust::{
 #[case("contextualTypingOfLambdaWithMultipleSignatures2.ts")]
 #[case("contextualTypingOfObjectLiterals.ts")]
 #[case("contextualTypingOfObjectLiterals2.ts")]
-#[case("contextualTypingOfOptionalMembers.tsx")]
-#[case("contextualTypingOfTooShortOverloads.ts")]
+#[case("contextualTypingOfOptionalMembers.tsx")] // NOT RUNNABLE
+#[case("contextualTypingOfTooShortOverloads.ts")] // FAILING
 #[case("contextualTypingTwoInstancesOfSameTypeParameter.ts")]
-#[case("contextualTypingWithFixedTypeParameters1.ts")]
+#[case("contextualTypingWithFixedTypeParameters1.ts")] // FAILING
 #[case("contextualTypingWithGenericAndNonGenericSignature.ts")]
 #[case("contextualTypingWithGenericSignature.ts")]
-#[case("contextuallyTypeArgumentsKeyword.ts")]
+#[case("contextuallyTypeArgumentsKeyword.ts")] // NOT RUNNABLE
 #[case("contextuallyTypedByDiscriminableUnion.ts")]
 #[case("contextuallyTypedGenericAssignment.ts")]
-#[case("contextuallyTypedParametersWithInitializers.ts")]
+#[case("contextuallyTypedParametersWithInitializers.ts")] // FAILING
 #[case("contextuallyTypingOrOperator.ts")]
 #[case("contextuallyTypingOrOperator2.ts")]
 #[case("contextuallyTypingOrOperator3.ts")]
@@ -1193,8 +1193,8 @@ use typescript_rust::{
 #[case("contravariantInferenceAndTypeGuard.ts")]
 #[case("contravariantTypeAliasInference.ts")]
 #[case("controlFlowAnalysisOnBareThisKeyword.ts")]
-#[case("controlFlowArrayErrors.ts")]
-#[case("controlFlowArrays.ts")]
+#[case("controlFlowArrayErrors.ts")] // FAILING
+#[case("controlFlowArrays.ts")] // FAILING
 #[case("controlFlowBreakContinueWithLabel.ts")]
 #[case("controlFlowCaching.ts")]
 #[case("controlFlowCommaExpressionAssertionWithinTernary.ts")]
@@ -1204,15 +1204,15 @@ use typescript_rust::{
 #[case("controlFlowFinallyNoCatchAssignments.ts")]
 #[case("controlFlowForCatchAndFinally.ts")]
 #[case("controlFlowForCompoundAssignmentToThisMember.ts")]
-#[case("controlFlowInstanceof.ts")]
-#[case("controlFlowJavascript.ts")]
+#[case("controlFlowInstanceof.ts")] // NOT RUNNABLE
+#[case("controlFlowJavascript.ts")] // NOT RUNNABLE
 #[case("controlFlowLoopAnalysis.ts")]
 #[case("controlFlowManyCallExpressionStatementsPerf.ts")]
 #[case("controlFlowManyConsecutiveConditionsNoTimeout.ts")]
 #[case("controlFlowNoImplicitAny.ts")]
 #[case("controlFlowNullTypeAndLiteral.ts")]
 #[case("controlFlowOuterVariable.ts")]
-#[case("controlFlowPrivateClassField.ts")]
+#[case("controlFlowPrivateClassField.ts")] // FAILING
 #[case("controlFlowPropertyDeclarations.ts")]
 #[case("controlFlowPropertyInitializer.ts")]
 #[case("controlFlowSelfReferentialLoop.ts")]
@@ -1226,9 +1226,9 @@ use typescript_rust::{
 #[case("correctOrderOfPromiseMethod.ts")]
 #[case("couldNotSelectGenericOverload.ts")]
 #[case("covariance1.ts")]
-#[case("crashInEmitTokenWithComment.ts")]
+#[case("crashInEmitTokenWithComment.ts")] // NOT RUNNABLE
 #[case("crashInGetTextOfComputedPropertyName.ts")]
-#[case("crashInResolveInterface.ts")]
+#[case("crashInResolveInterface.ts")] // NOT RUNNABLE
 #[case("crashInresolveReturnStatement.ts")]
 #[case("crashInsourcePropertyIsRelatableToTargetProperty.ts")]
 #[case("crashIntypeCheckInvocationExpression.ts")]
@@ -1237,7 +1237,7 @@ use typescript_rust::{
 #[case("crashRegressionTest.ts")]
 #[case("createArray.ts")]
 #[case("curiousNestedConditionalEvaluationResult.ts")]
-#[case("customAsyncIterator.ts")]
+#[case("customAsyncIterator.ts")] // FAILING
 #[case("customEventDetail.ts")]
 #[case("cyclicGenericTypeInstantiation.ts")]
 #[case("cyclicGenericTypeInstantiationInference.ts")]
@@ -1245,43 +1245,43 @@ use typescript_rust::{
 #[case("cyclicTypeInstantiation.ts")]
 #[case("debugger.ts")]
 #[case("debuggerEmit.ts")]
-#[case("declFileAccessors.ts")]
-#[case("declFileAliasUseBeforeDeclaration.ts")]
+#[case("declFileAccessors.ts")] // NOT RUNNABLE
+#[case("declFileAliasUseBeforeDeclaration.ts")] // NOT RUNNABLE
 #[case("declFileAliasUseBeforeDeclaration2.ts")]
-#[case("declFileAmbientExternalModuleWithSingleExportedModule.ts")]
-#[case("declFileCallSignatures.ts")]
+#[case("declFileAmbientExternalModuleWithSingleExportedModule.ts")] // NOT RUNNABLE
+#[case("declFileCallSignatures.ts")] // NOT RUNNABLE
 #[case("declFileClassExtendsNull.ts")]
 #[case("declFileClassWithIndexSignature.ts")]
 #[case("declFileClassWithStaticMethodReturningConstructor.ts")]
-#[case("declFileConstructSignatures.ts")]
-#[case("declFileConstructors.ts")]
-#[case("declFileEmitDeclarationOnly.ts")]
-#[case("declFileEmitDeclarationOnlyError1.ts")]
-#[case("declFileEmitDeclarationOnlyError2.ts")]
+#[case("declFileConstructSignatures.ts")] // NOT RUNNABLE
+#[case("declFileConstructors.ts")] // NOT RUNNABLE
+#[case("declFileEmitDeclarationOnly.ts")] // NOT RUNNABLE
+#[case("declFileEmitDeclarationOnlyError1.ts")] // NOT RUNNABLE
+#[case("declFileEmitDeclarationOnlyError2.ts")] // NOT RUNNABLE
 #[case("declFileEnumUsedAsValue.ts")]
 #[case("declFileEnums.ts")]
 #[case("declFileExportAssignmentImportInternalModule.ts")]
-#[case("declFileExportAssignmentOfGenericInterface.ts")]
-#[case("declFileExportImportChain.ts")]
-#[case("declFileExportImportChain2.ts")]
+#[case("declFileExportAssignmentOfGenericInterface.ts")] // NOT RUNNABLE
+#[case("declFileExportImportChain.ts")] // NOT RUNNABLE
+#[case("declFileExportImportChain2.ts")] // NOT RUNNABLE
 #[case("declFileForClassWithMultipleBaseClasses.ts")]
 #[case("declFileForClassWithPrivateOverloadedFunction.ts")]
-#[case("declFileForExportedImport.ts")]
+#[case("declFileForExportedImport.ts")] // NOT RUNNABLE
 #[case("declFileForFunctionTypeAsTypeParameter.ts")]
 #[case("declFileForInterfaceWithOptionalFunction.ts")]
 #[case("declFileForInterfaceWithRestParams.ts")]
 #[case("declFileForTypeParameters.ts")]
 #[case("declFileForVarList.ts")]
-#[case("declFileFunctions.ts")]
+#[case("declFileFunctions.ts")] // NOT RUNNABLE
 #[case("declFileGenericClassWithGenericExtendedClass.ts")]
 #[case("declFileGenericType.ts")]
 #[case("declFileGenericType2.ts")]
 #[case("declFileImportChainInExportAssignment.ts")]
-#[case("declFileImportModuleWithExportAssignment.ts")]
+#[case("declFileImportModuleWithExportAssignment.ts")] // NOT RUNNABLE
 #[case("declFileImportedTypeUseInTypeArgPosition.ts")]
-#[case("declFileIndexSignatures.ts")]
+#[case("declFileIndexSignatures.ts")] // NOT RUNNABLE
 #[case("declFileInternalAliases.ts")]
-#[case("declFileMethods.ts")]
+#[case("declFileMethods.ts")] // NOT RUNNABLE
 #[case("declFileModuleAssignmentInObjectLiteralProperty.ts")]
 #[case("declFileModuleContinuation.ts")]
 #[case("declFileModuleWithPropertyOfTypeModule.ts")]
@@ -1315,8 +1315,8 @@ use typescript_rust::{
 #[case("declFileTypeofInAnonymousType.ts")]
 #[case("declFileTypeofModule.ts")]
 #[case("declFileWithClassNameConflictingWithClassReferredByExtendsClause.ts")]
-#[case("declFileWithErrorsInInputDeclarationFile.ts")]
-#[case("declFileWithErrorsInInputDeclarationFileWithOut.ts")]
+#[case("declFileWithErrorsInInputDeclarationFile.ts")] // NOT RUNNABLE
+#[case("declFileWithErrorsInInputDeclarationFileWithOut.ts")] // NOT RUNNABLE
 #[case("declFileWithExtendsClauseThatHasItsContainerNameConflict.ts")]
 #[case("declFileWithInternalModuleNameConflictsInExtendsClause1.ts")]
 #[case("declFileWithInternalModuleNameConflictsInExtendsClause2.ts")]
@@ -1325,35 +1325,35 @@ use typescript_rust::{
 #[case("declInput.ts")]
 #[case("declInput3.ts")]
 #[case("declInput4.ts")]
-#[case("declarationEmitAliasExportStar.ts")]
-#[case("declarationEmitAliasFromIndirectFile.ts")]
+#[case("declarationEmitAliasExportStar.ts")] // NOT RUNNABLE
+#[case("declarationEmitAliasFromIndirectFile.ts")] // NOT RUNNABLE
 #[case("declarationEmitAmdModuleDefault.ts")]
-#[case("declarationEmitAmdModuleNameDirective.ts")]
+#[case("declarationEmitAmdModuleNameDirective.ts")] // NOT RUNNABLE
 #[case("declarationEmitArrayTypesFromGenericArrayUsage.ts")]
 #[case("declarationEmitBindingPatterns.ts")]
-#[case("declarationEmitBundlePreservesHasNoDefaultLibDirective.ts")]
-#[case("declarationEmitBundleWithAmbientReferences.ts")]
+#[case("declarationEmitBundlePreservesHasNoDefaultLibDirective.ts")] // NOT RUNNABLE
+#[case("declarationEmitBundleWithAmbientReferences.ts")] // NOT RUNNABLE
 #[case("declarationEmitClassMemberNameConflict.ts")]
 #[case("declarationEmitClassMemberNameConflict2.ts")]
 #[case("declarationEmitClassPrivateConstructor.ts")]
 #[case("declarationEmitClassPrivateConstructor2.ts")]
-#[case("declarationEmitCommonJsModuleReferencedType.ts")]
-#[case("declarationEmitCommonSourceDirectoryDoesNotContainAllFiles.ts")]
-#[case("declarationEmitComputedNameCausesImportToBePainted.ts")]
-#[case("declarationEmitComputedNameConstEnumAlias.ts")]
+#[case("declarationEmitCommonJsModuleReferencedType.ts")] // NOT RUNNABLE
+#[case("declarationEmitCommonSourceDirectoryDoesNotContainAllFiles.ts")] // NOT RUNNABLE
+#[case("declarationEmitComputedNameCausesImportToBePainted.ts")] // NOT RUNNABLE
+#[case("declarationEmitComputedNameConstEnumAlias.ts")] // NOT RUNNABLE
 #[case("declarationEmitConstantNoWidening.ts")]
-#[case("declarationEmitCrossFileImportTypeOfAmbientModule.ts")]
+#[case("declarationEmitCrossFileImportTypeOfAmbientModule.ts")] // NOT RUNNABLE
 #[case("declarationEmitDefaultExport1.ts")]
 #[case("declarationEmitDefaultExport2.ts")]
 #[case("declarationEmitDefaultExport3.ts")]
-#[case("declarationEmitDefaultExport4.ts")]
+#[case("declarationEmitDefaultExport4.ts")] // FAILING
 #[case("declarationEmitDefaultExport5.ts")]
 #[case("declarationEmitDefaultExport6.ts")]
 #[case("declarationEmitDefaultExport7.ts")]
 #[case("declarationEmitDefaultExport8.ts")]
-#[case("declarationEmitDefaultExportWithStaticAssignment.ts")]
-#[case("declarationEmitDefaultExportWithTempVarName.ts")]
-#[case("declarationEmitDefaultExportWithTempVarNameWithBundling.ts")]
+#[case("declarationEmitDefaultExportWithStaticAssignment.ts")] // NOT RUNNABLE
+#[case("declarationEmitDefaultExportWithTempVarName.ts")] // NOT RUNNABLE
+#[case("declarationEmitDefaultExportWithTempVarNameWithBundling.ts")] // NOT RUNNABLE
 #[case("declarationEmitDestructuring1.ts")]
 #[case("declarationEmitDestructuring2.ts")]
 #[case("declarationEmitDestructuring3.ts")]
@@ -1371,141 +1371,141 @@ use typescript_rust::{
 #[case("declarationEmitDestructuringParameterProperties.ts")]
 #[case("declarationEmitDestructuringPrivacyError.ts")]
 #[case("declarationEmitDestructuringWithOptionalBindingParameters.ts")]
-#[case("declarationEmitDetachedComment1.ts")]
-#[case("declarationEmitDetachedComment2.ts")]
-#[case("declarationEmitDoesNotUseReexportedNamespaceAsLocal.ts")]
+#[case("declarationEmitDetachedComment1.ts")] // NOT RUNNABLE
+#[case("declarationEmitDetachedComment2.ts")] // NOT RUNNABLE
+#[case("declarationEmitDoesNotUseReexportedNamespaceAsLocal.ts")] // NOT RUNNABLE
 #[case("declarationEmitEnumReadonlyProperty.ts")]
-#[case("declarationEmitExpandoPropertyPrivateName.ts")]
+#[case("declarationEmitExpandoPropertyPrivateName.ts")] // NOT RUNNABLE
 #[case("declarationEmitExpandoWithGenericConstraint.ts")]
-#[case("declarationEmitExportAliasVisibiilityMarking.ts")]
-#[case("declarationEmitExportAssignedNamespaceNoTripleSlashTypesReference.ts")]
-#[case("declarationEmitExportAssignment.ts")]
-#[case("declarationEmitExportDeclaration.ts")]
+#[case("declarationEmitExportAliasVisibiilityMarking.ts")] // NOT RUNNABLE
+#[case("declarationEmitExportAssignedNamespaceNoTripleSlashTypesReference.ts")] // NOT RUNNABLE
+#[case("declarationEmitExportAssignment.ts")] // NOT RUNNABLE
+#[case("declarationEmitExportDeclaration.ts")] // NOT RUNNABLE
 #[case("declarationEmitExpressionInExtends.ts")]
 #[case("declarationEmitExpressionInExtends2.ts")]
 #[case("declarationEmitExpressionInExtends3.ts")]
-#[case("declarationEmitExpressionInExtends4.ts")]
+#[case("declarationEmitExpressionInExtends4.ts")] // OUT OF SCOPE transformation error
 #[case("declarationEmitExpressionInExtends5.ts")]
-#[case("declarationEmitExpressionInExtends6.ts")]
-#[case("declarationEmitExpressionInExtends7.ts")]
-#[case("declarationEmitExpressionWithNonlocalPrivateUniqueSymbol.ts")]
+#[case("declarationEmitExpressionInExtends6.ts")] // NOT RUNNABLE
+#[case("declarationEmitExpressionInExtends7.ts")] // OUT OF SCOPE transformation error
+#[case("declarationEmitExpressionWithNonlocalPrivateUniqueSymbol.ts")] // NOT RUNNABLE
 #[case("declarationEmitFBoundedTypeParams.ts")]
 #[case("declarationEmitFirstTypeArgumentGenericFunctionType.ts")]
 #[case("declarationEmitForDefaultExportClassExtendingExpression01.ts")]
-#[case("declarationEmitForGlobalishSpecifierSymlink.ts")]
-#[case("declarationEmitForGlobalishSpecifierSymlink2.ts")]
-#[case("declarationEmitForModuleImportingModuleAugmentationRetainsImport.ts")]
-#[case("declarationEmitForTypesWhichNeedImportTypes.ts")]
+#[case("declarationEmitForGlobalishSpecifierSymlink.ts")] // NOT RUNNABLE
+#[case("declarationEmitForGlobalishSpecifierSymlink2.ts")] // NOT RUNNABLE
+#[case("declarationEmitForModuleImportingModuleAugmentationRetainsImport.ts")] // NOT RUNNABLE
+#[case("declarationEmitForTypesWhichNeedImportTypes.ts")] // NOT RUNNABLE
 #[case("declarationEmitFunctionDuplicateNamespace.ts")]
 #[case("declarationEmitFunctionKeywordProp.ts")]
-#[case("declarationEmitHasTypesRefOnNamespaceUse.ts")]
+#[case("declarationEmitHasTypesRefOnNamespaceUse.ts")] // NOT RUNNABLE
 #[case("declarationEmitImportInExportAssignmentModule.ts")]
 #[case("declarationEmitIndexTypeArray.ts")]
-#[case("declarationEmitIndexTypeNotFound.ts")]
+#[case("declarationEmitIndexTypeNotFound.ts")] // OUT OF SCOPE transformation error
 #[case("declarationEmitInferredDefaultExportType.ts")]
 #[case("declarationEmitInferredDefaultExportType2.ts")]
-#[case("declarationEmitInferredTypeAlias1.ts")]
-#[case("declarationEmitInferredTypeAlias2.ts")]
-#[case("declarationEmitInferredTypeAlias3.ts")]
+#[case("declarationEmitInferredTypeAlias1.ts")] // NOT RUNNABLE
+#[case("declarationEmitInferredTypeAlias2.ts")] // NOT RUNNABLE
+#[case("declarationEmitInferredTypeAlias3.ts")] // NOT RUNNABLE
 #[case("declarationEmitInferredTypeAlias4.ts")]
-#[case("declarationEmitInferredTypeAlias5.ts")]
-#[case("declarationEmitInferredTypeAlias6.ts")]
-#[case("declarationEmitInferredTypeAlias7.ts")]
+#[case("declarationEmitInferredTypeAlias5.ts")] // NOT RUNNABLE
+#[case("declarationEmitInferredTypeAlias6.ts")] // NOT RUNNABLE
+#[case("declarationEmitInferredTypeAlias7.ts")] // NOT RUNNABLE
 #[case("declarationEmitInferredTypeAlias8.ts")]
 #[case("declarationEmitInferredTypeAlias9.ts")]
 #[case("declarationEmitInterfaceWithNonEntityNameExpressionHeritage.ts")]
-#[case("declarationEmitInvalidExport.ts")]
+#[case("declarationEmitInvalidExport.ts")] // OUT OF SCOPE transformation error
 #[case("declarationEmitInvalidReference.ts")]
-#[case("declarationEmitInvalidReference2.ts")]
-#[case("declarationEmitInvalidReferenceAllowJs.ts")]
-#[case("declarationEmitLambdaWithMissingTypeParameterNoCrash.ts")]
+#[case("declarationEmitInvalidReference2.ts")] // FAILING
+#[case("declarationEmitInvalidReferenceAllowJs.ts")] // FAILING
+#[case("declarationEmitLambdaWithMissingTypeParameterNoCrash.ts")] // OUT OF SCOPE transformation error
 #[case("declarationEmitLocalClassDeclarationMixin.ts")]
 #[case("declarationEmitLocalClassHasRequiredDeclare.ts")]
-#[case("declarationEmitMappedPrivateTypeTypeParameter.ts")]
-#[case("declarationEmitMixinPrivateProtected.ts")]
+#[case("declarationEmitMappedPrivateTypeTypeParameter.ts")] // NOT RUNNABLE
+#[case("declarationEmitMixinPrivateProtected.ts")] // NOT RUNNABLE
 #[case("declarationEmitModuleWithScopeMarker.ts")]
-#[case("declarationEmitNameConflicts.ts")]
+#[case("declarationEmitNameConflicts.ts")] // NOT RUNNABLE
 #[case("declarationEmitNameConflicts2.ts")]
 #[case("declarationEmitNameConflicts3.ts")]
 #[case("declarationEmitNameConflictsWithAlias.ts")]
 #[case("declarationEmitNestedGenerics.ts")]
 #[case("declarationEmitNoNonRequiredParens.ts")]
-#[case("declarationEmitObjectAssignedDefaultExport.ts")]
-#[case("declarationEmitOfFuncspace.ts")]
-#[case("declarationEmitOfTypeofAliasedExport.ts")]
+#[case("declarationEmitObjectAssignedDefaultExport.ts")] // NOT RUNNABLE
+#[case("declarationEmitOfFuncspace.ts")] // NOT RUNNABLE
+#[case("declarationEmitOfTypeofAliasedExport.ts")] // NOT RUNNABLE
 #[case("declarationEmitOptionalMethod.ts")]
-#[case("declarationEmitOutFileBundlePaths.ts")]
+#[case("declarationEmitOutFileBundlePaths.ts")] // NOT RUNNABLE
 #[case("declarationEmitOverloadedPrivateInference.ts")]
 #[case("declarationEmitParameterProperty.ts")]
-#[case("declarationEmitPathMappingMonorepo.ts")]
-#[case("declarationEmitPathMappingMonorepo2.ts")]
-#[case("declarationEmitPrefersPathKindBasedOnBundling.ts")]
-#[case("declarationEmitPrefersPathKindBasedOnBundling2.ts")]
+#[case("declarationEmitPathMappingMonorepo.ts")] // NOT RUNNABLE
+#[case("declarationEmitPathMappingMonorepo2.ts")] // NOT RUNNABLE
+#[case("declarationEmitPrefersPathKindBasedOnBundling.ts")] // NOT RUNNABLE
+#[case("declarationEmitPrefersPathKindBasedOnBundling2.ts")] // NOT RUNNABLE
 #[case("declarationEmitPreservesHasNoDefaultLibDirective.ts")]
 #[case("declarationEmitPrivateAsync.ts")]
-#[case("declarationEmitPrivateNameCausesError.ts")]
-#[case("declarationEmitPrivatePromiseLikeInterface.ts")]
+#[case("declarationEmitPrivateNameCausesError.ts")] // NOT RUNNABLE
+#[case("declarationEmitPrivatePromiseLikeInterface.ts")] // NOT RUNNABLE
 #[case("declarationEmitPrivateReadonlyLiterals.ts")]
-#[case("declarationEmitPrivateSymbolCausesVarDeclarationEmit2.ts")]
+#[case("declarationEmitPrivateSymbolCausesVarDeclarationEmit2.ts")] // NOT RUNNABLE
 #[case("declarationEmitPrivateSymbolCausesVarDeclarationToBeEmitted.ts")]
 #[case("declarationEmitPromise.ts")]
 #[case("declarationEmitProtectedMembers.ts")]
-#[case("declarationEmitQualifiedAliasTypeArgument.ts")]
-#[case("declarationEmitReadonlyComputedProperty.ts")]
-#[case("declarationEmitReexportedSymlinkReference.ts")]
-#[case("declarationEmitReexportedSymlinkReference2.ts")]
-#[case("declarationEmitReexportedSymlinkReference3.ts")]
+#[case("declarationEmitQualifiedAliasTypeArgument.ts")] // NOT RUNNABLE
+#[case("declarationEmitReadonlyComputedProperty.ts")] // NOT RUNNABLE
+#[case("declarationEmitReexportedSymlinkReference.ts")] // NOT RUNNABLE
+#[case("declarationEmitReexportedSymlinkReference2.ts")] // NOT RUNNABLE
+#[case("declarationEmitReexportedSymlinkReference3.ts")] // NOT RUNNABLE
 #[case("declarationEmitRelativeModuleError.ts")]
 #[case("declarationEmitRetainsJsdocyComments.ts")]
 #[case("declarationEmitShadowingInferNotRenamed.ts")]
 #[case("declarationEmitSpreadStringlyKeyedEnum.ts")]
-#[case("declarationEmitStringEnumUsedInNonlocalSpread.ts")]
-#[case("declarationEmitSymlinkPaths.ts")]
-#[case("declarationEmitToDeclarationDirWithCompositeOption.ts")]
-#[case("declarationEmitToDeclarationDirWithDeclarationOption.ts")]
-#[case("declarationEmitToDeclarationDirWithoutCompositeAndDeclarationOptions.ts")]
+#[case("declarationEmitStringEnumUsedInNonlocalSpread.ts")] // NOT RUNNABLE
+#[case("declarationEmitSymlinkPaths.ts")] // NOT RUNNABLE
+#[case("declarationEmitToDeclarationDirWithCompositeOption.ts")] // NOT RUNNABLE
+#[case("declarationEmitToDeclarationDirWithDeclarationOption.ts")] // NOT RUNNABLE
+#[case("declarationEmitToDeclarationDirWithoutCompositeAndDeclarationOptions.ts")] // NOT RUNNABLE
 #[case("declarationEmitTupleRestSignatureLeadingVariadic.ts")]
-#[case("declarationEmitTypeAliasTypeParameterExtendingUnknownSymbol.ts")]
-#[case("declarationEmitTypeAliasWithTypeParameters1.ts")]
-#[case("declarationEmitTypeAliasWithTypeParameters2.ts")]
+#[case("declarationEmitTypeAliasTypeParameterExtendingUnknownSymbol.ts")] // OUT OF SCOPE transformation error
+#[case("declarationEmitTypeAliasWithTypeParameters1.ts")] // NOT RUNNABLE
+#[case("declarationEmitTypeAliasWithTypeParameters2.ts")] // NOT RUNNABLE
 #[case("declarationEmitTypeAliasWithTypeParameters3.ts")]
 #[case("declarationEmitTypeAliasWithTypeParameters4.ts")]
 #[case("declarationEmitTypeAliasWithTypeParameters5.ts")]
 #[case("declarationEmitTypeAliasWithTypeParameters6.ts")]
 #[case("declarationEmitTypeParamMergedWithPrivate.ts")]
-#[case("declarationEmitTypeofDefaultExport.ts")]
-#[case("declarationEmitUnknownImport.ts")]
-#[case("declarationEmitUnknownImport2.ts")]
-#[case("declarationEmitUnnessesaryTypeReferenceNotAdded.ts")]
-#[case("declarationEmitWithComposite.ts")]
-#[case("declarationEmitWithDefaultAsComputedName.ts")]
-#[case("declarationEmitWithDefaultAsComputedName2.ts")]
-#[case("declarationEmitWithInvalidPackageJsonTypings.ts")]
-#[case("declarationFileNoCrashOnExtraExportModifier.ts")]
-#[case("declarationFileOverwriteError.ts")]
-#[case("declarationFileOverwriteErrorWithOut.ts")]
-#[case("declarationFilesGeneratingTypeReferences.ts")]
-#[case("declarationFilesWithTypeReferences1.ts")]
-#[case("declarationFilesWithTypeReferences2.ts")]
-#[case("declarationFilesWithTypeReferences3.ts")]
-#[case("declarationFilesWithTypeReferences4.ts")]
+#[case("declarationEmitTypeofDefaultExport.ts")] // NOT RUNNABLE
+#[case("declarationEmitUnknownImport.ts")] // OUT OF SCOPE transformation error
+#[case("declarationEmitUnknownImport2.ts")] // OUT OF SCOPE transformation error
+#[case("declarationEmitUnnessesaryTypeReferenceNotAdded.ts")] // NOT RUNNABLE
+#[case("declarationEmitWithComposite.ts")] // NOT RUNNABLE
+#[case("declarationEmitWithDefaultAsComputedName.ts")] // NOT RUNNABLE
+#[case("declarationEmitWithDefaultAsComputedName2.ts")] // NOT RUNNABLE
+#[case("declarationEmitWithInvalidPackageJsonTypings.ts")] // NOT RUNNABLE
+#[case("declarationFileNoCrashOnExtraExportModifier.ts")] // NOT RUNNABLE
+#[case("declarationFileOverwriteError.ts")] // NOT RUNNABLE
+#[case("declarationFileOverwriteErrorWithOut.ts")] // NOT RUNNABLE
+#[case("declarationFilesGeneratingTypeReferences.ts")] // NOT RUNNABLE
+#[case("declarationFilesWithTypeReferences1.ts")] // NOT RUNNABLE
+#[case("declarationFilesWithTypeReferences2.ts")] // NOT RUNNABLE
+#[case("declarationFilesWithTypeReferences3.ts")] // NOT RUNNABLE
+#[case("declarationFilesWithTypeReferences4.ts")] // NOT RUNNABLE
 #[case("declarationFunctionTypeNonlocalShouldNotBeAnError.ts")]
-#[case("declarationImportTypeAliasInferredAndEmittable.ts")]
-#[case("declarationMaps.ts")]
-#[case("declarationMapsMultifile.ts")]
-#[case("declarationMapsOutFile.ts")]
-#[case("declarationMapsOutFile2.ts")]
-#[case("declarationMapsWithSourceMap.ts")]
-#[case("declarationMapsWithoutDeclaration.ts")]
-#[case("declarationMerging1.ts")]
-#[case("declarationMerging2.ts")]
+#[case("declarationImportTypeAliasInferredAndEmittable.ts")] // NOT RUNNABLE
+#[case("declarationMaps.ts")] // NOT RUNNABLE
+#[case("declarationMapsMultifile.ts")] // NOT RUNNABLE
+#[case("declarationMapsOutFile.ts")] // NOT RUNNABLE
+#[case("declarationMapsOutFile2.ts")] // NOT RUNNABLE
+#[case("declarationMapsWithSourceMap.ts")] // NOT RUNNABLE
+#[case("declarationMapsWithoutDeclaration.ts")] // NOT RUNNABLE
+#[case("declarationMerging1.ts")] // NOT RUNNABLE
+#[case("declarationMerging2.ts")] // NOT RUNNABLE
 #[case("declarationNoDanglingGenerics.ts")]
 #[case("declarationQuotedMembers.ts")]
-#[case("declarationTypecheckNoUseBeforeReferenceCheck.ts")]
-#[case("declarationsForFileShadowingGlobalNoError.ts")]
-#[case("declarationsForIndirectTypeAliasReference.ts")]
-#[case("declarationsForInferredTypeFromOtherFile.ts")]
-#[case("declarationsIndirectGeneratedAliasReference.ts")]
+#[case("declarationTypecheckNoUseBeforeReferenceCheck.ts")] // NOT RUNNABLE
+#[case("declarationsForFileShadowingGlobalNoError.ts")] // NOT RUNNABLE
+#[case("declarationsForIndirectTypeAliasReference.ts")] // NOT RUNNABLE
+#[case("declarationsForInferredTypeFromOtherFile.ts")] // NOT RUNNABLE
+#[case("declarationsIndirectGeneratedAliasReference.ts")] // NOT RUNNABLE
 #[case("declarationsWithRecursiveInternalTypesProduceUniqueTypeParams.ts")]
 #[case("declareAlreadySeen.ts")]
 #[case("declareClassInterfaceImplementation.ts")]
@@ -1519,8 +1519,8 @@ use typescript_rust::{
 #[case("declareModifierOnTypeAlias.ts")]
 #[case("declaredExternalModule.ts")]
 #[case("declaredExternalModuleWithExportAssignment.ts")]
-#[case("decoratorInJsFile.ts")]
-#[case("decoratorInJsFile1.ts")]
+#[case("decoratorInJsFile.ts")] // NOT RUNNABLE
+#[case("decoratorInJsFile1.ts")] // NOT RUNNABLE
 #[case("decoratorMetadataConditionalType.ts")]
 #[case("decoratorMetadataForMethodWithNoReturnTypeAnnotation01.ts")]
 #[case("decoratorMetadataGenericTypeVariable.ts")]
@@ -1530,17 +1530,17 @@ use typescript_rust::{
 #[case("decoratorMetadataNoStrictNull.ts")]
 #[case("decoratorMetadataOnInferredType.ts")]
 #[case("decoratorMetadataPromise.ts")]
-#[case("decoratorMetadataRestParameterWithImportedType.ts")]
+#[case("decoratorMetadataRestParameterWithImportedType.ts")] // NOT RUNNABLE
 #[case("decoratorMetadataWithConstructorType.ts")]
-#[case("decoratorMetadataWithImportDeclarationNameCollision.ts")]
-#[case("decoratorMetadataWithImportDeclarationNameCollision2.ts")]
-#[case("decoratorMetadataWithImportDeclarationNameCollision3.ts")]
-#[case("decoratorMetadataWithImportDeclarationNameCollision4.ts")]
-#[case("decoratorMetadataWithImportDeclarationNameCollision5.ts")]
-#[case("decoratorMetadataWithImportDeclarationNameCollision6.ts")]
-#[case("decoratorMetadataWithImportDeclarationNameCollision7.ts")]
-#[case("decoratorMetadataWithImportDeclarationNameCollision8.ts")]
-#[case("decoratorReferenceOnOtherProperty.ts")]
+#[case("decoratorMetadataWithImportDeclarationNameCollision.ts")] // NOT RUNNABLE
+#[case("decoratorMetadataWithImportDeclarationNameCollision2.ts")] // NOT RUNNABLE
+#[case("decoratorMetadataWithImportDeclarationNameCollision3.ts")] // NOT RUNNABLE
+#[case("decoratorMetadataWithImportDeclarationNameCollision4.ts")] // NOT RUNNABLE
+#[case("decoratorMetadataWithImportDeclarationNameCollision5.ts")] // NOT RUNNABLE
+#[case("decoratorMetadataWithImportDeclarationNameCollision6.ts")] // NOT RUNNABLE
+#[case("decoratorMetadataWithImportDeclarationNameCollision7.ts")] // NOT RUNNABLE
+#[case("decoratorMetadataWithImportDeclarationNameCollision8.ts")] // NOT RUNNABLE
+#[case("decoratorReferenceOnOtherProperty.ts")] // NOT RUNNABLE
 #[case("decoratorReferences.ts")]
 #[case("decoratorWithNegativeLiteralTypeNoCrash.ts")]
 #[case("decoratorWithUnderscoreMethod.ts")]
@@ -1551,28 +1551,28 @@ use typescript_rust::{
 #[case("deepElaborationsIntoArrowExpressions.ts")]
 #[case("deepExcessPropertyCheckingWhenTargetIsIntersection.ts")]
 #[case("deepKeysIndexing.ts")]
-#[case("deeplyDependentLargeArrayMutation.ts")]
-#[case("deeplyDependentLargeArrayMutation2.ts")]
+#[case("deeplyDependentLargeArrayMutation.ts")] // NOT RUNNABLE
+#[case("deeplyDependentLargeArrayMutation2.ts")] // NOT RUNNABLE
 #[case("deeplyNestedAssignabilityErrorsCombined.ts")]
-#[case("deeplyNestedAssignabilityIssue.ts")]
+#[case("deeplyNestedAssignabilityIssue.ts")] // FAILING on pretty-printing
 #[case("deeplyNestedCheck.ts")]
 #[case("deeplyNestedConditionalTypes.ts")]
 #[case("deeplyNestedConstraints.ts")]
 #[case("defaultArgsInFunctionExpressions.ts")]
 #[case("defaultArgsInOverloads.ts")]
 #[case("defaultBestCommonTypesHaveDecls.ts")]
-#[case("defaultDeclarationEmitDefaultImport.ts")]
+#[case("defaultDeclarationEmitDefaultImport.ts")] // NOT RUNNABLE
 #[case("defaultDeclarationEmitNamedCorrectly.ts")]
-#[case("defaultDeclarationEmitShadowedNamedCorrectly.ts")]
+#[case("defaultDeclarationEmitShadowedNamedCorrectly.ts")] // NOT RUNNABLE
 #[case("defaultIndexProps1.ts")]
 #[case("defaultIndexProps2.ts")]
-#[case("defaultIsNotVisibleInLocalScope.ts")]
+#[case("defaultIsNotVisibleInLocalScope.ts")] // NOT RUNNABLE
 #[case("defaultKeywordWithoutExport1.ts")]
 #[case("defaultKeywordWithoutExport2.ts")]
 #[case("defaultOfAnyInStrictNullChecks.ts")]
 #[case("defaultParameterAddsUndefinedWithStrictNullChecks.ts")]
 #[case("defaultParameterTrailingComments.ts")]
-#[case("defaultPropsEmptyCurlyBecomesAnyForJs.ts")]
+#[case("defaultPropsEmptyCurlyBecomesAnyForJs.ts")] // NOT RUNNABLE
 #[case("defaultValueInConstructorOverload1.ts")]
 #[case("defaultValueInFunctionOverload1.ts")]
 #[case("defaultValueInFunctionTypes.ts")]
@@ -1582,12 +1582,12 @@ use typescript_rust::{
 #[case("defineVariables_useDefineForClassFields.ts")]
 #[case("definiteAssignmentOfDestructuredVariable.ts")]
 #[case("definiteAssignmentWithErrorStillStripped.ts")]
-#[case("deleteExpressionMustBeOptional.ts")]
-#[case("deleteExpressionMustBeOptional_exactOptionalPropertyTypes.ts")]
+#[case("deleteExpressionMustBeOptional.ts")] // FAILING
+#[case("deleteExpressionMustBeOptional_exactOptionalPropertyTypes.ts")] // FAILING
 #[case("deleteOperator1.ts")]
 #[case("deleteOperatorInStrictMode.ts")]
 #[case("deleteReadonly.ts")]
-#[case("dependencyViaImportAlias.ts")]
+#[case("dependencyViaImportAlias.ts")] // NOT RUNNABLE
 #[case("deprecatedBool.ts")]
 #[case("derivedClassConstructorWithExplicitReturns01.ts")]
 #[case("derivedClassOverridesPrivateFunction1.ts")]
@@ -1599,7 +1599,7 @@ use typescript_rust::{
 #[case("destructureComputedProperty.ts")]
 #[case("destructureOfVariableSameAsShorthand.ts")]
 #[case("destructureOptionalParameter.ts")]
-#[case("destructuredDeclarationEmit.ts")]
+#[case("destructuredDeclarationEmit.ts")] // NOT RUNNABLE
 #[case("destructuredLateBoundNameHasCorrectTypes.ts")]
 #[case("destructuredMaappedTypeIsNotImplicitlyAny.ts")]
 #[case("destructuringAssignmentWithDefault.ts")]
@@ -1632,19 +1632,19 @@ use typescript_rust::{
 #[case("detachedCommentAtStartOfLambdaFunction1.ts")]
 #[case("detachedCommentAtStartOfLambdaFunction2.ts")]
 #[case("didYouMeanElaborationsForExpressionsWhichCouldBeCalled.ts")]
-#[case("didYouMeanStringLiteral.ts")]
+#[case("didYouMeanStringLiteral.ts")] // FAILING
 #[case("didYouMeanSuggestionErrors.ts")]
 #[case("differentTypesWithSameName.ts")]
-#[case("discriminableUnionWithIntersectedMembers.ts")]
+#[case("discriminableUnionWithIntersectedMembers.ts")] // FAILING
 #[case("discriminantElementAccessCheck.ts")]
-#[case("discriminantPropertyCheck.ts")]
-#[case("discriminantPropertyInference.ts")]
+#[case("discriminantPropertyCheck.ts")] // FAILING
+#[case("discriminantPropertyInference.ts")] // FAILING
 #[case("discriminantsAndNullOrUndefined.ts")]
 #[case("discriminantsAndPrimitives.ts")]
 #[case("discriminantsAndTypePredicates.ts")]
 #[case("discriminateObjectTypesOnly.ts")]
 #[case("discriminatedUnionErrorMessage.ts")]
-#[case("discriminatedUnionJsxElement.tsx")]
+#[case("discriminatedUnionJsxElement.tsx")] // FAILING
 #[case("divergentAccessors1.ts")]
 #[case("divergentAccessorsTypes1.ts")]
 #[case("divergentAccessorsTypes2.ts")]
@@ -1655,33 +1655,33 @@ use typescript_rust::{
 #[case("doNotEmitDetachedCommentsAtStartOfFunctionBody.ts")]
 #[case("doNotEmitDetachedCommentsAtStartOfLambdaFunction.ts")]
 #[case("doNotEmitPinnedCommentNotOnTopOfFile.ts")]
-#[case("doNotEmitPinnedCommentOnNotEmittedNode.ts")]
+#[case("doNotEmitPinnedCommentOnNotEmittedNode.ts")] // NOT RUNNABLE
 #[case("doNotEmitPinnedCommentOnNotEmittedNodets.ts")]
 #[case("doNotEmitPinnedDetachedComments.ts")]
-#[case("doNotEmitTripleSlashCommentsInEmptyFile.ts")]
-#[case("doNotEmitTripleSlashCommentsOnNotEmittedNode.ts")]
+#[case("doNotEmitTripleSlashCommentsInEmptyFile.ts")] // NOT RUNNABLE
+#[case("doNotEmitTripleSlashCommentsOnNotEmittedNode.ts")] // NOT RUNNABLE
 #[case("doNotInferUnrelatedTypes.ts")]
 #[case("doNotWidenAtObjectLiteralPropertyAssignment.ts")]
-#[case("doNotemitTripleSlashComments.ts")]
+#[case("doNotemitTripleSlashComments.ts")] // NOT RUNNABLE
 #[case("doWhileLoop.ts")]
 #[case("doWhileUnreachableCode.ts")]
-#[case("doYouNeedToChangeYourTargetLibraryES2015.ts")]
-#[case("doYouNeedToChangeYourTargetLibraryES2016Plus.ts")]
+#[case("doYouNeedToChangeYourTargetLibraryES2015.ts")] // FAILING
+#[case("doYouNeedToChangeYourTargetLibraryES2016Plus.ts")] // FAILING
 #[case("doesNotNarrowUnionOfConstructorsWithInstanceof.ts")]
-#[case("dontShowCompilerGeneratedMembers.ts")]
-#[case("dottedModuleName.ts")]
+#[case("dontShowCompilerGeneratedMembers.ts")] // NOT RUNNABLE
+#[case("dottedModuleName.ts")] // NOT RUNNABLE
 #[case("dottedModuleName2.ts")]
 #[case("dottedNamesInSystem.ts")]
-#[case("dottedSymbolResolution1.ts")]
+#[case("dottedSymbolResolution1.ts")] // NOT RUNNABLE
 #[case("doubleMixinConditionalTypeBaseClassWorks.ts")]
 #[case("doubleUnderStringLiteralAssignability.ts")]
 #[case("doubleUnderscoreEnumEmit.ts")]
-#[case("doubleUnderscoreExportStarConflict.ts")]
+#[case("doubleUnderscoreExportStarConflict.ts")] // NOT RUNNABLE
 #[case("doubleUnderscoreLabels.ts")]
 #[case("doubleUnderscoreMappedTypes.ts")]
-#[case("doubleUnderscoreReactNamespace.ts")]
+#[case("doubleUnderscoreReactNamespace.ts")] // NOT RUNNABLE
 #[case("downlevelLetConst1.ts")]
-#[case("downlevelLetConst10.ts")]
+#[case("downlevelLetConst10.ts")] // NOT RUNNABLE
 #[case("downlevelLetConst11.ts")]
 #[case("downlevelLetConst12.ts")]
 #[case("downlevelLetConst13.ts")]
@@ -1692,12 +1692,12 @@ use typescript_rust::{
 #[case("downlevelLetConst18.ts")]
 #[case("downlevelLetConst19.ts")]
 #[case("downlevelLetConst2.ts")]
-#[case("downlevelLetConst3.ts")]
+#[case("downlevelLetConst3.ts")] // FAILING
 #[case("downlevelLetConst4.ts")]
-#[case("downlevelLetConst5.ts")]
+#[case("downlevelLetConst5.ts")] // FAILING
 #[case("downlevelLetConst6.ts")]
 #[case("downlevelLetConst7.ts")]
-#[case("downlevelLetConst8.ts")]
+#[case("downlevelLetConst8.ts")] // FAILING
 #[case("downlevelLetConst9.ts")]
 #[case("duplicateAnonymousInners1.ts")]
 #[case("duplicateAnonymousModuleClasses.ts")]
@@ -1706,25 +1706,25 @@ use typescript_rust::{
 #[case("duplicateConstructSignature2.ts")]
 #[case("duplicateConstructorOverloadSignature.ts")]
 #[case("duplicateConstructorOverloadSignature2.ts")]
-#[case("duplicateDefaultExport.ts")]
+#[case("duplicateDefaultExport.ts")] // FAILING
 #[case("duplicateIdentifierBindingElementInParameterDeclaration1.ts")]
 #[case("duplicateIdentifierBindingElementInParameterDeclaration2.ts")]
 #[case("duplicateIdentifierComputedName.ts")]
 #[case("duplicateIdentifierDifferentModifiers.ts")]
 #[case("duplicateIdentifierDifferentSpelling.ts")]
-#[case("duplicateIdentifierEnum.ts")]
+#[case("duplicateIdentifierEnum.ts")] // NOT RUNNABLE
 #[case("duplicateIdentifierInCatchBlock.ts")]
-#[case("duplicateIdentifierRelatedSpans1.ts")]
-#[case("duplicateIdentifierRelatedSpans2.ts")]
-#[case("duplicateIdentifierRelatedSpans3.ts")]
-#[case("duplicateIdentifierRelatedSpans4.ts")]
-#[case("duplicateIdentifierRelatedSpans5.ts")]
-#[case("duplicateIdentifierRelatedSpans6.ts")]
-#[case("duplicateIdentifierRelatedSpans7.ts")]
-#[case("duplicateIdentifierRelatedSpans_moduleAugmentation.ts")]
-#[case("duplicateIdentifierShouldNotShortCircuitBaseTypeBinding.ts")]
+#[case("duplicateIdentifierRelatedSpans1.ts")] // NOT RUNNABLE
+#[case("duplicateIdentifierRelatedSpans2.ts")] // NOT RUNNABLE
+#[case("duplicateIdentifierRelatedSpans3.ts")] // NOT RUNNABLE
+#[case("duplicateIdentifierRelatedSpans4.ts")] // NOT RUNNABLE
+#[case("duplicateIdentifierRelatedSpans5.ts")] // NOT RUNNABLE
+#[case("duplicateIdentifierRelatedSpans6.ts")] // NOT RUNNABLE
+#[case("duplicateIdentifierRelatedSpans7.ts")] // NOT RUNNABLE
+#[case("duplicateIdentifierRelatedSpans_moduleAugmentation.ts")] // NOT RUNNABLE
+#[case("duplicateIdentifierShouldNotShortCircuitBaseTypeBinding.ts")] // NOT RUNNABLE
 #[case("duplicateIdentifiersAcrossContainerBoundaries.ts")]
-#[case("duplicateIdentifiersAcrossFileBoundaries.ts")]
+#[case("duplicateIdentifiersAcrossFileBoundaries.ts")] // NOT RUNNABLE
 #[case("duplicateInterfaceMembers1.ts")]
 #[case("duplicateLabel1.ts")]
 #[case("duplicateLabel2.ts")]
@@ -1737,14 +1737,14 @@ use typescript_rust::{
 #[case("duplicateObjectLiteralProperty.ts")]
 #[case("duplicateObjectLiteralProperty_computedName.ts")]
 #[case("duplicateOverloadInTypeAugmentation1.ts")]
-#[case("duplicatePackage.ts")]
-#[case("duplicatePackage_globalMerge.ts")]
-#[case("duplicatePackage_packageIdIncludesSubModule.ts")]
-#[case("duplicatePackage_referenceTypes.ts")]
-#[case("duplicatePackage_relativeImportWithinPackage.ts")]
-#[case("duplicatePackage_relativeImportWithinPackage_scoped.ts")]
-#[case("duplicatePackage_subModule.ts")]
-#[case("duplicatePackage_withErrors.ts")]
+#[case("duplicatePackage.ts")] // NOT RUNNABLE
+#[case("duplicatePackage_globalMerge.ts")] // NOT RUNNABLE
+#[case("duplicatePackage_packageIdIncludesSubModule.ts")] // NOT RUNNABLE
+#[case("duplicatePackage_referenceTypes.ts")] // NOT RUNNABLE
+#[case("duplicatePackage_relativeImportWithinPackage.ts")] // NOT RUNNABLE
+#[case("duplicatePackage_relativeImportWithinPackage_scoped.ts")] // NOT RUNNABLE
+#[case("duplicatePackage_subModule.ts")] // NOT RUNNABLE
+#[case("duplicatePackage_withErrors.ts")] // NOT RUNNABLE
 #[case("duplicatePropertiesInStrictMode.ts")]
 #[case("duplicateStringNamedProperty1.ts")]
 #[case("duplicateSymbolsExportMatching.ts")]
@@ -1756,39 +1756,39 @@ use typescript_rust::{
 #[case("duplicateVariableDeclaration1.ts")]
 #[case("duplicateVariablesByScope.ts")]
 #[case("duplicateVariablesWithAny.ts")]
-#[case("duplicateVarsAcrossFileBoundaries.ts")]
+#[case("duplicateVarsAcrossFileBoundaries.ts")] // NOT RUNNABLE
 #[case("dynamicImportInDefaultExportExpression.ts")]
 #[case("dynamicImportTrailingComma.ts")]
 #[case("dynamicImportWithNestedThis_es2015.ts")]
 #[case("dynamicImportWithNestedThis_es5.ts")]
 #[case("dynamicModuleTypecheckError.ts")]
-#[case("dynamicNames.ts")]
+#[case("dynamicNames.ts")] // NOT RUNNABLE
 #[case("dynamicNamesErrors.ts")]
-#[case("dynamicRequire.ts")]
+#[case("dynamicRequire.ts")] // NOT RUNNABLE
 #[case("elaboratedErrors.ts")]
 #[case("elaboratedErrorsOnNullableTargets01.ts")]
 #[case("elaborationForPossiblyCallableTypeStillReferencesArgumentAtTopLevel.ts")]
 #[case("elementAccessExpressionInternalComments.ts")]
 #[case("elidedEmbeddedStatementsReplacedWithSemicolon.ts")]
-#[case("elidingImportNames.ts")]
+#[case("elidingImportNames.ts")] // NOT RUNNABLE
 #[case("emitAccessExpressionOfCastedObjectLiteralExpressionInArrowFunctionES5.ts")]
 #[case("emitAccessExpressionOfCastedObjectLiteralExpressionInArrowFunctionES6.ts")]
-#[case("emitBOM.ts")]
-#[case("emitBundleWithPrologueDirectives1.ts")]
-#[case("emitBundleWithShebang1.ts")]
-#[case("emitBundleWithShebang2.ts")]
-#[case("emitBundleWithShebangAndPrologueDirectives1.ts")]
-#[case("emitBundleWithShebangAndPrologueDirectives2.ts")]
+#[case("emitBOM.ts")] // NOT RUNNABLE
+#[case("emitBundleWithPrologueDirectives1.ts")] // NOT RUNNABLE
+#[case("emitBundleWithShebang1.ts")] // FAILING
+#[case("emitBundleWithShebang2.ts")] // NOT RUNNABLE
+#[case("emitBundleWithShebangAndPrologueDirectives1.ts")] // NOT RUNNABLE
+#[case("emitBundleWithShebangAndPrologueDirectives2.ts")] // NOT RUNNABLE
 #[case("emitCapturingThisInTupleDestructuring1.ts")]
 #[case("emitCapturingThisInTupleDestructuring2.ts")]
 #[case("emitClassExpressionInDeclarationFile.ts")]
-#[case("emitClassExpressionInDeclarationFile2.ts")]
-#[case("emitClassMergedWithConstNamespaceNotElided.ts")]
+#[case("emitClassExpressionInDeclarationFile2.ts")] // OUT OF SCOPE transformation error
+#[case("emitClassMergedWithConstNamespaceNotElided.ts")] // NOT RUNNABLE
 #[case("emitCommentsOnlyFile.ts")]
 #[case("emitDecoratorMetadata_object.ts")]
 #[case("emitDecoratorMetadata_restArgs.ts")]
-#[case("emitHelpersWithLocalCollisions.ts")]
-#[case("emitMemberAccessExpression.ts")]
+#[case("emitHelpersWithLocalCollisions.ts")] // NOT RUNNABLE
+#[case("emitMemberAccessExpression.ts")] // NOT RUNNABLE
 #[case("emitPinnedCommentsOnTopOfFile.ts")]
 #[case("emitPostComments.ts")]
 #[case("emitPreComments.ts")]
@@ -1801,10 +1801,10 @@ use typescript_rust::{
 #[case("emitSuperCallBeforeEmitPropertyDeclarationAndParameterPropertyDeclaration1ES6.ts")]
 #[case("emitThisInObjectLiteralGetter.ts")]
 #[case("emitThisInSuperMethodCall.ts")]
-#[case("emitTopOfFileTripleSlashCommentOnNotEmittedNodeIfRemoveCommentsIsFalse.ts")]
+#[case("emitTopOfFileTripleSlashCommentOnNotEmittedNodeIfRemoveCommentsIsFalse.ts")] // NOT RUNNABLE
 #[case("emptyArgumentsListComment.ts")]
 #[case("emptyArrayDestructuringExpressionVisitedByTransformer.ts")]
-#[case("emptyDeclarationEmitIsModule.ts")]
+#[case("emptyDeclarationEmitIsModule.ts")] // NOT RUNNABLE
 #[case("emptyEnum.ts")]
 #[case("emptyExpr.ts")]
 #[case("emptyFile-declaration.ts")]
@@ -1820,7 +1820,7 @@ use typescript_rust::{
 #[case("emptyThenWithoutWarning.ts")]
 #[case("emptyTypeArgumentList.ts")]
 #[case("emptyTypeArgumentListWithNew.ts")]
-#[case("ensureNoCrashExportAssignmentDefineProperrtyPotentialMerge.ts")]
+#[case("ensureNoCrashExportAssignmentDefineProperrtyPotentialMerge.ts")] // NOT RUNNABLE
 #[case("enumAssignmentCompat.ts")]
 #[case("enumAssignmentCompat2.ts")]
 #[case("enumAssignmentCompat3.ts")]
@@ -1830,8 +1830,8 @@ use typescript_rust::{
 #[case("enumCodeGenNewLines1.ts")]
 #[case("enumConflictsWithGlobalIdentifier.ts")]
 #[case("enumDecl1.ts")]
-#[case("enumDeclarationEmitInitializerHasImport.ts")]
-#[case("enumFromExternalModule.ts")]
+#[case("enumDeclarationEmitInitializerHasImport.ts")] // NOT RUNNABLE
+#[case("enumFromExternalModule.ts")] // NOT RUNNABLE
 #[case("enumGenericTypeClash.ts")]
 #[case("enumIdentifierLiterals.ts")]
 #[case("enumIndexer.ts")]
@@ -1865,13 +1865,13 @@ use typescript_rust::{
 #[case("errorElaboration.ts")]
 #[case("errorElaborationDivesIntoApparentlyPresentPropsOnly.ts")]
 #[case("errorForBareSpecifierWithImplicitModuleResolutionNone.ts")]
-#[case("errorForConflictingExportEqualsValue.ts")]
+#[case("errorForConflictingExportEqualsValue.ts")] // NOT RUNNABLE
 #[case("errorForUsingPropertyOfTypeAsType01.ts")]
 #[case("errorForUsingPropertyOfTypeAsType02.ts")]
 #[case("errorForUsingPropertyOfTypeAsType03.ts")]
 #[case("errorForwardReferenceForwadingConstructor.ts")]
 #[case("errorHandlingInInstanceOf.ts")]
-#[case("errorInfoForRelatedIndexTypesNoConstraintElaboration.ts")]
+#[case("errorInfoForRelatedIndexTypesNoConstraintElaboration.ts")] // NOT RUNNABLE on .lib directive
 #[case("errorLocationForInterfaceExtension.ts")]
 #[case("errorMessageOnIntersectionsWithDiscriminants01.ts")]
 #[case("errorMessageOnObjectLiteralType.ts")]
@@ -1889,11 +1889,11 @@ use typescript_rust::{
 #[case("errorSpanForUnclosedJsxTag.tsx")]
 #[case("errorSupression1.ts")]
 #[case("errorTypesAsTypeArguments.ts")]
-#[case("errorWithSameNameType.ts")]
+#[case("errorWithSameNameType.ts")] // NOT RUNNABLE
 #[case("errorWithTruncatedType.ts")]
-#[case("errorsForCallAndAssignmentAreSimilar.ts")]
+#[case("errorsForCallAndAssignmentAreSimilar.ts")] // FAILING
 #[case("errorsInGenericTypeReference.ts")]
-#[case("errorsOnImportedSymbol.ts")]
+#[case("errorsOnImportedSymbol.ts")] // NOT RUNNABLE
 #[case("errorsOnUnionsOfOverlappingObjects01.ts")]
 #[case("errorsWithInvokablesInUnions01.ts")]
 #[case("es2015modulekind.ts")]
@@ -1906,9 +1906,9 @@ use typescript_rust::{
 #[case("es3-jsx-react-native.tsx")]
 #[case("es3-jsx-react.tsx")]
 #[case("es3-oldStyleOctalLiteralInEnums.ts")]
-#[case("es3-oldStyleOctalLiteralTypes.ts")]
+#[case("es3-oldStyleOctalLiteralTypes.ts")] // FAILING
 #[case("es3-sourcemap-amd.ts")]
-#[case("es3defaultAliasIsQuoted.ts")]
+#[case("es3defaultAliasIsQuoted.ts")] // NOT RUNNABLE
 #[case("es5-amd.ts")]
 #[case("es5-asyncFunction.ts")]
 #[case("es5-asyncFunctionArrayLiterals.ts")]
@@ -1936,12 +1936,12 @@ use typescript_rust::{
 #[case("es5-commonjs2.ts")]
 #[case("es5-commonjs3.ts")]
 #[case("es5-commonjs4.ts")]
-#[case("es5-commonjs5.ts")]
+#[case("es5-commonjs5.ts")] // FAILING
 #[case("es5-commonjs6.ts")]
-#[case("es5-commonjs7.ts")]
+#[case("es5-commonjs7.ts")] // NOT RUNNABLE
 #[case("es5-commonjs8.ts")]
 #[case("es5-declaration-amd.ts")]
-#[case("es5-importHelpersAsyncFunctions.ts")]
+#[case("es5-importHelpersAsyncFunctions.ts")] // NOT RUNNABLE
 #[case("es5-oldStyleOctalLiteralInEnums.ts")]
 #[case("es5-souremap-amd.ts")]
 #[case("es5-system.ts")]
@@ -1957,7 +1957,7 @@ use typescript_rust::{
 #[case("es5ExportDefaultClassDeclaration4.ts")]
 #[case("es5ExportDefaultExpression.ts")]
 #[case("es5ExportDefaultFunctionDeclaration.ts")]
-#[case("es5ExportDefaultFunctionDeclaration2.ts")]
+#[case("es5ExportDefaultFunctionDeclaration2.ts")] // FAILING
 #[case("es5ExportDefaultFunctionDeclaration3.ts")]
 #[case("es5ExportDefaultFunctionDeclaration4.ts")]
 #[case("es5ExportDefaultIdentifier.ts")]
@@ -1984,78 +1984,78 @@ use typescript_rust::{
 #[case("es6ClassTest8.ts")]
 #[case("es6ClassTest9.ts")]
 #[case("es6DeclOrdering.ts")]
-#[case("es6ExportAll.ts")]
-#[case("es6ExportAllInEs5.ts")]
+#[case("es6ExportAll.ts")] // NOT RUNNABLE
+#[case("es6ExportAllInEs5.ts")] // NOT RUNNABLE
 #[case("es6ExportAssignment.ts")]
-#[case("es6ExportAssignment2.ts")]
-#[case("es6ExportAssignment3.ts")]
-#[case("es6ExportAssignment4.ts")]
-#[case("es6ExportClause.ts")]
-#[case("es6ExportClauseInEs5.ts")]
-#[case("es6ExportClauseWithAssignmentInEs5.ts")]
-#[case("es6ExportClauseWithoutModuleSpecifier.ts")]
-#[case("es6ExportClauseWithoutModuleSpecifierInEs5.ts")]
+#[case("es6ExportAssignment2.ts")] // NOT RUNNABLE
+#[case("es6ExportAssignment3.ts")] // NOT RUNNABLE
+#[case("es6ExportAssignment4.ts")] // NOT RUNNABLE
+#[case("es6ExportClause.ts")] // NOT RUNNABLE
+#[case("es6ExportClauseInEs5.ts")] // NOT RUNNABLE
+#[case("es6ExportClauseWithAssignmentInEs5.ts")] // NOT RUNNABLE
+#[case("es6ExportClauseWithoutModuleSpecifier.ts")] // NOT RUNNABLE
+#[case("es6ExportClauseWithoutModuleSpecifierInEs5.ts")] // NOT RUNNABLE
 #[case("es6ExportDefaultClassDeclaration.ts")]
 #[case("es6ExportDefaultClassDeclaration2.ts")]
 #[case("es6ExportDefaultExpression.ts")]
 #[case("es6ExportDefaultFunctionDeclaration.ts")]
-#[case("es6ExportDefaultFunctionDeclaration2.ts")]
+#[case("es6ExportDefaultFunctionDeclaration2.ts")] // FAILING
 #[case("es6ExportDefaultIdentifier.ts")]
 #[case("es6ExportEquals.ts")]
-#[case("es6ExportEqualsInterop.ts")]
-#[case("es6ImportDefaultBinding.ts")]
-#[case("es6ImportDefaultBindingAmd.ts")]
-#[case("es6ImportDefaultBindingDts.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamedImport.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamedImport1.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamedImport1InEs5.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamedImport1WithExport.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamedImportDts.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamedImportDts1.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamedImportInEs5.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamedImportWithExport.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamespaceBinding.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamespaceBinding1.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamespaceBinding1InEs5.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamespaceBinding1WithExport.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamespaceBindingDts.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamespaceBindingDts1.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamespaceBindingInEs5.ts")]
-#[case("es6ImportDefaultBindingFollowedWithNamespaceBindingWithExport.ts")]
-#[case("es6ImportDefaultBindingInEs5.ts")]
-#[case("es6ImportDefaultBindingMergeErrors.ts")]
-#[case("es6ImportDefaultBindingNoDefaultProperty.ts")]
-#[case("es6ImportDefaultBindingWithExport.ts")]
-#[case("es6ImportEqualsDeclaration.ts")]
-#[case("es6ImportEqualsDeclaration2.ts")]
-#[case("es6ImportEqualsExportModuleCommonJsError.ts")]
-#[case("es6ImportEqualsExportModuleEs2015Error.ts")]
-#[case("es6ImportNameSpaceImport.ts")]
-#[case("es6ImportNameSpaceImportAmd.ts")]
-#[case("es6ImportNameSpaceImportDts.ts")]
-#[case("es6ImportNameSpaceImportInEs5.ts")]
-#[case("es6ImportNameSpaceImportMergeErrors.ts")]
-#[case("es6ImportNameSpaceImportNoNamedExports.ts")]
-#[case("es6ImportNameSpaceImportWithExport.ts")]
-#[case("es6ImportNamedImport.ts")]
-#[case("es6ImportNamedImportAmd.ts")]
-#[case("es6ImportNamedImportDts.ts")]
+#[case("es6ExportEqualsInterop.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBinding.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingAmd.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingDts.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamedImport.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamedImport1.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamedImport1InEs5.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamedImport1WithExport.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamedImportDts.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamedImportDts1.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamedImportInEs5.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamedImportWithExport.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamespaceBinding.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamespaceBinding1.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamespaceBinding1InEs5.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamespaceBinding1WithExport.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamespaceBindingDts.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamespaceBindingDts1.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamespaceBindingInEs5.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingFollowedWithNamespaceBindingWithExport.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingInEs5.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingMergeErrors.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingNoDefaultProperty.ts")] // NOT RUNNABLE
+#[case("es6ImportDefaultBindingWithExport.ts")] // NOT RUNNABLE
+#[case("es6ImportEqualsDeclaration.ts")] // NOT RUNNABLE
+#[case("es6ImportEqualsDeclaration2.ts")] // NOT RUNNABLE
+#[case("es6ImportEqualsExportModuleCommonJsError.ts")] // NOT RUNNABLE
+#[case("es6ImportEqualsExportModuleEs2015Error.ts")] // NOT RUNNABLE
+#[case("es6ImportNameSpaceImport.ts")] // NOT RUNNABLE
+#[case("es6ImportNameSpaceImportAmd.ts")] // NOT RUNNABLE
+#[case("es6ImportNameSpaceImportDts.ts")] // NOT RUNNABLE
+#[case("es6ImportNameSpaceImportInEs5.ts")] // NOT RUNNABLE
+#[case("es6ImportNameSpaceImportMergeErrors.ts")] // NOT RUNNABLE
+#[case("es6ImportNameSpaceImportNoNamedExports.ts")] // NOT RUNNABLE
+#[case("es6ImportNameSpaceImportWithExport.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImport.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportAmd.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportDts.ts")] // NOT RUNNABLE
 #[case("es6ImportNamedImportIdentifiersParsing.ts")]
-#[case("es6ImportNamedImportInEs5.ts")]
-#[case("es6ImportNamedImportInExportAssignment.ts")]
-#[case("es6ImportNamedImportInIndirectExportAssignment.ts")]
-#[case("es6ImportNamedImportMergeErrors.ts")]
-#[case("es6ImportNamedImportNoExportMember.ts")]
-#[case("es6ImportNamedImportNoNamedExports.ts")]
-#[case("es6ImportNamedImportParsingError.ts")]
-#[case("es6ImportNamedImportWithExport.ts")]
-#[case("es6ImportNamedImportWithTypesAndValues.ts")]
+#[case("es6ImportNamedImportInEs5.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportInExportAssignment.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportInIndirectExportAssignment.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportMergeErrors.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportNoExportMember.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportNoNamedExports.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportParsingError.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportWithExport.ts")] // NOT RUNNABLE
+#[case("es6ImportNamedImportWithTypesAndValues.ts")] // NOT RUNNABLE
 #[case("es6ImportParseErrors.ts")]
-#[case("es6ImportWithoutFromClause.ts")]
-#[case("es6ImportWithoutFromClauseAmd.ts")]
-#[case("es6ImportWithoutFromClauseInEs5.ts")]
-#[case("es6ImportWithoutFromClauseNonInstantiatedModule.ts")]
-#[case("es6ImportWithoutFromClauseWithExport.ts")]
+#[case("es6ImportWithoutFromClause.ts")] // NOT RUNNABLE
+#[case("es6ImportWithoutFromClauseAmd.ts")] // NOT RUNNABLE
+#[case("es6ImportWithoutFromClauseInEs5.ts")] // NOT RUNNABLE
+#[case("es6ImportWithoutFromClauseNonInstantiatedModule.ts")] // NOT RUNNABLE
+#[case("es6ImportWithoutFromClauseWithExport.ts")] // NOT RUNNABLE
 #[case("es6MemberScoping.ts")]
 #[case("es6Module.ts")]
 #[case("es6ModuleClassDeclaration.ts")]
@@ -2072,26 +2072,26 @@ use typescript_rust::{
 #[case("es6ModuleVariableStatement.ts")]
 #[case("es6ModuleWithModuleGenTargetAmd.ts")]
 #[case("es6ModuleWithModuleGenTargetCommonjs.ts")]
-#[case("es6UseOfTopLevelRequire.ts")]
-#[case("esModuleInterop.ts")]
-#[case("esModuleInteropDefaultMemberMustBeSyntacticallyDefaultExport.ts")]
-#[case("esModuleInteropEnablesSyntheticDefaultImports.ts")]
-#[case("esModuleInteropImportCall.ts")]
+#[case("es6UseOfTopLevelRequire.ts")] // NOT RUNNABLE
+#[case("esModuleInterop.ts")] // NOT RUNNABLE
+#[case("esModuleInteropDefaultMemberMustBeSyntacticallyDefaultExport.ts")] // NOT RUNNABLE
+#[case("esModuleInteropEnablesSyntheticDefaultImports.ts")] // NOT RUNNABLE
+#[case("esModuleInteropImportCall.ts")] // NOT RUNNABLE
 #[case("esModuleInteropImportDefaultWhenAllNamedAreDefaultAlias.ts")]
-#[case("esModuleInteropImportNamespace.ts")]
-#[case("esModuleInteropImportTSLibHasImport.ts")]
-#[case("esModuleInteropNamedDefaultImports.ts")]
-#[case("esModuleInteropPrettyErrorRelatedInformation.ts")]
-#[case("esModuleInteropTslibHelpers.ts")]
+#[case("esModuleInteropImportNamespace.ts")] // NOT RUNNABLE
+#[case("esModuleInteropImportTSLibHasImport.ts")] // NOT RUNNABLE
+#[case("esModuleInteropNamedDefaultImports.ts")] // NOT RUNNABLE
+#[case("esModuleInteropPrettyErrorRelatedInformation.ts")] // NOT RUNNABLE
+#[case("esModuleInteropTslibHelpers.ts")] // NOT RUNNABLE
 #[case("esModuleInteropUsesExportStarWhenDefaultPlusNames.ts")]
-#[case("esModuleInteropWithExportStar.ts")]
-#[case("esModuleIntersectionCrash.ts")]
-#[case("esNextWeakRefs_IterableWeakMap.ts")]
+#[case("esModuleInteropWithExportStar.ts")] // NOT RUNNABLE
+#[case("esModuleIntersectionCrash.ts")] // NOT RUNNABLE
+#[case("esNextWeakRefs_IterableWeakMap.ts")] // FAILING
 #[case("escapedIdentifiers.ts")]
 #[case("escapedReservedCompilerNamedIdentifier.ts")]
 #[case("evalAfter0.ts")]
 #[case("eventEmitterPatternWithRecordOfFunction.ts")]
-#[case("evolvingArrayTypeInAssert.ts")]
+#[case("evolvingArrayTypeInAssert.ts")] // FAILING
 #[case("exactSpellingSuggestion.ts")]
 #[case("excessPropertyCheckWithEmptyObject.ts")]
 #[case("excessPropertyCheckWithMultipleDiscriminants.ts")]
@@ -2101,131 +2101,131 @@ use typescript_rust::{
 #[case("excessPropertyChecksWithNestedIntersections.ts")]
 #[case("excessPropertyErrorForFunctionTypes.ts")]
 #[case("excessPropertyErrorsSuppressed.ts")]
-#[case("excessiveStackDepthFlatArray.ts")]
+#[case("excessiveStackDepthFlatArray.ts")] // NOT RUNNABLE
 #[case("excessivelyLargeTupleSpread.ts")]
 #[case("exhaustiveSwitchImplicitReturn.ts")]
 #[case("exhaustiveSwitchWithWideningLiteralTypes.ts")]
 #[case("expandoFunctionContextualTypes.ts")]
-#[case("expandoFunctionContextualTypesJs.ts")]
+#[case("expandoFunctionContextualTypesJs.ts")] // NOT RUNNABLE
 #[case("expandoFunctionContextualTypesNoValue.ts")]
-#[case("experimentalDecoratorMetadataUnresolvedTypeObjectInEmit.ts")]
+#[case("experimentalDecoratorMetadataUnresolvedTypeObjectInEmit.ts")] // NOT RUNNABLE
 #[case("explicitAnyAfterSpreadNoImplicitAnyError.ts")]
 #[case("exportAlreadySeen.ts")]
 #[case("exportArrayBindingPattern.ts")]
 #[case("exportAsNamespace.d.ts")]
-#[case("exportAsNamespaceConflict.ts")]
-#[case("exportAsNamespace_augment.ts")]
-#[case("exportAssignClassAndModule.ts")]
+#[case("exportAsNamespaceConflict.ts")] // NOT RUNNABLE
+#[case("exportAsNamespace_augment.ts")] // NOT RUNNABLE
+#[case("exportAssignClassAndModule.ts")] // NOT RUNNABLE
 #[case("exportAssignValueAndType.ts")]
-#[case("exportAssignedNamespaceIsVisibleInDeclarationEmit.ts")]
-#[case("exportAssignedTypeAsTypeAnnotation.ts")]
-#[case("exportAssignmentClass.ts")]
-#[case("exportAssignmentEnum.ts")]
-#[case("exportAssignmentError.ts")]
-#[case("exportAssignmentFunction.ts")]
-#[case("exportAssignmentImportMergeNoCrash.ts")]
-#[case("exportAssignmentInterface.ts")]
-#[case("exportAssignmentInternalModule.ts")]
-#[case("exportAssignmentMembersVisibleInAugmentation.ts")]
-#[case("exportAssignmentOfDeclaredExternalModule.ts")]
-#[case("exportAssignmentOfGenericType1.ts")]
-#[case("exportAssignmentVariable.ts")]
+#[case("exportAssignedNamespaceIsVisibleInDeclarationEmit.ts")] // NOT RUNNABLE
+#[case("exportAssignedTypeAsTypeAnnotation.ts")] // NOT RUNNABLE
+#[case("exportAssignmentClass.ts")] // NOT RUNNABLE
+#[case("exportAssignmentEnum.ts")] // NOT RUNNABLE
+#[case("exportAssignmentError.ts")] // NOT RUNNABLE
+#[case("exportAssignmentFunction.ts")] // NOT RUNNABLE
+#[case("exportAssignmentImportMergeNoCrash.ts")] // NOT RUNNABLE
+#[case("exportAssignmentInterface.ts")] // NOT RUNNABLE
+#[case("exportAssignmentInternalModule.ts")] // NOT RUNNABLE
+#[case("exportAssignmentMembersVisibleInAugmentation.ts")] // NOT RUNNABLE
+#[case("exportAssignmentOfDeclaredExternalModule.ts")] // NOT RUNNABLE
+#[case("exportAssignmentOfGenericType1.ts")] // NOT RUNNABLE
+#[case("exportAssignmentVariable.ts")] // NOT RUNNABLE
 #[case("exportAssignmentWithDeclareAndExportModifiers.ts")]
 #[case("exportAssignmentWithDeclareModifier.ts")]
 #[case("exportAssignmentWithExportModifier.ts")]
 #[case("exportAssignmentWithExports.ts")]
 #[case("exportAssignmentWithImportStatementPrivacyError.ts")]
 #[case("exportAssignmentWithPrivacyError.ts")]
-#[case("exportAssignmentWithoutAllowSyntheticDefaultImportsError.ts")]
+#[case("exportAssignmentWithoutAllowSyntheticDefaultImportsError.ts")] // NOT RUNNABLE
 #[case("exportAssignmentWithoutIdentifier1.ts")]
-#[case("exportClassExtendingIntersection.ts")]
+#[case("exportClassExtendingIntersection.ts")] // NOT RUNNABLE
 #[case("exportClassWithoutName.ts")]
 #[case("exportDeclarationInInternalModule.ts")]
-#[case("exportDeclarationWithModuleSpecifierNameOnNextLine1.ts")]
+#[case("exportDeclarationWithModuleSpecifierNameOnNextLine1.ts")] // NOT RUNNABLE
 #[case("exportDeclarationsInAmbientNamespaces.ts")]
 #[case("exportDeclarationsInAmbientNamespaces2.ts")]
 #[case("exportDeclareClass1.ts")]
-#[case("exportDefaultAbstractClass.ts")]
-#[case("exportDefaultAlias_excludesEverything.ts")]
+#[case("exportDefaultAbstractClass.ts")] // NOT RUNNABLE
+#[case("exportDefaultAlias_excludesEverything.ts")] // FAILING
 #[case("exportDefaultAsyncFunction.ts")]
-#[case("exportDefaultAsyncFunction2.ts")]
+#[case("exportDefaultAsyncFunction2.ts")] // NOT RUNNABLE
 #[case("exportDefaultClassInNamespace.ts")]
-#[case("exportDefaultDuplicateCrash.ts")]
+#[case("exportDefaultDuplicateCrash.ts")] // NOT RUNNABLE
 #[case("exportDefaultForNonInstantiatedModule.ts")]
-#[case("exportDefaultFunctionInNamespace.ts")]
-#[case("exportDefaultImportedType.ts")]
-#[case("exportDefaultInterface.ts")]
-#[case("exportDefaultInterfaceAndTwoFunctions.ts")]
-#[case("exportDefaultInterfaceAndValue.ts")]
-#[case("exportDefaultMarksIdentifierAsUsed.ts")]
+#[case("exportDefaultFunctionInNamespace.ts")] // FAILING
+#[case("exportDefaultImportedType.ts")] // NOT RUNNABLE
+#[case("exportDefaultInterface.ts")] // NOT RUNNABLE
+#[case("exportDefaultInterfaceAndTwoFunctions.ts")] // FAILING
+#[case("exportDefaultInterfaceAndValue.ts")] // FAILING
+#[case("exportDefaultMarksIdentifierAsUsed.ts")] // NOT RUNNABLE
 #[case("exportDefaultMissingName.ts")]
-#[case("exportDefaultParenthesize.ts")]
-#[case("exportDefaultParenthesizeES6.ts")]
-#[case("exportDefaultProperty.ts")]
-#[case("exportDefaultProperty2.ts")]
-#[case("exportDefaultQualifiedNameNoError.ts")]
-#[case("exportDefaultStripsFreshness.ts")]
+#[case("exportDefaultParenthesize.ts")] // NOT RUNNABLE
+#[case("exportDefaultParenthesizeES6.ts")] // NOT RUNNABLE
+#[case("exportDefaultProperty.ts")] // NOT RUNNABLE
+#[case("exportDefaultProperty2.ts")] // NOT RUNNABLE
+#[case("exportDefaultQualifiedNameNoError.ts")] // NOT RUNNABLE
+#[case("exportDefaultStripsFreshness.ts")] // NOT RUNNABLE
 #[case("exportDefaultVariable.ts")]
-#[case("exportDefaultWithJSDoc1.ts")]
-#[case("exportDefaultWithJSDoc2.ts")]
-#[case("exportEmptyArrayBindingPattern.ts")]
-#[case("exportEmptyObjectBindingPattern.ts")]
-#[case("exportEqualCallable.ts")]
-#[case("exportEqualErrorType.ts")]
-#[case("exportEqualMemberMissing.ts")]
+#[case("exportDefaultWithJSDoc1.ts")] // NOT RUNNABLE
+#[case("exportDefaultWithJSDoc2.ts")] // NOT RUNNABLE
+#[case("exportEmptyArrayBindingPattern.ts")] // NOT RUNNABLE
+#[case("exportEmptyObjectBindingPattern.ts")] // NOT RUNNABLE
+#[case("exportEqualCallable.ts")] // NOT RUNNABLE
+#[case("exportEqualErrorType.ts")] // NOT RUNNABLE
+#[case("exportEqualMemberMissing.ts")] // NOT RUNNABLE
 #[case("exportEqualNamespaces.ts")]
 #[case("exportEqualsAmd.ts")]
 #[case("exportEqualsClassNoRedeclarationError.ts")]
 #[case("exportEqualsClassRedeclarationError.ts")]
 #[case("exportEqualsCommonJs.ts")]
-#[case("exportEqualsDefaultProperty.ts")]
+#[case("exportEqualsDefaultProperty.ts")] // NOT RUNNABLE
 #[case("exportEqualsOfModule.ts")]
-#[case("exportEqualsProperty.ts")]
-#[case("exportEqualsProperty2.ts")]
+#[case("exportEqualsProperty.ts")] // NOT RUNNABLE
+#[case("exportEqualsProperty2.ts")] // NOT RUNNABLE
 #[case("exportEqualsUmd.ts")]
-#[case("exportImport.ts")]
+#[case("exportImport.ts")] // NOT RUNNABLE
 #[case("exportImportAndClodule.ts")]
 #[case("exportImportCanSubstituteConstEnumForValue.ts")]
-#[case("exportImportMultipleFiles.ts")]
+#[case("exportImportMultipleFiles.ts")] // NOT RUNNABLE
 #[case("exportImportNonInstantiatedModule.ts")]
-#[case("exportImportNonInstantiatedModule2.ts")]
+#[case("exportImportNonInstantiatedModule2.ts")] // NOT RUNNABLE
 #[case("exportInFunction.ts")]
 #[case("exportNamespaceDeclarationRetainsVisibility.ts")]
-#[case("exportObjectRest.ts")]
+#[case("exportObjectRest.ts")] // NOT RUNNABLE
 #[case("exportPrivateType.ts")]
 #[case("exportRedeclarationTypeAliases.ts")]
 #[case("exportSameNameFuncVar.ts")]
 #[case("exportSpecifierAndExportedMemberDeclaration.ts")]
 #[case("exportSpecifierAndLocalMemberDeclaration.ts")]
-#[case("exportSpecifierForAGlobal.ts")]
+#[case("exportSpecifierForAGlobal.ts")] // NOT RUNNABLE
 #[case("exportSpecifierReferencingOuterDeclaration1.ts")]
-#[case("exportSpecifierReferencingOuterDeclaration2.ts")]
+#[case("exportSpecifierReferencingOuterDeclaration2.ts")] // NOT RUNNABLE
 #[case("exportSpecifierReferencingOuterDeclaration3.ts")]
-#[case("exportSpecifierReferencingOuterDeclaration4.ts")]
-#[case("exportStarForValues.ts")]
-#[case("exportStarForValues10.ts")]
-#[case("exportStarForValues2.ts")]
-#[case("exportStarForValues3.ts")]
-#[case("exportStarForValues4.ts")]
-#[case("exportStarForValues5.ts")]
-#[case("exportStarForValues6.ts")]
-#[case("exportStarForValues7.ts")]
-#[case("exportStarForValues8.ts")]
-#[case("exportStarForValues9.ts")]
-#[case("exportStarForValuesInSystem.ts")]
-#[case("exportStarFromEmptyModule.ts")]
-#[case("exportStarNotElided.ts")]
+#[case("exportSpecifierReferencingOuterDeclaration4.ts")] // NOT RUNNABLE
+#[case("exportStarForValues.ts")] // NOT RUNNABLE
+#[case("exportStarForValues10.ts")] // NOT RUNNABLE
+#[case("exportStarForValues2.ts")] // NOT RUNNABLE
+#[case("exportStarForValues3.ts")] // NOT RUNNABLE
+#[case("exportStarForValues4.ts")] // NOT RUNNABLE
+#[case("exportStarForValues5.ts")] // NOT RUNNABLE
+#[case("exportStarForValues6.ts")] // NOT RUNNABLE
+#[case("exportStarForValues7.ts")] // NOT RUNNABLE
+#[case("exportStarForValues8.ts")] // NOT RUNNABLE
+#[case("exportStarForValues9.ts")] // NOT RUNNABLE
+#[case("exportStarForValuesInSystem.ts")] // NOT RUNNABLE
+#[case("exportStarFromEmptyModule.ts")] // NOT RUNNABLE
+#[case("exportStarNotElided.ts")] // NOT RUNNABLE
 #[case("exportToString.ts")]
 #[case("exportVisibility.ts")]
 #[case("exportedBlockScopedDeclarations.ts")]
 #[case("exportedInterfaceInaccessibleInCallbackInModule.ts")]
 #[case("exportedVariable1.ts")]
 #[case("exportingContainingVisibleType.ts")]
-#[case("exportsInAmbientModules1.ts")]
-#[case("exportsInAmbientModules2.ts")]
+#[case("exportsInAmbientModules1.ts")] // NOT RUNNABLE
+#[case("exportsInAmbientModules2.ts")] // NOT RUNNABLE
 #[case("expr.ts")]
-#[case("expressionTypeNodeShouldError.ts")]
-#[case("expressionsForbiddenInParameterInitializers.ts")]
+#[case("expressionTypeNodeShouldError.ts")] // NOT RUNNABLE
+#[case("expressionsForbiddenInParameterInitializers.ts")] // NOT RUNNABLE
 #[case("extBaseClass1.ts")]
 #[case("extBaseClass2.ts")]
 #[case("extendAndImplementTheSameBaseType.ts")]
@@ -2235,9 +2235,9 @@ use typescript_rust::{
 #[case("extendConstructSignatureInInterface.ts")]
 #[case("extendFromAny.ts")]
 #[case("extendGenericArray.ts")]
-#[case("extendGenericArray2.ts")]
-#[case("extendGlobalThis.ts")]
-#[case("extendGlobalThis2.ts")]
+#[case("extendGenericArray2.ts")] // FAILING
+#[case("extendGlobalThis.ts")] // NOT RUNNABLE
+#[case("extendGlobalThis2.ts")] // FAILING on borrow error
 #[case("extendNonClassSymbol1.ts")]
 #[case("extendNonClassSymbol2.ts")]
 #[case("extendPrivateConstructorClass.ts")]
@@ -2245,28 +2245,28 @@ use typescript_rust::{
 #[case("extendedInterfacesWithDuplicateTypeParameters.ts")]
 #[case("extendedUnicodeEscapeSequenceIdentifiers.ts")]
 #[case("extendedUnicodePlaneIdentifiers.ts")]
-#[case("extendedUnicodePlaneIdentifiersJSDoc.ts")]
-#[case("extendingClassFromAliasAndUsageInIndexer.ts")]
+#[case("extendedUnicodePlaneIdentifiersJSDoc.ts")] // NOT RUNNABLE
+#[case("extendingClassFromAliasAndUsageInIndexer.ts")] // NOT RUNNABLE
 #[case("extendingSetWithCheckJs.ts")]
 #[case("extendsClauseAlreadySeen.ts")]
 #[case("extendsClauseAlreadySeen2.ts")]
-#[case("extendsJavaScript.ts")]
-#[case("extendsUntypedModule.ts")]
+#[case("extendsJavaScript.ts")] // NOT RUNNABLE
+#[case("extendsUntypedModule.ts")] // NOT RUNNABLE
 #[case("extension.ts")]
 #[case("externFunc.ts")]
 #[case("externModule.ts")]
 #[case("externModuleClobber.ts")]
 #[case("externSemantics.ts")]
 #[case("externSyntax.ts")]
-#[case("externalModuleAssignToVar.ts")]
-#[case("externalModuleExportingGenericClass.ts")]
-#[case("externalModuleImmutableBindings.ts")]
+#[case("externalModuleAssignToVar.ts")] // NOT RUNNABLE
+#[case("externalModuleExportingGenericClass.ts")] // NOT RUNNABLE
+#[case("externalModuleImmutableBindings.ts")] // NOT RUNNABLE
 #[case("externalModuleQualification.ts")]
 #[case("externalModuleReferenceDoubleUnderscore1.ts")]
-#[case("externalModuleReferenceOfImportDeclarationWithExportModifier.ts")]
-#[case("externalModuleRefernceResolutionOrderInImportDeclaration.ts")]
-#[case("externalModuleResolution.ts")]
-#[case("externalModuleResolution2.ts")]
+#[case("externalModuleReferenceOfImportDeclarationWithExportModifier.ts")] // NOT RUNNABLE
+#[case("externalModuleRefernceResolutionOrderInImportDeclaration.ts")] // NOT RUNNABLE
+#[case("externalModuleResolution.ts")] // NOT RUNNABLE
+#[case("externalModuleResolution2.ts")] // NOT RUNNABLE
 #[case("externalModuleWithoutCompilerFlag1.ts")]
 #[case("extractInferenceImprovement.ts")]
 #[case("fallFromLastCase1.ts")]
@@ -2284,19 +2284,19 @@ use typescript_rust::{
 #[case("fatarrowfunctionsOptionalArgsErrors3.ts")]
 #[case("fatarrowfunctionsOptionalArgsErrors4.ts")]
 #[case("fieldAndGetterWithSameName.ts")]
-#[case("fileReferencesWithNoExtensions.ts")]
+#[case("fileReferencesWithNoExtensions.ts")] // NOT RUNNABLE
 #[case("fileWithNextLine1.ts")]
 #[case("fileWithNextLine2.ts")]
 #[case("fileWithNextLine3.ts")]
-#[case("filesEmittingIntoSameOutput.ts")]
-#[case("filesEmittingIntoSameOutputWithOutOption.ts")]
+#[case("filesEmittingIntoSameOutput.ts")] // NOT RUNNABLE
+#[case("filesEmittingIntoSameOutputWithOutOption.ts")] // NOT RUNNABLE
 #[case("fillInMissingTypeArgsOnConstructCalls.ts")]
-#[case("fillInMissingTypeArgsOnJSConstructCalls.ts")]
+#[case("fillInMissingTypeArgsOnJSConstructCalls.ts")] // NOT RUNNABLE
 #[case("fixTypeParameterInSignatureWithRestParameters.ts")]
 #[case("fixingTypeParametersRepeatedly1.ts")]
 #[case("fixingTypeParametersRepeatedly2.ts")]
 #[case("fixingTypeParametersRepeatedly3.ts")]
-#[case("flatArrayNoExcessiveStackDepth.ts")]
+#[case("flatArrayNoExcessiveStackDepth.ts")] // FAILING
 #[case("flowAfterFinally1.ts")]
 #[case("flowControlTypeGuardThenSwitch.ts")]
 #[case("flowInFinally1.ts")]
@@ -2328,11 +2328,11 @@ use typescript_rust::{
 #[case("fromAsIdentifier2.ts")]
 #[case("funClodule.ts")]
 #[case("funcdecl.ts")]
-#[case("functionAndImportNameConflict.ts")]
+#[case("functionAndImportNameConflict.ts")] // NOT RUNNABLE
 #[case("functionAndInterfaceWithSeparateErrors.ts")]
 #[case("functionAndPropertyNameConflict.ts")]
 #[case("functionArgShadowing.ts")]
-#[case("functionAssignabilityWithArrayLike01.ts")]
+#[case("functionAssignabilityWithArrayLike01.ts")] // FAILING
 #[case("functionAssignment.ts")]
 #[case("functionAssignmentError.ts")]
 #[case("functionCall1.ts")]
@@ -2359,7 +2359,7 @@ use typescript_rust::{
 #[case("functionDeclarationWithResolutionOfTypeOfSameName01.ts")]
 #[case("functionExpressionAndLambdaMatchesFunction.ts")]
 #[case("functionExpressionInWithBlock.ts")]
-#[case("functionExpressionNames.ts")]
+#[case("functionExpressionNames.ts")] // NOT RUNNABLE
 #[case("functionExpressionReturningItself.ts")]
 #[case("functionExpressionShadowedByParams.ts")]
 #[case("functionExpressionWithResolutionOfTypeNamedArguments01.ts")]
@@ -2461,8 +2461,8 @@ use typescript_rust::{
 #[case("functionsWithModifiersInBlocks1.ts")]
 #[case("funduleExportedClassIsUsedBeforeDeclaration.ts")]
 #[case("funduleOfFunctionWithoutReturnTypeAnnotation.ts")]
-#[case("funduleSplitAcrossFiles.ts")]
-#[case("funduleUsedAcrossFileBoundary.ts")]
+#[case("funduleSplitAcrossFiles.ts")] // NOT RUNNABLE
+#[case("funduleUsedAcrossFileBoundary.ts")] // NOT RUNNABLE
 #[case("fuzzy.ts")]
 #[case("generativeRecursionWithTypeOf.ts")]
 #[case("generatorES6InAMDModule.ts")]
@@ -2519,7 +2519,7 @@ use typescript_rust::{
 #[case("genericCloneReturnTypes.ts")]
 #[case("genericCloneReturnTypes2.ts")]
 #[case("genericCombinators2.ts")]
-#[case("genericConditionalConstrainedToUnknownNotAssignableToConcreteObject.ts")]
+#[case("genericConditionalConstrainedToUnknownNotAssignableToConcreteObject.ts")] // FAILING
 #[case("genericConstraint1.ts")]
 #[case("genericConstraint2.ts")]
 #[case("genericConstraint3.ts")]
@@ -2533,8 +2533,8 @@ use typescript_rust::{
 #[case("genericConstructorFunction1.ts")]
 #[case("genericContextualTypingSpecialization.ts")]
 #[case("genericDefaults.ts")]
-#[case("genericDefaultsErrors.ts")]
-#[case("genericDefaultsJs.ts")]
+#[case("genericDefaultsErrors.ts")] // OUT OF SCOPE transformation error
+#[case("genericDefaultsJs.ts")] // NOT RUNNABLE
 #[case("genericDerivedTypeWithSpecializedBase.ts")]
 #[case("genericDerivedTypeWithSpecializedBase2.ts")]
 #[case("genericFunctionCallSignatureReturnTypeMismatch.ts")]
@@ -2623,7 +2623,7 @@ use typescript_rust::{
 #[case("genericTypeWithMultipleBases3.ts")]
 #[case("genericTypeWithNonGenericBaseMisMatch.ts")]
 #[case("genericWithCallSignatureReturningSpecialization.ts")]
-#[case("genericWithCallSignatures1.ts")]
+#[case("genericWithCallSignatures1.ts")] // NOT RUNNABLE
 #[case("genericWithIndexerOfTypeParameterType1.ts")]
 #[case("genericWithIndexerOfTypeParameterType2.ts")]
 #[case("genericWithOpenTypeParameters1.ts")]
@@ -2659,13 +2659,13 @@ use typescript_rust::{
 #[case("gettersAndSettersTypesAgree.ts")]
 #[case("giant.ts")]
 #[case("global.ts")]
-#[case("globalFunctionAugmentationOverload.ts")]
+#[case("globalFunctionAugmentationOverload.ts")] // NOT RUNNABLE
 #[case("globalIsContextualKeyword.ts")]
 #[case("globalThis.ts")]
 #[case("globalThisCapture.ts")]
-#[case("globalThisDeclarationEmit.ts")]
-#[case("globalThisDeclarationEmit2.ts")]
-#[case("globalThisDeclarationEmit3.ts")]
+#[case("globalThisDeclarationEmit.ts")] // NOT RUNNABLE
+#[case("globalThisDeclarationEmit2.ts")] // NOT RUNNABLE
+#[case("globalThisDeclarationEmit3.ts")] // NOT RUNNABLE
 #[case("grammarAmbiguities1.ts")]
 #[case("heterogeneousArrayAndOverloads.ts")]
 #[case("hidingCallSignatures.ts")]
@@ -2673,7 +2673,7 @@ use typescript_rust::{
 #[case("hidingIndexSignatures.ts")]
 #[case("higherOrderMappedIndexLookupInference.ts")]
 #[case("homomorphicMappedTypeIntersectionAssignability.ts")]
-#[case("hugeDeclarationOutputGetsTruncatedWithError.ts")]
+#[case("hugeDeclarationOutputGetsTruncatedWithError.ts")] // OUT OF SCOPE transformation error
 #[case("i3.ts")]
 #[case("icomparable.ts")]
 #[case("idInProp.ts")]
@@ -2684,7 +2684,7 @@ use typescript_rust::{
 #[case("identityForSignaturesWithTypeParametersSwitched.ts")]
 #[case("ifElseWithStatements1.ts")]
 #[case("ifStatementInternalComments.ts")]
-#[case("ignoredJsxAttributes.tsx")]
+#[case("ignoredJsxAttributes.tsx")] // NOT RUNNABLE on .lib directive
 #[case("illegalGenericWrapping1.ts")]
 #[case("illegalModifiersOnClassElements.ts")]
 #[case("illegalSuperCallsInConstructor.ts")]
@@ -2720,19 +2720,19 @@ use typescript_rust::{
 #[case("implicitAnyWidenToAny.ts")]
 #[case("implicitConstParameters.ts")]
 #[case("implicitIndexSignatures.ts")]
-#[case("importAliasAnExternalModuleInsideAnInternalModule.ts")]
-#[case("importAliasFromNamespace.ts")]
+#[case("importAliasAnExternalModuleInsideAnInternalModule.ts")] // NOT RUNNABLE
+#[case("importAliasFromNamespace.ts")] // NOT RUNNABLE
 #[case("importAliasWithDottedName.ts")]
 #[case("importAnImport.ts")]
 #[case("importAndVariableDeclarationConflict1.ts")]
 #[case("importAndVariableDeclarationConflict2.ts")]
 #[case("importAndVariableDeclarationConflict3.ts")]
 #[case("importAndVariableDeclarationConflict4.ts")]
-#[case("importAsBaseClass.ts")]
-#[case("importDecl.ts")]
-#[case("importDeclFromTypeNodeInJsSource.ts")]
+#[case("importAsBaseClass.ts")] // NOT RUNNABLE
+#[case("importDecl.ts")] // NOT RUNNABLE
+#[case("importDeclFromTypeNodeInJsSource.ts")] // NOT RUNNABLE
 #[case("importDeclRefereingExternalModuleWithNoResolve.ts")]
-#[case("importDeclTypes.ts")]
+#[case("importDeclTypes.ts")] // NOT RUNNABLE
 #[case("importDeclWithClassModifiers.ts")]
 #[case("importDeclWithDeclareModifier.ts")]
 #[case("importDeclWithDeclareModifierInAmbientContext.ts")]
@@ -2741,69 +2741,69 @@ use typescript_rust::{
 #[case("importDeclWithExportModifierAndExportAssignmentInAmbientContext.ts")]
 #[case("importDeclWithExportModifierInAmbientContext.ts")]
 #[case("importDeclarationInModuleDeclaration1.ts")]
-#[case("importDeclarationNotCheckedAsValueWhenTargetNonValue.ts")]
-#[case("importDeclarationUsedAsTypeQuery.ts")]
-#[case("importEqualsError45874.ts")]
-#[case("importExportInternalComments.ts")]
-#[case("importHelpers.ts")]
-#[case("importHelpersAmd.ts")]
-#[case("importHelpersDeclarations.ts")]
-#[case("importHelpersES6.ts")]
-#[case("importHelpersInAmbientContext.ts")]
-#[case("importHelpersInIsolatedModules.ts")]
-#[case("importHelpersInTsx.tsx")]
-#[case("importHelpersNoHelpers.ts")]
-#[case("importHelpersNoHelpersForAsyncGenerators.ts")]
-#[case("importHelpersNoHelpersForPrivateFields.ts")]
-#[case("importHelpersNoModule.ts")]
-#[case("importHelpersOutFile.ts")]
-#[case("importHelpersSystem.ts")]
-#[case("importHelpersWithExportStarAs.ts")]
-#[case("importHelpersWithImportOrExportDefault.ts")]
-#[case("importHelpersWithImportOrExportDefaultNoTslib.1.ts")]
-#[case("importHelpersWithImportOrExportDefaultNoTslib.2.ts")]
-#[case("importHelpersWithImportOrExportDefaultNoTslib.3.ts")]
-#[case("importHelpersWithImportStarAs.ts")]
-#[case("importHelpersWithLocalCollisions.ts")]
+#[case("importDeclarationNotCheckedAsValueWhenTargetNonValue.ts")] // NOT RUNNABLE
+#[case("importDeclarationUsedAsTypeQuery.ts")] // NOT RUNNABLE
+#[case("importEqualsError45874.ts")] // NOT RUNNABLE
+#[case("importExportInternalComments.ts")] // NOT RUNNABLE
+#[case("importHelpers.ts")] // NOT RUNNABLE
+#[case("importHelpersAmd.ts")] // NOT RUNNABLE
+#[case("importHelpersDeclarations.ts")] // NOT RUNNABLE
+#[case("importHelpersES6.ts")] // NOT RUNNABLE
+#[case("importHelpersInAmbientContext.ts")] // NOT RUNNABLE
+#[case("importHelpersInIsolatedModules.ts")] // NOT RUNNABLE
+#[case("importHelpersInTsx.tsx")] // NOT RUNNABLE
+#[case("importHelpersNoHelpers.ts")] // NOT RUNNABLE
+#[case("importHelpersNoHelpersForAsyncGenerators.ts")] // NOT RUNNABLE
+#[case("importHelpersNoHelpersForPrivateFields.ts")] // NOT RUNNABLE
+#[case("importHelpersNoModule.ts")] // NOT RUNNABLE
+#[case("importHelpersOutFile.ts")] // NOT RUNNABLE
+#[case("importHelpersSystem.ts")] // NOT RUNNABLE
+#[case("importHelpersWithExportStarAs.ts")] // NOT RUNNABLE
+#[case("importHelpersWithImportOrExportDefault.ts")] // NOT RUNNABLE
+#[case("importHelpersWithImportOrExportDefaultNoTslib.1.ts")] // NOT RUNNABLE
+#[case("importHelpersWithImportOrExportDefaultNoTslib.2.ts")] // NOT RUNNABLE
+#[case("importHelpersWithImportOrExportDefaultNoTslib.3.ts")] // NOT RUNNABLE
+#[case("importHelpersWithImportStarAs.ts")] // NOT RUNNABLE
+#[case("importHelpersWithLocalCollisions.ts")] // NOT RUNNABLE
 #[case("importInTypePosition.ts")]
-#[case("importInsideModule.ts")]
-#[case("importNonExportedMember.ts")]
-#[case("importNonExportedMember1.ts")]
-#[case("importNonExportedMember10.ts")]
-#[case("importNonExportedMember11.ts")]
-#[case("importNonExportedMember2.ts")]
-#[case("importNonExportedMember3.ts")]
-#[case("importNonExportedMember4.ts")]
-#[case("importNonExportedMember5.ts")]
-#[case("importNonExportedMember6.ts")]
-#[case("importNonExportedMember7.ts")]
-#[case("importNonExportedMember8.ts")]
-#[case("importNonExportedMember9.ts")]
+#[case("importInsideModule.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember1.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember10.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember11.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember2.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember3.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember4.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember5.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember6.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember7.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember8.ts")] // NOT RUNNABLE
+#[case("importNonExportedMember9.ts")] // NOT RUNNABLE
 #[case("importNotElidedWhenNotFound.ts")]
 #[case("importOnAliasedIdentifiers.ts")]
-#[case("importPropertyFromMappedType.ts")]
-#[case("importShadowsGlobalName.ts")]
-#[case("importShouldNotBeElidedInDeclarationEmit.ts")]
-#[case("importTypeGenericArrowTypeParenthesized.ts")]
-#[case("importTypeResolutionJSDocEOF.ts")]
-#[case("importTypeTypeofClassStaticLookup.ts")]
+#[case("importPropertyFromMappedType.ts")] // NOT RUNNABLE
+#[case("importShadowsGlobalName.ts")] // NOT RUNNABLE
+#[case("importShouldNotBeElidedInDeclarationEmit.ts")] // NOT RUNNABLE
+#[case("importTypeGenericArrowTypeParenthesized.ts")] // NOT RUNNABLE
+#[case("importTypeResolutionJSDocEOF.ts")] // NOT RUNNABLE
+#[case("importTypeTypeofClassStaticLookup.ts")] // NOT RUNNABLE
 #[case("importTypeWithUnparenthesizedGenericFunctionParsed.ts")]
-#[case("importUsedAsTypeWithErrors.ts")]
-#[case("importUsedInExtendsList1.ts")]
-#[case("importUsedInGenericImportResolves.ts")]
-#[case("importWithTrailingSlash.ts")]
-#[case("importWithTrailingSlash_noResolve.ts")]
-#[case("import_reference-exported-alias.ts")]
-#[case("import_reference-to-type-alias.ts")]
-#[case("import_unneeded-require-when-referenecing-aliased-type-throug-array.ts")]
-#[case("import_var-referencing-an-imported-module-alias.ts")]
-#[case("importedAliasesInTypePositions.ts")]
-#[case("importedEnumMemberMergedWithExportedAliasIsError.ts")]
+#[case("importUsedAsTypeWithErrors.ts")] // NOT RUNNABLE
+#[case("importUsedInExtendsList1.ts")] // NOT RUNNABLE
+#[case("importUsedInGenericImportResolves.ts")] // NOT RUNNABLE
+#[case("importWithTrailingSlash.ts")] // NOT RUNNABLE
+#[case("importWithTrailingSlash_noResolve.ts")] // NOT RUNNABLE
+#[case("import_reference-exported-alias.ts")] // NOT RUNNABLE
+#[case("import_reference-to-type-alias.ts")] // NOT RUNNABLE
+#[case("import_unneeded-require-when-referenecing-aliased-type-throug-array.ts")] // NOT RUNNABLE
+#[case("import_var-referencing-an-imported-module-alias.ts")] // NOT RUNNABLE
+#[case("importedAliasesInTypePositions.ts")] // NOT RUNNABLE
+#[case("importedEnumMemberMergedWithExportedAliasIsError.ts")] // NOT RUNNABLE
 #[case("importedModuleAddToGlobal.ts")]
 #[case("importedModuleClassNameClash.ts")]
-#[case("importsInAmbientModules1.ts")]
-#[case("importsInAmbientModules2.ts")]
-#[case("importsInAmbientModules3.ts")]
+#[case("importsInAmbientModules1.ts")] // NOT RUNNABLE
+#[case("importsInAmbientModules2.ts")] // NOT RUNNABLE
+#[case("importsInAmbientModules3.ts")] // NOT RUNNABLE
 #[case("inDoesNotOperateOnPrimitiveTypes.ts")]
 #[case("inKeywordTypeguard.ts")]
 #[case("inOperator.ts")]
@@ -2821,10 +2821,10 @@ use typescript_rust::{
 #[case("incorrectRecursiveMappedTypeConstraint.ts")]
 #[case("incrementOnNullAssertion.ts")]
 #[case("incrementOnTypeParameter.ts")]
-#[case("incrementalConfig.ts")]
+#[case("incrementalConfig.ts")] // NOT RUNNABLE
 #[case("incrementalInvalid.ts")]
 #[case("incrementalOut.ts")]
-#[case("incrementalTsBuildInfoFile.ts")]
+#[case("incrementalTsBuildInfoFile.ts")] // NOT RUNNABLE
 #[case("indexClassByNumber.ts")]
 #[case("indexIntoArraySubclass.ts")]
 #[case("indexIntoEnum.ts")]
@@ -2872,7 +2872,7 @@ use typescript_rust::{
 #[case("indirectSelfReferenceGeneric.ts")]
 #[case("indirectTypeParameterReferences.ts")]
 #[case("indirectUniqueSymbolDeclarationEmit.ts")]
-#[case("inferConditionalConstraintMappedMember.ts")]
+#[case("inferConditionalConstraintMappedMember.ts")] // FAILING
 #[case("inferFromGenericFunctionReturnTypes1.ts")]
 #[case("inferFromGenericFunctionReturnTypes2.ts")]
 #[case("inferFromGenericFunctionReturnTypes3.ts")]
@@ -2888,7 +2888,7 @@ use typescript_rust::{
 #[case("inferenceErasedSignatures.ts")]
 #[case("inferenceFromIncompleteSource.ts")]
 #[case("inferenceFromParameterlessLambda.ts")]
-#[case("inferenceLimit.ts")]
+#[case("inferenceLimit.ts")] // NOT RUNNABLE
 #[case("inferenceOptionalProperties.ts")]
 #[case("inferenceOptionalPropertiesStrict.ts")]
 #[case("inferenceOptionalPropertiesToIndexSignatures.ts")]
@@ -2907,9 +2907,9 @@ use typescript_rust::{
 #[case("inferentialTypingWithObjectLiteralProperties.ts")]
 #[case("inferentiallyTypingAnEmptyArray.ts")]
 #[case("inferredFunctionReturnTypeIsEmptyType.ts")]
-#[case("inferredIndexerOnNamespaceImport.ts")]
+#[case("inferredIndexerOnNamespaceImport.ts")] // NOT RUNNABLE
 #[case("inferredNonidentifierTypesGetQuotes.ts")]
-#[case("inferrenceInfiniteLoopWithSubtyping.ts")]
+#[case("inferrenceInfiniteLoopWithSubtyping.ts")] // NOT RUNNABLE
 #[case("inferringAnyFunctionType1.ts")]
 #[case("inferringAnyFunctionType2.ts")]
 #[case("inferringAnyFunctionType3.ts")]
@@ -2976,14 +2976,14 @@ use typescript_rust::{
 #[case("inheritedStringIndexersFromDifferentBaseTypes2.ts")]
 #[case("initializePropertiesWithRenamedLet.ts")]
 #[case("initializedDestructuringAssignmentTypes.ts")]
-#[case("initializedParameterBeforeNonoptionalNotOptional.ts")]
+#[case("initializedParameterBeforeNonoptionalNotOptional.ts")] // NOT RUNNABLE
 #[case("initializerWithThisPropertyAccess.ts")]
 #[case("initializersInAmbientEnums.ts")]
 #[case("inlineConditionalHasSimilarAssignability.ts")]
 #[case("inlineSourceMap.ts")]
 #[case("inlineSourceMap2.ts")]
-#[case("inlineSources.ts")]
-#[case("inlineSources2.ts")]
+#[case("inlineSources.ts")] // NOT RUNNABLE
+#[case("inlineSources2.ts")] // NOT RUNNABLE
 #[case("inlinedAliasAssignableToConstraintSameAsAlias.ts")]
 #[case("innerAliases.ts")]
 #[case("innerAliases2.ts")]
@@ -2997,7 +2997,7 @@ use typescript_rust::{
 #[case("innerTypeCheckOfLambdaArgument.ts")]
 #[case("instanceAndStaticDeclarations1.ts")]
 #[case("instanceOfAssignability.ts")]
-#[case("instanceOfInExternalModules.ts")]
+#[case("instanceOfInExternalModules.ts")] // NOT RUNNABLE
 #[case("instanceSubtypeCheck1.ts")]
 #[case("instanceSubtypeCheck2.ts")]
 #[case("instanceofNarrowReadonlyArray.ts")]
@@ -3007,7 +3007,7 @@ use typescript_rust::{
 #[case("instantiateConstraintsToTypeArguments2.ts")]
 #[case("instantiateContextualTypes.ts")]
 #[case("instantiateContextuallyTypedGenericThis.ts")]
-#[case("instantiateCrossFileMerge.ts")]
+#[case("instantiateCrossFileMerge.ts")] // NOT RUNNABLE
 #[case("instantiateTypeParameter.ts")]
 #[case("instantiatedBaseTypeConstraints.ts")]
 #[case("instantiatedBaseTypeConstraints2.ts")]
@@ -3047,7 +3047,7 @@ use typescript_rust::{
 #[case("interfaceInheritance2.ts")]
 #[case("interfaceMayNotBeExtendedWitACall.ts")]
 #[case("interfaceMemberValidation.ts")]
-#[case("interfaceMergedUnconstrainedNoErrorIrrespectiveOfOrder.ts")]
+#[case("interfaceMergedUnconstrainedNoErrorIrrespectiveOfOrder.ts")] // NOT RUNNABLE
 #[case("interfaceNameAsIdentifier.ts")]
 #[case("interfaceNaming1.ts")]
 #[case("interfaceOnly.ts")]
@@ -3122,7 +3122,7 @@ use typescript_rust::{
 #[case("intersectionsAndReadonlyProperties.ts")]
 #[case("intersectionsOfLargeUnions.ts")]
 #[case("intersectionsOfLargeUnions2.ts")]
-#[case("intrinsics.ts")]
+#[case("intrinsics.ts")] // FAILING
 #[case("invalidConstraint1.ts")]
 #[case("invalidContinueInDownlevelAsync.ts")]
 #[case("invalidLetInForOfAndForIn_ES5.ts")]
@@ -3132,7 +3132,7 @@ use typescript_rust::{
 #[case("invalidStaticField.ts")]
 #[case("invalidSymbolInTypeParameter1.ts")]
 #[case("invalidThisEmitInContextualObjectLiteral.ts")]
-#[case("invalidTripleSlashReference.ts")]
+#[case("invalidTripleSlashReference.ts")] // FAILING
 #[case("invalidTypeNames.ts")]
 #[case("invalidUnicodeEscapeSequance.ts")]
 #[case("invalidUnicodeEscapeSequance2.ts")]
@@ -3150,228 +3150,228 @@ use typescript_rust::{
 #[case("isDeclarationVisibleNodeKinds.ts")]
 #[case("isLiteral1.ts")]
 #[case("isLiteral2.ts")]
-#[case("isolatedModulesAmbientConstEnum.ts")]
-#[case("isolatedModulesDeclaration.ts")]
-#[case("isolatedModulesDontElideReExportStar.ts")]
-#[case("isolatedModulesES6.ts")]
-#[case("isolatedModulesImportConstEnum.ts")]
-#[case("isolatedModulesImportConstEnumTypeOnly.ts")]
-#[case("isolatedModulesImportExportElision.ts")]
-#[case("isolatedModulesNoEmitOnError.ts")]
-#[case("isolatedModulesNoExternalModule.ts")]
-#[case("isolatedModulesNonAmbientConstEnum.ts")]
-#[case("isolatedModulesOut.ts")]
+#[case("isolatedModulesAmbientConstEnum.ts")] // NOT RUNNABLE
+#[case("isolatedModulesDeclaration.ts")] // NOT RUNNABLE
+#[case("isolatedModulesDontElideReExportStar.ts")] // NOT RUNNABLE
+#[case("isolatedModulesES6.ts")] // NOT RUNNABLE
+#[case("isolatedModulesImportConstEnum.ts")] // NOT RUNNABLE
+#[case("isolatedModulesImportConstEnumTypeOnly.ts")] // NOT RUNNABLE
+#[case("isolatedModulesImportExportElision.ts")] // NOT RUNNABLE
+#[case("isolatedModulesNoEmitOnError.ts")] // NOT RUNNABLE
+#[case("isolatedModulesNoExternalModule.ts")] // NOT RUNNABLE
+#[case("isolatedModulesNonAmbientConstEnum.ts")] // NOT RUNNABLE
+#[case("isolatedModulesOut.ts")] // NOT RUNNABLE
 #[case("isolatedModulesPlainFile-AMD.ts")]
 #[case("isolatedModulesPlainFile-CommonJS.ts")]
 #[case("isolatedModulesPlainFile-ES6.ts")]
 #[case("isolatedModulesPlainFile-System.ts")]
 #[case("isolatedModulesPlainFile-UMD.ts")]
-#[case("isolatedModulesReExportType.ts")]
-#[case("isolatedModulesRequiresPreserveConstEnum.ts")]
-#[case("isolatedModulesSourceMap.ts")]
-#[case("isolatedModulesSpecifiedModule.ts")]
-#[case("isolatedModulesUnspecifiedModule.ts")]
-#[case("isolatedModulesWithDeclarationFile.ts")]
-#[case("isolatedModules_resolveJsonModule.ts")]
-#[case("isolatedModules_resolveJsonModule_strict_outDir_commonJs.ts")]
+#[case("isolatedModulesReExportType.ts")] // NOT RUNNABLE
+#[case("isolatedModulesRequiresPreserveConstEnum.ts")] // NOT RUNNABLE
+#[case("isolatedModulesSourceMap.ts")] // NOT RUNNABLE
+#[case("isolatedModulesSpecifiedModule.ts")] // NOT RUNNABLE
+#[case("isolatedModulesUnspecifiedModule.ts")] // NOT RUNNABLE
+#[case("isolatedModulesWithDeclarationFile.ts")] // NOT RUNNABLE
+#[case("isolatedModules_resolveJsonModule.ts")] // NOT RUNNABLE
+#[case("isolatedModules_resolveJsonModule_strict_outDir_commonJs.ts")] // NOT RUNNABLE
 #[case("iteratorsAndStrictNullChecks.ts")]
-#[case("javascriptCommonjsModule.ts")]
-#[case("javascriptDefinePropertyPrototypeNonConstructor.ts")]
-#[case("javascriptImportDefaultBadExport.ts")]
-#[case("javascriptThisAssignmentInStaticBlock.ts")]
+#[case("javascriptCommonjsModule.ts")] // NOT RUNNABLE
+#[case("javascriptDefinePropertyPrototypeNonConstructor.ts")] // NOT RUNNABLE
+#[case("javascriptImportDefaultBadExport.ts")] // NOT RUNNABLE
+#[case("javascriptThisAssignmentInStaticBlock.ts")] // NOT RUNNABLE
 #[case("jqueryInference.ts")]
-#[case("jsCheckObjectDefineThisNoCrash.ts")]
-#[case("jsDeclarationsWithDefaultAsNamespaceLikeMerge.ts")]
-#[case("jsElementAccessNoContextualTypeCrash.ts")]
-#[case("jsEmitIntersectionProperty.ts")]
-#[case("jsEnumCrossFileExport.ts")]
-#[case("jsEnumFunctionLocalNoCrash.ts")]
-#[case("jsEnumTagOnObjectFrozen.ts")]
-#[case("jsExpandoObjectDefineProperty.ts")]
-#[case("jsExportMemberMergedWithModuleAugmentation.ts")]
-#[case("jsExportMemberMergedWithModuleAugmentation2.ts")]
-#[case("jsExportMemberMergedWithModuleAugmentation3.ts")]
-#[case("jsExtendsImplicitAny.ts")]
-#[case("jsFileClassPropertyInitalizationInObjectLiteral.ts")]
-#[case("jsFileClassPropertyType.ts")]
-#[case("jsFileClassPropertyType2.ts")]
-#[case("jsFileClassPropertyType3.ts")]
-#[case("jsFileClassSelfReferencedProperty.ts")]
-#[case("jsFileCompilationAbstractModifier.ts")]
-#[case("jsFileCompilationAmbientVarDeclarationSyntax.ts")]
-#[case("jsFileCompilationAwaitModifier.ts")]
-#[case("jsFileCompilationBindDeepExportsAssignment.ts")]
-#[case("jsFileCompilationBindDuplicateIdentifier.ts")]
-#[case("jsFileCompilationBindErrors.ts")]
-#[case("jsFileCompilationBindMultipleDefaultExports.ts")]
-#[case("jsFileCompilationBindReachabilityErrors.ts")]
-#[case("jsFileCompilationBindStrictModeErrors.ts")]
-#[case("jsFileCompilationClassMethodContainingArrowFunction.ts")]
-#[case("jsFileCompilationConstModifier.ts")]
-#[case("jsFileCompilationDecoratorSyntax.ts")]
-#[case("jsFileCompilationDuplicateFunctionImplementation.ts")]
-#[case("jsFileCompilationDuplicateFunctionImplementationFileOrderReversed.ts")]
-#[case("jsFileCompilationDuplicateVariable.ts")]
-#[case("jsFileCompilationDuplicateVariableErrorReported.ts")]
-#[case("jsFileCompilationEmitBlockedCorrectly.ts")]
-#[case("jsFileCompilationEmitDeclarations.ts")]
-#[case("jsFileCompilationEmitTrippleSlashReference.ts")]
-#[case("jsFileCompilationEnumSyntax.ts")]
-#[case("jsFileCompilationErrorOnDeclarationsWithJsFileReferenceWithNoOut.ts")]
-#[case("jsFileCompilationErrorOnDeclarationsWithJsFileReferenceWithOut.ts")]
-#[case("jsFileCompilationErrorOnDeclarationsWithJsFileReferenceWithOutDir.ts")]
-#[case("jsFileCompilationExportAssignmentSyntax.ts")]
-#[case("jsFileCompilationExternalPackageError.ts")]
-#[case("jsFileCompilationHeritageClauseSyntaxOfClass.ts")]
-#[case("jsFileCompilationImportEqualsSyntax.ts")]
-#[case("jsFileCompilationInterfaceSyntax.ts")]
-#[case("jsFileCompilationLetBeingRenamed.ts")]
-#[case("jsFileCompilationLetDeclarationOrder.ts")]
-#[case("jsFileCompilationLetDeclarationOrder2.ts")]
-#[case("jsFileCompilationModuleSyntax.ts")]
-#[case("jsFileCompilationNoErrorWithoutDeclarationsWithJsFileReferenceWithNoOut.ts")]
-#[case("jsFileCompilationNoErrorWithoutDeclarationsWithJsFileReferenceWithOut.ts")]
-#[case("jsFileCompilationNonNullAssertion.ts")]
-#[case("jsFileCompilationOptionalClassElementSyntaxOfClass.ts")]
-#[case("jsFileCompilationOptionalParameter.ts")]
-#[case("jsFileCompilationPublicMethodSyntaxOfClass.ts")]
-#[case("jsFileCompilationPublicParameterModifier.ts")]
-#[case("jsFileCompilationRestParamJsDocFunction.ts")]
-#[case("jsFileCompilationRestParameter.ts")]
-#[case("jsFileCompilationReturnTypeSyntaxOfFunction.ts")]
-#[case("jsFileCompilationShortHandProperty.ts")]
-#[case("jsFileCompilationSyntaxError.ts")]
-#[case("jsFileCompilationTypeAliasSyntax.ts")]
-#[case("jsFileCompilationTypeArgumentSyntaxOfCall.ts")]
-#[case("jsFileCompilationTypeAssertions.ts")]
-#[case("jsFileCompilationTypeOfParameter.ts")]
-#[case("jsFileCompilationTypeParameterSyntaxOfClass.ts")]
-#[case("jsFileCompilationTypeParameterSyntaxOfClassExpression.ts")]
-#[case("jsFileCompilationTypeParameterSyntaxOfFunction.ts")]
-#[case("jsFileCompilationTypeSyntaxOfVar.ts")]
-#[case("jsFileCompilationWithDeclarationEmitPathSameAsInput.ts")]
-#[case("jsFileCompilationWithEnabledCompositeOption.ts")]
-#[case("jsFileCompilationWithJsEmitPathSameAsInput.ts")]
-#[case("jsFileCompilationWithMapFileAsJs.ts")]
-#[case("jsFileCompilationWithMapFileAsJsWithInlineSourceMap.ts")]
-#[case("jsFileCompilationWithMapFileAsJsWithOutDir.ts")]
-#[case("jsFileCompilationWithOut.ts")]
-#[case("jsFileCompilationWithOutDeclarationFileNameSameAsInputJsFile.ts")]
-#[case("jsFileCompilationWithOutFileNameSameAsInputJsFile.ts")]
-#[case("jsFileCompilationWithoutJsExtensions.ts")]
-#[case("jsFileCompilationWithoutOut.ts")]
-#[case("jsFileESModuleWithEnumTag.ts")]
-#[case("jsFileFunctionParametersAsOptional.ts")]
-#[case("jsFileFunctionParametersAsOptional2.ts")]
-#[case("jsFileImportPreservedWhenUsed.ts")]
-#[case("jsFunctionWithPrototypeNoErrorTruncationNoCrash.ts")]
-#[case("jsNegativeElementAccessNotBound.ts")]
-#[case("jsNoImplicitAnyNoCascadingReferenceErrors.ts")]
-#[case("jsPropertyAssignedAfterMethodDeclaration.ts")]
-#[case("jsPropertyAssignedAfterMethodDeclaration_nonError.ts")]
-#[case("jsSelfReferencingArgumentsFunction.ts")]
-#[case("jsdocAccessEnumType.ts")]
-#[case("jsdocArrayObjectPromiseImplicitAny.ts")]
-#[case("jsdocArrayObjectPromiseNoImplicitAny.ts")]
-#[case("jsdocCallbackAndType.ts")]
+#[case("jsCheckObjectDefineThisNoCrash.ts")] // NOT RUNNABLE
+#[case("jsDeclarationsWithDefaultAsNamespaceLikeMerge.ts")] // NOT RUNNABLE
+#[case("jsElementAccessNoContextualTypeCrash.ts")] // NOT RUNNABLE
+#[case("jsEmitIntersectionProperty.ts")] // NOT RUNNABLE
+#[case("jsEnumCrossFileExport.ts")] // NOT RUNNABLE
+#[case("jsEnumFunctionLocalNoCrash.ts")] // NOT RUNNABLE
+#[case("jsEnumTagOnObjectFrozen.ts")] // NOT RUNNABLE
+#[case("jsExpandoObjectDefineProperty.ts")] // NOT RUNNABLE
+#[case("jsExportMemberMergedWithModuleAugmentation.ts")] // NOT RUNNABLE
+#[case("jsExportMemberMergedWithModuleAugmentation2.ts")] // NOT RUNNABLE
+#[case("jsExportMemberMergedWithModuleAugmentation3.ts")] // NOT RUNNABLE
+#[case("jsExtendsImplicitAny.ts")] // NOT RUNNABLE
+#[case("jsFileClassPropertyInitalizationInObjectLiteral.ts")] // NOT RUNNABLE
+#[case("jsFileClassPropertyType.ts")] // NOT RUNNABLE
+#[case("jsFileClassPropertyType2.ts")] // NOT RUNNABLE
+#[case("jsFileClassPropertyType3.ts")] // NOT RUNNABLE
+#[case("jsFileClassSelfReferencedProperty.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationAbstractModifier.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationAmbientVarDeclarationSyntax.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationAwaitModifier.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationBindDeepExportsAssignment.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationBindDuplicateIdentifier.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationBindErrors.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationBindMultipleDefaultExports.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationBindReachabilityErrors.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationBindStrictModeErrors.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationClassMethodContainingArrowFunction.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationConstModifier.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationDecoratorSyntax.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationDuplicateFunctionImplementation.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationDuplicateFunctionImplementationFileOrderReversed.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationDuplicateVariable.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationDuplicateVariableErrorReported.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationEmitBlockedCorrectly.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationEmitDeclarations.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationEmitTrippleSlashReference.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationEnumSyntax.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationErrorOnDeclarationsWithJsFileReferenceWithNoOut.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationErrorOnDeclarationsWithJsFileReferenceWithOut.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationErrorOnDeclarationsWithJsFileReferenceWithOutDir.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationExportAssignmentSyntax.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationExternalPackageError.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationHeritageClauseSyntaxOfClass.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationImportEqualsSyntax.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationInterfaceSyntax.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationLetBeingRenamed.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationLetDeclarationOrder.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationLetDeclarationOrder2.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationModuleSyntax.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationNoErrorWithoutDeclarationsWithJsFileReferenceWithNoOut.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationNoErrorWithoutDeclarationsWithJsFileReferenceWithOut.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationNonNullAssertion.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationOptionalClassElementSyntaxOfClass.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationOptionalParameter.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationPublicMethodSyntaxOfClass.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationPublicParameterModifier.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationRestParamJsDocFunction.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationRestParameter.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationReturnTypeSyntaxOfFunction.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationShortHandProperty.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationSyntaxError.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationTypeAliasSyntax.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationTypeArgumentSyntaxOfCall.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationTypeAssertions.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationTypeOfParameter.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationTypeParameterSyntaxOfClass.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationTypeParameterSyntaxOfClassExpression.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationTypeParameterSyntaxOfFunction.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationTypeSyntaxOfVar.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithDeclarationEmitPathSameAsInput.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithEnabledCompositeOption.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithJsEmitPathSameAsInput.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithMapFileAsJs.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithMapFileAsJsWithInlineSourceMap.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithMapFileAsJsWithOutDir.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithOut.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithOutDeclarationFileNameSameAsInputJsFile.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithOutFileNameSameAsInputJsFile.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithoutJsExtensions.ts")] // NOT RUNNABLE
+#[case("jsFileCompilationWithoutOut.ts")] // NOT RUNNABLE
+#[case("jsFileESModuleWithEnumTag.ts")] // NOT RUNNABLE
+#[case("jsFileFunctionParametersAsOptional.ts")] // NOT RUNNABLE
+#[case("jsFileFunctionParametersAsOptional2.ts")] // NOT RUNNABLE
+#[case("jsFileImportPreservedWhenUsed.ts")] // NOT RUNNABLE
+#[case("jsFunctionWithPrototypeNoErrorTruncationNoCrash.ts")] // NOT RUNNABLE
+#[case("jsNegativeElementAccessNotBound.ts")] // NOT RUNNABLE
+#[case("jsNoImplicitAnyNoCascadingReferenceErrors.ts")] // NOT RUNNABLE
+#[case("jsPropertyAssignedAfterMethodDeclaration.ts")] // NOT RUNNABLE
+#[case("jsPropertyAssignedAfterMethodDeclaration_nonError.ts")] // NOT RUNNABLE
+#[case("jsSelfReferencingArgumentsFunction.ts")] // NOT RUNNABLE
+#[case("jsdocAccessEnumType.ts")] // NOT RUNNABLE
+#[case("jsdocArrayObjectPromiseImplicitAny.ts")] // NOT RUNNABLE
+#[case("jsdocArrayObjectPromiseNoImplicitAny.ts")] // NOT RUNNABLE
+#[case("jsdocCallbackAndType.ts")] // NOT RUNNABLE
 #[case("jsdocCastCommentEmit.ts")]
-#[case("jsdocClassMissingTypeArguments.ts")]
-#[case("jsdocFunctionTypeFalsePositive.ts")]
-#[case("jsdocIllegalTags.ts")]
-#[case("jsdocImportTypeNodeNamespace.ts")]
-#[case("jsdocImportTypeResolution.ts")]
+#[case("jsdocClassMissingTypeArguments.ts")] // NOT RUNNABLE
+#[case("jsdocFunctionTypeFalsePositive.ts")] // NOT RUNNABLE
+#[case("jsdocIllegalTags.ts")] // NOT RUNNABLE
+#[case("jsdocImportTypeNodeNamespace.ts")] // NOT RUNNABLE
+#[case("jsdocImportTypeResolution.ts")] // NOT RUNNABLE
 #[case("jsdocInTypeScript.ts")]
-#[case("jsdocParamTagInvalid.ts")]
-#[case("jsdocParamTagOnPropertyInitializer.ts")]
-#[case("jsdocParameterParsingInfiniteLoop.ts")]
-#[case("jsdocParameterParsingInvalidName.ts")]
-#[case("jsdocPropertyTagInvalid.ts")]
-#[case("jsdocReferenceGlobalTypeInCommonJs.ts")]
-#[case("jsdocResolveNameFailureInTypedef.ts")]
-#[case("jsdocRestParameter.ts")]
-#[case("jsdocRestParameter_es6.ts")]
-#[case("jsdocTypeCast.ts")]
-#[case("jsdocTypeGenericInstantiationAttempt.ts")]
-#[case("jsdocTypeNongenericInstantiationAttempt.ts")]
-#[case("jsdocTypecastNoTypeNoCrash.ts")]
-#[case("jsdocTypedefBeforeParenthesizedExpression.ts")]
-#[case("jsdocTypedefMissingType.ts")]
-#[case("jsdocTypedefNoCrash.ts")]
-#[case("jsdocTypedefNoCrash2.ts")]
-#[case("jsdocTypedef_propertyWithNoType.ts")]
-#[case("jsdocUnexpectedCharacter.ts")]
+#[case("jsdocParamTagInvalid.ts")] // NOT RUNNABLE
+#[case("jsdocParamTagOnPropertyInitializer.ts")] // NOT RUNNABLE
+#[case("jsdocParameterParsingInfiniteLoop.ts")] // NOT RUNNABLE
+#[case("jsdocParameterParsingInvalidName.ts")] // NOT RUNNABLE
+#[case("jsdocPropertyTagInvalid.ts")] // NOT RUNNABLE
+#[case("jsdocReferenceGlobalTypeInCommonJs.ts")] // NOT RUNNABLE
+#[case("jsdocResolveNameFailureInTypedef.ts")] // NOT RUNNABLE
+#[case("jsdocRestParameter.ts")] // NOT RUNNABLE
+#[case("jsdocRestParameter_es6.ts")] // NOT RUNNABLE
+#[case("jsdocTypeCast.ts")] // NOT RUNNABLE
+#[case("jsdocTypeGenericInstantiationAttempt.ts")] // NOT RUNNABLE
+#[case("jsdocTypeNongenericInstantiationAttempt.ts")] // NOT RUNNABLE
+#[case("jsdocTypecastNoTypeNoCrash.ts")] // NOT RUNNABLE
+#[case("jsdocTypedefBeforeParenthesizedExpression.ts")] // NOT RUNNABLE
+#[case("jsdocTypedefMissingType.ts")] // NOT RUNNABLE
+#[case("jsdocTypedefNoCrash.ts")] // NOT RUNNABLE
+#[case("jsdocTypedefNoCrash2.ts")] // NOT RUNNABLE
+#[case("jsdocTypedef_propertyWithNoType.ts")] // NOT RUNNABLE
+#[case("jsdocUnexpectedCharacter.ts")] // NOT RUNNABLE
 #[case("json.stringify.ts")]
-#[case("jsonFileImportChecksCallCorrectlyTwice.ts")]
+#[case("jsonFileImportChecksCallCorrectlyTwice.ts")] // NOT RUNNABLE
 #[case("jsxAttributeMissingInitializer.tsx")]
 #[case("jsxAttributeWithoutExpressionReact.tsx")]
-#[case("jsxCallElaborationCheckNoCrash1.tsx")]
+#[case("jsxCallElaborationCheckNoCrash1.tsx")] // NOT RUNNABLE on .lib directive
 #[case("jsxCallbackWithDestructuring.tsx")]
 #[case("jsxChildrenGenericContextualTypes.tsx")]
-#[case("jsxChildrenIndividualErrorElaborations.tsx")]
-#[case("jsxChildrenSingleChildConfusableWithMultipleChildrenNoError.tsx")]
-#[case("jsxComplexSignatureHasApplicabilityError.tsx")]
+#[case("jsxChildrenIndividualErrorElaborations.tsx")] // NOT RUNNABLE
+#[case("jsxChildrenSingleChildConfusableWithMultipleChildrenNoError.tsx")] // NOT RUNNABLE on .lib directive
+#[case("jsxComplexSignatureHasApplicabilityError.tsx")] // NOT RUNNABLE on .lib directive
 #[case("jsxComponentTypeErrors.tsx")]
-#[case("jsxDeclarationsWithEsModuleInteropNoCrash.tsx")]
+#[case("jsxDeclarationsWithEsModuleInteropNoCrash.tsx")] // NOT RUNNABLE
 #[case("jsxElementClassTooManyParams.tsx")]
 #[case("jsxEmitAttributeWithPreserve.tsx")]
-#[case("jsxEmitWithAttributes.ts")]
-#[case("jsxEmptyExpressionNotCountedAsChild.tsx")]
-#[case("jsxExcessPropsAndAssignability.tsx")]
+#[case("jsxEmitWithAttributes.ts")] // NOT RUNNABLE
+#[case("jsxEmptyExpressionNotCountedAsChild.tsx")] // NOT RUNNABLE
+#[case("jsxExcessPropsAndAssignability.tsx")] // NOT RUNNABLE on .lib directive
 #[case("jsxFactoryAndJsxFragmentFactory.tsx")]
-#[case("jsxFactoryAndJsxFragmentFactoryErrorNotIdentifier.tsx")]
+#[case("jsxFactoryAndJsxFragmentFactoryErrorNotIdentifier.tsx")] // FAILING
 #[case("jsxFactoryAndJsxFragmentFactoryNull.tsx")]
-#[case("jsxFactoryAndReactNamespace.ts")]
+#[case("jsxFactoryAndReactNamespace.ts")] // NOT RUNNABLE
 #[case("jsxFactoryButNoJsxFragmentFactory.tsx")]
-#[case("jsxFactoryIdentifier.ts")]
-#[case("jsxFactoryIdentifierAsParameter.ts")]
-#[case("jsxFactoryIdentifierWithAbsentParameter.ts")]
-#[case("jsxFactoryMissingErrorInsideAClass.ts")]
-#[case("jsxFactoryNotIdentifierOrQualifiedName.ts")]
-#[case("jsxFactoryNotIdentifierOrQualifiedName2.ts")]
-#[case("jsxFactoryQualifiedName.ts")]
-#[case("jsxFactoryQualifiedNameResolutionError.ts")]
-#[case("jsxFactoryQualifiedNameWithEs5.ts")]
-#[case("jsxFragmentFactoryNoUnusedLocals.tsx")]
-#[case("jsxHasLiteralType.tsx")]
+#[case("jsxFactoryIdentifier.ts")] // NOT RUNNABLE
+#[case("jsxFactoryIdentifierAsParameter.ts")] // NOT RUNNABLE
+#[case("jsxFactoryIdentifierWithAbsentParameter.ts")] // NOT RUNNABLE
+#[case("jsxFactoryMissingErrorInsideAClass.ts")] // NOT RUNNABLE
+#[case("jsxFactoryNotIdentifierOrQualifiedName.ts")] // NOT RUNNABLE
+#[case("jsxFactoryNotIdentifierOrQualifiedName2.ts")] // NOT RUNNABLE
+#[case("jsxFactoryQualifiedName.ts")] // NOT RUNNABLE
+#[case("jsxFactoryQualifiedNameResolutionError.ts")] // NOT RUNNABLE
+#[case("jsxFactoryQualifiedNameWithEs5.ts")] // NOT RUNNABLE
+#[case("jsxFragmentFactoryNoUnusedLocals.tsx")] // NOT RUNNABLE on .lib directive
+#[case("jsxHasLiteralType.tsx")] // NOT RUNNABLE
 #[case("jsxHash.tsx")]
-#[case("jsxImportForSideEffectsNonExtantNoError.tsx")]
-#[case("jsxImportInAttribute.tsx")]
+#[case("jsxImportForSideEffectsNonExtantNoError.tsx")] // NOT RUNNABLE on .lib directive
+#[case("jsxImportInAttribute.tsx")] // NOT RUNNABLE
 #[case("jsxImportSourceNonPragmaComment.tsx")]
 #[case("jsxInExtendsClause.tsx")]
-#[case("jsxInferenceProducesLiteralAsExpected.tsx")]
-#[case("jsxIntrinsicElementsExtendsRecord.tsx")]
-#[case("jsxIntrinsicElementsTypeArgumentErrors.tsx")]
-#[case("jsxIntrinsicUnions.tsx")]
-#[case("jsxIssuesErrorWhenTagExpectsTooManyArguments.tsx")]
+#[case("jsxInferenceProducesLiteralAsExpected.tsx")] // NOT RUNNABLE
+#[case("jsxIntrinsicElementsExtendsRecord.tsx")] // NOT RUNNABLE
+#[case("jsxIntrinsicElementsTypeArgumentErrors.tsx")] // NOT RUNNABLE on .lib directive
+#[case("jsxIntrinsicUnions.tsx")] // NOT RUNNABLE on .lib directive
+#[case("jsxIssuesErrorWhenTagExpectsTooManyArguments.tsx")] // NOT RUNNABLE on .lib directive
 #[case("jsxLibraryManagedAttributesUnusedGeneric.tsx")]
-#[case("jsxLocalNamespaceIndexSignatureNoCrash.tsx")]
+#[case("jsxLocalNamespaceIndexSignatureNoCrash.tsx")] // NOT RUNNABLE
 #[case("jsxMultilineAttributeStringValues.tsx")]
 #[case("jsxMultilineAttributeValuesReact.tsx")]
-#[case("jsxNamespaceGlobalReexport.tsx")]
-#[case("jsxNamespaceGlobalReexportMissingAliasTarget.tsx")]
-#[case("jsxNamespaceImplicitImportJSXNamespace.tsx")]
-#[case("jsxNamespaceImplicitImportJSXNamespaceFromConfigPickedOverGlobalOne.tsx")]
-#[case("jsxNamespaceImplicitImportJSXNamespaceFromPragmaPickedOverGlobalOne.tsx")]
+#[case("jsxNamespaceGlobalReexport.tsx")] // NOT RUNNABLE
+#[case("jsxNamespaceGlobalReexportMissingAliasTarget.tsx")] // NOT RUNNABLE
+#[case("jsxNamespaceImplicitImportJSXNamespace.tsx")] // NOT RUNNABLE
+#[case("jsxNamespaceImplicitImportJSXNamespaceFromConfigPickedOverGlobalOne.tsx")] // NOT RUNNABLE
+#[case("jsxNamespaceImplicitImportJSXNamespaceFromPragmaPickedOverGlobalOne.tsx")] // NOT RUNNABLE
 #[case("jsxNamespacePrefixInName.tsx")]
 #[case("jsxNamespacePrefixInNameReact.tsx")]
 #[case("jsxNamespacePrefixIntrinsics.tsx")]
-#[case("jsxNamespaceReexports.tsx")]
+#[case("jsxNamespaceReexports.tsx")] // NOT RUNNABLE
 #[case("jsxNestedWithinTernaryParsesCorrectly.tsx")]
-#[case("jsxPartialSpread.tsx")]
-#[case("jsxPreserveWithJsInput.ts")]
-#[case("jsxPropsAsIdentifierNames.tsx")]
-#[case("jsxSpreadFirstUnionNoErrors.tsx")]
-#[case("jsxViaImport.2.tsx")]
-#[case("jsxViaImport.tsx")]
-#[case("keepImportsInDts1.ts")]
-#[case("keepImportsInDts2.ts")]
-#[case("keepImportsInDts3.ts")]
-#[case("keepImportsInDts4.ts")]
+#[case("jsxPartialSpread.tsx")] // NOT RUNNABLE on .lib directive
+#[case("jsxPreserveWithJsInput.ts")] // NOT RUNNABLE
+#[case("jsxPropsAsIdentifierNames.tsx")] // NOT RUNNABLE
+#[case("jsxSpreadFirstUnionNoErrors.tsx")] // NOT RUNNABLE
+#[case("jsxViaImport.2.tsx")] // NOT RUNNABLE
+#[case("jsxViaImport.tsx")] // NOT RUNNABLE
+#[case("keepImportsInDts1.ts")] // NOT RUNNABLE
+#[case("keepImportsInDts2.ts")] // NOT RUNNABLE
+#[case("keepImportsInDts3.ts")] // NOT RUNNABLE
+#[case("keepImportsInDts4.ts")] // NOT RUNNABLE
 #[case("keyRemappingKeyofResult.ts")]
 #[case("keyofDoesntContainSymbols.ts")]
 #[case("keyofGenericExtendingClassDoubleLayer.ts")]
 #[case("keyofIsLiteralContexualType.ts")]
-#[case("keyofModuleObjectHasCorrectKeys.ts")]
+#[case("keyofModuleObjectHasCorrectKeys.ts")] // NOT RUNNABLE
 #[case("keyofObjectWithGlobalSymbolIncluded.ts")]
 #[case("keywordExpressionInternalComments.ts")]
 #[case("keywordField.ts")]
@@ -3387,8 +3387,8 @@ use typescript_rust::{
 #[case("lastPropertyInLiteralWins.ts")]
 #[case("lateBoundConstraintTypeChecksCorrectly.ts")]
 #[case("lateBoundDestructuringImplicitAnyError.ts")]
-#[case("lateBoundFunctionMemberAssignmentDeclarations.ts")]
-#[case("lateBoundMethodNameAssigmentJS.ts")]
+#[case("lateBoundFunctionMemberAssignmentDeclarations.ts")] // NOT RUNNABLE
+#[case("lateBoundMethodNameAssigmentJS.ts")] // NOT RUNNABLE
 #[case("letAndVarRedeclaration.ts")]
 #[case("letAsIdentifier.ts")]
 #[case("letAsIdentifier2.ts")]
@@ -3400,16 +3400,16 @@ use typescript_rust::{
 #[case("letDeclarations-es5.ts")]
 #[case("letDeclarations-invalidContexts.ts")]
 #[case("letDeclarations-scopes-duplicates.ts")]
-#[case("letDeclarations-scopes-duplicates2.ts")]
-#[case("letDeclarations-scopes-duplicates3.ts")]
-#[case("letDeclarations-scopes-duplicates4.ts")]
-#[case("letDeclarations-scopes-duplicates5.ts")]
-#[case("letDeclarations-scopes-duplicates6.ts")]
-#[case("letDeclarations-scopes-duplicates7.ts")]
+#[case("letDeclarations-scopes-duplicates2.ts")] // NOT RUNNABLE
+#[case("letDeclarations-scopes-duplicates3.ts")] // NOT RUNNABLE
+#[case("letDeclarations-scopes-duplicates4.ts")] // NOT RUNNABLE
+#[case("letDeclarations-scopes-duplicates5.ts")] // NOT RUNNABLE
+#[case("letDeclarations-scopes-duplicates6.ts")] // NOT RUNNABLE
+#[case("letDeclarations-scopes-duplicates7.ts")] // NOT RUNNABLE
 #[case("letDeclarations-scopes.ts")]
 #[case("letDeclarations-scopes2.ts")]
 #[case("letDeclarations-useBeforeDefinition.ts")]
-#[case("letDeclarations-useBeforeDefinition2.ts")]
+#[case("letDeclarations-useBeforeDefinition2.ts")] // NOT RUNNABLE
 #[case("letDeclarations-validContexts.ts")]
 #[case("letDeclarations.ts")]
 #[case("letDeclarations2.ts")]
@@ -3428,8 +3428,8 @@ use typescript_rust::{
 #[case("letShadowedByNameInNestedScope.ts")]
 #[case("libCompileChecks.ts")]
 #[case("libMembers.ts")]
-#[case("libTypeScriptOverrideSimple.ts")]
-#[case("libTypeScriptSubfileResolving.ts")]
+#[case("libTypeScriptOverrideSimple.ts")] // NOT RUNNABLE
+#[case("libTypeScriptSubfileResolving.ts")] // NOT RUNNABLE
 #[case("libdtsFix.ts")]
 #[case("library_ArraySlice.ts")]
 #[case("library_DatePrototypeProperties.ts")]
@@ -3437,19 +3437,19 @@ use typescript_rust::{
 #[case("library_RegExpExecArraySlice.ts")]
 #[case("library_StringSlice.ts")]
 #[case("lift.ts")]
-#[case("limitDeepInstantiations.ts")]
+#[case("limitDeepInstantiations.ts")] // FAILING on borrow error
 #[case("listFailure.ts")]
 #[case("literalFreshnessPropagationOnNarrowing.ts")]
 #[case("literalIntersectionYieldsLiteral.ts")]
-#[case("literalTypeNameAssertionNotTriggered.ts")]
+#[case("literalTypeNameAssertionNotTriggered.ts")] // NOT RUNNABLE
 #[case("literals-negative.ts")]
 #[case("literals1.ts")]
 #[case("literalsInComputedProperties1.ts")]
-#[case("localAliasExportAssignment.ts")]
+#[case("localAliasExportAssignment.ts")] // NOT RUNNABLE
 #[case("localClassesInLoop.ts")]
 #[case("localClassesInLoop_ES6.ts")]
 #[case("localImportNameVsGlobalName.ts")]
-#[case("localRequireFunction.ts")]
+#[case("localRequireFunction.ts")] // NOT RUNNABLE
 #[case("localTypeParameterInferencePriority.ts")]
 #[case("localVariablesReturnedFromCatchBlocks.ts")]
 #[case("logicalNotExpression1.ts")]
@@ -3466,38 +3466,38 @@ use typescript_rust::{
 #[case("mappedTypeInferenceCircularity.ts")]
 #[case("mappedTypeMultiInference.ts")]
 #[case("mappedTypeNestedGenericInstantiation.ts")]
-#[case("mappedTypeNoTypeNoCrash.ts")]
+#[case("mappedTypeNoTypeNoCrash.ts")] // OUT OF SCOPE transformation error
 #[case("mappedTypeParameterConstraint.ts")]
 #[case("mappedTypePartialConstraints.ts")]
 #[case("mappedTypePartialNonHomomorphicBaseConstraint.ts")]
-#[case("mappedTypeRecursiveInference.ts")]
+#[case("mappedTypeRecursiveInference.ts")] // FAILING on borrow error
 #[case("mappedTypeUnionConstraintInferences.ts")]
 #[case("mappedTypeWithAsClauseAndLateBoundProperty.ts")]
-#[case("mappedTypeWithAsClauseAndLateBoundProperty2.ts")]
+#[case("mappedTypeWithAsClauseAndLateBoundProperty2.ts")] // OUT OF SCOPE transformation error
 #[case("mappedTypeWithCombinedTypeMappers.ts")]
 #[case("matchReturnTypeInAllBranches.ts")]
 #[case("matchingOfObjectLiteralConstraints.ts")]
 #[case("maxConstraints.ts")]
-#[case("maxNodeModuleJsDepthDefaultsToZero.ts")]
+#[case("maxNodeModuleJsDepthDefaultsToZero.ts")] // NOT RUNNABLE
 #[case("maximum10SpellingSuggestions.ts")]
-#[case("memberAccessMustUseModuleInstances.ts")]
+#[case("memberAccessMustUseModuleInstances.ts")] // NOT RUNNABLE
 #[case("memberAccessOnConstructorType.ts")]
 #[case("memberOverride.ts")]
 #[case("memberScope.ts")]
 #[case("memberVariableDeclarations1.ts")]
-#[case("mergeWithImportedNamespace.ts")]
-#[case("mergeWithImportedType.ts")]
-#[case("mergedClassWithNamespacePrototype.ts")]
+#[case("mergeWithImportedNamespace.ts")] // NOT RUNNABLE
+#[case("mergeWithImportedType.ts")] // NOT RUNNABLE
+#[case("mergedClassWithNamespacePrototype.ts")] // NOT RUNNABLE
 #[case("mergedDeclarationExports.ts")]
 #[case("mergedDeclarations1.ts")]
 #[case("mergedDeclarations2.ts")]
 #[case("mergedDeclarations3.ts")]
 #[case("mergedDeclarations4.ts")]
-#[case("mergedDeclarations5.ts")]
-#[case("mergedDeclarations6.ts")]
-#[case("mergedDeclarations7.ts")]
+#[case("mergedDeclarations5.ts")] // NOT RUNNABLE
+#[case("mergedDeclarations6.ts")] // NOT RUNNABLE
+#[case("mergedDeclarations7.ts")] // NOT RUNNABLE
 #[case("mergedEnumDeclarationCodeGen.ts")]
-#[case("mergedInterfaceFromMultipleFiles1.ts")]
+#[case("mergedInterfaceFromMultipleFiles1.ts")] // NOT RUNNABLE
 #[case("mergedModuleDeclarationCodeGen.ts")]
 #[case("mergedModuleDeclarationCodeGen2.ts")]
 #[case("mergedModuleDeclarationCodeGen3.ts")]
@@ -3505,14 +3505,14 @@ use typescript_rust::{
 #[case("mergedModuleDeclarationCodeGen5.ts")]
 #[case("mergedModuleDeclarationWithSharedExportedVar.ts")]
 #[case("metadataImportType.ts")]
-#[case("metadataOfClassFromAlias.ts")]
-#[case("metadataOfClassFromAlias2.ts")]
+#[case("metadataOfClassFromAlias.ts")] // NOT RUNNABLE
+#[case("metadataOfClassFromAlias2.ts")] // NOT RUNNABLE
 #[case("metadataOfClassFromModule.ts")]
-#[case("metadataOfEventAlias.ts")]
+#[case("metadataOfEventAlias.ts")] // NOT RUNNABLE
 #[case("metadataOfStringLiteral.ts")]
 #[case("metadataOfUnion.ts")]
 #[case("metadataOfUnionWithNull.ts")]
-#[case("metadataReferencedWithinFilteredUnion.ts")]
+#[case("metadataReferencedWithinFilteredUnion.ts")] // NOT RUNNABLE
 #[case("methodChainError.ts")]
 #[case("methodContainingLocalFunction.ts")]
 #[case("methodInAmbientClass1.ts")]
@@ -3527,19 +3527,19 @@ use typescript_rust::{
 #[case("missingCommaInTemplateStringsArray.ts")]
 #[case("missingDomElements.ts")]
 #[case("missingFunctionImplementation.ts")]
-#[case("missingFunctionImplementation2.ts")]
-#[case("missingImportAfterModuleImport.ts")]
-#[case("missingMemberErrorHasShortPath.ts")]
+#[case("missingFunctionImplementation2.ts")] // NOT RUNNABLE
+#[case("missingImportAfterModuleImport.ts")] // NOT RUNNABLE
+#[case("missingMemberErrorHasShortPath.ts")] // NOT RUNNABLE
 #[case("missingPropertiesOfClassExpression.ts")]
-#[case("missingRequiredDeclare.d.ts")]
+#[case("missingRequiredDeclare.d.ts")] // FAILING
 #[case("missingReturnStatement.ts")]
 #[case("missingReturnStatement1.ts")]
 #[case("missingSelf.ts")]
-#[case("missingSemicolonInModuleSpecifier.ts")]
+#[case("missingSemicolonInModuleSpecifier.ts")] // NOT RUNNABLE
 #[case("missingTypeArguments1.ts")]
 #[case("missingTypeArguments2.ts")]
 #[case("missingTypeArguments3.ts")]
-#[case("misspelledJsDocTypedefTags.ts")]
+#[case("misspelledJsDocTypedefTags.ts")] // NOT RUNNABLE
 #[case("misspelledNewMetaProperty.ts")]
 #[case("mixedExports.ts")]
 #[case("mixedStaticAndInstanceClassMembers.ts")]
@@ -3565,7 +3565,7 @@ use typescript_rust::{
 #[case("modularizeLibrary_UsingES5LibAndES6ArrayLib.ts")]
 #[case("modularizeLibrary_UsingES5LibAndES6FeatureLibs.ts")]
 #[case("modularizeLibrary_UsingES5LibES6ArrayLibES6WellknownSymbolLib.ts")]
-#[case("moduleAliasAsFunctionArgument.ts")]
+#[case("moduleAliasAsFunctionArgument.ts")] // NOT RUNNABLE
 #[case("moduleAliasInterface.ts")]
 #[case("moduleAndInterfaceSharingName.ts")]
 #[case("moduleAndInterfaceSharingName2.ts")]
@@ -3577,57 +3577,57 @@ use typescript_rust::{
 #[case("moduleAssignmentCompat2.ts")]
 #[case("moduleAssignmentCompat3.ts")]
 #[case("moduleAssignmentCompat4.ts")]
-#[case("moduleAugmentationCollidingNamesInAugmentation1.ts")]
-#[case("moduleAugmentationDeclarationEmit1.ts")]
-#[case("moduleAugmentationDeclarationEmit2.ts")]
-#[case("moduleAugmentationDisallowedExtensions.ts")]
-#[case("moduleAugmentationDoesInterfaceMergeOfReexport.ts")]
-#[case("moduleAugmentationDoesNamespaceEnumMergeOfReexport.ts")]
-#[case("moduleAugmentationDoesNamespaceMergeOfReexport.ts")]
-#[case("moduleAugmentationDuringSyntheticDefaultCheck.ts")]
-#[case("moduleAugmentationEnumClassMergeOfReexportIsError.ts")]
-#[case("moduleAugmentationExtendAmbientModule1.ts")]
-#[case("moduleAugmentationExtendAmbientModule2.ts")]
-#[case("moduleAugmentationExtendFileModule1.ts")]
-#[case("moduleAugmentationExtendFileModule2.ts")]
-#[case("moduleAugmentationGlobal1.ts")]
-#[case("moduleAugmentationGlobal2.ts")]
-#[case("moduleAugmentationGlobal3.ts")]
-#[case("moduleAugmentationGlobal4.ts")]
-#[case("moduleAugmentationGlobal5.ts")]
+#[case("moduleAugmentationCollidingNamesInAugmentation1.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationDeclarationEmit1.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationDeclarationEmit2.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationDisallowedExtensions.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationDoesInterfaceMergeOfReexport.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationDoesNamespaceEnumMergeOfReexport.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationDoesNamespaceMergeOfReexport.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationDuringSyntheticDefaultCheck.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationEnumClassMergeOfReexportIsError.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationExtendAmbientModule1.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationExtendAmbientModule2.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationExtendFileModule1.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationExtendFileModule2.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationGlobal1.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationGlobal2.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationGlobal3.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationGlobal4.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationGlobal5.ts")] // NOT RUNNABLE
 #[case("moduleAugmentationGlobal6.ts")]
 #[case("moduleAugmentationGlobal6_1.ts")]
 #[case("moduleAugmentationGlobal7.ts")]
 #[case("moduleAugmentationGlobal7_1.ts")]
 #[case("moduleAugmentationGlobal8.ts")]
 #[case("moduleAugmentationGlobal8_1.ts")]
-#[case("moduleAugmentationImportsAndExports1.ts")]
-#[case("moduleAugmentationImportsAndExports2.ts")]
-#[case("moduleAugmentationImportsAndExports3.ts")]
-#[case("moduleAugmentationImportsAndExports4.ts")]
-#[case("moduleAugmentationImportsAndExports5.ts")]
-#[case("moduleAugmentationImportsAndExports6.ts")]
-#[case("moduleAugmentationInAmbientModule1.ts")]
-#[case("moduleAugmentationInAmbientModule2.ts")]
-#[case("moduleAugmentationInAmbientModule3.ts")]
-#[case("moduleAugmentationInAmbientModule4.ts")]
-#[case("moduleAugmentationInAmbientModule5.ts")]
-#[case("moduleAugmentationInDependency.ts")]
-#[case("moduleAugmentationInDependency2.ts")]
-#[case("moduleAugmentationNoNewNames.ts")]
-#[case("moduleAugmentationOfAlias.ts")]
-#[case("moduleAugmentationWithNonExistentNamedImport.ts")]
-#[case("moduleAugmentationsBundledOutput1.ts")]
-#[case("moduleAugmentationsImports1.ts")]
-#[case("moduleAugmentationsImports2.ts")]
-#[case("moduleAugmentationsImports3.ts")]
-#[case("moduleAugmentationsImports4.ts")]
+#[case("moduleAugmentationImportsAndExports1.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationImportsAndExports2.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationImportsAndExports3.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationImportsAndExports4.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationImportsAndExports5.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationImportsAndExports6.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationInAmbientModule1.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationInAmbientModule2.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationInAmbientModule3.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationInAmbientModule4.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationInAmbientModule5.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationInDependency.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationInDependency2.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationNoNewNames.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationOfAlias.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationWithNonExistentNamedImport.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationsBundledOutput1.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationsImports1.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationsImports2.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationsImports3.ts")] // NOT RUNNABLE
+#[case("moduleAugmentationsImports4.ts")] // NOT RUNNABLE
 #[case("moduleClassArrayCodeGenTest.ts")]
 #[case("moduleCodeGenTest3.ts")]
 #[case("moduleCodeGenTest5.ts")]
 #[case("moduleCodegenTest4.ts")]
 #[case("moduleCrashBug1.ts")]
-#[case("moduleDeclarationExportStarShadowingGlobalIsNameable.ts")]
+#[case("moduleDeclarationExportStarShadowingGlobalIsNameable.ts")] // NOT RUNNABLE
 #[case("moduleDuplicateIdentifiers.ts")]
 #[case("moduleElementsInWrongContext.ts")]
 #[case("moduleElementsInWrongContext2.ts")]
@@ -3636,19 +3636,19 @@ use typescript_rust::{
 #[case("moduleExportsUnaryExpression.ts")]
 #[case("moduleIdentifiers.ts")]
 #[case("moduleImport.ts")]
-#[case("moduleImportedForTypeArgumentPosition.ts")]
-#[case("moduleInTypePosition1.ts")]
+#[case("moduleImportedForTypeArgumentPosition.ts")] // NOT RUNNABLE
+#[case("moduleInTypePosition1.ts")] // NOT RUNNABLE
 #[case("moduleKeywordRepeatError.ts")]
-#[case("moduleLocalImportNotIncorrectlyRedirected.ts")]
-#[case("moduleMemberMissingErrorIsRelative.ts")]
+#[case("moduleLocalImportNotIncorrectlyRedirected.ts")] // NOT RUNNABLE
+#[case("moduleMemberMissingErrorIsRelative.ts")] // NOT RUNNABLE
 #[case("moduleMemberWithoutTypeAnnotation1.ts")]
 #[case("moduleMemberWithoutTypeAnnotation2.ts")]
 #[case("moduleMerge.ts")]
-#[case("moduleMergeConstructor.ts")]
+#[case("moduleMergeConstructor.ts")] // NOT RUNNABLE
 #[case("moduleNewExportBug.ts")]
 #[case("moduleNoEmit.ts")]
-#[case("moduleNoneErrors.ts")]
-#[case("moduleNoneOutFile.ts")]
+#[case("moduleNoneErrors.ts")] // NOT RUNNABLE
+#[case("moduleNoneOutFile.ts")] // NOT RUNNABLE
 #[case("moduleOuterQualification.ts")]
 #[case("modulePrologueAMD.ts")]
 #[case("modulePrologueCommonjs.ts")]
@@ -3660,40 +3660,40 @@ use typescript_rust::{
 #[case("moduleRedifinitionErrors.ts")]
 #[case("moduleReopenedTypeOtherBlock.ts")]
 #[case("moduleReopenedTypeSameBlock.ts")]
-#[case("moduleResolutionNoResolve.ts")]
-#[case("moduleResolutionNoTsCJS.ts")]
-#[case("moduleResolutionNoTsESM.ts")]
-#[case("moduleResolutionPackageIdWithRelativeAndAbsolutePath.ts")]
-#[case("moduleResolutionWithExtensions_notSupported.ts")]
-#[case("moduleResolutionWithExtensions_notSupported2.ts")]
-#[case("moduleResolutionWithExtensions_notSupported3.ts")]
-#[case("moduleResolutionWithExtensions_preferTs.ts")]
-#[case("moduleResolutionWithExtensions_unexpected.ts")]
-#[case("moduleResolutionWithExtensions_unexpected2.ts")]
-#[case("moduleResolutionWithExtensions_withAmbientPresent.ts")]
-#[case("moduleResolutionWithExtensions_withPaths.ts")]
-#[case("moduleResolutionWithModule.ts")]
-#[case("moduleResolutionWithRequire.ts")]
-#[case("moduleResolutionWithRequireAndImport.ts")]
-#[case("moduleResolutionWithSymlinks.ts")]
-#[case("moduleResolutionWithSymlinks_notInNodeModules.ts")]
-#[case("moduleResolutionWithSymlinks_preserveSymlinks.ts")]
-#[case("moduleResolutionWithSymlinks_referenceTypes.ts")]
-#[case("moduleResolutionWithSymlinks_withOutDir.ts")]
-#[case("moduleResolution_automaticTypeDirectiveNames.ts")]
-#[case("moduleResolution_explicitNodeModulesImport.ts")]
-#[case("moduleResolution_explicitNodeModulesImport_implicitAny.ts")]
-#[case("moduleResolution_noLeadingDot.ts")]
-#[case("moduleResolution_packageJson_notAtPackageRoot.ts")]
-#[case("moduleResolution_packageJson_notAtPackageRoot_fakeScopedPackage.ts")]
-#[case("moduleResolution_packageJson_scopedPackage.ts")]
-#[case("moduleResolution_packageJson_yesAtPackageRoot.ts")]
-#[case("moduleResolution_packageJson_yesAtPackageRoot_fakeScopedPackage.ts")]
-#[case("moduleResolution_packageJson_yesAtPackageRoot_mainFieldInSubDirectory.ts")]
-#[case("moduleResolution_relativeImportJsFile.ts")]
-#[case("moduleResolution_relativeImportJsFile_noImplicitAny.ts")]
-#[case("moduleSameValueDuplicateExportedBindings1.ts")]
-#[case("moduleSameValueDuplicateExportedBindings2.ts")]
+#[case("moduleResolutionNoResolve.ts")] // NOT RUNNABLE
+#[case("moduleResolutionNoTsCJS.ts")] // NOT RUNNABLE
+#[case("moduleResolutionNoTsESM.ts")] // NOT RUNNABLE
+#[case("moduleResolutionPackageIdWithRelativeAndAbsolutePath.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithExtensions_notSupported.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithExtensions_notSupported2.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithExtensions_notSupported3.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithExtensions_preferTs.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithExtensions_unexpected.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithExtensions_unexpected2.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithExtensions_withAmbientPresent.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithExtensions_withPaths.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithModule.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithRequire.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithRequireAndImport.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithSymlinks.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithSymlinks_notInNodeModules.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithSymlinks_preserveSymlinks.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithSymlinks_referenceTypes.ts")] // NOT RUNNABLE
+#[case("moduleResolutionWithSymlinks_withOutDir.ts")] // NOT RUNNABLE
+#[case("moduleResolution_automaticTypeDirectiveNames.ts")] // NOT RUNNABLE
+#[case("moduleResolution_explicitNodeModulesImport.ts")] // NOT RUNNABLE
+#[case("moduleResolution_explicitNodeModulesImport_implicitAny.ts")] // NOT RUNNABLE
+#[case("moduleResolution_noLeadingDot.ts")] // NOT RUNNABLE
+#[case("moduleResolution_packageJson_notAtPackageRoot.ts")] // NOT RUNNABLE
+#[case("moduleResolution_packageJson_notAtPackageRoot_fakeScopedPackage.ts")] // NOT RUNNABLE
+#[case("moduleResolution_packageJson_scopedPackage.ts")] // NOT RUNNABLE
+#[case("moduleResolution_packageJson_yesAtPackageRoot.ts")] // NOT RUNNABLE
+#[case("moduleResolution_packageJson_yesAtPackageRoot_fakeScopedPackage.ts")] // NOT RUNNABLE
+#[case("moduleResolution_packageJson_yesAtPackageRoot_mainFieldInSubDirectory.ts")] // NOT RUNNABLE
+#[case("moduleResolution_relativeImportJsFile.ts")] // NOT RUNNABLE
+#[case("moduleResolution_relativeImportJsFile_noImplicitAny.ts")] // NOT RUNNABLE
+#[case("moduleSameValueDuplicateExportedBindings1.ts")] // NOT RUNNABLE
+#[case("moduleSameValueDuplicateExportedBindings2.ts")] // NOT RUNNABLE
 #[case("moduleScopingBug.ts")]
 #[case("moduleSharesNameWithImportDeclarationInsideIt.ts")]
 #[case("moduleSharesNameWithImportDeclarationInsideIt2.ts")]
@@ -3701,7 +3701,7 @@ use typescript_rust::{
 #[case("moduleSharesNameWithImportDeclarationInsideIt4.ts")]
 #[case("moduleSharesNameWithImportDeclarationInsideIt5.ts")]
 #[case("moduleSharesNameWithImportDeclarationInsideIt6.ts")]
-#[case("moduleSymbolMerging.ts")]
+#[case("moduleSymbolMerging.ts")] // NOT RUNNABLE
 #[case("moduleUnassignedVariable.ts")]
 #[case("moduleVariableArrayIndexer.ts")]
 #[case("moduleVariables.ts")]
@@ -3715,13 +3715,13 @@ use typescript_rust::{
 #[case("module_augmentExistingAmbientVariable.ts")]
 #[case("module_augmentExistingVariable.ts")]
 #[case("module_augmentUninstantiatedModule.ts")]
-#[case("module_augmentUninstantiatedModule2.ts")]
+#[case("module_augmentUninstantiatedModule2.ts")] // FAILING
 #[case("moduledecl.ts")]
 #[case("multiCallOverloads.ts")]
 #[case("multiExtendsSplitInterfaces1.ts")]
 #[case("multiExtendsSplitInterfaces2.ts")]
-#[case("multiImportExport.ts")]
-#[case("multiLineContextDiagnosticWithPretty.ts")]
+#[case("multiImportExport.ts")] // NOT RUNNABLE
+#[case("multiLineContextDiagnosticWithPretty.ts")] // FAILING on pretty-printing
 #[case("multiLineErrors.ts")]
 #[case("multiLinePropertyAccessAndArrowFunctionIndent1.ts")]
 #[case("multiModuleClodule1.ts")]
@@ -3729,8 +3729,8 @@ use typescript_rust::{
 #[case("multipleBaseInterfaesWithIncompatibleProperties.ts")]
 #[case("multipleClassPropertyModifiers.ts")]
 #[case("multipleClassPropertyModifiersErrors.ts")]
-#[case("multipleExportAssignments.ts")]
-#[case("multipleExportAssignmentsInAmbientDeclaration.ts")]
+#[case("multipleExportAssignments.ts")] // FAILING
+#[case("multipleExportAssignmentsInAmbientDeclaration.ts")] // FAILING
 #[case("multipleExports.ts")]
 #[case("multipleInheritance.ts")]
 #[case("multivar.ts")]
@@ -3747,22 +3747,22 @@ use typescript_rust::{
 #[case("namedFunctionExpressionCall.ts")]
 #[case("namedFunctionExpressionCallErrors.ts")]
 #[case("namedFunctionExpressionInModule.ts")]
-#[case("namedImportNonExistentName.ts")]
+#[case("namedImportNonExistentName.ts")] // NOT RUNNABLE
 #[case("namespaceDisambiguationInUnion.ts")]
-#[case("namespaceMergedWithFunctionWithOverloadsUsage.ts")]
-#[case("namespaceMergedWithImportAliasNoCrash.ts")]
+#[case("namespaceMergedWithFunctionWithOverloadsUsage.ts")] // NOT RUNNABLE
+#[case("namespaceMergedWithImportAliasNoCrash.ts")] // NOT RUNNABLE
 #[case("namespaces1.ts")]
 #[case("namespaces2.ts")]
 #[case("namespacesDeclaration1.ts")]
 #[case("namespacesDeclaration2.ts")]
-#[case("namespacesWithTypeAliasOnlyExportsMerge.ts")]
+#[case("namespacesWithTypeAliasOnlyExportsMerge.ts")] // NOT RUNNABLE
 #[case("narrowByEquality.ts")]
 #[case("narrowCommaOperatorNestedWithinLHS.ts")]
 #[case("narrowTypeByInstanceof.ts")]
 #[case("narrowUnknownByTypeofObject.ts")]
 #[case("narrowedConstInMethod.ts")]
-#[case("narrowedImports.ts")]
-#[case("narrowedImports_assumeInitialized.ts")]
+#[case("narrowedImports.ts")] // NOT RUNNABLE
+#[case("narrowedImports_assumeInitialized.ts")] // NOT RUNNABLE
 #[case("narrowingAssignmentReadonlyRespectsAssertion.ts")]
 #[case("narrowingByDiscriminantInLoop.ts")]
 #[case("narrowingByTypeofInSwitch.ts")]
@@ -3794,7 +3794,7 @@ use typescript_rust::{
 #[case("nestedBlockScopedBindings9.ts")]
 #[case("nestedCallbackErrorNotFlattened.ts")]
 #[case("nestedFreshLiteral.ts")]
-#[case("nestedGenericConditionalTypeWithGenericImportType.ts")]
+#[case("nestedGenericConditionalTypeWithGenericImportType.ts")] // NOT RUNNABLE
 #[case("nestedGenerics.ts")]
 #[case("nestedGlobalNamespaceInClass.ts")]
 #[case("nestedIfStatement.ts")]
@@ -3811,22 +3811,22 @@ use typescript_rust::{
 #[case("nestedThisContainer.ts")]
 #[case("nestedTypeVariableInfersLiteral.ts")]
 #[case("newAbstractInstance.ts")]
-#[case("newAbstractInstance2.ts")]
+#[case("newAbstractInstance2.ts")] // NOT RUNNABLE
 #[case("newArrays.ts")]
 #[case("newExpressionWithCast.ts")]
 #[case("newExpressionWithTypeParameterConstrainedToOuterTypeParameter.ts")]
 #[case("newFunctionImplicitAny.ts")]
 #[case("newLexicalEnvironmentForConvertedLoop.ts")]
-#[case("newLineFlagWithCRLF.ts")]
-#[case("newLineFlagWithLF.ts")]
+#[case("newLineFlagWithCRLF.ts")] // NOT RUNNABLE
+#[case("newLineFlagWithLF.ts")] // NOT RUNNABLE
 #[case("newMap.ts")]
 #[case("newMissingIdentifier.ts")]
-#[case("newNamesInGlobalAugmentations1.ts")]
+#[case("newNamesInGlobalAugmentations1.ts")] // NOT RUNNABLE
 #[case("newNonReferenceType.ts")]
 #[case("newOnInstanceSymbol.ts")]
 #[case("newOperator.ts")]
 #[case("noAsConstNameLookup.ts")]
-#[case("noBundledEmitFromNodeModules.ts")]
+#[case("noBundledEmitFromNodeModules.ts")] // NOT RUNNABLE
 #[case("noCatchBlock.ts")]
 #[case("noCircularDefinitionOnExportOfPrivateInMergedNamespace.ts")]
 #[case("noCollisionThisExpressionAndClassInGlobal.ts")]
@@ -3839,27 +3839,27 @@ use typescript_rust::{
 #[case("noCollisionThisExpressionAndVarInGlobal.ts")]
 #[case("noCollisionThisExpressionInFunctionAndVarInGlobal.ts")]
 #[case("noConstraintInReturnType1.ts")]
-#[case("noCrashOnImportShadowing.ts")]
+#[case("noCrashOnImportShadowing.ts")] // NOT RUNNABLE
 #[case("noCrashOnMixin.ts")]
 #[case("noCrashOnNoLib.ts")]
-#[case("noCrashOnParameterNamedRequire.ts")]
+#[case("noCrashOnParameterNamedRequire.ts")] // NOT RUNNABLE
 #[case("noCrashOnThisTypeUsage.ts")]
-#[case("noCrashUMDMergedWithGlobalValue.ts")]
+#[case("noCrashUMDMergedWithGlobalValue.ts")] // NOT RUNNABLE
 #[case("noDefaultLib.ts")]
-#[case("noEmitAndComposite.ts")]
-#[case("noEmitAndCompositeListFilesOnly.ts")]
-#[case("noEmitAndIncremental.ts")]
-#[case("noEmitAndIncrementalListFilesOnly.ts")]
+#[case("noEmitAndComposite.ts")] // NOT RUNNABLE
+#[case("noEmitAndCompositeListFilesOnly.ts")] // NOT RUNNABLE
+#[case("noEmitAndIncremental.ts")] // NOT RUNNABLE
+#[case("noEmitAndIncrementalListFilesOnly.ts")] // NOT RUNNABLE
 #[case("noEmitHelpers.ts")]
 #[case("noEmitHelpers2.ts")]
 #[case("noEmitOnError.ts")]
 #[case("noErrorTruncation.ts")]
-#[case("noErrorUsingImportExportModuleAugmentationInDeclarationFile1.ts")]
-#[case("noErrorUsingImportExportModuleAugmentationInDeclarationFile2.ts")]
-#[case("noErrorUsingImportExportModuleAugmentationInDeclarationFile3.ts")]
+#[case("noErrorUsingImportExportModuleAugmentationInDeclarationFile1.ts")] // NOT RUNNABLE
+#[case("noErrorUsingImportExportModuleAugmentationInDeclarationFile2.ts")] // NOT RUNNABLE
+#[case("noErrorUsingImportExportModuleAugmentationInDeclarationFile3.ts")] // NOT RUNNABLE
 #[case("noErrorsInCallback.ts")]
 #[case("noExcessiveStackDepthError.ts")]
-#[case("noImplicitAnyAndPrivateMembersWithoutTypeAnnotations.ts")]
+#[case("noImplicitAnyAndPrivateMembersWithoutTypeAnnotations.ts")] // NOT RUNNABLE
 #[case("noImplicitAnyDestructuringInPrivateMethod.ts")]
 #[case("noImplicitAnyDestructuringParameterDeclaration.ts")]
 #[case("noImplicitAnyDestructuringVarDeclaration.ts")]
@@ -3910,7 +3910,7 @@ use typescript_rust::{
 #[case("noSelfOnVars.ts")]
 #[case("noStrictGenericChecks.ts")]
 #[case("noSubstitutionTemplateStringLiteralTypes.ts")]
-#[case("noSymbolForMergeCrash.ts")]
+#[case("noSymbolForMergeCrash.ts")] // NOT RUNNABLE
 #[case("noTypeArgumentOnReturnType1.ts")]
 #[case("noUnusedLocals_destructuringAssignment.ts")]
 #[case("noUnusedLocals_selfReference.ts")]
@@ -3919,16 +3919,16 @@ use typescript_rust::{
 #[case("noUnusedLocals_writeOnly.ts")]
 #[case("noUnusedLocals_writeOnlyProperty.ts")]
 #[case("noUnusedLocals_writeOnlyProperty_dynamicNames.ts")]
-#[case("noUsedBeforeDefinedErrorInAmbientContext1.ts")]
-#[case("nodeModuleReexportFromDottedPath.ts")]
-#[case("nodeResolution1.ts")]
-#[case("nodeResolution2.ts")]
-#[case("nodeResolution3.ts")]
-#[case("nodeResolution4.ts")]
-#[case("nodeResolution5.ts")]
-#[case("nodeResolution6.ts")]
-#[case("nodeResolution7.ts")]
-#[case("nodeResolution8.ts")]
+#[case("noUsedBeforeDefinedErrorInAmbientContext1.ts")] // NOT RUNNABLE
+#[case("nodeModuleReexportFromDottedPath.ts")] // NOT RUNNABLE
+#[case("nodeResolution1.ts")] // NOT RUNNABLE
+#[case("nodeResolution2.ts")] // NOT RUNNABLE
+#[case("nodeResolution3.ts")] // NOT RUNNABLE
+#[case("nodeResolution4.ts")] // NOT RUNNABLE
+#[case("nodeResolution5.ts")] // NOT RUNNABLE
+#[case("nodeResolution6.ts")] // NOT RUNNABLE
+#[case("nodeResolution7.ts")] // NOT RUNNABLE
+#[case("nodeResolution8.ts")] // NOT RUNNABLE
 #[case("nonArrayRestArgs.ts")]
 #[case("nonConflictingRecursiveBaseTypeMembers.ts")]
 #[case("nonContextuallyTypedLogicalOr.ts")]
@@ -3951,7 +3951,7 @@ use typescript_rust::{
 #[case("nonnullAssertionPropegatesContextualType.ts")]
 #[case("nonstrictTemplateWithNotOctalPrintsAsIs.ts")]
 #[case("normalizedIntersectionTooComplex.ts")]
-#[case("nounusedTypeParameterConstraint.ts")]
+#[case("nounusedTypeParameterConstraint.ts")] // NOT RUNNABLE
 #[case("null.ts")]
 #[case("nullKeyword.ts")]
 #[case("nullableFunctionError.ts")]
@@ -3975,7 +3975,7 @@ use typescript_rust::{
 #[case("numericLiteralsWithTrailingDecimalPoints01.ts")]
 #[case("numericLiteralsWithTrailingDecimalPoints02.ts")]
 #[case("numericMethodName1.ts")]
-#[case("numericUnderscoredSeparator.ts")]
+#[case("numericUnderscoredSeparator.ts")] // NOT RUNNABLE
 #[case("objectBindingPattern_restElementWithPropertyName.ts")]
 #[case("objectCreate-errors.ts")]
 #[case("objectCreate.ts")]
@@ -4022,7 +4022,7 @@ use typescript_rust::{
 #[case("objectLiteralWithSemicolons5.ts")]
 #[case("objectLiteralsAgainstUnionsOfArrays01.ts")]
 #[case("objectMembersOnTypes.ts")]
-#[case("objectRestSpread.ts")]
+#[case("objectRestSpread.ts")] // NOT RUNNABLE
 #[case("objectSpreadWithinMethodWithinObjectWithSpread.ts")]
 #[case("objectTypeWithOptionalProperty1.ts")]
 #[case("observableInferenceCanBeMade.ts")]
@@ -4064,23 +4064,23 @@ use typescript_rust::{
 #[case("optionsTsBuildInfoFileWithoutIncrementalAndComposite.ts")]
 #[case("orderMattersForSignatureGroupIdentity.ts")]
 #[case("out-flag.ts")]
-#[case("out-flag2.ts")]
-#[case("out-flag3.ts")]
-#[case("outModuleConcatAmd.ts")]
-#[case("outModuleConcatCommonjs.ts")]
-#[case("outModuleConcatCommonjsDeclarationOnly.ts")]
-#[case("outModuleConcatES6.ts")]
-#[case("outModuleConcatSystem.ts")]
-#[case("outModuleConcatUmd.ts")]
-#[case("outModuleConcatUnspecifiedModuleKind.ts")]
-#[case("outModuleConcatUnspecifiedModuleKindDeclarationOnly.ts")]
-#[case("outModuleTripleSlashRefs.ts")]
+#[case("out-flag2.ts")] // NOT RUNNABLE
+#[case("out-flag3.ts")] // NOT RUNNABLE
+#[case("outModuleConcatAmd.ts")] // NOT RUNNABLE
+#[case("outModuleConcatCommonjs.ts")] // NOT RUNNABLE
+#[case("outModuleConcatCommonjsDeclarationOnly.ts")] // NOT RUNNABLE
+#[case("outModuleConcatES6.ts")] // NOT RUNNABLE
+#[case("outModuleConcatSystem.ts")] // NOT RUNNABLE
+#[case("outModuleConcatUmd.ts")] // NOT RUNNABLE
+#[case("outModuleConcatUnspecifiedModuleKind.ts")] // NOT RUNNABLE
+#[case("outModuleConcatUnspecifiedModuleKindDeclarationOnly.ts")] // NOT RUNNABLE
+#[case("outModuleTripleSlashRefs.ts")] // NOT RUNNABLE
 #[case("overEagerReturnTypeSpecialization.ts")]
 #[case("overload1.ts")]
 #[case("overload2.ts")]
 #[case("overloadAssignmentCompat.ts")]
 #[case("overloadBindingAcrossDeclarationBoundaries.ts")]
-#[case("overloadBindingAcrossDeclarationBoundaries2.ts")]
+#[case("overloadBindingAcrossDeclarationBoundaries2.ts")] // NOT RUNNABLE
 #[case("overloadCallTest.ts")]
 #[case("overloadConsecutiveness.ts")]
 #[case("overloadCrash.ts")]
@@ -4157,7 +4157,7 @@ use typescript_rust::{
 #[case("parse1.ts")]
 #[case("parse2.ts")]
 #[case("parseArrowFunctionWithFunctionReturnType.ts")]
-#[case("parseBigInt.ts")]
+#[case("parseBigInt.ts")] // FAILING on BigInt parsing
 #[case("parseCommaSeparatedNewlineNew.ts")]
 #[case("parseCommaSeparatedNewlineNumber.ts")]
 #[case("parseCommaSeparatedNewlineString.ts")]
@@ -4173,58 +4173,58 @@ use typescript_rust::{
 #[case("parserConstructorDeclaration12.ts")]
 #[case("parserIsClassMemberStart.ts")]
 #[case("parsingClassRecoversWhenHittingUnexpectedSemicolon.ts")]
-#[case("parsingDeepParenthensizedExpression.ts")]
+#[case("parsingDeepParenthensizedExpression.ts")] // NOT RUNNABLE
 #[case("partialDiscriminatedUnionMemberHasGoodError.ts")]
 #[case("partialOfLargeAPIIsAbleToBeWorkedWith.ts")]
 #[case("partialTypeNarrowedToByTypeGuard.ts")]
 #[case("partiallyAmbientClodule.ts")]
 #[case("partiallyAmbientFundule.ts")]
 #[case("partiallyDiscriminantedUnions.ts")]
-#[case("pathMappingBasedModuleResolution1_amd.ts")]
-#[case("pathMappingBasedModuleResolution1_node.ts")]
-#[case("pathMappingBasedModuleResolution2_classic.ts")]
-#[case("pathMappingBasedModuleResolution2_node.ts")]
-#[case("pathMappingBasedModuleResolution3_classic.ts")]
-#[case("pathMappingBasedModuleResolution3_node.ts")]
-#[case("pathMappingBasedModuleResolution4_classic.ts")]
-#[case("pathMappingBasedModuleResolution4_node.ts")]
-#[case("pathMappingBasedModuleResolution5_classic.ts")]
-#[case("pathMappingBasedModuleResolution5_node.ts")]
-#[case("pathMappingBasedModuleResolution6_classic.ts")]
-#[case("pathMappingBasedModuleResolution6_node.ts")]
-#[case("pathMappingBasedModuleResolution7_classic.ts")]
-#[case("pathMappingBasedModuleResolution7_node.ts")]
-#[case("pathMappingBasedModuleResolution8_classic.ts")]
-#[case("pathMappingBasedModuleResolution8_node.ts")]
-#[case("pathMappingBasedModuleResolution_rootImport_aliasWithRoot.ts")]
-#[case("pathMappingBasedModuleResolution_rootImport_aliasWithRoot_differentRootTypes.ts")]
-#[case("pathMappingBasedModuleResolution_rootImport_aliasWithRoot_multipleAliases.ts")]
-#[case("pathMappingBasedModuleResolution_rootImport_aliasWithRoot_realRootFile.ts")]
-#[case("pathMappingBasedModuleResolution_rootImport_noAliasWithRoot.ts")]
-#[case("pathMappingBasedModuleResolution_rootImport_noAliasWithRoot_realRootFile.ts")]
-#[case("pathMappingBasedModuleResolution_withExtension.ts")]
-#[case("pathMappingBasedModuleResolution_withExtensionInName.ts")]
-#[case("pathMappingBasedModuleResolution_withExtension_MapedToNodeModules.ts")]
-#[case("pathMappingBasedModuleResolution_withExtension_failedLookup.ts")]
-#[case("pathMappingInheritedBaseUrl.ts")]
-#[case("pathMappingWithoutBaseUrl1.ts")]
-#[case("pathMappingWithoutBaseUrl2.ts")]
-#[case("pathsValidation1.ts")]
-#[case("pathsValidation2.ts")]
-#[case("pathsValidation3.ts")]
-#[case("pathsValidation4.ts")]
-#[case("pathsValidation5.ts")]
+#[case("pathMappingBasedModuleResolution1_amd.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution1_node.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution2_classic.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution2_node.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution3_classic.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution3_node.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution4_classic.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution4_node.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution5_classic.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution5_node.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution6_classic.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution6_node.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution7_classic.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution7_node.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution8_classic.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution8_node.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_rootImport_aliasWithRoot.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_rootImport_aliasWithRoot_differentRootTypes.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_rootImport_aliasWithRoot_multipleAliases.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_rootImport_aliasWithRoot_realRootFile.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_rootImport_noAliasWithRoot.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_rootImport_noAliasWithRoot_realRootFile.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_withExtension.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_withExtensionInName.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_withExtension_MapedToNodeModules.ts")] // NOT RUNNABLE
+#[case("pathMappingBasedModuleResolution_withExtension_failedLookup.ts")] // NOT RUNNABLE
+#[case("pathMappingInheritedBaseUrl.ts")] // NOT RUNNABLE
+#[case("pathMappingWithoutBaseUrl1.ts")] // NOT RUNNABLE
+#[case("pathMappingWithoutBaseUrl2.ts")] // NOT RUNNABLE
+#[case("pathsValidation1.ts")] // NOT RUNNABLE
+#[case("pathsValidation2.ts")] // NOT RUNNABLE
+#[case("pathsValidation3.ts")] // NOT RUNNABLE
+#[case("pathsValidation4.ts")] // NOT RUNNABLE
+#[case("pathsValidation5.ts")] // NOT RUNNABLE
 #[case("performanceComparisonOfStructurallyIdenticalInterfacesWithGenericSignatures.ts")]
 #[case("pinnedComments1.ts")]
-#[case("potentiallyUncalledDecorators.ts")]
+#[case("potentiallyUncalledDecorators.ts")] // FAILING on decorator stuff
 #[case("prefixIncrementAsOperandOfPlusExpression.ts")]
 #[case("prefixUnaryOperatorsOnExportedVariables.ts")]
 #[case("prefixedNumberLiteralAssignToNumberLiteralType.ts")]
-#[case("preserveConstEnums.ts")]
-#[case("preserveUnusedImports.ts")]
+#[case("preserveConstEnums.ts")] // FAILING on Number stuff
+#[case("preserveUnusedImports.ts")] // NOT RUNNABLE
 #[case("prespecializedGenericMembers1.ts")]
-#[case("prettyContextNotDebugAssertion.ts")]
-#[case("prettyFileWithErrorsAndTabs.ts")]
+#[case("prettyContextNotDebugAssertion.ts")] // NOT RUNNABLE
+#[case("prettyFileWithErrorsAndTabs.ts")] // FAILING on pretty-printing
 #[case("primaryExpressionMods.ts")]
 #[case("primitiveConstraints1.ts")]
 #[case("primitiveConstraints2.ts")]
@@ -4235,27 +4235,27 @@ use typescript_rust::{
 #[case("primitiveTypeAsmoduleName.ts")]
 #[case("primitiveTypeAssignment.ts")]
 #[case("primitiveUnionDetection.ts")]
-#[case("privacyAccessorDeclFile.ts")]
-#[case("privacyCannotNameAccessorDeclFile.ts")]
-#[case("privacyCannotNameVarTypeDeclFile.ts")]
+#[case("privacyAccessorDeclFile.ts")] // NOT RUNNABLE
+#[case("privacyCannotNameAccessorDeclFile.ts")] // NOT RUNNABLE
+#[case("privacyCannotNameVarTypeDeclFile.ts")] // NOT RUNNABLE
 #[case("privacyCheckAnonymousFunctionParameter.ts")]
 #[case("privacyCheckAnonymousFunctionParameter2.ts")]
 #[case("privacyCheckCallbackOfInterfaceMethodWithTypeParameter.ts")]
 #[case("privacyCheckExportAssignmentOnExportedGenericInterface1.ts")]
 #[case("privacyCheckExportAssignmentOnExportedGenericInterface2.ts")]
-#[case("privacyCheckExternalModuleExportAssignmentOfGenericClass.ts")]
+#[case("privacyCheckExternalModuleExportAssignmentOfGenericClass.ts")] // NOT RUNNABLE
 #[case("privacyCheckOnTypeParameterReferenceInConstructorParameter.ts")]
 #[case("privacyCheckTypeOfFunction.ts")]
 #[case("privacyCheckTypeOfInvisibleModuleError.ts")]
 #[case("privacyCheckTypeOfInvisibleModuleNoError.ts")]
 #[case("privacyClass.ts")]
-#[case("privacyClassExtendsClauseDeclFile.ts")]
-#[case("privacyClassImplementsClauseDeclFile.ts")]
+#[case("privacyClassExtendsClauseDeclFile.ts")] // NOT RUNNABLE
+#[case("privacyClassImplementsClauseDeclFile.ts")] // NOT RUNNABLE
 #[case("privacyFunc.ts")]
-#[case("privacyFunctionCannotNameParameterTypeDeclFile.ts")]
-#[case("privacyFunctionCannotNameReturnTypeDeclFile.ts")]
-#[case("privacyFunctionParameterDeclFile.ts")]
-#[case("privacyFunctionReturnTypeDeclFile.ts")]
+#[case("privacyFunctionCannotNameParameterTypeDeclFile.ts")] // NOT RUNNABLE
+#[case("privacyFunctionCannotNameReturnTypeDeclFile.ts")] // NOT RUNNABLE
+#[case("privacyFunctionParameterDeclFile.ts")] // NOT RUNNABLE
+#[case("privacyFunctionReturnTypeDeclFile.ts")] // NOT RUNNABLE
 #[case("privacyGetter.ts")]
 #[case("privacyGloClass.ts")]
 #[case("privacyGloFunc.ts")]
@@ -4267,11 +4267,11 @@ use typescript_rust::{
 #[case("privacyImport.ts")]
 #[case("privacyImportParseErrors.ts")]
 #[case("privacyInterface.ts")]
-#[case("privacyInterfaceExtendsClauseDeclFile.ts")]
+#[case("privacyInterfaceExtendsClauseDeclFile.ts")] // NOT RUNNABLE
 #[case("privacyLocalInternalReferenceImportWithExport.ts")]
 #[case("privacyLocalInternalReferenceImportWithoutExport.ts")]
-#[case("privacyTopLevelAmbientExternalModuleImportWithExport.ts")]
-#[case("privacyTopLevelAmbientExternalModuleImportWithoutExport.ts")]
+#[case("privacyTopLevelAmbientExternalModuleImportWithExport.ts")] // NOT RUNNABLE
+#[case("privacyTopLevelAmbientExternalModuleImportWithoutExport.ts")] // NOT RUNNABLE
 #[case("privacyTopLevelInternalReferenceImportWithExport.ts")]
 #[case("privacyTopLevelInternalReferenceImportWithoutExport.ts")]
 #[case("privacyTypeParameterOfFunction.ts")]
@@ -4281,7 +4281,7 @@ use typescript_rust::{
 #[case("privacyTypeParametersOfInterface.ts")]
 #[case("privacyTypeParametersOfInterfaceDeclFile.ts")]
 #[case("privacyVar.ts")]
-#[case("privacyVarDeclFile.ts")]
+#[case("privacyVarDeclFile.ts")] // NOT RUNNABLE
 #[case("privateAccessInSubclass1.ts")]
 #[case("privateFieldAssignabilityFromUnknown.ts")]
 #[case("privateInstanceVisibility.ts")]
@@ -4313,13 +4313,13 @@ use typescript_rust::{
 #[case("promiseVoidErrorCallback.ts")]
 #[case("promises.ts")]
 #[case("promisesWithConstraints.ts")]
-#[case("propTypeValidatorInference.ts")]
+#[case("propTypeValidatorInference.ts")] // NOT RUNNABLE
 #[case("propagateNonInferrableType.ts")]
 #[case("propagationOfPromiseInitialization.ts")]
 #[case("properties.ts")]
-#[case("propertiesAndIndexers.ts")]
+#[case("propertiesAndIndexers.ts")] // FAILING on Number stuff
 #[case("propertiesAndIndexers2.ts")]
-#[case("propertiesAndIndexersForNumericNames.ts")]
+#[case("propertiesAndIndexersForNumericNames.ts")] // FAILING on Number stuff
 #[case("propertyAccess1.ts")]
 #[case("propertyAccess2.ts")]
 #[case("propertyAccess3.ts")]
@@ -4333,7 +4333,7 @@ use typescript_rust::{
 #[case("propertyAccessibility1.ts")]
 #[case("propertyAccessibility2.ts")]
 #[case("propertyAssignment.ts")]
-#[case("propertyIdentityWithPrivacyMismatch.ts")]
+#[case("propertyIdentityWithPrivacyMismatch.ts")] // NOT RUNNABLE
 #[case("propertyNamesWithStringLiteral.ts")]
 #[case("propertyOrdering.ts")]
 #[case("propertyOrdering2.ts")]
@@ -4342,7 +4342,7 @@ use typescript_rust::{
 #[case("propertySignatures.ts")]
 #[case("propertyWrappedInTry.ts")]
 #[case("protectedMembers.ts")]
-#[case("protoAsIndexInIndexExpression.ts")]
+#[case("protoAsIndexInIndexExpression.ts")] // NOT RUNNABLE
 #[case("protoAssignment.ts")]
 #[case("protoInIndexer.ts")]
 #[case("prototypeInstantiatedWithBaseConstraint.ts")]
@@ -4354,7 +4354,7 @@ use typescript_rust::{
 #[case("qualifiedName_ImportDeclarations-entity-names-referencing-a-var.ts")]
 #[case("qualifiedName_entity-name-resolution-does-not-affect-class-heritage.ts")]
 #[case("qualify.ts")]
-#[case("quickIntersectionCheckCorrectlyCachesErrors.ts")]
+#[case("quickIntersectionCheckCorrectlyCachesErrors.ts")] // NOT RUNNABLE
 #[case("quickinfoTypeAtReturnPositionsInaccurate.ts")]
 #[case("quotedAccessorName1.ts")]
 #[case("quotedAccessorName2.ts")]
@@ -4368,14 +4368,14 @@ use typescript_rust::{
 #[case("ramdaToolsNoInfinite.ts")]
 #[case("ramdaToolsNoInfinite2.ts")]
 #[case("randomSemicolons1.ts")]
-#[case("reExportGlobalDeclaration1.ts")]
-#[case("reExportGlobalDeclaration2.ts")]
-#[case("reExportGlobalDeclaration3.ts")]
-#[case("reExportGlobalDeclaration4.ts")]
-#[case("reExportUndefined1.ts")]
-#[case("reExportUndefined2.ts")]
+#[case("reExportGlobalDeclaration1.ts")] // NOT RUNNABLE
+#[case("reExportGlobalDeclaration2.ts")] // NOT RUNNABLE
+#[case("reExportGlobalDeclaration3.ts")] // NOT RUNNABLE
+#[case("reExportGlobalDeclaration4.ts")] // NOT RUNNABLE
+#[case("reExportUndefined1.ts")] // NOT RUNNABLE
+#[case("reExportUndefined2.ts")] // NOT RUNNABLE
 #[case("reachabilityCheckWithEmptyDefault.ts")]
-#[case("reachabilityChecks1.ts")]
+#[case("reachabilityChecks1.ts")] // NOT RUNNABLE on .lib directive
 #[case("reachabilityChecks2.ts")]
 #[case("reachabilityChecks3.ts")]
 #[case("reachabilityChecks4.ts")]
@@ -4383,22 +4383,22 @@ use typescript_rust::{
 #[case("reachabilityChecks6.ts")]
 #[case("reachabilityChecks7.ts")]
 #[case("reachabilityChecks8.ts")]
-#[case("reactDefaultPropsInferenceSuccess.tsx")]
-#[case("reactHOCSpreadprops.tsx")]
-#[case("reactImportDropped.ts")]
-#[case("reactImportUnusedInNewJSXEmit.tsx")]
-#[case("reactJsxReactResolvedNodeNext.tsx")]
-#[case("reactJsxReactResolvedNodeNextEsm.tsx")]
-#[case("reactNamespaceImportPresevation.tsx")]
+#[case("reactDefaultPropsInferenceSuccess.tsx")] // NOT RUNNABLE on .lib directive
+#[case("reactHOCSpreadprops.tsx")] // NOT RUNNABLE on .lib directive
+#[case("reactImportDropped.ts")] // NOT RUNNABLE
+#[case("reactImportUnusedInNewJSXEmit.tsx")] // NOT RUNNABLE
+#[case("reactJsxReactResolvedNodeNext.tsx")] // NOT RUNNABLE
+#[case("reactJsxReactResolvedNodeNextEsm.tsx")] // NOT RUNNABLE
+#[case("reactNamespaceImportPresevation.tsx")] // NOT RUNNABLE
 #[case("reactNamespaceInvalidInput.tsx")]
 #[case("reactNamespaceJSXEmit.tsx")]
 #[case("reactNamespaceMissingDeclaration.tsx")]
-#[case("reactReadonlyHOCAssignabilityReal.tsx")]
-#[case("reactReduxLikeDeferredInferenceAllowsAssignment.ts")]
-#[case("reactSFCAndFunctionResolvable.tsx")]
-#[case("reactTagNameComponentWithPropsNoOOM.tsx")]
-#[case("reactTagNameComponentWithPropsNoOOM2.tsx")]
-#[case("reactTransitiveImportHasValidDeclaration.ts")]
+#[case("reactReadonlyHOCAssignabilityReal.tsx")] // NOT RUNNABLE on .lib directive
+#[case("reactReduxLikeDeferredInferenceAllowsAssignment.ts")] // FAILING
+#[case("reactSFCAndFunctionResolvable.tsx")] // NOT RUNNABLE on .lib directive
+#[case("reactTagNameComponentWithPropsNoOOM.tsx")] // NOT RUNNABLE on .lib directive
+#[case("reactTagNameComponentWithPropsNoOOM2.tsx")] // NOT RUNNABLE on .lib directive
+#[case("reactTransitiveImportHasValidDeclaration.ts")] // NOT RUNNABLE
 #[case("readonlyAssignmentInSubclassOfClassExpression.ts")]
 #[case("readonlyFloat32ArrayAssignableWithFloat32Array.ts")]
 #[case("readonlyInDeclarationFile.ts")]
@@ -4431,13 +4431,13 @@ use typescript_rust::{
 #[case("recursiveConditionalEvaluationNonInfinite.ts")]
 #[case("recursiveConditionalTypes.ts")]
 #[case("recursiveExcessPropertyChecks.ts")]
-#[case("recursiveExportAssignmentAndFindAliasedType1.ts")]
-#[case("recursiveExportAssignmentAndFindAliasedType2.ts")]
-#[case("recursiveExportAssignmentAndFindAliasedType3.ts")]
-#[case("recursiveExportAssignmentAndFindAliasedType4.ts")]
-#[case("recursiveExportAssignmentAndFindAliasedType5.ts")]
-#[case("recursiveExportAssignmentAndFindAliasedType6.ts")]
-#[case("recursiveExportAssignmentAndFindAliasedType7.ts")]
+#[case("recursiveExportAssignmentAndFindAliasedType1.ts")] // NOT RUNNABLE
+#[case("recursiveExportAssignmentAndFindAliasedType2.ts")] // NOT RUNNABLE
+#[case("recursiveExportAssignmentAndFindAliasedType3.ts")] // NOT RUNNABLE
+#[case("recursiveExportAssignmentAndFindAliasedType4.ts")] // NOT RUNNABLE
+#[case("recursiveExportAssignmentAndFindAliasedType5.ts")] // NOT RUNNABLE
+#[case("recursiveExportAssignmentAndFindAliasedType6.ts")] // NOT RUNNABLE
+#[case("recursiveExportAssignmentAndFindAliasedType7.ts")] // NOT RUNNABLE
 #[case("recursiveFieldSetting.ts")]
 #[case("recursiveFunctionTypes.ts")]
 #[case("recursiveFunctionTypes1.ts")]
@@ -4461,7 +4461,7 @@ use typescript_rust::{
 #[case("recursiveNamedLambdaCall.ts")]
 #[case("recursiveObjectLiteral.ts")]
 #[case("recursiveProperties.ts")]
-#[case("recursiveResolveDeclaredMembers.ts")]
+#[case("recursiveResolveDeclaredMembers.ts")] // NOT RUNNABLE
 #[case("recursiveResolveTypeMembers.ts")]
 #[case("recursiveReturns.ts")]
 #[case("recursiveReverseMappedType.ts")]
@@ -4484,63 +4484,63 @@ use typescript_rust::{
 #[case("redeclarationOfVarWithGenericType.ts")]
 #[case("redeclareParameterInCatchBlock.ts")]
 #[case("redefineArray.ts")]
-#[case("reexportDefaultIsCallable.ts")]
-#[case("reexportMissingDefault.ts")]
-#[case("reexportMissingDefault1.ts")]
-#[case("reexportMissingDefault2.ts")]
-#[case("reexportMissingDefault3.ts")]
-#[case("reexportMissingDefault4.ts")]
-#[case("reexportMissingDefault5.ts")]
-#[case("reexportMissingDefault6.ts")]
-#[case("reexportMissingDefault7.ts")]
-#[case("reexportMissingDefault8.ts")]
-#[case("reexportNameAliasedAndHoisted.ts")]
-#[case("reexportWrittenCorrectlyInDeclaration.ts")]
-#[case("reexportedMissingAlias.ts")]
-#[case("referenceTypesPreferedToPathIfPossible.ts")]
+#[case("reexportDefaultIsCallable.ts")] // NOT RUNNABLE
+#[case("reexportMissingDefault.ts")] // NOT RUNNABLE
+#[case("reexportMissingDefault1.ts")] // NOT RUNNABLE
+#[case("reexportMissingDefault2.ts")] // NOT RUNNABLE
+#[case("reexportMissingDefault3.ts")] // NOT RUNNABLE
+#[case("reexportMissingDefault4.ts")] // NOT RUNNABLE
+#[case("reexportMissingDefault5.ts")] // NOT RUNNABLE
+#[case("reexportMissingDefault6.ts")] // NOT RUNNABLE
+#[case("reexportMissingDefault7.ts")] // NOT RUNNABLE
+#[case("reexportMissingDefault8.ts")] // NOT RUNNABLE
+#[case("reexportNameAliasedAndHoisted.ts")] // NOT RUNNABLE
+#[case("reexportWrittenCorrectlyInDeclaration.ts")] // NOT RUNNABLE
+#[case("reexportedMissingAlias.ts")] // NOT RUNNABLE
+#[case("referenceTypesPreferedToPathIfPossible.ts")] // NOT RUNNABLE
 #[case("regExpWithSlashInCharClass.ts")]
 #[case("regexMatchAll-esnext.ts")]
 #[case("regexMatchAll.ts")]
 #[case("relationalOperatorComparable.ts")]
-#[case("relativeNamesInClassicResolution.ts")]
+#[case("relativeNamesInClassicResolution.ts")] // NOT RUNNABLE
 #[case("reorderProperties.ts")]
-#[case("requireAsFunctionInExternalModule.ts")]
-#[case("requireEmitSemicolon.ts")]
-#[case("requireOfAnEmptyFile1.ts")]
-#[case("requireOfJsonFile.ts")]
-#[case("requireOfJsonFileInJsFile.ts")]
-#[case("requireOfJsonFileNonRelative.ts")]
-#[case("requireOfJsonFileNonRelativeWithoutExtension.ts")]
-#[case("requireOfJsonFileNonRelativeWithoutExtensionResolvesToTs.ts")]
-#[case("requireOfJsonFileTypes.ts")]
-#[case("requireOfJsonFileWithAlwaysStrictWithoutErrors.ts")]
-#[case("requireOfJsonFileWithAmd.ts")]
-#[case("requireOfJsonFileWithComputedPropertyName.ts")]
-#[case("requireOfJsonFileWithDeclaration.ts")]
-#[case("requireOfJsonFileWithEmptyObject.ts")]
-#[case("requireOfJsonFileWithEmptyObjectWithErrors.ts")]
-#[case("requireOfJsonFileWithErrors.ts")]
-#[case("requireOfJsonFileWithModuleEmitNone.ts")]
-#[case("requireOfJsonFileWithModuleEmitUndefined.ts")]
-#[case("requireOfJsonFileWithModuleNodeResolutionEmitAmd.ts")]
-#[case("requireOfJsonFileWithModuleNodeResolutionEmitAmdOutFile.ts")]
-#[case("requireOfJsonFileWithModuleNodeResolutionEmitEs2015.ts")]
-#[case("requireOfJsonFileWithModuleNodeResolutionEmitEsNext.ts")]
-#[case("requireOfJsonFileWithModuleNodeResolutionEmitNone.ts")]
-#[case("requireOfJsonFileWithModuleNodeResolutionEmitSystem.ts")]
-#[case("requireOfJsonFileWithModuleNodeResolutionEmitUmd.ts")]
-#[case("requireOfJsonFileWithModuleNodeResolutionEmitUndefined.ts")]
-#[case("requireOfJsonFileWithNoContent.ts")]
-#[case("requireOfJsonFileWithSourceMap.ts")]
-#[case("requireOfJsonFileWithTraillingComma.ts")]
-#[case("requireOfJsonFileWithoutAllowJs.ts")]
-#[case("requireOfJsonFileWithoutEsModuleInterop.ts")]
-#[case("requireOfJsonFileWithoutExtension.ts")]
-#[case("requireOfJsonFileWithoutExtensionResolvesToTs.ts")]
-#[case("requireOfJsonFileWithoutOutDir.ts")]
-#[case("requireOfJsonFileWithoutResolveJsonModule.ts")]
-#[case("requireOfJsonFileWithoutResolveJsonModuleAndPathMapping.ts")]
-#[case("requireOfJsonFile_PathMapping.ts")]
+#[case("requireAsFunctionInExternalModule.ts")] // NOT RUNNABLE
+#[case("requireEmitSemicolon.ts")] // NOT RUNNABLE
+#[case("requireOfAnEmptyFile1.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFile.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileInJsFile.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileNonRelative.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileNonRelativeWithoutExtension.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileNonRelativeWithoutExtensionResolvesToTs.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileTypes.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithAlwaysStrictWithoutErrors.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithAmd.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithComputedPropertyName.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithDeclaration.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithEmptyObject.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithEmptyObjectWithErrors.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithErrors.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleEmitNone.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleEmitUndefined.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleNodeResolutionEmitAmd.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleNodeResolutionEmitAmdOutFile.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleNodeResolutionEmitEs2015.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleNodeResolutionEmitEsNext.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleNodeResolutionEmitNone.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleNodeResolutionEmitSystem.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleNodeResolutionEmitUmd.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithModuleNodeResolutionEmitUndefined.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithNoContent.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithSourceMap.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithTraillingComma.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithoutAllowJs.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithoutEsModuleInterop.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithoutExtension.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithoutExtensionResolvesToTs.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithoutOutDir.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithoutResolveJsonModule.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFileWithoutResolveJsonModuleAndPathMapping.ts")] // NOT RUNNABLE
+#[case("requireOfJsonFile_PathMapping.ts")] // NOT RUNNABLE
 #[case("requiredInitializedParameter1.ts")]
 #[case("requiredInitializedParameter2.ts")]
 #[case("requiredInitializedParameter3.ts")]
@@ -4556,9 +4556,9 @@ use typescript_rust::{
 #[case("resolveInterfaceNameWithSameLetDeclarationName2.ts")]
 #[case("resolveModuleNameWithSameLetDeclarationName1.ts")]
 #[case("resolveModuleNameWithSameLetDeclarationName2.ts")]
-#[case("resolveNameWithNamspace.ts")]
+#[case("resolveNameWithNamspace.ts")] // NOT RUNNABLE
 #[case("resolveTypeAliasWithSameLetDeclarationName1.ts")]
-#[case("resolvingClassDeclarationWhenInBaseTypeResolution.ts")]
+#[case("resolvingClassDeclarationWhenInBaseTypeResolution.ts")] // FAILING on borrow error
 #[case("restArgAssignmentCompat.ts")]
 #[case("restArgMissingName.ts")]
 #[case("restElementWithNumberPropertyName.ts")]
@@ -4586,10 +4586,10 @@ use typescript_rust::{
 #[case("returnTypeInferenceNotTooBroad.ts")]
 #[case("returnTypeParameter.ts")]
 #[case("returnTypeParameterWithModules.ts")]
-#[case("returnTypePredicateIsInstantiateInContextOfTarget.tsx")]
+#[case("returnTypePredicateIsInstantiateInContextOfTarget.tsx")] // NOT RUNNABLE on .lib directive
 #[case("returnTypeTypeArguments.ts")]
 #[case("returnValueInSetter.ts")]
-#[case("reuseInnerModuleMember.ts")]
+#[case("reuseInnerModuleMember.ts")] // NOT RUNNABLE
 #[case("reverseInferenceInContextualInstantiation.ts")]
 #[case("reverseMappedContravariantInference.ts")]
 #[case("reverseMappedPartiallyInferableTypes.ts")]
@@ -4610,12 +4610,12 @@ use typescript_rust::{
 #[case("selfRef.ts")]
 #[case("selfReference.ts")]
 #[case("selfReferencesInFunctionParameters.ts")]
-#[case("selfReferencingFile.ts")]
-#[case("selfReferencingFile2.ts")]
-#[case("selfReferencingFile3.ts")]
+#[case("selfReferencingFile.ts")] // FAILING?
+#[case("selfReferencingFile2.ts")] // FAILING?
+#[case("selfReferencingFile3.ts")] // NOT RUNNABLE on .lib directive
 #[case("selfReferencingSpreadInLoop.ts")]
 #[case("selfReferencingTypeReferenceInference.ts")]
-#[case("selfReferentialDefaultNoStackOverflow.ts")]
+#[case("selfReferentialDefaultNoStackOverflow.ts")] // NOT RUNNABLE
 #[case("semicolonsInModuleDeclarations.ts")]
 #[case("separate1-1.ts")]
 #[case("separate1-2.ts")]
@@ -4628,19 +4628,19 @@ use typescript_rust::{
 #[case("shebang.ts")]
 #[case("shebangBeforeReferences.ts")]
 #[case("shebangError.ts")]
-#[case("shorthand-property-es5-es6.ts")]
-#[case("shorthand-property-es6-amd.ts")]
-#[case("shorthand-property-es6-es6.ts")]
+#[case("shorthand-property-es5-es6.ts")] // NOT RUNNABLE
+#[case("shorthand-property-es6-amd.ts")] // NOT RUNNABLE
+#[case("shorthand-property-es6-es6.ts")] // NOT RUNNABLE
 #[case("shorthandOfExportedEntity01_targetES2015_CommonJS.ts")]
 #[case("shorthandOfExportedEntity02_targetES5_CommonJS.ts")]
-#[case("shorthandPropertyAssignmentInES6Module.ts")]
+#[case("shorthandPropertyAssignmentInES6Module.ts")] // NOT RUNNABLE
 #[case("shorthandPropertyAssignmentsInDestructuring.ts")]
 #[case("shorthandPropertyAssignmentsInDestructuring_ES6.ts")]
 #[case("shorthandPropertyUndefined.ts")]
 #[case("shouldNotPrintNullEscapesIntoOctalLiterals.ts")]
 #[case("sigantureIsSubTypeIfTheyAreIdentical.ts")]
 #[case("signatureInstantiationWithRecursiveConstraints.ts")]
-#[case("signaturesUseJSDocForOptionalParameters.ts")]
+#[case("signaturesUseJSDocForOptionalParameters.ts")] // NOT RUNNABLE
 #[case("silentNeverPropagation.ts")]
 #[case("simpleArrowFunctionParameterReferencedInObjectLiteral1.ts")]
 #[case("simplifyingConditionalWithInteriorConditionalIsRelated.ts")]
@@ -4662,7 +4662,7 @@ use typescript_rust::{
 #[case("sourceMap-StringLiteralWithNewLine.ts")]
 #[case("sourceMapForFunctionInInternalModuleWithCommentPrecedingStatement01.ts")]
 #[case("sourceMapForFunctionWithCommentPrecedingStatement01.ts")]
-#[case("sourceMapPercentEncoded.ts")]
+#[case("sourceMapPercentEncoded.ts")] // NOT RUNNABLE
 #[case("sourceMapSample.ts")]
 #[case("sourceMapValidationClass.ts")]
 #[case("sourceMapValidationClassWithDefaultConstructor.ts")]
@@ -4735,12 +4735,12 @@ use typescript_rust::{
 #[case("sourceMapValidationVariables.ts")]
 #[case("sourceMapValidationWhile.ts")]
 #[case("sourceMapValidationWithComments.ts")]
-#[case("sourceMapWithCaseSensitiveFileNames.ts")]
-#[case("sourceMapWithCaseSensitiveFileNamesAndOutDir.ts")]
-#[case("sourceMapWithMultipleFilesWithCopyright.ts")]
-#[case("sourceMapWithMultipleFilesWithFileEndingWithInterface.ts")]
-#[case("sourceMapWithNonCaseSensitiveFileNames.ts")]
-#[case("sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts")]
+#[case("sourceMapWithCaseSensitiveFileNames.ts")] // NOT RUNNABLE
+#[case("sourceMapWithCaseSensitiveFileNamesAndOutDir.ts")] // NOT RUNNABLE
+#[case("sourceMapWithMultipleFilesWithCopyright.ts")] // NOT RUNNABLE
+#[case("sourceMapWithMultipleFilesWithFileEndingWithInterface.ts")] // NOT RUNNABLE
+#[case("sourceMapWithNonCaseSensitiveFileNames.ts")] // NOT RUNNABLE
+#[case("sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts")] // NOT RUNNABLE
 #[case("sourcemapValidationDuplicateNames.ts")]
 #[case("spaceBeforeQuestionMarkInPropertyAssignment.ts")]
 #[case("specedNoStackBlown.ts")]
@@ -4758,7 +4758,7 @@ use typescript_rust::{
 #[case("spellingSuggestionGlobal2.ts")]
 #[case("spellingSuggestionGlobal3.ts")]
 #[case("spellingSuggestionGlobal4.ts")]
-#[case("spellingSuggestionJSXAttribute.tsx")]
+#[case("spellingSuggestionJSXAttribute.tsx")] // NOT RUNNABLE on .lib directive
 #[case("spellingSuggestionLeadingUnderscores01.ts")]
 #[case("spellingSuggestionModule.ts")]
 #[case("spliceTuples.ts")]
@@ -4773,7 +4773,7 @@ use typescript_rust::{
 #[case("spreadOfParamsFromGeneratorMakesRequiredParams.ts")]
 #[case("spreadTypeRemovesReadonly.ts")]
 #[case("spyComparisonChecking.ts")]
-#[case("stackDepthLimitCastingType.ts")]
+#[case("stackDepthLimitCastingType.ts")] // NOT RUNNABLE
 #[case("standaloneBreak.ts")]
 #[case("staticAndMemberFunctions.ts")]
 #[case("staticAnonymousTypeNotReferencingTypeParameter.ts")]
@@ -4788,9 +4788,9 @@ use typescript_rust::{
 #[case("staticInheritance.ts")]
 #[case("staticInstanceResolution.ts")]
 #[case("staticInstanceResolution2.ts")]
-#[case("staticInstanceResolution3.ts")]
+#[case("staticInstanceResolution3.ts")] // NOT RUNNABLE
 #[case("staticInstanceResolution4.ts")]
-#[case("staticInstanceResolution5.ts")]
+#[case("staticInstanceResolution5.ts")] // NOT RUNNABLE
 #[case("staticInterfaceAssignmentCompat.ts")]
 #[case("staticMemberAccessOffDerivedType1.ts")]
 #[case("staticMemberExportAccess.ts")]
@@ -4852,10 +4852,10 @@ use typescript_rust::{
 #[case("structural1.ts")]
 #[case("structuralTypeInDeclareFileForModule.ts")]
 #[case("styleOptions.ts")]
-#[case("styledComponentsInstantiaionLimitNotReached.ts")]
+#[case("styledComponentsInstantiaionLimitNotReached.ts")] // NOT RUNNABLE on .lib directive
 #[case("subSubClassCanAccessProtectedConstructor.ts")]
-#[case("subclassThisTypeAssignable01.ts")]
-#[case("subclassThisTypeAssignable02.ts")]
+#[case("subclassThisTypeAssignable01.ts")] // NOT RUNNABLE
+#[case("subclassThisTypeAssignable02.ts")] // NOT RUNNABLE
 #[case("subclassWithPolymorphicThisIsAssignable.ts")]
 #[case("substituteReturnTypeSatisfiesConstraint.ts")]
 #[case("substitutionTypeNoMergeOfAssignableType.ts")]
@@ -4897,7 +4897,7 @@ use typescript_rust::{
 #[case("superInObjectLiterals_ES5.ts")]
 #[case("superInObjectLiterals_ES6.ts")]
 #[case("superNewCall1.ts")]
-#[case("superNoModifiersCrash.ts")]
+#[case("superNoModifiersCrash.ts")] // NOT RUNNABLE
 #[case("superPropertyAccess.ts")]
 #[case("superPropertyAccess1.ts")]
 #[case("superPropertyAccess2.ts")]
@@ -4923,47 +4923,47 @@ use typescript_rust::{
 #[case("switchFallThroughs.ts")]
 #[case("switchStatementsWithMultipleDefaults.ts")]
 #[case("switchStatementsWithMultipleDefaults1.ts")]
-#[case("symbolLinkDeclarationEmitModuleNames.ts")]
-#[case("symbolLinkDeclarationEmitModuleNamesImportRef.ts")]
-#[case("symbolLinkDeclarationEmitModuleNamesRootDir.ts")]
-#[case("symbolMergeValueAndImportedType.ts")]
+#[case("symbolLinkDeclarationEmitModuleNames.ts")] // NOT RUNNABLE
+#[case("symbolLinkDeclarationEmitModuleNamesImportRef.ts")] // NOT RUNNABLE
+#[case("symbolLinkDeclarationEmitModuleNamesRootDir.ts")] // NOT RUNNABLE
+#[case("symbolMergeValueAndImportedType.ts")] // NOT RUNNABLE
 #[case("symbolObserverMismatchingPolyfillsWorkTogether.ts")]
-#[case("syntheticDefaultExportsWithDynamicImports.ts")]
+#[case("syntheticDefaultExportsWithDynamicImports.ts")] // NOT RUNNABLE
 #[case("systemDefaultExportCommentValidity.ts")]
-#[case("systemDefaultImportCallable.ts")]
-#[case("systemExportAssignment.ts")]
-#[case("systemExportAssignment2.ts")]
-#[case("systemExportAssignment3.ts")]
+#[case("systemDefaultImportCallable.ts")] // NOT RUNNABLE
+#[case("systemExportAssignment.ts")] // NOT RUNNABLE
+#[case("systemExportAssignment2.ts")] // NOT RUNNABLE
+#[case("systemExportAssignment3.ts")] // NOT RUNNABLE
 #[case("systemJsForInNoException.ts")]
 #[case("systemModule1.ts")]
 #[case("systemModule10.ts")]
 #[case("systemModule10_ES5.ts")]
-#[case("systemModule11.ts")]
+#[case("systemModule11.ts")] // NOT RUNNABLE
 #[case("systemModule12.ts")]
 #[case("systemModule13.ts")]
 #[case("systemModule14.ts")]
-#[case("systemModule15.ts")]
+#[case("systemModule15.ts")] // NOT RUNNABLE
 #[case("systemModule16.ts")]
-#[case("systemModule17.ts")]
+#[case("systemModule17.ts")] // NOT RUNNABLE
 #[case("systemModule2.ts")]
-#[case("systemModule3.ts")]
+#[case("systemModule3.ts")] // NOT RUNNABLE
 #[case("systemModule4.ts")]
 #[case("systemModule5.ts")]
 #[case("systemModule6.ts")]
 #[case("systemModule7.ts")]
 #[case("systemModule8.ts")]
 #[case("systemModule9.ts")]
-#[case("systemModuleAmbientDeclarations.ts")]
+#[case("systemModuleAmbientDeclarations.ts")] // NOT RUNNABLE
 #[case("systemModuleConstEnums.ts")]
 #[case("systemModuleConstEnumsSeparateCompilation.ts")]
 #[case("systemModuleDeclarationMerging.ts")]
-#[case("systemModuleExportDefault.ts")]
+#[case("systemModuleExportDefault.ts")] // NOT RUNNABLE
 #[case("systemModuleNonTopLevelModuleMembers.ts")]
 #[case("systemModuleTargetES6.ts")]
 #[case("systemModuleTrailingComments.ts")]
-#[case("systemModuleWithSuperClass.ts")]
+#[case("systemModuleWithSuperClass.ts")] // NOT RUNNABLE
 #[case("systemNamespaceAliasEmit.ts")]
-#[case("systemObjectShorthandRename.ts")]
+#[case("systemObjectShorthandRename.ts")] // NOT RUNNABLE
 #[case("taggedPrimitiveNarrowing.ts")]
 #[case("taggedTemplateStringWithSymbolExpression01.ts")]
 #[case("taggedTemplateStringsHexadecimalEscapes.ts")]
@@ -4975,9 +4975,9 @@ use typescript_rust::{
 #[case("taggedTemplateStringsWithUnicodeEscapesES6.ts")]
 #[case("taggedTemplateStringsWithWhitespaceEscapes.ts")]
 #[case("taggedTemplateStringsWithWhitespaceEscapesES6.ts")]
-#[case("taggedTemplateWithoutDeclaredHelper.ts")]
+#[case("taggedTemplateWithoutDeclaredHelper.ts")] // NOT RUNNABLE
 #[case("taggedTemplatesInDifferentScopes.ts")]
-#[case("taggedTemplatesInModuleAndGlobal.ts")]
+#[case("taggedTemplatesInModuleAndGlobal.ts")] // NOT RUNNABLE
 #[case("taggedTemplatesWithIncompleteNoSubstitutionTemplate1.ts")]
 #[case("taggedTemplatesWithIncompleteNoSubstitutionTemplate2.ts")]
 #[case("taggedTemplatesWithIncompleteTemplateExpressions1.ts")]
@@ -4987,7 +4987,7 @@ use typescript_rust::{
 #[case("taggedTemplatesWithIncompleteTemplateExpressions5.ts")]
 #[case("taggedTemplatesWithIncompleteTemplateExpressions6.ts")]
 #[case("tailRecursiveConditionalTypes.ts")]
-#[case("targetEs6DecoratorMetadataImportNotElided.ts")]
+#[case("targetEs6DecoratorMetadataImportNotElided.ts")] // NOT RUNNABLE
 #[case("targetTypeArgs.ts")]
 #[case("targetTypeBaseCalls.ts")]
 #[case("targetTypeCalls.ts")]
@@ -5048,7 +5048,7 @@ use typescript_rust::{
 #[case("tooFewArgumentsInGenericFunctionTypedArgument.ts")]
 #[case("tooManyTypeParameters1.ts")]
 #[case("topLevel.ts")]
-#[case("topLevelBlockExpando.ts")]
+#[case("topLevelBlockExpando.ts")] // NOT RUNNABLE
 #[case("topLevelExports.ts")]
 #[case("topLevelLambda.ts")]
 #[case("topLevelLambda2.ts")]
@@ -5058,39 +5058,39 @@ use typescript_rust::{
 #[case("trailingCommasES3.ts")]
 #[case("trailingCommasES5.ts")]
 #[case("transformArrowInBlockScopedLoopVarInitializer.ts")]
-#[case("transformNestedGeneratorsWithTry.ts")]
+#[case("transformNestedGeneratorsWithTry.ts")] // NOT RUNNABLE
 #[case("transformParenthesizesConditionalSubexpression.ts")]
 #[case("transformsElideNullUndefinedType.ts")]
 #[case("transitiveTypeArgumentInference1.ts")]
 #[case("tripleSlashInCommentNotParsed.ts")]
-#[case("tripleSlashReferenceAbsoluteWindowsPath.ts")]
-#[case("truthinessCallExpressionCoercion.ts")]
-#[case("truthinessCallExpressionCoercion1.ts")]
-#[case("truthinessCallExpressionCoercion2.ts")]
+#[case("tripleSlashReferenceAbsoluteWindowsPath.ts")] // NOT RUNNABLE
+#[case("truthinessCallExpressionCoercion.ts")] // FAILING
+#[case("truthinessCallExpressionCoercion1.ts")] // FAILING
+#[case("truthinessCallExpressionCoercion2.ts")] // FAILING
 #[case("truthinessCallExpressionCoercion3.ts")]
-#[case("truthinessPromiseCoercion.ts")]
+#[case("truthinessPromiseCoercion.ts")] // FAILING
 #[case("tryCatchFinally.ts")]
 #[case("tryCatchFinallyControlFlow.ts")]
 #[case("tryStatementInternalComments.ts")]
-#[case("tsconfigMapOptionsAreCaseInsensitive.ts")]
-#[case("tslibInJs.ts")]
+#[case("tsconfigMapOptionsAreCaseInsensitive.ts")] // NOT RUNNABLE
+#[case("tslibInJs.ts")] // NOT RUNNABLE
 #[case("tsxAttributeQuickinfoTypesSameAsObjectLiteral.tsx")]
 #[case("tsxAttributesHasInferrableIndex.tsx")]
-#[case("tsxDeepAttributeAssignabilityError.tsx")]
-#[case("tsxDefaultImports.ts")]
-#[case("tsxDiscriminantPropertyInference.tsx")]
-#[case("tsxFragmentChildrenCheck.ts")]
-#[case("tsxInferenceShouldNotYieldAnyOnUnions.tsx")]
-#[case("tsxInvokeComponentType.tsx")]
+#[case("tsxDeepAttributeAssignabilityError.tsx")] // NOT RUNNABLE
+#[case("tsxDefaultImports.ts")] // NOT RUNNABLE
+#[case("tsxDiscriminantPropertyInference.tsx")] // FAILING
+#[case("tsxFragmentChildrenCheck.ts")] // NOT RUNNABLE
+#[case("tsxInferenceShouldNotYieldAnyOnUnions.tsx")] // NOT RUNNABLE
+#[case("tsxInvokeComponentType.tsx")] // NOT RUNNABLE on .lib directive
 #[case("tsxNoTypeAnnotatedSFC.tsx")]
-#[case("tsxNotUsingApparentTypeOfSFC.tsx")]
-#[case("tsxReactPropsInferenceSucceedsOnIntersections.tsx")]
-#[case("tsxResolveExternalModuleExportsTypes.ts")]
-#[case("tsxSpreadDoesNotReportExcessProps.tsx")]
-#[case("tsxStatelessComponentDefaultProps.tsx")]
-#[case("tsxTypeArgumentPartialDefinitionStillErrors.ts")]
-#[case("tsxUnionMemberChecksFilterDataProps.tsx")]
-#[case("tsxUnionSpread.tsx")]
+#[case("tsxNotUsingApparentTypeOfSFC.tsx")] // NOT RUNNABLE on .lib directive
+#[case("tsxReactPropsInferenceSucceedsOnIntersections.tsx")] // NOT RUNNABLE on .lib directive
+#[case("tsxResolveExternalModuleExportsTypes.ts")] // NOT RUNNABLE
+#[case("tsxSpreadDoesNotReportExcessProps.tsx")] // NOT RUNNABLE on .lib directive
+#[case("tsxStatelessComponentDefaultProps.tsx")] // NOT RUNNABLE on .lib directive
+#[case("tsxTypeArgumentPartialDefinitionStillErrors.ts")] // NOT RUNNABLE
+#[case("tsxUnionMemberChecksFilterDataProps.tsx")] // NOT RUNNABLE on .lib directive
+#[case("tsxUnionSpread.tsx")] // NOT RUNNABLE
 #[case("tupleTypeInference.ts")]
 #[case("tupleTypeInference2.ts")]
 #[case("tupleTypes.ts")]
@@ -5119,7 +5119,7 @@ use typescript_rust::{
 #[case("typeArgumentsOnFunctionsWithNoTypeParameters.ts")]
 #[case("typeArgumentsShouldDisallowNonGenericOverloads.ts")]
 #[case("typeAssertionToGenericFunctionType.ts")]
-#[case("typeCheckObjectCreationExpressionWithUndefinedCallResolutionData.ts")]
+#[case("typeCheckObjectCreationExpressionWithUndefinedCallResolutionData.ts")] // NOT RUNNABLE
 #[case("typeCheckObjectLiteralMethodBody.ts")]
 #[case("typeCheckReturnExpression.ts")]
 #[case("typeCheckTypeArgument.ts")]
@@ -5207,25 +5207,25 @@ use typescript_rust::{
 #[case("typePredicatesInUnion.ts")]
 #[case("typePredicatesInUnion2.ts")]
 #[case("typePredicatesInUnion_noMatch.ts")]
-#[case("typeReferenceDirectives1.ts")]
-#[case("typeReferenceDirectives10.ts")]
-#[case("typeReferenceDirectives11.ts")]
-#[case("typeReferenceDirectives12.ts")]
-#[case("typeReferenceDirectives13.ts")]
-#[case("typeReferenceDirectives2.ts")]
-#[case("typeReferenceDirectives3.ts")]
-#[case("typeReferenceDirectives4.ts")]
-#[case("typeReferenceDirectives5.ts")]
-#[case("typeReferenceDirectives6.ts")]
-#[case("typeReferenceDirectives7.ts")]
-#[case("typeReferenceDirectives8.ts")]
-#[case("typeReferenceDirectives9.ts")]
+#[case("typeReferenceDirectives1.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives10.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives11.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives12.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives13.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives2.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives3.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives4.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives5.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives6.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives7.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives8.ts")] // NOT RUNNABLE
+#[case("typeReferenceDirectives9.ts")] // NOT RUNNABLE
 #[case("typeResolution.ts")]
-#[case("typeRootsFromMultipleNodeModulesDirectories.ts")]
-#[case("typeRootsFromNodeModulesInParentDirectory.ts")]
+#[case("typeRootsFromMultipleNodeModulesDirectories.ts")] // NOT RUNNABLE
+#[case("typeRootsFromNodeModulesInParentDirectory.ts")] // NOT RUNNABLE
 #[case("typeUsedAsTypeLiteralIndex.ts")]
 #[case("typeUsedAsValueError.ts")]
-#[case("typeUsedAsValueError2.ts")]
+#[case("typeUsedAsValueError2.ts")] // NOT RUNNABLE
 #[case("typeVal.ts")]
 #[case("typeValueConflict1.ts")]
 #[case("typeValueConflict2.ts")]
@@ -5238,10 +5238,10 @@ use typescript_rust::{
 #[case("typedArraysCrossAssignability01.ts")]
 #[case("typedArraysSubarray.ts")]
 #[case("typedGenericPrototypeMember.ts")]
-#[case("typeofAmbientExternalModules.ts")]
+#[case("typeofAmbientExternalModules.ts")] // NOT RUNNABLE
 #[case("typeofClass.ts")]
 #[case("typeofEnum.ts")]
-#[case("typeofExternalModules.ts")]
+#[case("typeofExternalModules.ts")] // NOT RUNNABLE
 #[case("typeofInObjectLiteralType.ts")]
 #[case("typeofInterface.ts")]
 #[case("typeofInternalModules.ts")]
@@ -5255,17 +5255,17 @@ use typescript_rust::{
 #[case("umdDependencyComment2.ts")]
 #[case("umdDependencyCommentName1.ts")]
 #[case("umdDependencyCommentName2.ts")]
-#[case("umdGlobalAugmentationNoCrash.ts")]
-#[case("umdGlobalConflict.ts")]
-#[case("umdNamedAmdMode.ts")]
-#[case("umdNamespaceMergedWithGlobalAugmentationIsNotCircular.ts")]
+#[case("umdGlobalAugmentationNoCrash.ts")] // NOT RUNNABLE
+#[case("umdGlobalConflict.ts")] // NOT RUNNABLE
+#[case("umdNamedAmdMode.ts")] // NOT RUNNABLE
+#[case("umdNamespaceMergedWithGlobalAugmentationIsNotCircular.ts")] // NOT RUNNABLE
 #[case("unaryOperators1.ts")]
 #[case("unaryOperatorsInStrictMode.ts")]
 #[case("unaryPlus.ts")]
 #[case("uncaughtCompilerError1.ts")]
 #[case("uncaughtCompilerError2.ts")]
-#[case("unclosedExportClause01.ts")]
-#[case("unclosedExportClause02.ts")]
+#[case("unclosedExportClause01.ts")] // NOT RUNNABLE
+#[case("unclosedExportClause02.ts")] // NOT RUNNABLE
 #[case("undeclaredBase.ts")]
 #[case("undeclaredMethod.ts")]
 #[case("undeclaredModuleError.ts")]
@@ -5282,12 +5282,12 @@ use typescript_rust::{
 #[case("undefinedTypeAssignment4.ts")]
 #[case("underscoreEscapedNameInEnum.ts")]
 #[case("underscoreMapFirst.ts")]
-#[case("underscoreTest1.ts")]
+#[case("underscoreTest1.ts")] // NOT RUNNABLE
 #[case("underscoreThisInDerivedClass01.ts")]
 #[case("underscoreThisInDerivedClass02.ts")]
 #[case("unexpectedStatementBlockTerminator.ts")]
 #[case("unexportedInstanceClassVariables.ts")]
-#[case("unicodeEscapesInJSDoc.ts")]
+#[case("unicodeEscapesInJSDoc.ts")] // NOT RUNNABLE
 #[case("unicodeIdentifierName2.ts")]
 #[case("unicodeIdentifierNames.ts")]
 #[case("unicodeStringLiteral.ts")]
@@ -5299,7 +5299,7 @@ use typescript_rust::{
 #[case("unionOfFunctionAndSignatureIsCallable.ts")]
 #[case("unionPropertyExistence.ts")]
 #[case("unionReductionMutualSubtypes.ts")]
-#[case("unionRelationshipCheckPasses.ts")]
+#[case("unionRelationshipCheckPasses.ts")] // FAILING
 #[case("unionSignaturesWithThisParameter.ts")]
 #[case("unionSubtypeReductionErrors.ts")]
 #[case("unionTypeErrorMessageTypeRefs01.ts")]
@@ -5310,12 +5310,11 @@ use typescript_rust::{
 #[case("unionTypeWithLeadingOperator.ts")]
 #[case("unionTypeWithRecursiveSubtypeReduction1.ts")]
 #[case("unionTypeWithRecursiveSubtypeReduction2.ts")]
-// looks like this is probably actually resolving the "any" (recursive?) part of the type wrong vs being a type-printing issue?
 #[case("unionTypeWithRecursiveSubtypeReduction3.ts")]
 #[case("unionWithIndexSignature.ts")]
 #[case("uniqueSymbolAllowsIndexInObjectWithIndexSignature.ts")]
 #[case("uniqueSymbolAssignmentOnGlobalAugmentationSuceeds.ts")]
-#[case("uniqueSymbolPropertyDeclarationEmit.ts")]
+#[case("uniqueSymbolPropertyDeclarationEmit.ts")] // NOT RUNNABLE
 #[case("unknownPropertiesAreAssignableToObjectUnion.ts")]
 #[case("unknownSymbolInGenericReturnType.ts")]
 #[case("unknownSymbolOffContextualType1.ts")]
@@ -5328,17 +5327,17 @@ use typescript_rust::{
 #[case("unparenthesizedFunctionTypeInUnionOrIntersection.ts")]
 #[case("unqualifiedCallToClassStatic1.ts")]
 #[case("unreachableFlowAfterFinally.ts")]
-#[case("unreachableJavascriptChecked.ts")]
-#[case("unreachableJavascriptUnchecked.ts")]
-#[case("unreachableSwitchTypeofAny.ts")]
-#[case("unreachableSwitchTypeofUnknown.ts")]
+#[case("unreachableJavascriptChecked.ts")] // NOT RUNNABLE
+#[case("unreachableJavascriptUnchecked.ts")] // NOT RUNNABLE
+#[case("unreachableSwitchTypeofAny.ts")] // NOT RUNNABLE
+#[case("unreachableSwitchTypeofUnknown.ts")] // NOT RUNNABLE
 #[case("unresolvedTypeAssertionSymbol.ts")]
 #[case("unspecializedConstraints.ts")]
 #[case("unterminatedRegexAtEndOfSource1.ts")]
 #[case("unterminatedStringLiteralWithBackslash1.ts")]
 #[case("untypedArgumentInLambdaExpression.ts")]
 #[case("untypedFunctionCallsWithTypeParameters1.ts")]
-#[case("untypedModuleImport_withAugmentation2.ts")]
+#[case("untypedModuleImport_withAugmentation2.ts")] // NOT RUNNABLE
 #[case("unusedClassesinModule1.ts")]
 #[case("unusedClassesinNamespace1.ts")]
 #[case("unusedClassesinNamespace2.ts")]
@@ -5355,31 +5354,31 @@ use typescript_rust::{
 #[case("unusedFunctionsinNamespaces6.ts")]
 #[case("unusedGetterInClass.ts")]
 #[case("unusedIdentifiersConsolidated1.ts")]
-#[case("unusedImportDeclaration.ts")]
-#[case("unusedImportWithSpread.ts")]
-#[case("unusedImports1.ts")]
+#[case("unusedImportDeclaration.ts")] // NOT RUNNABLE
+#[case("unusedImportWithSpread.ts")] // NOT RUNNABLE
+#[case("unusedImports1.ts")] // NOT RUNNABLE
 #[case("unusedImports10.ts")]
-#[case("unusedImports11.ts")]
-#[case("unusedImports12.ts")]
-#[case("unusedImports13.ts")]
-#[case("unusedImports14.ts")]
-#[case("unusedImports15.ts")]
-#[case("unusedImports16.ts")]
-#[case("unusedImports2.ts")]
-#[case("unusedImports3.ts")]
-#[case("unusedImports4.ts")]
-#[case("unusedImports5.ts")]
-#[case("unusedImports6.ts")]
-#[case("unusedImports7.ts")]
-#[case("unusedImports8.ts")]
-#[case("unusedImports9.ts")]
-#[case("unusedImports_entireImportDeclaration.ts")]
+#[case("unusedImports11.ts")] // NOT RUNNABLE
+#[case("unusedImports12.ts")] // NOT RUNNABLE
+#[case("unusedImports13.ts")] // NOT RUNNABLE
+#[case("unusedImports14.ts")] // NOT RUNNABLE
+#[case("unusedImports15.ts")] // NOT RUNNABLE
+#[case("unusedImports16.ts")] // NOT RUNNABLE
+#[case("unusedImports2.ts")] // NOT RUNNABLE
+#[case("unusedImports3.ts")] // NOT RUNNABLE
+#[case("unusedImports4.ts")] // NOT RUNNABLE
+#[case("unusedImports5.ts")] // NOT RUNNABLE
+#[case("unusedImports6.ts")] // NOT RUNNABLE
+#[case("unusedImports7.ts")] // NOT RUNNABLE
+#[case("unusedImports8.ts")] // NOT RUNNABLE
+#[case("unusedImports9.ts")] // NOT RUNNABLE
+#[case("unusedImports_entireImportDeclaration.ts")] // NOT RUNNABLE
 #[case("unusedInterfaceinNamespace1.ts")]
 #[case("unusedInterfaceinNamespace2.ts")]
 #[case("unusedInterfaceinNamespace3.ts")]
 #[case("unusedInterfaceinNamespace4.ts")]
 #[case("unusedInterfaceinNamespace5.ts")]
-#[case("unusedInvalidTypeArguments.ts")]
+#[case("unusedInvalidTypeArguments.ts")] // NOT RUNNABLE
 #[case("unusedLocalProperty.ts")]
 #[case("unusedLocalsAndObjectSpread.ts")]
 #[case("unusedLocalsAndObjectSpread2.ts")]
@@ -5399,7 +5398,7 @@ use typescript_rust::{
 #[case("unusedLocalsOnFunctionExpressionWithinFunctionDeclaration2.ts")]
 #[case("unusedLocalsOnFunctionExpressionWithinFunctionExpression1.ts")]
 #[case("unusedLocalsOnFunctionExpressionWithinFunctionExpression2.ts")]
-// #[case("unusedLocalsStartingWithUnderscore.ts")] uses @Filename
+#[case("unusedLocalsStartingWithUnderscore.ts")] // NOT RUNNABLE
 #[case("unusedLocalsinConstructor1.ts")]
 #[case("unusedLocalsinConstructor2.ts")]
 #[case("unusedMethodsInInterface.ts")]
@@ -5464,16 +5463,16 @@ use typescript_rust::{
 #[case("unusedTypeParameters3.ts")]
 #[case("unusedTypeParameters4.ts")]
 #[case("unusedTypeParameters5.ts")]
-#[case("unusedTypeParameters6.ts")]
-#[case("unusedTypeParameters7.ts")]
-// #[case("unusedTypeParameters8.ts")] uses @fileName/multiple files
+#[case("unusedTypeParameters6.ts")] // NOT RUNNABLE
+#[case("unusedTypeParameters7.ts")] // NOT RUNNABLE
+#[case("unusedTypeParameters8.ts")] // NOT RUNNABLE
 #[case("unusedTypeParameters9.ts")]
 #[case("unusedTypeParametersCheckedByNoUnusedParameters.ts")]
 #[case("unusedTypeParametersNotCheckedByNoUnusedLocals.ts")]
 #[case("unusedTypeParametersWithUnderscore.ts")]
 #[case("unusedTypeParameters_infer.ts")]
-// #[case("unusedTypeParameters_templateTag.ts")] these two use @Filename but not multiple files?
-// #[case("unusedTypeParameters_templateTag2.ts")]
+#[case("unusedTypeParameters_templateTag.ts")] // NOT RUNNABLE
+#[case("unusedTypeParameters_templateTag2.ts")] // NOT RUNNABLE
 #[case("unusedVariablesWithUnderscoreInBindingElement.ts")]
 #[case("unusedVariablesWithUnderscoreInForOfLoop.ts")]
 #[case("unusedVariablesinBlocks1.ts")]
@@ -5487,16 +5486,16 @@ use typescript_rust::{
 #[case("unusedVariablesinNamespaces2.ts")]
 #[case("unusedVariablesinNamespaces3.ts")]
 #[case("unwitnessedTypeParameterVariance.ts")]
-#[case("useBeforeDeclaration.ts")]
+#[case("useBeforeDeclaration.ts")] // NOT RUNNABLE
 #[case("useBeforeDeclaration_destructuring.ts")]
 #[case("useBeforeDeclaration_jsx.tsx")]
 #[case("useBeforeDeclaration_propertyAssignment.ts")]
 #[case("useBeforeDeclaration_superClass.ts")]
-#[case("useBeforeDefinitionInDeclarationFiles.ts")]
-#[case("useDefineForClassFieldsFlagDefault.ts")]
+#[case("useBeforeDefinitionInDeclarationFiles.ts")] // NOT RUNNABLE
+#[case("useDefineForClassFieldsFlagDefault.ts")] // NOT RUNNABLE
 #[case("useStrictLikePrologueString01.ts")]
 #[case("useUnknownInCatchVariables01.ts")]
-#[case("usedImportNotElidedInJs.ts")]
+#[case("usedImportNotElidedInJs.ts")] // NOT RUNNABLE
 #[case("usingModuleWithExportImportInValuePosition.ts")]
 #[case("validRegexp.ts")]
 #[case("validUseOfThisInSuper.ts")]
@@ -5518,17 +5517,17 @@ use typescript_rust::{
 #[case("variableDeclarator1.ts")]
 #[case("variableDeclaratorResolvedDuringContextualTyping.ts")]
 #[case("varianceCallbacksAndIndexedAccesses.ts")]
-// #[case("varianceMeasurement.ts")] // looks like it's finding the correct # of errors but not showing exactly the same diagnostics for some of them?
+#[case("varianceMeasurement.ts")]
 #[case("varianceProblingAndZeroOrderIndexSignatureRelationsAlign.ts")]
 #[case("varianceProblingAndZeroOrderIndexSignatureRelationsAlign2.ts")]
 #[case("varianceRepeatedlyPropegatesWithUnreliableFlag.ts")]
 #[case("verifyDefaultLib_dom.ts")]
 #[case("verifyDefaultLib_webworker.ts")]
 #[case("visSyntax.ts")]
-#[case("visibilityOfCrossModuleTypeUsage.ts")]
+#[case("visibilityOfCrossModuleTypeUsage.ts")] // NOT RUNNABLE
 #[case("visibilityOfTypeParameters.ts")]
 #[case("voidArrayLit.ts")]
-// #[case("voidAsNonAmbiguousReturnType.ts")] // has more than one source file "inline"
+#[case("voidAsNonAmbiguousReturnType.ts")] // NOT RUNNABLE
 #[case("voidAsOperator.ts")]
 #[case("voidConstructor.ts")]
 #[case("voidFunctionAssignmentCompat.ts")]
@@ -5539,7 +5538,7 @@ use typescript_rust::{
 #[case("voidUndefinedReduction.ts")]
 #[case("vueLikeDataAndPropsInference.ts")]
 #[case("vueLikeDataAndPropsInference2.ts")]
-// #[case("weakType.ts")] // failing on sometimes flipping `Spoiler & Weak` vs `Weak & Spoiler`
+#[case("weakType.ts")]
 #[case("webworkerIterable.ts")]
 #[case("wellKnownSymbolExpando.ts")]
 #[case("whileStatementInnerComments.ts")]
@@ -5548,7 +5547,7 @@ use typescript_rust::{
 #[case("widenedTypes.ts")]
 #[case("widenedTypes1.ts")]
 #[case("withExportDecl.ts")]
-#[case("withImportDecl.ts")]
+#[case("withImportDecl.ts")] // NOT RUNNABLE
 #[case("withStatement.ts")]
 #[case("withStatementErrors.ts")]
 #[case("withStatementInternalComments.ts")]
