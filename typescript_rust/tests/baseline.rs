@@ -4558,7 +4558,7 @@ use typescript_rust::{
 #[case("resolveModuleNameWithSameLetDeclarationName2.ts")]
 #[case("resolveNameWithNamspace.ts")] // NOT RUNNABLE
 #[case("resolveTypeAliasWithSameLetDeclarationName1.ts")]
-#[case("resolvingClassDeclarationWhenInBaseTypeResolution.ts")] // FAILING 4539 on borrow error
+#[case("resolvingClassDeclarationWhenInBaseTypeResolution.ts")]
 #[case("restArgAssignmentCompat.ts")]
 #[case("restArgMissingName.ts")]
 #[case("restElementWithNumberPropertyName.ts")]
@@ -4610,8 +4610,8 @@ use typescript_rust::{
 #[case("selfRef.ts")]
 #[case("selfReference.ts")]
 #[case("selfReferencesInFunctionParameters.ts")]
-#[case("selfReferencingFile.ts")] // FAILING?
-#[case("selfReferencingFile2.ts")] // FAILING?
+#[case("selfReferencingFile.ts")]
+#[case("selfReferencingFile2.ts")]
 #[case("selfReferencingFile3.ts")] // NOT RUNNABLE on .lib directive
 #[case("selfReferencingSpreadInLoop.ts")]
 #[case("selfReferencingTypeReferenceInference.ts")]
@@ -5064,11 +5064,11 @@ use typescript_rust::{
 #[case("transitiveTypeArgumentInference1.ts")]
 #[case("tripleSlashInCommentNotParsed.ts")]
 #[case("tripleSlashReferenceAbsoluteWindowsPath.ts")] // NOT RUNNABLE
-#[case("truthinessCallExpressionCoercion.ts")] // FAILING
-#[case("truthinessCallExpressionCoercion1.ts")] // FAILING
-#[case("truthinessCallExpressionCoercion2.ts")] // FAILING
+#[case("truthinessCallExpressionCoercion.ts")]
+#[case("truthinessCallExpressionCoercion1.ts")]
+#[case("truthinessCallExpressionCoercion2.ts")]
 #[case("truthinessCallExpressionCoercion3.ts")]
-#[case("truthinessPromiseCoercion.ts")] // FAILING
+#[case("truthinessPromiseCoercion.ts")]
 #[case("tryCatchFinally.ts")]
 #[case("tryCatchFinallyControlFlow.ts")]
 #[case("tryStatementInternalComments.ts")]
@@ -5800,11 +5800,8 @@ fn parse_baseline_errors(baseline_file_contents: &str) -> String {
         .into_iter()
         .rev()
         .map(|line| {
-            line.replace(
-                "tests/cases/compiler",
-                "typescript_src/tests/cases/compiler",
-            )
-            .replace("\r", "\n")
+            line.replace("tests/cases", "typescript_src/tests/cases")
+                .replace("\r", "\n")
         })
         .collect::<Vec<_>>()
         .join("")

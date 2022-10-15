@@ -801,7 +801,7 @@ impl TypeChecker {
         if !self.strict_null_checks {
             return;
         }
-        if self.get_falsy_flags(type_) == TypeFlags::None {
+        if self.get_falsy_flags(type_) != TypeFlags::None {
             return;
         }
 
