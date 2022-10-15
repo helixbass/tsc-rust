@@ -184,12 +184,16 @@ pub fn try_extract_ts_extension(file_name: &str) -> Option<Extension> {
     .copied()
 }
 
-pub fn read_json<THostReadFile: FnMut(&str) -> io::Result<String>>(
+pub fn read_json<THostReadFile: FnMut(&str) -> io::Result<Option<String>>>(
     path: &str,
     mut host_read_file: THostReadFile,
 ) -> serde_json::Value {
     let json_text = host_read_file(path);
     if json_text.is_err() {
+        return serde_json::Value::Object(serde_json::Map::new());
+    }
+    let json_text = json_text.unwrap();
+    if json_text.is_none() {
         return serde_json::Value::Object(serde_json::Map::new());
     }
     let json_text = json_text.unwrap();

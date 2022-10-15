@@ -24,7 +24,7 @@ pub trait ModuleResolutionHost {
         &self,
         overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
     );
-    fn read_file(&self, file_name: &str) -> io::Result<String>;
+    fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
     fn trace(&self, s: &str) {}
     fn is_trace_supported(&self) -> bool;
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
@@ -119,7 +119,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
         unreachable!()
     }
 
-    fn read_file(&self, file_name: &str) -> io::Result<String> {
+    fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
         ParseConfigHost::read_file(self, file_name)
     }
 

@@ -1027,7 +1027,7 @@ pub trait ParseConfigHost {
 
     fn file_exists(&self, path: &str) -> bool;
 
-    fn read_file(&self, path: &str) -> io::Result<String>;
+    fn read_file(&self, path: &str) -> io::Result<Option<String>>;
     fn trace(&self, s: &str) {}
     fn is_trace_supported(&self) -> bool;
     fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;

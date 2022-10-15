@@ -381,9 +381,12 @@ fn try_set_language_and_territory(
         }
         Ok(file_contents) => file_contents,
     };
-    let parsed_file_contents: serde_json::Result<HashMap<String, String>> =
-        serde_json::from_str(&file_contents);
-    if parsed_file_contents.is_err() {
+    let parsed_file_contents: Option<serde_json::Result<HashMap<String, String>>> =
+        file_contents.map(|file_contents| serde_json::from_str(&file_contents));
+    if match parsed_file_contents.as_ref() {
+        None => true,
+        Some(parsed_file_contents) => parsed_file_contents.is_err(),
+    } {
         if let Some(errors) = errors {
             errors.push(Rc::new(
                 create_compiler_diagnostic(
@@ -395,7 +398,7 @@ fn try_set_language_and_territory(
         }
         return false;
     }
-    let parsed_file_contents = parsed_file_contents.unwrap();
+    let parsed_file_contents = parsed_file_contents.unwrap().unwrap();
     set_localized_diagnostic_messages(Some(parsed_file_contents));
 
     true

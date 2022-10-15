@@ -152,7 +152,7 @@ impl ModuleResolutionHost for ModuleResolutionHostFromModuleSpecifierResolutionH
         unreachable!()
     }
 
-    fn read_file(&self, file_name: &str) -> io::Result<String> {
+    fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
         self.host.read_file(file_name).unwrap()
     }
 
@@ -1152,8 +1152,14 @@ fn try_directory_with_package_json(
     let package_json_path = combine_paths(package_root_path, &[Some("package.json")]);
     let mut module_file_to_try = path.clone();
     if host.file_exists(&package_json_path) {
-        let package_json_content: serde_json::Value =
-            serde_json::from_str(&host.read_file(&package_json_path).unwrap().unwrap()).unwrap();
+        let package_json_content: serde_json::Value = serde_json::from_str(
+            &host
+                .read_file(&package_json_path)
+                .unwrap()
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
         let package_json_content = package_json_content.as_object().unwrap();
         if matches!(
             get_emit_module_resolution_kind(options),

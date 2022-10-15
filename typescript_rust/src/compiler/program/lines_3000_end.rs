@@ -1675,7 +1675,7 @@ pub trait CompilerHostLike {
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_current_directory(&self) -> String;
     fn file_exists(&self, file_name: &str) -> bool;
-    fn read_file(&self, file_name: &str) -> io::Result<String>;
+    fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
     fn read_directory(
         &self,
         root_dir: &str,
@@ -1722,7 +1722,7 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
         self.host.file_exists(file_name)
     }
 
-    fn read_file(&self, file_name: &str) -> io::Result<String> {
+    fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
         self.host.read_file(file_name)
     }
 
@@ -1788,7 +1788,7 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         self.host.file_exists(path)
     }
 
-    fn read_file(&self, path: &str, encoding: Option<&str>) -> io::Result<String> {
+    fn read_file(&self, path: &str, encoding: Option<&str>) -> io::Result<Option<String>> {
         self.host.read_file(path)
     }
 
@@ -1884,7 +1884,7 @@ impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
         self.directory_structure_host.file_exists(path)
     }
 
-    fn read_file(&self, path: &str) -> io::Result<String> {
+    fn read_file(&self, path: &str) -> io::Result<Option<String>> {
         self.directory_structure_host.read_file(path, None)
     }
 

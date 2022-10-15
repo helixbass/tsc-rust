@@ -1699,7 +1699,7 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
         self.host.get_file_include_reasons()
     }
 
-    fn read_file(&self, file_name: &str) -> Option<io::Result<String>> {
+    fn read_file(&self, file_name: &str) -> Option<io::Result<Option<String>>> {
         self.host.read_file(file_name)
     }
 

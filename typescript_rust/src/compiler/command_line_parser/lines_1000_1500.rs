@@ -1225,7 +1225,7 @@ pub(super) fn hash_map_to_watch_options(
     watch_options
 }
 
-pub(super) fn parse_command_line_worker<TReadFile: Fn(&str) -> io::Result<String>>(
+pub(super) fn parse_command_line_worker<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     command_line: &[String],
     read_file: Option<TReadFile>,
@@ -1261,7 +1261,7 @@ pub(super) fn parse_command_line_worker<TReadFile: Fn(&str) -> io::Result<String
     }
 }
 
-pub(super) fn parse_strings<TReadFile: Fn(&str) -> io::Result<String>>(
+pub(super) fn parse_strings<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut HashMap<String, CompilerOptionsValue>,

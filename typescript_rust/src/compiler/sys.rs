@@ -54,7 +54,7 @@ pub trait System: ConvertToTSConfigHost {
     fn get_width_of_terminal(&self) -> Option<usize> {
         None
     }
-    fn read_file(&self, path: &str) -> io::Result<String>;
+    fn read_file(&self, path: &str) -> io::Result<Option<String>>;
     fn get_file_size(&self, path: &str) -> Option<usize>;
     fn write_file(
         &self,
@@ -188,8 +188,12 @@ impl SystemConcrete {
         fs_stat_sync(path)
     }
 
-    fn read_file_worker(&self, file_name: &str) -> io::Result<String> {
-        read_file_and_strip_leading_byte_order_mark(file_name)
+    fn read_file_worker(&self, file_name: &str) -> io::Result<Option<String>> {
+        // I think the idea should be (so that behavior higher up in eg
+        // create_compiler_host_worker() -> get_source_file() can more closely match the Typescript
+        // version) that Err just corresponds to a thrown exception in JS, which
+        // if doesn't look like readFileWorker() typically does
+        Ok(read_file_and_strip_leading_byte_order_mark(file_name).ok())
     }
 
     fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
@@ -275,7 +279,7 @@ impl System for SystemConcrete {
         print!("{}", s);
     }
 
-    fn read_file(&self, file_name: &str) -> io::Result<String> {
+    fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
         self.read_file_worker(file_name)
     }
 

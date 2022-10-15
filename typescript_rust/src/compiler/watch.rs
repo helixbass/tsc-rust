@@ -294,7 +294,7 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
         self.system.file_exists(path)
     }
 
-    fn read_file(&self, path: &str) -> io::Result<String> {
+    fn read_file(&self, path: &str) -> io::Result<Option<String>> {
         self.system.read_file(path)
     }
 

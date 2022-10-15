@@ -29,7 +29,7 @@ use crate::{
 };
 use local_macros::enum_unwrapped;
 
-pub(super) fn parse_response_file<TReadFile: Fn(&str) -> io::Result<String>>(
+pub(super) fn parse_response_file<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
     read_file: Option<&TReadFile>,
     errors: &mut Vec<Rc<Diagnostic>>,
     file_names: &mut Vec<String>,
@@ -277,7 +277,7 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
     }
 }
 
-pub fn parse_command_line<TReadFile: Fn(&str) -> io::Result<String>>(
+pub fn parse_command_line<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
     command_line: &[String],
     read_file: Option<TReadFile>,
 ) -> ParsedCommandLine {
@@ -412,7 +412,7 @@ pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
     } = parse_command_line_worker(
         &*build_options_did_you_mean_diagnostics(),
         args,
-        Option::<fn(&str) -> io::Result<String>>::None,
+        Option::<fn(&str) -> io::Result<Option<String>>>::None,
     );
     let build_options: BuildOptions = hash_map_to_build_options(&options);
 
@@ -523,7 +523,7 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     ))
 }
 
-pub fn read_config_file<TReadFile: FnMut(&str) -> io::Result<String>>(
+pub fn read_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
     file_name: &str,
     read_file: TReadFile,
 ) -> ReadConfigFileReturn {
@@ -564,7 +564,7 @@ pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> Rea
     }
 }
 
-pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<String>>(
+pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
     file_name: &str,
     read_file: TReadFile,
 ) -> Rc<Node /*TsConfigSourceFile*/> {
@@ -627,7 +627,7 @@ impl From<Rc<Diagnostic>> for StringOrRcDiagnostic {
     }
 }
 
-pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> io::Result<String>>(
+pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
     file_name: &str,
     mut read_file: TReadFile,
 ) -> StringOrRcDiagnostic {
@@ -639,7 +639,14 @@ pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> io::Result<String>>(
             )
             .into(),
         )),
-        Ok(text) => text.into(),
+        Ok(None) => Into::<StringOrRcDiagnostic>::into(Rc::new(
+            create_compiler_diagnostic(
+                &Diagnostics::Cannot_read_file_0,
+                Some(vec![file_name.to_owned()]),
+            )
+            .into(),
+        )),
+        Ok(Some(text)) => text.into(),
     }
 }
 

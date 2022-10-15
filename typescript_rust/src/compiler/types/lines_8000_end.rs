@@ -669,7 +669,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn directory_exists(&self, path: &str) -> Option<bool> {
         None
     }
-    fn read_file(&self, path: &str) -> Option<io::Result<String>> {
+    fn read_file(&self, path: &str) -> Option<io::Result<Option<String>>> {
         None
     }
     fn is_read_file_supported(&self) -> bool;

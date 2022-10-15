@@ -1621,7 +1621,7 @@ impl ModuleSpecifierResolutionHost for Program {
             .and_then(|directory_exists_rc| directory_exists_rc.directory_exists(path))
     }
 
-    fn read_file(&self, path: &str) -> Option<io::Result<String>> {
+    fn read_file(&self, path: &str) -> Option<io::Result<Option<String>>> {
         Some(self.host().read_file(path))
     }
 

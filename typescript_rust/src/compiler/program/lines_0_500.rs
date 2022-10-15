@@ -250,7 +250,7 @@ impl CompilerHostConcrete {
 }
 
 impl ModuleResolutionHost for CompilerHostConcrete {
-    fn read_file(&self, file_name: &str) -> io::Result<String> {
+    fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
         self.system.read_file(file_name)
     }
 
@@ -367,7 +367,7 @@ impl CompilerHost for CompilerHostConcrete {
         // performance.mark("beforeIORead");
         match self.read_file(file_name) {
             Ok(value) => {
-                text = Some(value);
+                text = value;
                 // performance.mark("afterIORead");
                 // performance.measure("I/O Read", "beforeIORead", "afterIORead");
             }

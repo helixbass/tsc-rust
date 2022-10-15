@@ -515,7 +515,6 @@ impl Program {
         let file = self.host().get_source_file(
             &file_name,
             get_emit_script_target(&self.options),
-            // TODO: this is wrong
             Some(&mut |host_error_message| {
                 self.add_file_preprocessing_file_explaining_diagnostic(
                     Option::<&Node>::None,
@@ -973,12 +972,15 @@ impl Program {
                     if resolved_type_reference_directive.resolved_file_name
                         != previous_resolution.resolved_file_name
                     {
-                        let other_file_text = self.host().read_file(
-                            resolved_type_reference_directive
-                                .resolved_file_name
-                                .as_ref()
-                                .unwrap(),
-                        );
+                        let other_file_text = self
+                            .host()
+                            .read_file(
+                                resolved_type_reference_directive
+                                    .resolved_file_name
+                                    .as_ref()
+                                    .unwrap(),
+                            )
+                            .unwrap();
                         let existing_file = self
                             .get_source_file_(
                                 previous_resolution.resolved_file_name.as_ref().unwrap(),
@@ -986,7 +988,7 @@ impl Program {
                             .unwrap();
                         if !matches!(
                             other_file_text.as_ref(),
-                            Ok(other_file_text) if other_file_text == &*existing_file.as_source_file().text()
+                            Some(other_file_text) if other_file_text == &*existing_file.as_source_file().text()
                         ) {
                             self.add_file_preprocessing_file_explaining_diagnostic(
                                 Some(&*existing_file),
