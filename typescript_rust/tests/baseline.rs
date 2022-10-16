@@ -2086,7 +2086,7 @@ use typescript_rust::{
 #[case("esModuleInteropUsesExportStarWhenDefaultPlusNames.ts")]
 #[case("esModuleInteropWithExportStar.ts")] // NOT RUNNABLE
 #[case("esModuleIntersectionCrash.ts")] // NOT RUNNABLE
-#[case("esNextWeakRefs_IterableWeakMap.ts")] // FAILING 2067
+#[case("esNextWeakRefs_IterableWeakMap.ts")]
 #[case("escapedIdentifiers.ts")]
 #[case("escapedReservedCompilerNamedIdentifier.ts")]
 #[case("evalAfter0.ts")]

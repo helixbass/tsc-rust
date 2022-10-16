@@ -294,9 +294,8 @@ impl TypeChecker {
                 access
                     .as_property_access_expression()
                     .name
-                    .as_identifier()
-                    .escaped_text
-                    .clone(),
+                    .as_member_name()
+                    .escaped_text(),
             )
         } else if access.kind() == SyntaxKind::ElementAccessExpression
             && is_string_or_numeric_literal_like(
