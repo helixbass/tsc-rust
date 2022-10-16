@@ -3318,7 +3318,7 @@ use typescript_rust::{
 #[case("jsxEmptyExpressionNotCountedAsChild.tsx")] // NOT RUNNABLE
 #[case("jsxExcessPropsAndAssignability.tsx")] // NOT RUNNABLE on .lib directive
 #[case("jsxFactoryAndJsxFragmentFactory.tsx")]
-#[case("jsxFactoryAndJsxFragmentFactoryErrorNotIdentifier.tsx")] // FAILING 3299
+#[case("jsxFactoryAndJsxFragmentFactoryErrorNotIdentifier.tsx")]
 #[case("jsxFactoryAndJsxFragmentFactoryNull.tsx")]
 #[case("jsxFactoryAndReactNamespace.ts")] // NOT RUNNABLE
 #[case("jsxFactoryButNoJsxFragmentFactory.tsx")]
@@ -5774,7 +5774,7 @@ impl FormatDiagnosticsHost for DummyFormatDiagnosticsHost {
 
 fn parse_baseline_errors(baseline_file_contents: &str) -> String {
     lazy_static! {
-        static ref delimiter_line_regex: Regex = Regex::new(r"(?m)^==== ").unwrap();
+        static ref delimiter_line_regex: Regex = Regex::new(r"(?m)^(?:====|!!!) ").unwrap();
     }
 
     if baseline_file_contents.is_empty() {
