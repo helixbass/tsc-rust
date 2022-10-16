@@ -3437,7 +3437,7 @@ use typescript_rust::{
 #[case("library_RegExpExecArraySlice.ts")]
 #[case("library_StringSlice.ts")]
 #[case("lift.ts")]
-#[case("limitDeepInstantiations.ts")] // FAILING on borrow error 3418
+#[case("limitDeepInstantiations.ts")]
 #[case("listFailure.ts")]
 #[case("literalFreshnessPropagationOnNarrowing.ts")]
 #[case("literalIntersectionYieldsLiteral.ts")]
@@ -3470,7 +3470,7 @@ use typescript_rust::{
 #[case("mappedTypeParameterConstraint.ts")]
 #[case("mappedTypePartialConstraints.ts")]
 #[case("mappedTypePartialNonHomomorphicBaseConstraint.ts")]
-#[case("mappedTypeRecursiveInference.ts")] // FAILING on borrow error 3451
+#[case("mappedTypeRecursiveInference.ts")]
 #[case("mappedTypeUnionConstraintInferences.ts")]
 #[case("mappedTypeWithAsClauseAndLateBoundProperty.ts")]
 #[case("mappedTypeWithAsClauseAndLateBoundProperty2.ts")] // OUT OF SCOPE transformation error

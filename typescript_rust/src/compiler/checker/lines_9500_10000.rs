@@ -213,8 +213,15 @@ impl TypeChecker {
                 return self.error_type();
             }
             let mut type_ = self.instantiate_type(
-                &self.get_type_of_symbol((*links).borrow().target.as_ref().unwrap()),
-                (*links).borrow().mapper.as_ref(),
+                &self.get_type_of_symbol(&*{
+                    let target = (*links).borrow().target.clone().unwrap();
+                    target
+                }),
+                {
+                    let mapper = (*links).borrow().mapper.clone();
+                    mapper
+                }
+                .as_ref(),
             );
             if !self.pop_type_resolution() {
                 type_ = self.report_circularity_error(symbol);
