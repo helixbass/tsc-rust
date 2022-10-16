@@ -426,7 +426,7 @@ use typescript_rust::{
 #[case("badArrayIndex.ts")]
 #[case("badArraySyntax.ts")]
 #[case("badExternalModuleReference.ts")]
-#[case("badInferenceLowerPriorityThanGoodInference.ts")] // FAILING
+#[case("badInferenceLowerPriorityThanGoodInference.ts")] // FAILING 408
 #[case("badOverloadError.ts")]
 #[case("badThisBinding.ts")]
 #[case("bangInModuleName.ts")] // NOT RUNNABLE
@@ -638,7 +638,7 @@ use typescript_rust::{
 #[case("circularOptionalityRemoval.ts")]
 #[case("circularReferenceInImport.ts")] // NOT RUNNABLE
 #[case("circularTypeofWithFunctionModule.ts")]
-#[case("circularlyConstrainedMappedTypeContainingConditionalNoInfiniteInstantiationDepth.ts")] // FAILING
+#[case("circularlyConstrainedMappedTypeContainingConditionalNoInfiniteInstantiationDepth.ts")] // FAILING 620
 #[case("circularlyReferentialInterfaceAccessNoCrash.ts")]
 #[case("circularlySimplifyingConditionalTypesNoCrash.ts")]
 #[case("class2.ts")]
@@ -1018,8 +1018,8 @@ use typescript_rust::{
 #[case("constDeclarations.ts")]
 #[case("constDeclarations2.ts")]
 #[case("constEnumBadPropertyNames.ts")]
-#[case("constEnumDeclarations.ts")] // FAILING on Number not implemented stuff
-#[case("constEnumErrors.ts")] // FAILING
+#[case("constEnumDeclarations.ts")] // FAILING 999 on Number not implemented stuff
+#[case("constEnumErrors.ts")] // FAILING 1000
 #[case("constEnumExternalModule.ts")] // NOT RUNNABLE
 #[case("constEnumMergingWithValues1.ts")] // NOT RUNNABLE
 #[case("constEnumMergingWithValues2.ts")] // NOT RUNNABLE
@@ -1035,9 +1035,9 @@ use typescript_rust::{
 #[case("constEnumPreserveEmitNamedExport2.ts")] // NOT RUNNABLE
 #[case("constEnumPreserveEmitReexport.ts")] // NOT RUNNABLE
 #[case("constEnumSyntheticNodesComments.ts")]
-#[case("constEnumToStringNoComments.ts")] // FAILING on Number stuff
-#[case("constEnumToStringWithComments.ts")] // FAILING on Number stuff
-#[case("constEnums.ts")] // FAILING on Number stuff
+#[case("constEnumToStringNoComments.ts")] // FAILING 1016 on Number stuff
+#[case("constEnumToStringWithComments.ts")] // FAILING 1017 on Number stuff
+#[case("constEnums.ts")] // FAILING 1018 on Number stuff
 #[case("constInClassExpression.ts")]
 #[case("constIndexedAccess.ts")]
 #[case("constWithNonNull.ts")]
@@ -1160,15 +1160,15 @@ use typescript_rust::{
 #[case("contextualTypingOfObjectLiterals.ts")]
 #[case("contextualTypingOfObjectLiterals2.ts")]
 #[case("contextualTypingOfOptionalMembers.tsx")] // NOT RUNNABLE
-#[case("contextualTypingOfTooShortOverloads.ts")] // FAILING 1141
+#[case("contextualTypingOfTooShortOverloads.ts")]
 #[case("contextualTypingTwoInstancesOfSameTypeParameter.ts")]
-#[case("contextualTypingWithFixedTypeParameters1.ts")] // FAILING
+#[case("contextualTypingWithFixedTypeParameters1.ts")] // FAILING 1143
 #[case("contextualTypingWithGenericAndNonGenericSignature.ts")]
 #[case("contextualTypingWithGenericSignature.ts")]
 #[case("contextuallyTypeArgumentsKeyword.ts")] // NOT RUNNABLE
 #[case("contextuallyTypedByDiscriminableUnion.ts")]
 #[case("contextuallyTypedGenericAssignment.ts")]
-#[case("contextuallyTypedParametersWithInitializers.ts")] // FAILING
+#[case("contextuallyTypedParametersWithInitializers.ts")] // FAILING 1149
 #[case("contextuallyTypingOrOperator.ts")]
 #[case("contextuallyTypingOrOperator2.ts")]
 #[case("contextuallyTypingOrOperator3.ts")]
@@ -1212,7 +1212,7 @@ use typescript_rust::{
 #[case("controlFlowNoImplicitAny.ts")]
 #[case("controlFlowNullTypeAndLiteral.ts")]
 #[case("controlFlowOuterVariable.ts")]
-#[case("controlFlowPrivateClassField.ts")] // FAILING
+#[case("controlFlowPrivateClassField.ts")] // FAILING 1193
 #[case("controlFlowPropertyDeclarations.ts")]
 #[case("controlFlowPropertyInitializer.ts")]
 #[case("controlFlowSelfReferentialLoop.ts")]
@@ -1554,7 +1554,7 @@ use typescript_rust::{
 #[case("deeplyDependentLargeArrayMutation.ts")] // NOT RUNNABLE
 #[case("deeplyDependentLargeArrayMutation2.ts")] // NOT RUNNABLE
 #[case("deeplyNestedAssignabilityErrorsCombined.ts")]
-#[case("deeplyNestedAssignabilityIssue.ts")] // FAILING on pretty-printing
+#[case("deeplyNestedAssignabilityIssue.ts")] // FAILING 1535 on pretty-printing (looks right just not correctly massaging line numbers)
 #[case("deeplyNestedCheck.ts")]
 #[case("deeplyNestedConditionalTypes.ts")]
 #[case("deeplyNestedConstraints.ts")]
@@ -1582,8 +1582,8 @@ use typescript_rust::{
 #[case("defineVariables_useDefineForClassFields.ts")]
 #[case("definiteAssignmentOfDestructuredVariable.ts")]
 #[case("definiteAssignmentWithErrorStillStripped.ts")]
-#[case("deleteExpressionMustBeOptional.ts")] // FAILING
-#[case("deleteExpressionMustBeOptional_exactOptionalPropertyTypes.ts")] // FAILING
+#[case("deleteExpressionMustBeOptional.ts")] // FAILING 1563
+#[case("deleteExpressionMustBeOptional_exactOptionalPropertyTypes.ts")] // FAILING 1564
 #[case("deleteOperator1.ts")]
 #[case("deleteOperatorInStrictMode.ts")]
 #[case("deleteReadonly.ts")]
@@ -1665,8 +1665,8 @@ use typescript_rust::{
 #[case("doNotemitTripleSlashComments.ts")] // NOT RUNNABLE
 #[case("doWhileLoop.ts")]
 #[case("doWhileUnreachableCode.ts")]
-#[case("doYouNeedToChangeYourTargetLibraryES2015.ts")] // FAILING
-#[case("doYouNeedToChangeYourTargetLibraryES2016Plus.ts")] // FAILING
+#[case("doYouNeedToChangeYourTargetLibraryES2015.ts")]
+#[case("doYouNeedToChangeYourTargetLibraryES2016Plus.ts")]
 #[case("doesNotNarrowUnionOfConstructorsWithInstanceof.ts")]
 #[case("dontShowCompilerGeneratedMembers.ts")] // NOT RUNNABLE
 #[case("dottedModuleName.ts")] // NOT RUNNABLE
@@ -1692,12 +1692,12 @@ use typescript_rust::{
 #[case("downlevelLetConst18.ts")]
 #[case("downlevelLetConst19.ts")]
 #[case("downlevelLetConst2.ts")]
-#[case("downlevelLetConst3.ts")] // FAILING
+#[case("downlevelLetConst3.ts")]
 #[case("downlevelLetConst4.ts")]
-#[case("downlevelLetConst5.ts")] // FAILING
+#[case("downlevelLetConst5.ts")]
 #[case("downlevelLetConst6.ts")]
 #[case("downlevelLetConst7.ts")]
-#[case("downlevelLetConst8.ts")] // FAILING
+#[case("downlevelLetConst8.ts")]
 #[case("downlevelLetConst9.ts")]
 #[case("duplicateAnonymousInners1.ts")]
 #[case("duplicateAnonymousModuleClasses.ts")]
@@ -1706,7 +1706,7 @@ use typescript_rust::{
 #[case("duplicateConstructSignature2.ts")]
 #[case("duplicateConstructorOverloadSignature.ts")]
 #[case("duplicateConstructorOverloadSignature2.ts")]
-#[case("duplicateDefaultExport.ts")] // FAILING
+#[case("duplicateDefaultExport.ts")]
 #[case("duplicateIdentifierBindingElementInParameterDeclaration1.ts")]
 #[case("duplicateIdentifierBindingElementInParameterDeclaration2.ts")]
 #[case("duplicateIdentifierComputedName.ts")]
@@ -1775,7 +1775,7 @@ use typescript_rust::{
 #[case("emitAccessExpressionOfCastedObjectLiteralExpressionInArrowFunctionES6.ts")]
 #[case("emitBOM.ts")] // NOT RUNNABLE
 #[case("emitBundleWithPrologueDirectives1.ts")] // NOT RUNNABLE
-#[case("emitBundleWithShebang1.ts")] // FAILING
+#[case("emitBundleWithShebang1.ts")] // FAILING 1756
 #[case("emitBundleWithShebang2.ts")] // NOT RUNNABLE
 #[case("emitBundleWithShebangAndPrologueDirectives1.ts")] // NOT RUNNABLE
 #[case("emitBundleWithShebangAndPrologueDirectives2.ts")] // NOT RUNNABLE
@@ -1891,7 +1891,7 @@ use typescript_rust::{
 #[case("errorTypesAsTypeArguments.ts")]
 #[case("errorWithSameNameType.ts")] // NOT RUNNABLE
 #[case("errorWithTruncatedType.ts")]
-#[case("errorsForCallAndAssignmentAreSimilar.ts")] // FAILING
+#[case("errorsForCallAndAssignmentAreSimilar.ts")] // FAILING 1872
 #[case("errorsInGenericTypeReference.ts")]
 #[case("errorsOnImportedSymbol.ts")] // NOT RUNNABLE
 #[case("errorsOnUnionsOfOverlappingObjects01.ts")]
@@ -1906,7 +1906,7 @@ use typescript_rust::{
 #[case("es3-jsx-react-native.tsx")]
 #[case("es3-jsx-react.tsx")]
 #[case("es3-oldStyleOctalLiteralInEnums.ts")]
-#[case("es3-oldStyleOctalLiteralTypes.ts")] // FAILING
+#[case("es3-oldStyleOctalLiteralTypes.ts")] // FAILING 1887
 #[case("es3-sourcemap-amd.ts")]
 #[case("es3defaultAliasIsQuoted.ts")] // NOT RUNNABLE
 #[case("es5-amd.ts")]
@@ -1936,7 +1936,7 @@ use typescript_rust::{
 #[case("es5-commonjs2.ts")]
 #[case("es5-commonjs3.ts")]
 #[case("es5-commonjs4.ts")]
-#[case("es5-commonjs5.ts")] // FAILING
+#[case("es5-commonjs5.ts")]
 #[case("es5-commonjs6.ts")]
 #[case("es5-commonjs7.ts")] // NOT RUNNABLE
 #[case("es5-commonjs8.ts")]
@@ -1957,7 +1957,7 @@ use typescript_rust::{
 #[case("es5ExportDefaultClassDeclaration4.ts")]
 #[case("es5ExportDefaultExpression.ts")]
 #[case("es5ExportDefaultFunctionDeclaration.ts")]
-#[case("es5ExportDefaultFunctionDeclaration2.ts")] // FAILING
+#[case("es5ExportDefaultFunctionDeclaration2.ts")]
 #[case("es5ExportDefaultFunctionDeclaration3.ts")]
 #[case("es5ExportDefaultFunctionDeclaration4.ts")]
 #[case("es5ExportDefaultIdentifier.ts")]
@@ -1999,7 +1999,7 @@ use typescript_rust::{
 #[case("es6ExportDefaultClassDeclaration2.ts")]
 #[case("es6ExportDefaultExpression.ts")]
 #[case("es6ExportDefaultFunctionDeclaration.ts")]
-#[case("es6ExportDefaultFunctionDeclaration2.ts")] // FAILING
+#[case("es6ExportDefaultFunctionDeclaration2.ts")]
 #[case("es6ExportDefaultIdentifier.ts")]
 #[case("es6ExportEquals.ts")]
 #[case("es6ExportEqualsInterop.ts")] // NOT RUNNABLE
@@ -2086,12 +2086,12 @@ use typescript_rust::{
 #[case("esModuleInteropUsesExportStarWhenDefaultPlusNames.ts")]
 #[case("esModuleInteropWithExportStar.ts")] // NOT RUNNABLE
 #[case("esModuleIntersectionCrash.ts")] // NOT RUNNABLE
-#[case("esNextWeakRefs_IterableWeakMap.ts")] // FAILING
+#[case("esNextWeakRefs_IterableWeakMap.ts")] // FAILING 2067
 #[case("escapedIdentifiers.ts")]
 #[case("escapedReservedCompilerNamedIdentifier.ts")]
 #[case("evalAfter0.ts")]
 #[case("eventEmitterPatternWithRecordOfFunction.ts")]
-#[case("evolvingArrayTypeInAssert.ts")] // FAILING
+#[case("evolvingArrayTypeInAssert.ts")] // FAILING 2072
 #[case("exactSpellingSuggestion.ts")]
 #[case("excessPropertyCheckWithEmptyObject.ts")]
 #[case("excessPropertyCheckWithMultipleDiscriminants.ts")]
@@ -2146,17 +2146,17 @@ use typescript_rust::{
 #[case("exportDeclarationsInAmbientNamespaces2.ts")]
 #[case("exportDeclareClass1.ts")]
 #[case("exportDefaultAbstractClass.ts")] // NOT RUNNABLE
-#[case("exportDefaultAlias_excludesEverything.ts")] // FAILING
+#[case("exportDefaultAlias_excludesEverything.ts")] // FAILING 2127
 #[case("exportDefaultAsyncFunction.ts")]
 #[case("exportDefaultAsyncFunction2.ts")] // NOT RUNNABLE
 #[case("exportDefaultClassInNamespace.ts")]
 #[case("exportDefaultDuplicateCrash.ts")] // NOT RUNNABLE
 #[case("exportDefaultForNonInstantiatedModule.ts")]
-#[case("exportDefaultFunctionInNamespace.ts")] // FAILING
+#[case("exportDefaultFunctionInNamespace.ts")]
 #[case("exportDefaultImportedType.ts")] // NOT RUNNABLE
 #[case("exportDefaultInterface.ts")] // NOT RUNNABLE
-#[case("exportDefaultInterfaceAndTwoFunctions.ts")] // FAILING
-#[case("exportDefaultInterfaceAndValue.ts")] // FAILING
+#[case("exportDefaultInterfaceAndTwoFunctions.ts")]
+#[case("exportDefaultInterfaceAndValue.ts")]
 #[case("exportDefaultMarksIdentifierAsUsed.ts")] // NOT RUNNABLE
 #[case("exportDefaultMissingName.ts")]
 #[case("exportDefaultParenthesize.ts")] // NOT RUNNABLE
@@ -2235,9 +2235,9 @@ use typescript_rust::{
 #[case("extendConstructSignatureInInterface.ts")]
 #[case("extendFromAny.ts")]
 #[case("extendGenericArray.ts")]
-#[case("extendGenericArray2.ts")] // FAILING
+#[case("extendGenericArray2.ts")]
 #[case("extendGlobalThis.ts")] // NOT RUNNABLE
-#[case("extendGlobalThis2.ts")] // FAILING on borrow error
+#[case("extendGlobalThis2.ts")] // FAILING on borrow error 2218
 #[case("extendNonClassSymbol1.ts")]
 #[case("extendNonClassSymbol2.ts")]
 #[case("extendPrivateConstructorClass.ts")]
@@ -2296,7 +2296,7 @@ use typescript_rust::{
 #[case("fixingTypeParametersRepeatedly1.ts")]
 #[case("fixingTypeParametersRepeatedly2.ts")]
 #[case("fixingTypeParametersRepeatedly3.ts")]
-#[case("flatArrayNoExcessiveStackDepth.ts")] // FAILING
+#[case("flatArrayNoExcessiveStackDepth.ts")] // FAILING 2277
 #[case("flowAfterFinally1.ts")]
 #[case("flowControlTypeGuardThenSwitch.ts")]
 #[case("flowInFinally1.ts")]
@@ -2332,7 +2332,7 @@ use typescript_rust::{
 #[case("functionAndInterfaceWithSeparateErrors.ts")]
 #[case("functionAndPropertyNameConflict.ts")]
 #[case("functionArgShadowing.ts")]
-#[case("functionAssignabilityWithArrayLike01.ts")] // FAILING
+#[case("functionAssignabilityWithArrayLike01.ts")] // FAILING 2313
 #[case("functionAssignment.ts")]
 #[case("functionAssignmentError.ts")]
 #[case("functionCall1.ts")]
@@ -2519,7 +2519,7 @@ use typescript_rust::{
 #[case("genericCloneReturnTypes.ts")]
 #[case("genericCloneReturnTypes2.ts")]
 #[case("genericCombinators2.ts")]
-#[case("genericConditionalConstrainedToUnknownNotAssignableToConcreteObject.ts")] // FAILING
+#[case("genericConditionalConstrainedToUnknownNotAssignableToConcreteObject.ts")] // FAILING 2500
 #[case("genericConstraint1.ts")]
 #[case("genericConstraint2.ts")]
 #[case("genericConstraint3.ts")]
@@ -2872,7 +2872,7 @@ use typescript_rust::{
 #[case("indirectSelfReferenceGeneric.ts")]
 #[case("indirectTypeParameterReferences.ts")]
 #[case("indirectUniqueSymbolDeclarationEmit.ts")]
-#[case("inferConditionalConstraintMappedMember.ts")] // FAILING
+#[case("inferConditionalConstraintMappedMember.ts")] // FAILING 2853
 #[case("inferFromGenericFunctionReturnTypes1.ts")]
 #[case("inferFromGenericFunctionReturnTypes2.ts")]
 #[case("inferFromGenericFunctionReturnTypes3.ts")]
@@ -3122,7 +3122,7 @@ use typescript_rust::{
 #[case("intersectionsAndReadonlyProperties.ts")]
 #[case("intersectionsOfLargeUnions.ts")]
 #[case("intersectionsOfLargeUnions2.ts")]
-#[case("intrinsics.ts")] // FAILING
+#[case("intrinsics.ts")] // FAILING 3103
 #[case("invalidConstraint1.ts")]
 #[case("invalidContinueInDownlevelAsync.ts")]
 #[case("invalidLetInForOfAndForIn_ES5.ts")]
@@ -3132,7 +3132,7 @@ use typescript_rust::{
 #[case("invalidStaticField.ts")]
 #[case("invalidSymbolInTypeParameter1.ts")]
 #[case("invalidThisEmitInContextualObjectLiteral.ts")]
-#[case("invalidTripleSlashReference.ts")] // FAILING
+#[case("invalidTripleSlashReference.ts")]
 #[case("invalidTypeNames.ts")]
 #[case("invalidUnicodeEscapeSequance.ts")]
 #[case("invalidUnicodeEscapeSequance2.ts")]
@@ -3318,7 +3318,7 @@ use typescript_rust::{
 #[case("jsxEmptyExpressionNotCountedAsChild.tsx")] // NOT RUNNABLE
 #[case("jsxExcessPropsAndAssignability.tsx")] // NOT RUNNABLE on .lib directive
 #[case("jsxFactoryAndJsxFragmentFactory.tsx")]
-#[case("jsxFactoryAndJsxFragmentFactoryErrorNotIdentifier.tsx")] // FAILING
+#[case("jsxFactoryAndJsxFragmentFactoryErrorNotIdentifier.tsx")] // FAILING 3299
 #[case("jsxFactoryAndJsxFragmentFactoryNull.tsx")]
 #[case("jsxFactoryAndReactNamespace.ts")] // NOT RUNNABLE
 #[case("jsxFactoryButNoJsxFragmentFactory.tsx")]
@@ -3437,7 +3437,7 @@ use typescript_rust::{
 #[case("library_RegExpExecArraySlice.ts")]
 #[case("library_StringSlice.ts")]
 #[case("lift.ts")]
-#[case("limitDeepInstantiations.ts")] // FAILING on borrow error
+#[case("limitDeepInstantiations.ts")] // FAILING on borrow error 3418
 #[case("listFailure.ts")]
 #[case("literalFreshnessPropagationOnNarrowing.ts")]
 #[case("literalIntersectionYieldsLiteral.ts")]
@@ -3470,7 +3470,7 @@ use typescript_rust::{
 #[case("mappedTypeParameterConstraint.ts")]
 #[case("mappedTypePartialConstraints.ts")]
 #[case("mappedTypePartialNonHomomorphicBaseConstraint.ts")]
-#[case("mappedTypeRecursiveInference.ts")] // FAILING on borrow error
+#[case("mappedTypeRecursiveInference.ts")] // FAILING on borrow error 3451
 #[case("mappedTypeUnionConstraintInferences.ts")]
 #[case("mappedTypeWithAsClauseAndLateBoundProperty.ts")]
 #[case("mappedTypeWithAsClauseAndLateBoundProperty2.ts")] // OUT OF SCOPE transformation error
@@ -3531,7 +3531,7 @@ use typescript_rust::{
 #[case("missingImportAfterModuleImport.ts")] // NOT RUNNABLE
 #[case("missingMemberErrorHasShortPath.ts")] // NOT RUNNABLE
 #[case("missingPropertiesOfClassExpression.ts")]
-#[case("missingRequiredDeclare.d.ts")] // FAILING
+#[case("missingRequiredDeclare.d.ts")] // FAILING 3512
 #[case("missingReturnStatement.ts")]
 #[case("missingReturnStatement1.ts")]
 #[case("missingSelf.ts")]
@@ -3715,13 +3715,13 @@ use typescript_rust::{
 #[case("module_augmentExistingAmbientVariable.ts")]
 #[case("module_augmentExistingVariable.ts")]
 #[case("module_augmentUninstantiatedModule.ts")]
-#[case("module_augmentUninstantiatedModule2.ts")] // FAILING
+#[case("module_augmentUninstantiatedModule2.ts")] // FAILING 3696
 #[case("moduledecl.ts")]
 #[case("multiCallOverloads.ts")]
 #[case("multiExtendsSplitInterfaces1.ts")]
 #[case("multiExtendsSplitInterfaces2.ts")]
 #[case("multiImportExport.ts")] // NOT RUNNABLE
-#[case("multiLineContextDiagnosticWithPretty.ts")] // FAILING on pretty-printing
+#[case("multiLineContextDiagnosticWithPretty.ts")] // FAILING 3702 on pretty-printing looks right just failing on massaging line numbers
 #[case("multiLineErrors.ts")]
 #[case("multiLinePropertyAccessAndArrowFunctionIndent1.ts")]
 #[case("multiModuleClodule1.ts")]
@@ -3729,8 +3729,8 @@ use typescript_rust::{
 #[case("multipleBaseInterfaesWithIncompatibleProperties.ts")]
 #[case("multipleClassPropertyModifiers.ts")]
 #[case("multipleClassPropertyModifiersErrors.ts")]
-#[case("multipleExportAssignments.ts")] // FAILING
-#[case("multipleExportAssignmentsInAmbientDeclaration.ts")] // FAILING
+#[case("multipleExportAssignments.ts")] // FAILING 3710
+#[case("multipleExportAssignmentsInAmbientDeclaration.ts")] // FAILING 3711
 #[case("multipleExports.ts")]
 #[case("multipleInheritance.ts")]
 #[case("multivar.ts")]
@@ -4157,7 +4157,7 @@ use typescript_rust::{
 #[case("parse1.ts")]
 #[case("parse2.ts")]
 #[case("parseArrowFunctionWithFunctionReturnType.ts")]
-#[case("parseBigInt.ts")] // FAILING on BigInt parsing
+#[case("parseBigInt.ts")] // FAILING 4138 on BigInt parsing
 #[case("parseCommaSeparatedNewlineNew.ts")]
 #[case("parseCommaSeparatedNewlineNumber.ts")]
 #[case("parseCommaSeparatedNewlineString.ts")]
@@ -4220,11 +4220,11 @@ use typescript_rust::{
 #[case("prefixIncrementAsOperandOfPlusExpression.ts")]
 #[case("prefixUnaryOperatorsOnExportedVariables.ts")]
 #[case("prefixedNumberLiteralAssignToNumberLiteralType.ts")]
-#[case("preserveConstEnums.ts")] // FAILING on Number stuff
+#[case("preserveConstEnums.ts")] // FAILING 4201 on Number stuff
 #[case("preserveUnusedImports.ts")] // NOT RUNNABLE
 #[case("prespecializedGenericMembers1.ts")]
 #[case("prettyContextNotDebugAssertion.ts")] // NOT RUNNABLE
-#[case("prettyFileWithErrorsAndTabs.ts")] // FAILING on pretty-printing
+#[case("prettyFileWithErrorsAndTabs.ts")] // FAILING 4205 on pretty-printing
 #[case("primaryExpressionMods.ts")]
 #[case("primitiveConstraints1.ts")]
 #[case("primitiveConstraints2.ts")]
@@ -4317,9 +4317,9 @@ use typescript_rust::{
 #[case("propagateNonInferrableType.ts")]
 #[case("propagationOfPromiseInitialization.ts")]
 #[case("properties.ts")]
-#[case("propertiesAndIndexers.ts")] // FAILING on Number stuff
+#[case("propertiesAndIndexers.ts")] // FAILING 4298 on Number stuff
 #[case("propertiesAndIndexers2.ts")]
-#[case("propertiesAndIndexersForNumericNames.ts")] // FAILING on Number stuff
+#[case("propertiesAndIndexersForNumericNames.ts")] // FAILING 4300 on Number stuff
 #[case("propertyAccess1.ts")]
 #[case("propertyAccess2.ts")]
 #[case("propertyAccess3.ts")]
@@ -5299,7 +5299,7 @@ use typescript_rust::{
 #[case("unionOfFunctionAndSignatureIsCallable.ts")]
 #[case("unionPropertyExistence.ts")]
 #[case("unionReductionMutualSubtypes.ts")]
-#[case("unionRelationshipCheckPasses.ts")] // FAILING
+#[case("unionRelationshipCheckPasses.ts")]
 #[case("unionSignaturesWithThisParameter.ts")]
 #[case("unionSubtypeReductionErrors.ts")]
 #[case("unionTypeErrorMessageTypeRefs01.ts")]
