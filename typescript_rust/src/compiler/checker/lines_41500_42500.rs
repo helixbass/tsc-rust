@@ -784,17 +784,13 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.merge_symbol_table(
-                    &mut *self.globals_mut(),
-                    &RefCell::borrow(&file.locals()),
-                    None,
-                );
+                self.merge_symbol_table(self.globals_rc(), &RefCell::borrow(&file.locals()), None);
             }
             if let Some(file_js_global_augmentations) =
                 file_as_source_file.maybe_js_global_augmentations().clone()
             {
                 self.merge_symbol_table(
-                    &mut *self.globals_mut(),
+                    self.globals_rc(),
                     &(*file_js_global_augmentations).borrow(),
                     None,
                 );

@@ -623,7 +623,7 @@ impl TypeChecker {
                 Some(source_exports) if !(**source_exports).borrow().is_empty()
             ) {
                 self.merge_symbol_table(
-                    &mut inferred.maybe_exports().clone().unwrap().borrow_mut(),
+                    inferred.maybe_exports().clone().unwrap(),
                     &(*source.maybe_exports().clone().unwrap()).borrow(),
                     None,
                 );
@@ -633,7 +633,7 @@ impl TypeChecker {
                 Some(source_members) if !(**source_members).borrow().is_empty()
             ) {
                 self.merge_symbol_table(
-                    &mut inferred.maybe_members().clone().unwrap().borrow_mut(),
+                    inferred.maybe_members().clone().unwrap(),
                     &(*source.maybe_members().clone().unwrap()).borrow(),
                     None,
                 );

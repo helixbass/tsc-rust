@@ -1015,7 +1015,7 @@ impl TypeChecker {
         {
             return None;
         }
-        let mut exports = create_symbol_table(None);
+        let exports = Rc::new(RefCell::new(create_symbol_table(None)));
         let mut decl = decl.node_wrapper();
         while is_binary_expression(&decl) || is_property_access_expression(&decl) {
             let s = self.get_symbol_of_node(&decl);
@@ -1023,7 +1023,7 @@ impl TypeChecker {
                 if let Some(s_exports) = s.maybe_exports().as_deref() {
                     let s_exports = RefCell::borrow(s_exports);
                     if !s_exports.is_empty() {
-                        self.merge_symbol_table(&mut exports, &s_exports, None);
+                        self.merge_symbol_table(exports.clone(), &s_exports, None);
                     }
                 }
             }
@@ -1038,17 +1038,11 @@ impl TypeChecker {
             if let Some(s_exports) = s.maybe_exports().as_deref() {
                 let s_exports = RefCell::borrow(s_exports);
                 if !s_exports.is_empty() {
-                    self.merge_symbol_table(&mut exports, &s_exports, None);
+                    self.merge_symbol_table(exports.clone(), &s_exports, None);
                 }
             }
         }
-        let type_ = self.create_anonymous_type(
-            Some(symbol),
-            Rc::new(RefCell::new(exports)),
-            vec![],
-            vec![],
-            vec![],
-        );
+        let type_ = self.create_anonymous_type(Some(symbol), exports, vec![], vec![], vec![]);
         let type_as_object_type = type_.as_object_type();
         type_as_object_type
             .set_object_flags(type_as_object_type.object_flags() | ObjectFlags::JSLiteral);

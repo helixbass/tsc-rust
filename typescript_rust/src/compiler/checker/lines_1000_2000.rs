@@ -608,7 +608,7 @@ impl TypeChecker {
                     *target_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }
                 self.merge_symbol_table(
-                    &mut *target_members.as_ref().unwrap().borrow_mut(),
+                    target_members.clone().unwrap(),
                     &RefCell::borrow(source_members),
                     Some(unidirectional),
                 );
@@ -619,7 +619,7 @@ impl TypeChecker {
                     *target_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }
                 self.merge_symbol_table(
-                    &mut *target_exports.as_ref().unwrap().borrow_mut(),
+                    target_exports.clone().unwrap(),
                     &RefCell::borrow(source_exports),
                     Some(unidirectional),
                 );
@@ -861,27 +861,30 @@ impl TypeChecker {
         if RefCell::borrow(&second).is_empty() {
             return Some(first);
         }
-        let mut combined = create_symbol_table(None);
-        self.merge_symbol_table(&mut combined, &RefCell::borrow(&first), None);
-        self.merge_symbol_table(&mut combined, &RefCell::borrow(&second), None);
-        Some(Rc::new(RefCell::new(combined)))
+        let combined = Rc::new(RefCell::new(create_symbol_table(None)));
+        self.merge_symbol_table(combined.clone(), &RefCell::borrow(&first), None);
+        self.merge_symbol_table(combined.clone(), &RefCell::borrow(&second), None);
+        Some(combined)
     }
 
     pub(super) fn merge_symbol_table(
         &self,
-        target: &mut SymbolTable,
+        target: Rc<RefCell<SymbolTable>>,
         source: &SymbolTable,
         unidirectional: Option<bool>,
     ) {
         let unidirectional = unidirectional.unwrap_or(false);
         for (id, source_symbol) in source {
-            let target_symbol = target.get(id);
-            let value = if let Some(target_symbol) = target_symbol {
+            let target_symbol = {
+                let value = (*target).borrow().get(id).cloned();
+                value
+            };
+            let value = if let Some(target_symbol) = target_symbol.as_ref() {
                 self.merge_symbol(target_symbol, source_symbol, Some(unidirectional))
             } else {
                 source_symbol.clone()
             };
-            target.insert(id.clone(), value);
+            target.borrow_mut().insert(id.clone(), value);
         }
     }
 
@@ -898,7 +901,7 @@ impl TypeChecker {
 
         if is_global_scope_augmentation(&module_augmentation) {
             self.merge_symbol_table(
-                &mut self.globals_mut(),
+                self.globals_rc(),
                 &mut module_augmentation.symbol().exports().borrow_mut(),
                 None,
             );
