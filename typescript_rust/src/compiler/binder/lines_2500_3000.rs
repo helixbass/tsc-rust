@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, BinderType};
 use crate::{
-    create_diagnostic_for_node, create_symbol_table, every, export_assignment_is_alias, for_each,
+    create_symbol_table, every, export_assignment_is_alias, for_each,
     get_assignment_declaration_kind, get_node_id, get_right_most_assigned_expression,
     get_this_container, has_dynamic_name, is_aliasable_expression, is_binary_expression,
     is_bindable_static_access_expression, is_empty_object_literal, is_expression,
@@ -532,7 +532,7 @@ impl BinderType {
                 .as_source_file()
                 .bind_diagnostics_mut()
                 .push(Rc::new(
-                    create_diagnostic_for_node(
+                    self.create_diagnostic_for_node(
                         node,
                         &Diagnostics::Modifiers_cannot_appear_here,
                         None,
@@ -553,7 +553,9 @@ impl BinderType {
             self.file()
                 .as_source_file()
                 .bind_diagnostics_mut()
-                .push(Rc::new(create_diagnostic_for_node(node, diag, None).into()));
+                .push(Rc::new(
+                    self.create_diagnostic_for_node(node, diag, None).into(),
+                ));
         } else {
             let file_symbol = self.file().symbol();
             let mut global_exports = file_symbol.maybe_global_exports();

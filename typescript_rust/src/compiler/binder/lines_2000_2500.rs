@@ -14,19 +14,18 @@ use crate::{
     append, get_source_text_of_node_from_source_file, has_jsdoc_nodes, is_in_js_file,
     is_prologue_directive, set_parent_recursive, BaseTextRange,
     DiagnosticRelatedInformationInterface, NodeArray, TextRange, TokenFlags, __String,
-    create_diagnostic_for_node, create_file_diagnostic, create_symbol_table,
-    declaration_name_to_string, find_ancestor, get_assignment_declaration_property_access_kind,
-    get_containing_class, get_emit_script_target, get_enclosing_block_scope_container,
-    get_error_span_for_node, get_name_of_declaration, get_span_of_token_at_position,
-    get_token_pos_of_node, id_text, is_assignment_operator, is_assignment_target,
-    is_declaration_statement, is_external_module, is_external_or_common_js_module,
-    is_function_like_or_class_static_block_declaration, is_identifier, is_identifier_name,
-    is_in_top_level_context, is_jsdoc_enum_tag, is_left_hand_side_expression,
-    is_property_access_entity_name_expression, is_property_access_expression,
-    is_variable_statement, set_parent, AssignmentDeclarationKind, Debug_, DiagnosticCategory,
-    DiagnosticMessage, Diagnostics, FlowFlags, FlowStart, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    create_file_diagnostic, create_symbol_table, declaration_name_to_string, find_ancestor,
+    get_assignment_declaration_property_access_kind, get_containing_class, get_emit_script_target,
+    get_enclosing_block_scope_container, get_error_span_for_node, get_name_of_declaration,
+    get_span_of_token_at_position, get_token_pos_of_node, id_text, is_assignment_operator,
+    is_assignment_target, is_declaration_statement, is_external_module,
+    is_external_or_common_js_module, is_function_like_or_class_static_block_declaration,
+    is_identifier, is_identifier_name, is_in_top_level_context, is_jsdoc_enum_tag,
+    is_left_hand_side_expression, is_property_access_entity_name_expression,
+    is_property_access_expression, is_variable_statement, set_parent, AssignmentDeclarationKind,
+    Debug_, DiagnosticCategory, DiagnosticMessage, Diagnostics, FlowFlags, FlowStart,
+    InternalSymbolName, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
+    ReadonlyTextRange, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -401,7 +400,7 @@ impl BinderType {
                     .as_source_file()
                     .bind_diagnostics_mut()
                     .push(Rc::new(
-                        create_diagnostic_for_node(
+                        self.create_diagnostic_for_node(
                             node,
                             self.get_strict_mode_identifier_message(node),
                             Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
@@ -414,7 +413,7 @@ impl BinderType {
                         .as_source_file()
                         .bind_diagnostics_mut()
                         .push(Rc::new(
-                            create_diagnostic_for_node(
+                            self.create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Identifier_expected_0_is_a_reserved_word_at_the_top_level_of_a_module,
                                 Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
@@ -426,7 +425,7 @@ impl BinderType {
                         .as_source_file()
                         .bind_diagnostics_mut()
                         .push(Rc::new(
-                            create_diagnostic_for_node(
+                            self.create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here,
                                 Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
@@ -441,7 +440,7 @@ impl BinderType {
                     .as_source_file()
                     .bind_diagnostics_mut()
                     .push(Rc::new(
-                        create_diagnostic_for_node(
+                        self.create_diagnostic_for_node(
                             node,
                             &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here,
                             Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
@@ -482,7 +481,7 @@ impl BinderType {
             let file_as_source_file = file.as_source_file();
             if file_as_source_file.parse_diagnostics().is_empty() {
                 file_as_source_file.bind_diagnostics_mut().push(Rc::new(
-                    create_diagnostic_for_node(
+                    self.create_diagnostic_for_node(
                         node,
                         &Diagnostics::constructor_is_a_reserved_word,
                         Some(vec![declaration_name_to_string(Some(node)).into_owned()]),
@@ -677,7 +676,7 @@ impl BinderType {
                     .as_source_file()
                     .bind_diagnostics_mut()
                     .push(Rc::new(
-                        create_diagnostic_for_node(
+                        self.create_diagnostic_for_node(
                             node,
                             &Diagnostics::Octal_literals_are_not_allowed_in_strict_mode,
                             None,

@@ -7,18 +7,19 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::{
-    add_related_info, create_diagnostic_for_node, declaration_name_to_string,
+    add_related_info, create_diagnostic_for_node_in_source_file, declaration_name_to_string,
     escape_leading_underscores, for_each_child_returns, get_assignment_declaration_kind,
-    get_containing_class, get_emit_script_target, get_node_id, get_strict_option_value,
-    get_symbol_name_for_private_identifier, get_text_of_identifier_or_literal, has_dynamic_name,
-    has_syntactic_modifier, index_of, is_ambient_module, is_block, is_enum_const,
-    is_export_specifier, is_global_scope_augmentation, is_jsdoc_construct_signature,
-    is_module_block, is_named_declaration, is_private_identifier, is_signed_numeric_literal,
-    is_source_file, is_string_or_numeric_literal_like, is_type_alias_declaration, length,
-    maybe_for_each, maybe_set_parent, node_has_name, node_is_missing, set_parent_recursive,
-    token_to_string, unescape_leading_underscores, AssignmentDeclarationKind,
-    BindBinaryExpressionFlow, CompilerOptions, Debug_, Diagnostic, DiagnosticRelatedInformation,
-    Diagnostics, FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
+    get_containing_class, get_emit_script_target, get_node_id, get_source_file_of_node,
+    get_strict_option_value, get_symbol_name_for_private_identifier,
+    get_text_of_identifier_or_literal, has_dynamic_name, has_syntactic_modifier, index_of,
+    is_ambient_module, is_block, is_enum_const, is_export_specifier, is_global_scope_augmentation,
+    is_jsdoc_construct_signature, is_module_block, is_named_declaration, is_private_identifier,
+    is_signed_numeric_literal, is_source_file, is_string_or_numeric_literal_like,
+    is_type_alias_declaration, length, maybe_for_each, maybe_set_parent, node_has_name,
+    node_is_missing, set_parent_recursive, token_to_string, unescape_leading_underscores,
+    AssignmentDeclarationKind, BindBinaryExpressionFlow, CompilerOptions, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticWithLocation, Diagnostics,
+    FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
     SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_rc,
     create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
     is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
@@ -692,6 +693,20 @@ impl BinderType {
         self.bind_binary_expression_flow.borrow().clone().unwrap()
     }
 
+    pub(super) fn create_diagnostic_for_node(
+        &self,
+        node: &Node,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) -> DiagnosticWithLocation {
+        create_diagnostic_for_node_in_source_file(
+            &get_source_file_of_node(Some(node)).unwrap_or_else(|| self.file()),
+            node,
+            message,
+            args,
+        )
+    }
+
     pub(super) fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Rc<CompilerOptions>) {
         self.set_file(Some(f.node_wrapper()));
         self.set_options(Some(opts.clone()));
@@ -1041,7 +1056,7 @@ impl BinderType {
                                 )
                             {
                                 related_information.push(Rc::new(
-                                    create_diagnostic_for_node(
+                                    self.create_diagnostic_for_node(
                                         node,
                                         &Diagnostics::Did_you_mean_0,
                                         Some(vec![format!(
@@ -1067,7 +1082,7 @@ impl BinderType {
                                     let decl = get_name_of_declaration(Some(&**declaration))
                                         .unwrap_or_else(|| declaration.node_wrapper());
                                     let diag: Rc<Diagnostic> = Rc::new(
-                                        create_diagnostic_for_node(
+                                        self.create_diagnostic_for_node(
                                             &decl,
                                             message,
                                             if message_needs_name {
@@ -1085,7 +1100,7 @@ impl BinderType {
                                             add_related_info(
                                                 &diag,
                                                 vec![Rc::new(
-                                                create_diagnostic_for_node(
+                                                self.create_diagnostic_for_node(
                                                     &declaration_name,
                                                     if index == 0 {
                                                         &Diagnostics::Another_export_default_is_here
@@ -1104,7 +1119,7 @@ impl BinderType {
                                     );
                                     if multiple_default_exports {
                                         related_information.push(Rc::new(
-                                            create_diagnostic_for_node(
+                                            self.create_diagnostic_for_node(
                                                 &decl,
                                                 &Diagnostics::The_first_export_default_is_here,
                                                 None,
@@ -1117,7 +1132,7 @@ impl BinderType {
                             );
 
                             let diag: Rc<Diagnostic> = Rc::new(
-                                create_diagnostic_for_node(
+                                self.create_diagnostic_for_node(
                                     &declaration_name,
                                     message,
                                     if message_needs_name {
