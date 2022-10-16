@@ -497,7 +497,11 @@ impl ResolvedTypeInterface for BaseObjectType {
         self.members.borrow_mut().as_ref().unwrap().clone()
     }
 
-    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
+    fn properties(&self) -> Ref<Vec<Rc<Symbol>>> {
+        Ref::map(self.properties.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    fn properties_mut(&self) -> RefMut<Vec<Rc<Symbol>>> {
         RefMut::map(self.properties.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
@@ -1127,7 +1131,11 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
         self.members.borrow_mut().as_ref().unwrap().clone()
     }
 
-    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
+    fn properties(&self) -> Ref<Vec<Rc<Symbol>>> {
+        Ref::map(self.properties.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    fn properties_mut(&self) -> RefMut<Vec<Rc<Symbol>>> {
         RefMut::map(self.properties.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })

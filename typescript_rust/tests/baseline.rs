@@ -3531,7 +3531,7 @@ use typescript_rust::{
 #[case("missingImportAfterModuleImport.ts")] // NOT RUNNABLE
 #[case("missingMemberErrorHasShortPath.ts")] // NOT RUNNABLE
 #[case("missingPropertiesOfClassExpression.ts")]
-#[case("missingRequiredDeclare.d.ts")] // FAILING 3512
+#[case("missingRequiredDeclare.d.ts")]
 #[case("missingReturnStatement.ts")]
 #[case("missingReturnStatement1.ts")]
 #[case("missingSelf.ts")]

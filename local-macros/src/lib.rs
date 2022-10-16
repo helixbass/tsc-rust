@@ -1488,8 +1488,12 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.members()
                     }
 
-                    fn properties(&self) -> ::std::cell::RefMut<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>> {
+                    fn properties(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>> {
                         self.#first_field_name.properties()
+                    }
+
+                    fn properties_mut(&self) -> ::std::cell::RefMut<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>> {
+                        self.#first_field_name.properties_mut()
                     }
 
                     fn set_properties(&self, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
@@ -2089,9 +2093,15 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn properties(&self) -> ::std::cell::RefMut<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>> {
+                    fn properties(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties()),*
+                        }
+                    }
+
+                    fn properties_mut(&self) -> ::std::cell::RefMut<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.properties_mut()),*
                         }
                     }
 

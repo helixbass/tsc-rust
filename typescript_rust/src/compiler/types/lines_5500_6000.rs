@@ -164,7 +164,8 @@ pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
-    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>>;
+    fn properties(&self) -> Ref<Vec<Rc<Symbol>>>;
+    fn properties_mut(&self) -> RefMut<Vec<Rc<Symbol>>>;
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);
     fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
     fn set_call_signatures(&self, call_signatures: Vec<Rc<Signature>>);
