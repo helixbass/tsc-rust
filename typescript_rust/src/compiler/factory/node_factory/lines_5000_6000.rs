@@ -119,7 +119,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         flags: NodeFlags,
     ) -> SourceFile {
         let node = base_factory.create_base_source_file_node(SyntaxKind::SourceFile);
-        let mut node = SourceFile::new(
+        let node = SourceFile::new(
             node,
             self.create_node_array(Some(statements), None),
             end_of_file_token,
@@ -131,6 +131,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             false,
             false,
         );
+        node.set_flags(node.flags() | flags);
         node.add_transform_flags(
             propagate_children_flags(Some(&node.statements))
                 | propagate_child_flags(Some(&*node.end_of_file_token)),
