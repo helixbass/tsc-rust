@@ -867,8 +867,8 @@ impl TypeChecker {
                 let rest_type = self
                     .get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1]);
                 if self.is_tuple_type(&rest_type) {
-                    let rest_type_target_as_tuple_type =
-                        rest_type.as_type_reference().target.as_tuple_type();
+                    let rest_type_target = rest_type.as_type_reference_interface().target();
+                    let rest_type_target_as_tuple_type = rest_type_target.as_tuple_type();
                     let first_optional_index = find_index(
                         &rest_type_target_as_tuple_type.element_flags,
                         |f: &ElementFlags, _| !f.intersects(ElementFlags::Required),
