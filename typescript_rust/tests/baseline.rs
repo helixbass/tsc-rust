@@ -1635,16 +1635,16 @@ use typescript_rust::{
 #[case("didYouMeanStringLiteral.ts")] // FAILING
 #[case("didYouMeanSuggestionErrors.ts")]
 #[case("differentTypesWithSameName.ts")]
-#[case("discriminableUnionWithIntersectedMembers.ts")] // FAILING
+#[case("discriminableUnionWithIntersectedMembers.ts")] // FAILING 1616
 #[case("discriminantElementAccessCheck.ts")]
-#[case("discriminantPropertyCheck.ts")] // FAILING
-#[case("discriminantPropertyInference.ts")] // FAILING
+#[case("discriminantPropertyCheck.ts")] // FAILING 1618 on Number stuff
+#[case("discriminantPropertyInference.ts")]
 #[case("discriminantsAndNullOrUndefined.ts")]
 #[case("discriminantsAndPrimitives.ts")]
 #[case("discriminantsAndTypePredicates.ts")]
 #[case("discriminateObjectTypesOnly.ts")]
 #[case("discriminatedUnionErrorMessage.ts")]
-#[case("discriminatedUnionJsxElement.tsx")] // FAILING
+#[case("discriminatedUnionJsxElement.tsx")] // FAILING 1625
 #[case("divergentAccessors1.ts")]
 #[case("divergentAccessorsTypes1.ts")]
 #[case("divergentAccessorsTypes2.ts")]
@@ -5078,7 +5078,7 @@ use typescript_rust::{
 #[case("tsxAttributesHasInferrableIndex.tsx")]
 #[case("tsxDeepAttributeAssignabilityError.tsx")] // NOT RUNNABLE
 #[case("tsxDefaultImports.ts")] // NOT RUNNABLE
-#[case("tsxDiscriminantPropertyInference.tsx")] // FAILING
+#[case("tsxDiscriminantPropertyInference.tsx")]
 #[case("tsxFragmentChildrenCheck.ts")] // NOT RUNNABLE
 #[case("tsxInferenceShouldNotYieldAnyOnUnions.tsx")] // NOT RUNNABLE
 #[case("tsxInvokeComponentType.tsx")] // NOT RUNNABLE on .lib directive

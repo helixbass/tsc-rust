@@ -269,7 +269,7 @@ impl CheckTypeRelatedTo {
             }
         }
 
-        let mut result = Ternary::False;
+        let mut result = Ternary::True;
         for type_ in &matching_types {
             result &= self.properties_related_to(
                 source,
