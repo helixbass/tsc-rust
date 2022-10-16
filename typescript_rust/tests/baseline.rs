@@ -2332,7 +2332,7 @@ use typescript_rust::{
 #[case("functionAndInterfaceWithSeparateErrors.ts")]
 #[case("functionAndPropertyNameConflict.ts")]
 #[case("functionArgShadowing.ts")]
-#[case("functionAssignabilityWithArrayLike01.ts")] // FAILING 2313
+#[case("functionAssignabilityWithArrayLike01.ts")] // NOT RUNNABLE
 #[case("functionAssignment.ts")]
 #[case("functionAssignmentError.ts")]
 #[case("functionCall1.ts")]
@@ -3122,7 +3122,7 @@ use typescript_rust::{
 #[case("intersectionsAndReadonlyProperties.ts")]
 #[case("intersectionsOfLargeUnions.ts")]
 #[case("intersectionsOfLargeUnions2.ts")]
-#[case("intrinsics.ts")] // FAILING 3103
+#[case("intrinsics.ts")] // NOT IN SCOPE transformer error
 #[case("invalidConstraint1.ts")]
 #[case("invalidContinueInDownlevelAsync.ts")]
 #[case("invalidLetInForOfAndForIn_ES5.ts")]
@@ -5627,7 +5627,13 @@ fn option_value(
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> CompilerOptionsValue {
     match option.type_() {
-        CommandLineOptionType::Boolean => Some(value.to_lowercase() == "true").into(),
+        // CommandLineOptionType::Boolean => Some(value.to_lowercase() == "true").into(),
+        CommandLineOptionType::Boolean => Some(match &*value.to_lowercase() {
+            "true" => true,
+            "false" => false,
+            _ => panic!("Unexpected boolean value: {:?}", value),
+        })
+        .into(),
         CommandLineOptionType::String => Some(value.to_owned()).into(),
         CommandLineOptionType::Number => unimplemented!(),
         CommandLineOptionType::Object => unimplemented!(),
