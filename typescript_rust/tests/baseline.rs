@@ -1632,10 +1632,10 @@ use typescript_rust::{
 #[case("detachedCommentAtStartOfLambdaFunction1.ts")]
 #[case("detachedCommentAtStartOfLambdaFunction2.ts")]
 #[case("didYouMeanElaborationsForExpressionsWhichCouldBeCalled.ts")]
-#[case("didYouMeanStringLiteral.ts")] // FAILING
+#[case("didYouMeanStringLiteral.ts")] // FAILING 1613
 #[case("didYouMeanSuggestionErrors.ts")]
 #[case("differentTypesWithSameName.ts")]
-#[case("discriminableUnionWithIntersectedMembers.ts")] // FAILING 1616
+#[case("discriminableUnionWithIntersectedMembers.ts")]
 #[case("discriminantElementAccessCheck.ts")]
 #[case("discriminantPropertyCheck.ts")] // FAILING 1618 on Number stuff
 #[case("discriminantPropertyInference.ts")]
@@ -1644,7 +1644,7 @@ use typescript_rust::{
 #[case("discriminantsAndTypePredicates.ts")]
 #[case("discriminateObjectTypesOnly.ts")]
 #[case("discriminatedUnionErrorMessage.ts")]
-#[case("discriminatedUnionJsxElement.tsx")] // FAILING 1625
+#[case("discriminatedUnionJsxElement.tsx")]
 #[case("divergentAccessors1.ts")]
 #[case("divergentAccessorsTypes1.ts")]
 #[case("divergentAccessorsTypes2.ts")]
