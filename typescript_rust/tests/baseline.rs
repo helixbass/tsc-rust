@@ -2091,7 +2091,7 @@ use typescript_rust::{
 #[case("escapedReservedCompilerNamedIdentifier.ts")]
 #[case("evalAfter0.ts")]
 #[case("eventEmitterPatternWithRecordOfFunction.ts")]
-#[case("evolvingArrayTypeInAssert.ts")] // FAILING 2072
+#[case("evolvingArrayTypeInAssert.ts")]
 #[case("exactSpellingSuggestion.ts")]
 #[case("excessPropertyCheckWithEmptyObject.ts")]
 #[case("excessPropertyCheckWithMultipleDiscriminants.ts")]
@@ -2146,7 +2146,7 @@ use typescript_rust::{
 #[case("exportDeclarationsInAmbientNamespaces2.ts")]
 #[case("exportDeclareClass1.ts")]
 #[case("exportDefaultAbstractClass.ts")] // NOT RUNNABLE
-#[case("exportDefaultAlias_excludesEverything.ts")] // FAILING 2127
+#[case("exportDefaultAlias_excludesEverything.ts")]
 #[case("exportDefaultAsyncFunction.ts")]
 #[case("exportDefaultAsyncFunction2.ts")] // NOT RUNNABLE
 #[case("exportDefaultClassInNamespace.ts")]
@@ -2237,7 +2237,7 @@ use typescript_rust::{
 #[case("extendGenericArray.ts")]
 #[case("extendGenericArray2.ts")]
 #[case("extendGlobalThis.ts")] // NOT RUNNABLE
-#[case("extendGlobalThis2.ts")] // FAILING on borrow error 2218
+#[case("extendGlobalThis2.ts")]
 #[case("extendNonClassSymbol1.ts")]
 #[case("extendNonClassSymbol2.ts")]
 #[case("extendPrivateConstructorClass.ts")]

@@ -601,7 +601,11 @@ impl GetFlowTypeOfReference {
             let flow_as_flow_array_mutation = flow.as_flow_array_mutation();
             let node = &flow_as_flow_array_mutation.node;
             let expr = if node.kind() == SyntaxKind::CallExpression {
-                node.as_call_expression().expression.clone()
+                node.as_call_expression()
+                    .expression
+                    .as_property_access_expression()
+                    .expression
+                    .clone()
             } else {
                 node.as_binary_expression()
                     .left
