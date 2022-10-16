@@ -1019,7 +1019,7 @@ use typescript_rust::{
 #[case("constDeclarations2.ts")]
 #[case("constEnumBadPropertyNames.ts")]
 #[case("constEnumDeclarations.ts")] // FAILING 999 on Number not implemented stuff
-#[case("constEnumErrors.ts")] // FAILING 1000
+#[case("constEnumErrors.ts")] // FAILING 1000 on Number stuff
 #[case("constEnumExternalModule.ts")] // NOT RUNNABLE
 #[case("constEnumMergingWithValues1.ts")] // NOT RUNNABLE
 #[case("constEnumMergingWithValues2.ts")] // NOT RUNNABLE
@@ -1168,7 +1168,7 @@ use typescript_rust::{
 #[case("contextuallyTypeArgumentsKeyword.ts")] // NOT RUNNABLE
 #[case("contextuallyTypedByDiscriminableUnion.ts")]
 #[case("contextuallyTypedGenericAssignment.ts")]
-#[case("contextuallyTypedParametersWithInitializers.ts")] // FAILING 1149
+#[case("contextuallyTypedParametersWithInitializers.ts")]
 #[case("contextuallyTypingOrOperator.ts")]
 #[case("contextuallyTypingOrOperator2.ts")]
 #[case("contextuallyTypingOrOperator3.ts")]
@@ -1193,8 +1193,8 @@ use typescript_rust::{
 #[case("contravariantInferenceAndTypeGuard.ts")]
 #[case("contravariantTypeAliasInference.ts")]
 #[case("controlFlowAnalysisOnBareThisKeyword.ts")]
-#[case("controlFlowArrayErrors.ts")] // FAILING 1174
-#[case("controlFlowArrays.ts")] // FAILING 1175
+#[case("controlFlowArrayErrors.ts")]
+#[case("controlFlowArrays.ts")]
 #[case("controlFlowBreakContinueWithLabel.ts")]
 #[case("controlFlowCaching.ts")]
 #[case("controlFlowCommaExpressionAssertionWithinTernary.ts")]
@@ -1212,7 +1212,7 @@ use typescript_rust::{
 #[case("controlFlowNoImplicitAny.ts")]
 #[case("controlFlowNullTypeAndLiteral.ts")]
 #[case("controlFlowOuterVariable.ts")]
-#[case("controlFlowPrivateClassField.ts")] // FAILING 1193
+#[case("controlFlowPrivateClassField.ts")]
 #[case("controlFlowPropertyDeclarations.ts")]
 #[case("controlFlowPropertyInitializer.ts")]
 #[case("controlFlowSelfReferentialLoop.ts")]
@@ -1582,8 +1582,8 @@ use typescript_rust::{
 #[case("defineVariables_useDefineForClassFields.ts")]
 #[case("definiteAssignmentOfDestructuredVariable.ts")]
 #[case("definiteAssignmentWithErrorStillStripped.ts")]
-#[case("deleteExpressionMustBeOptional.ts")] // FAILING 1563
-#[case("deleteExpressionMustBeOptional_exactOptionalPropertyTypes.ts")] // FAILING 1564
+#[case("deleteExpressionMustBeOptional.ts")] // NOT RUNNABLE
+#[case("deleteExpressionMustBeOptional_exactOptionalPropertyTypes.ts")] // NOT RUNNABLE
 #[case("deleteOperator1.ts")]
 #[case("deleteOperatorInStrictMode.ts")]
 #[case("deleteReadonly.ts")]
@@ -1775,7 +1775,7 @@ use typescript_rust::{
 #[case("emitAccessExpressionOfCastedObjectLiteralExpressionInArrowFunctionES6.ts")]
 #[case("emitBOM.ts")] // NOT RUNNABLE
 #[case("emitBundleWithPrologueDirectives1.ts")] // NOT RUNNABLE
-#[case("emitBundleWithShebang1.ts")] // FAILING 1756
+#[case("emitBundleWithShebang1.ts")] // NOT PASSABLE relies on manipulation of test file contents
 #[case("emitBundleWithShebang2.ts")] // NOT RUNNABLE
 #[case("emitBundleWithShebangAndPrologueDirectives1.ts")] // NOT RUNNABLE
 #[case("emitBundleWithShebangAndPrologueDirectives2.ts")] // NOT RUNNABLE
@@ -1906,7 +1906,7 @@ use typescript_rust::{
 #[case("es3-jsx-react-native.tsx")]
 #[case("es3-jsx-react.tsx")]
 #[case("es3-oldStyleOctalLiteralInEnums.ts")]
-#[case("es3-oldStyleOctalLiteralTypes.ts")] // FAILING 1887
+#[case("es3-oldStyleOctalLiteralTypes.ts")]
 #[case("es3-sourcemap-amd.ts")]
 #[case("es3defaultAliasIsQuoted.ts")] // NOT RUNNABLE
 #[case("es5-amd.ts")]
