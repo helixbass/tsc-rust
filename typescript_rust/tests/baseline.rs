@@ -3715,7 +3715,7 @@ use typescript_rust::{
 #[case("module_augmentExistingAmbientVariable.ts")]
 #[case("module_augmentExistingVariable.ts")]
 #[case("module_augmentUninstantiatedModule.ts")]
-#[case("module_augmentUninstantiatedModule2.ts")] // FAILING 3696
+#[case("module_augmentUninstantiatedModule2.ts")] // NOT RUNNABLE
 #[case("moduledecl.ts")]
 #[case("multiCallOverloads.ts")]
 #[case("multiExtendsSplitInterfaces1.ts")]
@@ -3729,8 +3729,8 @@ use typescript_rust::{
 #[case("multipleBaseInterfaesWithIncompatibleProperties.ts")]
 #[case("multipleClassPropertyModifiers.ts")]
 #[case("multipleClassPropertyModifiersErrors.ts")]
-#[case("multipleExportAssignments.ts")] // FAILING 3710
-#[case("multipleExportAssignmentsInAmbientDeclaration.ts")] // FAILING 3711
+#[case("multipleExportAssignments.ts")]
+#[case("multipleExportAssignmentsInAmbientDeclaration.ts")]
 #[case("multipleExports.ts")]
 #[case("multipleInheritance.ts")]
 #[case("multivar.ts")]
@@ -5660,17 +5660,20 @@ fn get_command_line_option(name: &str) -> Option<Rc<CommandLineOption>> {
 }
 
 lazy_static! {
-    static ref option_regex: Regex = Regex::new(r"(?m)^[/]{2}\s*@(\w+)\s*:\s*([^\r\n]*)").unwrap();
+    static ref line_ending_regex: Regex = Regex::new(r"\r?\n|\r").unwrap();
+    static ref option_regex: Regex = Regex::new(r"^[/]{2}\s*@(\w+)\s*:\s*([^\r\n]*)").unwrap();
 }
 
 fn extract_compiler_settings(case_file_contents: &str) -> HashMap<&str, &str> {
     let mut opts: HashMap<&str, &str> = HashMap::new();
 
-    for match_ in option_regex.captures_iter(case_file_contents) {
-        opts.insert(
-            match_.get(1).unwrap().as_str(),
-            match_.get(2).unwrap().as_str(),
-        );
+    for line in line_ending_regex.split(case_file_contents) {
+        if let Some(match_) = option_regex.captures(line) {
+            opts.insert(
+                match_.get(1).unwrap().as_str(),
+                match_.get(2).unwrap().as_str(),
+            );
+        }
     }
 
     opts
