@@ -662,7 +662,7 @@ impl TypeChecker {
                                     node.maybe_symbol().as_ref(),
                                     Some(node_symbol) if matches!(
                                         node_symbol.maybe_members().clone(),
-                                        Some(node_symbol_members) if (*node_symbol_members).borrow().contains_key(s.escaped_name())
+                                        Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.escaped_name())
                                     )
                                 ) &&
                                 self.is_discriminant_property(
