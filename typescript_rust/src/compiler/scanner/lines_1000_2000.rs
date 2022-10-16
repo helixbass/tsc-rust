@@ -212,7 +212,7 @@ impl Scanner {
         while matches!(self.maybe_text_char_at_index(self.pos()), Some(ch) if is_octal_digit(ch)) {
             self.increment_pos();
         }
-        u32::from_str_radix(&self.text_substring(start, self.pos()), 8).unwrap()
+        u32::from_str_radix(&self.text_substring(start, self.pos()), 10).unwrap()
     }
 
     pub(super) fn scan_exact_number_of_hex_digits(
