@@ -1014,7 +1014,7 @@ impl ParserType {
                 .create_template_literal_like_node(
                     self,
                     kind,
-                    self.scanner().get_token_value(),
+                    self.scanner().get_token_value().clone(),
                     Some(self.get_template_literal_raw_text(kind)),
                     Some(self.scanner().get_token_flags() & TokenFlags::TemplateLiteralLikeFlags),
                 )
@@ -1023,7 +1023,7 @@ impl ParserType {
             self.factory
                 .create_numeric_literal(
                     self,
-                    self.scanner().get_token_value(),
+                    self.scanner().get_token_value().clone(),
                     Some(self.scanner().get_numeric_literal_flags()),
                 )
                 .into()
@@ -1031,14 +1031,17 @@ impl ParserType {
             self.factory
                 .create_string_literal(
                     self,
-                    self.scanner().get_token_value(),
+                    self.scanner().get_token_value().clone(),
                     None,
                     Some(self.scanner().has_extended_unicode_escape()),
                 )
                 .into()
         } else if is_literal_kind(kind) {
-            self.factory
-                .create_literal_like_node(self, kind, self.scanner().get_token_value())
+            self.factory.create_literal_like_node(
+                self,
+                kind,
+                self.scanner().get_token_value().clone(),
+            )
         } else {
             Debug_.fail(None)
         };

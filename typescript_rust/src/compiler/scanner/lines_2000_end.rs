@@ -398,8 +398,8 @@ impl Scanner {
                     break;
                 }
             }
-            if matches!(self.token_value().chars().last(), Some(':')) {
-                let mut token_value = self.token_value();
+            if self.token_value().ends_with(":") {
+                let mut token_value = self.token_value().clone();
                 token_value.pop().unwrap();
                 self.set_token_value(token_value);
                 self.set_pos(self.pos() - 1);
@@ -578,7 +578,7 @@ impl Scanner {
         let save_start_pos = self.start_pos();
         let save_token_pos = self.token_pos();
         let save_token = self.token();
-        let save_token_value = self.maybe_token_value();
+        let save_token_value = self.maybe_token_value().clone();
         let save_token_flags = self.token_flags();
         let result = callback();
 
@@ -605,7 +605,7 @@ impl Scanner {
         let save_start_pos = self.start_pos();
         let save_token_pos = self.token_pos();
         let save_token = self.token();
-        let save_token_value = self.maybe_token_value();
+        let save_token_value = self.maybe_token_value().clone();
         let save_token_flags = self.token_flags();
         let save_error_expectations = (*self.maybe_comment_directives()).clone();
 

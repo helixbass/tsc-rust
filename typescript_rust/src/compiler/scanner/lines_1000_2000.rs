@@ -155,7 +155,7 @@ impl Scanner {
             self.check_for_identifier_start_after_numeric_literal(on_error, start, None);
             ScanNumberReturn {
                 type_,
-                value: self.token_value(),
+                value: self.token_value().clone(),
             }
         }
     }
@@ -732,8 +732,7 @@ impl Scanner {
     pub(super) fn get_identifier_token(&self) -> SyntaxKind {
         let len = self.token_value().len();
         if len >= 2 && len <= 12 {
-            let ch = self.token_value().chars().nth(0).unwrap();
-            if ch >= CharacterCodes::a && ch <= CharacterCodes::z {
+            if self.token_value().starts_with(|ch| ch >= 'a' && ch <= 'z') {
                 let token_value_as_str: &str = &self.token_value();
                 let keyword = text_to_keyword.get(&token_value_as_str);
                 if let Some(keyword) = keyword {

@@ -245,7 +245,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let node = self.factory.create_jsx_text(
             self,
-            self.scanner().get_token_value(),
+            self.scanner().get_token_value().clone(),
             Some(self.current_token() == SyntaxKind::JsxTextAllWhiteSpaces),
         );
         self.set_current_token(self.scanner().scan_jsx_token(

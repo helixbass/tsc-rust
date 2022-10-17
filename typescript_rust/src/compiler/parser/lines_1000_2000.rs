@@ -907,7 +907,7 @@ impl ParserType {
         } else {
             self.parse_error_at_current_token(
                 name_diagnostic,
-                Some(vec![self.scanner().get_token_value()]),
+                Some(vec![self.scanner().get_token_value().clone()]),
             );
         }
     }

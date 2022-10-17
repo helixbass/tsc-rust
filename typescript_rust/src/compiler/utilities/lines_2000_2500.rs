@@ -201,15 +201,7 @@ pub fn is_string_double_quoted(
     str: &Node,         /*StringLiteralLike*/
     source_file: &Node, /*SourceFile*/
 ) -> bool {
-    matches!(
-        maybe_text_char_at_index(
-            &get_source_text_of_node_from_source_file(source_file, str, None)
-                .chars()
-                .collect(),
-            0
-        ),
-        Some(CharacterCodes::double_quote)
-    )
+    get_source_text_of_node_from_source_file(source_file, str, None).starts_with("\"")
 }
 
 pub fn is_assignment_declaration(decl: &Node /*Declaration*/) -> bool {

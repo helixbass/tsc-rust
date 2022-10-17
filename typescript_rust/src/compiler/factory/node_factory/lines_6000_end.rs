@@ -201,7 +201,7 @@ pub(super) fn get_cooked_text(
             | SyntaxKind::TemplateHead
             | SyntaxKind::TemplateMiddle
             | SyntaxKind::TemplateTail => {
-                token_value = Some(raw_text_scanner_ref.get_token_value());
+                token_value = Some(raw_text_scanner_ref.get_token_value().clone());
             }
             _ => (),
         }

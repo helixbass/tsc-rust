@@ -91,9 +91,10 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             && self.parser.next_token_jsdoc() == SyntaxKind::AtToken
             && token_is_identifier_or_keyword(self.parser.next_token_jsdoc())
         {
-            let kind = self.parser.scanner().get_token_value();
-            if matches!(&*kind, "link" | "linkcode" | "linkplain") {
-                return Some(kind);
+            let scanner = self.parser.scanner();
+            let kind = scanner.get_token_value();
+            if matches!(&**kind, "link" | "linkcode" | "linkplain") {
+                return Some(kind.clone());
             }
         }
         None

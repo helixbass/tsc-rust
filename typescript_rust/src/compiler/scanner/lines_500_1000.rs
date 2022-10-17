@@ -821,12 +821,14 @@ impl Scanner {
         token
     }
 
-    pub(super) fn token_value(&self) -> String {
-        self.token_value.borrow().as_ref().unwrap().to_string()
+    pub(super) fn token_value(&self) -> Ref<String> {
+        Ref::map(self.token_value.borrow(), |token_value| {
+            token_value.as_ref().unwrap()
+        })
     }
 
-    pub(super) fn maybe_token_value(&self) -> Option<String> {
-        self.token_value.borrow().clone()
+    pub(super) fn maybe_token_value(&self) -> Ref<Option<String>> {
+        self.token_value.borrow()
     }
 
     pub(super) fn set_token_value(&self, token_value: String) {
@@ -881,7 +883,7 @@ impl Scanner {
         self.text_substring(self.token_pos(), self.pos())
     }
 
-    pub fn get_token_value(&self) -> String {
+    pub fn get_token_value(&self) -> Ref<String> {
         self.token_value()
     }
 
