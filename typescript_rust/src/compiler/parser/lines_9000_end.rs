@@ -7,7 +7,7 @@ use std::rc::Rc;
 use crate::{
     file_extension_is_one_of, for_each_child_bool, get_leading_comment_ranges, get_pragma_spec,
     map, to_pragma_name, trim_string, AmdDependency, CheckJsDirective, CommentRange, Debug_,
-    DiagnosticMessage, Diagnostics, Extension, FileReference,
+    DiagnosticMessage, Diagnostics, Extension, FileReference, HasStatementsInterface,
     IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
     NodeInterface, ParserType, PragmaArgument, PragmaArgumentName, PragmaArgumentWithCapturedSpan,
     PragmaArguments, PragmaKindFlags, PragmaName, PragmaPseudoMapEntry, PragmaSpec, PragmaValue,
@@ -62,7 +62,7 @@ pub struct IncrementalParserSyntaxCursorCreated {
 impl IncrementalParserSyntaxCursorCreated {
     pub fn new(source_file: Rc<Node>) -> Self {
         let source_file_as_source_file = source_file.as_source_file();
-        let current_array = &source_file_as_source_file.statements;
+        let current_array = source_file_as_source_file.statements();
         let current_array_index = 0;
 
         Debug_.assert(current_array_index < current_array.len(), None);

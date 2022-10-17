@@ -6,11 +6,11 @@ use std::rc::Rc;
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     is_outer_expression, BaseNodeFactory, BaseUnparsedNode, Bundle, EnumMember, FileReference,
-    InputFiles, LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind,
-    ScriptTarget, ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode,
-    SyntaxKind, SyntheticExpression, TransformFlags, Type, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike,
+    HasStatementsInterface, InputFiles, LanguageVariant, NamedDeclarationInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
+    PropertyAssignment, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
+    SpreadAssignment, StringOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags, Type,
+    UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -133,8 +133,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.set_flags(node.flags() | flags);
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.statements))
-                | propagate_child_flags(Some(&*node.end_of_file_token)),
+            propagate_children_flags(Some(node.statements()))
+                | propagate_child_flags(Some(node.end_of_file_token())),
         );
         node
     }

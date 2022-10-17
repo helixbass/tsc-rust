@@ -22,8 +22,8 @@ use crate::{
     is_property_access_expression, is_property_assignment, is_property_declaration,
     is_property_signature, is_prototype_property_assignment, is_shorthand_property_assignment,
     is_source_file, is_string_literal_like, is_variable_declaration, last_or_undefined, map,
-    CheckFlags, Debug_, Diagnostics, ElementFlags, HasInitializerInterface, IndexInfo,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
+    CheckFlags, Debug_, Diagnostics, ElementFlags, HasInitializerInterface, HasStatementsInterface,
+    IndexInfo, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeSystemPropertyName,
     __String,
@@ -486,13 +486,13 @@ impl TypeChecker {
         }
         if is_source_file(declaration) && is_json_source_file(declaration) {
             let declaration_as_source_file = declaration.as_source_file();
-            if declaration_as_source_file.statements.is_empty() {
+            if declaration_as_source_file.statements().is_empty() {
                 return self.empty_object_type();
             }
             return self.get_widened_type(
                 &self.get_widened_literal_type(
                     &self.check_expression(
-                        &declaration_as_source_file.statements[0]
+                        &declaration_as_source_file.statements()[0]
                             .as_expression_statement()
                             .expression,
                         None,

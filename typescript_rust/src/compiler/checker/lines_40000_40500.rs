@@ -13,8 +13,8 @@ use crate::{
     is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_module_exports_access_expression,
     is_parameter, is_rest_parameter, last, last_or_undefined, maybe_for_each, relative_complement,
     skip_type_checking, CancellationTokenDebuggable, Debug_, Diagnostic, Diagnostics,
-    ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
-    SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
+    HasStatementsInterface, ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags,
+    NodeInterface, SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -591,11 +591,11 @@ impl TypeChecker {
             clear(&mut self.potential_reflect_collisions());
 
             let node_as_source_file = node.as_source_file();
-            for_each(&node_as_source_file.statements, |statement, _| {
+            for_each(node_as_source_file.statements(), |statement, _| {
                 self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
-            self.check_source_element(Some(&*node_as_source_file.end_of_file_token));
+            self.check_source_element(Some(node_as_source_file.end_of_file_token()));
 
             self.check_deferred_nodes(node);
 

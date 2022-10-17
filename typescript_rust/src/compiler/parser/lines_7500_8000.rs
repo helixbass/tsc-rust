@@ -12,8 +12,8 @@ use crate::{
     is_export_declaration, is_external_module_reference, is_import_declaration,
     is_import_equals_declaration, is_jsdoc_like_text, is_meta_property,
     last_index_of_returns_isize, set_parent, some, BaseNode, BaseNodeFactory, Debug_, Diagnostic,
-    JSDoc, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget,
-    SourceTextAsChars, StringOrNodeArray, SyntaxKind,
+    HasStatementsInterface, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
+    ScriptKind, ScriptTarget, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
 };
 
 impl ParserType {
@@ -48,7 +48,7 @@ impl ParserType {
     pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
         let source_file_as_source_file = source_file.as_source_file();
         source_file_as_source_file.set_external_module_indicator(
-            for_each(&source_file_as_source_file.statements, |statement, _| {
+            for_each(source_file_as_source_file.statements(), |statement, _| {
                 self.is_an_external_module_indicator_node(statement)
             })
             .or_else(|| self.get_import_meta_if_necessary(source_file)),

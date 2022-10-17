@@ -15,8 +15,8 @@ use crate::{
     is_parenthesized_expression, is_property_access_entity_name_expression,
     is_property_access_expression, is_string_literal_like, is_string_or_numeric_literal_like,
     is_type_of_expression, node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode,
-    FlowNodeBase, FlowReduceLabel, FlowStart, ModifierFlags, Node, NodeArray, NodeFlags,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    FlowNodeBase, FlowReduceLabel, FlowStart, HasStatementsInterface, ModifierFlags, Node,
+    NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl BinderType {
@@ -412,8 +412,8 @@ impl BinderType {
             | SyntaxKind::JSDocEnumTag => self.bind_jsdoc_type_alias(node),
             SyntaxKind::SourceFile => {
                 let node_as_source_file = node.as_source_file();
-                self.bind_each_functions_first(Some(&node_as_source_file.statements));
-                self.bind(Some(&*node_as_source_file.end_of_file_token));
+                self.bind_each_functions_first(Some(node_as_source_file.statements()));
+                self.bind(Some(node_as_source_file.end_of_file_token()));
             }
             SyntaxKind::Block | SyntaxKind::ModuleBlock => {
                 self.bind_each_functions_first(Some(node.as_has_statements().statements()));

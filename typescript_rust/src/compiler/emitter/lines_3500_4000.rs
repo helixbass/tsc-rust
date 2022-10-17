@@ -10,10 +10,10 @@ use crate::{
     is_prologue_directive, is_unparsed_source, node_is_synthesized,
     range_start_positions_are_on_same_line, with_factory, with_synthetic_factory,
     BundleFileSection, BundleFileSectionKind, EmitFlags, FileReference, HasInitializerInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, JSDocTagInterface,
-    JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, StrOrNodeArrayRef,
-    SyntaxKind, TextRange,
+    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
+    JSDocTagInterface, JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
+    SourceFileLike, StrOrNodeArrayRef, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -741,7 +741,7 @@ impl Printer {
 
     pub(super) fn emit_source_file(&self, node: &Node /*SourceFile*/) {
         self.write_line(None);
-        let statements = &node.as_source_file().statements;
+        let statements = node.as_source_file().statements();
         // if (emitBodyWithDetachedComments) {
         let should_emit_detached_comment = statements.is_empty()
             || !is_prologue_directive(&statements[0])
@@ -921,7 +921,7 @@ impl Printer {
     }
 
     pub(super) fn emit_source_file_worker(&self, node: &Node /*SourceFile*/) {
-        let statements = &node.as_source_file().statements;
+        let statements = node.as_source_file().statements();
         self.push_name_generation_scope(Some(node));
         for_each(statements, |statement: &Rc<Node>, _| -> Option<()> {
             self.generate_names(Some(&**statement));

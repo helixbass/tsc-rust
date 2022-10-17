@@ -22,10 +22,11 @@ use crate::{
     CommandLineOptionBase, CommandLineOptionInterface, CommandLineOptionOfListType,
     CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
     Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, LanguageVariant,
-    Node, NodeArray, NodeFlags, NodeInterface, OptionsNameMap, ParseConfigHost, ParsedCommandLine,
-    ParsedCommandLineWithBaseOptions, Push, ScriptKind, ScriptTarget, SourceFile,
-    StringOrDiagnosticMessage, SyntaxKind, TransformFlags, TsConfigOnlyOption, WatchOptions,
+    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo,
+    HasStatementsInterface, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
+    OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
+    ScriptKind, ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
+    TsConfigOnlyOption, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -1266,7 +1267,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
 ) -> Option<serde_json::Value> {
     let source_file_as_source_file = source_file.as_source_file();
     let root_expression = source_file_as_source_file
-        .statements
+        .statements()
         .get(0)
         .map(|statement| statement.as_expression_statement().expression.clone());
     let known_root_options: Option<Rc<CommandLineOption>> = if report_options_errors {
@@ -1331,7 +1332,7 @@ pub fn convert_to_object(
         source_file,
         source_file
             .as_source_file()
-            .statements
+            .statements()
             .get(0)
             .map(|statement| statement.as_expression_statement().expression.clone()),
         &RefCell::new(errors),

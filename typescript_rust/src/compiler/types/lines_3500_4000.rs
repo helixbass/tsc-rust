@@ -131,9 +131,14 @@ pub trait HasStatementsInterface {
 #[ast_type]
 pub struct SourceFile {
     _node: BaseNode,
+    contents: Box<SourceFileContents>,
+}
+
+#[derive(Debug)]
+pub struct SourceFileContents {
     _symbols_without_a_symbol_table_strong_references: RefCell<Vec<Rc<Symbol>>>,
-    pub statements: NodeArray,
-    pub end_of_file_token: Rc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
+    statements: NodeArray,
+    end_of_file_token: Rc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
 
     file_name: RefCell<String>,
     path: RefCell<Option<Path>>,
@@ -217,436 +222,450 @@ impl SourceFile {
         let text_as_chars = text.chars().collect();
         Self {
             _node: base_node,
-            _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
-            statements,
-            end_of_file_token,
-            file_name: RefCell::new(file_name),
-            path: RefCell::new(None),
-            text: RefCell::new(text),
-            text_as_chars: RefCell::new(text_as_chars),
-            resolved_path: RefCell::new(None),
-            original_file_name: RefCell::new(None),
-            redirect_info: RefCell::new(None),
-            amd_dependencies: RefCell::new(None),
-            module_name: RefCell::new(None),
-            referenced_files: RefCell::new(None),
-            type_reference_directives: RefCell::new(None),
-            lib_reference_directives: RefCell::new(None),
-            identifiers: RefCell::new(None),
-            node_count: Cell::new(None),
-            identifier_count: Cell::new(None),
-            symbol_count: Cell::new(None),
-            parse_diagnostics: RefCell::new(None),
-            bind_diagnostics: RefCell::new(None),
-            bind_suggestion_diagnostics: RefCell::new(None),
-            js_doc_diagnostics: RefCell::new(None),
-            line_map: RefCell::new(None),
-            classifiable_names: RefCell::new(None),
-            language_version: Cell::new(language_version),
-            implied_node_format: Cell::new(None),
-            language_variant: Cell::new(language_variant),
-            script_kind: Cell::new(script_kind),
-            external_module_indicator: RefCell::new(None),
-            common_js_module_indicator: RefCell::new(None),
-            js_global_augmentations: RefCell::new(None),
-            is_declaration_file: Cell::new(is_declaration_file),
-            has_no_default_lib: Cell::new(has_no_default_lib),
-            comment_directives: RefCell::new(None),
-            resolved_modules: RefCell::new(None),
-            resolved_type_reference_directive_names: RefCell::new(None),
-            imports: RefCell::new(None),
-            module_augmentations: RefCell::new(None),
-            pattern_ambient_modules: RefCell::new(None),
-            ambient_module_names: RefCell::new(None),
-            pragmas: RefCell::new(None),
-            check_js_directive: RefCell::new(None),
-            local_jsx_namespace: RefCell::new(None),
-            local_jsx_fragment_namespace: RefCell::new(None),
-            local_jsx_factory: RefCell::new(None),
-            local_jsx_fragment_factory: RefCell::new(None),
-            end_flow_node: RefCell::new(None),
-            extended_source_files: RefCell::new(None),
-            config_file_specs: RefCell::new(None),
+            contents: Box::new(SourceFileContents {
+                _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
+                statements,
+                end_of_file_token,
+                file_name: RefCell::new(file_name),
+                path: RefCell::new(None),
+                text: RefCell::new(text),
+                text_as_chars: RefCell::new(text_as_chars),
+                resolved_path: RefCell::new(None),
+                original_file_name: RefCell::new(None),
+                redirect_info: RefCell::new(None),
+                amd_dependencies: RefCell::new(None),
+                module_name: RefCell::new(None),
+                referenced_files: RefCell::new(None),
+                type_reference_directives: RefCell::new(None),
+                lib_reference_directives: RefCell::new(None),
+                identifiers: RefCell::new(None),
+                node_count: Cell::new(None),
+                identifier_count: Cell::new(None),
+                symbol_count: Cell::new(None),
+                parse_diagnostics: RefCell::new(None),
+                bind_diagnostics: RefCell::new(None),
+                bind_suggestion_diagnostics: RefCell::new(None),
+                js_doc_diagnostics: RefCell::new(None),
+                line_map: RefCell::new(None),
+                classifiable_names: RefCell::new(None),
+                language_version: Cell::new(language_version),
+                implied_node_format: Cell::new(None),
+                language_variant: Cell::new(language_variant),
+                script_kind: Cell::new(script_kind),
+                external_module_indicator: RefCell::new(None),
+                common_js_module_indicator: RefCell::new(None),
+                js_global_augmentations: RefCell::new(None),
+                is_declaration_file: Cell::new(is_declaration_file),
+                has_no_default_lib: Cell::new(has_no_default_lib),
+                comment_directives: RefCell::new(None),
+                resolved_modules: RefCell::new(None),
+                resolved_type_reference_directive_names: RefCell::new(None),
+                imports: RefCell::new(None),
+                module_augmentations: RefCell::new(None),
+                pattern_ambient_modules: RefCell::new(None),
+                ambient_module_names: RefCell::new(None),
+                pragmas: RefCell::new(None),
+                check_js_directive: RefCell::new(None),
+                local_jsx_namespace: RefCell::new(None),
+                local_jsx_fragment_namespace: RefCell::new(None),
+                local_jsx_factory: RefCell::new(None),
+                local_jsx_fragment_factory: RefCell::new(None),
+                end_flow_node: RefCell::new(None),
+                extended_source_files: RefCell::new(None),
+                config_file_specs: RefCell::new(None),
+            }),
         }
     }
 
+    pub fn end_of_file_token(&self) -> Rc<Node> {
+        self.contents.end_of_file_token.clone()
+    }
+
     pub fn file_name(&self) -> Ref<String> {
-        self.file_name.borrow()
+        self.contents.file_name.borrow()
     }
 
     pub fn set_file_name(&self, file_name: String) {
-        *self.file_name.borrow_mut() = file_name;
+        *self.contents.file_name.borrow_mut() = file_name;
     }
 
     pub fn maybe_path(&self) -> Ref<Option<Path>> {
-        self.path.borrow()
+        self.contents.path.borrow()
     }
 
     pub fn path(&self) -> Ref<Path> {
-        Ref::map(self.path.borrow(), |option| option.as_ref().unwrap())
+        Ref::map(self.contents.path.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
     }
 
     pub fn set_path(&self, path: Path) {
-        *self.path.borrow_mut() = Some(path);
+        *self.contents.path.borrow_mut() = Some(path);
     }
 
     pub fn set_text(&self, text: String) {
-        *self.text_as_chars.borrow_mut() = text.chars().collect();
-        *self.text.borrow_mut() = text;
+        *self.contents.text_as_chars.borrow_mut() = text.chars().collect();
+        *self.contents.text.borrow_mut() = text;
     }
 
     pub fn maybe_resolved_path(&self) -> Ref<Option<Path>> {
-        self.resolved_path.borrow()
+        self.contents.resolved_path.borrow()
     }
 
     pub fn set_resolved_path(&self, resolved_path: Option<Path>) {
-        *self.resolved_path.borrow_mut() = resolved_path;
+        *self.contents.resolved_path.borrow_mut() = resolved_path;
     }
 
     pub fn maybe_original_file_name(&self) -> Ref<Option<String>> {
-        self.original_file_name.borrow()
+        self.contents.original_file_name.borrow()
     }
 
     pub fn original_file_name(&self) -> Ref<String> {
-        Ref::map(self.original_file_name.borrow(), |option| {
+        Ref::map(self.contents.original_file_name.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
 
     pub fn set_original_file_name(&self, original_file_name: Option<String>) {
-        *self.original_file_name.borrow_mut() = original_file_name;
+        *self.contents.original_file_name.borrow_mut() = original_file_name;
     }
 
     pub fn maybe_redirect_info(&self) -> RefMut<Option<RedirectInfo>> {
-        self.redirect_info.borrow_mut()
+        self.contents.redirect_info.borrow_mut()
     }
 
     pub fn has_no_default_lib(&self) -> bool {
-        self.has_no_default_lib.get()
+        self.contents.has_no_default_lib.get()
     }
 
     pub fn set_has_no_default_lib(&self, has_no_default_lib: bool) {
-        self.has_no_default_lib.set(has_no_default_lib);
+        self.contents.has_no_default_lib.set(has_no_default_lib);
     }
 
     pub fn language_version(&self) -> ScriptTarget {
-        self.language_version.get()
+        self.contents.language_version.get()
     }
 
     pub fn set_language_version(&self, language_version: ScriptTarget) {
-        self.language_version.set(language_version);
+        self.contents.language_version.set(language_version);
     }
 
     pub fn script_kind(&self) -> ScriptKind {
-        self.script_kind.get()
+        self.contents.script_kind.get()
     }
 
     pub fn set_script_kind(&self, script_kind: ScriptKind) {
-        self.script_kind.set(script_kind);
+        self.contents.script_kind.set(script_kind);
     }
 
     pub fn maybe_amd_dependencies(&self) -> Ref<Option<Vec<AmdDependency>>> {
-        self.amd_dependencies.borrow()
+        self.contents.amd_dependencies.borrow()
     }
 
     pub fn amd_dependencies(&self) -> Ref<Vec<AmdDependency>> {
-        Ref::map(self.amd_dependencies.borrow(), |option| {
+        Ref::map(self.contents.amd_dependencies.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
 
     pub fn set_amd_dependencies(&self, amd_dependencies: Vec<AmdDependency>) {
-        *self.amd_dependencies.borrow_mut() = Some(amd_dependencies);
+        *self.contents.amd_dependencies.borrow_mut() = Some(amd_dependencies);
     }
 
     pub fn maybe_module_name(&self) -> RefMut<Option<String>> {
-        self.module_name.borrow_mut()
+        self.contents.module_name.borrow_mut()
     }
 
     pub fn maybe_referenced_files(&self) -> Ref<Option<Vec<FileReference>>> {
-        self.referenced_files.borrow()
+        self.contents.referenced_files.borrow()
     }
 
     pub fn referenced_files(&self) -> Ref<Vec<FileReference>> {
-        Ref::map(self.referenced_files.borrow(), |option| {
+        Ref::map(self.contents.referenced_files.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
 
     pub fn set_referenced_files(&self, referenced_files: Vec<FileReference>) {
-        *self.referenced_files.borrow_mut() = Some(referenced_files);
+        *self.contents.referenced_files.borrow_mut() = Some(referenced_files);
     }
 
     pub fn maybe_type_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
-        self.type_reference_directives.borrow()
+        self.contents.type_reference_directives.borrow()
     }
 
     pub fn type_reference_directives(&self) -> Ref<Vec<FileReference>> {
-        Ref::map(self.type_reference_directives.borrow(), |option| {
+        Ref::map(self.contents.type_reference_directives.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
 
     pub fn set_type_reference_directives(&self, type_reference_directives: Vec<FileReference>) {
-        *self.type_reference_directives.borrow_mut() = Some(type_reference_directives);
+        *self.contents.type_reference_directives.borrow_mut() = Some(type_reference_directives);
     }
 
     pub fn maybe_lib_reference_directives(&self) -> Ref<Option<Vec<FileReference>>> {
-        self.lib_reference_directives.borrow()
+        self.contents.lib_reference_directives.borrow()
     }
 
     pub fn lib_reference_directives(&self) -> Ref<Vec<FileReference>> {
-        Ref::map(self.lib_reference_directives.borrow(), |option| {
+        Ref::map(self.contents.lib_reference_directives.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
 
     pub fn set_lib_reference_directives(&self, lib_reference_directives: Vec<FileReference>) {
-        *self.lib_reference_directives.borrow_mut() = Some(lib_reference_directives);
+        *self.contents.lib_reference_directives.borrow_mut() = Some(lib_reference_directives);
     }
 
     pub fn language_variant(&self) -> LanguageVariant {
-        self.language_variant.get()
+        self.contents.language_variant.get()
     }
 
     pub fn set_language_variant(&self, language_variant: LanguageVariant) {
-        self.language_variant.set(language_variant);
+        self.contents.language_variant.set(language_variant);
     }
 
     pub fn is_declaration_file(&self) -> bool {
-        self.is_declaration_file.get()
+        self.contents.is_declaration_file.get()
     }
 
     pub fn set_is_declaration_file(&self, is_declaration_file: bool) {
-        self.is_declaration_file.set(is_declaration_file);
+        self.contents.is_declaration_file.set(is_declaration_file);
     }
 
     pub(crate) fn maybe_implied_node_format(&self) -> Option<ModuleKind> {
-        self.implied_node_format.get()
+        self.contents.implied_node_format.get()
     }
 
     pub(crate) fn set_implied_node_format(&self, implied_node_format: Option<ModuleKind>) {
-        self.implied_node_format.set(implied_node_format);
+        self.contents.implied_node_format.set(implied_node_format);
     }
 
     pub(crate) fn maybe_external_module_indicator(&self) -> Option<Rc<Node>> {
-        self.external_module_indicator.borrow().clone()
+        self.contents.external_module_indicator.borrow().clone()
     }
 
     pub(crate) fn set_external_module_indicator(
         &self,
         external_module_indicator: Option<Rc<Node>>,
     ) {
-        *self.external_module_indicator.borrow_mut() = external_module_indicator;
+        *self.contents.external_module_indicator.borrow_mut() = external_module_indicator;
     }
 
     pub(crate) fn maybe_common_js_module_indicator(&self) -> Option<Rc<Node>> {
-        self.common_js_module_indicator.borrow().clone()
+        self.contents.common_js_module_indicator.borrow().clone()
     }
 
     pub(crate) fn maybe_common_js_module_indicator_mut(&self) -> RefMut<Option<Rc<Node>>> {
-        self.common_js_module_indicator.borrow_mut()
+        self.contents.common_js_module_indicator.borrow_mut()
     }
 
     pub(crate) fn set_common_js_module_indicator(
         &self,
         common_js_module_indicator: Option<Rc<Node>>,
     ) {
-        *self.common_js_module_indicator.borrow_mut() = common_js_module_indicator;
+        *self.contents.common_js_module_indicator.borrow_mut() = common_js_module_indicator;
     }
 
     pub(crate) fn maybe_js_global_augmentations(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
-        self.js_global_augmentations.borrow_mut()
+        self.contents.js_global_augmentations.borrow_mut()
     }
 
     pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {
-        self.identifiers.borrow().clone().unwrap()
+        self.contents.identifiers.borrow().clone().unwrap()
     }
 
     pub fn set_identifiers(&self, identifiers: Rc<RefCell<HashMap<String, String>>>) {
-        *self.identifiers.borrow_mut() = Some(identifiers);
+        *self.contents.identifiers.borrow_mut() = Some(identifiers);
     }
 
     pub fn node_count(&self) -> usize {
-        self.node_count.get().unwrap()
+        self.contents.node_count.get().unwrap()
     }
 
     pub fn set_node_count(&self, node_count: usize) {
-        self.node_count.set(Some(node_count))
+        self.contents.node_count.set(Some(node_count))
     }
 
     pub fn identifier_count(&self) -> usize {
-        self.identifier_count.get().unwrap()
+        self.contents.identifier_count.get().unwrap()
     }
 
     pub fn set_identifier_count(&self, identifier_count: usize) {
-        self.identifier_count.set(Some(identifier_count))
+        self.contents.identifier_count.set(Some(identifier_count))
     }
 
     pub fn symbol_count(&self) -> usize {
-        self.symbol_count.get().unwrap()
+        self.contents.symbol_count.get().unwrap()
     }
 
     pub fn set_symbol_count(&self, symbol_count: usize) {
-        self.symbol_count.set(Some(symbol_count))
+        self.contents.symbol_count.set(Some(symbol_count))
     }
 
     pub fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
-        RefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
+        RefMut::map(self.contents.parse_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
 
     pub fn set_parse_diagnostics(&self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
-        *self.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
+        *self.contents.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
     }
 
     pub fn maybe_bind_diagnostics(&self) -> Ref<Option<Vec<Rc<Diagnostic>>>> {
-        self.bind_diagnostics.borrow()
+        self.contents.bind_diagnostics.borrow()
     }
 
     pub fn bind_diagnostics(&self) -> Ref<Vec<Rc<Diagnostic>>> {
-        Ref::map(self.bind_diagnostics.borrow(), |option| {
+        Ref::map(self.contents.bind_diagnostics.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
 
     pub fn bind_diagnostics_mut(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
-        RefMut::map(self.bind_diagnostics.borrow_mut(), |option| {
+        RefMut::map(self.contents.bind_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
 
     pub fn set_bind_diagnostics(&self, bind_diagnostics: Option<Vec<Rc<Diagnostic>>>) {
-        *self.bind_diagnostics.borrow_mut() = bind_diagnostics;
+        *self.contents.bind_diagnostics.borrow_mut() = bind_diagnostics;
     }
 
     pub fn maybe_bind_suggestion_diagnostics(&self) -> RefMut<Option<Vec<Rc<Diagnostic>>>> {
-        self.bind_suggestion_diagnostics.borrow_mut()
+        self.contents.bind_suggestion_diagnostics.borrow_mut()
     }
 
     pub fn set_bind_suggestion_diagnostics(
         &self,
         bind_suggestion_diagnostics: Option<Vec<Rc<Diagnostic>>>,
     ) {
-        *self.bind_suggestion_diagnostics.borrow_mut() = bind_suggestion_diagnostics;
+        *self.contents.bind_suggestion_diagnostics.borrow_mut() = bind_suggestion_diagnostics;
     }
 
     pub fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Rc<Diagnostic>>>> {
-        self.js_doc_diagnostics.borrow_mut()
+        self.contents.js_doc_diagnostics.borrow_mut()
     }
 
     pub fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Vec<Rc<Diagnostic>>) {
-        *self.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
+        *self.contents.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
     }
 
     pub fn set_classifiable_names(
         &self,
         classifiable_names: Option<Rc<RefCell<HashSet<__String>>>>,
     ) {
-        *self.classifiable_names.borrow_mut() = classifiable_names;
+        *self.contents.classifiable_names.borrow_mut() = classifiable_names;
     }
 
     pub fn maybe_comment_directives(&self) -> Ref<Option<Vec<Rc<CommentDirective>>>> {
-        self.comment_directives.borrow()
+        self.contents.comment_directives.borrow()
     }
 
     pub fn comment_directives(&self) -> Ref<Vec<Rc<CommentDirective>>> {
-        Ref::map(self.comment_directives.borrow(), |comment_directives| {
-            comment_directives.as_ref().unwrap()
-        })
+        Ref::map(
+            self.contents.comment_directives.borrow(),
+            |comment_directives| comment_directives.as_ref().unwrap(),
+        )
     }
 
     pub fn set_comment_directives(&self, comment_directives: Option<Vec<Rc<CommentDirective>>>) {
-        *self.comment_directives.borrow_mut() = comment_directives;
+        *self.contents.comment_directives.borrow_mut() = comment_directives;
     }
 
     pub fn maybe_resolved_modules(
         &self,
     ) -> RefMut<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull>>>>> {
-        self.resolved_modules.borrow_mut()
+        self.contents.resolved_modules.borrow_mut()
     }
 
     pub fn maybe_resolved_type_reference_directive_names(
         &self,
     ) -> RefMut<Option<ModeAwareCache<Option<Rc<ResolvedTypeReferenceDirective>>>>> {
-        self.resolved_type_reference_directive_names.borrow_mut()
+        self.contents
+            .resolved_type_reference_directive_names
+            .borrow_mut()
     }
 
     pub fn maybe_imports(&self) -> Ref<Option<Vec<Rc<Node>>>> {
-        self.imports.borrow()
+        self.contents.imports.borrow()
     }
 
     pub fn maybe_imports_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
-        self.imports.borrow_mut()
+        self.contents.imports.borrow_mut()
     }
 
     pub fn maybe_module_augmentations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
-        self.module_augmentations.borrow_mut()
+        self.contents.module_augmentations.borrow_mut()
     }
 
     pub fn maybe_pattern_ambient_modules(&self) -> RefMut<Option<Vec<Rc<PatternAmbientModule>>>> {
-        self.pattern_ambient_modules.borrow_mut()
+        self.contents.pattern_ambient_modules.borrow_mut()
     }
 
     pub fn maybe_ambient_module_names(&self) -> RefMut<Option<Vec<String>>> {
-        self.ambient_module_names.borrow_mut()
+        self.contents.ambient_module_names.borrow_mut()
     }
 
     pub fn maybe_check_js_directive(&self) -> Ref<Option<CheckJsDirective>> {
-        self.check_js_directive.borrow()
+        self.contents.check_js_directive.borrow()
     }
 
     pub fn maybe_check_js_directive_mut(&self) -> RefMut<Option<CheckJsDirective>> {
-        self.check_js_directive.borrow_mut()
+        self.contents.check_js_directive.borrow_mut()
     }
 
     pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {
-        Ref::map(self.pragmas.borrow(), |option| option.as_ref().unwrap())
+        Ref::map(self.contents.pragmas.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
     }
 
     pub fn set_pragmas(&self, pragmas: ReadonlyPragmaMap) {
-        *self.pragmas.borrow_mut() = Some(pragmas);
+        *self.contents.pragmas.borrow_mut() = Some(pragmas);
     }
 
     pub fn maybe_local_jsx_namespace(&self) -> RefMut<Option<__String>> {
-        self.local_jsx_namespace.borrow_mut()
+        self.contents.local_jsx_namespace.borrow_mut()
     }
 
     pub fn maybe_local_jsx_fragment_namespace(&self) -> RefMut<Option<__String>> {
-        self.local_jsx_fragment_namespace.borrow_mut()
+        self.contents.local_jsx_fragment_namespace.borrow_mut()
     }
 
     pub fn maybe_local_jsx_factory(&self) -> RefMut<Option<Rc<Node>>> {
-        self.local_jsx_factory.borrow_mut()
+        self.contents.local_jsx_factory.borrow_mut()
     }
 
     pub fn maybe_local_jsx_fragment_factory(&self) -> RefMut<Option<Rc<Node>>> {
-        self.local_jsx_fragment_factory.borrow_mut()
+        self.contents.local_jsx_fragment_factory.borrow_mut()
     }
 
     pub fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
-        *self.end_flow_node.borrow_mut() = end_flow_node;
+        *self.contents.end_flow_node.borrow_mut() = end_flow_node;
     }
 
     pub fn maybe_extended_source_files(&self) -> RefMut<Option<Vec<String>>> {
-        self.extended_source_files.borrow_mut()
+        self.contents.extended_source_files.borrow_mut()
     }
 
     pub fn maybe_config_file_specs(&self) -> Ref<Option<Rc<ConfigFileSpecs>>> {
-        self.config_file_specs.borrow()
+        self.contents.config_file_specs.borrow()
     }
 
     pub fn set_config_file_specs(&self, config_file_specs: Option<Rc<ConfigFileSpecs>>) {
-        *self.config_file_specs.borrow_mut() = config_file_specs;
+        *self.contents.config_file_specs.borrow_mut() = config_file_specs;
     }
 
     pub fn maybe_end_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
-        self.end_flow_node.borrow_mut()
+        self.contents.end_flow_node.borrow_mut()
     }
 
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
-        self._symbols_without_a_symbol_table_strong_references
+        self.contents
+            ._symbols_without_a_symbol_table_strong_references
             .borrow_mut()
             .push(symbol);
     }
@@ -654,19 +673,19 @@ impl SourceFile {
 
 impl SourceFileLike for SourceFile {
     fn text(&self) -> Ref<String> {
-        self.text.borrow()
+        self.contents.text.borrow()
     }
 
     fn text_as_chars(&self) -> Ref<SourceTextAsChars> {
-        self.text_as_chars.borrow()
+        self.contents.text_as_chars.borrow()
     }
 
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {
-        self.line_map.borrow_mut()
+        self.contents.line_map.borrow_mut()
     }
 
     fn line_map(&self) -> Ref<Vec<usize>> {
-        Ref::map(self.line_map.borrow(), |line_map| {
+        Ref::map(self.contents.line_map.borrow(), |line_map| {
             line_map.as_ref().unwrap()
         })
     }
@@ -687,45 +706,45 @@ impl PragmaContext for SourceFile {
     }
 
     fn maybe_pragmas(&self) -> RefMut<Option<ReadonlyPragmaMap>> {
-        self.pragmas.borrow_mut()
+        self.contents.pragmas.borrow_mut()
     }
 
     fn maybe_check_js_directive(&self) -> RefMut<Option<CheckJsDirective>> {
-        self.check_js_directive.borrow_mut()
+        self.contents.check_js_directive.borrow_mut()
     }
 
     fn maybe_referenced_files(&self) -> RefMut<Option<Vec<FileReference>>> {
-        self.referenced_files.borrow_mut()
+        self.contents.referenced_files.borrow_mut()
     }
 
     fn maybe_type_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
-        self.type_reference_directives.borrow_mut()
+        self.contents.type_reference_directives.borrow_mut()
     }
 
     fn maybe_lib_reference_directives(&self) -> RefMut<Option<Vec<FileReference>>> {
-        self.lib_reference_directives.borrow_mut()
+        self.contents.lib_reference_directives.borrow_mut()
     }
 
     fn maybe_amd_dependencies(&self) -> RefMut<Option<Vec<AmdDependency>>> {
-        self.amd_dependencies.borrow_mut()
+        self.contents.amd_dependencies.borrow_mut()
     }
 
     fn maybe_has_no_default_lib(&self) -> Option<bool> {
-        Some(self.has_no_default_lib.get())
+        Some(self.contents.has_no_default_lib.get())
     }
 
     fn set_has_no_default_lib(&self, has_no_default_lib: bool) {
-        self.has_no_default_lib.set(has_no_default_lib);
+        self.contents.has_no_default_lib.set(has_no_default_lib);
     }
 
     fn maybe_module_name(&self) -> RefMut<Option<String>> {
-        self.module_name.borrow_mut()
+        self.contents.module_name.borrow_mut()
     }
 }
 
 impl HasStatementsInterface for SourceFile {
     fn statements(&self) -> &NodeArray {
-        &self.statements
+        &self.contents.statements
     }
 }
 

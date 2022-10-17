@@ -14,7 +14,7 @@ use crate::{
     set_text_range, set_text_range_pos_end, set_text_range_pos_width, skip_trivia, starts_with,
     text_to_keyword_obj, token_is_identifier_or_keyword, token_to_string, BaseNode,
     ComputedPropertyName, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, IncrementalParser, IncrementalParserSyntaxCursor,
+    Diagnostics, HasStatementsInterface, IncrementalParser, IncrementalParserSyntaxCursor,
     IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
     NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
     TransformFlags,
@@ -161,21 +161,18 @@ impl ParserType {
 
         let mut pos: Option<usize> = Some(0);
         let source_file_as_source_file = source_file.as_source_file();
-        let mut start =
-            self.find_next_statement_with_await(&source_file_as_source_file.statements, 0);
+        let source_file_statements = source_file_as_source_file.statements();
+        let mut start = self.find_next_statement_with_await(&source_file_statements, 0);
         while let Some(start_present) = start {
-            let prev_statement = &source_file_as_source_file.statements[pos.unwrap()];
-            let next_statement = &source_file_as_source_file.statements[start_present];
+            let prev_statement = &source_file_statements[pos.unwrap()];
+            let next_statement = &source_file_statements[start_present];
             add_range(
                 &mut statements,
-                Some(&source_file_as_source_file.statements),
+                Some(source_file_statements),
                 pos.map(|pos| pos.try_into().unwrap()),
                 Some(start_present.try_into().unwrap()),
             );
-            pos = self.find_next_statement_without_await(
-                &source_file_as_source_file.statements,
-                start_present,
-            );
+            pos = self.find_next_statement_without_await(source_file_statements, start_present);
 
             let diagnostic_start = find_index(
                 &saved_parse_diagnostics,
@@ -218,14 +215,13 @@ impl ParserType {
                         }
 
                         if let Some(pos_present) = pos {
-                            let non_await_statement =
-                                &source_file_as_source_file.statements[pos_present];
+                            let non_await_statement = &source_file_statements[pos_present];
                             if statement.end() == non_await_statement.pos() {
                                 break;
                             }
                             if statement.end() > non_await_statement.pos() {
                                 pos = self.find_next_statement_without_await(
-                                    &source_file_as_source_file.statements,
+                                    source_file_statements,
                                     pos_present + 1,
                                 );
                             }
@@ -238,16 +234,15 @@ impl ParserType {
                 SpeculationKind::Reparse,
             );
 
-            start = pos.and_then(|pos| {
-                self.find_next_statement_with_await(&source_file_as_source_file.statements, pos)
-            });
+            start = pos
+                .and_then(|pos| self.find_next_statement_with_await(source_file_statements, pos));
         }
 
         if let Some(pos) = pos {
-            let prev_statement = &source_file_as_source_file.statements[pos];
+            let prev_statement = &source_file_statements[pos];
             add_range(
                 &mut statements,
-                Some(&source_file_as_source_file.statements),
+                Some(source_file_statements),
                 Some(pos.try_into().unwrap()),
                 None,
             );
@@ -269,10 +264,7 @@ impl ParserType {
 
         self.set_syntax_cursor(saved_syntax_cursor);
         let new_statements = self.factory.create_node_array(Some(statements), None);
-        set_text_range(
-            &new_statements,
-            Some(&source_file_as_source_file.statements),
-        );
+        set_text_range(&new_statements, Some(source_file_statements));
         self.factory.update_source_file(
             self,
             source_file,

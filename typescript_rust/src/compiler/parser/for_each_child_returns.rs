@@ -1,10 +1,10 @@
 use super::{visit_node_returns, visit_nodes_returns};
 use crate::{
     for_each, ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasQuestionTokenInterface, HasTypeArgumentsInterface,
-    HasTypeInterface, HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
-    JSDocTagInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
+    HasInitializerInterface, HasQuestionTokenInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
 };
 
 pub fn for_each_child_returns<
@@ -880,8 +880,8 @@ pub fn for_each_child_returns<
             visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.statements))
         }
         Node::SourceFile(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.statements))
-                .or_else(|| visit_node_returns(&mut cb_node, Some(&*node.end_of_file_token)))
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.statements()))
+                .or_else(|| visit_node_returns(&mut cb_node, Some(node.end_of_file_token())))
         }
         Node::VariableStatement(node) => visit_nodes_returns(
             &mut cb_node,

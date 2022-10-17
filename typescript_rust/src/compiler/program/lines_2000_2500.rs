@@ -10,8 +10,8 @@ use crate::{
     set_parent, skip_type_checking, sort_and_deduplicate_diagnostics,
     with_synthetic_factory_and_factory, CancellationTokenDebuggable, CommentDirective,
     CommentDirectivesMap, Debug_, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
-    EmitFlags, FileIncludeReason, Node, NodeArray, NodeFlags, NodeInterface, Program,
-    ResolvedProjectReference, ScriptKind, SortedArray, SourceFileLike,
+    EmitFlags, FileIncludeReason, HasStatementsInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, Program, ResolvedProjectReference, ScriptKind, SortedArray, SourceFileLike,
 };
 
 impl Program {
@@ -350,7 +350,7 @@ impl Program {
             }
         }
 
-        for node in &file_as_source_file.statements {
+        for node in file_as_source_file.statements() {
             self.collect_module_references(
                 &mut imports,
                 file,

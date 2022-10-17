@@ -8,11 +8,11 @@ use super::{Parser, ParsingContext};
 use crate::{
     attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
     ensure_script_kind, for_each_child, get_language_variant, normalize_path, object_allocator,
-    BaseNode, Debug_, Diagnostic, Diagnostics, IncrementalParser, IncrementalParserSyntaxCursor,
-    JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
-    NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
-    ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
-    TextChangeRange,
+    BaseNode, Debug_, Diagnostic, Diagnostics, HasStatementsInterface, IncrementalParser,
+    IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray,
+    NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, ParsedIsolatedJSDocComment,
+    ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget,
+    SourceTextAsChars, SyntaxKind, TextChangeRange,
 };
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
@@ -663,7 +663,7 @@ impl ParserType {
             convert_to_object_worker(
                 &result,
                 result_as_source_file
-                    .statements
+                    .statements()
                     .get(0)
                     .map(|statement| statement.as_expression_statement().expression.clone()),
                 &RefCell::new(&mut *result_as_source_file.parse_diagnostics()),

@@ -4,8 +4,8 @@ use std::rc::Rc;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};
 use crate::{
-    __String, are_option_rcs_equal, count_where, create_diagnostic_for_node,
-    declaration_name_to_string, for_each, for_each_entry_bool,
+    HasStatementsInterface, __String, are_option_rcs_equal, count_where,
+    create_diagnostic_for_node, declaration_name_to_string, for_each, for_each_entry_bool,
     for_each_import_clause_declaration_bool, get_combined_node_flags,
     get_effective_type_annotation_node, get_emit_declarations, get_es_module_interop,
     get_external_module_name, get_first_identifier, get_source_file_of_node,
@@ -671,7 +671,7 @@ impl TypeChecker {
         &self,
         source_file: &Node, /*SourceFile*/
     ) {
-        for statement in &source_file.as_source_file().statements {
+        for statement in source_file.as_source_file().statements() {
             if self.can_convert_import_declaration_to_type_only(statement)
                 || self.can_convert_import_equals_declaration_to_type_only(statement)
             {

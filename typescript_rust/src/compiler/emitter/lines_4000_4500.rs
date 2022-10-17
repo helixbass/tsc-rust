@@ -9,10 +9,11 @@ use crate::{
     is_empty_statement, is_function_like, is_identifier, is_prologue_directive, is_source_file,
     is_unparsed_source, range_is_on_single_line, single_or_undefined, some, with_synthetic_factory,
     BundleFileSection, BundleFileSectionKind, Debug_, EmitFlags, EmitHint, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
-    SourceFileLike, SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression,
-    SourceFilePrologueInfo, Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
+    HasStatementsInterface, HasTypeInterface, HasTypeParametersInterface, ListFormat,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
+    ReadonlyTextRange, SourceFileLike, SourceFilePrologueDirective,
+    SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo, Symbol, SyntaxKind, TextRange,
+    UnparsedSectionInterface,
 };
 
 impl Printer {
@@ -59,7 +60,7 @@ impl Printer {
     ) {
         if is_source_file(source_file_or_bundle) {
             self.emit_prologue_directives(
-                &source_file_or_bundle.as_source_file().statements,
+                source_file_or_bundle.as_source_file().statements(),
                 Some(source_file_or_bundle),
                 &mut None,
                 None,
@@ -75,7 +76,7 @@ impl Printer {
             }
             for source_file in &source_file_or_bundle_as_bundle.source_files {
                 self.emit_prologue_directives(
-                    &source_file.as_source_file().statements,
+                    source_file.as_source_file().statements(),
                     Some(&**source_file),
                     &mut seen_prologue_directives,
                     Some(true),
@@ -97,7 +98,7 @@ impl Printer {
             let mut directives: Option<Vec<SourceFilePrologueDirective>> = None;
             let mut end = 0;
             let source_file_as_source_file = source_file.as_source_file();
-            for statement in &source_file_as_source_file.statements {
+            for statement in source_file_as_source_file.statements() {
                 if !is_prologue_directive(statement) {
                     break;
                 }

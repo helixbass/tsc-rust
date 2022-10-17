@@ -15,8 +15,9 @@ use crate::{
     is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_shorthand_property_assignment, is_source_file, is_string_literal, is_variable_declaration,
     maybe_is_class_like, some, try_cast, ClassLikeDeclarationInterface, Debug_,
-    FindAncestorCallbackReturn, HasInitializerInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, SyntaxKind, TypePredicate, TypePredicateKind,
+    FindAncestorCallbackReturn, HasInitializerInterface, HasStatementsInterface,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface, SyntaxKind,
+    TypePredicate, TypePredicateKind,
 };
 
 pub fn introduces_arguments_exotic_object(node: &Node) -> bool {
@@ -142,8 +143,8 @@ pub fn get_ts_config_object_literal_expression<TTsConfigSourceFile: Borrow<Node>
     let ts_config_source_file = ts_config_source_file.unwrap();
     let ts_config_source_file = ts_config_source_file.borrow();
     let ts_config_source_file_as_source_file = ts_config_source_file.as_source_file();
-    if !ts_config_source_file_as_source_file.statements.is_empty() {
-        let expression = &ts_config_source_file_as_source_file.statements[0]
+    if !ts_config_source_file_as_source_file.statements().is_empty() {
+        let expression = &ts_config_source_file_as_source_file.statements()[0]
             .as_expression_statement()
             .expression;
         return try_cast(expression, |expression| {
