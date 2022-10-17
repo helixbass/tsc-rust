@@ -158,7 +158,7 @@ impl BinderType {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::Property | SymbolFlags::Assignment,
-                InternalSymbolName::Computed(),
+                InternalSymbolName::Computed.to_owned(),
             );
             let sym = self.bind_potentially_missing_namespaces(
                 parent_symbol,
@@ -474,7 +474,7 @@ impl BinderType {
                 .and_then(|symbol| symbol.maybe_exports().clone())
                 .and_then(|exports| {
                     get_element_or_property_access_name(node)
-                        .and_then(|name| RefCell::borrow(&*exports).get(&name).map(Clone::clone))
+                        .and_then(|name| RefCell::borrow(&*exports).get(&*name).cloned())
                 })
         }
     }
@@ -516,9 +516,8 @@ impl BinderType {
                 s.as_ref()
                     .and_then(|s| s.maybe_exports().clone())
                     .and_then(|exports| {
-                        get_element_or_property_access_name(e).and_then(|name| {
-                            RefCell::borrow(&*exports).get(&name).map(Clone::clone)
-                        })
+                        get_element_or_property_access_name(e)
+                            .and_then(|name| RefCell::borrow(&*exports).get(&*name).cloned())
                     }),
                 s,
             )
@@ -547,8 +546,8 @@ impl BinderType {
         } else {
             let node_as_class_expression = node.as_class_expression();
             let binding_name = match node_as_class_expression.maybe_name() {
-                Some(name) => name.as_identifier().escaped_text.clone(),
-                None => InternalSymbolName::Class(),
+                Some(name) => name.as_identifier().escaped_text.to_owned(),
+                None => InternalSymbolName::Class.to_owned(),
             };
             self.bind_anonymous_declaration(node, SymbolFlags::Class, binding_name);
             if let Some(node_name) = node_as_class_expression.maybe_name() {
@@ -563,7 +562,7 @@ impl BinderType {
         let prototype_symbol = self
             .create_symbol(
                 SymbolFlags::Property | SymbolFlags::Prototype,
-                __String::new("prototype".to_owned()),
+                "prototype".to_owned(),
             )
             .wrap();
         let symbol_exports = symbol.exports();
@@ -580,13 +579,13 @@ impl BinderType {
                     self.create_diagnostic_for_node(
                         &symbol_export.maybe_declarations().as_ref().unwrap()[0],
                         &Diagnostics::Duplicate_identifier_0,
-                        Some(vec![symbol_name(&prototype_symbol)]),
+                        Some(vec![symbol_name(&prototype_symbol).into_owned()]),
                     )
                     .into(),
                 ));
         }
         symbol_exports.insert(
-            prototype_symbol.escaped_name().clone(),
+            prototype_symbol.escaped_name().to_owned(),
             prototype_symbol.clone(),
         );
         prototype_symbol.set_parent(Some(symbol));
@@ -669,14 +668,14 @@ impl BinderType {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::FunctionScopedVariable,
-                __String::new(format!(
+                format!(
                     "__{}",
                     index_of(
                         &*node.parent().as_signature_declaration().parameters(),
                         &node.node_wrapper(),
                         |a, b| Rc::ptr_eq(a, b)
                     )
-                )),
+                ),
             );
         } else {
             self.declare_symbol_and_add_to_symbol_table(
@@ -748,7 +747,7 @@ impl BinderType {
         self.check_strict_mode_function_name(node);
         let binding_name = match node.as_named_declaration().maybe_name() {
             Some(name) => name.as_identifier().escaped_text.clone(),
-            None => InternalSymbolName::Function(),
+            None => InternalSymbolName::Function.to_owned(),
         };
         self.bind_anonymous_declaration(node, SymbolFlags::Function, binding_name)
     }
@@ -776,7 +775,7 @@ impl BinderType {
             Some(self.bind_anonymous_declaration(
                 node,
                 symbol_flags,
-                InternalSymbolName::Computed(),
+                InternalSymbolName::Computed.to_owned(),
             ))
         } else {
             self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes)
@@ -838,7 +837,7 @@ impl BinderType {
                 self.bind_anonymous_declaration(
                     node,
                     SymbolFlags::TypeParameter,
-                    self.get_declaration_name(node).unwrap(),
+                    self.get_declaration_name(node).unwrap().into_owned(),
                 );
             }
         } else {
@@ -994,7 +993,10 @@ pub fn is_exports_or_module_exports_or_alias(
     false
 }
 
-pub(super) fn lookup_symbol_for_name(container: &Node, name: &__String) -> Option<Rc<Symbol>> {
+pub(super) fn lookup_symbol_for_name(
+    container: &Node,
+    name: &str, /*__String*/
+) -> Option<Rc<Symbol>> {
     let container_locals = container.maybe_locals();
     let local = container_locals
         .as_ref()

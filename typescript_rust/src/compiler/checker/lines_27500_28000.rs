@@ -22,7 +22,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_name_from_jsx_element_attributes_container<TJsxNamespace: Borrow<Symbol>>(
         &self,
-        name_of_attrib_prop_container: &__String,
+        name_of_attrib_prop_container: &str, /*__String*/
         jsx_namespace: Option<TJsxNamespace>,
     ) -> Option<__String> {
         let jsx_namespace =
@@ -50,12 +50,12 @@ impl TypeChecker {
             properties_of_jsx_element_attrib_prop_interface.as_ref()
         {
             if properties_of_jsx_element_attrib_prop_interface.is_empty() {
-                return Some(__String::new("".to_owned()));
+                return Some("".to_owned());
             } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {
                 return Some(
                     properties_of_jsx_element_attrib_prop_interface[0]
                         .escaped_name()
-                        .clone(),
+                        .to_owned(),
                 );
             } else if properties_of_jsx_element_attrib_prop_interface.len() > 1 {
                 let jsx_element_attrib_prop_interface_sym =
@@ -72,7 +72,8 @@ impl TypeChecker {
                         &Diagnostics::The_global_type_JSX_0_may_not_have_more_than_one_property,
                         Some(vec![unescape_leading_underscores(
                             name_of_attrib_prop_container,
-                        )]),
+                        )
+                        .to_owned()]),
                     );
                 }
             }
@@ -131,7 +132,7 @@ impl TypeChecker {
                         &Diagnostics::Property_0_does_not_exist_on_type_1,
                         Some(vec![
                             element_type.as_string_literal_type().value.clone(),
-                            format!("JSX.{}", &**JsxNames::IntrinsicElements),
+                            format!("JSX.{}", JsxNames::IntrinsicElements),
                         ]),
                     );
                     return vec![];
@@ -399,7 +400,7 @@ impl TypeChecker {
             };
 
             let mut jsx_factory_sym: Option<Rc<Symbol>> = None;
-            if !(is_jsx_opening_fragment(node) && jsx_factory_namespace.eq_str("null")) {
+            if !(is_jsx_opening_fragment(node) && jsx_factory_namespace == "null") {
                 jsx_factory_sym = self.resolve_name_(
                     Some(&*jsx_factory_location),
                     &jsx_factory_namespace,
@@ -455,7 +456,7 @@ impl TypeChecker {
     pub(super) fn is_known_property(
         &self,
         target_type: &Type,
-        name: &__String,
+        name: &str, /*__String*/
         is_comparing_jsx_attributes: bool,
     ) -> bool {
         if target_type.flags().intersects(TypeFlags::Object) {
@@ -654,7 +655,7 @@ impl TypeChecker {
                                     prop,
                                     Option::<&Node>::None, None, None, None,
                                 ),
-                                get_text_of_identifier_or_literal(&declaring_class_declaration.as_named_declaration().name())
+                                get_text_of_identifier_or_literal(&declaring_class_declaration.as_named_declaration().name()).into_owned()
                             ])
                         );
                     }

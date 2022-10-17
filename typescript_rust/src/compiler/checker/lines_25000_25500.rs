@@ -708,7 +708,7 @@ impl TypeChecker {
             if !js_doc_function_type_parameters.is_empty()
                 && matches!(
                     js_doc_function_type_parameters[0].as_parameter_declaration().maybe_name(),
-                    Some(name) if name.as_identifier().escaped_text == InternalSymbolName::This()
+                    Some(name) if name.as_identifier().escaped_text == InternalSymbolName::This
                 )
             {
                 return Some(

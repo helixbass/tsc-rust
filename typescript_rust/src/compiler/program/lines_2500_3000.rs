@@ -81,7 +81,7 @@ impl Program {
                     if file.as_source_file().is_declaration_file() {
                         ambient_modules
                             .get_or_insert_with(|| vec![])
-                            .push(name_text);
+                            .push(name_text.into_owned());
                     }
                     let body = node.as_module_declaration().body.as_ref();
                     if let Some(body) = body {

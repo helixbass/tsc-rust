@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
@@ -75,7 +75,7 @@ impl TypeChecker {
     }
 
     pub(super) fn apply_string_mapping(&self, symbol: &Symbol, str_: &str) -> String {
-        match intrinsic_type_kinds.get(&**symbol.escaped_name()) {
+        match intrinsic_type_kinds.get(symbol.escaped_name()) {
             Some(IntrinsicTypeKind::Uppercase) => str_.to_uppercase(),
             Some(IntrinsicTypeKind::Lowercase) => str_.to_lowercase(),
             Some(IntrinsicTypeKind::Capitalize) => capitalize(str_),
@@ -153,20 +153,24 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_property_name_from_index<TAccessNode: Borrow<Node>>(
+    pub(super) fn get_property_name_from_index<'index_type, TAccessNode: Borrow<Node>>(
         &self,
-        index_type: &Type,
+        index_type: &'index_type Type,
         access_node: Option<
             TAccessNode, /*StringLiteral | Identifier | PrivateIdentifier | ObjectBindingPattern | ArrayBindingPattern | ComputedPropertyName | NumericLiteral | IndexedAccessTypeNode | ElementAccessExpression | SyntheticExpression*/
         >,
-    ) -> Option<__String> {
+    ) -> Option<Cow<'index_type, str> /*__String*/> {
         if self.is_type_usable_as_property_name(index_type) {
             return Some(self.get_property_name_from_type(index_type));
         }
         let access_node = access_node.map(|access_node| access_node.borrow().node_wrapper());
         access_node
             .filter(|access_node| is_property_name(access_node))
-            .and_then(|access_node| get_property_name_for_property_name_node(&access_node))
+            .and_then(|access_node| {
+                get_property_name_for_property_name_node(&access_node)
+                    .map(Cow::into_owned)
+                    .map(Into::into)
+            })
     }
 
     pub(super) fn is_uncalled_function_reference(&self, node: &Node, symbol: &Symbol) -> bool {
@@ -218,7 +222,7 @@ impl TypeChecker {
                         .unwrap_or_else(|| self.any_type()),
                 );
             }
-            let prop = self.get_property_of_type_(object_type, &prop_name, None);
+            let prop = self.get_property_of_type_(object_type, prop_name, None);
             if let Some(prop) = prop {
                 if access_flags.intersects(AccessFlags::ReportDeprecated) {
                     if let Some(access_node) = access_node.as_ref() {
@@ -249,7 +253,7 @@ impl TypeChecker {
                                 self.add_deprecated_suggestion(
                                     &deprecated_node,
                                     prop_declarations,
-                                    &**prop_name,
+                                    prop_name,
                                 );
                             }
                         }
@@ -313,7 +317,7 @@ impl TypeChecker {
                 );
             }
             if self.every_type(object_type, |type_| self.is_tuple_type(type_))
-                && self.is_numeric_literal_name(&**prop_name)
+                && self.is_numeric_literal_name(prop_name)
                 && Into::<Number>::into(&**prop_name).value() >= 0.0
             {
                 if let Some(access_node) = access_node.as_ref() {
@@ -337,7 +341,7 @@ impl TypeChecker {
                                         None,
                                     ),
                                     self.get_type_reference_arity(object_type).to_string(),
-                                    unescape_leading_underscores(prop_name),
+                                    unescape_leading_underscores(prop_name).to_owned(),
                                 ]),
                             );
                         } else {
@@ -345,7 +349,7 @@ impl TypeChecker {
                                 Some(index_node),
                                 &Diagnostics::Property_0_does_not_exist_on_type_1,
                                 Some(vec![
-                                    unescape_leading_underscores(prop_name),
+                                    unescape_leading_underscores(prop_name).to_owned(),
                                     self.type_to_string_(
                                         object_type,
                                         Option::<&Node>::None,
@@ -537,9 +541,9 @@ impl TypeChecker {
                             let global_this_symbol_exports =
                                 self.global_this_symbol().maybe_exports().clone().unwrap();
                             let global_this_symbol_exports = (*global_this_symbol_exports).borrow();
-                            if global_this_symbol_exports.contains_key(prop_name)
+                            if global_this_symbol_exports.contains_key(&**prop_name)
                                 && global_this_symbol_exports
-                                    .get(prop_name)
+                                    .get(&**prop_name)
                                     .unwrap()
                                     .flags()
                                     .intersects(SymbolFlags::BlockScoped)
@@ -549,7 +553,7 @@ impl TypeChecker {
                                     Some(access_expression),
                                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                                     Some(vec![
-                                        unescape_leading_underscores(prop_name),
+                                        unescape_leading_underscores(prop_name).to_owned(),
                                         self.type_to_string_(
                                             object_type,
                                             Option::<&Node>::None,
@@ -582,7 +586,7 @@ impl TypeChecker {
                                 Some(access_expression),
                                 &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
                                 Some(vec![
-                                    (&**prop_name).to_owned(),
+                                    (**prop_name).to_owned(),
                                     type_name.clone(),
                                     format!("{}[{}]", type_name, get_text_of_node(&access_expression.as_element_access_expression().argument_expression, None))
                                 ])
@@ -601,7 +605,7 @@ impl TypeChecker {
                                 .as_ref()
                                 .and_then(|prop_name| {
                                     self.get_suggestion_for_nonexistent_property(
-                                        prop_name.clone().into_string(),
+                                        (**prop_name).to_owned(),
                                         object_type,
                                     )
                                 })
@@ -611,7 +615,7 @@ impl TypeChecker {
                                     Some(&*access_expression.as_element_access_expression().argument_expression),
                                     &Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
                                     Some(vec![
-                                        prop_name.clone().unwrap().into_string(),
+                                        (*prop_name.unwrap()).to_owned(),
                                         self.type_to_string_(object_type, Option::<&Node>::None, None, None),
                                         suggestion,
                                     ])
@@ -1249,7 +1253,7 @@ impl TypeChecker {
             if t.flags().intersects(TypeFlags::StringOrNumberLiteral) {
                 let prop_name = self.get_property_name_from_type(t);
                 if self.is_numeric_literal_name(&*prop_name) {
-                    let index = prop_name.into_string().parse::<isize>().unwrap();
+                    let index = prop_name.parse::<isize>().unwrap();
                     return index >= 0 && index < limit;
                 }
             }

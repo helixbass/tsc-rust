@@ -40,7 +40,7 @@ impl TypeChecker {
                         name,
                         SymbolFlags::Type,
                         None,
-                        Some(name.clone()),
+                        Some(name.to_owned()),
                         false,
                         None,
                     );
@@ -67,7 +67,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_eval_node(&self, node: &Node /*Expression*/) -> bool {
-        node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text.eq_str("eval")
+        node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text == "eval"
     }
 
     pub(super) fn check_for_disallowed_es_symbol_operand(

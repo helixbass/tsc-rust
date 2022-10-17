@@ -92,10 +92,9 @@ pub fn get_property_assignment(
         .iter()
         .filter(|property| {
             if property.kind() == SyntaxKind::PropertyAssignment {
-                let prop_name =
-                    get_text_of_property_name(&property.as_property_assignment().name());
-                return prop_name.eq_str(key)
-                    || matches!(key2, Some(key2) if prop_name.eq_str(key2));
+                let property_name = property.as_property_assignment().name();
+                let prop_name = get_text_of_property_name(&property_name);
+                return prop_name == key || matches!(key2, Some(key2) if prop_name == key2);
             }
             false
         })

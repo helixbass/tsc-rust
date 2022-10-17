@@ -91,10 +91,7 @@ impl TypeChecker {
                 };
             if self.is_error_type(&promise_constructor_type) {
                 if promise_constructor_name.kind() == SyntaxKind::Identifier
-                    && promise_constructor_name
-                        .as_identifier()
-                        .escaped_text
-                        .eq_str("Promise")
+                    && promise_constructor_name.as_identifier().escaped_text == "Promise"
                     && Rc::ptr_eq(
                         &self.get_target_type(&return_type),
                         &self.get_global_promise_type(false),
@@ -154,7 +151,7 @@ impl TypeChecker {
                     colliding_symbol.maybe_value_declaration(),
                     &Diagnostics::Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions,
                     Some(vec![
-                        id_text(&root_name),
+                        id_text(&root_name).to_owned(),
                         entity_name_to_string(&promise_constructor_name).into_owned(),
                     ])
                 );
@@ -556,7 +553,7 @@ impl TypeChecker {
                             Some(&*node_as_jsdoc_property_like_tag.name),
                             &Diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name,
                             Some(vec![
-                                id_text(&node_as_jsdoc_property_like_tag.name)
+                                id_text(&node_as_jsdoc_property_like_tag.name).to_owned()
                             ])
                         );
                     }
@@ -586,7 +583,7 @@ impl TypeChecker {
                                 } else {
                                     node_as_jsdoc_property_like_tag.name.clone()
                                 }
-                            )
+                            ).to_owned()
                         ])
                     );
                 }

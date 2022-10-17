@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
@@ -625,7 +625,7 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let type_ = self.get_declared_type_of_symbol(symbol);
         if Rc::ptr_eq(&type_, &self.intrinsic_marker_type())
-            && intrinsic_type_kinds.contains_key(&**symbol.escaped_name())
+            && intrinsic_type_kinds.contains_key(symbol.escaped_name())
             && matches!(type_arguments, Some(type_arguments) if type_arguments.len() == 1)
         {
             return self.get_string_mapping_type(symbol, &type_arguments.unwrap()[0]);
@@ -774,14 +774,15 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_symbol_path(&self, symbol: &Symbol) -> String {
+    pub(super) fn get_symbol_path<'symbol>(&self, symbol: &'symbol Symbol) -> Cow<'symbol, str> {
         match symbol.maybe_parent() {
             Some(symbol_parent) => format!(
                 "{}.{}",
                 self.get_symbol_path(&symbol_parent),
-                &**symbol.escaped_name()
-            ),
-            None => symbol.escaped_name().clone().into_string(),
+                symbol.escaped_name()
+            )
+            .into(),
+            None => symbol.escaped_name().into(),
         }
     }
 
@@ -1048,7 +1049,7 @@ impl TypeChecker {
                     declaration_name_to_string(Some(&*node.as_type_reference_node().type_name))
                         .into_owned()
                 } else {
-                    anon.clone().into_string()
+                    anon.to_owned()
                 }]),
             );
             return false;

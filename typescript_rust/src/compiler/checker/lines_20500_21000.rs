@@ -369,10 +369,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_tuple_like_type(&self, type_: &Type) -> bool {
-        self.is_tuple_type(type_)
-            || self
-                .get_property_of_type_(type_, &__String::new("0".to_owned()), None)
-                .is_some()
+        self.is_tuple_type(type_) || self.get_property_of_type_(type_, "0", None).is_some()
     }
 
     pub(super) fn is_array_or_tuple_like_type(&self, type_: &Type) -> bool {
@@ -380,8 +377,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_tuple_element_type(&self, type_: &Type, index: usize) -> Option<Rc<Type>> {
-        let prop_type =
-            self.get_type_of_property_of_type_(type_, &__String::new(index.to_string()));
+        let prop_type = self.get_type_of_property_of_type_(type_, &index.to_string());
         if prop_type.is_some() {
             return prop_type;
         }
@@ -868,12 +864,8 @@ impl TypeChecker {
             .is_none()
         {
             *self.maybe_deferred_global_non_nullable_type_alias() = Some(
-                self.get_global_symbol(
-                    &__String::new("NonNullable".to_owned()),
-                    SymbolFlags::TypeAlias,
-                    None,
-                )
-                .unwrap_or_else(|| self.unknown_symbol()),
+                self.get_global_symbol("NonNullable", SymbolFlags::TypeAlias, None)
+                    .unwrap_or_else(|| self.unknown_symbol()),
             );
         }
         if let Some(deferred_global_non_nullable_type_alias) = self
@@ -1019,7 +1011,7 @@ impl TypeChecker {
         let symbol: Rc<Symbol> = self
             .create_symbol(
                 source.flags(),
-                source.escaped_name().clone(),
+                source.escaped_name().to_owned(),
                 Some(get_check_flags(source) & CheckFlags::Readonly),
             )
             .into();
@@ -1049,7 +1041,7 @@ impl TypeChecker {
             let original = self.get_type_of_symbol(property);
             let updated = f(&original);
             members.insert(
-                property.escaped_name().clone(),
+                property.escaped_name().to_owned(),
                 if Rc::ptr_eq(&updated, &original) {
                     property.clone()
                 } else {

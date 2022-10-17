@@ -259,7 +259,7 @@ impl TypeChecker {
                 let attribute_symbol: Rc<Symbol> = self
                     .create_symbol(
                         SymbolFlags::Property | member.flags(),
-                        member.escaped_name().clone(),
+                        member.escaped_name().to_owned(),
                         None,
                     )
                     .into();
@@ -278,12 +278,12 @@ impl TypeChecker {
                     attribute_symbol_links.target = Some(member.clone());
                 }
                 attributes_table.borrow_mut().insert(
-                    attribute_symbol.escaped_name().clone(),
+                    attribute_symbol.escaped_name().to_owned(),
                     attribute_symbol.clone(),
                 );
                 if let Some(all_attributes_table) = all_attributes_table.as_mut() {
                     all_attributes_table.insert(
-                        attribute_symbol.escaped_name().clone(),
+                        attribute_symbol.escaped_name().to_owned(),
                         attribute_symbol.clone(),
                     );
                 }
@@ -396,7 +396,7 @@ impl TypeChecker {
                             Some(&*attributes),
                             &Diagnostics::_0_are_specified_twice_The_attribute_named_0_will_be_overwritten,
                             Some(vec![
-                                unescape_leading_underscores(jsx_children_property_name)
+                                unescape_leading_underscores(jsx_children_property_name).to_owned()
                             ])
                         );
                     }
@@ -452,7 +452,8 @@ impl TypeChecker {
                                     .create_property_signature(
                                         synthetic_factory_,
                                         Option::<NodeArray>::None,
-                                        unescape_leading_underscores(jsx_children_property_name),
+                                        unescape_leading_underscores(jsx_children_property_name)
+                                            .to_owned(),
                                         None,
                                         None,
                                     )
@@ -583,7 +584,7 @@ impl TypeChecker {
                         left.maybe_value_declaration(),
                         &Diagnostics::_0_is_specified_more_than_once_so_this_usage_will_be_overwritten,
                         Some(vec![
-                            unescape_leading_underscores(left.escaped_name())
+                            unescape_leading_underscores(left.escaped_name()).to_owned()
                         ])
                     );
                     add_related_info(
@@ -612,7 +613,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_type<TLocation: Borrow<Node>>(
         &self,
-        name: &__String,
+        name: &str, /*__String*/
         location: Option<TLocation>,
     ) -> Rc<Type> {
         let location = location.map(|location| location.borrow().node_wrapper());
@@ -666,8 +667,8 @@ impl TypeChecker {
                     Some(node),
                     &Diagnostics::Property_0_does_not_exist_on_type_1,
                     Some(vec![
-                        id_text(&node_as_has_tag_name.tag_name()),
-                        format!("JSX.{}", &**JsxNames::IntrinsicElements),
+                        id_text(&node_as_has_tag_name.tag_name()).to_owned(),
+                        format!("JSX.{}", JsxNames::IntrinsicElements),
                     ]),
                 );
                 let ret = self.unknown_symbol();
@@ -679,7 +680,7 @@ impl TypeChecker {
                         Some(node),
                         &Diagnostics::JSX_element_implicitly_has_type_any_because_no_interface_JSX_0_exists,
                         Some(vec![
-                            unescape_leading_underscores(&JsxNames::IntrinsicElements)
+                            unescape_leading_underscores(JsxNames::IntrinsicElements).to_owned()
                         ])
                     );
                 }

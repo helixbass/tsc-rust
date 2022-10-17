@@ -565,7 +565,8 @@ impl TypeChecker {
                     } else if !is_binding_pattern(parameter.as_named_declaration().maybe_name()) {
                         Some(vec![id_text(&get_first_identifier(
                             &parameter.as_named_declaration().name(),
-                        ))])
+                        ))
+                        .to_owned()])
                     } else {
                         None
                     },

@@ -283,7 +283,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_property_of_contextual_type(
         &self,
         type_: &Type,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> Option<Rc<Type>> {
         self.map_type(
             type_,
@@ -311,7 +311,7 @@ impl TypeChecker {
                         let rest_type = self.get_rest_type_of_tuple_type(t);
                         if rest_type.is_some()
                             && self.is_numeric_literal_name(name)
-                            && (&**name).parse::<f64>().unwrap() >= 0.0
+                            && name.parse::<f64>().unwrap() >= 0.0
                         {
                             return rest_type;
                         }
@@ -388,25 +388,22 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         let array_contextual_type = array_contextual_type?;
         let array_contextual_type = array_contextual_type.borrow();
-        self.get_type_of_property_of_contextual_type(
-            array_contextual_type,
-            &__String::new(index.to_string()),
-        )
-        .or_else(|| {
-            self.map_type(
-                array_contextual_type,
-                &mut |t: &Type| {
-                    self.get_iterated_type_or_element_type(
-                        IterationUse::Element,
-                        t,
-                        &self.undefined_type(),
-                        Option::<&Node>::None,
-                        false,
-                    )
-                },
-                Some(true),
-            )
-        })
+        self.get_type_of_property_of_contextual_type(array_contextual_type, &index.to_string())
+            .or_else(|| {
+                self.map_type(
+                    array_contextual_type,
+                    &mut |t: &Type| {
+                        self.get_iterated_type_or_element_type(
+                            IterationUse::Element,
+                            t,
+                            &self.undefined_type(),
+                            Option::<&Node>::None,
+                            false,
+                        )
+                    },
+                    Some(true),
+                )
+            })
     }
 
     pub(super) fn get_contextual_type_for_conditional_operand(
@@ -572,7 +569,7 @@ impl TypeChecker {
                                 Box::new(move || {
                                     type_checker.get_context_free_type_of_expression(&prop_clone.as_has_initializer().maybe_initializer().unwrap())
                                 }) as Box<dyn Fn() -> Rc<Type>>,
-                                prop.symbol().escaped_name().clone(),
+                                prop.symbol().escaped_name().to_owned(),
                             )
                         }
                     ),
@@ -600,7 +597,7 @@ impl TypeChecker {
                                 Box::new(move || {
                                     type_checker.undefined_type()
                                 }) as Box<dyn Fn() -> Rc<Type>>,
-                                s.escaped_name().clone(),
+                                s.escaped_name().to_owned(),
                             )
                         }
                     ),
@@ -649,7 +646,7 @@ impl TypeChecker {
                                         type_checker.get_context_free_type_of_expression(prop_initializer)
                                 }
                             }) as Box<dyn Fn() -> Rc<Type>>,
-                            prop.symbol().escaped_name().clone(),
+                            prop.symbol().escaped_name().to_owned(),
                         )
                     }
                 ),
@@ -677,7 +674,7 @@ impl TypeChecker {
                             Box::new(move || {
                                 type_checker.undefined_type()
                             }) as Box<dyn Fn() -> Rc<Type>>,
-                            s.escaped_name().clone(),
+                            s.escaped_name().to_owned(),
                         )
                     }
                 ),
@@ -981,7 +978,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_props_type_for_signature_from_member(
         &self,
         sig: Rc<Signature>,
-        forced_lookup_location: &__String,
+        forced_lookup_location: &str, /*__String*/
     ) -> Option<Rc<Type>> {
         if let Some(sig_composite_signatures) = sig.composite_signatures.as_ref() {
             let mut results: Vec<Rc<Type>> = vec![];

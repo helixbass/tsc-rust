@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::ptr;
@@ -44,12 +44,12 @@ impl TypeChecker {
         is_dynamic_name(node) && !self.is_late_bindable_name(node)
     }
 
-    pub(super) fn get_property_name_from_type(
+    pub(super) fn get_property_name_from_type<'type_>(
         &self,
-        type_: &Type, /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/
-    ) -> __String {
+        type_: &'type_ Type, /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/
+    ) -> Cow<'type_, str> /*__String*/ {
         if type_.flags().intersects(TypeFlags::UniqueESSymbol) {
-            return type_.as_unique_es_symbol_type().escaped_name.clone();
+            return (&*type_.as_unique_es_symbol_type().escaped_name).into();
         }
         if type_
             .flags()
@@ -58,6 +58,8 @@ impl TypeChecker {
             return match type_ {
                 Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
                     escape_leading_underscores(&type_.value.to_string())
+                        .into_owned()
+                        .into()
                 }
                 Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
                     escape_leading_underscores(&type_.value)
@@ -133,22 +135,22 @@ impl TypeChecker {
                 let symbol_flags = decl.symbol().flags();
 
                 let mut late_symbol: Option<Rc<Symbol>> =
-                    late_symbols.get(&member_name).map(Clone::clone);
+                    late_symbols.get(&*member_name).map(Clone::clone);
                 if late_symbol.is_none() {
                     late_symbol = Some(
                         self.create_symbol(
                             SymbolFlags::None,
-                            member_name.clone(),
+                            (*member_name).to_owned(),
                             Some(CheckFlags::Late),
                         )
                         .into(),
                     );
-                    late_symbols.insert(member_name.clone(), late_symbol.clone().unwrap());
+                    late_symbols.insert((*member_name).to_owned(), late_symbol.clone().unwrap());
                 }
                 let mut late_symbol = late_symbol.unwrap();
 
                 let early_symbol =
-                    early_symbols.and_then(|early_symbols| early_symbols.get(&member_name));
+                    early_symbols.and_then(|early_symbols| early_symbols.get(&*member_name));
                 if late_symbol
                     .flags()
                     .intersects(self.get_excluded_symbol_flags(symbol_flags))
@@ -163,7 +165,7 @@ impl TypeChecker {
                         late_symbol.maybe_declarations().clone()
                     };
                     let name = if !type_.flags().intersects(TypeFlags::UniqueESSymbol) {
-                        unescape_leading_underscores(&member_name)
+                        unescape_leading_underscores(&member_name).to_owned()
                     } else {
                         declaration_name_to_string(Some(&*decl_name)).into_owned()
                     };
@@ -184,7 +186,11 @@ impl TypeChecker {
                         Some(vec![name]),
                     );
                     late_symbol = self
-                        .create_symbol(SymbolFlags::None, member_name, Some(CheckFlags::Late))
+                        .create_symbol(
+                            SymbolFlags::None,
+                            member_name.into_owned(),
+                            Some(CheckFlags::Late),
+                        )
                         .into();
                 }
                 late_symbol
@@ -352,7 +358,7 @@ impl TypeChecker {
 
     pub(super) fn get_late_bound_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
         if symbol.flags().intersects(SymbolFlags::ClassMember)
-            && symbol.escaped_name() == &InternalSymbolName::Computed()
+            && symbol.escaped_name() == InternalSymbolName::Computed
         {
             let links = self.get_symbol_links(symbol);
             if {

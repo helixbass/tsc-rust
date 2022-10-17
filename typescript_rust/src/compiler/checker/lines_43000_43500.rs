@@ -228,7 +228,7 @@ impl TypeChecker {
                     .initializer
                     .as_identifier()
                     .escaped_text
-                    .eq_str("async")
+                    == "async"
             {
                 self.grammar_error_on_node(
                     &for_in_or_of_statement_as_for_of_statement.initializer,

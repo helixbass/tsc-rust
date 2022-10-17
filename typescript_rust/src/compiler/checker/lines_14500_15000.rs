@@ -664,7 +664,7 @@ impl TypeChecker {
                 .clone();
             if type_.is_none() {
                 let name = get_name_of_declaration(prop.maybe_value_declaration());
-                type_ = if prop.escaped_name() == &InternalSymbolName::Default() {
+                type_ = if prop.escaped_name() == InternalSymbolName::Default {
                     Some(self.get_string_literal_type("default"))
                 } else if let Some(name) = name {
                     Some(self.get_literal_type_from_property_name(&name))

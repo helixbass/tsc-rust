@@ -1066,7 +1066,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> StringLiteral {
         let mut node = self.create_base_string_literal(
             base_factory,
-            get_text_of_identifier_or_literal(source_node),
+            get_text_of_identifier_or_literal(source_node).into_owned(),
             None,
         );
         node.text_source_node = Some(source_node.node_wrapper());
@@ -1130,7 +1130,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             original_keyword_kind = None;
         }
         let node = base_factory.create_base_identifier_node(SyntaxKind::Identifier);
-        let mut node = Identifier::new(node, escape_leading_underscores(text));
+        let mut node = Identifier::new(node, escape_leading_underscores(text).into_owned());
         node.original_keyword_kind = original_keyword_kind;
         node
     }
@@ -1202,7 +1202,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             )));
         }
         let node = base_factory.create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
-        let mut node = PrivateIdentifier::new(node, escape_leading_underscores(text));
+        let mut node = PrivateIdentifier::new(node, escape_leading_underscores(text).into_owned());
         node.add_transform_flags(TransformFlags::ContainsClassFields);
         node
     }

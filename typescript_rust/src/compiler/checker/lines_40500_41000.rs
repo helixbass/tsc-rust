@@ -57,7 +57,7 @@ impl TypeChecker {
         let mut location = Some(location.node_wrapper());
         self.populate_symbols(&mut location, meaning, &mut symbols, &mut is_static_symbol);
 
-        symbols.remove(&InternalSymbolName::This());
+        symbols.remove(InternalSymbolName::This);
         self.symbols_to_array(&symbols)
     }
 
@@ -158,7 +158,7 @@ impl TypeChecker {
         if get_combined_local_and_export_symbol_flags(symbol).intersects(meaning) {
             let id = symbol.escaped_name();
             if !symbols.contains_key(id) {
-                symbols.insert(id.clone(), symbol.symbol_wrapper());
+                symbols.insert(id.to_owned(), symbol.symbol_wrapper());
             }
         }
     }
@@ -664,11 +664,7 @@ impl TypeChecker {
         };
         if let Some(left) = left.as_ref() {
             let proto = if left.flags().intersects(SymbolFlags::Value) {
-                self.get_property_of_type_(
-                    &self.get_type_of_symbol(left),
-                    &__String::new("prototype".to_owned()),
-                    None,
-                )
+                self.get_property_of_type_(&self.get_type_of_symbol(left), "prototype", None)
             } else {
                 None
             };

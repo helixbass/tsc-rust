@@ -111,7 +111,7 @@ impl TypeChecker {
                         Some(context),
                         &Diagnostics::JSX_element_class_does_not_support_attributes_because_it_does_not_have_a_0_property,
                         Some(vec![
-                            unescape_leading_underscores(forced_lookup_location)
+                            unescape_leading_underscores(forced_lookup_location).to_owned()
                         ])
                     );
                 }
@@ -304,7 +304,7 @@ impl TypeChecker {
                         } else {
                             SymbolFlags::None
                         },
-                    param_name.unwrap_or_else(|| __String::new(format!("arg{}", i))),
+                    param_name.unwrap_or_else(|| format!("arg{}", i)),
                     None,
                 )
                 .into();
@@ -321,11 +321,7 @@ impl TypeChecker {
         }
         if needs_extra_rest_element {
             let rest_param_symbol: Rc<Symbol> = self
-                .create_symbol(
-                    SymbolFlags::FunctionScopedVariable,
-                    __String::new("args".to_owned()),
-                    None,
-                )
+                .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
                 .into();
             let rest_param_symbol_type =
                 self.create_array_type(&self.get_type_at_position(shorter, longest_count), None);
@@ -1049,14 +1045,14 @@ impl TypeChecker {
                 let prop: Rc<Symbol> = if let Some(name_type) = name_type {
                     self.create_symbol(
                         SymbolFlags::Property | member_present.flags(),
-                        self.get_property_name_from_type(name_type),
+                        self.get_property_name_from_type(name_type).into_owned(),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()
                 } else {
                     self.create_symbol(
                         SymbolFlags::Property | member_present.flags(),
-                        member_present.escaped_name().clone(),
+                        member_present.escaped_name().to_owned(),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()
@@ -1140,7 +1136,7 @@ impl TypeChecker {
                 }
                 member = Some(prop.clone());
                 if let Some(all_properties_table) = all_properties_table.as_mut() {
-                    all_properties_table.insert(prop.escaped_name().clone(), prop.clone());
+                    all_properties_table.insert(prop.escaped_name().to_owned(), prop.clone());
                 };
             } else if member_decl.kind() == SyntaxKind::SpreadAssignment {
                 if self.language_version < ScriptTarget::ES2015 {
@@ -1241,7 +1237,7 @@ impl TypeChecker {
                     }
                 }
             } else {
-                properties_table.insert(member.escaped_name().clone(), member.clone());
+                properties_table.insert(member.escaped_name().to_owned(), member.clone());
             }
             properties_array.push(member);
         }
@@ -1262,7 +1258,7 @@ impl TypeChecker {
                             None,
                         );
                     }
-                    properties_table.insert(prop.escaped_name().clone(), prop.clone());
+                    properties_table.insert(prop.escaped_name().to_owned(), prop.clone());
                     properties_array.push(prop.clone());
                 }
             }

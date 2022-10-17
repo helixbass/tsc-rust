@@ -224,7 +224,7 @@ impl CheckTypeRelatedTo {
                     vec![source_property_type]
                 },
             );
-            excluded_properties.insert(source_property.escaped_name().clone());
+            excluded_properties.insert(source_property.escaped_name().to_owned());
         }
 
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
@@ -608,13 +608,13 @@ impl CheckTypeRelatedTo {
                         Cow::Borrowed(&Diagnostics::Property_0_in_type_1_refers_to_a_different_member_that_cannot_be_accessed_from_within_type_2),
                         Some(vec![
                             self.type_checker.diagnostic_name(private_identifier_description.clone().into()).into_owned(),
-                            self.type_checker.diagnostic_name(if source_name.as_identifier().escaped_text.eq_str("") {
-                                anon.clone().into()
+                            self.type_checker.diagnostic_name(if source_name.as_identifier().escaped_text == "" {
+                                anon.to_owned().into()
                             } else {
                                 source_name.into()
                             }).into_owned(),
-                            self.type_checker.diagnostic_name(if target_name.as_identifier().escaped_text.eq_str("") {
-                                anon.clone().into()
+                            self.type_checker.diagnostic_name(if target_name.as_identifier().escaped_text == "" {
+                                anon.to_owned().into()
                             } else {
                                 target_name.into()
                             }).into_owned(),
@@ -920,7 +920,7 @@ impl CheckTypeRelatedTo {
                         if can_exclude_discriminants
                             && matches!(
                                 excluded_properties,
-                                Some(excluded_properties) if excluded_properties.contains(&__String::new(i.to_string()))
+                                Some(excluded_properties) if excluded_properties.contains(&i.to_string())
                             )
                         {
                             continue;
@@ -1066,8 +1066,8 @@ impl CheckTypeRelatedTo {
             let name = target_prop.escaped_name();
             if !target_prop.flags().intersects(SymbolFlags::Prototype)
                 && (!numeric_names_only
-                    || self.type_checker.is_numeric_literal_name(&**name)
-                    || name.eq_str("length"))
+                    || self.type_checker.is_numeric_literal_name(name)
+                    || name == "length")
             {
                 let source_prop = self.type_checker.get_property_of_type_(source, name, None);
                 if let Some(source_prop) = source_prop {

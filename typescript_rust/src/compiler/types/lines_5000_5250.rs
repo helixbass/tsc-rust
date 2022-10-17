@@ -78,108 +78,28 @@ impl ReverseMappedSymbol {
     }
 }
 
-pub struct InternalSymbolName;
-
 #[allow(non_snake_case)]
-impl InternalSymbolName {
-    pub fn Call() -> __String {
-        __String::new("__call".to_string())
-    }
-
-    pub fn Constructor() -> __String {
-        __String::new("__constructor".to_string())
-    }
-
-    pub fn New() -> __String {
-        __String::new("__new".to_string())
-    }
-
-    pub fn Index() -> __String {
-        __String::new("__index".to_string())
-    }
-
-    pub fn ExportStar() -> __String {
-        __String::new("__export".to_string())
-    }
-
-    pub fn Global() -> __String {
-        __String::new("__global".to_string())
-    }
-
-    pub fn Missing() -> __String {
-        __String::new("__missing".to_string())
-    }
-
-    pub fn Type() -> __String {
-        __String::new("__type".to_string())
-    }
-
-    pub fn Object() -> __String {
-        __String::new("__object".to_string())
-    }
-
-    pub fn JSXAttributes() -> __String {
-        __String::new("__jsxAttributes".to_string())
-    }
-
-    pub fn Class() -> __String {
-        __String::new("__class".to_string())
-    }
-
-    pub fn Function() -> __String {
-        __String::new("__function".to_string())
-    }
-
-    pub fn Computed() -> __String {
-        __String::new("__computed".to_string())
-    }
-
-    pub fn Resolving() -> __String {
-        __String::new("__resolving__".to_string())
-    }
-
-    pub fn ExportEquals() -> __String {
-        __String::new("export=".to_string())
-    }
-
-    pub fn Default() -> __String {
-        __String::new("default".to_string())
-    }
-
-    pub fn This() -> __String {
-        __String::new("this".to_string())
-    }
+pub mod InternalSymbolName {
+    pub const Call: &'static str/*__String*/ = "__call";
+    pub const Constructor: &'static str/*__String*/ = "__constructor";
+    pub const New: &'static str/*__String*/ = "__new";
+    pub const Index: &'static str/*__String*/ = "__index";
+    pub const ExportStar: &'static str/*__String*/ = "__export";
+    pub const Global: &'static str/*__String*/ = "__global";
+    pub const Missing: &'static str/*__String*/ = "__missing";
+    pub const Type: &'static str/*__String*/ = "__type";
+    pub const Object: &'static str/*__String*/ = "__object";
+    pub const JSXAttributes: &'static str/*__String*/ = "__jsxAttributes";
+    pub const Class: &'static str/*__String*/ = "__class";
+    pub const Function: &'static str/*__String*/ = "__function";
+    pub const Computed: &'static str/*__String*/ = "__computed";
+    pub const Resolving: &'static str/*__String*/ = "__resolving__";
+    pub const ExportEquals: &'static str/*__String*/ = "export=";
+    pub const Default: &'static str/*__String*/ = "default";
+    pub const This: &'static str/*__String*/ = "this";
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
-pub struct __String(String);
-
-impl __String {
-    pub fn new(string: String) -> Self {
-        Self(string)
-    }
-
-    pub fn chars(&self) -> std::str::Chars {
-        self.0.chars()
-    }
-
-    // TODO: should implement via some trait?
-    pub fn eq_str(&self, str: &str) -> bool {
-        &self.0 == str
-    }
-
-    pub fn into_string(self) -> String {
-        self.0
-    }
-}
-
-impl Deref for __String {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+pub type __String = String;
 
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 

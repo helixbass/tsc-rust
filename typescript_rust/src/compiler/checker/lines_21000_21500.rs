@@ -108,7 +108,7 @@ impl TypeChecker {
                     && !get_object_flags(t).intersects(ObjectFlags::ContainsSpread)
                 {
                     for prop in self.get_properties_of_type(t) {
-                        names.insert(prop.escaped_name().clone(), prop);
+                        names.insert(prop.escaped_name().to_owned(), prop);
                     }
                 }
             }
@@ -130,7 +130,7 @@ impl TypeChecker {
         let prop_context = context.map(|context| {
             Rc::new(RefCell::new(self.create_widening_context(
                 Some(context),
-                Some(prop.escaped_name().clone()),
+                Some(prop.escaped_name().to_owned()),
                 None,
             )))
         });
@@ -153,7 +153,7 @@ impl TypeChecker {
         let result = self.create_symbol_with_type(prop, Some(self.missing_type()));
         result.set_flags(result.flags() | SymbolFlags::Optional);
         self.undefined_properties()
-            .insert(prop.escaped_name().clone(), result.clone());
+            .insert(prop.escaped_name().to_owned(), result.clone());
         result
     }
 
@@ -165,7 +165,7 @@ impl TypeChecker {
         let mut members = create_symbol_table(None);
         for prop in &self.get_properties_of_object_type(type_) {
             members.insert(
-                prop.escaped_name().clone(),
+                prop.escaped_name().to_owned(),
                 self.get_widened_property(prop, context.clone()),
             );
         }
@@ -173,7 +173,7 @@ impl TypeChecker {
             for prop in &self.get_properties_of_context(context) {
                 if !members.contains_key(prop.escaped_name()) {
                     members.insert(
-                        prop.escaped_name().clone(),
+                        prop.escaped_name().to_owned(),
                         self.get_undefined_property(prop),
                     );
                 }
@@ -898,7 +898,7 @@ impl TypeChecker {
             if !t.flags().intersects(TypeFlags::StringLiteral) {
                 return None;
             }
-            let name = escape_leading_underscores(&t.as_string_literal_type().value);
+            let name = escape_leading_underscores(&t.as_string_literal_type().value).into_owned();
             let literal_prop: Rc<Symbol> = self
                 .create_symbol(SymbolFlags::Property, name.clone(), None)
                 .into();

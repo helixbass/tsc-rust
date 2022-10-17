@@ -929,7 +929,7 @@ impl TypeChecker {
                 let result: Rc<Symbol> = self
                     .create_symbol(
                         flags,
-                        prop.escaped_name().clone(),
+                        prop.escaped_name().to_owned(),
                         Some(
                             self.get_is_late_check_flag(&prop)
                                 | if readonly {
@@ -953,7 +953,7 @@ impl TypeChecker {
                 }
                 result_links.name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
                 result_links.synthetic_origin = Some(prop.clone());
-                members.insert(prop.escaped_name().clone(), result);
+                members.insert(prop.escaped_name().to_owned(), result);
             }
         }
         let spread = self.create_anonymous_type(
@@ -1090,10 +1090,10 @@ impl TypeChecker {
             if get_declaration_modifier_flags_from_symbol(&right_prop, None)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
             {
-                skipped_private_members.insert(right_prop.escaped_name().clone());
+                skipped_private_members.insert(right_prop.escaped_name().to_owned());
             } else if self.is_spreadable_property(&right_prop) {
                 members.insert(
-                    right_prop.escaped_name().clone(),
+                    right_prop.escaped_name().to_owned(),
                     self.get_spread_symbol(&right_prop, readonly),
                 );
             }
@@ -1115,7 +1115,7 @@ impl TypeChecker {
                     );
                     let flags = SymbolFlags::Property | (left_prop.flags() & SymbolFlags::Optional);
                     let result: Rc<Symbol> = self
-                        .create_symbol(flags, left_prop.escaped_name().clone(), None)
+                        .create_symbol(flags, left_prop.escaped_name().to_owned(), None)
                         .into();
                     let result_links = result.as_transient_symbol().symbol_links();
                     let mut result_links = result_links.borrow_mut();
@@ -1138,11 +1138,11 @@ impl TypeChecker {
                         .borrow()
                         .name_type
                         .clone();
-                    members.insert(left_prop.escaped_name().clone(), result);
+                    members.insert(left_prop.escaped_name().to_owned(), result);
                 }
             } else {
                 members.insert(
-                    left_prop.escaped_name().clone(),
+                    left_prop.escaped_name().to_owned(),
                     self.get_spread_symbol(&left_prop, readonly),
                 );
             }

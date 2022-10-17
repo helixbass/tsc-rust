@@ -405,11 +405,7 @@ pub fn is_import_meta(n: &Node) -> bool {
     }
     let n_as_meta_property = n.as_meta_property();
     n_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
-        && n.as_meta_property()
-            .name
-            .as_identifier()
-            .escaped_text
-            .eq_str("meta")
+        && n.as_meta_property().name.as_identifier().escaped_text == "meta"
 }
 
 pub fn is_literal_import_type_node(n: &Node) -> bool {

@@ -233,13 +233,13 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_name_of_symbol_as_written(
+    pub(super) fn get_name_of_symbol_as_written<'symbol>(
         &self,
-        symbol: &Symbol,
+        symbol: &'symbol Symbol,
         context: Option<&NodeBuilderContext>,
-    ) -> Cow<'static, str> {
+    ) -> Cow<'symbol, str> {
         if let Some(context) = context {
-            if symbol.escaped_name() == &InternalSymbolName::Default()
+            if symbol.escaped_name() == InternalSymbolName::Default
                 && !context
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
@@ -276,7 +276,7 @@ impl TypeChecker {
                         if is_call_expression(declaration)
                             && is_bindable_object_define_property_call(declaration)
                         {
-                            return symbol_name(symbol).into();
+                            return symbol_name(symbol);
                         }
                         if is_computed_property_name(&name)
                             && !get_check_flags(symbol).intersects(CheckFlags::Late)
@@ -333,11 +333,10 @@ impl TypeChecker {
         }
         let name = self.get_name_of_symbol_from_name_type(symbol, context);
         if let Some(name) = name {
-            name
+            name.into()
         } else {
             symbol_name(symbol)
         }
-        .into()
     }
 
     pub(super) fn is_declaration_visible(&self, node: &Node) -> bool {
@@ -674,7 +673,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_property_of_type_(
         &self,
         type_: &Type,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> Option<Rc<Type>> {
         let prop = self.get_property_of_type_(type_, name, None)?;
         Some(self.get_type_of_symbol(&prop))
@@ -683,7 +682,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_property_or_index_signature(
         &self,
         type_: &Type,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> Rc<Type> {
         self.get_type_of_property_of_type_(type_, name)
             .or_else(|| {
@@ -779,7 +778,7 @@ impl TypeChecker {
                 && self.is_spreadable_property(&prop)
             {
                 members.insert(
-                    prop.escaped_name().clone(),
+                    prop.escaped_name().to_owned(),
                     self.get_spread_symbol(&prop, false),
                 );
             }

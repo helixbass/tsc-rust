@@ -115,7 +115,7 @@ impl TypeChecker {
                         } else {
                             SymbolFlags::None
                         },
-                    param_name.unwrap_or_else(|| __String::new(format!("arg{}", i))),
+                    param_name.unwrap_or_else(|| format!("arg{}", i)),
                     None,
                 )
                 .into();
@@ -132,11 +132,7 @@ impl TypeChecker {
         }
         if needs_extra_rest_element {
             let rest_param_symbol: Rc<Symbol> = self
-                .create_symbol(
-                    SymbolFlags::FunctionScopedVariable,
-                    __String::new("args".to_owned()),
-                    None,
-                )
+                .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
                 .into();
             rest_param_symbol
                 .as_transient_symbol()
@@ -501,16 +497,10 @@ impl TypeChecker {
             );
             let members = self.get_members_of_symbol(&symbol);
             let call_signatures = self.get_signatures_of_symbol(
-                (*members)
-                    .borrow()
-                    .get(&InternalSymbolName::Call())
-                    .map(Clone::clone),
+                (*members).borrow().get(InternalSymbolName::Call).cloned(),
             );
             let construct_signatures = self.get_signatures_of_symbol(
-                (*members)
-                    .borrow()
-                    .get(&InternalSymbolName::New())
-                    .map(Clone::clone),
+                (*members).borrow().get(InternalSymbolName::New).cloned(),
             );
             let index_infos = self.get_index_infos_of_symbol(&symbol);
             self.set_structured_type_members(
@@ -530,7 +520,7 @@ impl TypeChecker {
                     let mut vars_only = SymbolTable::new();
                     for (_, p) in &*(*members).borrow() {
                         if !p.flags().intersects(SymbolFlags::BlockScoped) {
-                            vars_only.insert(p.escaped_name().clone(), p.clone());
+                            vars_only.insert(p.escaped_name().to_owned(), p.clone());
                         }
                     }
                     members = Rc::new(RefCell::new(vars_only));
@@ -614,8 +604,8 @@ impl TypeChecker {
                     self.get_signatures_of_symbol(
                         (**symbol_members)
                             .borrow()
-                            .get(&InternalSymbolName::Constructor())
-                            .map(Clone::clone),
+                            .get(InternalSymbolName::Constructor)
+                            .cloned(),
                     )
                 } else {
                     vec![]
@@ -718,7 +708,7 @@ impl TypeChecker {
                 };
             let inferred_prop = self.create_symbol(
                 SymbolFlags::Property | prop.flags() & optional_mask,
-                prop.escaped_name().clone(),
+                prop.escaped_name().to_owned(),
                 Some(check_flags),
             );
             if let Some(prop_declarations) = prop.maybe_declarations().clone() {
@@ -764,7 +754,7 @@ impl TypeChecker {
             let inferred_prop: Rc<Symbol> = inferred_prop
                 .into_reverse_mapped_symbol(property_type, mapped_type, constraint_type)
                 .into();
-            members.insert(prop.escaped_name().clone(), inferred_prop);
+            members.insert(prop.escaped_name().to_owned(), inferred_prop);
         }
         self.set_structured_type_members(
             type_as_reverse_mapped_type,
@@ -992,7 +982,7 @@ impl TypeChecker {
     ) {
         if self.is_type_usable_as_property_name(prop_name_type) {
             let prop_name = self.get_property_name_from_type(prop_name_type);
-            let existing_prop = members.get(&prop_name);
+            let existing_prop = members.get(&*prop_name);
             if let Some(existing_prop) = existing_prop {
                 let existing_prop_as_mapped_symbol = existing_prop.as_mapped_symbol();
                 let existing_prop_name_type = (*existing_prop_as_mapped_symbol.symbol_links())
@@ -1053,7 +1043,7 @@ impl TypeChecker {
                         } else {
                             SymbolFlags::None
                         },
-                    prop_name.clone(),
+                    (*prop_name).to_owned(),
                     Some(
                         late_flag
                             | CheckFlags::Mapped
@@ -1089,7 +1079,7 @@ impl TypeChecker {
                         prop.set_declarations(declarations);
                     }
                 }
-                members.insert(prop_name, prop);
+                members.insert(prop_name.into_owned(), prop);
             }
         } else if self.is_valid_index_key_type(prop_name_type)
             || prop_name_type

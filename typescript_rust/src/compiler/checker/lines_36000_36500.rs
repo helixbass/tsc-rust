@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
 use std::ptr;
 use std::rc::Rc;
@@ -39,7 +39,9 @@ impl TypeChecker {
             self.error(
                 class_like,
                 &Diagnostics::JSDoc_0_is_not_attached_to_a_class,
-                Some(vec![id_text(&node_as_jsdoc_implements_tag.tag_name())]),
+                Some(vec![
+                    id_text(&node_as_jsdoc_implements_tag.tag_name()).to_owned()
+                ]),
             );
         }
     }
@@ -56,7 +58,9 @@ impl TypeChecker {
             self.error(
                 class_like,
                 &Diagnostics::JSDoc_0_is_not_attached_to_a_class,
-                Some(vec![id_text(&node_as_jsdoc_augments_tag.tag_name())]),
+                Some(vec![
+                    id_text(&node_as_jsdoc_augments_tag.tag_name()).to_owned()
+                ]),
             );
             return;
         }
@@ -95,9 +99,9 @@ impl TypeChecker {
                     Some(&*name),
                     &Diagnostics::JSDoc_0_1_does_not_match_the_extends_2_clause,
                     Some(vec![
-                        id_text(&node_as_jsdoc_augments_tag.tag_name()),
-                        id_text(&name),
-                        id_text(class_name),
+                        id_text(&node_as_jsdoc_augments_tag.tag_name()).to_owned(),
+                        id_text(&name).to_owned(),
+                        id_text(class_name).to_owned(),
                     ]),
                 );
             }
@@ -382,7 +386,7 @@ impl TypeChecker {
                                         &parameter.as_parameter_declaration().name(),
                                         &Diagnostics::Property_0_is_declared_but_its_value_is_never_read,
                                         Some(vec![
-                                            symbol_name(&parameter.symbol())
+                                            symbol_name(&parameter.symbol()).into_owned()
                                         ])
                                     ).into()
                                 )
@@ -416,7 +420,8 @@ impl TypeChecker {
                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                         Some(vec![id_text(
                             &type_parameter.as_type_parameter_declaration().name(),
-                        )]),
+                        )
+                        .to_owned()]),
                     )
                     .into(),
                 ),
@@ -448,7 +453,8 @@ impl TypeChecker {
                 continue;
             }
 
-            let name = id_text(&type_parameter.as_type_parameter_declaration().name());
+            let type_parameter_name = type_parameter.as_type_parameter_declaration().name();
+            let name = id_text(&type_parameter_name);
             let parent = type_parameter.parent();
             if parent.kind() != SyntaxKind::InferType
                 && parent
@@ -485,7 +491,11 @@ impl TypeChecker {
                     } else {
                         &*Diagnostics::All_type_parameters_are_unused
                     };
-                    let args = if only { Some(vec![name]) } else { None };
+                    let args = if only {
+                        Some(vec![name.to_owned()])
+                    } else {
+                        None
+                    };
                     add_diagnostic(
                         type_parameter,
                         UnusedKind::Parameter,
@@ -509,7 +519,7 @@ impl TypeChecker {
                         create_diagnostic_for_node(
                             type_parameter,
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
-                            Some(vec![name]),
+                            Some(vec![name.to_owned()]),
                         )
                         .into(),
                     ),
@@ -692,7 +702,7 @@ impl TypeChecker {
                                                 name,
                                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
                                                 Some(vec![
-                                                    symbol_name(local)
+                                                    symbol_name(local).into_owned()
                                                 ])
                                             ).into()
                                         )
@@ -739,7 +749,9 @@ impl TypeChecker {
                         create_diagnostic_for_node(
                             &import_decl,
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
-                            Some(vec![id_text(&first(unuseds).as_named_declaration().name())]),
+                            Some(vec![
+                                id_text(&first(unuseds).as_named_declaration().name()).to_owned()
+                            ]),
                         )
                         .into()
                     } else {
@@ -790,9 +802,11 @@ impl TypeChecker {
                             create_diagnostic_for_node(
                                 binding_pattern,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
-                                Some(vec![self.binding_name_text(
-                                    &first(binding_elements).as_binding_element().name(),
-                                )]),
+                                Some(vec![self
+                                    .binding_name_text(
+                                        &first(binding_elements).as_binding_element().name(),
+                                    )
+                                    .into_owned()]),
                             )
                             .into()
                         } else {
@@ -814,7 +828,9 @@ impl TypeChecker {
                             create_diagnostic_for_node(
                                 e,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
-                                Some(vec![self.binding_name_text(&e.as_binding_element().name())]),
+                                Some(vec![self
+                                    .binding_name_text(&e.as_binding_element().name())
+                                    .into_owned()]),
                             )
                             .into(),
                         ),
@@ -836,9 +852,11 @@ impl TypeChecker {
                         create_diagnostic_for_node(
                             &first(declarations).as_variable_declaration().name(),
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
-                            Some(vec![self.binding_name_text(
-                                &first(declarations).as_variable_declaration().name(),
-                            )]),
+                            Some(vec![self
+                                .binding_name_text(
+                                    &first(declarations).as_variable_declaration().name(),
+                                )
+                                .into_owned()]),
                         )
                         .into()
                     } else {
@@ -863,9 +881,9 @@ impl TypeChecker {
                             create_diagnostic_for_node(
                                 decl,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
-                                Some(vec![
-                                    self.binding_name_text(&decl.as_variable_declaration().name())
-                                ]),
+                                Some(vec![self
+                                    .binding_name_text(&decl.as_variable_declaration().name())
+                                    .into_owned()]),
                             )
                             .into(),
                         ),
@@ -875,9 +893,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn binding_name_text(&self, name: &Node /*BindingName*/) -> String {
+    pub(super) fn binding_name_text<'name>(
+        &self,
+        name: &'name Node, /*BindingName*/
+    ) -> Cow<'name, str> {
         match name.kind() {
-            SyntaxKind::Identifier => id_text(name),
+            SyntaxKind::Identifier => id_text(name).into(),
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => self
                 .binding_name_text(
                     &*cast_present(
@@ -886,7 +907,9 @@ impl TypeChecker {
                     )
                     .as_binding_element()
                     .name(),
-                ),
+                )
+                .into_owned()
+                .into(),
             _ => Debug_.assert_never(name, None),
         }
     }
@@ -980,7 +1003,7 @@ impl TypeChecker {
         }
         let identifier = identifier.unwrap();
         let identifier: &Node = identifier.borrow();
-        if !identifier.as_identifier().escaped_text.eq_str(name) {
+        if identifier.as_identifier().escaped_text != name {
             return false;
         }
 

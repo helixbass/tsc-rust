@@ -929,10 +929,10 @@ impl TypeChecker {
                 }
                 let effective_name = effective_name.unwrap();
 
-                let existing_kind = seen.get(&effective_name).copied();
+                let existing_kind = seen.get(&*effective_name).copied();
                 match existing_kind {
                     None => {
-                        seen.insert(effective_name, current_kind);
+                        seen.insert(effective_name.into_owned(), current_kind);
                     }
                     Some(existing_kind) => {
                         if current_kind.intersects(DeclarationMeaning::PropertyAssignmentOrMethod)
@@ -950,7 +950,10 @@ impl TypeChecker {
                             if existing_kind != DeclarationMeaning::GetOrSetAccessor
                                 && current_kind != existing_kind
                             {
-                                seen.insert(effective_name, current_kind | existing_kind);
+                                seen.insert(
+                                    effective_name.into_owned(),
+                                    current_kind | existing_kind,
+                                );
                             } else {
                                 return self.grammar_error_on_node(
                                     &name,

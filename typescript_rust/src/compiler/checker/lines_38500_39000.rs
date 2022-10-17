@@ -378,7 +378,8 @@ impl TypeChecker {
             has_syntactic_modifier(member, ModifierFlags::Override)
         };
 
-        let member_name = unescape_leading_underscores(&get_text_of_property_name(&member_name));
+        let text_of_property_name = get_text_of_property_name(&member_name);
+        let member_name = unescape_leading_underscores(&text_of_property_name);
 
         self.check_member_for_override_modifier(
             node,
@@ -673,7 +674,7 @@ impl TypeChecker {
         }
         let mut seen: HashMap<__String, Rc<Symbol>> = HashMap::new();
         for_each(properties, |p: &Rc<Symbol>, _| -> Option<()> {
-            seen.insert(p.escaped_name().clone(), p.clone());
+            seen.insert(p.escaped_name().to_owned(), p.clone());
             None
         });
 
@@ -719,7 +720,7 @@ impl TypeChecker {
                 .as_ref(),
             |p: &Rc<Symbol>, _| -> Option<()> {
                 seen.insert(
-                    p.escaped_name().clone(),
+                    p.escaped_name().to_owned(),
                     InheritanceInfoMap {
                         prop: p.clone(),
                         containing_type: type_.type_wrapper(),
@@ -742,7 +743,7 @@ impl TypeChecker {
                 match existing {
                     None => {
                         seen.insert(
-                            prop.escaped_name().clone(),
+                            prop.escaped_name().to_owned(),
                             InheritanceInfoMap {
                                 prop: prop.clone(),
                                 containing_type: base.clone(),

@@ -853,7 +853,7 @@ pub trait SymbolInterface {
     fn set_symbol_wrapper(&self, wrapper: Rc<Symbol>);
     fn flags(&self) -> SymbolFlags;
     fn set_flags(&self, flags: SymbolFlags);
-    fn escaped_name(&self) -> &__String;
+    fn escaped_name(&self) -> &str /*__String*/;
     fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>>;
     fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>>;
     fn set_declarations(&self, declarations: Vec<Rc<Node>>);
@@ -989,7 +989,7 @@ impl SymbolInterface for BaseSymbol {
         self.flags.set(flags);
     }
 
-    fn escaped_name(&self) -> &__String {
+    fn escaped_name(&self) -> &str /*__String*/ {
         &self.escaped_name
     }
 

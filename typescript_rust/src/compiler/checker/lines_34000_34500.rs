@@ -97,7 +97,7 @@ impl TypeChecker {
                     .name()
                     .as_identifier()
                     .escaped_text
-                    .eq_str("constructor")
+                    == "constructor"
             {
                 self.error(
                     Some(node_as_parameter_declaration.name()),
@@ -138,11 +138,7 @@ impl TypeChecker {
                 self.error(
                     Some(node),
                     &Diagnostics::A_0_parameter_must_be_the_first_parameter,
-                    Some(vec![node_name
-                        .as_identifier()
-                        .escaped_text
-                        .clone()
-                        .into_string()]),
+                    Some(vec![node_name.as_identifier().escaped_text.clone()]),
                 );
             }
             if matches!(
@@ -311,10 +307,7 @@ impl TypeChecker {
 
             let name = element.as_named_declaration().name();
             if name.kind() == SyntaxKind::Identifier
-                && name
-                    .as_identifier()
-                    .escaped_text
-                    .eq_str(predicate_variable_name)
+                && name.as_identifier().escaped_text == predicate_variable_name
             {
                 self.error(
                     Some(predicate_variable_node),
@@ -569,7 +562,7 @@ impl TypeChecker {
         &self,
         names: &mut HashMap<__String, DeclarationMeaning>,
         location: &Node,
-        name: &__String,
+        name: &str, /*__String*/
         meaning: DeclarationMeaning,
     ) {
         let prev = names.get(name);
@@ -602,11 +595,11 @@ impl TypeChecker {
                         Some(vec![get_text_of_node(location, None).into_owned()]),
                     );
                 } else {
-                    names.insert(name.clone(), *prev | meaning);
+                    names.insert(name.to_owned(), *prev | meaning);
                 }
             }
         } else {
-            names.insert(name.clone(), meaning);
+            names.insert(name.to_owned(), meaning);
         }
     }
 
@@ -635,7 +628,7 @@ impl TypeChecker {
                             self.error(
                                 Some(&**member_name_node),
                                 message,
-                                Some(vec![member_name.into_string(), class_name]),
+                                Some(vec![member_name.into_owned(), class_name]),
                             );
                         }
                     }
@@ -658,7 +651,7 @@ impl TypeChecker {
                         member_name = name.as_literal_like_node().text().clone();
                     }
                     SyntaxKind::Identifier => {
-                        member_name = id_text(&name);
+                        member_name = id_text(&name).to_owned();
                     }
                     _ => {
                         continue;

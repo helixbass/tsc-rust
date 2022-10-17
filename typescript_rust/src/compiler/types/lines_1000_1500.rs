@@ -244,8 +244,8 @@ impl Identifier {
 }
 
 impl MemberNameInterface for Identifier {
-    fn escaped_text(&self) -> __String {
-        self.escaped_text.clone()
+    fn escaped_text(&self) -> &str /*__String*/ {
+        &self.escaped_text
     }
 }
 
@@ -313,7 +313,7 @@ impl HasLeftAndRightInterface for QualifiedName {
 }
 
 pub trait MemberNameInterface: NodeInterface {
-    fn escaped_text(&self) -> __String;
+    fn escaped_text(&self) -> &str /*__String*/;
 }
 
 pub trait NamedDeclarationInterface: NodeInterface {
@@ -466,8 +466,8 @@ impl PrivateIdentifier {
 }
 
 impl MemberNameInterface for PrivateIdentifier {
-    fn escaped_text(&self) -> __String {
-        self.escaped_text.clone()
+    fn escaped_text(&self) -> &str /*__String*/ {
+        &self.escaped_text
     }
 }
 

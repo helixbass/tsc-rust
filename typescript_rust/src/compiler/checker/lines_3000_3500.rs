@@ -259,9 +259,10 @@ impl TypeChecker {
                     .maybe_exports()
                     .as_ref()
                     .and_then(|exports| {
-                        RefCell::borrow(exports)
-                            .get(&InternalSymbolName::ExportEquals())
-                            .map(Clone::clone)
+                        (**exports)
+                            .borrow()
+                            .get(InternalSymbolName::ExportEquals)
+                            .cloned()
                     })
                     .unwrap_or_else(|| target.symbol_wrapper());
                 let type_only =
@@ -633,7 +634,7 @@ impl TypeChecker {
                                 &Diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
                                 Some(vec![
                                     self.symbol_to_string_(&exported_type_symbol, Option::<&Node>::None, None, None, None),
-                                    unescape_leading_underscores(&name.parent().as_qualified_name().right.as_identifier().escaped_text)
+                                    unescape_leading_underscores(&name.parent().as_qualified_name().right.as_identifier().escaped_text).to_owned()
                                 ])
                             );
                             return None;

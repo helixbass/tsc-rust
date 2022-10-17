@@ -48,7 +48,7 @@ impl TypeChecker {
         let result: Rc<Symbol> = self
             .create_symbol(
                 flags,
-                prop.escaped_name().clone(),
+                prop.escaped_name().to_owned(),
                 Some(
                     self.get_is_late_check_flag(prop)
                         | if readonly {
@@ -330,11 +330,7 @@ impl TypeChecker {
         let type_: Rc<Type> = UniqueESSymbolType::new(
             type_,
             symbol.symbol_wrapper(),
-            __String::new(format!(
-                "__@{}@{}",
-                &**symbol.escaped_name(), // TODO: should just implement Display on __String
-                get_symbol_id(symbol)
-            )),
+            format!("__@{}@{}", symbol.escaped_name(), get_symbol_id(symbol)),
         )
         .into();
         type_
@@ -944,7 +940,7 @@ impl TypeChecker {
         }
         let result = self.create_symbol(
             symbol.flags(),
-            symbol.escaped_name().clone(),
+            symbol.escaped_name().to_owned(),
             Some(
                 CheckFlags::Instantiated
                     | get_check_flags(&symbol)

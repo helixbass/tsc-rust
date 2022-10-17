@@ -98,11 +98,7 @@ impl BinderType {
                         .maybe_common_js_module_indicator()
                         .is_some()
                     && is_module_exports_access_expression(expr)
-                    && lookup_symbol_for_name(
-                        &self.block_scope_container(),
-                        &__String::new("module".to_owned()),
-                    )
-                    .is_none()
+                    && lookup_symbol_for_name(&self.block_scope_container(), "module").is_none()
                 {
                     self.declare_symbol(
                         &mut self.file().locals().borrow_mut(),
@@ -458,7 +454,11 @@ impl BinderType {
         &self,
         node: &Node, /*TypeLiteralNode | MappedTypeNode | JSDocTypeLiteral*/
     ) -> Rc<Symbol> {
-        self.bind_anonymous_declaration(node, SymbolFlags::TypeLiteral, InternalSymbolName::Type())
+        self.bind_anonymous_declaration(
+            node,
+            SymbolFlags::TypeLiteral,
+            InternalSymbolName::Type.to_owned(),
+        )
     }
 
     pub(super) fn bind_source_file_if_external_module(&self) {
@@ -486,10 +486,10 @@ impl BinderType {
         self.bind_anonymous_declaration(
             &self.file(),
             SymbolFlags::ValueModule,
-            __String::new(format!(
+            format!(
                 "\"{}\"",
                 remove_file_extension(&self.file().as_source_file().file_name())
-            )),
+            ),
         );
     }
 
@@ -499,7 +499,7 @@ impl BinderType {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::Value,
-                self.get_declaration_name(node).unwrap(),
+                self.get_declaration_name(node).unwrap().into_owned(),
             );
         } else {
             let flags = if export_assignment_is_alias(node) {
@@ -581,7 +581,7 @@ impl BinderType {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::ExportStar,
-                self.get_declaration_name(node).unwrap(),
+                self.get_declaration_name(node).unwrap().into_owned(),
             );
         } else if node_as_export_declaration.export_clause.is_none() {
             self.declare_symbol(

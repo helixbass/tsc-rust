@@ -493,9 +493,13 @@ impl Printer {
         node
     }
 
-    pub(super) fn get_text_of_node(&self, node: &Node, include_trivia: Option<bool>) -> String {
+    pub(super) fn get_text_of_node<'node>(
+        &self,
+        node: &'node Node,
+        include_trivia: Option<bool>,
+    ) -> Cow<'node, str> {
         if is_generated_identifier(node) {
-            return self.generate_name(node);
+            return self.generate_name(node).into();
         } else if (is_identifier(node) || is_private_identifier(node))
             && (node_is_synthesized(node)
                 || node.maybe_parent().is_none()
@@ -512,7 +516,7 @@ impl Printer {
                         )
                     ))
         {
-            return id_text(node);
+            return id_text(node).into();
         } else if node.kind() == SyntaxKind::StringLiteral
             && node.as_string_literal().text_source_node.is_some()
         {
@@ -523,11 +527,10 @@ impl Printer {
         } else if is_literal_expression(node)
             && (node_is_synthesized(node) || node.maybe_parent().is_none())
         {
-            return node.as_literal_like_node().text().clone();
+            return node.as_literal_like_node().text().clone().into();
         }
 
         get_source_text_of_node_from_source_file(&self.current_source_file(), node, include_trivia)
-            .into_owned()
     }
 
     pub(super) fn get_literal_text_of_node(
@@ -540,7 +543,7 @@ impl Printer {
             if let Some(text_source_node) = node.as_string_literal().text_source_node.as_ref() {
                 if is_identifier(text_source_node) || is_numeric_literal(text_source_node) {
                     let text = if is_numeric_literal(text_source_node) {
-                        text_source_node.as_numeric_literal().text().clone()
+                        text_source_node.as_numeric_literal().text().clone().into()
                     } else {
                         self.get_text_of_node(text_source_node, None)
                     };

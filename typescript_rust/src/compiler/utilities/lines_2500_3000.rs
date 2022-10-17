@@ -206,7 +206,7 @@ pub fn is_jsdoc_construct_signature(node: &Node) -> bool {
         return false;
     }
     let name = name.unwrap();
-    name.as_identifier().escaped_text.eq_str("new")
+    name.as_identifier().escaped_text == "new"
 }
 
 pub fn is_jsdoc_type_alias(node: &Node) -> bool {

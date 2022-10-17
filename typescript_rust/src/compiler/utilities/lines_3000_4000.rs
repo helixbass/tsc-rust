@@ -389,40 +389,50 @@ pub fn is_dynamic_name(name: &Node /*DeclarationName*/) -> bool {
     !is_string_or_numeric_literal_like(&expr) && !is_signed_numeric_literal(&expr)
 }
 
-pub fn get_property_name_for_property_name_node(name: &Node, /*PropertyName*/) -> Option<__String> {
+pub fn get_property_name_for_property_name_node<'name>(
+    name: &'name Node, /*PropertyName*/
+) -> Option<Cow<'name, str> /*__String*/> {
     match name.kind() {
-        SyntaxKind::Identifier => Some(name.as_identifier().escaped_text.clone()),
-        SyntaxKind::PrivateIdentifier => Some(name.as_private_identifier().escaped_text.clone()),
-        SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral => Some(escape_leading_underscores(
-            &name.as_literal_like_node().text(),
-        )),
+        SyntaxKind::Identifier => Some((&*name.as_identifier().escaped_text).into()),
+        SyntaxKind::PrivateIdentifier => Some((&*name.as_private_identifier().escaped_text).into()),
+        SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral => Some(
+            escape_leading_underscores(&name.as_literal_like_node().text())
+                .into_owned()
+                .into(),
+        ),
         SyntaxKind::ComputedPropertyName => {
             let name_expression = &name.as_computed_property_name().expression;
             if is_string_or_numeric_literal_like(name_expression) {
-                Some(escape_leading_underscores(
-                    &name_expression.as_literal_like_node().text(),
-                ))
+                Some(
+                    escape_leading_underscores(&name_expression.as_literal_like_node().text())
+                        .into_owned()
+                        .into(),
+                )
             } else if is_signed_numeric_literal(name_expression) {
                 let name_expression_as_prefix_unary_expression =
                     name_expression.as_prefix_unary_expression();
                 if name_expression_as_prefix_unary_expression.operator == SyntaxKind::MinusToken {
-                    Some(__String::new(format!(
-                        "{}{}",
-                        token_to_string(name_expression_as_prefix_unary_expression.operator)
-                            .unwrap(),
-                        name_expression_as_prefix_unary_expression
-                            .operand
-                            .as_literal_like_node()
-                            .text()
-                    )))
+                    Some(
+                        format!(
+                            "{}{}",
+                            token_to_string(name_expression_as_prefix_unary_expression.operator)
+                                .unwrap(),
+                            name_expression_as_prefix_unary_expression
+                                .operand
+                                .as_literal_like_node()
+                                .text()
+                        )
+                        .into(),
+                    )
                 } else {
-                    Some(__String::new(
+                    Some(
                         name_expression_as_prefix_unary_expression
                             .operand
                             .as_literal_like_node()
                             .text()
-                            .clone(),
-                    ))
+                            .clone()
+                            .into(),
+                    )
                 }
             } else {
                 None
@@ -442,39 +452,38 @@ pub fn is_property_name_literal(node: &Node) -> bool {
     )
 }
 
-pub fn get_text_of_identifier_or_literal(node: &Node) -> String {
+pub fn get_text_of_identifier_or_literal<'node>(node: &'node Node) -> Cow<'node, str> {
     if is_member_name(node) {
-        id_text(node)
+        id_text(node).into()
     } else {
-        node.as_literal_like_node().text().to_owned()
+        node.as_literal_like_node().text().to_owned().into()
     }
 }
 
-pub fn get_escaped_text_of_identifier_or_literal(node: &Node) -> __String {
+pub fn get_escaped_text_of_identifier_or_literal<'node>(node: &'node Node) -> Cow<'node, str> /*__String*/
+{
     if is_member_name(node) {
-        node.as_member_name().escaped_text()
+        node.as_member_name().escaped_text().into()
     } else {
         escape_leading_underscores(&node.as_literal_like_node().text())
+            .into_owned()
+            .into()
     }
 }
 
 pub fn get_property_name_for_unique_es_symbol(symbol: &Symbol) -> __String {
-    __String::new(format!(
-        "__@{}@{}",
-        get_symbol_id(symbol),
-        symbol.escaped_name().deref()
-    ))
+    format!("__@{}@{}", get_symbol_id(symbol), symbol.escaped_name())
 }
 
 pub fn get_symbol_name_for_private_identifier(
     containing_class_symbol: &Symbol,
-    description: &__String,
+    description: &str, /*__String*/
 ) -> __String {
-    __String::new(format!(
+    format!(
         "__#{}@{}",
         get_symbol_id(containing_class_symbol),
-        description.deref()
-    ))
+        description
+    )
 }
 
 pub fn is_known_symbol(symbol: &Symbol) -> bool {
@@ -486,7 +495,7 @@ pub fn is_private_identifier_symbol(symbol: &Symbol) -> bool {
 }
 
 pub fn is_es_symbol_identifier(node: &Node) -> bool {
-    node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text.eq_str("Symbol")
+    node.kind() == SyntaxKind::Identifier && node.as_identifier().escaped_text == "Symbol"
 }
 
 pub fn is_push_or_unshift_identifier(node: &Node /*Identifier*/) -> bool {

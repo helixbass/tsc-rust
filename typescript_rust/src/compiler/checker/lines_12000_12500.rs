@@ -63,7 +63,7 @@ impl TypeChecker {
     pub(super) fn create_union_or_intersection_property(
         &self,
         containing_type: &Type, /*UnionOrIntersectionType*/
-        name: &__String,
+        name: &str,             /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> Option<Rc<Symbol>> {
         let mut single_prop: Option<Rc<Symbol>> = None;
@@ -294,7 +294,7 @@ impl TypeChecker {
         let result: Rc<Symbol> = self
             .create_symbol(
                 SymbolFlags::Property | optional_flag,
-                name.clone(),
+                name.to_owned(),
                 Some(synthetic_flag | check_flags),
             )
             .into();
@@ -343,7 +343,7 @@ impl TypeChecker {
     pub(super) fn get_union_or_intersection_property(
         &self,
         type_: &Type, /*UnionOrIntersectionType*/
-        name: &__String,
+        name: &str,   /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> Option<Rc<Symbol>> {
         let type_as_union_or_intersection_type = type_.as_union_or_intersection_type_interface();
@@ -383,7 +383,7 @@ impl TypeChecker {
                     property_cache_without_object_function_property_augment
                         .as_mut()
                         .unwrap()
-                        .insert(name.clone(), property.clone());
+                        .insert(name.to_owned(), property.clone());
                 } else {
                     let mut property_cache =
                         type_as_union_or_intersection_type.maybe_property_cache();
@@ -393,7 +393,7 @@ impl TypeChecker {
                     property_cache
                         .as_mut()
                         .unwrap()
-                        .insert(name.clone(), property.clone());
+                        .insert(name.to_owned(), property.clone());
                 };
             }
         }
@@ -403,7 +403,7 @@ impl TypeChecker {
     pub(super) fn get_property_of_union_or_intersection_type(
         &self,
         type_: &Type, /*UnionOrIntersectionType*/
-        name: &__String,
+        name: &str,   /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> Option<Rc<Symbol>> {
         let property = self.get_union_or_intersection_property(
@@ -550,7 +550,7 @@ impl TypeChecker {
     pub(super) fn get_property_of_type_(
         &self,
         type_: &Type,
-        name: &__String,
+        name: &str, /*__String*/
         skip_object_function_property_augment: Option<bool>,
     ) -> Option<Rc<Symbol>> {
         let type_ = self.get_reduced_apparent_type(type_);
@@ -740,7 +740,7 @@ impl TypeChecker {
     pub(super) fn get_applicable_index_info_for_name(
         &self,
         type_: &Type,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> Option<Rc<IndexInfo>> {
         self.get_applicable_index_info(
             type_,
@@ -804,7 +804,7 @@ impl TypeChecker {
         }
         let symbol = self.get_symbol(
             &self.globals(),
-            &__String::new(format!("\"{}\"", module_name)),
+            &format!("\"{}\"", module_name),
             SymbolFlags::ValueModule,
         );
         if symbol.is_some() && with_augmentations {

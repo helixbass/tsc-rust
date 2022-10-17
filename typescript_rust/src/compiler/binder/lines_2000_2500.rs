@@ -64,13 +64,16 @@ impl BinderType {
         let symbol = self
             .create_symbol(
                 SymbolFlags::Signature,
-                self.get_declaration_name(node).unwrap(),
+                self.get_declaration_name(node).unwrap().into_owned(),
             )
             .wrap();
         self.add_declaration_to_symbol(&symbol, node, SymbolFlags::Signature);
 
         let type_literal_symbol = self
-            .create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type())
+            .create_symbol(
+                SymbolFlags::TypeLiteral,
+                InternalSymbolName::Type.to_owned(),
+            )
             .wrap();
         self.add_declaration_to_symbol(&type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let mut type_literal_symbol_members = type_literal_symbol.maybe_members_mut();
@@ -79,7 +82,7 @@ impl BinderType {
             .as_ref()
             .unwrap()
             .borrow_mut()
-            .insert(symbol.escaped_name().clone(), symbol);
+            .insert(symbol.escaped_name().to_owned(), symbol);
     }
 
     pub(super) fn bind_object_literal_expression(
@@ -139,7 +142,7 @@ impl BinderType {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::ObjectLiteral,
-            InternalSymbolName::Object(),
+            InternalSymbolName::Object.to_owned(),
         );
     }
 
@@ -147,7 +150,7 @@ impl BinderType {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::ObjectLiteral,
-            InternalSymbolName::JSXAttributes(),
+            InternalSymbolName::JSXAttributes.to_owned(),
         )
     }
 
@@ -284,7 +287,7 @@ impl BinderType {
                                     .name
                                     .as_member_name()
                                     .escaped_text()
-                                    .eq_str("prototype")
+                                    == "prototype"
                         })
                         .is_some(),
                         false,
@@ -472,11 +475,7 @@ impl BinderType {
     }
 
     pub(super) fn check_private_identifier(&self, node: &Node /*PrivateIdentifier*/) {
-        if node
-            .as_private_identifier()
-            .escaped_text
-            .eq_str("#constructor")
-        {
+        if node.as_private_identifier().escaped_text == "#constructor" {
             let file = self.file();
             let file_as_source_file = file.as_source_file();
             if file_as_source_file.parse_diagnostics().is_empty() {
@@ -574,7 +573,7 @@ impl BinderType {
                             span.start,
                             span.length,
                             self.get_strict_mode_eval_or_arguments_message(context_node),
-                            Some(vec![id_text(identifier)]),
+                            Some(vec![id_text(identifier).to_owned()]),
                         )
                         .into(),
                     ));

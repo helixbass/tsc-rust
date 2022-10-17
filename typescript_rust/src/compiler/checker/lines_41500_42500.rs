@@ -521,7 +521,7 @@ impl TypeChecker {
 
     pub(super) fn has_global_name(&self, name: &str) -> bool {
         self.globals()
-            .contains_key(&escape_leading_underscores(name))
+            .contains_key(&*escape_leading_underscores(name))
     }
 
     pub(super) fn get_referenced_value_symbol(
@@ -760,10 +760,7 @@ impl TypeChecker {
                 continue;
             }
             if !is_external_or_common_js_module(file) {
-                let file_global_this_symbol = (*file.locals())
-                    .borrow()
-                    .get(&__String::new("globalThis".to_owned()))
-                    .cloned();
+                let file_global_this_symbol = (*file.locals()).borrow().get("globalThis").cloned();
                 if let Some(ref file_global_this_symbol_declarations) = file_global_this_symbol
                     .as_ref()
                     .and_then(|file_global_this_symbol| {
@@ -858,7 +855,7 @@ impl TypeChecker {
             .type_ = Some(self.undefined_widening_type());
         self.get_symbol_links(&self.arguments_symbol())
             .borrow_mut()
-            .type_ = self.get_global_type(&__String::new("IArguments".to_owned()), 0, true);
+            .type_ = self.get_global_type("IArguments", 0, true);
         self.get_symbol_links(&self.unknown_symbol())
             .borrow_mut()
             .type_ = Some(self.error_type());
@@ -869,15 +866,12 @@ impl TypeChecker {
                 .into(),
         );
 
-        *self.global_array_type.borrow_mut() =
-            self.get_global_type(&__String::new("Array".to_owned()), 1, true);
-        *self.global_object_type.borrow_mut() =
-            self.get_global_type(&__String::new("Object".to_owned()), 0, true);
-        *self.global_function_type.borrow_mut() =
-            self.get_global_type(&__String::new("Function".to_owned()), 0, true);
+        *self.global_array_type.borrow_mut() = self.get_global_type("Array", 1, true);
+        *self.global_object_type.borrow_mut() = self.get_global_type("Object", 0, true);
+        *self.global_function_type.borrow_mut() = self.get_global_type("Function", 0, true);
         *self.global_callable_function_type.borrow_mut() = Some(
             if self.strict_bind_call_apply {
-                self.get_global_type(&__String::new("CallableFunction".to_owned()), 0, true)
+                self.get_global_type("CallableFunction", 0, true)
             } else {
                 None
             }
@@ -885,20 +879,16 @@ impl TypeChecker {
         );
         *self.global_newable_function_type.borrow_mut() = Some(
             if self.strict_bind_call_apply {
-                self.get_global_type(&__String::new("NewableFunction".to_owned()), 0, true)
+                self.get_global_type("NewableFunction", 0, true)
             } else {
                 None
             }
             .unwrap_or_else(|| self.global_function_type()),
         );
-        *self.global_string_type.borrow_mut() =
-            self.get_global_type(&__String::new("String".to_owned()), 0, true);
-        *self.global_number_type.borrow_mut() =
-            self.get_global_type(&__String::new("Number".to_owned()), 0, true);
-        *self.global_boolean_type.borrow_mut() =
-            self.get_global_type(&__String::new("Boolean".to_owned()), 0, true);
-        *self.global_reg_exp_type.borrow_mut() =
-            self.get_global_type(&__String::new("RegExp".to_owned()), 0, true);
+        *self.global_string_type.borrow_mut() = self.get_global_type("String", 0, true);
+        *self.global_number_type.borrow_mut() = self.get_global_type("Number", 0, true);
+        *self.global_boolean_type.borrow_mut() = self.get_global_type("Boolean", 0, true);
+        *self.global_reg_exp_type.borrow_mut() = self.get_global_type("RegExp", 0, true);
         *self.any_array_type.borrow_mut() = Some(self.create_array_type(&self.any_type(), None));
 
         *self.auto_array_type.borrow_mut() = Some(self.create_array_type(&self.auto_type(), None));
@@ -913,7 +903,7 @@ impl TypeChecker {
         }
 
         *self.global_readonly_array_type.borrow_mut() = self
-            .get_global_type_or_undefined(&__String::new("ReadonlyArray".to_owned()), Some(1))
+            .get_global_type_or_undefined("ReadonlyArray", Some(1))
             .or_else(|| self.global_array_type.borrow().clone());
         *self.any_readonly_array_type.borrow_mut() = Some(
             if let Some(global_readonly_array_type) =
@@ -928,7 +918,7 @@ impl TypeChecker {
             },
         );
         *self.global_this_type.borrow_mut() =
-            self.get_global_type_or_undefined(&__String::new("ThisType".to_owned()), Some(1));
+            self.get_global_type_or_undefined("ThisType", Some(1));
 
         if let Some(augmentations) = augmentations.as_ref() {
             for list in augmentations {

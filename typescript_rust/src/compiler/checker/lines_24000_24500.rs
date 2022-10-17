@@ -291,7 +291,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn is_type_presence_possible(
         &self,
         type_: &Type,
-        prop_name: &__String,
+        prop_name: &str, /*__String*/
         assume_true: bool,
     ) -> bool {
         let prop = self
@@ -318,7 +318,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_by_in_keyword(
         &self,
         type_: &Type,
-        name: &__String,
+        name: &str, /*__String*/
         assume_true: bool,
     ) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Union)

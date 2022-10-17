@@ -112,11 +112,7 @@ impl ParserType {
         }
         let node_as_meta_property = node.as_meta_property();
         node_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
-            && node_as_meta_property
-                .name
-                .as_identifier()
-                .escaped_text
-                .eq_str("meta")
+            && node_as_meta_property.name.as_identifier().escaped_text == "meta"
     }
 
     pub fn JSDocParser_parse_jsdoc_type_expression_for_tests(

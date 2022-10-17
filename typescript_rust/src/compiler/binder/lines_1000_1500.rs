@@ -346,7 +346,10 @@ impl BinderType {
         self.set_current_flow(Some(self.unreachable_flow()));
     }
 
-    pub(super) fn find_active_label(&self, name: &__String) -> Option<Rc<ActiveLabel>> {
+    pub(super) fn find_active_label(
+        &self,
+        name: &str, /*__String*/
+    ) -> Option<Rc<ActiveLabel>> {
         let mut label = self.maybe_active_label_list();
         while let Some(label_present) = label {
             if &label_present.name == name {

@@ -441,7 +441,7 @@ impl TypeChecker {
                     }
                 }
             }
-            let type_ = if declaration.symbol().escaped_name() == &InternalSymbolName::This() {
+            let type_ = if declaration.symbol().escaped_name() == InternalSymbolName::This {
                 self.get_contextual_this_parameter_type(&func)
             } else {
                 self.get_contextually_typed_parameter_type(declaration)
@@ -636,7 +636,7 @@ impl TypeChecker {
                                     )),
                                 )
                                 .into(),
-                            access_name,
+                            access_name.to_owned(),
                         )
                         .into()
                 })
@@ -655,7 +655,7 @@ impl TypeChecker {
                                     None,
                                 )
                                 .into(),
-                            access_name,
+                            access_name.to_owned(),
                         )
                         .into()
                 })
@@ -690,7 +690,7 @@ impl TypeChecker {
         symbol: &Symbol,
         static_blocks: &[Rc<Node /*ClassStaticBlockDeclaration*/>],
     ) -> Option<Rc<Type>> {
-        let access_name: StringOrRcNode = if starts_with(&**symbol.escaped_name(), "__#") {
+        let access_name: StringOrRcNode = if starts_with(symbol.escaped_name(), "__#") {
             synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     Into::<Rc<Node>>::into(factory_.create_private_identifier(
@@ -701,7 +701,9 @@ impl TypeChecker {
                 })
             })
         } else {
-            unescape_leading_underscores(symbol.escaped_name()).into()
+            unescape_leading_underscores(symbol.escaped_name())
+                .to_owned()
+                .into()
         };
         for static_block in static_blocks {
             let reference: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
@@ -752,7 +754,7 @@ impl TypeChecker {
         symbol: &Symbol,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> Option<Rc<Type>> {
-        let access_name: StringOrRcNode = if starts_with(&**symbol.escaped_name(), "__#") {
+        let access_name: StringOrRcNode = if starts_with(symbol.escaped_name(), "__#") {
             synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     Into::<Rc<Node>>::into(factory_.create_private_identifier(
@@ -763,7 +765,9 @@ impl TypeChecker {
                 })
             })
         } else {
-            unescape_leading_underscores(symbol.escaped_name()).into()
+            unescape_leading_underscores(symbol.escaped_name())
+                .to_owned()
+                .into()
         };
         let reference: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
             factory.with(|factory_| {
@@ -1114,23 +1118,18 @@ impl TypeChecker {
             }
             let object_lit_type =
                 self.check_expression_cached(&expression.as_call_expression().arguments[2], None);
-            let value_type = self.get_type_of_property_of_type_(
-                &object_lit_type,
-                &__String::new("value".to_owned()),
-            );
+            let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value");
             if let Some(value_type) = value_type {
                 return value_type;
             }
-            let get_func = self
-                .get_type_of_property_of_type_(&object_lit_type, &__String::new("get".to_owned()));
+            let get_func = self.get_type_of_property_of_type_(&object_lit_type, "get");
             if let Some(get_func) = get_func {
                 let get_sig = self.get_single_call_signature(&get_func);
                 if let Some(get_sig) = get_sig {
                     return self.get_return_type_of_signature(get_sig);
                 }
             }
-            let set_func = self
-                .get_type_of_property_of_type_(&object_lit_type, &__String::new("set".to_owned()));
+            let set_func = self.get_type_of_property_of_type_(&object_lit_type, "set");
             if let Some(set_func) = set_func {
                 let set_sig = self.get_single_call_signature(&set_func);
                 if let Some(set_sig) = set_sig {
@@ -1155,7 +1154,7 @@ impl TypeChecker {
         };
         if type_.flags().intersects(TypeFlags::Object)
             && kind == AssignmentDeclarationKind::ModuleExports
-            && symbol.escaped_name() == &InternalSymbolName::ExportEquals()
+            && symbol.escaped_name() == InternalSymbolName::ExportEquals
         {
             let exported_type = self.resolve_structured_type_members(&type_);
             let mut members = create_symbol_table(None);
@@ -1207,13 +1206,13 @@ impl TypeChecker {
                                         &self.error(
                                             Some(&*s_value_declaration),
                                             &Diagnostics::Duplicate_identifier_0,
-                                            Some(vec![unescaped_name.clone()]),
+                                            Some(vec![unescaped_name.to_owned()]),
                                         ),
                                         vec![Rc::new(
                                             create_diagnostic_for_node(
                                                 &exported_member_name,
                                                 &Diagnostics::_0_was_also_declared_here,
-                                                Some(vec![unescaped_name.clone()]),
+                                                Some(vec![unescaped_name.to_owned()]),
                                             )
                                             .into(),
                                         )],
@@ -1222,13 +1221,13 @@ impl TypeChecker {
                                         &self.error(
                                             Some(&*exported_member_name),
                                             &Diagnostics::Duplicate_identifier_0,
-                                            Some(vec![unescaped_name.clone()]),
+                                            Some(vec![unescaped_name.to_owned()]),
                                         ),
                                         vec![Rc::new(
                                             create_diagnostic_for_node(
                                                 &s_value_declaration,
                                                 &Diagnostics::_0_was_also_declared_here,
-                                                Some(vec![unescaped_name.clone()]),
+                                                Some(vec![unescaped_name.to_owned()]),
                                             )
                                             .into(),
                                         )],

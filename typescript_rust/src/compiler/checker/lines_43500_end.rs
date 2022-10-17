@@ -145,7 +145,7 @@ impl TypeChecker {
         let escaped_text = &node_as_meta_property.name.as_identifier().escaped_text;
         match node_as_meta_property.keyword_token {
             SyntaxKind::NewKeyword => {
-                if !escaped_text.eq_str("target") {
+                if escaped_text != "target" {
                     return self.grammar_error_on_node(
                         &node_as_meta_property.name,
                         &Diagnostics::_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2,
@@ -154,8 +154,7 @@ impl TypeChecker {
                                 .name
                                 .as_identifier()
                                 .escaped_text
-                                .clone()
-                                .into_string(),
+                                .clone(),
                             token_to_string(node_as_meta_property.keyword_token)
                                 .unwrap()
                                 .to_owned(),
@@ -165,7 +164,7 @@ impl TypeChecker {
                 }
             }
             SyntaxKind::ImportKeyword => {
-                if !escaped_text.eq_str("meta") {
+                if escaped_text != "meta" {
                     return self.grammar_error_on_node(
                         &node_as_meta_property.name,
                         &Diagnostics::_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2,
@@ -174,8 +173,7 @@ impl TypeChecker {
                                 .name
                                 .as_identifier()
                                 .escaped_text
-                                .clone()
-                                .into_string(),
+                                .clone(),
                             token_to_string(node_as_meta_property.keyword_token)
                                 .unwrap()
                                 .to_owned(),
@@ -901,7 +899,7 @@ impl TypeChecker {
                             (
                                 Box::new(move || type_checker.get_type_of_symbol(&p_clone))
                                     as Box<dyn Fn() -> Rc<Type>>,
-                                p.escaped_name().clone(),
+                                p.escaped_name().to_owned(),
                             )
                         })
                         .collect::<Vec<_>>(),
@@ -1208,48 +1206,15 @@ pub(super) fn is_declaration_name_or_import_property_name(name: &Node) -> bool {
 }
 
 pub(super) mod JsxNames {
-    use crate::__String;
-
-    lazy_static! {
-        pub static ref JSX: __String = __String::new("JSX".to_owned());
-    }
-
-    lazy_static! {
-        pub static ref IntrinsicElements: __String = __String::new("IntrinsicElements".to_owned());
-    }
-
-    lazy_static! {
-        pub static ref ElementClass: __String = __String::new("ElementClass".to_owned());
-    }
-
-    lazy_static! {
-        pub static ref ElementAttributesPropertyNameContainer: __String =
-            __String::new("ElementAttributesProperty".to_owned());
-    }
-
-    lazy_static! {
-        pub static ref ElementChildrenAttributeNameContainer: __String =
-            __String::new("ElementChildrenAttribute".to_owned());
-    }
-
-    lazy_static! {
-        pub static ref Element: __String = __String::new("Element".to_owned());
-    }
-
-    lazy_static! {
-        pub static ref IntrinsicAttributes: __String =
-            __String::new("IntrinsicAttributes".to_owned());
-    }
-
-    lazy_static! {
-        pub static ref IntrinsicClassAttributes: __String =
-            __String::new("IntrinsicClassAttributes".to_owned());
-    }
-
-    lazy_static! {
-        pub static ref LibraryManagedAttributes: __String =
-            __String::new("LibraryManagedAttributes".to_owned());
-    }
+    pub const JSX: &'static str /*__String*/ = "JSX";
+    pub const IntrinsicElements: &'static str /*__String*/ = "IntrinsicElements";
+    pub const ElementClass: &'static str /*__String*/ = "ElementClass";
+    pub const ElementAttributesPropertyNameContainer: &'static str /*__String*/ = "ElementAttributesProperty";
+    pub const ElementChildrenAttributeNameContainer: &'static str /*__String*/ = "ElementChildrenAttribute";
+    pub const Element: &'static str /*__String*/ = "Element";
+    pub const IntrinsicAttributes: &'static str /*__String*/ = "IntrinsicAttributes";
+    pub const IntrinsicClassAttributes: &'static str /*__String*/ = "IntrinsicClassAttributes";
+    pub const LibraryManagedAttributes: &'static str /*__String*/ = "LibraryManagedAttributes";
 }
 
 pub(super) fn get_iteration_types_key_from_iteration_type_kind(

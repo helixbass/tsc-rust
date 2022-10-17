@@ -239,7 +239,7 @@ impl TypeChecker {
                         error_reporter(
                             Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1),
                             Some(vec![
-                                symbol_name(&property),
+                                symbol_name(&property).into_owned(),
                                 self.type_to_string_(
                                     &self.get_declared_type_of_symbol(target_symbol),
                                     Option::<&Node>::None,
@@ -464,7 +464,7 @@ impl TypeChecker {
 
     pub(super) fn is_ignored_jsx_property(&self, source: &Type, source_prop: &Symbol) -> bool {
         get_object_flags(source).intersects(ObjectFlags::JsxAttributes)
-            && self.is_hyphenated_jsx_name(&**source_prop.escaped_name())
+            && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }
 
     pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> Rc<Type> {

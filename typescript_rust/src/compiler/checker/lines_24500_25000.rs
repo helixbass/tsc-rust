@@ -55,11 +55,9 @@ impl GetFlowTypeOfReference {
             return type_.type_wrapper();
         }
 
-        let prototype_property = self.type_checker.get_property_of_type_(
-            &identifier_type,
-            &__String::new("prototype".to_owned()),
-            None,
-        );
+        let prototype_property =
+            self.type_checker
+                .get_property_of_type_(&identifier_type, "prototype", None);
         if prototype_property.is_none() {
             return type_.type_wrapper();
         }
@@ -142,11 +140,9 @@ impl GetFlowTypeOfReference {
         }
 
         let mut target_type: Option<Rc<Type>> = None;
-        let prototype_property = self.type_checker.get_property_of_type_(
-            &right_type,
-            &__String::new("prototype".to_owned()),
-            None,
-        );
+        let prototype_property =
+            self.type_checker
+                .get_property_of_type_(&right_type, "prototype", None);
         if let Some(prototype_property) = prototype_property.as_ref() {
             let prototype_property_type = self.type_checker.get_type_of_symbol(prototype_property);
             if !self
@@ -299,7 +295,7 @@ impl GetFlowTypeOfReference {
                     .name
                     .as_identifier()
                     .escaped_text
-                    .eq_str("hasOwnProperty")
+                    == "hasOwnProperty"
                 && call_expression_as_call_expression.arguments.len() == 1
             {
                 let argument = &call_expression_as_call_expression.arguments[0];

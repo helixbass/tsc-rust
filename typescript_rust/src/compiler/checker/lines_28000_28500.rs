@@ -228,7 +228,7 @@ impl TypeChecker {
 
     pub(super) fn lookup_symbol_for_private_identifier_declaration(
         &self,
-        prop_name: &__String,
+        prop_name: &str, /*__String*/
         location: &Node,
     ) -> Option<Rc<Symbol>> {
         let mut containing_class = get_containing_class(location);
@@ -278,7 +278,7 @@ impl TypeChecker {
             return self.grammar_error_on_node(
                 priv_id,
                 &Diagnostics::Cannot_find_name_0,
-                Some(vec![id_text(priv_id)]),
+                Some(vec![id_text(priv_id).to_owned()]),
             );
         }
         false
@@ -417,7 +417,7 @@ impl TypeChecker {
                     diag_name,
                     self.diagnostic_name(
                         type_class.as_named_declaration().maybe_name().map_or_else(|| {
-                            anon.clone().into()
+                            anon.to_owned().into()
                         }, Into::into)
                     ).into_owned()
                 ])
@@ -496,7 +496,7 @@ impl TypeChecker {
                     right,
                     &Diagnostics::Cannot_assign_to_private_method_0_Private_methods_are_not_writable,
                     Some(vec![
-                        id_text(right)
+                        id_text(right).to_owned()
                     ])
                 );
             }
@@ -616,10 +616,10 @@ impl TypeChecker {
                             self.global_this_symbol().maybe_exports().clone().unwrap();
                         if (*global_this_symbol_exports)
                             .borrow()
-                            .contains_key(&right.as_member_name().escaped_text())
+                            .contains_key(right.as_member_name().escaped_text())
                             && (*global_this_symbol_exports)
                                 .borrow()
-                                .get(&right.as_member_name().escaped_text())
+                                .get(right.as_member_name().escaped_text())
                                 .unwrap()
                                 .flags()
                                 .intersects(SymbolFlags::BlockScoped)
@@ -630,7 +630,8 @@ impl TypeChecker {
                                 Some(vec![
                                     unescape_leading_underscores(
                                         &right.as_member_name().escaped_text(),
-                                    ),
+                                    )
+                                    .to_owned(),
                                     self.type_to_string_(
                                         left_type,
                                         Option::<&Node>::None,
@@ -707,7 +708,7 @@ impl TypeChecker {
                         Some(right),
                         &Diagnostics::Property_0_comes_from_an_index_signature_so_it_must_be_accessed_with_0,
                         Some(vec![
-                            unescape_leading_underscores(&right.as_member_name().escaped_text())
+                            unescape_leading_underscores(&right.as_member_name().escaped_text()).to_owned()
                         ])
                     );
                 }
@@ -746,7 +747,7 @@ impl TypeChecker {
                     self.error(
                         Some(right),
                         &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
-                        Some(vec![id_text(right)]),
+                        Some(vec![id_text(right).to_owned()]),
                     );
                     return self.error_type();
                 }
@@ -947,7 +948,7 @@ impl TypeChecker {
             diagnostic_message = Some(self.error(
                 Some(right),
                 &Diagnostics::Property_0_is_used_before_its_initialization,
-                Some(vec![declaration_name.clone()]),
+                Some(vec![declaration_name.to_owned()]),
             ));
         } else if value_declaration.kind() == SyntaxKind::ClassDeclaration
             && node.parent().kind() != SyntaxKind::TypeReference
@@ -957,7 +958,7 @@ impl TypeChecker {
             diagnostic_message = Some(self.error(
                 Some(right),
                 &Diagnostics::Class_0_used_before_its_declaration,
-                Some(vec![declaration_name.clone()]),
+                Some(vec![declaration_name.to_owned()]),
             ));
         }
 
@@ -968,7 +969,7 @@ impl TypeChecker {
                     create_diagnostic_for_node(
                         &value_declaration,
                         &Diagnostics::_0_is_declared_here,
-                        Some(vec![declaration_name]),
+                        Some(vec![declaration_name.to_owned()]),
                     )
                     .into(),
                 )],
@@ -1155,7 +1156,7 @@ impl TypeChecker {
                         containing_type,
                     );
                     if let Some(suggestion) = suggestion.as_ref() {
-                        let suggested_name = symbol_name(suggestion);
+                        let suggested_name = symbol_name(suggestion).into_owned();
                         let message = if is_unchecked_js {
                             &*Diagnostics::Property_0_may_not_exist_on_type_1_Did_you_mean_2
                         } else {

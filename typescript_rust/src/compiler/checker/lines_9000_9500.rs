@@ -164,7 +164,7 @@ impl TypeChecker {
                     } else {
                         SymbolFlags::None
                     };
-                let symbol: Rc<Symbol> = self.create_symbol(flags, text, None).into();
+                let symbol: Rc<Symbol> = self.create_symbol(flags, text.into_owned(), None).into();
                 symbol
                     .as_transient_symbol()
                     .symbol_links()
@@ -179,7 +179,7 @@ impl TypeChecker {
                     .symbol_links()
                     .borrow_mut()
                     .binding_element = Some(e.clone());
-                members.insert(symbol.escaped_name().clone(), symbol);
+                members.insert(symbol.escaped_name().to_owned(), symbol);
                 Option::<()>::None
             },
         );
@@ -422,11 +422,7 @@ impl TypeChecker {
                     )
                     .unwrap();
                 let result: Rc<Symbol> = self
-                    .create_symbol(
-                        file_symbol.flags(),
-                        __String::new("exports".to_owned()),
-                        None,
-                    )
+                    .create_symbol(file_symbol.flags(), "exports".to_owned(), None)
                     .into();
                 result.set_declarations(
                     file_symbol
@@ -454,7 +450,7 @@ impl TypeChecker {
                     )));
                 }
                 let mut members = create_symbol_table(None);
-                members.insert(__String::new("exports".to_owned()), result);
+                members.insert("exports".to_owned(), result);
                 return self.create_anonymous_type(
                     Some(symbol),
                     Rc::new(RefCell::new(members)),

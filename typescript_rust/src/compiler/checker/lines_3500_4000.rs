@@ -104,9 +104,10 @@ impl TypeChecker {
         let module_symbol_exports = module_symbol.maybe_exports();
         let module_symbol_exports = module_symbol_exports.as_ref()?;
         let export_equals = self.resolve_symbol(
-            RefCell::borrow(module_symbol_exports)
-                .get(&InternalSymbolName::ExportEquals())
-                .map(Clone::clone),
+            (**module_symbol_exports)
+                .borrow()
+                .get(InternalSymbolName::ExportEquals)
+                .cloned(),
             dont_resolve_alias,
         );
         let exported = self.get_common_js_export_equals(
@@ -153,7 +154,7 @@ impl TypeChecker {
         }
         let mut merged_exports = merged_exports.as_ref().unwrap().borrow_mut();
         for (name, s) in &*RefCell::borrow(&module_symbol.exports()) {
-            if name == &InternalSymbolName::ExportEquals() {
+            if name == InternalSymbolName::ExportEquals {
                 continue;
             }
             let value = if merged_exports.contains_key(name) {
@@ -242,7 +243,7 @@ impl TypeChecker {
                     /*sigs &&*/
                     !sigs.is_empty()
                         || self
-                            .get_property_of_type_(&type_, &InternalSymbolName::Default(), None)
+                            .get_property_of_type_(&type_, InternalSymbolName::Default, None)
                             .is_some()
                     {
                         let module_type = self.get_type_with_synthetic_default_import_type(
@@ -270,7 +271,7 @@ impl TypeChecker {
         reference_parent: &Node, /*ImportDeclaration | ImportCall*/
     ) -> Rc<Symbol> {
         let result: Rc<Symbol> = self
-            .create_symbol(symbol.flags(), symbol.escaped_name().clone(), None)
+            .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
             .into();
         result.set_declarations(
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
@@ -314,7 +315,7 @@ impl TypeChecker {
 
     pub(super) fn has_export_assignment_symbol(&self, module_symbol: &Symbol) -> bool {
         RefCell::borrow(&module_symbol.exports())
-            .get(&InternalSymbolName::ExportEquals())
+            .get(InternalSymbolName::ExportEquals)
             .is_some()
     }
 
@@ -372,7 +373,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_member_in_module_exports_(
         &self,
-        member_name: &__String,
+        member_name: &str, /*__String*/
         module_symbol: &Symbol,
     ) -> Option<Rc<Symbol>> {
         let symbol_table = self.get_exports_of_module_(module_symbol);
@@ -386,7 +387,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_member_in_module_exports_and_properties_(
         &self,
-        member_name: &__String,
+        member_name: &str, /*__String*/
         module_symbol: &Symbol,
     ) -> Option<Rc<Symbol>> {
         let symbol = self.try_get_member_in_module_exports_(member_name, module_symbol);
@@ -463,11 +464,11 @@ impl TypeChecker {
         let source = source.unwrap();
         let source = source.borrow();
         for (id, source_symbol) in source {
-            if id == &InternalSymbolName::Default() {
+            if id == InternalSymbolName::Default {
                 continue;
             }
 
-            let target_symbol = target.get(id).map(Clone::clone);
+            let target_symbol = target.get(id).cloned();
             if target_symbol.is_none() {
                 target.insert(id.clone(), source_symbol.clone());
                 if let Some(lookup_table) = lookup_table.as_mut() {
@@ -544,7 +545,7 @@ impl TypeChecker {
         let symbol_exports = symbol_exports.as_ref().unwrap();
         let symbol_exports = RefCell::borrow(&symbol_exports);
         let mut symbols = symbol_exports.clone();
-        let export_stars = symbol_exports.get(&InternalSymbolName::ExportStar());
+        let export_stars = symbol_exports.get(InternalSymbolName::ExportStar);
         if let Some(export_stars) = export_stars {
             let mut nested_symbols = create_symbol_table(None);
             let mut lookup_table = ExportCollisionTrackerTable::new();
@@ -571,7 +572,7 @@ impl TypeChecker {
             for (id, export_collision_tracker) in &lookup_table {
                 let exports_with_duplicate =
                     export_collision_tracker.exports_with_duplicate.as_ref();
-                if id.eq_str("export=")
+                if id == "export="
                     || !matches!(exports_with_duplicate, Some(exports_with_duplicate) if !exports_with_duplicate.is_empty())
                     || symbols.contains_key(id)
                 {
@@ -584,7 +585,7 @@ impl TypeChecker {
                         &Diagnostics::Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambiguity,
                         Some(vec![
                             lookup_table.get(id).unwrap().specifier_text.clone(),
-                            unescape_leading_underscores(id)
+                            unescape_leading_underscores(id).to_owned()
                         ])
                     ).into()));
                 }
@@ -910,8 +911,8 @@ impl TypeChecker {
             .and_then(|file_symbol| file_symbol.maybe_exports().clone())
             .and_then(|exports| {
                 RefCell::borrow(&exports)
-                    .get(&InternalSymbolName::ExportEquals())
-                    .map(Clone::clone)
+                    .get(InternalSymbolName::ExportEquals)
+                    .cloned()
             })?;
         if self
             .get_symbol_if_same_reference(&exported, container)

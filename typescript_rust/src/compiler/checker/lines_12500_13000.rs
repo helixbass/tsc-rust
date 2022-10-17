@@ -139,7 +139,7 @@ impl TypeChecker {
                     param_symbol = resolved_symbol;
                 }
                 let param_symbol = param_symbol.unwrap();
-                if i == 0 && param_symbol.escaped_name() == &InternalSymbolName::This() {
+                if i == 0 && param_symbol.escaped_name() == InternalSymbolName::This {
                     has_this_parameter = true;
                     this_parameter = param.maybe_symbol();
                 } else {
@@ -264,7 +264,7 @@ impl TypeChecker {
         let synthetic_args_symbol: Rc<Symbol> = self
             .create_symbol(
                 SymbolFlags::Variable,
-                __String::new("args".to_owned()),
+                "args".to_owned(),
                 Some(CheckFlags::RestParameter),
             )
             .into();
@@ -542,12 +542,7 @@ impl TypeChecker {
                 } else {
                     TypePredicateKind::Identifier
                 },
-                Some(
-                    parameter_name_as_identifier
-                        .escaped_text
-                        .clone()
-                        .into_string(),
-                ),
+                Some(parameter_name_as_identifier.escaped_text.to_owned()),
                 find_index(
                     signature.parameters(),
                     |p: &Rc<Symbol>, _| {
@@ -962,9 +957,7 @@ impl TypeChecker {
         &self,
         symbol_table: &SymbolTable,
     ) -> Option<Rc<Symbol>> {
-        symbol_table
-            .get(&InternalSymbolName::Index())
-            .map(Clone::clone)
+        symbol_table.get(InternalSymbolName::Index).cloned()
     }
 
     pub(super) fn create_index_info(

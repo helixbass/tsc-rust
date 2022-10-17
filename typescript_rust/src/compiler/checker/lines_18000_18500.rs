@@ -1297,7 +1297,7 @@ impl CheckTypeRelatedTo {
     pub(super) fn get_type_of_property_in_types(
         &self,
         types: &[Rc<Type>],
-        name: &__String,
+        name: &str, /*__String*/
     ) -> Rc<Type> {
         let append_prop_type =
             |mut prop_types: Option<Vec<Rc<Type>>>, type_: &Rc<Type>, _| -> Option<Vec<Rc<Type>>> {

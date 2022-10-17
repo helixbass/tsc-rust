@@ -80,7 +80,7 @@ pub fn create_symbol_table(symbols: Option<&[Rc<Symbol>]>) -> SymbolTable {
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for symbol in symbols {
-            result.insert(symbol.escaped_name().clone(), symbol.clone());
+            result.insert(symbol.escaped_name().to_owned(), symbol.clone());
         }
     }
     result
@@ -1009,7 +1009,7 @@ pub fn is_export_namespace_as_default_declaration(node: &Node) -> bool {
         .name
         .as_identifier()
         .escaped_text
-        .eq_str("default")
+        == "default"
 }
 
 pub fn get_text_of_node_from_source_text(
@@ -1685,16 +1685,22 @@ pub fn is_computed_non_literal_name(name: &Node /*PropertyName*/) -> bool {
         && !is_string_or_numeric_literal_like(&name.as_computed_property_name().expression)
 }
 
-pub fn get_text_of_property_name(
-    name: &Node, /*PropertyName | NoSubstitutionTemplateLiteral*/
-) -> __String {
+pub fn get_text_of_property_name<'name>(
+    name: &'name Node, /*PropertyName | NoSubstitutionTemplateLiteral*/
+) -> Cow<'name, str> /*__String*/ {
     match name.kind() {
-        SyntaxKind::Identifier => name.as_identifier().escaped_text.clone(),
-        SyntaxKind::PrivateIdentifier => name.as_private_identifier().escaped_text.clone(),
-        SyntaxKind::StringLiteral => escape_leading_underscores(&name.as_string_literal().text()),
-        SyntaxKind::NumericLiteral => escape_leading_underscores(&name.as_numeric_literal().text()),
+        SyntaxKind::Identifier => (&*name.as_identifier().escaped_text).into(),
+        SyntaxKind::PrivateIdentifier => (&*name.as_private_identifier().escaped_text).into(),
+        SyntaxKind::StringLiteral => escape_leading_underscores(&name.as_string_literal().text())
+            .into_owned()
+            .into(),
+        SyntaxKind::NumericLiteral => escape_leading_underscores(&name.as_numeric_literal().text())
+            .into_owned()
+            .into(),
         SyntaxKind::NoSubstitutionTemplateLiteral => {
             escape_leading_underscores(&name.as_template_literal_like_node().text())
+                .into_owned()
+                .into()
         }
         SyntaxKind::ComputedPropertyName => {
             let name_as_computed_property_name = name.as_computed_property_name();
@@ -1704,7 +1710,9 @@ pub fn get_text_of_property_name(
                         .expression
                         .as_literal_like_node()
                         .text(),
-                );
+                )
+                .into_owned()
+                .into();
             }
             Debug_.fail(Some(
                 "Text of property name cannot be read from non-literal-valued ComputedPropertyName",
@@ -1714,9 +1722,9 @@ pub fn get_text_of_property_name(
     }
 }
 
-pub fn entity_name_to_string(
-    name: &Node, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
-) -> Cow<'static, str> {
+pub fn entity_name_to_string<'node>(
+    name: &'node Node, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
+) -> Cow<'node, str> {
     match name.kind() {
         SyntaxKind::ThisKeyword => "this".into(),
         SyntaxKind::PrivateIdentifier | SyntaxKind::Identifier => {

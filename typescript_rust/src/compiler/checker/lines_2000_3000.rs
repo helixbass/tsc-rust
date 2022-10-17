@@ -34,7 +34,7 @@ impl TypeChecker {
     pub(super) fn check_symbol_usage_in_expression_context(
         &self,
         symbol: &Symbol,
-        name: &__String,
+        name: &str, /*__String*/
         use_site: &Node,
     ) {
         if !is_valid_type_only_alias_use_site(use_site) {
@@ -47,9 +47,13 @@ impl TypeChecker {
                 };
                 let unescaped_name = unescape_leading_underscores(name);
                 self.add_type_only_declaration_related_info(
-                    self.error(Some(use_site), message, Some(vec![unescaped_name.clone()])),
+                    self.error(
+                        Some(use_site),
+                        message,
+                        Some(vec![unescaped_name.to_owned()]),
+                    ),
                     Some(type_only_declaration),
-                    &unescaped_name,
+                    unescaped_name,
                 );
             }
         }
@@ -133,7 +137,7 @@ impl TypeChecker {
     pub(super) fn diagnostic_name(&self, name_arg: ResolveNameNameArg) -> Cow<'static, str> {
         match name_arg {
             ResolveNameNameArg::__String(name_arg) => {
-                unescape_leading_underscores(&name_arg).into()
+                unescape_leading_underscores(&name_arg).to_owned().into()
             }
             ResolveNameNameArg::Node(name_arg) => declaration_name_to_string(Some(name_arg)),
         }
@@ -171,7 +175,7 @@ impl TypeChecker {
     pub(super) fn check_and_report_error_for_missing_prefix(
         &self,
         error_location: &Node,
-        name: &__String,
+        name: &str, /*__String*/
         name_arg: ResolveNameNameArg,
     ) -> bool {
         if !is_identifier(error_location)
@@ -281,7 +285,7 @@ impl TypeChecker {
     pub(super) fn check_and_report_error_for_using_type_as_namespace(
         &self,
         error_location: &Node,
-        name: &__String,
+        name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> bool {
         let namespace_meaning = SymbolFlags::Namespace
@@ -321,8 +325,8 @@ impl TypeChecker {
                             Some(&*parent),
                             &Diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
                             Some(vec![
-                                unescape_leading_underscores(name),
-                                unescape_leading_underscores(prop_name),
+                                unescape_leading_underscores(name).to_owned(),
+                                unescape_leading_underscores(prop_name).to_owned(),
                             ])
                         );
                         return true;
@@ -331,7 +335,7 @@ impl TypeChecker {
                 self.error(
                     Some(error_location),
                     &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here,
-                    Some(vec![unescape_leading_underscores(name)]),
+                    Some(vec![unescape_leading_underscores(name).to_owned()]),
                 );
                 return true;
             }
@@ -343,7 +347,7 @@ impl TypeChecker {
     pub(super) fn check_and_report_error_for_using_value_as_type(
         &self,
         error_location: &Node,
-        name: &__String,
+        name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> bool {
         if meaning.intersects(SymbolFlags::Type & !SymbolFlags::Namespace) {
@@ -364,7 +368,7 @@ impl TypeChecker {
                 self.error(
                     Some(error_location),
                     &Diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
-                    Some(vec![unescape_leading_underscores(name)])
+                    Some(vec![unescape_leading_underscores(name).to_owned()])
                 );
                 return true;
             }
@@ -372,9 +376,9 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn is_primitive_type_name(&self, name: &__String) -> bool {
+    pub(super) fn is_primitive_type_name(&self, name: &str /*__String*/) -> bool {
         matches!(
-            &**name,
+            name,
             "any" | "string" | "number" | "boolean" | "never" | "unknown"
         )
     }
@@ -382,7 +386,7 @@ impl TypeChecker {
     pub(super) fn check_and_report_error_for_exporting_primitive_type(
         &self,
         error_location: &Node,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> bool {
         if self.is_primitive_type_name(name)
             && error_location.parent().kind() == SyntaxKind::ExportSpecifier
@@ -390,7 +394,7 @@ impl TypeChecker {
             self.error(
                 Some(error_location),
                 &Diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
-                Some(vec![name.clone().into_string()]),
+                Some(vec![name.to_owned()]),
             );
             return true;
         }
@@ -400,7 +404,7 @@ impl TypeChecker {
     pub(super) fn check_and_report_error_for_using_type_as_value(
         &self,
         error_location: &Node,
-        name: &__String,
+        name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> bool {
         if meaning.intersects(SymbolFlags::Value & !SymbolFlags::NamespaceModule) {
@@ -408,7 +412,7 @@ impl TypeChecker {
                 self.error(
                     Some(error_location),
                     &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here,
-                    Some(vec![unescape_leading_underscores(name)]),
+                    Some(vec![unescape_leading_underscores(name).to_owned()]),
                 );
                 return true;
             }
@@ -431,20 +435,20 @@ impl TypeChecker {
                         self.error(
                             Some(error_location),
                             &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_es2015_or_later,
-                            Some(vec![raw_name])
+                            Some(vec![raw_name.to_owned()])
                         );
                     } else if self.maybe_mapped_type(error_location, &symbol) {
                         let second_arg = if raw_name == "K" { "P" } else { "K" };
                         self.error(
                             Some(error_location),
                             &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Did_you_mean_to_use_1_in_0,
-                            Some(vec![raw_name, second_arg.to_owned()])
+                            Some(vec![raw_name.to_owned(), second_arg.to_owned()])
                         );
                     } else {
                         self.error(
                             Some(error_location),
                             &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here,
-                            Some(vec![raw_name]),
+                            Some(vec![raw_name.to_owned()]),
                         );
                     }
                     return true;
@@ -479,9 +483,9 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn is_es2015_or_later_constructor_name(&self, n: &__String) -> bool {
+    pub(super) fn is_es2015_or_later_constructor_name(&self, n: &str /*__String*/) -> bool {
         matches!(
-            &**n,
+            n,
             "Promise" | "Symbol" | "Map" | "WeakMap" | "Set" | "WeakSet"
         )
     }
@@ -489,7 +493,7 @@ impl TypeChecker {
     pub(super) fn check_and_report_error_for_using_namespace_module_as_value(
         &self,
         error_location: &Node,
-        name: &__String,
+        name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> bool {
         if meaning
@@ -511,7 +515,7 @@ impl TypeChecker {
                 self.error(
                     Some(error_location),
                     &Diagnostics::Cannot_use_namespace_0_as_a_value,
-                    Some(vec![unescape_leading_underscores(name)]),
+                    Some(vec![unescape_leading_underscores(name).to_owned()]),
                 );
                 return true;
             }
@@ -534,7 +538,7 @@ impl TypeChecker {
                 self.error(
                     Some(error_location),
                     &Diagnostics::Cannot_use_namespace_0_as_a_type,
-                    Some(vec![unescape_leading_underscores(name)]),
+                    Some(vec![unescape_leading_underscores(name).to_owned()]),
                 );
                 return true;
             }
@@ -799,12 +803,9 @@ impl TypeChecker {
                 &*Diagnostics::_0_was_imported_here
             };
 
+            let type_only_declaration_name = &type_only_declaration.as_named_declaration().name();
             let name = unescape_leading_underscores(
-                &type_only_declaration
-                    .as_named_declaration()
-                    .name()
-                    .as_identifier()
-                    .escaped_text,
+                &type_only_declaration_name.as_identifier().escaped_text,
             );
             add_related_info(
                 &self.error(
@@ -816,7 +817,7 @@ impl TypeChecker {
                     create_diagnostic_for_node(
                         &type_only_declaration,
                         related_message,
-                        Some(vec![name]),
+                        Some(vec![name.to_owned()]),
                     )
                     .into(),
                 )],
@@ -827,13 +828,13 @@ impl TypeChecker {
     pub(super) fn resolve_export_by_name<TSourceNode: Borrow<Node>>(
         &self,
         module_symbol: &Symbol,
-        name: &__String,
+        name: &str, /*__String*/
         source_node: Option<TSourceNode /*TypeOnlyCompatibleAliasDeclaration*/>,
         dont_resolve_alias: bool,
     ) -> Option<Rc<Symbol>> {
         let module_symbol_exports = module_symbol.exports();
         let module_symbol_exports = RefCell::borrow(&module_symbol_exports);
-        let export_value = module_symbol_exports.get(&InternalSymbolName::ExportEquals());
+        let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
         let export_symbol = if let Some(export_value) = export_value {
             self.get_property_of_type(&self.get_type_of_symbol(&export_value), name)
         } else {
@@ -922,7 +923,7 @@ impl TypeChecker {
         } {
             let default_export_symbol = self.resolve_export_by_name(
                 module_symbol,
-                &InternalSymbolName::Default(),
+                InternalSymbolName::Default,
                 Option::<&Node>::None,
                 true,
             );
@@ -983,7 +984,7 @@ impl TypeChecker {
         } else {
             export_default_symbol = self.resolve_export_by_name(
                 &module_symbol,
-                &InternalSymbolName::Default(),
+                InternalSymbolName::Default,
                 Some(node),
                 dont_resolve_alias,
             );
@@ -1016,7 +1017,7 @@ impl TypeChecker {
                 let module_symbol_exports = module_symbol.exports();
                 let module_symbol_exports = RefCell::borrow(&module_symbol_exports);
                 let export_equals_symbol = module_symbol_exports
-                    .get(&InternalSymbolName::ExportEquals())
+                    .get(InternalSymbolName::ExportEquals)
                     .unwrap();
                 let export_assignment = export_equals_symbol.maybe_value_declaration();
                 let err = self.error(
@@ -1100,8 +1101,8 @@ impl TypeChecker {
             );
             let export_star = module_symbol.maybe_exports().as_ref().and_then(|exports| {
                 RefCell::borrow(exports)
-                    .get(&InternalSymbolName::ExportStar())
-                    .map(Clone::clone)
+                    .get(InternalSymbolName::ExportStar)
+                    .cloned()
             });
             if let Some(export_star) = export_star {
                 let default_export = export_star.maybe_declarations().as_deref().and_then(|declarations| {
@@ -1110,10 +1111,10 @@ impl TypeChecker {
                             decl.as_export_declaration().module_specifier.as_ref(),
                             Some(decl_module_specifier) if matches!(
                                 self.resolve_external_module_name_(decl, decl_module_specifier, None).and_then(|resolved| resolved.maybe_exports().as_ref().map(|exports| exports.clone())),
-                                Some(exports) if RefCell::borrow(&exports).contains_key(&InternalSymbolName::Default())
+                                Some(exports) if RefCell::borrow(&exports).contains_key(InternalSymbolName::Default)
                             )
                         )
-                    }).map(Clone::clone)
+                    }).cloned()
                 });
                 if let Some(default_export) = default_export {
                     add_related_info(
@@ -1208,7 +1209,7 @@ impl TypeChecker {
         let result: Rc<Symbol> = self
             .create_symbol(
                 value_symbol.flags() | type_symbol.flags(),
-                value_symbol.escaped_name().clone(),
+                value_symbol.escaped_name().to_owned(),
                 None,
             )
             .into();
@@ -1269,7 +1270,7 @@ impl TypeChecker {
     pub(super) fn get_property_of_variable(
         &self,
         symbol: &Symbol,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> Option<Rc<Symbol>> {
         if symbol.flags().intersects(SymbolFlags::Variable) {
             let type_annotation = symbol
@@ -1315,8 +1316,7 @@ impl TypeChecker {
             return None;
         }
         let name_as_identifier = name.as_identifier();
-        let suppress_interop_error = name_as_identifier.escaped_text
-            == InternalSymbolName::Default()
+        let suppress_interop_error = name_as_identifier.escaped_text == InternalSymbolName::Default
             && (matches!(
                 self.compiler_options.allow_synthetic_default_imports,
                 Some(true)
@@ -1341,8 +1341,8 @@ impl TypeChecker {
                 .as_ref()
                 .and_then(|exports| {
                     RefCell::borrow(exports)
-                        .get(&InternalSymbolName::ExportEquals())
-                        .map(Clone::clone)
+                        .get(InternalSymbolName::ExportEquals)
+                        .cloned()
                 })
                 .is_some()
             {
@@ -1361,7 +1361,7 @@ impl TypeChecker {
             let mut symbol_from_module =
                 self.get_export_of_module(&target_symbol, &name, specifier, dont_resolve_alias);
             if symbol_from_module.is_none()
-                && name_as_identifier.escaped_text == InternalSymbolName::Default()
+                && name_as_identifier.escaped_text == InternalSymbolName::Default
             {
                 let file = module_symbol
                     .maybe_declarations()
@@ -1439,7 +1439,7 @@ impl TypeChecker {
                         );
                     }
                 } else {
-                    if matches!(module_symbol.maybe_exports().as_ref(), Some(exports) if RefCell::borrow(exports).contains_key(&InternalSymbolName::Default()))
+                    if matches!(module_symbol.maybe_exports().as_ref(), Some(exports) if RefCell::borrow(exports).contains_key(InternalSymbolName::Default))
                     {
                         self.error(
                             Some(&*name),
@@ -1489,8 +1489,8 @@ impl TypeChecker {
         if let Some(local_symbol) = local_symbol {
             let exported_equals_symbol = exports.as_ref().and_then(|exports| {
                 RefCell::borrow(exports)
-                    .get(&InternalSymbolName::ExportEquals())
-                    .map(Clone::clone)
+                    .get(InternalSymbolName::ExportEquals)
+                    .cloned()
             });
             if let Some(exported_equals_symbol) = exported_equals_symbol {
                 if self

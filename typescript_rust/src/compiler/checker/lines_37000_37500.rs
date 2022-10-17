@@ -572,7 +572,8 @@ impl TypeChecker {
         if self.is_es2015_or_later_iterable(
             input_type
                 .maybe_symbol()
-                .map(|input_type_symbol| input_type_symbol.escaped_name().clone()),
+                .as_ref()
+                .map(|input_type_symbol| input_type_symbol.escaped_name()),
         ) {
             return (
                 &Diagnostics::Type_0_can_only_be_iterated_through_when_using_the_downlevelIteration_flag_or_with_a_target_of_es2015_or_higher,
@@ -590,9 +591,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn is_es2015_or_later_iterable(&self, n: Option<__String>) -> bool {
+    pub(super) fn is_es2015_or_later_iterable(&self, n: Option<&str /*__String*/>) -> bool {
         if let Some(n) = n {
-            match &*n {
+            match n {
                 "Float32Array" | "Float64Array" | "Int16Array" | "Int32Array" | "Int8Array"
                 | "NodeList" | "Uint16Array" | "Uint32Array" | "Uint8Array"
                 | "Uint8ClampedArray" => {

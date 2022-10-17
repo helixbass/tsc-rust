@@ -173,17 +173,17 @@ impl TypeChecker {
                                 } else {
                                     &*Diagnostics::_0_resolves_to_a_type_only_declaration_and_must_be_imported_using_a_type_only_import_when_preserveValueImports_and_isolatedModules_are_both_enabled
                                 };
-                                let name =
-                                    id_text(&*if node.kind() == SyntaxKind::ImportSpecifier {
-                                        node.as_import_specifier()
-                                            .property_name
-                                            .clone()
-                                            .unwrap_or_else(|| node_name.clone())
-                                    } else {
-                                        node_name.clone()
-                                    });
+                                let name_node = if node.kind() == SyntaxKind::ImportSpecifier {
+                                    node.as_import_specifier()
+                                        .property_name
+                                        .clone()
+                                        .unwrap_or_else(|| node_name.clone())
+                                } else {
+                                    node_name.clone()
+                                };
+                                let name = id_text(&name_node);
                                 self.add_type_only_declaration_related_info(
-                                    self.error(Some(node), message, Some(vec![name.clone()])),
+                                    self.error(Some(node), message, Some(vec![name.to_owned()])),
                                     if is_type {
                                         None
                                     } else {
@@ -211,7 +211,7 @@ impl TypeChecker {
                                         .unwrap_or(&node_as_export_specifier.name),
                                 );
                                 self.add_type_only_declaration_related_info(
-                                    self.error(Some(node), message, Some(vec![name.clone()])),
+                                    self.error(Some(node), message, Some(vec![name.to_owned()])),
                                     if is_type {
                                         None
                                     } else {
@@ -740,7 +740,7 @@ impl TypeChecker {
                     Some(&**exported_name),
                     &Diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
                     Some(vec![
-                        id_text(exported_name)
+                        id_text(exported_name).to_owned()
                     ])
                 );
             } else {
@@ -908,7 +908,7 @@ impl TypeChecker {
 
     pub(super) fn has_exported_members(&self, module_symbol: &Symbol) -> bool {
         for_each_entry_bool(&*(*module_symbol.exports()).borrow(), |_, id| {
-            !id.eq_str("export=")
+            id != "export="
         })
     }
 
@@ -919,10 +919,7 @@ impl TypeChecker {
         let ref module_symbol = self.get_symbol_of_node(node).unwrap();
         let links = self.get_symbol_links(module_symbol);
         if (*links).borrow().exports_checked != Some(true) {
-            let export_equals_symbol = (*module_symbol.exports())
-                .borrow()
-                .get(&__String::new("export=".to_owned()))
-                .cloned();
+            let export_equals_symbol = (*module_symbol.exports()).borrow().get("export=").cloned();
             if let Some(export_equals_symbol) = export_equals_symbol.as_ref() {
                 if self.has_exported_members(module_symbol) {
                     let declaration = self
@@ -946,7 +943,7 @@ impl TypeChecker {
             for (id, symbol) in &*exports {
                 let declarations = symbol.maybe_declarations();
                 let flags = symbol.flags();
-                if id.eq_str("__export") {
+                if id == "__export" {
                     continue;
                 }
                 if flags
@@ -969,7 +966,7 @@ impl TypeChecker {
                                     create_diagnostic_for_node(
                                         declaration,
                                         &Diagnostics::Cannot_redeclare_exported_variable_0,
-                                        Some(vec![unescape_leading_underscores(id)]),
+                                        Some(vec![unescape_leading_underscores(id).to_owned()]),
                                     )
                                     .into(),
                                 ));

@@ -125,7 +125,7 @@ impl TypeChecker {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_be_a_class_or_interface_type,
-                Some(vec![symbol_name(symbol)]),
+                Some(vec![symbol_name(symbol).into_owned()]),
             );
             return if arity != 0 {
                 self.empty_generic_type()
@@ -142,7 +142,7 @@ impl TypeChecker {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                Some(vec![symbol_name(symbol), arity.to_string()]),
+                Some(vec![symbol_name(symbol).into_owned(), arity.to_string()]),
             );
             return if arity != 0 {
                 self.empty_generic_type()
@@ -172,7 +172,7 @@ impl TypeChecker {
 
     pub(super) fn get_global_value_symbol(
         &self,
-        name: &__String,
+        name: &str, /*__String*/
         report_errors: bool,
     ) -> Option<Rc<Symbol>> {
         self.get_global_symbol(
@@ -188,7 +188,7 @@ impl TypeChecker {
 
     pub(super) fn get_global_type_symbol(
         &self,
-        name: &__String,
+        name: &str, /*__String*/
         report_errors: bool,
     ) -> Option<Rc<Symbol>> {
         self.get_global_symbol(
@@ -204,7 +204,7 @@ impl TypeChecker {
 
     pub(super) fn get_global_type_alias_symbol(
         &self,
-        name: &__String,
+        name: &str, /*__String*/
         arity: usize,
         report_errors: bool,
     ) -> Option<Rc<Symbol>> {
@@ -238,7 +238,7 @@ impl TypeChecker {
                 self.error(
                     decl,
                     &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                    Some(vec![symbol_name(symbol), arity.to_string()]),
+                    Some(vec![symbol_name(symbol).into_owned(), arity.to_string()]),
                 );
                 return None;
             }
@@ -248,7 +248,7 @@ impl TypeChecker {
 
     pub(super) fn get_global_symbol(
         &self,
-        name: &__String,
+        name: &str, /*__String*/
         meaning: SymbolFlags,
         diagnostic: Option<&DiagnosticMessage>,
     ) -> Option<Rc<Symbol>> {
@@ -257,7 +257,7 @@ impl TypeChecker {
             name,
             meaning,
             diagnostic,
-            Some(name.clone()),
+            Some(name.to_owned()),
             false,
             None,
         )
@@ -265,7 +265,7 @@ impl TypeChecker {
 
     pub(super) fn get_global_type(
         &self,
-        name: &__String,
+        name: &str, /*__String*/
         arity: usize,
         report_errors: bool,
     ) -> Option<Rc<Type>> {
@@ -283,12 +283,8 @@ impl TypeChecker {
             .is_none()
         {
             *self.maybe_deferred_global_typed_property_descriptor_type() = Some(
-                self.get_global_type(
-                    &__String::new("TypedPropertyDescriptor".to_owned()),
-                    1,
-                    true,
-                )
-                .unwrap_or_else(|| self.empty_generic_type()),
+                self.get_global_type("TypedPropertyDescriptor", 1, true)
+                    .unwrap_or_else(|| self.empty_generic_type()),
             );
         }
         self.maybe_deferred_global_typed_property_descriptor_type()
@@ -302,7 +298,7 @@ impl TypeChecker {
             .is_none()
         {
             *self.maybe_deferred_global_template_strings_array_type() = Some(
-                self.get_global_type(&__String::new("TemplateStringsArray".to_owned()), 0, true)
+                self.get_global_type("TemplateStringsArray", 0, true)
                     .unwrap_or_else(|| self.empty_object_type()),
             );
         }
@@ -314,7 +310,7 @@ impl TypeChecker {
     pub(super) fn get_global_import_meta_type(&self) -> Rc<Type> {
         if self.maybe_deferred_global_import_meta_type().is_none() {
             *self.maybe_deferred_global_import_meta_type() = Some(
-                self.get_global_type(&__String::new("ImportMeta".to_owned()), 0, true)
+                self.get_global_type("ImportMeta", 0, true)
                     .unwrap_or_else(|| self.empty_object_type()),
             );
         }
@@ -329,18 +325,14 @@ impl TypeChecker {
             .is_none()
         {
             let symbol: Rc<Symbol> = self
-                .create_symbol(
-                    SymbolFlags::None,
-                    __String::new("ImportMetaExpression".to_owned()),
-                    None,
-                )
+                .create_symbol(SymbolFlags::None, "ImportMetaExpression".to_owned(), None)
                 .into();
             let import_meta_type = self.get_global_import_meta_type();
 
             let meta_property_symbol: Rc<Symbol> = self
                 .create_symbol(
                     SymbolFlags::Property,
-                    __String::new("meta".to_owned()),
+                    "meta".to_owned(),
                     Some(CheckFlags::Readonly),
                 )
                 .into();
@@ -369,11 +361,8 @@ impl TypeChecker {
             .maybe_deferred_global_import_call_options_type()
             .is_none()
         {
-            *self.maybe_deferred_global_import_call_options_type() = self.get_global_type(
-                &__String::new("ImportCallOptions".to_owned()),
-                0,
-                report_errors,
-            );
+            *self.maybe_deferred_global_import_call_options_type() =
+                self.get_global_type("ImportCallOptions", 0, report_errors);
         }
         self.maybe_deferred_global_import_call_options_type()
             .clone()
@@ -389,7 +378,7 @@ impl TypeChecker {
             .is_none()
         {
             *self.maybe_deferred_global_es_symbol_constructor_symbol() =
-                self.get_global_value_symbol(&__String::new("Symbol".to_owned()), report_errors);
+                self.get_global_value_symbol("Symbol", report_errors);
         }
         self.maybe_deferred_global_es_symbol_constructor_symbol()
             .clone()
@@ -403,11 +392,8 @@ impl TypeChecker {
             .maybe_deferred_global_es_symbol_constructor_type_symbol()
             .is_none()
         {
-            *self.maybe_deferred_global_es_symbol_constructor_type_symbol() = self
-                .get_global_type_symbol(
-                    &__String::new("SymbolConstructor".to_owned()),
-                    report_errors,
-                );
+            *self.maybe_deferred_global_es_symbol_constructor_type_symbol() =
+                self.get_global_type_symbol("SymbolConstructor", report_errors);
         }
         self.maybe_deferred_global_es_symbol_constructor_type_symbol()
             .clone()
@@ -416,7 +402,7 @@ impl TypeChecker {
     pub(super) fn get_global_es_symbol_type(&self, report_errors: bool) -> Rc<Type> {
         if self.maybe_deferred_global_es_symbol_type().is_none() {
             *self.maybe_deferred_global_es_symbol_type() =
-                self.get_global_type(&__String::new("Symbol".to_owned()), 0, report_errors);
+                self.get_global_type("Symbol", 0, report_errors);
         }
         self.maybe_deferred_global_es_symbol_type()
             .clone()
@@ -426,7 +412,7 @@ impl TypeChecker {
     pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/> {
         if self.maybe_deferred_global_promise_type().is_none() {
             *self.maybe_deferred_global_promise_type() =
-                self.get_global_type(&__String::new("Promise".to_owned()), 1, report_errors);
+                self.get_global_type("Promise", 1, report_errors);
         }
         self.maybe_deferred_global_promise_type()
             .clone()
@@ -439,7 +425,7 @@ impl TypeChecker {
     ) -> Rc<Type /*GenericType*/> {
         if self.maybe_deferred_global_promise_like_type().is_none() {
             *self.maybe_deferred_global_promise_like_type() =
-                self.get_global_type(&__String::new("PromiseLike".to_owned()), 1, report_errors);
+                self.get_global_type("PromiseLike", 1, report_errors);
         }
         self.maybe_deferred_global_promise_like_type()
             .clone()
@@ -455,7 +441,7 @@ impl TypeChecker {
             .is_none()
         {
             *self.maybe_deferred_global_promise_constructor_symbol() =
-                self.get_global_value_symbol(&__String::new("Promise".to_owned()), report_errors);
+                self.get_global_value_symbol("Promise", report_errors);
         }
         self.maybe_deferred_global_promise_constructor_symbol()
             .clone()
@@ -469,11 +455,8 @@ impl TypeChecker {
             .maybe_deferred_global_promise_constructor_like_type()
             .is_none()
         {
-            *self.maybe_deferred_global_promise_constructor_like_type() = self.get_global_type(
-                &__String::new("PromiseConstructorLike".to_owned()),
-                0,
-                report_errors,
-            );
+            *self.maybe_deferred_global_promise_constructor_like_type() =
+                self.get_global_type("PromiseConstructorLike", 0, report_errors);
         }
         self.maybe_deferred_global_promise_constructor_like_type()
             .clone()
@@ -483,7 +466,7 @@ impl TypeChecker {
     pub(super) fn get_global_async_iterable_type(&self, report_errors: bool) -> Rc<Type> {
         if self.maybe_deferred_global_async_iterable_type().is_none() {
             *self.maybe_deferred_global_async_iterable_type() =
-                self.get_global_type(&__String::new("AsyncIterable".to_owned()), 1, report_errors);
+                self.get_global_type("AsyncIterable", 1, report_errors);
         }
         self.maybe_deferred_global_async_iterable_type()
             .clone()
@@ -493,7 +476,7 @@ impl TypeChecker {
     pub(super) fn get_global_async_iterator_type(&self, report_errors: bool) -> Rc<Type> {
         if self.maybe_deferred_global_async_iterator_type().is_none() {
             *self.maybe_deferred_global_async_iterator_type() =
-                self.get_global_type(&__String::new("AsyncIterator".to_owned()), 3, report_errors);
+                self.get_global_type("AsyncIterator", 3, report_errors);
         }
         self.maybe_deferred_global_async_iterator_type()
             .clone()
@@ -505,11 +488,8 @@ impl TypeChecker {
             .maybe_deferred_global_async_iterable_iterator_type()
             .is_none()
         {
-            *self.maybe_deferred_global_async_iterable_iterator_type() = self.get_global_type(
-                &__String::new("AsyncIterableIterator".to_owned()),
-                1,
-                report_errors,
-            );
+            *self.maybe_deferred_global_async_iterable_iterator_type() =
+                self.get_global_type("AsyncIterableIterator", 1, report_errors);
         }
         self.maybe_deferred_global_async_iterable_iterator_type()
             .clone()
@@ -518,11 +498,8 @@ impl TypeChecker {
 
     pub(super) fn get_global_async_generator_type(&self, report_errors: bool) -> Rc<Type> {
         if self.maybe_deferred_global_async_generator_type().is_none() {
-            *self.maybe_deferred_global_async_generator_type() = self.get_global_type(
-                &__String::new("AsyncGenerator".to_owned()),
-                3,
-                report_errors,
-            );
+            *self.maybe_deferred_global_async_generator_type() =
+                self.get_global_type("AsyncGenerator", 3, report_errors);
         }
         self.maybe_deferred_global_async_generator_type()
             .clone()
@@ -532,7 +509,7 @@ impl TypeChecker {
     pub(super) fn get_global_iterable_type(&self, report_errors: bool) -> Rc<Type> {
         if self.maybe_deferred_global_iterable_type().is_none() {
             *self.maybe_deferred_global_iterable_type() =
-                self.get_global_type(&__String::new("Iterable".to_owned()), 1, report_errors);
+                self.get_global_type("Iterable", 1, report_errors);
         }
         self.maybe_deferred_global_iterable_type()
             .clone()
@@ -542,7 +519,7 @@ impl TypeChecker {
     pub(super) fn get_global_iterator_type(&self, report_errors: bool) -> Rc<Type> {
         if self.maybe_deferred_global_iterator_type().is_none() {
             *self.maybe_deferred_global_iterator_type() =
-                self.get_global_type(&__String::new("Iterator".to_owned()), 3, report_errors);
+                self.get_global_type("Iterator", 3, report_errors);
         }
         self.maybe_deferred_global_iterator_type()
             .clone()
@@ -554,11 +531,8 @@ impl TypeChecker {
             .maybe_deferred_global_iterable_iterator_type()
             .is_none()
         {
-            *self.maybe_deferred_global_iterable_iterator_type() = self.get_global_type(
-                &__String::new("IterableIterator".to_owned()),
-                1,
-                report_errors,
-            );
+            *self.maybe_deferred_global_iterable_iterator_type() =
+                self.get_global_type("IterableIterator", 1, report_errors);
         }
         self.maybe_deferred_global_iterable_iterator_type()
             .clone()
@@ -568,7 +542,7 @@ impl TypeChecker {
     pub(super) fn get_global_generator_type(&self, report_errors: bool) -> Rc<Type> {
         if self.maybe_deferred_global_generator_type().is_none() {
             *self.maybe_deferred_global_generator_type() =
-                self.get_global_type(&__String::new("Generator".to_owned()), 3, report_errors);
+                self.get_global_type("Generator", 3, report_errors);
         }
         self.maybe_deferred_global_generator_type()
             .clone()
@@ -580,11 +554,8 @@ impl TypeChecker {
             .maybe_deferred_global_iterator_yield_result_type()
             .is_none()
         {
-            *self.maybe_deferred_global_iterator_yield_result_type() = self.get_global_type(
-                &__String::new("IteratorYieldResult".to_owned()),
-                1,
-                report_errors,
-            );
+            *self.maybe_deferred_global_iterator_yield_result_type() =
+                self.get_global_type("IteratorYieldResult", 1, report_errors);
         }
         self.maybe_deferred_global_iterator_yield_result_type()
             .clone()
@@ -596,11 +567,8 @@ impl TypeChecker {
             .maybe_deferred_global_iterator_return_result_type()
             .is_none()
         {
-            *self.maybe_deferred_global_iterator_return_result_type() = self.get_global_type(
-                &__String::new("IteratorReturnResult".to_owned()),
-                1,
-                report_errors,
-            );
+            *self.maybe_deferred_global_iterator_return_result_type() =
+                self.get_global_type("IteratorReturnResult", 1, report_errors);
         }
         self.maybe_deferred_global_iterator_return_result_type()
             .clone()
@@ -609,7 +577,7 @@ impl TypeChecker {
 
     pub(super) fn get_global_type_or_undefined(
         &self,
-        name: &__String,
+        name: &str, /*__String*/
         arity: Option<usize>,
     ) -> Option<Rc<Type /*ObjectType*/>> {
         let arity = arity.unwrap_or(0);
@@ -620,7 +588,7 @@ impl TypeChecker {
     pub(super) fn get_global_extract_symbol(&self) -> Option<Rc<Symbol>> {
         if self.maybe_deferred_global_extract_symbol().is_none() {
             *self.maybe_deferred_global_extract_symbol() = Some(
-                self.get_global_type_alias_symbol(&__String::new("Extract".to_owned()), 2, true)
+                self.get_global_type_alias_symbol("Extract", 2, true)
                     .unwrap_or_else(|| self.unknown_symbol()),
             );
         }
@@ -635,7 +603,7 @@ impl TypeChecker {
     pub(super) fn get_global_omit_symbol(&self) -> Option<Rc<Symbol>> {
         if self.maybe_deferred_global_omit_symbol().is_none() {
             *self.maybe_deferred_global_omit_symbol() = Some(
-                self.get_global_type_alias_symbol(&__String::new("Omit".to_owned()), 2, true)
+                self.get_global_type_alias_symbol("Omit", 2, true)
                     .unwrap_or_else(|| self.unknown_symbol()),
             );
         }
@@ -650,11 +618,7 @@ impl TypeChecker {
     pub(super) fn get_global_awaited_symbol(&self, report_errors: bool) -> Option<Rc<Symbol>> {
         if self.maybe_deferred_global_awaited_symbol().is_none() {
             *self.maybe_deferred_global_awaited_symbol() = self
-                .get_global_type_alias_symbol(
-                    &__String::new("Awaited".to_owned()),
-                    1,
-                    report_errors,
-                )
+                .get_global_type_alias_symbol("Awaited", 1, report_errors)
                 .or_else(|| {
                     if report_errors {
                         Some(self.unknown_symbol())
@@ -674,7 +638,7 @@ impl TypeChecker {
     pub(super) fn get_global_big_int_type(&self, report_errors: bool) -> Rc<Type> {
         if self.maybe_deferred_global_big_int_type().is_none() {
             *self.maybe_deferred_global_big_int_type() =
-                self.get_global_type(&__String::new("BigInt".to_owned()), 0, report_errors);
+                self.get_global_type("BigInt", 0, report_errors);
         }
         self.maybe_deferred_global_big_int_type()
             .clone()
@@ -1054,7 +1018,7 @@ impl TypeChecker {
                                 } else {
                                     SymbolFlags::None
                                 },
-                            __String::new(i.to_string()),
+                            i.to_string(),
                             Some(if readonly {
                                 CheckFlags::Readonly
                             } else {
@@ -1075,11 +1039,7 @@ impl TypeChecker {
         }
         let fixed_length = properties.len();
         let length_symbol: Rc<Symbol> = self
-            .create_symbol(
-                SymbolFlags::Property,
-                __String::new("length".to_owned()),
-                None,
-            )
+            .create_symbol(SymbolFlags::Property, "length".to_owned(), None)
             .into();
         if combined_flags.intersects(ElementFlags::Variable) {
             length_symbol

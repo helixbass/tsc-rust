@@ -644,7 +644,7 @@ impl TypeChecker {
         let mut result = create_symbol_table(None);
         for symbol in symbols {
             result.insert(
-                symbol.escaped_name().clone(),
+                symbol.escaped_name().to_owned(),
                 if mapping_this_only && self.is_thisless(symbol) {
                     symbol.clone()
                 } else {
@@ -664,7 +664,7 @@ impl TypeChecker {
             if !symbols.contains_key(s.escaped_name())
                 && !self.is_static_private_identifier_property(s)
             {
-                symbols.insert(s.escaped_name().clone(), s.clone());
+                symbols.insert(s.escaped_name().to_owned(), s.clone());
             }
         }
     }
@@ -687,13 +687,11 @@ impl TypeChecker {
             type_as_interface_type.set_declared_construct_signatures(vec![]);
             type_as_interface_type.set_declared_index_infos(vec![]);
 
-            type_as_interface_type.set_declared_call_signatures(self.get_signatures_of_symbol(
-                members.get(&InternalSymbolName::Call()).map(Clone::clone),
-            ));
+            type_as_interface_type.set_declared_call_signatures(
+                self.get_signatures_of_symbol(members.get(InternalSymbolName::Call).cloned()),
+            );
             type_as_interface_type.set_declared_construct_signatures(
-                self.get_signatures_of_symbol(
-                    members.get(&InternalSymbolName::New()).map(Clone::clone),
-                ),
+                self.get_signatures_of_symbol(members.get(InternalSymbolName::New).cloned()),
             );
             type_as_interface_type
                 .set_declared_index_infos(self.get_index_infos_of_symbol(&symbol));
@@ -724,11 +722,7 @@ impl TypeChecker {
             })
     }
 
-    pub(super) fn is_late_bound_name(&self, name: &__String) -> bool {
-        let name = &**name;
-        let mut name_chars = name.chars();
-        matches!(name_chars.next(), Some(ch) if ch == CharacterCodes::underscore)
-            && matches!(name_chars.next(), Some(ch) if ch == CharacterCodes::underscore)
-            && matches!(name_chars.next(), Some(ch) if ch == CharacterCodes::at)
+    pub(super) fn is_late_bound_name(&self, name: &str /*__String*/) -> bool {
+        name.starts_with("__@")
     }
 }

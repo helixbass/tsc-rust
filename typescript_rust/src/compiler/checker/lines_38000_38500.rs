@@ -245,7 +245,7 @@ impl TypeChecker {
                                                 block_local_value_declaration,
                                                 &Diagnostics::Cannot_redeclare_identifier_0_in_catch_clause,
                                                 Some(vec![
-                                                    caught_name.clone().into_string()
+                                                    caught_name.clone()
                                                 ])
                                             );
                                         }
@@ -476,7 +476,7 @@ impl TypeChecker {
                 self.error(
                     Some(name),
                     message,
-                    Some(vec![name_as_identifier.escaped_text.clone().into_string()]),
+                    Some(vec![name_as_identifier.escaped_text.clone()]),
                 );
             }
             _ => (),
@@ -485,7 +485,7 @@ impl TypeChecker {
 
     pub(super) fn check_class_name_collision_with_object(&self, name: &Node /*Identifier*/) {
         if self.language_version >= ScriptTarget::ES5
-            && name.as_identifier().escaped_text.eq_str("Object")
+            && name.as_identifier().escaped_text == "Object"
             && (self.module_kind <= ModuleKind::ES2015
                 || get_source_file_of_node(Some(name))
                     .unwrap()

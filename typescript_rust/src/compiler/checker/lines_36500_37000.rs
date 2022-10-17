@@ -195,8 +195,7 @@ impl TypeChecker {
                     .name()
                     .as_identifier()
                     .escaped_text
-                    .clone()
-                    .into_string()]),
+                    .clone()]),
             );
         }
     }

@@ -119,7 +119,7 @@ impl TypeChecker {
         }
         let mut _jsx_namespace = self._jsx_namespace.borrow_mut();
         if _jsx_namespace.is_none() {
-            *_jsx_namespace = Some(__String::new("React".to_owned()));
+            *_jsx_namespace = Some("React".to_owned());
             if let Some(compiler_options_jsx_factory) = self.compiler_options.jsx_factory.as_ref() {
                 let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
                 *_jsx_factory_entity = parse_isolated_entity_name(
@@ -144,7 +144,7 @@ impl TypeChecker {
                 self.compiler_options.react_namespace.as_ref()
             {
                 *_jsx_namespace =
-                    Some(escape_leading_underscores(compiler_options_react_namespace));
+                    Some(escape_leading_underscores(compiler_options_react_namespace).into_owned());
             }
         }
         let _jsx_namespace = _jsx_namespace.clone().unwrap();
@@ -526,7 +526,7 @@ impl TypeChecker {
 
     pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
         let result: Rc<Symbol> = self
-            .create_symbol(symbol.flags(), symbol.escaped_name().clone(), None)
+            .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
             .into();
         result.set_declarations(
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
@@ -953,8 +953,8 @@ impl TypeChecker {
                         .as_ref()
                         .and_then(|exports| {
                             RefCell::borrow(exports)
-                                .get(&InternalSymbolName::ExportStar())
-                                .map(Clone::clone)
+                                .get(InternalSymbolName::ExportStar)
+                                .cloned()
                         })
                         .is_some()
                         && matches!(module_augmentation.symbol().maybe_exports().as_ref(), Some(exports) if !RefCell::borrow(exports).is_empty())
@@ -1004,7 +1004,7 @@ impl TypeChecker {
                             create_diagnostic_for_node(
                                 declaration,
                                 message,
-                                Some(vec![unescape_leading_underscores(id)]),
+                                Some(vec![unescape_leading_underscores(id).to_owned()]),
                             )
                             .into(),
                         ));
@@ -1049,7 +1049,7 @@ impl TypeChecker {
     pub(super) fn get_symbol(
         &self,
         symbols: &SymbolTable,
-        name: &__String,
+        name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
         if meaning != SymbolFlags::None {
@@ -1077,8 +1077,8 @@ impl TypeChecker {
 
     pub(super) fn get_symbols_of_parameter_property_declaration_(
         &self,
-        parameter: &Node, /*ParameterDeclaration*/
-        parameter_name: &__String,
+        parameter: &Node,     /*ParameterDeclaration*/
+        parameter_name: &str, /*__String*/
     ) -> Vec<Rc<Symbol>> {
         let constructor_declaration = parameter.parent();
         let class_declaration = parameter.parent().parent();
@@ -1447,7 +1447,7 @@ impl TypeChecker {
     >(
         &self,
         location: Option<TLocation>,
-        name: &__String,
+        name: &str, /*__String*/
         meaning: SymbolFlags,
         name_not_found_message: Option<&DiagnosticMessage>,
         name_arg: Option<TNameArg>,
@@ -1463,7 +1463,7 @@ impl TypeChecker {
             name_arg,
             is_use,
             exclude_globals,
-            |symbols: &SymbolTable, name: &__String, meaning: SymbolFlags| {
+            |symbols: &SymbolTable, name: &str /*__String*/, meaning: SymbolFlags| {
                 self.get_symbol(symbols, name, meaning)
             },
         )
@@ -1472,11 +1472,11 @@ impl TypeChecker {
     pub(super) fn resolve_name_helper<
         TLocation: Borrow<Node>,
         TNameArg: Into<ResolveNameNameArg> + Clone,
-        TLookup: FnMut(&SymbolTable, &__String, SymbolFlags) -> Option<Rc<Symbol>>,
+        TLookup: FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Rc<Symbol>>,
     >(
         &self,
         location: Option<TLocation>,
-        name: &__String,
+        name: &str, /*__String*/
         meaning: SymbolFlags,
         name_not_found_message: Option<&DiagnosticMessage>,
         name_arg: Option<TNameArg>,
@@ -1608,9 +1608,7 @@ impl TypeChecker {
                                 && location_unwrapped.flags().intersects(NodeFlags::Ambient)
                                 && !is_global_scope_augmentation(&location_unwrapped))
                         {
-                            result = module_exports
-                                .get(&InternalSymbolName::Default())
-                                .map(Clone::clone);
+                            result = module_exports.get(InternalSymbolName::Default).cloned();
                             if let Some(result_unwrapped) = result.as_ref() {
                                 let local_symbol =
                                     get_local_symbol_for_export_default(result_unwrapped);
@@ -1634,7 +1632,7 @@ impl TypeChecker {
                         }
 
                         if !should_skip_rest_of_match_arm {
-                            if name != &InternalSymbolName::Default() {
+                            if name != InternalSymbolName::Default {
                                 result = lookup(
                                     &module_exports,
                                     name,
@@ -1799,14 +1797,14 @@ impl TypeChecker {
                     if !(location_unwrapped.kind() == SyntaxKind::ArrowFunction
                         && get_emit_script_target(&self.compiler_options) >= ScriptTarget::ES2015)
                     {
-                        if meaning.intersects(SymbolFlags::Variable) && name.eq_str("arguments") {
+                        if meaning.intersects(SymbolFlags::Variable) && name == "arguments" {
                             result = Some(self.arguments_symbol());
                             break;
                         }
                     }
                 }
                 SyntaxKind::FunctionExpression => {
-                    if meaning.intersects(SymbolFlags::Variable) && name.eq_str("arguments") {
+                    if meaning.intersects(SymbolFlags::Variable) && name == "arguments" {
                         result = Some(self.arguments_symbol());
                         break;
                     }
@@ -1921,7 +1919,7 @@ impl TypeChecker {
                     .as_source_file()
                     .maybe_common_js_module_indicator()
                     .is_some()
-                    && name.eq_str("exports")
+                    && name == "exports"
                     && meaning.intersects(last_location.symbol().flags())
                 {
                     return Some(last_location.symbol());
@@ -2132,7 +2130,7 @@ impl TypeChecker {
                         !matches!(self.compiler_options.allow_umd_global_access, Some(true)),
                         error_location.as_deref().unwrap(),
                         Diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead.clone().into(),
-                        Some(vec![unescape_leading_underscores(name)])
+                        Some(vec![unescape_leading_underscores(name).to_owned()])
                     );
                 }
             }

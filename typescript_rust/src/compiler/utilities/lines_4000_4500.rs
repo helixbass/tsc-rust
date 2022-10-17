@@ -1089,11 +1089,10 @@ pub fn get_all_accessor_declarations(
     } else {
         declarations.into_iter().for_each(|member| {
             if is_accessor(member) && is_static(member) == is_static(accessor) {
-                let member_name =
-                    get_property_name_for_property_name_node(&member.as_named_declaration().name());
-                let accessor_name = get_property_name_for_property_name_node(
-                    &accessor.as_named_declaration().name(),
-                );
+                let member_name = member.as_named_declaration().name();
+                let member_name = get_property_name_for_property_name_node(&member_name);
+                let accessor_name = accessor.as_named_declaration().name();
+                let accessor_name = get_property_name_for_property_name_node(&accessor_name);
                 if member_name == accessor_name {
                     if first_accessor.is_none() {
                         first_accessor = Some(member.clone());

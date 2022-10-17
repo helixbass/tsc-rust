@@ -295,25 +295,29 @@ impl TypeChecker {
                     .as_property_access_expression()
                     .name
                     .as_member_name()
-                    .escaped_text(),
+                    .escaped_text()
+                    .to_owned(),
             )
         } else if access.kind() == SyntaxKind::ElementAccessExpression
             && is_string_or_numeric_literal_like(
                 &access.as_element_access_expression().argument_expression,
             )
         {
-            Some(escape_leading_underscores(
-                &access
-                    .as_element_access_expression()
-                    .argument_expression
-                    .as_literal_like_node()
-                    .text(),
-            ))
+            Some(
+                escape_leading_underscores(
+                    &access
+                        .as_element_access_expression()
+                        .argument_expression
+                        .as_literal_like_node()
+                        .text(),
+                )
+                .into_owned(),
+            )
         } else if access.kind() == SyntaxKind::BindingElement && {
             property_name = self.get_destructuring_property_name(access);
             property_name.is_some()
         } {
-            Some(escape_leading_underscores(property_name.as_ref().unwrap()))
+            Some(escape_leading_underscores(property_name.as_ref().unwrap()).into_owned())
         } else {
             None
         }
@@ -344,7 +348,7 @@ impl TypeChecker {
     pub(super) fn is_discriminant_property<TType: Borrow<Type>>(
         &self,
         type_: Option<TType>,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> bool {
         if let Some(type_) = type_ {
             let type_ = type_.borrow();
@@ -398,7 +402,7 @@ impl TypeChecker {
     pub(super) fn map_types_by_key_property(
         &self,
         types: &[Rc<Type>],
-        name: &__String,
+        name: &str, /*__String*/
     ) -> Option<HashMap<TypeId, Rc<Type>>> {
         let mut map: HashMap<TypeId, Rc<Type>> = HashMap::new();
         let mut count = 0;
@@ -463,7 +467,7 @@ impl TypeChecker {
                 {
                     for_each(&self.get_properties_of_type(t), |p: &Rc<Symbol>, _| {
                         if self.is_unit_type(&self.get_type_of_symbol(p)) {
-                            Some(p.escaped_name().clone())
+                            Some(p.escaped_name().to_owned())
                         } else {
                             None
                         }
@@ -478,7 +482,7 @@ impl TypeChecker {
             *union_type_as_union_type.maybe_key_property_name() = if map_by_key_property.is_some() {
                 key_property_name
             } else {
-                Some(__String::new("".to_owned()))
+                Some("".to_owned())
             };
             *union_type_as_union_type.maybe_constituent_map() = map_by_key_property;
         }
@@ -650,7 +654,7 @@ impl TypeChecker {
             || !resolved_as_resolved_type.construct_signatures().is_empty()
             || (*resolved_as_resolved_type.members())
                 .borrow()
-                .contains_key(&__String::new("bind".to_owned()))
+                .contains_key("bind")
                 && self.is_type_subtype_of(type_, &self.global_function_type());
         ret
     }

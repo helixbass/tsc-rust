@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use regex::{Captures, Regex};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::io;
@@ -72,20 +72,23 @@ pub fn is_property_access_entity_name_expression(node: &Node) -> bool {
         && is_entity_name_expression(&node_as_property_access_expression.expression)
 }
 
-pub fn try_get_property_access_or_identifier_to_string(
-    expr: &Node, /*Expression*/
-) -> Option<String> {
+pub fn try_get_property_access_or_identifier_to_string<'expr>(
+    expr: &'expr Node, /*Expression*/
+) -> Option<Cow<'expr, str>> {
     if is_property_access_expression(expr) {
         let expr_as_property_access_expression = expr.as_property_access_expression();
         let base_str = try_get_property_access_or_identifier_to_string(
             &expr_as_property_access_expression.expression,
         );
         if let Some(base_str) = base_str {
-            return Some(format!(
-                "{}.{}",
-                base_str,
-                entity_name_to_string(&expr_as_property_access_expression.name)
-            ));
+            return Some(
+                format!(
+                    "{}.{}",
+                    base_str,
+                    entity_name_to_string(&expr_as_property_access_expression.name)
+                )
+                .into(),
+            );
         }
     } else if is_element_access_expression(expr) {
         let expr_as_element_access_expression = expr.as_element_access_expression();
@@ -94,20 +97,21 @@ pub fn try_get_property_access_or_identifier_to_string(
         );
         if let Some(base_str) = base_str {
             if is_property_name(&expr_as_element_access_expression.argument_expression) {
-                return Some(format!(
-                    "{}.{}",
-                    base_str,
-                    &*get_property_name_for_property_name_node(
-                        &expr_as_element_access_expression.argument_expression
+                return Some(
+                    format!(
+                        "{}.{}",
+                        base_str,
+                        &*get_property_name_for_property_name_node(
+                            &expr_as_element_access_expression.argument_expression
+                        )
+                        .unwrap()
                     )
-                    .unwrap()
-                ));
+                    .into(),
+                );
             }
         }
     } else if is_identifier(expr) {
-        return Some(unescape_leading_underscores(
-            &expr.as_identifier().escaped_text,
-        ));
+        return Some(unescape_leading_underscores(&expr.as_identifier().escaped_text).into());
     }
     None
 }
@@ -115,7 +119,7 @@ pub fn try_get_property_access_or_identifier_to_string(
 pub fn is_prototype_access(node: &Node) -> bool {
     is_bindable_static_access_expression(node, None)
         && match get_element_or_property_access_name(node) {
-            Some(name) => name.eq_str("prototype"),
+            Some(name) => name == "prototype",
             None => false,
         }
 }

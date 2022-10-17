@@ -500,48 +500,38 @@ pub fn get_parse_tree_node<TNode: Borrow<Node>, TNodeTest: FnOnce(&Node) -> bool
     None
 }
 
-pub fn escape_leading_underscores(identifier: &str) -> __String {
-    let identifier_chars: Vec<char> = identifier.chars().collect();
-    __String::new(
-        if identifier_chars.len() >= 2
-            && identifier_chars[0] == CharacterCodes::underscore
-            && identifier_chars[1] == CharacterCodes::underscore
-        {
-            format!("_{}", identifier)
-        } else {
-            identifier.to_string()
-        },
-    )
-}
-
-pub fn unescape_leading_underscores(identifier: &__String) -> String {
-    let mut chars = identifier.chars();
-    if
-    /*chars.count() >= 3 &&*/
-    matches!(chars.next(), Some(CharacterCodes::underscore))
-        && matches!(chars.next(), Some(CharacterCodes::underscore))
-        && matches!(chars.next(), Some(CharacterCodes::underscore))
-    {
-        identifier.chars().skip(1).collect()
+pub fn escape_leading_underscores<'a>(identifier: &'a str) -> Cow<'a, str> /*__String*/ {
+    if identifier.starts_with("__") {
+        Cow::Owned(format!("_{}", identifier))
     } else {
-        identifier.chars().collect()
+        Cow::Borrowed(identifier)
     }
 }
 
-pub fn id_text(identifier_or_private_name: &Node, /*Identifier | PrivateIdentifier*/) -> String {
-    unescape_leading_underscores(&identifier_or_private_name.as_member_name().escaped_text())
+pub fn unescape_leading_underscores(identifier: &str /*__String*/) -> &str {
+    if identifier.starts_with("___") {
+        &identifier[1..]
+    } else {
+        identifier
+    }
 }
 
-pub fn symbol_name(symbol: &Symbol) -> String {
+pub fn id_text(identifier_or_private_name: &Node /*Identifier | PrivateIdentifier*/) -> &str {
+    unescape_leading_underscores(identifier_or_private_name.as_member_name().escaped_text())
+}
+
+pub fn symbol_name<'symbol>(symbol: &'symbol Symbol) -> Cow<'symbol, str> {
     match symbol.maybe_value_declaration().as_ref() {
         Some(symbol_value_declaration)
             if is_private_identifier_class_element_declaration(&symbol_value_declaration) =>
         {
-            return id_text(&symbol_value_declaration.as_named_declaration().name());
+            return id_text(&symbol_value_declaration.as_named_declaration().name())
+                .to_owned()
+                .into();
         }
         _ => (),
     }
-    unescape_leading_underscores(&symbol.escaped_name())
+    unescape_leading_underscores(symbol.escaped_name()).into()
 }
 
 fn name_for_nameless_jsdoc_typedef(
@@ -1284,7 +1274,7 @@ pub fn is_const_type_reference(node: &Node) -> bool {
             .type_name
             .as_identifier()
             .escaped_text
-            .eq_str("const")
+            == "const"
         && node_as_type_reference_node.maybe_type_arguments().is_none()
 }
 

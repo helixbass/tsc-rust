@@ -421,7 +421,7 @@ impl ParserType {
 
         let mut is_type_only = false;
         if self.token() != SyntaxKind::FromKeyword
-            && matches!(identifier.as_ref(), Some(identifier) if identifier.as_identifier().escaped_text.eq_str("type"))
+            && matches!(identifier.as_ref(), Some(identifier) if identifier.as_identifier().escaped_text == "type")
             && (self.is_identifier()
                 || self.token_after_import_definitely_produces_import_declaration())
         {
@@ -713,7 +713,7 @@ impl ParserType {
             check_identifier_end = self.scanner().get_text_pos();
             self.parse_identifier_name(None)
         };
-        if name.as_identifier().escaped_text.eq_str("type") {
+        if name.as_identifier().escaped_text == "type" {
             if self.token() == SyntaxKind::AsKeyword {
                 let first_as: Rc<Node> = self.parse_identifier_name(None).wrap();
                 if self.token() == SyntaxKind::AsKeyword {

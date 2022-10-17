@@ -32,7 +32,7 @@ impl TypeChecker {
         }
         let export_equals = container.maybe_exports().as_ref().and_then(|exports| {
             RefCell::borrow(exports)
-                .get(&InternalSymbolName::ExportEquals())
+                .get(InternalSymbolName::ExportEquals)
                 .map(Clone::clone)
         });
         if matches!(export_equals, Some(export_equals) if self.get_symbol_if_same_reference(&export_equals, symbol).is_some())
@@ -178,7 +178,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn is_reserved_member_name(&self, name: &__String) -> bool {
+    pub(super) fn is_reserved_member_name(&self, name: &str /*__String*/) -> bool {
         let mut chars = name.chars();
         let mut current_char: Option<char> = chars.next();
         if let Some(current_char) = current_char {
@@ -218,7 +218,11 @@ impl TypeChecker {
             .collect()
     }
 
-    pub(super) fn is_named_member(&self, member: &Symbol, escaped_name: &__String) -> bool {
+    pub(super) fn is_named_member(
+        &self,
+        member: &Symbol,
+        escaped_name: &str, /*__String*/
+    ) -> bool {
         !self.is_reserved_member_name(escaped_name) && self.symbol_is_value(member)
     }
 
@@ -658,9 +662,8 @@ impl TypeChecker {
                 if symbol_from_symbol_table
                     .flags()
                     .intersects(SymbolFlags::Alias)
-                    && symbol_from_symbol_table.escaped_name()
-                        != &InternalSymbolName::ExportEquals()
-                    && symbol_from_symbol_table.escaped_name() != &InternalSymbolName::Default()
+                    && symbol_from_symbol_table.escaped_name() != InternalSymbolName::ExportEquals
+                    && symbol_from_symbol_table.escaped_name() != InternalSymbolName::Default
                     && !(is_umd_export_symbol(Some(&**symbol_from_symbol_table))
                         && matches!(enclosing_declaration, Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(Some(enclosing_declaration)).unwrap())))
                     && (!use_only_external_aliasing

@@ -819,7 +819,7 @@ impl ParserType {
 
         let pos = skip_trivia(self.source_text_as_chars(), node.pos(), None, None, None);
 
-        match expression_text.as_str() {
+        match expression_text {
             "const" | "let" | "var" => {
                 self.parse_error_at(
                     pos,

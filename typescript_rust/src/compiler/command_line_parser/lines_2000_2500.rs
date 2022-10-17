@@ -99,21 +99,21 @@ pub(super) fn convert_object_literal_expression_to_json<
             ));
         }
 
-        let text_of_key = if is_computed_non_literal_name(&element_as_property_assignment.name()) {
+        let element_name = element_as_property_assignment.name();
+        let text_of_key = if is_computed_non_literal_name(&element_name) {
             None
         } else {
-            Some(get_text_of_property_name(
-                &element_as_property_assignment.name(),
-            ))
+            Some(get_text_of_property_name(&element_name))
         };
-        let key_text = text_of_key.map(|text_of_key| unescape_leading_underscores(&text_of_key));
-        let option = match (key_text.as_ref(), known_options) {
+        let text_of_key = text_of_key.as_ref();
+        let key_text = text_of_key.map(|text_of_key| unescape_leading_underscores(text_of_key));
+        let option = match (key_text, known_options) {
             (Some(key_text), Some(known_options)) => {
                 known_options.get(key_text).map(|option| &**option)
             }
             _ => None,
         };
-        if let Some(key_text) = key_text.as_ref() {
+        if let Some(key_text) = key_text {
             if let Some(extra_key_diagnostics) = extra_key_diagnostics {
                 if option.is_none() {
                     if known_options.is_some() {
@@ -139,7 +139,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                                 source_file,
                                 &element_as_property_assignment.name(),
                                 extra_key_diagnostics.unknown_option_diagnostic(),
-                                Some(vec![key_text.clone()]),
+                                Some(vec![key_text.to_owned()]),
                             )
                             .into(),
                         ));
@@ -162,7 +162,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                     result
                         .as_mut()
                         .unwrap()
-                        .insert(key_text.clone(), value.clone());
+                        .insert(key_text.to_owned(), value.clone());
                 }
             }
             if let Some(json_conversion_notifier) = json_conversion_notifier {

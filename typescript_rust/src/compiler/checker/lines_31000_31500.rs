@@ -29,11 +29,11 @@ impl TypeChecker {
                 .name
                 .as_member_name()
                 .escaped_text()
-                .eq_str("for")
+                == "for"
         {
             left = left.as_property_access_expression().expression.clone();
         }
-        if !is_identifier(&left) || !left.as_identifier().escaped_text.eq_str("Symbol") {
+        if !is_identifier(&left) || left.as_identifier().escaped_text != "Symbol" {
             return false;
         }
 
@@ -46,7 +46,7 @@ impl TypeChecker {
         matches!(
             self.resolve_name_(
                 Some(left),
-                &__String::new("Symbol".to_owned()),
+                "Symbol",
                 SymbolFlags::Value,
                 None,
                 Option::<Rc<Node>>::None,
@@ -147,7 +147,11 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let mut member_table = create_symbol_table(None);
         let new_symbol: Rc<Symbol> = self
-            .create_symbol(SymbolFlags::Alias, InternalSymbolName::Default(), None)
+            .create_symbol(
+                SymbolFlags::Alias,
+                InternalSymbolName::Default.to_owned(),
+                None,
+            )
             .into();
         new_symbol.set_parent(Some(original_symbol.symbol_wrapper()));
         {
@@ -156,7 +160,7 @@ impl TypeChecker {
             new_symbol_links.name_type = Some(self.get_string_literal_type("default"));
             new_symbol_links.target = self.resolve_symbol(Some(symbol), None);
         }
-        member_table.insert(InternalSymbolName::Default(), new_symbol);
+        member_table.insert(InternalSymbolName::Default.to_owned(), new_symbol);
         self.create_anonymous_type(
             anonymous_symbol,
             Rc::new(RefCell::new(member_table)),
@@ -219,7 +223,11 @@ impl TypeChecker {
                 );
                 if has_synthetic_default {
                     let anonymous_symbol: Rc<Symbol> = self
-                        .create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type(), None)
+                        .create_symbol(
+                            SymbolFlags::TypeLiteral,
+                            InternalSymbolName::Type.to_owned(),
+                            None,
+                        )
                         .into();
                     let default_containing_object = self
                         .create_default_property_wrapper_for_module(
@@ -540,13 +548,7 @@ impl TypeChecker {
                 .intersects(NodeFlags::PossiblyContainsImportMeta),
             Some("Containing file is missing import meta node flag."),
         );
-        if node
-            .as_meta_property()
-            .name
-            .as_identifier()
-            .escaped_text
-            .eq_str("meta")
-        {
+        if node.as_meta_property().name.as_identifier().escaped_text == "meta" {
             self.get_global_import_meta_type()
         } else {
             self.error_type()
@@ -589,7 +591,7 @@ impl TypeChecker {
                 0
             };
         if pos < param_count {
-            return signature.parameters()[pos].escaped_name().clone();
+            return signature.parameters()[pos].escaped_name().to_owned();
         }
         let rest_parameter = signature
             .parameters()
@@ -610,11 +612,9 @@ impl TypeChecker {
             let index = pos - param_count;
             return associated_names
                 .map(|associated_names| self.get_tuple_element_label(&associated_names[index]))
-                .unwrap_or_else(|| {
-                    __String::new(format!("{}_{}", &**rest_parameter.escaped_name(), index))
-                });
+                .unwrap_or_else(|| format!("{}_{}", rest_parameter.escaped_name(), index));
         }
-        rest_parameter.escaped_name().clone()
+        rest_parameter.escaped_name().to_owned()
     }
 
     pub(super) fn get_parameter_identifier_name_at_position(
@@ -631,7 +631,7 @@ impl TypeChecker {
         if pos < param_count {
             let param = &signature.parameters()[pos];
             return if self.is_parameter_declaration_with_identifier_name(param) {
-                Some((param.escaped_name().clone(), false))
+                Some((param.escaped_name().to_owned(), false))
             } else {
                 None
             };
@@ -670,7 +670,7 @@ impl TypeChecker {
         }
 
         if pos == param_count {
-            return Some((rest_parameter.escaped_name().clone(), true));
+            return Some((rest_parameter.escaped_name().to_owned(), true));
         }
         None
     }

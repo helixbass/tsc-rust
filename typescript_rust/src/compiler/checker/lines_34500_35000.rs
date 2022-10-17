@@ -400,7 +400,7 @@ impl TypeChecker {
                     self.add_deprecated_suggestion(
                         &self.get_deprecated_suggestion_node(node),
                         symbol.maybe_declarations().as_ref().unwrap(),
-                        &**symbol.escaped_name(),
+                        symbol.escaped_name(),
                     );
                 }
                 if type_.flags().intersects(TypeFlags::Enum)
@@ -628,7 +628,7 @@ impl TypeChecker {
                         Some(access_node),
                         &Diagnostics::Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter,
                         Some(vec![
-                            unescape_leading_underscores(property_name)
+                            unescape_leading_underscores(property_name).to_owned()
                         ])
                     );
                     return self.error_type();
@@ -1008,7 +1008,7 @@ impl TypeChecker {
                                         .unwrap_or_else(|| declaration.clone()),
                                 ),
                                 diagnostic,
-                                Some(vec![symbol_name(symbol)]),
+                                Some(vec![symbol_name(symbol).into_owned()]),
                             ),
                             related_diagnostics.clone(),
                         );

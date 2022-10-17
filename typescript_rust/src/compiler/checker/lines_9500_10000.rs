@@ -106,8 +106,8 @@ impl TypeChecker {
                     .get_merged_symbol(
                         (*symbol.exports())
                             .borrow()
-                            .get(&InternalSymbolName::ExportEquals())
-                            .map(Clone::clone),
+                            .get(InternalSymbolName::ExportEquals)
+                            .cloned(),
                     )
                     .unwrap();
                 let type_ = self.get_widened_type_for_assignment_declaration(

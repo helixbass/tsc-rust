@@ -356,7 +356,7 @@ impl TypeChecker {
         let parameter_symbol: Rc<Symbol> = self
             .create_symbol(
                 SymbolFlags::FunctionScopedVariable,
-                __String::new("props".to_owned()),
+                "props".to_owned(),
                 None,
             )
             .into();
@@ -672,7 +672,7 @@ impl TypeChecker {
             .and_then(|assignment_symbol_exports| {
                 (*assignment_symbol_exports)
                     .borrow()
-                    .get(&__String::new("prototype".to_owned()))
+                    .get("prototype")
                     .cloned()
             });
         let init = prototype
@@ -935,8 +935,8 @@ impl TypeChecker {
                 })
         {
             let suggestion_node = self.get_deprecated_suggestion_node(node);
-            let name =
-                try_get_property_access_or_identifier_to_string(&get_invoked_expression(node));
+            let invoked_expression = get_invoked_expression(node);
+            let name = try_get_property_access_or_identifier_to_string(&invoked_expression);
             self.add_deprecated_suggestion_with_signature(
                 &suggestion_node,
                 signature_declaration,

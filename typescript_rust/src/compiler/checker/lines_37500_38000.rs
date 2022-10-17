@@ -243,9 +243,9 @@ impl TypeChecker {
             .as_ref()
             .filter(|unique_type| self.is_type_usable_as_property_name(unique_type))
         {
-            self.get_property_name_from_type(unique_type)
+            self.get_property_name_from_type(unique_type).into_owned()
         } else {
-            __String::new(format!("__@{}", symbol_name))
+            format!("__@{}", symbol_name)
         }
     }
 
@@ -417,7 +417,7 @@ impl TypeChecker {
         kind: IterationTypeKind, /*IterationTypeKind.Yield | IterationTypeKind.Return*/
     ) -> bool {
         let done_type = self
-            .get_type_of_property_of_type_(type_, &__String::new("done".to_owned()))
+            .get_type_of_property_of_type_(type_, "done")
             .unwrap_or_else(|| self.false_type());
         self.is_type_assignable_to(
             &*if kind == IterationTypeKind::Yield {
@@ -473,10 +473,7 @@ impl TypeChecker {
         let yield_iterator_result =
             self.filter_type(type_, |type_| self.is_yield_iterator_result(type_));
         let yield_type = if !Rc::ptr_eq(&yield_iterator_result, &self.never_type()) {
-            self.get_type_of_property_of_type_(
-                &yield_iterator_result,
-                &__String::new("value".to_owned()),
-            )
+            self.get_type_of_property_of_type_(&yield_iterator_result, "value")
         } else {
             None
         };
@@ -484,10 +481,7 @@ impl TypeChecker {
         let return_iterator_result =
             self.filter_type(type_, |type_| self.is_return_iterator_result(type_));
         let return_type = if !Rc::ptr_eq(&return_iterator_result, &self.never_type()) {
-            self.get_type_of_property_of_type_(
-                &return_iterator_result,
-                &__String::new("value".to_owned()),
-            )
+            self.get_type_of_property_of_type_(&return_iterator_result, "value")
         } else {
             None
         };
@@ -518,8 +512,7 @@ impl TypeChecker {
         method_name: &str, /*"next" | "return" | "throw"*/
         error_node: Option<TErrorNode>,
     ) -> Option<Rc<IterationTypes>> {
-        let method =
-            self.get_property_of_type_(type_, &__String::new(method_name.to_owned()), None);
+        let method = self.get_property_of_type_(type_, method_name, None);
 
         if method.is_none() && method_name != "next" {
             return None;
@@ -582,7 +575,7 @@ impl TypeChecker {
                     global_generator_type.maybe_symbol().and_then(|global_generator_type_symbol| {
                         global_generator_type_symbol.maybe_members().clone()
                     }).and_then(|global_generator_type_symbol_members| {
-                        (*global_generator_type_symbol_members).borrow().get(&__String::new(method_name.to_owned())).cloned()
+                        (*global_generator_type_symbol_members).borrow().get(method_name).cloned()
                     }).as_ref(),
                     Some(global_generator_type_symbol_member) if Rc::ptr_eq(
                         global_generator_type_symbol_member,
@@ -594,7 +587,7 @@ impl TypeChecker {
                         global_iterator_type.maybe_symbol().and_then(|global_iterator_type_symbol| {
                             global_iterator_type_symbol.maybe_members().clone()
                         }).and_then(|global_iterator_type_symbol_members| {
-                            (*global_iterator_type_symbol_members).borrow().get(&__String::new(method_name.to_owned())).cloned()
+                            (*global_iterator_type_symbol_members).borrow().get(method_name).cloned()
                         }).as_ref(),
                         Some(global_iterator_type_symbol_member) if Rc::ptr_eq(
                             global_iterator_type_symbol_member,

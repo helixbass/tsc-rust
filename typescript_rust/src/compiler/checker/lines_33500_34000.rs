@@ -509,7 +509,7 @@ impl TypeChecker {
     pub(super) fn has_type_parameter_by_name(
         &self,
         type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> bool {
         some(
             type_parameters,
@@ -520,7 +520,7 @@ impl TypeChecker {
     pub(super) fn get_unique_type_parameter_name(
         &self,
         type_parameters: &[Rc<Type /*TypeParameter*/>],
-        base_name: &__String,
+        base_name: &str, /*__String*/
     ) -> __String {
         let base_name_as_chars = base_name.chars().collect::<Vec<_>>();
         let mut len = base_name_as_chars.len();
@@ -533,7 +533,7 @@ impl TypeChecker {
         let s: String = base_name_as_chars[0..len].into_iter().collect();
         let mut index = 1;
         loop {
-            let augmented_name = __String::new(format!("{}{}", s, index));
+            let augmented_name = format!("{}{}", s, index);
             if !self.has_type_parameter_by_name(Some(type_parameters), &augmented_name) {
                 return augmented_name;
             }

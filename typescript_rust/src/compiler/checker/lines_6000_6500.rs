@@ -81,9 +81,9 @@ impl NodeBuilder {
                         .get_symbol_if_same_reference(ex, symbol)
                         .is_some()
                         && !self.type_checker.is_late_bound_name(name)
-                        && name != &InternalSymbolName::ExportEquals()
+                        && name != InternalSymbolName::ExportEquals
                     {
-                        symbol_name = Some(unescape_leading_underscores(name));
+                        symbol_name = Some(unescape_leading_underscores(name).to_owned());
                         return true;
                     }
                     false
@@ -210,7 +210,7 @@ impl NodeBuilder {
 
     pub(super) fn type_parameter_shadows_name_in_scope(
         &self,
-        escaped_name: &__String,
+        escaped_name: &str, /*__String*/
         context: &NodeBuilderContext,
         type_: &Type, /*TypeParameter*/
     ) -> bool {
@@ -219,7 +219,7 @@ impl NodeBuilder {
             escaped_name,
             SymbolFlags::Type,
             None,
-            Some(escaped_name.clone()),
+            Some(escaped_name.to_owned()),
             false,
             None,
         );
@@ -292,11 +292,8 @@ impl NodeBuilder {
             while matches!(
                 (*context.type_parameter_names_by_text_next_name_count).borrow().as_ref(),
                 Some(context_type_parameter_names_by_text_next_name_count) if context_type_parameter_names_by_text_next_name_count.contains_key(&text)
-            ) || self.type_parameter_shadows_name_in_scope(
-                &__String::new(text.clone()),
-                context,
-                type_,
-            ) {
+            ) || self.type_parameter_shadows_name_in_scope(&text, context, type_)
+            {
                 i += 1;
                 text = format!("{}_{}", rawtext, i);
             }
@@ -616,7 +613,7 @@ impl NodeBuilder {
                 |declaration: &Rc<Node>, _| self.is_string_named(declaration),
             );
         self.create_property_name_node_for_identifier_or_literal(
-            raw_name,
+            raw_name.to_owned(),
             Some(string_named),
             Some(single_quote),
         )
@@ -1296,7 +1293,7 @@ impl NodeBuilder {
                 .type_name
                 .as_identifier()
                 .escaped_text
-                .eq_str("")
+                .is_empty()
         {
             return Some(vec![set_original_node(
                 with_synthetic_factory_and_factory(|synthetic_factory, factory| {
@@ -1397,7 +1394,7 @@ impl NodeBuilder {
                                 let p_as_parameter_declaration = p.as_parameter_declaration();
                                 if matches!(
                                     p_as_parameter_declaration.maybe_name().as_ref(),
-                                    Some(p_name) if is_identifier(p_name) && p_name.as_identifier().escaped_text.eq_str("new"),
+                                    Some(p_name) if is_identifier(p_name) && p_name.as_identifier().escaped_text == "new",
                                 ) {
                                     new_type_node = p_as_parameter_declaration.maybe_type();
                                     None

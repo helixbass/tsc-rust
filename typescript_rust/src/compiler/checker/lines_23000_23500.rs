@@ -698,7 +698,7 @@ impl TypeChecker {
                 .name
                 .as_member_name()
                 .escaped_text()
-                .eq_str("length")
+                == "length"
                 || parent.parent().kind() == SyntaxKind::CallExpression
                     && is_identifier(&parent_as_property_access_expression.name)
                     && is_push_or_unshift_identifier(&parent_as_property_access_expression.name)

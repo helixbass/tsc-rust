@@ -822,13 +822,16 @@ impl BinderType {
         }
     }
 
-    pub(super) fn get_declaration_name(&self, node: &Node) -> Option<__String> {
+    pub(super) fn get_declaration_name<'node>(
+        &self,
+        node: &'node Node,
+    ) -> Option<Cow<'node, str> /*__String*/> {
         if node.kind() == SyntaxKind::ExportAssignment {
             return Some(
                 if matches!(node.as_export_assignment().is_export_equals, Some(true)) {
-                    InternalSymbolName::ExportEquals()
+                    InternalSymbolName::ExportEquals.into()
                 } else {
-                    InternalSymbolName::Default()
+                    InternalSymbolName::Default.into()
                 },
             );
         }
@@ -837,31 +840,36 @@ impl BinderType {
         if let Some(name) = name {
             if is_ambient_module(node) {
                 let module_name = get_text_of_identifier_or_literal(&name);
-                return Some(__String::new(if is_global_scope_augmentation(node) {
-                    "__global".to_owned()
+                return Some(if is_global_scope_augmentation(node) {
+                    "__global".into()
                 } else {
-                    format!("\"{}\"", module_name)
-                }));
+                    format!("\"{}\"", module_name).into()
+                });
             }
             if name.kind() == SyntaxKind::ComputedPropertyName {
                 let name_expression = &name.as_computed_property_name().expression;
                 if is_string_or_numeric_literal_like(name_expression) {
-                    return Some(escape_leading_underscores(
-                        &name_expression.as_literal_like_node().text(),
-                    ));
+                    return Some(
+                        escape_leading_underscores(&name_expression.as_literal_like_node().text())
+                            .into_owned()
+                            .into(),
+                    );
                 }
                 if is_signed_numeric_literal(name_expression) {
                     let name_expression_as_prefix_unary_expression =
                         name_expression.as_prefix_unary_expression();
-                    return Some(__String::new(format!(
-                        "{}{}",
-                        token_to_string(name_expression_as_prefix_unary_expression.operator)
-                            .unwrap(),
-                        name_expression_as_prefix_unary_expression
-                            .operand
-                            .as_literal_like_node()
-                            .text()
-                    )));
+                    return Some(
+                        format!(
+                            "{}{}",
+                            token_to_string(name_expression_as_prefix_unary_expression.operator)
+                                .unwrap(),
+                            name_expression_as_prefix_unary_expression
+                                .operand
+                                .as_literal_like_node()
+                                .text()
+                        )
+                        .into(),
+                    );
                 } else {
                     Debug_.fail(Some(
                         "Only computed properties with literal names have declaration names",
@@ -871,39 +879,46 @@ impl BinderType {
             if is_private_identifier(&name) {
                 let containing_class = get_containing_class(node)?;
                 let containing_class_symbol = containing_class.symbol();
-                return Some(get_symbol_name_for_private_identifier(
-                    &containing_class_symbol,
-                    &name.as_private_identifier().escaped_text,
-                ));
+                return Some(
+                    get_symbol_name_for_private_identifier(
+                        &containing_class_symbol,
+                        &name.as_private_identifier().escaped_text,
+                    )
+                    .into(),
+                );
             }
             return if is_property_name_literal(&name) {
-                Some(get_escaped_text_of_identifier_or_literal(&name))
+                Some(
+                    get_escaped_text_of_identifier_or_literal(&name)
+                        .into_owned()
+                        .into(),
+                )
             } else {
                 None
             };
         }
         match node.kind() {
-            SyntaxKind::Constructor => Some(InternalSymbolName::Constructor()),
+            SyntaxKind::Constructor => Some(InternalSymbolName::Constructor.into()),
             SyntaxKind::FunctionType | SyntaxKind::CallSignature | SyntaxKind::JSDocSignature => {
-                Some(InternalSymbolName::Call())
+                Some(InternalSymbolName::Call.into())
             }
             SyntaxKind::ConstructorType | SyntaxKind::ConstructSignature => {
-                Some(InternalSymbolName::New())
+                Some(InternalSymbolName::New.into())
             }
-            SyntaxKind::IndexSignature => Some(InternalSymbolName::Index()),
-            SyntaxKind::ExportDeclaration => Some(InternalSymbolName::ExportStar()),
-            SyntaxKind::SourceFile => Some(InternalSymbolName::ExportEquals()),
+            SyntaxKind::IndexSignature => Some(InternalSymbolName::Index.into()),
+            SyntaxKind::ExportDeclaration => Some(InternalSymbolName::ExportStar.into()),
+            SyntaxKind::SourceFile => Some(InternalSymbolName::ExportEquals.into()),
             SyntaxKind::BinaryExpression => {
                 if get_assignment_declaration_kind(node) == AssignmentDeclarationKind::ModuleExports
                 {
-                    return Some(InternalSymbolName::ExportEquals());
+                    return Some(InternalSymbolName::ExportEquals.into());
                 }
                 Debug_.fail(Some("Unknown binary declaration kind"));
             }
             SyntaxKind::JSDocFunctionType => Some(if is_jsdoc_construct_signature(node) {
-                InternalSymbolName::New()
+                InternalSymbolName::New.into()
             } else {
-                InternalSymbolName::Call()
+                InternalSymbolName::Call.into()
             }),
             SyntaxKind::Parameter => {
                 Debug_.assert(node.parent().kind() == SyntaxKind::JSDocFunctionType, Some("Impossible parameter parent kind")/*, () => `parent is: ${(ts as any).SyntaxKind ? (ts as any).SyntaxKind[node.parent.kind] : node.parent.kind}, expected JSDocFunction Type`);*/);
@@ -913,20 +928,28 @@ impl BinderType {
                     &node.node_wrapper(),
                     |a, b| Rc::ptr_eq(a, b),
                 );
-                return Some(__String::new(format!("arg{}", index)));
+                return Some(format!("arg{}", index).into());
             }
             _ => None,
         }
     }
 
-    pub(super) fn get_display_name(&self, node: &Node /*Declaration*/) -> Cow<'static, str> {
+    pub(super) fn get_display_name<'node>(
+        &self,
+        node: &'node Node, /*Declaration*/
+    ) -> Cow<'node, str> {
         if is_named_declaration(node) {
             declaration_name_to_string(node.as_named_declaration().maybe_name())
         } else {
-            unescape_leading_underscores(
-                Debug_.check_defined(self.get_declaration_name(node).as_ref(), None),
-            )
-            .into()
+            let declaration_name = /*Debug.check_defined(*/self.get_declaration_name(node).unwrap()/*)*/;
+            match declaration_name {
+                Cow::Borrowed(declaration_name) => {
+                    unescape_leading_underscores(declaration_name).into()
+                }
+                Cow::Owned(declaration_name) => unescape_leading_underscores(&declaration_name)
+                    .to_owned()
+                    .into(),
+            }
         }
     }
 
@@ -946,17 +969,12 @@ impl BinderType {
 
         let is_default_export = has_syntactic_modifier(node, ModifierFlags::Default)
             || is_export_specifier(node)
-                && node
-                    .as_export_specifier()
-                    .name
-                    .as_identifier()
-                    .escaped_text
-                    .eq_str("default");
+                && node.as_export_specifier().name.as_identifier().escaped_text == "default";
 
-        let name: Option<__String> = if is_computed_name {
-            Some(InternalSymbolName::Computed())
+        let name: Option<Cow<'_, str> /*__String*/> = if is_computed_name {
+            Some(InternalSymbolName::Computed.into())
         } else if is_default_export && parent.is_some() {
-            Some(InternalSymbolName::Default())
+            Some(InternalSymbolName::Default.into())
         } else {
             self.get_declaration_name(node)
         };
@@ -965,21 +983,26 @@ impl BinderType {
         match name {
             None => {
                 symbol = Some(
-                    self.create_symbol(SymbolFlags::None, InternalSymbolName::Missing())
+                    self.create_symbol(SymbolFlags::None, InternalSymbolName::Missing.to_owned())
                         .wrap(),
                 );
             }
             Some(name) => {
-                symbol = symbol_table.get(&name).map(Clone::clone);
+                symbol = symbol_table.get(&*name).cloned();
 
                 if includes.intersects(SymbolFlags::Classifiable) {
-                    self.classifiable_names().borrow_mut().insert(name.clone());
+                    self.classifiable_names()
+                        .borrow_mut()
+                        .insert((*name).to_owned());
                 }
 
                 match symbol.as_ref() {
                     None => {
-                        symbol = Some(self.create_symbol(SymbolFlags::None, name.clone()).wrap());
-                        symbol_table.insert(name, symbol.as_ref().unwrap().clone());
+                        symbol = Some(
+                            self.create_symbol(SymbolFlags::None, (*name).to_owned())
+                                .wrap(),
+                        );
+                        symbol_table.insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         if is_replaceable_by_method {
                             symbol
                                 .as_ref()
@@ -995,9 +1018,12 @@ impl BinderType {
                     }
                     Some(symbol_present) if symbol_present.flags().intersects(excludes) => {
                         if matches!(symbol_present.maybe_is_replaceable_by_method(), Some(true)) {
-                            symbol =
-                                Some(self.create_symbol(SymbolFlags::None, name.clone()).wrap());
-                            symbol_table.insert(name, symbol.as_ref().unwrap().clone());
+                            symbol = Some(
+                                self.create_symbol(SymbolFlags::None, (*name).to_owned())
+                                    .wrap(),
+                            );
+                            symbol_table
+                                .insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         } else if !(includes.intersects(SymbolFlags::Variable)
                             && symbol_present.flags().intersects(SymbolFlags::Assignment))
                         {
@@ -1149,7 +1175,10 @@ impl BinderType {
                                 .bind_diagnostics_mut()
                                 .push(diag);
 
-                            symbol = Some(self.create_symbol(SymbolFlags::None, name).wrap());
+                            symbol = Some(
+                                self.create_symbol(SymbolFlags::None, name.into_owned())
+                                    .wrap(),
+                            );
                         }
                     }
                     _ => (),

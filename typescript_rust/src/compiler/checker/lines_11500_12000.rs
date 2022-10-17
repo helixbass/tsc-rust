@@ -263,7 +263,7 @@ impl TypeChecker {
     pub(super) fn get_property_of_object_type(
         &self,
         type_: &Type,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> Option<Rc<Symbol>> {
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_);
@@ -299,7 +299,7 @@ impl TypeChecker {
                             None,
                         );
                         if let Some(combined_prop) = combined_prop {
-                            members.insert(prop.escaped_name().clone(), combined_prop);
+                            members.insert(prop.escaped_name().to_owned(), combined_prop);
                         }
                     }
                 }
@@ -355,7 +355,7 @@ impl TypeChecker {
         let list = obj.as_has_properties().properties();
         list.iter().any(|property| {
             let name_type = property.as_named_declaration().maybe_name().map(|name| self.get_literal_type_from_property_name(&name));
-            let name = name_type.filter(|name_type| self.is_type_usable_as_property_name(name_type)).map(|name_type| self.get_property_name_from_type(&name_type));
+            let name = name_type.as_ref().filter(|name_type| self.is_type_usable_as_property_name(name_type)).map(|name_type| self.get_property_name_from_type(name_type));
             let expected = name.and_then(|name| self.get_type_of_property_of_type_(contextual_type, &name));
             matches!(
                 expected,
@@ -387,7 +387,7 @@ impl TypeChecker {
                     let prop =
                         self.create_union_or_intersection_property(&union_type, escaped_name, None);
                     if let Some(prop) = prop {
-                        props.insert(escaped_name.clone(), prop);
+                        props.insert(escaped_name.to_owned(), prop);
                     }
                 }
             }

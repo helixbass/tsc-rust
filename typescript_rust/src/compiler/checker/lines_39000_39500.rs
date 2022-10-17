@@ -550,7 +550,8 @@ impl TypeChecker {
                                 .as_property_access_expression()
                                 .name
                                 .as_member_name()
-                                .escaped_text();
+                                .escaped_text()
+                                .to_owned();
                         } else {
                             name = escape_leading_underscores(
                                 &cast_present(
@@ -559,7 +560,8 @@ impl TypeChecker {
                                 )
                                 .as_literal_like_node()
                                 .text(),
-                            );
+                            )
+                            .into_owned();
                         }
                         return self.evaluate_enum_member(member, expr, type_symbol, &name);
                     }
@@ -575,7 +577,7 @@ impl TypeChecker {
         member: &Node,
         expr: &Node, /*Expression*/
         enum_symbol: &Symbol,
-        name: &__String,
+        name: &str, /*__String*/
     ) -> Option<StringOrNumber> {
         let member_symbol = (*enum_symbol.maybe_exports().clone().unwrap())
             .borrow()

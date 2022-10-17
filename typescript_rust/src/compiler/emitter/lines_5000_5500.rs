@@ -54,7 +54,7 @@ impl Printer {
             if let Some(node_locals) = node.maybe_locals().as_ref() {
                 let local = (**node_locals)
                     .borrow()
-                    .get(&escape_leading_underscores(name))
+                    .get(&*escape_leading_underscores(name))
                     .cloned();
                 if matches!(
                     local,
@@ -164,9 +164,10 @@ impl Printer {
         &self,
         node: &Node, /*ModuleDeclaration | EnumDeclaration*/
     ) -> String {
-        let name = self.get_text_of_node(&node.as_named_declaration().name(), None);
+        let node_name = node.as_named_declaration().name();
+        let name = self.get_text_of_node(&node_name, None);
         if self.is_unique_local_name(&name, node) {
-            name
+            name.into_owned()
         } else {
             self.make_unique_name(&name, Option::<fn(&str) -> bool>::None, None, None)
         }

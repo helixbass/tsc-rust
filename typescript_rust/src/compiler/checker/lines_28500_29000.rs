@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use regex::Regex;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
@@ -47,7 +47,7 @@ impl TypeChecker {
 
     pub(super) fn type_has_static_property(
         &self,
-        prop_name: &__String,
+        prop_name: &str, /*__String*/
         containing_type: &Type,
     ) -> bool {
         let prop = containing_type
@@ -133,7 +133,7 @@ impl TypeChecker {
                     self.is_valid_property_access_for_completions_(&parent, containing_type, prop)
                 });
             }
-            name = StringOrRcNode::String(id_text(name_ref));
+            name = StringOrRcNode::String(id_text(name_ref).to_owned());
         }
         let name = enum_unwrapped!(name, [StringOrRcNode, String]);
         self.get_spelling_suggestion_for_name(&name, &props, SymbolFlags::Value)
@@ -149,7 +149,7 @@ impl TypeChecker {
         let name: StringOrRcNode = name.into();
         let str_name = match name {
             StringOrRcNode::String(name) => name,
-            StringOrRcNode::RcNode(name) => id_text(&name),
+            StringOrRcNode::RcNode(name) => id_text(&name).to_owned(),
         };
         let properties = self.get_properties_of_type(containing_type);
         let jsx_specific = if str_name == "for" {
@@ -175,13 +175,13 @@ impl TypeChecker {
         let suggestion = self.get_suggested_symbol_for_nonexistent_property(name, containing_type);
         suggestion
             .as_ref()
-            .map(|suggestion| symbol_name(suggestion))
+            .map(|suggestion| symbol_name(suggestion).into_owned())
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_symbol_<TLocation: Borrow<Node>>(
         &self,
         location: Option<TLocation>,
-        outer_name: &__String,
+        outer_name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
         // Debug.assert(outerName !== undefined, "outername should always be defined");
@@ -190,11 +190,16 @@ impl TypeChecker {
             outer_name,
             meaning,
             None,
-            Some(outer_name.clone()),
+            Some(outer_name.to_owned()),
             false,
             false,
-            |symbols: &SymbolTable, name: &__String, meaning: SymbolFlags| {
-                Debug_.assert_equal(outer_name, name, Some("name should equal outername"), None);
+            |symbols: &SymbolTable, name: &str /*__String*/, meaning: SymbolFlags| {
+                Debug_.assert_equal(
+                    &outer_name,
+                    &name,
+                    Some("name should equal outername"),
+                    None,
+                );
                 let symbol = self.get_symbol(symbols, name, meaning);
                 if symbol.is_some() {
                     return symbol;
@@ -204,14 +209,10 @@ impl TypeChecker {
                     let primitives = map_defined(
                         Some(["string", "number", "boolean", "object", "bigint", "symbol"]),
                         |s: &str, _| {
-                            if symbols.contains_key(&__String::new(capitalize(s))) {
+                            if symbols.contains_key(&capitalize(s)) {
                                 Some(
-                                    self.create_symbol(
-                                        SymbolFlags::TypeAlias,
-                                        __String::new(s.to_owned()),
-                                        None,
-                                    )
-                                    .into(),
+                                    self.create_symbol(SymbolFlags::TypeAlias, s.to_owned(), None)
+                                        .into(),
                                 )
                             } else {
                                 None
@@ -238,14 +239,14 @@ impl TypeChecker {
     pub(super) fn get_suggestion_for_nonexistent_symbol_<TLocation: Borrow<Node>>(
         &self,
         location: Option<TLocation>,
-        outer_name: &__String,
+        outer_name: &str, /*__String*/
         meaning: SymbolFlags,
     ) -> Option<String> {
         let symbol_result =
             self.get_suggested_symbol_for_nonexistent_symbol_(location, outer_name, meaning);
         symbol_result
             .as_ref()
-            .map(|symbol_result| symbol_name(symbol_result))
+            .map(|symbol_result| symbol_name(symbol_result).into_owned())
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_module(
@@ -272,7 +273,7 @@ impl TypeChecker {
         let suggestion = self.get_suggested_symbol_for_nonexistent_module(name, target_module);
         suggestion
             .as_ref()
-            .map(|suggestion| symbol_name(suggestion))
+            .map(|suggestion| symbol_name(suggestion).into_owned())
     }
 
     pub(super) fn get_suggestion_for_nonexistent_index_signature(
@@ -292,7 +293,8 @@ impl TypeChecker {
 
         let mut suggestion = try_get_property_access_or_identifier_to_string(
             &expr.as_element_access_expression().expression,
-        );
+        )
+        .map(Cow::into_owned);
         match suggestion.as_mut() {
             None => {
                 suggestion = Some(suggested_method.to_owned());
@@ -311,7 +313,7 @@ impl TypeChecker {
         keyed_type: &Type,
         name: &str, /*"set | "get"*/
     ) -> bool {
-        let prop = self.get_property_of_object_type(object_type, &__String::new(name.to_owned()));
+        let prop = self.get_property_of_object_type(object_type, name);
         if let Some(prop) = prop.as_ref() {
             let s = self.get_single_call_signature(&self.get_type_of_symbol(prop));
             return matches!(
@@ -356,7 +358,7 @@ impl TypeChecker {
             }
 
             if candidate.flags().intersects(meaning) {
-                return Some(candidate_name);
+                return Some(candidate_name.into_owned());
             }
 
             if candidate.flags().intersects(SymbolFlags::Alias) {
@@ -365,7 +367,7 @@ impl TypeChecker {
                     alias.as_ref(),
                     Some(alias) if alias.flags().intersects(meaning)
                 ) {
-                    return Some(candidate_name);
+                    return Some(candidate_name.into_owned());
                 }
             }
             None
@@ -460,8 +462,8 @@ impl TypeChecker {
 
     pub(super) fn is_valid_property_access_(
         &self,
-        node: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
-        property_name: &__String,
+        node: &Node,         /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
+        property_name: &str, /*__String*/
     ) -> bool {
         match node.kind() {
             SyntaxKind::PropertyAccessExpression => {
@@ -519,7 +521,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
         is_super: bool,
-        property_name: &__String,
+        property_name: &str, /*__String*/
         type_: &Type,
     ) -> bool {
         if self.is_type_any(Some(type_)) {

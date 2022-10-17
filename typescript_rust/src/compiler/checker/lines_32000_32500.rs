@@ -273,14 +273,9 @@ impl TypeChecker {
         let d_as_call_expression = d.as_call_expression();
         let object_lit_type =
             self.check_expression_cached(&d_as_call_expression.arguments[2], None);
-        let value_type = self
-            .get_type_of_property_of_type_(&object_lit_type, &__String::new("value".to_owned()));
+        let value_type = self.get_type_of_property_of_type_(&object_lit_type, "value");
         if let Some(value_type) = value_type.as_ref() {
-            let writable_prop = self.get_property_of_type_(
-                &object_lit_type,
-                &__String::new("writable".to_owned()),
-                None,
-            );
+            let writable_prop = self.get_property_of_type_(&object_lit_type, "writable", None);
             let writable_type = writable_prop
                 .as_ref()
                 .map(|writable_prop| self.get_type_of_symbol(writable_prop));
@@ -312,8 +307,7 @@ impl TypeChecker {
             }
             return false;
         }
-        let set_prop =
-            self.get_property_of_type_(&object_lit_type, &__String::new("set".to_owned()), None);
+        let set_prop = self.get_property_of_type_(&object_lit_type, "set", None);
         set_prop.is_none()
     }
 

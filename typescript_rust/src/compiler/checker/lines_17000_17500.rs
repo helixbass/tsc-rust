@@ -367,10 +367,7 @@ impl TypeChecker {
                 }
                 if !get_function_flags(Some(node)).intersects(FunctionFlags::Async)
                     && self
-                        .get_type_of_property_of_type_(
-                            &source_return,
-                            &__String::new("then".to_owned()),
-                        )
+                        .get_type_of_property_of_type_(&source_return, "then")
                         .is_none()
                     && self.check_type_related_to(
                         &self.create_promise_type(&source_return),
@@ -666,7 +663,7 @@ impl TypeChecker {
                                                 &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
                                                 Some(vec![
                                                     if property_name.is_some() && !name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
-                                                        unescape_leading_underscores(property_name.as_ref().unwrap())
+                                                        unescape_leading_underscores(property_name.as_ref().unwrap()).to_owned()
                                                     } else {
                                                         self.type_to_string_(
                                                             &name_type,
@@ -826,7 +823,7 @@ impl TypeChecker {
                 self.get_jsx_element_children_property_name(self.get_jsx_namespace_at(Some(node)));
             let children_prop_name = child_prop_name.map_or_else(
                 || "children".to_owned(),
-                |child_prop_name| unescape_leading_underscores(&child_prop_name),
+                |child_prop_name| unescape_leading_underscores(&child_prop_name).to_owned(),
             );
             let children_name_type = self.get_string_literal_type(&children_prop_name);
             let children_target_type = self.get_indexed_access_type(
@@ -860,7 +857,7 @@ impl TypeChecker {
                     );
                     let children_prop_name = child_prop_name.map_or_else(
                         || "children".to_owned(),
-                        |child_prop_name| unescape_leading_underscores(&child_prop_name),
+                        |child_prop_name| unescape_leading_underscores(&child_prop_name).to_owned(),
                     );
                     let children_target_type = self.get_indexed_access_type(
                         target,
@@ -1016,7 +1013,7 @@ impl TypeChecker {
         for (i, elem) in node_as_array_literal_expression.elements.iter().enumerate() {
             if self.is_tuple_like_type(target)
                 && self
-                    .get_property_of_type_(target, &__String::new(i.to_string()), None)
+                    .get_property_of_type_(target, &i.to_string(), None)
                     .is_none()
             {
                 continue;
@@ -1427,14 +1424,16 @@ impl TypeChecker {
                                             i,
                                             Option::<&Type>::None,
                                         ),
-                                    ),
+                                    )
+                                    .to_owned(),
                                     unescape_leading_underscores(
                                         &self.get_parameter_name_at_position(
                                             &target,
                                             i,
                                             Option::<&Type>::None,
                                         ),
-                                    ),
+                                    )
+                                    .to_owned(),
                                 ]),
                             );
                         }

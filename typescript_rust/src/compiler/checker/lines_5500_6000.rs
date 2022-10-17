@@ -870,10 +870,10 @@ impl NodeBuilder {
                     }
                     .into()
                 } else {
-                    symbol_name(parameter_symbol).into()
+                    symbol_name(parameter_symbol).into_owned().into()
                 }
             } else {
-                symbol_name(parameter_symbol).into()
+                symbol_name(parameter_symbol).into_owned().into()
             };
         let is_optional = matches!(
             parameter_declaration.as_ref(),
@@ -1136,7 +1136,7 @@ impl NodeBuilder {
                         if matches!(
                             parent.maybe_exports().as_ref(),
                             Some(parent_exports) if matches!(
-                                (**parent_exports).borrow().get(&InternalSymbolName::ExportEquals()),
+                                (**parent_exports).borrow().get(InternalSymbolName::ExportEquals),
                                 Some(parent_exports_get) if self.type_checker.get_symbol_if_same_reference(
                                     parent_exports_get,
                                     symbol,

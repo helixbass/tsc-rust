@@ -919,7 +919,8 @@ impl NodeBuilder {
             ) {
                 return Some(parent_name);
             }
-            let member_name = symbol_name(&type_.symbol());
+            let type_symbol = type_.symbol();
+            let member_name = symbol_name(&type_symbol);
             if is_identifier_text(&member_name, Some(ScriptTarget::ES3), None) {
                 return Some(self.append_reference_to_type(
                     &parent_name,
@@ -928,7 +929,7 @@ impl NodeBuilder {
                             factory_
                                 .create_type_reference_node(
                                     synthetic_factory_,
-                                    member_name,
+                                    member_name.into_owned(),
                                     Option::<NodeArray>::None,
                                 )
                                 .into()
@@ -950,7 +951,7 @@ impl NodeBuilder {
                                         factory_
                                             .create_string_literal(
                                                 synthetic_factory_,
-                                                member_name,
+                                                member_name.into_owned(),
                                                 None,
                                                 None,
                                             )
@@ -979,7 +980,7 @@ impl NodeBuilder {
                                         factory_
                                             .create_string_literal(
                                                 synthetic_factory_,
-                                                member_name,
+                                                member_name.into_owned(),
                                                 None,
                                                 None,
                                             )

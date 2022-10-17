@@ -318,8 +318,7 @@ impl TypeChecker {
             return None;
         }
 
-        let then_function =
-            self.get_type_of_property_of_type_(type_, &__String::new("then".to_owned()));
+        let then_function = self.get_type_of_property_of_type_(type_, "then");
         if self.is_type_any(then_function.as_deref()) {
             return None;
         }
@@ -406,8 +405,7 @@ impl TypeChecker {
             return false;
         }
 
-        let then_function =
-            self.get_type_of_property_of_type_(type_, &__String::new("then".to_owned()));
+        let then_function = self.get_type_of_property_of_type_(type_, "then");
         matches!(
             then_function.as_ref(),
             Some(then_function) if !self.get_signatures_of_type(

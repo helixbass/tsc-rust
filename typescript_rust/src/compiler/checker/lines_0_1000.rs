@@ -39,9 +39,7 @@ lazy_static! {
     pub(super) static ref ambient_module_symbol_regex: Regex = Regex::new(r#"^".+"$"#).unwrap();
 }
 
-lazy_static! {
-    pub(super) static ref anon: __String = __String::new("(anonymous)".to_owned());
-}
+pub(super) const anon: &'static str/*__String*/ = "(anonymous)";
 
 thread_local! {
     pub(super) static next_symbol_id: Cell<SymbolId> = Cell::new(1);
@@ -831,11 +829,7 @@ pub fn create_type_checker(
     type_checker.emit_resolver = Some(type_checker.create_resolver());
     type_checker.undefined_symbol = Some(
         type_checker
-            .create_symbol(
-                SymbolFlags::Property,
-                __String::new("undefined".to_owned()),
-                None,
-            )
+            .create_symbol(SymbolFlags::Property, "undefined".to_owned(), None)
             .into(),
     );
     type_checker
@@ -847,7 +841,7 @@ pub fn create_type_checker(
         type_checker
             .create_symbol(
                 SymbolFlags::Module,
-                __String::new("globalThis".to_owned()),
+                "globalThis".to_owned(),
                 Some(CheckFlags::Readonly),
             )
             .into(),
@@ -859,39 +853,31 @@ pub fn create_type_checker(
     }
     global_this_symbol.set_declarations(vec![]);
     type_checker.globals_mut().insert(
-        global_this_symbol.escaped_name().clone(),
+        global_this_symbol.escaped_name().to_owned(),
         global_this_symbol,
     );
     type_checker.arguments_symbol = Some(
         type_checker
-            .create_symbol(
-                SymbolFlags::Property,
-                __String::new("arguments".to_owned()),
-                None,
-            )
+            .create_symbol(SymbolFlags::Property, "arguments".to_owned(), None)
             .into(),
     );
     type_checker.require_symbol = Some(
         type_checker
-            .create_symbol(
-                SymbolFlags::Property,
-                __String::new("require".to_owned()),
-                None,
-            )
+            .create_symbol(SymbolFlags::Property, "require".to_owned(), None)
             .into(),
     );
     type_checker.unknown_symbol = Some(
         type_checker
-            .create_symbol(
-                SymbolFlags::Property,
-                __String::new("unknown".to_string()),
-                None,
-            )
+            .create_symbol(SymbolFlags::Property, "unknown".to_owned(), None)
             .into(),
     );
     type_checker.resolving_symbol = Some(
         type_checker
-            .create_symbol(SymbolFlags::None, InternalSymbolName::Resolving(), None)
+            .create_symbol(
+                SymbolFlags::None,
+                InternalSymbolName::Resolving.to_owned(),
+                None,
+            )
             .into(),
     );
 
@@ -1185,8 +1171,11 @@ pub fn create_type_checker(
     );
     type_checker.empty_jsx_object_type = Some(empty_jsx_object_type);
 
-    let empty_type_literal_symbol =
-        type_checker.create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type(), None);
+    let empty_type_literal_symbol = type_checker.create_symbol(
+        SymbolFlags::TypeLiteral,
+        InternalSymbolName::Type.to_owned(),
+        None,
+    );
     *empty_type_literal_symbol.maybe_members_mut() =
         Some(Rc::new(RefCell::new(create_symbol_table(None))));
     type_checker.empty_type_literal_symbol = Some(empty_type_literal_symbol.into());
@@ -1347,7 +1336,7 @@ pub fn create_type_checker(
 
     let mut builtin_globals: SymbolTable = SymbolTable::new();
     builtin_globals.insert(
-        type_checker.undefined_symbol().escaped_name().clone(),
+        type_checker.undefined_symbol().escaped_name().to_owned(),
         type_checker.undefined_symbol(),
     );
     *type_checker.builtin_globals.borrow_mut() = Some(builtin_globals);
@@ -2428,16 +2417,19 @@ impl TypeChecker {
         &self,
         location: Option<TLocation>,
     ) -> String {
-        unescape_leading_underscores(&self.get_jsx_namespace_(location))
+        unescape_leading_underscores(&self.get_jsx_namespace_(location)).to_owned()
     }
 
     pub fn get_jsx_fragment_factory(&self, n: &Node) -> Option<String> {
         let jsx_fragment_factory = self.get_jsx_fragment_factory_entity(n)?;
-        Some(unescape_leading_underscores(
-            &get_first_identifier(&jsx_fragment_factory)
-                .as_identifier()
-                .escaped_text,
-        ))
+        Some(
+            unescape_leading_underscores(
+                &get_first_identifier(&jsx_fragment_factory)
+                    .as_identifier()
+                    .escaped_text,
+            )
+            .to_owned(),
+        )
     }
 
     pub fn resolve_external_module_name(

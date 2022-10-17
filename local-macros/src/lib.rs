@@ -2594,7 +2594,7 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_flags(flags)
                     }
 
-                    fn escaped_name(&self) -> &crate::__String {
+                    fn escaped_name(&self) -> &str {
                         self.#first_field_name.escaped_name()
                     }
 
@@ -2774,7 +2774,7 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn escaped_name(&self) -> &crate::__String {
+                    fn escaped_name(&self) -> &str {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.escaped_name()),*
                         }

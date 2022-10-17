@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -121,7 +121,7 @@ pub fn is_jsdoc_index_signature(
             .type_name
             .as_identifier()
             .escaped_text
-            .eq_str("Object")
+            == "Object"
         && node_as_type_reference_node.maybe_type_arguments().is_some())
     {
         return false;
@@ -144,7 +144,7 @@ pub fn is_require_call(call_expression: &Node, require_string_literal_like_argum
     let args = &call_expression_as_call_expression.arguments;
 
     if expression.kind() != SyntaxKind::Identifier
-        || !expression.as_identifier().escaped_text.eq_str("require")
+        || expression.as_identifier().escaped_text != "require"
     {
         return false;
     }
@@ -268,11 +268,7 @@ pub fn has_expando_value_property(
         }
         let p_as_property_assignment = p.as_property_assignment();
         if !is_identifier(&p_as_property_assignment.name())
-            && p_as_property_assignment
-                .name()
-                .as_identifier()
-                .escaped_text
-                .eq_str("value")
+            && p_as_property_assignment.name().as_identifier().escaped_text == "value"
         {
             return None;
         }
@@ -485,14 +481,14 @@ pub fn is_exports_identifier(node: &Node) -> bool {
     if !is_identifier(node) {
         return false;
     }
-    node.as_identifier().escaped_text.eq_str("exports")
+    node.as_identifier().escaped_text == "exports"
 }
 
 pub fn is_module_identifier(node: &Node) -> bool {
     if !is_identifier(node) {
         return false;
     }
-    node.as_identifier().escaped_text.eq_str("module")
+    node.as_identifier().escaped_text == "module"
 }
 
 pub fn is_module_exports_access_expression(node: &Node) -> bool {
@@ -501,7 +497,7 @@ pub fn is_module_exports_access_expression(node: &Node) -> bool {
     }
     is_module_identifier(&node.as_has_expression().expression())
         && match get_element_or_property_access_name(node) {
-            Some(name) => name.eq_str("exports"),
+            Some(name) => name == "exports",
             None => false,
         }
 }
@@ -624,7 +620,7 @@ fn get_assignment_declaration_kind_worker(
         }
         if is_bindable_static_access_expression(entity_name, None)
             && match get_element_or_property_access_name(entity_name) {
-                Some(name) => name.eq_str("prototype"),
+                Some(name) => name == "prototype",
                 None => false,
             }
         {
@@ -642,7 +638,7 @@ fn get_assignment_declaration_kind_worker(
     let expr_left_as_has_expression = expr_as_binary_expression.left.as_has_expression();
     if is_bindable_static_name_expression(&expr_left_as_has_expression.expression(), Some(true))
         && match get_element_or_property_access_name(&expr_as_binary_expression.left) {
-            Some(name) => name.eq_str("prototype"),
+            Some(name) => name == "prototype",
             None => false,
         }
         && is_object_literal_expression(&get_initializer_of_binary_expression(expr))
@@ -692,9 +688,9 @@ pub(crate) fn get_element_or_property_access_name(
             return Some(name.as_identifier().escaped_text.clone());
         }
         if is_string_literal_like(&name) || is_numeric_literal(&name) {
-            return Some(escape_leading_underscores(
-                &name.as_literal_like_node().text(),
-            ));
+            return Some(
+                escape_leading_underscores(&name.as_literal_like_node().text()).into_owned(),
+            );
         }
         None
     })
@@ -719,10 +715,10 @@ pub fn get_assignment_declaration_property_access_kind(
         }
         let id = next_to_last.as_has_expression().expression();
         let id_as_identifier = id.as_identifier();
-        if (id_as_identifier.escaped_text.eq_str("exports")
-            || id_as_identifier.escaped_text.eq_str("module")
+        if (id_as_identifier.escaped_text == "exports"
+            || id_as_identifier.escaped_text == "module"
                 && match get_element_or_property_access_name(&next_to_last) {
-                    Some(name) => name.eq_str("exports"),
+                    Some(name) => name == "exports",
                     None => false,
                 })
             && is_bindable_static_access_expression(&lhs, None)
