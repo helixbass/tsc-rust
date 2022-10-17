@@ -1328,6 +1328,24 @@ impl From<Rc<Node>> for StringOrRcNode {
     }
 }
 
+#[derive(Clone)]
+pub enum StrOrRcNode<'str> {
+    Str(&'str str),
+    RcNode(Rc<Node>),
+}
+
+impl<'str> From<&'str str> for StrOrRcNode<'str> {
+    fn from(value: &'str str) -> Self {
+        Self::Str(value)
+    }
+}
+
+impl<'str> From<Rc<Node>> for StrOrRcNode<'str> {
+    fn from(value: Rc<Node>) -> Self {
+        Self::RcNode(value)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum StringOrNumber {
     String(String),

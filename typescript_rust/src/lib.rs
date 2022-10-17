@@ -86,7 +86,7 @@ pub use compiler::factory::node_converters::{create_node_converters, null_node_c
 pub use compiler::factory::node_factory::{
     create_node_factory, factory, has_option_node_array_changed, set_original_node,
     synthetic_factory, with_factory, with_synthetic_factory, with_synthetic_factory_and_factory,
-    BaseNodeFactorySynthetic, MaybeChangedNodeArray, NodeFactoryFlags, StringOrNumber,
+    BaseNodeFactorySynthetic, MaybeChangedNodeArray, NodeFactoryFlags, StrOrRcNode, StringOrNumber,
     StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKindOrRcNode,
 };
 pub use compiler::factory::node_tests::{

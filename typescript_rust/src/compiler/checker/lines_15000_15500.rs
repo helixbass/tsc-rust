@@ -605,7 +605,7 @@ impl TypeChecker {
                                 .as_ref()
                                 .and_then(|prop_name| {
                                     self.get_suggestion_for_nonexistent_property(
-                                        (**prop_name).to_owned(),
+                                        &**prop_name,
                                         object_type,
                                     )
                                 })
