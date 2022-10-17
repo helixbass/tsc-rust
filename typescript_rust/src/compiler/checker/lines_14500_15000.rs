@@ -14,7 +14,8 @@ use crate::{
     unescape_leading_underscores, walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_,
     Diagnostics, IndexInfo, IndexType, InternalSymbolName, IntersectionType, ModifierFlags, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -158,7 +159,7 @@ impl TypeChecker {
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
-        let mut type_membership_map: IndexMap<String, Rc<Type>> = IndexMap::new();
+        let mut type_membership_map: IndexMap<TypeId, Rc<Type>> = IndexMap::new();
         let includes =
             self.add_types_to_intersection(&mut type_membership_map, TypeFlags::None, types);
         let mut type_set: Vec<Rc<Type>> = type_membership_map.values().map(Clone::clone).collect();

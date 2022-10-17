@@ -987,7 +987,7 @@ impl TypeChecker {
 
     pub(super) fn add_type_to_intersection(
         &self,
-        type_set: &mut IndexMap<String, Rc<Type>>,
+        type_set: &mut IndexMap<TypeId, Rc<Type>>,
         mut includes: TypeFlags,
         type_: &Type,
     ) -> TypeFlags {
@@ -1003,7 +1003,7 @@ impl TypeChecker {
         if self.is_empty_anonymous_object_type(&type_) {
             if !includes.intersects(TypeFlags::IncludesEmptyObject) {
                 includes |= TypeFlags::IncludesEmptyObject;
-                type_set.insert(type_.id().to_string(), type_.clone());
+                type_set.insert(type_.id(), type_.clone());
             }
         } else {
             if flags.intersects(TypeFlags::AnyOrUnknown) {
@@ -1017,13 +1017,13 @@ impl TypeChecker {
                     includes |= TypeFlags::IncludesMissingType;
                     type_ = self.undefined_type();
                 }
-                if !type_set.contains_key(&type_.id().to_string()) {
+                if !type_set.contains_key(&type_.id()) {
                     if type_.flags().intersects(TypeFlags::Unit)
                         && includes.intersects(TypeFlags::Unit)
                     {
                         includes |= TypeFlags::NonPrimitive;
                     }
-                    type_set.insert(type_.id().to_string(), type_);
+                    type_set.insert(type_.id(), type_);
                 }
             }
             includes |= flags & TypeFlags::IncludesMask;
@@ -1033,7 +1033,7 @@ impl TypeChecker {
 
     pub(super) fn add_types_to_intersection(
         &self,
-        type_set: &mut IndexMap<String, Rc<Type>>,
+        type_set: &mut IndexMap<TypeId, Rc<Type>>,
         mut includes: TypeFlags,
         types: &[Rc<Type>],
     ) -> TypeFlags {
