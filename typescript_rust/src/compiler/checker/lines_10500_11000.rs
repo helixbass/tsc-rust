@@ -451,7 +451,7 @@ impl TypeChecker {
         type_parameters: Vec<Rc<Type /*TypeParameter*/>>,
         type_arguments: Vec<Rc<Type>>,
     ) {
-        let mut mapper: Option<TypeMapper> = None;
+        let mut mapper: Option<Rc<TypeMapper>> = None;
         let mut members: Rc<RefCell<SymbolTable>>;
         let mut call_signatures: Vec<Rc<Signature>>;
         let mut construct_signatures: Vec<Rc<Signature>>;
@@ -479,7 +479,9 @@ impl TypeChecker {
                 .clone();
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
-            mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments.clone())));
+            mapper = Some(Rc::new(
+                self.create_type_mapper(type_parameters, Some(type_arguments.clone())),
+            ));
             members = Rc::new(RefCell::new(
                 self.create_instantiated_symbol_table(
                     source
@@ -487,21 +489,21 @@ impl TypeChecker {
                         .maybe_declared_properties()
                         .as_ref()
                         .unwrap(),
-                    mapper.as_ref().unwrap(),
+                    mapper.clone().unwrap(),
                     type_parameters_len_is_1,
                 ),
             ));
             call_signatures = self.instantiate_signatures(
                 &*source_as_interface_type_with_declared_members.declared_call_signatures(),
-                mapper.as_ref().unwrap(),
+                mapper.clone().unwrap(),
             );
             construct_signatures = self.instantiate_signatures(
                 &*source_as_interface_type_with_declared_members.declared_construct_signatures(),
-                mapper.as_ref().unwrap(),
+                mapper.clone().unwrap(),
             );
             index_infos = self.instantiate_index_infos(
                 &*source_as_interface_type_with_declared_members.declared_index_infos(),
-                mapper.as_ref().unwrap(),
+                mapper.clone().unwrap(),
             );
         }
         let base_types = self.get_base_types(source);
@@ -525,7 +527,7 @@ impl TypeChecker {
             for base_type in base_types {
                 let instantiated_base_type = if let Some(this_argument) = this_argument {
                     self.get_type_with_this_argument(
-                        &self.instantiate_type(&base_type, mapper.as_ref()),
+                        &self.instantiate_type(&base_type, mapper.clone()),
                         Some(&**this_argument),
                         None,
                     )
@@ -1056,8 +1058,9 @@ impl TypeChecker {
         let source_params = source_params.unwrap();
         let target_params = target_params.unwrap();
 
-        let mapper =
-            self.create_type_mapper(target_params.to_owned(), Some(source_params.to_owned()));
+        let mapper = Rc::new(
+            self.create_type_mapper(target_params.to_owned(), Some(source_params.to_owned())),
+        );
         for (i, source) in source_params.iter().enumerate() {
             let target = &target_params[i];
             if Rc::ptr_eq(source, target) {
@@ -1071,7 +1074,7 @@ impl TypeChecker {
                     &self
                         .get_constraint_from_type_parameter(target)
                         .unwrap_or_else(|| self.unknown_type()),
-                    Some(&mapper),
+                    Some(mapper.clone()),
                 ),
             ) {
                 return false;

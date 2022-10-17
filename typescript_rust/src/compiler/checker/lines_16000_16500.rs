@@ -602,11 +602,11 @@ impl TypeChecker {
 
     pub(super) fn instantiate_list<
         TItem,
-        TInstantiator: FnMut(&Rc<TItem>, Option<&TypeMapper>) -> Rc<TItem>,
+        TInstantiator: FnMut(&Rc<TItem>, Option<Rc<TypeMapper>>) -> Rc<TItem>,
     >(
         &self,
         items: Option<&[Rc<TItem>]>,
-        mapper: Option<&TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
         mut instantiator: TInstantiator,
     ) -> Option<Vec<Rc<TItem>>> {
         let items = items?;
@@ -614,7 +614,7 @@ impl TypeChecker {
             let mut i = 0;
             while i < items.len() {
                 let item = &items[i];
-                let mapped = instantiator(item, mapper);
+                let mapped = instantiator(item, mapper.clone());
                 if !Rc::ptr_eq(item, &mapped) {
                     let mut result = if i == 0 {
                         vec![]
@@ -624,7 +624,7 @@ impl TypeChecker {
                     result.push(mapped);
                     i += 1;
                     while i < items.len() {
-                        result.push(instantiator(&items[i], mapper));
+                        result.push(instantiator(&items[i], mapper.clone()));
                         i += 1;
                     }
                     return Some(result);
@@ -639,7 +639,7 @@ impl TypeChecker {
     pub(super) fn instantiate_types(
         &self,
         types: Option<&[Rc<Type>]>,
-        mapper: Option<&TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
     ) -> Option<Vec<Rc<Type>>> {
         self.instantiate_list(types, mapper, |type_: &Rc<Type>, mapper| {
             self.instantiate_type(type_, mapper)
@@ -649,7 +649,7 @@ impl TypeChecker {
     pub(super) fn instantiate_signatures(
         &self,
         signatures: &[Rc<Signature>],
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> Vec<Rc<Signature>> {
         self.instantiate_list(
             Some(signatures),
@@ -664,11 +664,11 @@ impl TypeChecker {
     pub(super) fn instantiate_index_infos(
         &self,
         index_infos: &[Rc<IndexInfo>],
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> Vec<Rc<IndexInfo>> {
         self.instantiate_list(
             Some(index_infos),
-            Some(mapper),
+            Some(mapper.clone()),
             |index_info: &Rc<IndexInfo>, mapper| {
                 self.instantiate_index_info(index_info, mapper.unwrap())
             },
@@ -717,7 +717,7 @@ impl TypeChecker {
             | TypeMapper::Merged(composite_or_merged_mapper) => {
                 let t1 = self.get_mapped_type(type_, &composite_or_merged_mapper.mapper1);
                 if !ptr::eq(Rc::as_ptr(&t1), type_) && matches!(mapper, TypeMapper::Composite(_)) {
-                    self.instantiate_type(&t1, Some(&composite_or_merged_mapper.mapper2))
+                    self.instantiate_type(&t1, Some(composite_or_merged_mapper.mapper2.clone()))
                 } else {
                     self.get_mapped_type(&t1, &composite_or_merged_mapper.mapper2)
                 }
@@ -746,16 +746,16 @@ impl TypeChecker {
 
     pub(super) fn make_composite_type_mapper(
         &self,
-        mapper1: TypeMapper,
-        mapper2: TypeMapper,
+        mapper1: Rc<TypeMapper>,
+        mapper2: Rc<TypeMapper>,
     ) -> TypeMapper {
         TypeMapper::new_composite(mapper1, mapper2)
     }
 
     pub(super) fn make_merged_type_mapper(
         &self,
-        mapper1: TypeMapper,
-        mapper2: TypeMapper,
+        mapper1: Rc<TypeMapper>,
+        mapper2: Rc<TypeMapper>,
     ) -> TypeMapper {
         TypeMapper::new_merged(mapper1, mapper2)
     }
@@ -777,11 +777,11 @@ impl TypeChecker {
 
     pub(super) fn combine_type_mappers(
         &self,
-        mapper1: Option<TypeMapper>,
-        mapper2: TypeMapper,
-    ) -> TypeMapper {
+        mapper1: Option<Rc<TypeMapper>>,
+        mapper2: Rc<TypeMapper>,
+    ) -> Rc<TypeMapper> {
         if let Some(mapper1) = mapper1 {
-            self.make_composite_type_mapper(mapper1, mapper2)
+            Rc::new(self.make_composite_type_mapper(mapper1, mapper2))
         } else {
             mapper2
         }
@@ -789,11 +789,11 @@ impl TypeChecker {
 
     pub(super) fn merge_type_mappers(
         &self,
-        mapper1: Option<TypeMapper>,
-        mapper2: TypeMapper,
-    ) -> TypeMapper {
+        mapper1: Option<Rc<TypeMapper>>,
+        mapper2: Rc<TypeMapper>,
+    ) -> Rc<TypeMapper> {
         if let Some(mapper1) = mapper1 {
-            self.make_merged_type_mapper(mapper1, mapper2)
+            Rc::new(self.make_merged_type_mapper(mapper1, mapper2))
         } else {
             mapper2
         }
@@ -803,27 +803,29 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-        mapper: Option<TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
     ) -> TypeMapper {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
-            Some(mapper) => {
-                self.make_merged_type_mapper(self.make_unary_type_mapper(source, target), mapper)
-            }
+            Some(mapper) => self.make_merged_type_mapper(
+                Rc::new(self.make_unary_type_mapper(source, target)),
+                mapper,
+            ),
         }
     }
 
     pub(super) fn append_type_mapping(
         &self,
-        mapper: Option<TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
         source: &Type,
         target: &Type,
     ) -> TypeMapper {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
-            Some(mapper) => {
-                self.make_merged_type_mapper(mapper, self.make_unary_type_mapper(source, target))
-            }
+            Some(mapper) => self.make_merged_type_mapper(
+                mapper,
+                Rc::new(self.make_unary_type_mapper(source, target)),
+            ),
         }
     }
 
@@ -861,7 +863,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_predicate(
         &self,
         predicate: &TypePredicate,
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> TypePredicate {
         self.create_type_predicate(
             predicate.kind,
@@ -874,11 +876,10 @@ impl TypeChecker {
     pub(super) fn instantiate_signature(
         &self,
         signature: Rc<Signature>,
-        mapper: &TypeMapper,
+        mut mapper: Rc<TypeMapper>,
         erase_type_parameters: Option<bool>,
     ) -> Signature {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
-        let mut mapper = mapper.clone();
         let mut fresh_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
         if let Some(signature_type_parameters) = signature.maybe_type_parameters().clone() {
             if !erase_type_parameters {
@@ -887,10 +888,10 @@ impl TypeChecker {
                         self.clone_type_parameter(&type_parameter)
                     }));
                 mapper = self.combine_type_mappers(
-                    Some(self.create_type_mapper(
+                    Some(Rc::new(self.create_type_mapper(
                         signature_type_parameters,
                         fresh_type_parameters.clone(),
-                    )),
+                    ))),
                     mapper,
                 );
                 for tp in fresh_type_parameters.as_ref().unwrap() {
@@ -904,10 +905,10 @@ impl TypeChecker {
             signature
                 .maybe_this_parameter()
                 .as_ref()
-                .map(|this_parameter| self.instantiate_symbol(this_parameter, &mapper)),
+                .map(|this_parameter| self.instantiate_symbol(this_parameter, mapper.clone())),
             self.instantiate_list(
                 Some(signature.parameters()),
-                Some(&mapper),
+                Some(mapper.clone()),
                 |parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),
             )
             .unwrap(),
@@ -921,7 +922,11 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn instantiate_symbol(&self, symbol: &Symbol, mapper: &TypeMapper) -> Rc<Symbol> {
+    pub(super) fn instantiate_symbol(
+        &self,
+        symbol: &Symbol,
+        mut mapper: Rc<TypeMapper>,
+    ) -> Rc<Symbol> {
         let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
         {
@@ -932,7 +937,6 @@ impl TypeChecker {
                 }
             }
         }
-        let mut mapper = mapper.clone();
         if get_check_flags(&symbol).intersects(CheckFlags::Instantiated) {
             let links = (*links).borrow();
             symbol = links.target.clone().unwrap();
@@ -970,7 +974,7 @@ impl TypeChecker {
     pub(super) fn get_object_type_instantiation<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*AnonymousType | DeferredTypeReference*/
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
@@ -1041,10 +1045,8 @@ impl TypeChecker {
         }
         let type_parameters = type_parameters.unwrap();
         if !type_parameters.is_empty() {
-            let combined_mapper = self.combine_type_mappers(
-                type_as_object_type.maybe_mapper().map(Clone::clone),
-                mapper.clone(),
-            );
+            let combined_mapper =
+                self.combine_type_mappers(type_as_object_type.maybe_mapper(), mapper.clone());
             let type_arguments = map(&type_parameters, |t: &Rc<Type>, _| {
                 self.get_mapped_type(t, &combined_mapper)
             });
@@ -1091,7 +1093,8 @@ impl TypeChecker {
                 .get(&id)
                 .map(Clone::clone);
             if result.is_none() {
-                let new_mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
+                let new_mapper =
+                    Rc::new(self.create_type_mapper(type_parameters, Some(type_arguments)));
                 result = Some(
                     if target_as_object_type
                         .object_flags()

@@ -245,7 +245,7 @@ impl TypeChecker {
                 inference_context.mapper().clone()
             }
         });
-        let source_signature = if let Some(mapper) = mapper.as_ref() {
+        let source_signature = if let Some(mapper) = mapper {
             Rc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None))
         } else {
             contextual_signature.clone()
@@ -359,8 +359,7 @@ impl TypeChecker {
                     )
                     .as_deref(),
                 );
-                let instantiated_type =
-                    self.instantiate_type(contextual_type, outer_mapper.as_ref());
+                let instantiated_type = self.instantiate_type(contextual_type, outer_mapper);
                 let contextual_signature = self.get_single_call_signature(&instantiated_type);
                 let inference_source_type = if let Some(ref contextual_signature_type_parameters) =
                     contextual_signature
@@ -394,11 +393,10 @@ impl TypeChecker {
                 let return_source_type = self.instantiate_type(
                     contextual_type,
                     if let Some(outer_context) = outer_context.as_ref() {
-                        outer_context.maybe_return_mapper().clone()
+                        outer_context.maybe_return_mapper()
                     } else {
                         None
-                    }
-                    .as_ref(),
+                    },
                 );
                 self.infer_types(
                     &return_context.inferences(),
@@ -407,17 +405,21 @@ impl TypeChecker {
                     None,
                     None,
                 );
-                *context.maybe_return_mapper() = if some(
-                    Some(&return_context.inferences()),
-                    Some(|inference: &Rc<InferenceInfo>| self.has_inference_candidates(inference)),
-                ) {
-                    self.get_mapper_from_context(
-                        self.clone_inferred_part_of_context(&return_context)
-                            .as_deref(),
-                    )
-                } else {
-                    None
-                };
+                context.set_return_mapper(
+                    if some(
+                        Some(&return_context.inferences()),
+                        Some(|inference: &Rc<InferenceInfo>| {
+                            self.has_inference_candidates(inference)
+                        }),
+                    ) {
+                        self.get_mapper_from_context(
+                            self.clone_inferred_part_of_context(&return_context)
+                                .as_deref(),
+                        )
+                    } else {
+                        None
+                    },
+                );
             }
         }
 
@@ -658,7 +660,7 @@ impl TypeChecker {
                 is_javascript,
             )
             .unwrap();
-        let mut mapper: Option<TypeMapper> = None;
+        let mut mapper: Option<Rc<TypeMapper>> = None;
         for i in 0..type_argument_nodes.len() {
             Debug_.assert(
                 type_parameters.get(i).is_some(),
@@ -675,16 +677,16 @@ impl TypeChecker {
                 let type_argument_head_message =
                     head_message.unwrap_or(&*Diagnostics::Type_0_does_not_satisfy_the_constraint_1);
                 if mapper.is_none() {
-                    mapper = Some(self.create_type_mapper(
+                    mapper = Some(Rc::new(self.create_type_mapper(
                         type_parameters.clone(),
                         Some(type_argument_types.clone()),
-                    ));
+                    )));
                 }
                 let type_argument = &type_argument_types[i];
                 if !self.check_type_assignable_to(
                     type_argument,
                     &self.get_type_with_this_argument(
-                        &self.instantiate_type(constraint, mapper.as_ref()),
+                        &self.instantiate_type(constraint, mapper.clone()),
                         Some(&**type_argument),
                         None,
                     ),

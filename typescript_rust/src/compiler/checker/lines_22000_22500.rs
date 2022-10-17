@@ -872,8 +872,8 @@ impl TypeChecker {
                     if let Some(default_type) = default_type.as_ref() {
                         inferred_type = Some(self.instantiate_type(
                             default_type,
-                            Some(&self.merge_type_mappers(
-                                Some(self.create_backreference_mapper(context, index)),
+                            Some(self.merge_type_mappers(
+                                Some(Rc::new(self.create_backreference_mapper(context, index))),
                                 context.non_fixing_mapper().clone(),
                             )),
                         ));
@@ -893,7 +893,7 @@ impl TypeChecker {
             let constraint = self.get_constraint_of_type_parameter(&inference.type_parameter);
             if let Some(constraint) = constraint.as_ref() {
                 let instantiated_constraint =
-                    self.instantiate_type(constraint, Some(&context.non_fixing_mapper()));
+                    self.instantiate_type(constraint, Some(context.non_fixing_mapper()));
                 if match inferred_type.as_ref() {
                     None => true,
                     Some(inferred_type) => {

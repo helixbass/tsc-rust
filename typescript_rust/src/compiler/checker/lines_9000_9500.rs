@@ -789,7 +789,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_if_needed(&self, type_: &Type, symbol: &Symbol) -> Rc<Type> {
         if get_check_flags(symbol).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
-            return self.instantiate_type(type_, (*links).borrow().mapper.as_ref());
+            return self.instantiate_type(type_, (*links).borrow().mapper.clone());
         }
 
         type_.type_wrapper()

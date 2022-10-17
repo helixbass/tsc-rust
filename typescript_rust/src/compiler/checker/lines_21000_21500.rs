@@ -702,12 +702,12 @@ impl TypeChecker {
             None,
             None,
         ));
-        context.set_mapper(self.make_function_type_mapper(
+        context.set_mapper(Rc::new(self.make_function_type_mapper(
             CreateInferenceContextWorkerMapperCallback::new(context.clone()),
-        ));
-        context.set_non_fixing_mapper(self.make_function_type_mapper(
+        )));
+        context.set_non_fixing_mapper(Rc::new(self.make_function_type_mapper(
             CreateInferenceContextWorkerNonFixingMapperCallback::new(context.clone()),
-        ));
+        )));
         context
     }
 
@@ -792,7 +792,7 @@ impl TypeChecker {
     pub(super) fn get_mapper_from_context(
         &self,
         context: Option<&InferenceContext>,
-    ) -> Option<TypeMapper> {
+    ) -> Option<Rc<TypeMapper>> {
         context.map(|context| context.mapper().clone())
     }
 

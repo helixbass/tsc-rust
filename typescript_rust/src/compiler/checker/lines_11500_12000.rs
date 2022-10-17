@@ -886,7 +886,7 @@ impl TypeChecker {
                     Some(if let Some(target_default) = target_default {
                         self.instantiate_type(
                             &target_default,
-                            type_parameter_as_type_parameter.maybe_mapper().as_ref(),
+                            type_parameter_as_type_parameter.maybe_mapper(),
                         )
                     } else {
                         self.no_constraint_type()
@@ -998,11 +998,11 @@ impl TypeChecker {
                 }) {
                     return self.instantiate_type(
                         type_,
-                        Some(&self.prepend_type_mapping(
+                        Some(Rc::new(self.prepend_type_mapping(
                             &type_variable,
                             &constraint,
-                            type_as_mapped_type.maybe_mapper().map(Clone::clone),
-                        )),
+                            type_as_mapped_type.maybe_mapper(),
+                        ))),
                     );
                 }
             }

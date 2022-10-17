@@ -392,21 +392,19 @@ impl CheckTypeRelatedTo {
                     if saved.intersects(RelationComparisonResult::ReportsUnmeasurable) {
                         self.type_checker.instantiate_type(
                             source,
-                            Some(
-                                &self
-                                    .type_checker
+                            Some(Rc::new(
+                                self.type_checker
                                     .make_function_type_mapper(ReportUnmeasurableMarkers),
-                            ),
+                            )),
                         );
                     }
                     if saved.intersects(RelationComparisonResult::ReportsUnreliable) {
                         self.type_checker.instantiate_type(
                             source,
-                            Some(
-                                &self
-                                    .type_checker
+                            Some(Rc::new(
+                                self.type_checker
                                     .make_function_type_mapper(ReportUnreliableMarkers),
-                            ),
+                            )),
                         );
                     }
                 }
@@ -1026,12 +1024,9 @@ impl CheckTypeRelatedTo {
                                     mapped_keys.push(
                                         self.type_checker.instantiate_type(
                                             name_type,
-                                            Some(
-                                                &self.type_checker.append_type_mapping(
-                                                    target_type
-                                                        .as_mapped_type()
-                                                        .maybe_mapper()
-                                                        .map(Clone::clone),
+                                            Some(Rc::new(
+                                                self.type_checker.append_type_mapping(
+                                                    target_type.as_mapped_type().maybe_mapper(),
                                                     &self
                                                         .type_checker
                                                         .get_type_parameter_from_mapped_type(
@@ -1039,7 +1034,7 @@ impl CheckTypeRelatedTo {
                                                         ),
                                                     t,
                                                 ),
-                                            ),
+                                            )),
                                         ),
                                     );
                                 },
@@ -1372,11 +1367,10 @@ impl CheckTypeRelatedTo {
                 }
                 self.type_checker.instantiate_type(
                     &source,
-                    Some(
-                        &self
-                            .type_checker
+                    Some(Rc::new(
+                        self.type_checker
                             .make_function_type_mapper(ReportUnreliableMarkers),
-                    ),
+                    )),
                 );
             }
             if self
@@ -1537,7 +1531,7 @@ impl CheckTypeRelatedTo {
                     .infer_type_parameters
                     .clone();
                 let mut source_extends = source.as_conditional_type().extends_type.clone();
-                let mut mapper: Option<TypeMapper> = None;
+                let mut mapper: Option<Rc<TypeMapper>> = None;
                 if let Some(source_params) = source_params.as_ref() {
                     let ctx = self.type_checker.create_inference_context(
                         source_params,
@@ -1556,8 +1550,8 @@ impl CheckTypeRelatedTo {
                     );
                     source_extends = self
                         .type_checker
-                        .instantiate_type(&source_extends, Some(&ctx.mapper()));
-                    mapper = Some(ctx.mapper().clone());
+                        .instantiate_type(&source_extends, Some(ctx.mapper()));
+                    mapper = Some(ctx.mapper());
                 }
                 if self.type_checker.is_type_identical_to(
                     &source_extends,
@@ -1584,7 +1578,7 @@ impl CheckTypeRelatedTo {
                             &self
                                 .type_checker
                                 .get_true_type_from_conditional_type(&source),
-                            mapper.as_ref(),
+                            mapper,
                         ),
                         &self
                             .type_checker

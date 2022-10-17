@@ -1198,20 +1198,15 @@ impl TypeChecker {
         object_type: &Type, /*MappedType*/
         index: &Type,
     ) -> Rc<Type> {
-        let mapper = self.create_type_mapper(
+        let mapper = Rc::new(self.create_type_mapper(
             vec![self.get_type_parameter_from_mapped_type(object_type)],
             Some(vec![index.type_wrapper()]),
-        );
-        let template_mapper = self.combine_type_mappers(
-            object_type
-                .as_mapped_type()
-                .maybe_mapper()
-                .map(Clone::clone),
-            mapper,
-        );
+        ));
+        let template_mapper =
+            self.combine_type_mappers(object_type.as_mapped_type().maybe_mapper(), mapper);
         self.instantiate_type(
             &self.get_template_type_from_mapped_type(object_type),
-            Some(&template_mapper),
+            Some(template_mapper),
         )
     }
 

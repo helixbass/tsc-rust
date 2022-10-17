@@ -22,7 +22,7 @@ impl TypeChecker {
         &self,
         left: Option<TLeft>,
         right: Option<TRight>,
-        mapper: Option<&TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
     ) -> Option<Rc<Symbol>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
         let right = right.map(|right| right.borrow().symbol_wrapper());
@@ -46,7 +46,7 @@ impl TypeChecker {
         &self,
         left: &Signature,
         right: &Signature,
-        mapper: Option<&TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
     ) -> Vec<Rc<Symbol>> {
         let left_count = self.get_parameter_count(left);
         let right_count = self.get_parameter_count(right);
@@ -70,13 +70,13 @@ impl TypeChecker {
         for i in 0..longest_count {
             let mut longest_param_type = self.try_get_type_at_position(longest, i).unwrap();
             if ptr::eq(longest, right) {
-                longest_param_type = self.instantiate_type(&longest_param_type, mapper);
+                longest_param_type = self.instantiate_type(&longest_param_type, mapper.clone());
             }
             let mut shorter_param_type = self
                 .try_get_type_at_position(shorter, i)
                 .unwrap_or_else(|| self.unknown_type());
             if ptr::eq(shorter, right) {
-                shorter_param_type = self.instantiate_type(&shorter_param_type, mapper);
+                shorter_param_type = self.instantiate_type(&shorter_param_type, mapper.clone());
             }
             let union_param_type = self.get_intersection_type(
                 &vec![longest_param_type, shorter_param_type],
@@ -169,19 +169,19 @@ impl TypeChecker {
             .maybe_type_parameters()
             .clone()
             .or_else(|| right.maybe_type_parameters().clone());
-        let mut param_mapper: Option<TypeMapper> = None;
+        let mut param_mapper: Option<Rc<TypeMapper>> = None;
         if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
-            param_mapper = Some(self.create_type_mapper(
+            param_mapper = Some(Rc::new(self.create_type_mapper(
                 right.maybe_type_parameters().clone().unwrap(),
                 left.maybe_type_parameters().clone(),
-            ));
+            )));
         }
         let declaration = left.declaration.clone();
-        let params = self.combine_union_parameters(&left, &right, param_mapper.as_ref());
+        let params = self.combine_union_parameters(&left, &right, param_mapper.clone());
         let this_param = self.combine_union_this_param(
             left.maybe_this_parameter().as_deref(),
             right.maybe_this_parameter().as_deref(),
-            param_mapper.as_ref(),
+            param_mapper.clone(),
         );
         let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
         let mut result = self.create_signature(
@@ -653,7 +653,7 @@ impl TypeChecker {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         self.instantiate_type(
             instantiable,
-            Some(&self.create_type_mapper(
+            Some(Rc::new(self.create_type_mapper(
                 vec![
                     type_as_indexed_access_type.index_type.clone(),
                     type_as_indexed_access_type.object_type.clone(),
@@ -662,7 +662,7 @@ impl TypeChecker {
                     self.get_number_literal_type(Number::new(0.0)),
                     self.create_tuple_type(&[replacement.type_wrapper()], None, None, None),
                 ]),
-            )),
+            ))),
         )
     }
 
@@ -941,11 +941,11 @@ impl TypeChecker {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
                 name_type,
-                Some(&self.append_type_mapping(
-                    type_.as_mapped_type().maybe_mapper().map(Clone::clone),
+                Some(Rc::new(self.append_type_mapping(
+                    type_.as_mapped_type().maybe_mapper(),
                     type_parameter,
                     key_type,
-                )),
+                ))),
             )
         } else {
             key_type.type_wrapper()
@@ -1101,11 +1101,11 @@ impl TypeChecker {
             };
             let prop_type = self.instantiate_type(
                 template_type,
-                Some(&self.append_type_mapping(
-                    type_.as_mapped_type().maybe_mapper().map(Clone::clone),
+                Some(Rc::new(self.append_type_mapping(
+                    type_.as_mapped_type().maybe_mapper(),
                     type_parameter,
                     key_type,
-                )),
+                ))),
             );
             let index_info = Rc::new(self.create_index_info(
                 index_key_type,
@@ -1141,12 +1141,12 @@ impl TypeChecker {
                     .maybe_target()
                     .unwrap_or_else(|| mapped_type.type_wrapper()),
             );
-            let mapper = self.append_type_mapping(
-                mapped_type_as_mapped_type.maybe_mapper().map(Clone::clone),
+            let mapper = Rc::new(self.append_type_mapping(
+                mapped_type_as_mapped_type.maybe_mapper(),
                 &self.get_type_parameter_from_mapped_type(mapped_type),
                 &symbol_as_mapped_symbol.key_type(),
-            );
-            let prop_type = self.instantiate_type(&template_type, Some(&mapper));
+            ));
+            let prop_type = self.instantiate_type(&template_type, Some(mapper));
             let mut type_ = if self.strict_null_checks
                 && symbol.flags().intersects(SymbolFlags::Optional)
                 && !self.maybe_type_of_kind(&prop_type, TypeFlags::Undefined | TypeFlags::Void)

@@ -638,7 +638,7 @@ impl TypeChecker {
     pub(super) fn create_instantiated_symbol_table(
         &self,
         symbols: &[Rc<Symbol>],
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
         mapping_this_only: bool,
     ) -> SymbolTable {
         let mut result = create_symbol_table(None);
@@ -648,7 +648,7 @@ impl TypeChecker {
                 if mapping_this_only && self.is_thisless(symbol) {
                     symbol.clone()
                 } else {
-                    self.instantiate_symbol(&symbol, mapper)
+                    self.instantiate_symbol(&symbol, mapper.clone())
                 },
             );
         }

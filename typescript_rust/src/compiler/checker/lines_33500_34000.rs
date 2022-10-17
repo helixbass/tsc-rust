@@ -495,10 +495,10 @@ impl TypeChecker {
             }
         }
         if let Some(new_type_parameters) = new_type_parameters.as_ref() {
-            let mapper = self.create_type_mapper(
+            let mapper = Rc::new(self.create_type_mapper(
                 old_type_parameters.unwrap(),
                 Some(new_type_parameters.clone()),
-            );
+            ));
             for tp in new_type_parameters {
                 tp.as_type_parameter().set_mapper(mapper.clone());
             }

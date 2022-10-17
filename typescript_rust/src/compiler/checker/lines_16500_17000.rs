@@ -143,13 +143,13 @@ impl TypeChecker {
     pub(super) fn instantiate_mapped_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*MappedType*/
-        mapper: TypeMapper,
+        mapper: Rc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
         let type_variable = self.get_homomorphic_type_variable(type_);
         if let Some(type_variable) = type_variable.as_ref() {
-            let mapped_type_variable = self.instantiate_type(type_variable, Some(&mapper));
+            let mapped_type_variable = self.instantiate_type(type_variable, Some(mapper.clone()));
             if !Rc::ptr_eq(type_variable, &mapped_type_variable) {
                 let type_as_mapped_type = type_.as_mapped_type();
                 return self.map_type_with_alias(
@@ -164,16 +164,16 @@ impl TypeChecker {
                                         Some(constraint) if self.every_type(constraint, |type_| self.is_array_type(type_) || self.is_tuple_type(type_))
                                     )
                                 } {
-                                    return self.instantiate_mapped_array_type(t, type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())));
+                                    return self.instantiate_mapped_array_type(t, type_, Rc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
                                 }
                                 if self.is_generic_tuple_type(t) {
                                     return self.instantiate_mapped_generic_tuple_type(t, type_, type_variable, mapper.clone());
                                 }
                                 if self.is_tuple_type(t) {
-                                    return self.instantiate_mapped_tuple_type(t, type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())));
+                                    return self.instantiate_mapped_tuple_type(t, type_, Rc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))));
                                 }
                             }
-                            return self.instantiate_anonymous_type(type_, self.prepend_type_mapping(type_variable, t, Some(mapper.clone())), Option::<&Symbol>::None, None);
+                            return self.instantiate_anonymous_type(type_, Rc::new(self.prepend_type_mapping(type_variable, t, Some(mapper.clone()))), Option::<&Symbol>::None, None);
                         }
                         t.type_wrapper()
                     },
@@ -185,7 +185,7 @@ impl TypeChecker {
         if Rc::ptr_eq(
             &self.instantiate_type(
                 &self.get_constraint_type_from_mapped_type(type_),
-                Some(&mapper),
+                Some(mapper.clone()),
             ),
             &self.wildcard_type(),
         ) {
@@ -214,7 +214,7 @@ impl TypeChecker {
         tuple_type: &Type,    /*TupleTypeReference*/
         mapped_type: &Type,   /*MappedType*/
         type_variable: &Type, /*TypeVariable*/
-        mapper: TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> Rc<Type> {
         let tuple_type_as_type_reference = tuple_type.as_type_reference();
         let element_flags = &tuple_type_as_type_reference
@@ -231,7 +231,7 @@ impl TypeChecker {
             };
             self.instantiate_mapped_type(
                 mapped_type,
-                self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone())),
+                Rc::new(self.prepend_type_mapping(type_variable, &singleton, Some(mapper.clone()))),
                 Option::<&Symbol>::None,
                 None,
             )
@@ -252,7 +252,7 @@ impl TypeChecker {
         &self,
         array_type: &Type,
         mapped_type: &Type, /*MappedType*/
-        mapper: TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> Rc<Type> {
         let element_type =
             self.instantiate_mapped_type_template(mapped_type, &self.number_type(), true, mapper);
@@ -273,7 +273,7 @@ impl TypeChecker {
         &self,
         tuple_type: &Type,  /*TupleTypeReference*/
         mapped_type: &Type, /*MappedType*/
-        mapper: TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> Rc<Type> {
         let tuple_type_as_type_reference = tuple_type.as_type_reference_interface();
         let tuple_type_target = tuple_type_as_type_reference.target();
@@ -328,13 +328,13 @@ impl TypeChecker {
         type_: &Type, /*MappedType*/
         key: &Type,
         is_optional: bool,
-        mapper: TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> Rc<Type> {
-        let template_mapper = self.append_type_mapping(
+        let template_mapper = Rc::new(self.append_type_mapping(
             Some(mapper),
             &self.get_type_parameter_from_mapped_type(type_),
             key,
-        );
+        ));
         let prop_type = self.instantiate_type(
             &self.get_template_type_from_mapped_type(
                 &type_
@@ -342,7 +342,7 @@ impl TypeChecker {
                     .maybe_target()
                     .unwrap_or_else(|| type_.type_wrapper()),
             ),
-            Some(&template_mapper),
+            Some(template_mapper),
         );
         let modifiers = self.get_mapped_type_modifiers(type_);
         if self.strict_null_checks
@@ -363,7 +363,7 @@ impl TypeChecker {
     pub(super) fn instantiate_anonymous_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*AnonymousType*/
-        mut mapper: TypeMapper,
+        mut mapper: Rc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type /*AnonymousType*/> {
@@ -381,7 +381,10 @@ impl TypeChecker {
             let fresh_type_parameter = self.clone_type_parameter(&orig_type_parameter);
             mapped_type_type_parameter = Some(fresh_type_parameter.clone());
             mapper = self.combine_type_mappers(
-                Some(self.make_unary_type_mapper(&orig_type_parameter, &fresh_type_parameter)),
+                Some(Rc::new(self.make_unary_type_mapper(
+                    &orig_type_parameter,
+                    &fresh_type_parameter,
+                ))),
                 mapper,
             );
             fresh_type_parameter
@@ -404,7 +407,7 @@ impl TypeChecker {
         *result.maybe_alias_type_arguments_mut() = if alias_symbol.is_some() {
             alias_type_arguments.map(ToOwned::to_owned)
         } else {
-            self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(&mapper))
+            self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))
         };
         result
     }
@@ -438,10 +441,10 @@ impl TypeChecker {
                 .get(&id)
                 .map(Clone::clone);
             if result.is_none() {
-                let new_mapper = self.create_type_mapper(
+                let new_mapper = Rc::new(self.create_type_mapper(
                     root_outer_type_parameters.to_owned(),
                     Some(type_arguments),
-                );
+                ));
                 let check_type = (*root).borrow().check_type.clone();
                 let distribution_type = if (*root).borrow().is_distributive {
                     Some(self.get_mapped_type(&check_type, &new_mapper))
@@ -462,11 +465,11 @@ impl TypeChecker {
                             &mut |t| {
                                 self.get_conditional_type(
                                     root.clone(),
-                                    Some(self.prepend_type_mapping(
+                                    Some(Rc::new(self.prepend_type_mapping(
                                         &check_type,
                                         t,
                                         Some(new_mapper.clone()),
-                                    )),
+                                    ))),
                                     Option::<&Symbol>::None,
                                     None,
                                 )
@@ -495,14 +498,18 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn instantiate_type(&self, type_: &Type, mapper: Option<&TypeMapper>) -> Rc<Type> {
+    pub(super) fn instantiate_type(
+        &self,
+        type_: &Type,
+        mapper: Option<Rc<TypeMapper>>,
+    ) -> Rc<Type> {
         self.maybe_instantiate_type(Some(type_), mapper).unwrap()
     }
 
     pub(super) fn maybe_instantiate_type<TType: Borrow<Type>>(
         &self,
         type_: Option<TType>,
-        mapper: Option<&TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
     ) -> Option<Rc<Type>> {
         match (type_.as_ref(), mapper) {
             (Some(type_), Some(mapper)) => Some(self.instantiate_type_with_alias(
@@ -518,7 +525,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_with_alias<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type,
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
@@ -546,13 +553,13 @@ impl TypeChecker {
     pub(super) fn instantiate_type_worker<TSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type,
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
         alias_symbol: Option<TSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::TypeParameter) {
-            return self.get_mapped_type(type_, mapper);
+            return self.get_mapped_type(type_, &mapper);
         }
         if flags.intersects(TypeFlags::Object) {
             let object_flags = type_.as_object_flags_type().object_flags();
@@ -616,7 +623,9 @@ impl TypeChecker {
                     .types()
                     .to_owned()
             };
-            let new_types = self.instantiate_types(Some(&types), Some(mapper)).unwrap();
+            let new_types = self
+                .instantiate_types(Some(&types), Some(mapper.clone()))
+                .unwrap();
             if are_rc_slices_equal(&new_types, &types)
                 && are_option_rcs_equal(alias_symbol.as_ref(), type_.maybe_alias_symbol().as_ref())
             {
@@ -679,11 +688,17 @@ impl TypeChecker {
             let new_alias_type_arguments = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
-                self.instantiate_types(type_.maybe_alias_type_arguments().as_deref(), Some(mapper))
+                self.instantiate_types(
+                    type_.maybe_alias_type_arguments().as_deref(),
+                    Some(mapper.clone()),
+                )
             };
             let type_as_indexed_access_type = type_.as_indexed_access_type();
             return self.get_indexed_access_type(
-                &self.instantiate_type(&type_as_indexed_access_type.object_type, Some(mapper)),
+                &self.instantiate_type(
+                    &type_as_indexed_access_type.object_type,
+                    Some(mapper.clone()),
+                ),
                 &self.instantiate_type(&type_as_indexed_access_type.index_type, Some(mapper)),
                 Some(type_as_indexed_access_type.access_flags),
                 Option::<&Node>::None,
@@ -705,7 +720,7 @@ impl TypeChecker {
         if flags.intersects(TypeFlags::Substitution) {
             let type_as_substitution_type = type_.as_substitution_type();
             let maybe_variable =
-                self.instantiate_type(&type_as_substitution_type.base_type, Some(mapper));
+                self.instantiate_type(&type_as_substitution_type.base_type, Some(mapper.clone()));
             if maybe_variable.flags().intersects(TypeFlags::TypeVariable) {
                 return self.get_substitution_type(
                     &maybe_variable,
@@ -731,16 +746,20 @@ impl TypeChecker {
     pub(super) fn instantiate_reverse_mapped_type(
         &self,
         type_: &Type, /*ReverseMappedType*/
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> Rc<Type> {
         let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
-        let inner_mapped_type =
-            self.instantiate_type(&type_as_reverse_mapped_type.mapped_type, Some(mapper));
+        let inner_mapped_type = self.instantiate_type(
+            &type_as_reverse_mapped_type.mapped_type,
+            Some(mapper.clone()),
+        );
         if !get_object_flags(&inner_mapped_type).intersects(ObjectFlags::Mapped) {
             return type_.type_wrapper();
         }
-        let inner_index_type =
-            self.instantiate_type(&type_as_reverse_mapped_type.constraint_type, Some(mapper));
+        let inner_index_type = self.instantiate_type(
+            &type_as_reverse_mapped_type.constraint_type,
+            Some(mapper.clone()),
+        );
         if !inner_index_type.flags().intersects(TypeFlags::Index) {
             return type_.type_wrapper();
         }
@@ -764,7 +783,7 @@ impl TypeChecker {
         } else {
             if type_.maybe_permissive_instantiation().is_none() {
                 *type_.maybe_permissive_instantiation() =
-                    Some(self.instantiate_type(type_, self.permissive_mapper.as_deref()));
+                    Some(self.instantiate_type(type_, self.permissive_mapper.clone()));
             }
             type_.maybe_permissive_instantiation().clone().unwrap()
         }
@@ -782,7 +801,7 @@ impl TypeChecker {
         {
             return type_restrictive_instantiation;
         }
-        let ret = self.instantiate_type(type_, self.restrictive_mapper.as_deref());
+        let ret = self.instantiate_type(type_, self.restrictive_mapper.clone());
         *type_.maybe_restrictive_instantiation() = Some(ret.clone());
         *ret.maybe_restrictive_instantiation() = Some(ret.clone());
         ret
@@ -791,7 +810,7 @@ impl TypeChecker {
     pub(super) fn instantiate_index_info(
         &self,
         info: &IndexInfo,
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> Rc<IndexInfo> {
         Rc::new(self.create_index_info(
             info.key_type.clone(),

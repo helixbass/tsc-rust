@@ -265,7 +265,7 @@ pub struct TypeParameter {
     pub constraint: RefCell<Option<Weak<Type>>>, // TODO: is it correct that this is weak?
     pub default: RefCell<Option<Rc<Type>>>,
     pub target: Option<Rc<Type /*TypeParameter*/>>,
-    pub mapper: RefCell<Option<TypeMapper>>,
+    pub mapper: RefCell<Option<Rc<TypeMapper>>>,
     pub is_this_type: Option<bool>,
 }
 
@@ -296,11 +296,11 @@ impl TypeParameter {
         self.default.borrow_mut()
     }
 
-    pub fn maybe_mapper(&self) -> Ref<Option<TypeMapper>> {
-        self.mapper.borrow()
+    pub fn maybe_mapper(&self) -> Option<Rc<TypeMapper>> {
+        self.mapper.borrow().clone()
     }
 
-    pub fn set_mapper(&self, mapper: TypeMapper) {
+    pub fn set_mapper(&self, mapper: Rc<TypeMapper>) {
         *self.mapper.borrow_mut() = Some(mapper);
     }
 }
@@ -431,8 +431,8 @@ pub struct ConditionalType {
     resolved_false_type: RefCell<Option<Rc<Type>>>,
     resolved_inferred_true_type: RefCell<Option<Rc<Type>>>,
     resolved_default_constraint: RefCell<Option<Rc<Type>>>,
-    pub(crate) mapper: Option<TypeMapper>,
-    pub(crate) combined_mapper: Option<TypeMapper>,
+    pub(crate) mapper: Option<Rc<TypeMapper>>,
+    pub(crate) combined_mapper: Option<Rc<TypeMapper>>,
 }
 
 impl ConditionalType {
@@ -441,8 +441,8 @@ impl ConditionalType {
         root: Rc<RefCell<ConditionalRoot>>,
         check_type: Rc<Type>,
         extends_type: Rc<Type>,
-        mapper: Option<TypeMapper>,
-        combined_mapper: Option<TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
+        combined_mapper: Option<Rc<TypeMapper>>,
     ) -> Self {
         Self {
             _type: base_type,
@@ -584,7 +584,7 @@ pub struct Signature {
     min_argument_count: Option<usize>,
     resolved_min_argument_count: Cell<Option<usize>>,
     pub target: Option<Rc<Signature>>,
-    pub mapper: Option<TypeMapper>, // TODO: should this be Rc-wrapped since it gets cloned eg in clone_signature()?
+    pub mapper: Option<Rc<TypeMapper>>,
     pub composite_signatures: Option<Vec<Rc<Signature>>>,
     pub composite_kind: Option<TypeFlags>,
     erased_signature_cache: RefCell<Option<Rc<Signature>>>,
@@ -737,7 +737,7 @@ pub struct IndexInfo {
     pub declaration: Option<Rc<Node /*IndexSignatureDeclaration*/>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum TypeMapper {
     Simple(TypeMapperSimple),
     Array(TypeMapperArray),
@@ -776,8 +776,8 @@ impl fmt::Debug for TypeMapperFunction {
 
 #[derive(Clone, Debug)]
 pub struct TypeMapperCompositeOrMerged {
-    pub mapper1: Box<TypeMapper>,
-    pub mapper2: Box<TypeMapper>,
+    pub mapper1: Rc<TypeMapper>,
+    pub mapper2: Rc<TypeMapper>,
 }
 
 impl TypeMapper {
@@ -795,18 +795,12 @@ impl TypeMapper {
         })
     }
 
-    pub fn new_composite(mapper1: TypeMapper, mapper2: TypeMapper) -> Self {
-        Self::Composite(TypeMapperCompositeOrMerged {
-            mapper1: Box::new(mapper1),
-            mapper2: Box::new(mapper2),
-        })
+    pub fn new_composite(mapper1: Rc<TypeMapper>, mapper2: Rc<TypeMapper>) -> Self {
+        Self::Composite(TypeMapperCompositeOrMerged { mapper1, mapper2 })
     }
 
-    pub fn new_merged(mapper1: TypeMapper, mapper2: TypeMapper) -> Self {
-        Self::Merged(TypeMapperCompositeOrMerged {
-            mapper1: Box::new(mapper1),
-            mapper2: Box::new(mapper2),
-        })
+    pub fn new_merged(mapper1: Rc<TypeMapper>, mapper2: Rc<TypeMapper>) -> Self {
+        Self::Merged(TypeMapperCompositeOrMerged { mapper1, mapper2 })
     }
 }
 
@@ -977,9 +971,9 @@ pub struct InferenceContext {
     pub signature: Option<Rc<Signature>>,
     flags: Cell<InferenceFlags>,
     pub compare_types: Rc<dyn TypeComparer>,
-    mapper: RefCell<Option<TypeMapper>>,
-    non_fixing_mapper: RefCell<Option<TypeMapper>>,
-    return_mapper: RefCell<Option<TypeMapper>>,
+    mapper: RefCell<Option<Rc<TypeMapper>>>,
+    non_fixing_mapper: RefCell<Option<Rc<TypeMapper>>>,
+    return_mapper: RefCell<Option<Rc<TypeMapper>>>,
     inferred_type_parameters: RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>,
 }
 
@@ -989,9 +983,9 @@ impl InferenceContext {
         signature: Option<Rc<Signature>>,
         flags: InferenceFlags,
         compare_types: Rc<dyn TypeComparer>,
-        mapper: Option<TypeMapper>,
-        non_fixing_mapper: Option<TypeMapper>,
-        return_mapper: Option<TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
+        non_fixing_mapper: Option<Rc<TypeMapper>>,
+        return_mapper: Option<Rc<TypeMapper>>,
         inferred_type_parameters: Option<Vec<Rc<Type>>>,
     ) -> Self {
         Self {
@@ -1022,26 +1016,28 @@ impl InferenceContext {
         self.flags.set(flags);
     }
 
-    pub fn mapper(&self) -> Ref<TypeMapper> {
-        Ref::map(self.mapper.borrow(), |mapper| mapper.as_ref().unwrap())
+    pub fn mapper(&self) -> Rc<TypeMapper> {
+        self.mapper.borrow().clone().unwrap()
     }
 
-    pub fn set_mapper(&self, mapper: TypeMapper) {
+    pub fn set_mapper(&self, mapper: Rc<TypeMapper>) {
         *self.mapper.borrow_mut() = Some(mapper);
     }
 
-    pub fn non_fixing_mapper(&self) -> Ref<TypeMapper> {
-        Ref::map(self.non_fixing_mapper.borrow(), |non_fixing_mapper| {
-            non_fixing_mapper.as_ref().unwrap()
-        })
+    pub fn non_fixing_mapper(&self) -> Rc<TypeMapper> {
+        self.non_fixing_mapper.borrow().clone().unwrap()
     }
 
-    pub fn set_non_fixing_mapper(&self, non_fixing_mapper: TypeMapper) {
+    pub fn set_non_fixing_mapper(&self, non_fixing_mapper: Rc<TypeMapper>) {
         *self.non_fixing_mapper.borrow_mut() = Some(non_fixing_mapper);
     }
 
-    pub fn maybe_return_mapper(&self) -> RefMut<Option<TypeMapper>> {
-        self.return_mapper.borrow_mut()
+    pub fn maybe_return_mapper(&self) -> Option<Rc<TypeMapper>> {
+        self.return_mapper.borrow().clone()
+    }
+
+    pub fn set_return_mapper(&self, return_mapper: Option<Rc<TypeMapper>>) {
+        *self.return_mapper.borrow_mut() = return_mapper;
     }
 
     pub fn maybe_inferred_type_parameters(&self) -> Ref<Option<Vec<Rc<Type>>>> {

@@ -1132,7 +1132,7 @@ pub struct SymbolLinks {
     pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub instantiations: Option<HashMap<String, Rc<Type>>>,
     pub inferred_class_symbol: Option<HashMap<SymbolId, Rc<Symbol /*TransientSymbol*/>>>,
-    pub mapper: Option<TypeMapper>,
+    pub mapper: Option<Rc<TypeMapper>>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
     pub containing_type: Option<Rc<Type>>,

@@ -47,8 +47,7 @@ impl TypeChecker {
                                 (*self.get_symbol_links(lhs_symbol.as_ref().unwrap()))
                                     .borrow()
                                     .mapper
-                                    .clone()
-                                    .as_ref(),
+                                    .clone(),
                             ),
                         )
                     } else {
@@ -754,13 +753,11 @@ impl TypeChecker {
                 ) {
                     return Some(self.instantiate_instantiable_types(
                         contextual_type,
-                        &inference_context.non_fixing_mapper(),
+                        inference_context.non_fixing_mapper(),
                     ));
                 }
                 let inference_context_return_mapper = inference_context.maybe_return_mapper();
-                if let Some(inference_context_return_mapper) =
-                    inference_context_return_mapper.as_ref()
-                {
+                if let Some(inference_context_return_mapper) = inference_context_return_mapper {
                     return Some(self.instantiate_instantiable_types(
                         contextual_type,
                         inference_context_return_mapper,
@@ -774,7 +771,7 @@ impl TypeChecker {
     pub(super) fn instantiate_instantiable_types(
         &self,
         type_: &Type,
-        mapper: &TypeMapper,
+        mapper: Rc<TypeMapper>,
     ) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Instantiable) {
             return self.instantiate_type(type_, Some(mapper));
@@ -782,7 +779,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Union) {
             return self.get_union_type(
                 map(type_.as_union_type().types(), |t: &Rc<Type>, _| {
-                    self.instantiate_instantiable_types(t, mapper)
+                    self.instantiate_instantiable_types(t, mapper.clone())
                 }),
                 Some(UnionReduction::None),
                 Option::<&Symbol>::None,
@@ -793,7 +790,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Intersection) {
             return self.get_intersection_type(
                 &map(type_.as_intersection_type().types(), |t: &Rc<Type>, _| {
-                    self.instantiate_instantiable_types(t, mapper)
+                    self.instantiate_instantiable_types(t, mapper.clone())
                 }),
                 Option::<&Symbol>::None,
                 None,

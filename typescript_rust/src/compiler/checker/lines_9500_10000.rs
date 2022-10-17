@@ -220,8 +220,7 @@ impl TypeChecker {
                 {
                     let mapper = (*links).borrow().mapper.clone();
                     mapper
-                }
-                .as_ref(),
+                },
             );
             if !self.pop_type_resolution() {
                 type_ = self.report_circularity_error(symbol);

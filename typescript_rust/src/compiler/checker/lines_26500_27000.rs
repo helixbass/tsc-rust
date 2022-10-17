@@ -207,7 +207,7 @@ impl TypeChecker {
         &self,
         left: Option<TLeft>,
         right: Option<TRight>,
-        mapper: Option<&TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
     ) -> Option<Rc<Symbol>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
         let right = right.map(|right| right.borrow().symbol_wrapper());
@@ -233,7 +233,7 @@ impl TypeChecker {
         &self,
         left: &Signature,
         right: &Signature,
-        mapper: Option<&TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
     ) -> Vec<Rc<Symbol>> {
         let left_count = self.get_parameter_count(left);
         let right_count = self.get_parameter_count(right);
@@ -257,13 +257,13 @@ impl TypeChecker {
         for i in 0..longest_count {
             let mut longest_param_type = self.try_get_type_at_position(longest, i).unwrap();
             if ptr::eq(longest, right) {
-                longest_param_type = self.instantiate_type(&longest_param_type, mapper);
+                longest_param_type = self.instantiate_type(&longest_param_type, mapper.clone());
             }
             let mut shorter_param_type = self
                 .try_get_type_at_position(shorter, i)
                 .unwrap_or_else(|| self.unknown_type());
             if ptr::eq(shorter, right) {
-                shorter_param_type = self.instantiate_type(&shorter_param_type, mapper);
+                shorter_param_type = self.instantiate_type(&shorter_param_type, mapper.clone());
             }
             let union_param_type = self.get_union_type(
                 vec![longest_param_type, shorter_param_type],
@@ -335,7 +335,7 @@ impl TypeChecker {
                     .as_transient_symbol()
                     .symbol_links()
                     .borrow_mut()
-                    .type_ = Some(self.instantiate_type(&rest_param_symbol_type, mapper));
+                    .type_ = Some(self.instantiate_type(&rest_param_symbol_type, mapper.clone()));
             }
             params.push(rest_param_symbol);
         }
@@ -351,19 +351,19 @@ impl TypeChecker {
             .maybe_type_parameters()
             .clone()
             .or_else(|| right.maybe_type_parameters().clone());
-        let mut param_mapper: Option<TypeMapper> = None;
+        let mut param_mapper: Option<Rc<TypeMapper>> = None;
         if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
-            param_mapper = Some(self.create_type_mapper(
+            param_mapper = Some(Rc::new(self.create_type_mapper(
                 right.maybe_type_parameters().clone().unwrap(),
                 left.maybe_type_parameters().clone(),
-            ));
+            )));
         }
         let declaration = left.declaration.as_ref();
-        let params = self.combine_intersection_parameters(&left, &right, param_mapper.as_ref());
+        let params = self.combine_intersection_parameters(&left, &right, param_mapper.clone());
         let this_param = self.combine_intersection_this_param(
             left.maybe_this_parameter().as_deref(),
             right.maybe_this_parameter().as_deref(),
-            param_mapper.as_ref(),
+            param_mapper.clone(),
         );
         let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
         let mut result = self.create_signature(

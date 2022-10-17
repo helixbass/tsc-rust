@@ -119,17 +119,19 @@ impl CheckTypeRelatedTo {
                 &self
                     .type_checker
                     .get_constraint_type_from_mapped_type(source),
-                Some(&if self
-                    .type_checker
-                    .get_combined_mapped_type_optionality(source)
-                    < 0
-                {
-                    self.type_checker
-                        .make_function_type_mapper(ReportUnmeasurableMarkers)
-                } else {
-                    self.type_checker
-                        .make_function_type_mapper(ReportUnreliableMarkers)
-                }),
+                Some(Rc::new(
+                    if self
+                        .type_checker
+                        .get_combined_mapped_type_optionality(source)
+                        < 0
+                    {
+                        self.type_checker
+                            .make_function_type_mapper(ReportUnmeasurableMarkers)
+                    } else {
+                        self.type_checker
+                            .make_function_type_mapper(ReportUnreliableMarkers)
+                    },
+                )),
             );
             result = self.is_related_to(
                 &target_constraint,
@@ -140,25 +142,25 @@ impl CheckTypeRelatedTo {
                 None,
             );
             if result != Ternary::False {
-                let mapper = self.type_checker.create_type_mapper(
+                let mapper = Rc::new(self.type_checker.create_type_mapper(
                     vec![self
                         .type_checker
                         .get_type_parameter_from_mapped_type(source)],
                     Some(vec![self
                         .type_checker
                         .get_type_parameter_from_mapped_type(target)]),
-                );
+                ));
                 if are_option_rcs_equal(
                     self.type_checker
                         .maybe_instantiate_type(
                             self.type_checker.get_name_type_from_mapped_type(source),
-                            Some(&mapper),
+                            Some(mapper.clone()),
                         )
                         .as_ref(),
                     self.type_checker
                         .maybe_instantiate_type(
                             self.type_checker.get_name_type_from_mapped_type(target),
-                            Some(&mapper),
+                            Some(mapper.clone()),
                         )
                         .as_ref(),
                 ) {
@@ -166,7 +168,7 @@ impl CheckTypeRelatedTo {
                         & self.is_related_to(
                             &self.type_checker.instantiate_type(
                                 &self.type_checker.get_template_type_from_mapped_type(source),
-                                Some(&mapper),
+                                Some(mapper),
                             ),
                             &self.type_checker.get_template_type_from_mapped_type(target),
                             Some(RecursionFlags::Both),
@@ -1451,11 +1453,10 @@ impl CheckTypeRelatedTo {
             }),
             Some(&|source: &Type, target: &Type| incompatible_reporter(self, source, target)),
             Rc::new(TypeComparerIsRelatedToWorker::new(self.rc_wrapper())),
-            Some(
-                &self
-                    .type_checker
+            Some(Rc::new(
+                self.type_checker
                     .make_function_type_mapper(ReportUnreliableMarkers),
-            ),
+            )),
         )
     }
 

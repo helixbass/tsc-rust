@@ -62,18 +62,17 @@ impl TypeChecker {
                 {
                     default_type = Some(self.any_type());
                 }
-                result[i] =
-                    if let Some(default_type) = default_type {
-                        self.instantiate_type(
-                            &default_type,
-                            Some(&self.create_type_mapper(
-                                type_parameters.to_owned(),
-                                Some(result.clone()),
-                            )),
-                        )
-                    } else {
-                        base_default_type.clone()
-                    };
+                result[i] = if let Some(default_type) = default_type {
+                    self.instantiate_type(
+                        &default_type,
+                        Some(Rc::new(self.create_type_mapper(
+                            type_parameters.to_owned(),
+                            Some(result.clone()),
+                        ))),
+                    )
+                } else {
+                    base_default_type.clone()
+                };
             }
             result.truncate(type_parameters.len());
             return Some(result);
@@ -460,7 +459,7 @@ impl TypeChecker {
                     Some(if let Some(target_type_predicate) = target_type_predicate {
                         Rc::new(self.instantiate_type_predicate(
                             &target_type_predicate,
-                            signature.mapper.as_ref().unwrap(),
+                            signature.mapper.clone().unwrap(),
                         ))
                     } else {
                         self.no_type_predicate()
@@ -585,7 +584,7 @@ impl TypeChecker {
             let mut type_: Rc<Type> = if let Some(signature_target) = signature.target.as_ref() {
                 self.instantiate_type(
                     &self.get_return_type_of_signature(signature_target.clone()),
-                    signature.mapper.as_ref(),
+                    signature.mapper.clone(),
                 )
             } else if let Some(signature_composite_signatures) =
                 signature.composite_signatures.as_deref()
@@ -601,7 +600,7 @@ impl TypeChecker {
                         signature.composite_kind,
                         Some(UnionReduction::Subtype),
                     ),
-                    signature.mapper.as_ref(),
+                    signature.mapper.clone(),
                 )
             } else {
                 let signature_declaration = signature.declaration.as_ref().unwrap();
@@ -802,7 +801,7 @@ impl TypeChecker {
     ) -> Signature {
         self.instantiate_signature(
             signature.clone(),
-            &self.create_signature_type_mapper(&signature, type_arguments),
+            Rc::new(self.create_signature_type_mapper(&signature, type_arguments)),
             Some(true),
         )
     }
@@ -833,7 +832,7 @@ impl TypeChecker {
     pub(super) fn create_erased_signature(&self, signature: Rc<Signature>) -> Signature {
         self.instantiate_signature(
             signature.clone(),
-            &self.create_type_eraser(signature.maybe_type_parameters().clone().unwrap()),
+            Rc::new(self.create_type_eraser(signature.maybe_type_parameters().clone().unwrap())),
             Some(true),
         )
     }
@@ -877,29 +876,32 @@ impl TypeChecker {
             {
                 return signature_base_signature_cache;
             }
-            let type_eraser = self.create_type_eraser(type_parameters.clone());
-            let base_constraint_mapper = self.create_type_mapper(
+            let type_eraser = Rc::new(self.create_type_eraser(type_parameters.clone()));
+            let base_constraint_mapper = Rc::new(self.create_type_mapper(
                 type_parameters.clone(),
                 Some(map(type_parameters, |tp: &Rc<Type>, _| {
                     self.get_constraint_of_type_parameter(tp)
                         .unwrap_or_else(|| self.unknown_type())
                 })),
-            );
+            ));
             let mut base_constraints: Vec<Rc<Type>> = map(type_parameters, |tp: &Rc<Type>, _| {
-                self.maybe_instantiate_type(Some(&**tp), Some(&base_constraint_mapper))
+                self.maybe_instantiate_type(Some(&**tp), Some(base_constraint_mapper.clone()))
                     .unwrap_or_else(|| self.unknown_type())
             });
             for _i in 0..type_parameters.len() - 1 {
                 base_constraints = self
-                    .instantiate_types(Some(&base_constraints), Some(&base_constraint_mapper))
+                    .instantiate_types(
+                        Some(&base_constraints),
+                        Some(base_constraint_mapper.clone()),
+                    )
                     .unwrap();
             }
             base_constraints = self
-                .instantiate_types(Some(&base_constraints), Some(&type_eraser))
+                .instantiate_types(Some(&base_constraints), Some(type_eraser))
                 .unwrap();
             let ret = Rc::new(self.instantiate_signature(
                 signature.clone(),
-                &self.create_type_mapper(type_parameters.clone(), Some(base_constraints)),
+                Rc::new(self.create_type_mapper(type_parameters.clone(), Some(base_constraints))),
                 Some(true),
             ));
             *signature.maybe_base_signature_cache() = Some(ret.clone());

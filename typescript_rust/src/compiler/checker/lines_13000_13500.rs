@@ -57,15 +57,15 @@ impl TypeChecker {
                                     let declared_constraint = self
                                         .get_constraint_of_type_parameter(&type_parameters[index]);
                                     if let Some(declared_constraint) = declared_constraint {
-                                        let mapper = self.create_type_mapper(
+                                        let mapper = Rc::new(self.create_type_mapper(
                                             type_parameters.clone(),
                                             Some(self.get_effective_type_arguments(
                                                 type_reference,
                                                 Some(&type_parameters),
                                             )),
-                                        );
+                                        ));
                                         let constraint = self
-                                            .instantiate_type(&declared_constraint, Some(&mapper));
+                                            .instantiate_type(&declared_constraint, Some(mapper));
                                         if !ptr::eq(&*constraint, type_parameter) {
                                             if inferences.is_none() {
                                                 inferences = Some(vec![]);
@@ -156,8 +156,8 @@ impl TypeChecker {
                                 Some(
                                     self.instantiate_type(
                                         &node_type,
-                                        Some(
-                                            &self.make_unary_type_mapper(
+                                        Some(Rc::new(
+                                            self.make_unary_type_mapper(
                                                 &self.get_declared_type_of_type_parameter(
                                                     &self
                                                         .get_symbol_of_node(
@@ -180,7 +180,7 @@ impl TypeChecker {
                                                     self.keyof_constraint_type()
                                                 },
                                             ),
-                                        ),
+                                        )),
                                     ),
                                 ),
                             );
@@ -209,7 +209,7 @@ impl TypeChecker {
                 type_parameter_as_type_parameter.set_constraint(match target_constraint {
                     Some(target_constraint) => self.instantiate_type(
                         &target_constraint,
-                        type_parameter_as_type_parameter.maybe_mapper().as_ref(),
+                        type_parameter_as_type_parameter.maybe_mapper(),
                     ),
                     None => self.no_constraint_type(),
                 });
@@ -376,7 +376,7 @@ impl TypeChecker {
         &self,
         target: &Type, /*GenericType*/
         node: &Node,   /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
-        mapper: Option<TypeMapper>,
+        mapper: Option<Rc<TypeMapper>>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type /*DeferredTypeReference*/> {
@@ -388,7 +388,7 @@ impl TypeChecker {
             let local_alias_type_arguments =
                 self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
             alias_type_arguments = if let Some(mapper) = mapper.as_ref() {
-                self.instantiate_types(local_alias_type_arguments.as_deref(), Some(mapper))
+                self.instantiate_types(local_alias_type_arguments.as_deref(), Some(mapper.clone()))
             } else {
                 local_alias_type_arguments
             };
@@ -648,7 +648,7 @@ impl TypeChecker {
         if instantiation.is_none() {
             instantiation = Some(self.instantiate_type_with_alias(
                 &type_,
-                &self.create_type_mapper(
+                Rc::new(self.create_type_mapper(
                     type_parameters.clone(),
                     self.fill_missing_type_arguments(
                         type_arguments.map(ToOwned::to_owned),
@@ -656,7 +656,7 @@ impl TypeChecker {
                         self.get_min_type_argument_count(Some(&type_parameters)),
                         is_in_js_file(symbol.maybe_value_declaration()),
                     ),
-                ),
+                )),
                 alias_symbol.as_deref(),
                 alias_type_arguments,
             ));

@@ -1217,7 +1217,7 @@ impl TypeChecker {
         error_reporter: &mut Option<ErrorReporter>,
         incompatible_error_reporter: Option<&TIncompatibleErrorReporter>,
         compare_types: Rc<dyn TypeComparer>,
-        report_unreliable_markers: Option<&TypeMapper>,
+        report_unreliable_markers: Option<Rc<TypeMapper>>,
     ) -> Ternary {
         if Rc::ptr_eq(&source, &target) {
             return Ternary::True;
@@ -1263,7 +1263,7 @@ impl TypeChecker {
                 &source_rest_type
                     .clone()
                     .unwrap_or_else(|| target_rest_type.clone().unwrap()),
-                report_unreliable_markers,
+                report_unreliable_markers.clone(),
             );
         }
         if source_rest_type.is_some() && target_rest_type.is_some() && source_count != target_count
@@ -1383,7 +1383,7 @@ impl TypeChecker {
                             error_reporter,
                             incompatible_error_reporter.clone(),
                             compare_types.clone(),
-                            report_unreliable_markers,
+                            report_unreliable_markers.clone(),
                         )
                     } else {
                         if !check_mode.intersects(SignatureCheckMode::Callback) && !strict_variance

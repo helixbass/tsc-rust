@@ -150,7 +150,7 @@ impl TypeChecker {
     pub(super) fn get_conditional_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         root: Rc<RefCell<ConditionalRoot>>,
-        mut mapper: Option<TypeMapper>,
+        mut mapper: Option<Rc<TypeMapper>>,
         alias_symbol: Option<TAliasSymbol>,
         mut alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
@@ -176,7 +176,7 @@ impl TypeChecker {
                     root.clone(),
                     &self.get_actual_type_variable(&(*root).borrow().check_type.clone()),
                 ),
-                mapper.as_ref(),
+                mapper.clone(),
             );
             let check_type_instantiable = self.is_generic_type(&check_type);
             let extends_type = self.instantiate_type(
@@ -184,14 +184,14 @@ impl TypeChecker {
                     root.clone(),
                     &(*root).borrow().extends_type.clone(),
                 ),
-                mapper.as_ref(),
+                mapper.clone(),
             );
             if Rc::ptr_eq(&check_type, &self.wildcard_type())
                 || Rc::ptr_eq(&extends_type, &self.wildcard_type())
             {
                 return self.wildcard_type();
             }
-            let mut combined_mapper: Option<TypeMapper> = None;
+            let mut combined_mapper: Option<Rc<TypeMapper>> = None;
             if let Some(root_infer_type_parameters) =
                 (*root).borrow().infer_type_parameters.clone().as_ref()
             {
@@ -222,7 +222,7 @@ impl TypeChecker {
                         root.clone(),
                         &(*root).borrow().extends_type.clone(),
                     ),
-                    Some(combined_mapper),
+                    Some(combined_mapper.clone()),
                 )
             } else {
                 extends_type.clone()
@@ -251,7 +251,7 @@ impl TypeChecker {
                                         .as_conditional_type_node()
                                         .true_type,
                                 ),
-                                combined_mapper.as_ref().or_else(|| mapper.as_ref()),
+                                combined_mapper.clone().or_else(|| mapper.clone()),
                             ),
                         );
                     }
@@ -275,7 +275,7 @@ impl TypeChecker {
                             root = new_root.clone();
                             continue;
                         }
-                        let mapper_ref = mapper.clone();
+                        let mapper_clone = mapper.clone();
                         if self.can_tail_recurse(
                             &mut root,
                             &mut mapper,
@@ -283,12 +283,12 @@ impl TypeChecker {
                             &mut alias_type_arguments,
                             &mut tail_count,
                             &false_type,
-                            mapper_ref.as_ref(),
+                            mapper_clone,
                         ) {
                             continue;
                         }
                     }
-                    result = self.instantiate_type(&false_type, mapper.as_ref());
+                    result = self.instantiate_type(&false_type, mapper.clone());
                     break;
                 }
                 if inferred_extends_type
@@ -307,8 +307,7 @@ impl TypeChecker {
                             .as_conditional_type_node()
                             .true_type,
                     );
-                    let mapper_ref = mapper.clone();
-                    let true_mapper = combined_mapper.as_ref().or_else(|| mapper_ref.as_ref());
+                    let true_mapper = combined_mapper.clone().or_else(|| mapper.clone());
                     if self.can_tail_recurse(
                         &mut root,
                         &mut mapper,
@@ -316,7 +315,7 @@ impl TypeChecker {
                         &mut alias_type_arguments,
                         &mut tail_count,
                         &true_type,
-                        true_mapper,
+                        true_mapper.clone(),
                     ) {
                         continue;
                     }
@@ -328,8 +327,8 @@ impl TypeChecker {
             result = ConditionalType::new(
                 result_base,
                 root.clone(),
-                self.instantiate_type(&(*root).borrow().check_type.clone(), mapper.as_ref()),
-                self.instantiate_type(&(*root).borrow().extends_type.clone(), mapper.as_ref()),
+                self.instantiate_type(&(*root).borrow().check_type.clone(), mapper.clone()),
+                self.instantiate_type(&(*root).borrow().extends_type.clone(), mapper.clone()),
                 mapper.clone(),
                 combined_mapper,
             )
@@ -342,7 +341,7 @@ impl TypeChecker {
             } else {
                 self.instantiate_types(
                     (*root).borrow().alias_type_arguments.clone().as_deref(),
-                    mapper.as_ref(),
+                    mapper.clone(),
                 )
             };
             break;
@@ -364,12 +363,12 @@ impl TypeChecker {
     pub(super) fn can_tail_recurse(
         &self,
         root: &mut Rc<RefCell<ConditionalRoot>>,
-        mapper: &mut Option<TypeMapper>,
+        mapper: &mut Option<Rc<TypeMapper>>,
         alias_symbol: &mut Option<Rc<Symbol>>,
         alias_type_arguments: &mut Option<&[Rc<Type>]>,
         tail_count: &mut usize,
         new_type: &Type,
-        new_mapper: Option<&TypeMapper>,
+        new_mapper: Option<Rc<TypeMapper>>,
     ) -> bool {
         if new_type.flags().intersects(TypeFlags::Conditional) {
             if let Some(new_mapper) = new_mapper {
@@ -382,15 +381,15 @@ impl TypeChecker {
                 {
                     let type_param_mapper = self.combine_type_mappers(
                         new_type_as_conditional_type.mapper.clone(),
-                        new_mapper.clone(),
+                        new_mapper,
                     );
                     let type_arguments = map(new_root_outer_type_parameters, |t: &Rc<Type>, _| {
                         self.get_mapped_type(t, &type_param_mapper)
                     });
-                    let new_root_mapper = self.create_type_mapper(
+                    let new_root_mapper = Rc::new(self.create_type_mapper(
                         new_root_outer_type_parameters.clone(),
                         Some(type_arguments),
-                    );
+                    ));
                     let new_check_type = if (*new_root).borrow().is_distributive {
                         Some(self.get_mapped_type(
                             &(*new_root).borrow().clone().check_type,
@@ -442,7 +441,7 @@ impl TypeChecker {
                             .as_conditional_type_node()
                             .true_type,
                     ),
-                    type_as_conditional_type.mapper.as_ref(),
+                    type_as_conditional_type.mapper.clone(),
                 ),
             );
         }
@@ -471,7 +470,7 @@ impl TypeChecker {
                             .as_conditional_type_node()
                             .false_type,
                     ),
-                    type_as_conditional_type.mapper.as_ref(),
+                    type_as_conditional_type.mapper.clone(),
                 ),
             );
         }
@@ -491,8 +490,7 @@ impl TypeChecker {
             .is_none()
         {
             *type_as_conditional_type.maybe_resolved_true_type() = Some(
-                if let Some(type_combined_mapper) =
-                    type_as_conditional_type.combined_mapper.as_ref()
+                if let Some(type_combined_mapper) = type_as_conditional_type.combined_mapper.clone()
                 {
                     self.instantiate_type(
                         &self.get_type_from_type_node_(

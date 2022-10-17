@@ -275,7 +275,7 @@ impl TypeChecker {
         type_parameters: &[Rc<Type /*TypeParameter*/>],
     ) -> bool {
         let mut type_arguments: Option<Vec<Rc<Type>>> = None;
-        let mut mapper: Option<TypeMapper> = None;
+        let mut mapper: Option<Rc<TypeMapper>> = None;
         let mut result = true;
         for i in 0..type_parameters.len() {
             let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);
@@ -283,14 +283,15 @@ impl TypeChecker {
                 if type_arguments.is_none() {
                     type_arguments =
                         Some(self.get_effective_type_arguments(node, Some(type_parameters)));
-                    mapper = Some(
-                        self.create_type_mapper(type_parameters.to_owned(), type_arguments.clone()),
-                    );
+                    mapper = Some(Rc::new(self.create_type_mapper(
+                        type_parameters.to_owned(),
+                        type_arguments.clone(),
+                    )));
                 }
                 result = result
                     && self.check_type_assignable_to(
                         &type_arguments.as_ref().unwrap()[i],
-                        &self.instantiate_type(constraint, mapper.as_ref()),
+                        &self.instantiate_type(constraint, mapper.clone()),
                         node.as_has_type_arguments()
                             .maybe_type_arguments()
                             .as_ref()
@@ -442,12 +443,12 @@ impl TypeChecker {
         )?;
         Some(self.instantiate_type(
             &constraint,
-            Some(&self.create_type_mapper(
+            Some(Rc::new(self.create_type_mapper(
                 type_parameters.clone(),
                 Some(
                     self.get_effective_type_arguments(&type_reference_node, Some(&type_parameters)),
                 ),
-            )),
+            ))),
         ))
     }
 

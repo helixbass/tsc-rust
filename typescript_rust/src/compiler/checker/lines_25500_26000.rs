@@ -139,15 +139,12 @@ impl TypeChecker {
                 while let Some(type_present) = type_.as_ref() {
                     let this_type = self.get_this_type_from_contextual_type(type_present);
                     if let Some(this_type) = this_type.as_ref() {
-                        return Some(
-                            self.instantiate_type(
-                                this_type,
-                                self.get_mapper_from_context(
-                                    self.get_inference_context(containing_literal).as_deref(),
-                                )
-                                .as_ref(),
+                        return Some(self.instantiate_type(
+                            this_type,
+                            self.get_mapper_from_context(
+                                self.get_inference_context(containing_literal).as_deref(),
                             ),
-                        );
+                        ));
                     }
                     if literal.parent().kind() != SyntaxKind::PropertyAssignment {
                         break;

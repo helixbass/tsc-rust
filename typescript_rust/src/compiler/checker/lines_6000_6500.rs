@@ -933,7 +933,7 @@ impl NodeBuilder {
                                 && annotated.as_type_parameter().is_this_type == Some(true)
                             {
                                 self.type_checker
-                                    .instantiate_type(&annotated, signature.mapper.as_ref())
+                                    .instantiate_type(&annotated, signature.mapper.clone())
                             } else {
                                 annotated
                             };

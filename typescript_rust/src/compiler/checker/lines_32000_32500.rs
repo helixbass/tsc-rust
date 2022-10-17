@@ -147,7 +147,7 @@ impl TypeChecker {
                             if let Some(inference_context) = inference_context.as_ref() {
                                 Rc::new(self.instantiate_signature(
                                     contextual_signature.clone(),
-                                    &inference_context.mapper(),
+                                    inference_context.mapper(),
                                     None,
                                 ))
                             } else {

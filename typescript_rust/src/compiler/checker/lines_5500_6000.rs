@@ -279,7 +279,7 @@ impl NodeBuilder {
             .intersects(NodeBuilderFlags::WriteTypeArgumentsOfSignature)
         {
             if let (Some(signature_target), Some(signature_mapper)) =
-                (signature.target.as_ref(), signature.mapper.as_ref())
+                (signature.target.as_ref(), signature.mapper.clone())
             {
                 if let Some(signature_target_type_parameters) =
                     signature_target.maybe_type_parameters().as_ref()
@@ -290,10 +290,10 @@ impl NodeBuilder {
                             .into_iter()
                             .map(|parameter| {
                                 self.type_to_type_node_helper(
-                                    Some(
-                                        self.type_checker
-                                            .instantiate_type(parameter, Some(signature_mapper)),
-                                    ),
+                                    Some(self.type_checker.instantiate_type(
+                                        parameter,
+                                        Some(signature_mapper.clone()),
+                                    )),
                                     context,
                                 )
                                 .unwrap()

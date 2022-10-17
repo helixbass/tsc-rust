@@ -69,7 +69,7 @@ impl TypeChecker {
         {
             let instantiated_context = self.instantiate_signature(
                 context.clone(),
-                &inference_context.non_fixing_mapper(),
+                inference_context.non_fixing_mapper(),
                 None,
             );
             self.assign_contextual_parameter_types(signature, &instantiated_context);

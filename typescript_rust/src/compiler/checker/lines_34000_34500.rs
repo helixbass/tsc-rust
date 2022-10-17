@@ -56,7 +56,9 @@ impl TypeChecker {
                 &self.get_type_with_this_argument(
                     &self.instantiate_type(
                         constraint_type,
-                        Some(&self.make_unary_type_mapper(&type_parameter, default_type)),
+                        Some(Rc::new(
+                            self.make_unary_type_mapper(&type_parameter, default_type),
+                        )),
                     ),
                     Some(&**default_type),
                     None,
