@@ -22,10 +22,10 @@ use crate::{
     ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression,
     ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
-    SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
-    ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOfExpression, TypeOperatorNode,
-    VoidExpression, YieldExpression,
+    SpreadElement, StrOrRcNode, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind,
+    SyntaxKindOrRcNode, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion,
+    TypeOfExpression, TypeOperatorNode, VoidExpression, YieldExpression,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -221,8 +221,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_binding_element<
-        TPropertyName: Into<StringOrRcNode>,
-        TName: Into<StringOrRcNode>,
+        'property_name,
+        'name,
+        TPropertyName: Into<StrOrRcNode<'property_name>>,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -327,7 +329,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_property_access_expression<TName: Into<StringOrRcNode>>(
+    pub fn create_property_access_expression<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
@@ -357,7 +359,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_property_access_chain<TName: Into<StringOrRcNode>>(
+    pub fn create_property_access_chain<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
@@ -733,8 +735,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_function_expression<
+        'name,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         TParameters: Into<NodeArrayOrVec>,
     >(
@@ -1273,9 +1276,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_class_expression<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         THeritageClauses: Into<NodeArrayOrVec>,
         TMembers: Into<NodeArrayOrVec>,

@@ -639,8 +639,7 @@ impl NodeBuilder {
                                     "Array"
                                 } else {
                                     "ReadonlyArray"
-                                }
-                                .to_owned(),
+                                },
                                 Some(vec![type_argument_node]),
                             )
                             .into()
@@ -1070,7 +1069,7 @@ impl NodeBuilder {
                         .create_property_signature(
                             synthetic_factory_,
                             Option::<NodeArray>::None,
-                            "...".to_owned(),
+                            "...",
                             None,
                             None,
                         )
@@ -1147,7 +1146,7 @@ impl NodeBuilder {
                             .create_property_signature(
                                 synthetic_factory_,
                                 Option::<NodeArray>::None,
-                                format!("... {} more ...", properties.len() - 1),
+                                &*format!("... {} more ...", properties.len() - 1),
                                 None,
                                 None,
                             )

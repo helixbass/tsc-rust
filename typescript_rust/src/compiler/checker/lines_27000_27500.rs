@@ -452,8 +452,7 @@ impl TypeChecker {
                                     .create_property_signature(
                                         synthetic_factory_,
                                         Option::<NodeArray>::None,
-                                        unescape_leading_underscores(jsx_children_property_name)
-                                            .to_owned(),
+                                        unescape_leading_underscores(jsx_children_property_name),
                                         None,
                                         None,
                                     )

@@ -13,8 +13,8 @@ use crate::{
     JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StrOrRcNode, StringOrNodeArray,
+    StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -196,8 +196,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_export_specifier<
-        TPropertyName: Into<StringOrRcNode>,
-        TName: Into<StringOrRcNode>,
+        'property_name,
+        'name,
+        TPropertyName: Into<StrOrRcNode<'property_name>>,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -931,7 +933,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_catch_clause<TVariableDeclaration: Into<StringOrRcNode>>(
+    pub fn create_catch_clause<
+        'variable_declaration,
+        TVariableDeclaration: Into<StrOrRcNode<'variable_declaration>>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         variable_declaration: Option<
@@ -944,7 +949,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             variable_declaration.map(|variable_declaration| {
                 let variable_declaration = variable_declaration.into();
                 match variable_declaration {
-                    StringOrRcNode::String(variable_declaration) => self
+                    StrOrRcNode::Str(variable_declaration) => self
                         .create_variable_declaration(
                             base_factory,
                             Some(variable_declaration),
@@ -953,7 +958,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                             None,
                         )
                         .into(),
-                    StringOrRcNode::RcNode(variable_declaration)
+                    StrOrRcNode::RcNode(variable_declaration)
                         if !is_variable_declaration(&variable_declaration) =>
                     {
                         self.create_variable_declaration(
@@ -965,7 +970,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                         )
                         .into()
                     }
-                    StringOrRcNode::RcNode(variable_declaration) => variable_declaration,
+                    StrOrRcNode::RcNode(variable_declaration) => variable_declaration,
                 }
             });
         let variable_declaration_is_some = variable_declaration.is_some();

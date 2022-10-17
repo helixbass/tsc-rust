@@ -22,10 +22,10 @@ use crate::{
     visit_each_child, with_factory, with_synthetic_factory_and_factory, CheckFlags,
     CompilerOptions, Debug_, EmitFlags, IndexInfo, InternalSymbolName, ModifierFlags,
     ModuleResolutionKind, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature,
-    SignatureFlags, StrOrNodeArrayRef, StringOrNodeArray, StringOrRcNode, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTracker, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type,
-    TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder,
-    VisitResult,
+    SignatureFlags, StrOrNodeArrayRef, StrOrRcNode, StringOrNodeArray, StringOrRcNode, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind, SynthesizedComment,
+    TransientSymbolInterface, Type, TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap,
+    UserPreferencesBuilder, VisitResult,
 };
 
 impl NodeBuilder {
@@ -93,7 +93,7 @@ impl NodeBuilder {
                                 factory_
                                     .create_type_reference_node(
                                         synthetic_factory_,
-                                        "...".to_owned(),
+                                        "...",
                                         Option::<NodeArray>::None,
                                     )
                                     .into()
@@ -107,7 +107,7 @@ impl NodeBuilder {
                                 factory_
                                     .create_type_reference_node(
                                         synthetic_factory_,
-                                        format!("... {} more ...", types.len() - 2),
+                                        &*format!("... {} more ...", types.len() - 2),
                                         Option::<NodeArray>::None,
                                     )
                                     .into()
@@ -136,7 +136,7 @@ impl NodeBuilder {
                                 factory_
                                     .create_type_reference_node(
                                         synthetic_factory_,
-                                        format!("... {} more ...", types.len() - i),
+                                        &*format!("... {} more ...", types.len() - i),
                                         Option::<NodeArray>::None,
                                     )
                                     .into()
@@ -211,9 +211,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_node: Option<TTypeNode /*TypeNode*/>,
     ) -> Rc<Node /*IndexSignatureDeclaration*/> {
-        let name = get_name_from_index_info(index_info)
-            .unwrap_or_else(|| Cow::Borrowed("x"))
-            .into_owned();
+        let name = get_name_from_index_info(index_info).unwrap_or_else(|| Cow::Borrowed("x"));
         let indexer_type_node = self.type_to_type_node_helper(Some(&*index_info.key_type), context);
 
         let indexing_parameter: Rc<Node> =
@@ -224,7 +222,7 @@ impl NodeBuilder {
                         Option::<NodeArray>::None,
                         Option::<NodeArray>::None,
                         None,
-                        Some(name.clone()),
+                        Some(&*name),
                         None,
                         indexer_type_node,
                         None,
@@ -843,7 +841,8 @@ impl NodeBuilder {
         } else {
             None
         };
-        let name: StringOrRcNode =
+        let mut parameter_symbol_name: Option<Cow<'_, str>> = None;
+        let name: StrOrRcNode<'_> =
             if let Some(parameter_declaration) = parameter_declaration.as_ref() {
                 if let Some(parameter_declaration_name) = parameter_declaration
                     .as_named_declaration()
@@ -870,10 +869,12 @@ impl NodeBuilder {
                     }
                     .into()
                 } else {
-                    symbol_name(parameter_symbol).into_owned().into()
+                    parameter_symbol_name = Some(symbol_name(parameter_symbol));
+                    parameter_symbol_name.as_deref().unwrap().into()
                 }
             } else {
-                symbol_name(parameter_symbol).into_owned().into()
+                parameter_symbol_name = Some(symbol_name(parameter_symbol));
+                parameter_symbol_name.as_deref().unwrap().into()
             };
         let is_optional = matches!(
             parameter_declaration.as_ref(),

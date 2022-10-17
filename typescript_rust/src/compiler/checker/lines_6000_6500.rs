@@ -1323,7 +1323,7 @@ impl NodeBuilder {
                                             Option::<NodeArray>::None,
                                             Option::<NodeArray>::None,
                                             None,
-                                            Some("x".to_owned()),
+                                            Some("x"),
                                             None,
                                             visit_node(
                                                 node.as_has_type_arguments()

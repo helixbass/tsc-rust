@@ -14,7 +14,7 @@ use crate::{
     MaybeChangedNodeArray, MethodDeclaration, MethodSignature, ModifierFlags,
     NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec, NodeFactory,
     NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration, PropertySignature,
-    QualifiedName, RestTypeNode, SetAccessorDeclaration, StringOrRcNode, SyntaxKind,
+    QualifiedName, RestTypeNode, SetAccessorDeclaration, StrOrRcNode, StringOrRcNode, SyntaxKind,
     TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
     TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
@@ -125,7 +125,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         result
     }
 
-    pub fn create_qualified_name<TRight: Into<StringOrRcNode>>(
+    pub fn create_qualified_name<'right, TRight: Into<StrOrRcNode<'right>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         left: Rc<Node /*EntityName*/>,
@@ -169,7 +169,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_parameter_declaration<TName: Into<StringOrRcNode>>(
+    pub fn create_type_parameter_declaration<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         name: TName,
@@ -189,9 +189,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_parameter_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -261,8 +262,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_property_signature<
+        'name,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -284,9 +286,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_property_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -341,8 +344,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_method_signature<
+        'name,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         TParameters: Into<NodeArrayOrVec>,
     >(
@@ -371,9 +375,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_method_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         TParameters: Into<NodeArrayOrVec>,
     >(
@@ -479,9 +484,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_get_accessor_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TParameters: Into<NodeArrayOrVec>,
     >(
         &self,
@@ -508,9 +514,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_set_accessor_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TParameters: Into<NodeArrayOrVec>,
     >(
         &self,
@@ -632,7 +639,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         self.create_token(base_factory, kind)
     }
 
-    pub fn create_type_predicate_node<TParameterName: Into<StringOrRcNode>>(
+    pub fn create_type_predicate_node<
+        'parameter_name,
+        TParameterName: Into<StrOrRcNode<'parameter_name>>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         asserts_modifier: Option<Rc<Node /*AssertsKeyword*/>>,
@@ -651,7 +661,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_type_reference_node<
-        TTypeName: Into<StringOrRcNode>,
+        'type_name,
+        TTypeName: Into<StrOrRcNode<'type_name>>,
         TTypeArguments: Into<NodeArrayOrVec>,
     >(
         &self,

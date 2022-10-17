@@ -11,7 +11,7 @@ use crate::{
     add_range, create_base_node_factory, create_scanner, is_named_declaration, is_property_name,
     maybe_append_if_unique_rc, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     Debug_, EmitFlags, EmitNode, LanguageVariant, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange,
+    NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange, StrOrRcNode,
     StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
@@ -23,16 +23,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         array.map(|array| self.create_node_array(Some(array), None))
     }
 
-    pub(super) fn as_name<TName: Into<StringOrRcNode>>(
+    pub(super) fn as_name<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         name: Option<TName>,
     ) -> Option<Rc<Node>> {
         name.map(|name| match name.into() {
-            StringOrRcNode::String(name) => self
-                .create_identifier(base_factory, &name, Option::<NodeArray>::None, None)
+            StrOrRcNode::Str(name) => self
+                .create_identifier(base_factory, name, Option::<NodeArray>::None, None)
                 .into(),
-            StringOrRcNode::RcNode(name) => name,
+            StrOrRcNode::RcNode(name) => name,
         })
     }
 

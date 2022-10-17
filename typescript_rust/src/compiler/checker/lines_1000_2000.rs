@@ -164,7 +164,7 @@ impl TypeChecker {
                                         None,
                                     )
                                     .into(),
-                                "create_element".to_owned(),
+                                "create_element",
                             )
                             .into(),
                     )

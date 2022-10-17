@@ -9,12 +9,12 @@ use crate::{
     HasStatementsInterface, InputFiles, LanguageVariant, NamedDeclarationInterface, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
     PropertyAssignment, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
-    SpreadAssignment, StringOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags, Type,
-    UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
+    SpreadAssignment, StrOrRcNode, StringOrRcNode, SyntaxKind, SyntheticExpression, TransformFlags,
+    Type, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub fn create_property_assignment<TName: Into<StringOrRcNode>>(
+    pub fn create_property_assignment<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         name: TName, /*PropertyName*/
@@ -39,7 +39,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_shorthand_property_assignment<TName: Into<StringOrRcNode>>(
+    pub fn create_shorthand_property_assignment<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         name: TName, /*Identifier*/
@@ -88,7 +88,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_enum_member<TName: Into<StringOrRcNode>>(
+    pub fn create_enum_member<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         name: TName, /*Identifier*/

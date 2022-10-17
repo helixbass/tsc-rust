@@ -24,9 +24,9 @@ use crate::{
     unescape_leading_underscores, walk_up_binding_elements_and_patterns, AccessFlags,
     AssignmentDeclarationKind, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
     InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, StringOrRcNode,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionReduction, __String,
+    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, StrOrRcNode,
+    StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -636,7 +636,7 @@ impl TypeChecker {
                                     )),
                                 )
                                 .into(),
-                            access_name.to_owned(),
+                            access_name,
                         )
                         .into()
                 })
@@ -655,7 +655,7 @@ impl TypeChecker {
                                     None,
                                 )
                                 .into(),
-                            access_name.to_owned(),
+                            access_name,
                         )
                         .into()
                 })
@@ -690,7 +690,7 @@ impl TypeChecker {
         symbol: &Symbol,
         static_blocks: &[Rc<Node /*ClassStaticBlockDeclaration*/>],
     ) -> Option<Rc<Type>> {
-        let access_name: StringOrRcNode = if starts_with(symbol.escaped_name(), "__#") {
+        let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
             synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     Into::<Rc<Node>>::into(factory_.create_private_identifier(
@@ -701,9 +701,7 @@ impl TypeChecker {
                 })
             })
         } else {
-            unescape_leading_underscores(symbol.escaped_name())
-                .to_owned()
-                .into()
+            unescape_leading_underscores(symbol.escaped_name()).into()
         };
         for static_block in static_blocks {
             let reference: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
@@ -754,7 +752,7 @@ impl TypeChecker {
         symbol: &Symbol,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> Option<Rc<Type>> {
-        let access_name: StringOrRcNode = if starts_with(symbol.escaped_name(), "__#") {
+        let access_name: StrOrRcNode<'_> = if starts_with(symbol.escaped_name(), "__#") {
             synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     Into::<Rc<Node>>::into(factory_.create_private_identifier(
@@ -765,9 +763,7 @@ impl TypeChecker {
                 })
             })
         } else {
-            unescape_leading_underscores(symbol.escaped_name())
-                .to_owned()
-                .into()
+            unescape_leading_underscores(symbol.escaped_name()).into()
         };
         let reference: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
             factory.with(|factory_| {
@@ -775,7 +771,7 @@ impl TypeChecker {
                     .create_property_access_expression(
                         synthetic_factory_,
                         factory_.create_this(synthetic_factory_).into(),
-                        access_name.clone(),
+                        access_name,
                     )
                     .into()
             })

@@ -12,7 +12,7 @@ use crate::{
     ImportDeclaration, ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement,
     MetaProperty, ModifierFlags, ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
-    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement,
+    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StrOrRcNode,
     StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags,
     TryStatement, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
     VariableStatement, WhileStatement, WithStatement,
@@ -357,7 +357,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_continue_statement<TLabel: Into<StringOrRcNode>>(
+    pub fn create_continue_statement<'label, TLabel: Into<StrOrRcNode<'label>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         label: Option<TLabel>,
@@ -371,7 +371,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_break_statement<TLabel: Into<StringOrRcNode>>(
+    pub fn create_break_statement<'label, TLabel: Into<StrOrRcNode<'label>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         label: Option<TLabel>,
@@ -439,7 +439,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_labeled_statement<TLabel: Into<StringOrRcNode>>(
+    pub fn create_labeled_statement<'label, TLabel: Into<StrOrRcNode<'label>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         label: TLabel,
@@ -491,7 +491,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         DebuggerStatement::new(node)
     }
 
-    pub fn create_variable_declaration<TName: Into<StringOrRcNode>>(
+    pub fn create_variable_declaration<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         name: Option<TName /*BindingName*/>,
@@ -544,9 +544,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_function_declaration<
+        'name,
         TModifiers: Into<NodeArrayOrVec>,
         TDecorators: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         TParameters: Into<NodeArrayOrVec>,
     >(
@@ -603,9 +604,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_class_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         THeritageClauses: Into<NodeArrayOrVec>,
         TMembers: Into<NodeArrayOrVec>,
@@ -646,9 +648,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_interface_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         THeritageClauses: Into<NodeArrayOrVec>,
         TMembers: Into<NodeArrayOrVec>,
@@ -677,9 +680,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_type_alias_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
     >(
         &self,
@@ -704,9 +708,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_enum_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TMembers: Into<NodeArrayOrVec>,
     >(
         &self,
@@ -798,7 +803,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_namespace_export_declaration<TName: Into<StringOrRcNode>>(
+    pub fn create_namespace_export_declaration<'name, TName: Into<StrOrRcNode<'name>>>(
         &self,
         base_factory: &TBaseNodeFactory,
         name: TName,
@@ -816,9 +821,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_import_equals_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,

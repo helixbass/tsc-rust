@@ -730,9 +730,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_named_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -765,9 +766,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_generic_named_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
     >(
         &self,
@@ -790,9 +792,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_signature_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         TParameters: Into<NodeArrayOrVec>,
     >(
@@ -827,9 +830,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_function_like_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         TParameters: Into<NodeArrayOrVec>,
     >(
@@ -867,9 +871,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_interface_or_class_like_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         THeritageClauses: Into<NodeArrayOrVec>,
     >(
@@ -897,9 +902,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_class_like_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
         TTypeParameters: Into<NodeArrayOrVec>,
         THeritageClauses: Into<NodeArrayOrVec>,
         TMembers: Into<NodeArrayOrVec>,
@@ -930,9 +936,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_binding_like_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -950,9 +957,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_variable_like_declaration<
+        'name,
         TDecorators: Into<NodeArrayOrVec>,
         TModifiers: Into<NodeArrayOrVec>,
-        TName: Into<StringOrRcNode>,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,

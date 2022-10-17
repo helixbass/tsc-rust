@@ -929,7 +929,7 @@ impl NodeBuilder {
                             factory_
                                 .create_type_reference_node(
                                     synthetic_factory_,
-                                    member_name.into_owned(),
+                                    &*member_name,
                                     Option::<NodeArray>::None,
                                 )
                                 .into()

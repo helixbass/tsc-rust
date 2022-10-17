@@ -322,7 +322,7 @@ impl TypeChecker {
                                 Option::<NodeArray>::None,
                                 Option::<NodeArray>::None,
                                 None,
-                                Some("props".to_owned()),
+                                Some("props"),
                                 None,
                                 self.node_builder().type_to_type_node(
                                     result,
