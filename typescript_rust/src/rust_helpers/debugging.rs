@@ -32,3 +32,5 @@ pub fn while_debugging<TReturn, TCallback: FnMut() -> TReturn>(mut callback: TCa
     stop_debugging();
     ret
 }
+
+pub const is_logging: bool = false;

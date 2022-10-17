@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use indexmap::IndexMap;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
@@ -370,8 +370,9 @@ impl TypeChecker {
     pub(super) fn get_cross_product_intersections(&self, types: &[Rc<Type>]) -> Vec<Rc<Type>> {
         let count = self.get_cross_product_union_size(types);
         let mut intersections: Vec<Rc<Type>> = vec![];
+        let mut did_manually_allocate = false;
         for i in 0..count {
-            let mut constituents = types.to_owned();
+            let mut constituents = Cow::Borrowed(types);
             let mut n = i;
             let mut j: isize = (types.len() - 1).try_into().unwrap();
             while j >= 0 {
@@ -379,15 +380,30 @@ impl TypeChecker {
                 if types[j_as_usize].flags().intersects(TypeFlags::Union) {
                     let source_types = types[j_as_usize].as_union_type().types();
                     let length = source_types.len();
-                    constituents[j_as_usize] = source_types[n % length].clone();
+                    constituents.to_mut()[j_as_usize] = source_types[n % length].clone();
                     n = (n as f64 / length as f64).floor() as usize;
                 }
                 j -= 1;
             }
             let t = self.get_intersection_type(&constituents, Option::<&Symbol>::None, None);
             if !t.flags().intersects(TypeFlags::Never) {
+                // in one project it looked like often the length of intersections either ends up
+                // being 1 or a number close to or equal to `count`, so defer allocating space for
+                // `count` items until we're seeing our second item
+                if intersections.len() == 1 {
+                    // println!("get_cross_product_intersections() allocating");
+                    intersections.reserve_exact(count - i - 1);
+                    did_manually_allocate = true;
+                }
                 intersections.push(t);
             }
+        }
+        let should_release_extra_allocation = did_manually_allocate
+            && count > 20
+            && (count as f64 / intersections.len() as f64) < 0.25;
+        if should_release_extra_allocation {
+            // println!("get_cross_product_intersections() releasing over-allocation (allocated {}, used {})", intersections.capacity(), intersections.len());
+            intersections.shrink_to_fit();
         }
         intersections
     }

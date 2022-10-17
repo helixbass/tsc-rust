@@ -18,7 +18,7 @@ use crate::{
     file_extension_is_one_of, for_each, get_automatic_type_directive_names, get_directory_path,
     get_emit_module_resolution_kind, get_package_scope_for_path, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module, get_sys, is_import_call,
-    is_import_equals_declaration, map_defined, maybe_for_each, options_have_changes,
+    is_import_equals_declaration, is_logging, map_defined, maybe_for_each, options_have_changes,
     resolve_module_name, resolve_type_reference_directive, skip_trivia,
     source_file_affecting_compiler_options, stable_sort, to_file_name_lower_case,
     walk_up_parenthesized_expressions, AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions,
@@ -988,26 +988,28 @@ impl Program {
                 },
             ));
 
-            println!(
-                "processing_default_lib_files: {:?}",
-                self.processing_default_lib_files
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .into_iter()
-                    .map(|file| file.as_source_file().file_name().clone())
-                    .collect::<Vec<_>>()
-            );
-            println!(
-                "processing_other_files: {:?}",
-                self.processing_other_files
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .into_iter()
-                    .map(|file| file.as_source_file().file_name().clone())
-                    .collect::<Vec<_>>()
-            );
+            if is_logging {
+                println!(
+                    "processing_default_lib_files: {:?}",
+                    self.processing_default_lib_files
+                        .borrow()
+                        .as_ref()
+                        .unwrap()
+                        .into_iter()
+                        .map(|file| file.as_source_file().file_name().clone())
+                        .collect::<Vec<_>>()
+                );
+                println!(
+                    "processing_other_files: {:?}",
+                    self.processing_other_files
+                        .borrow()
+                        .as_ref()
+                        .unwrap()
+                        .into_iter()
+                        .map(|file| file.as_source_file().file_name().clone())
+                        .collect::<Vec<_>>()
+                );
+            }
             *self.files.borrow_mut() = Some({
                 let mut files: Vec<Rc<Node>> = stable_sort(
                     self.processing_default_lib_files.borrow().as_ref().unwrap(),

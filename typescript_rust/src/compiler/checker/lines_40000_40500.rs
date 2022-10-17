@@ -10,11 +10,12 @@ use crate::{
     get_host_signature_from_jsdoc, get_node_id, get_parameter_symbol_from_jsdoc,
     get_source_file_of_node, is_access_expression, is_exports_identifier, is_external_module,
     is_external_or_common_js_module, is_in_js_file, is_jsdoc_callback_tag, is_jsdoc_function_type,
-    is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_module_exports_access_expression,
-    is_parameter, is_rest_parameter, last, last_or_undefined, maybe_for_each, relative_complement,
-    skip_type_checking, CancellationTokenDebuggable, Debug_, Diagnostic, Diagnostics,
-    HasStatementsInterface, ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags,
-    NodeInterface, SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
+    is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_logging,
+    is_module_exports_access_expression, is_parameter, is_rest_parameter, last, last_or_undefined,
+    maybe_for_each, relative_complement, skip_type_checking, CancellationTokenDebuggable, Debug_,
+    Diagnostic, Diagnostics, HasStatementsInterface, ImportsNotUsedAsValues, Node, NodeArray,
+    NodeCheckFlags, NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, Type,
+    TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -537,10 +538,12 @@ impl TypeChecker {
     }
 
     pub(super) fn check_source_file(&self, node: &Node /*SourceFile*/) {
-        println!(
-            "checking source file: {}",
-            node.as_source_file().file_name()
-        );
+        if is_logging {
+            println!(
+                "checking source file: {}",
+                node.as_source_file().file_name()
+            );
+        }
         // tracing?.push(tracing.Phase.Check, "checkSourceFile", { path: node.path }, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeCheck");
         self.check_source_file_worker(node);

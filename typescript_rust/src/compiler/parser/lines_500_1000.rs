@@ -7,12 +7,12 @@ use std::rc::Rc;
 use super::{Parser, ParsingContext};
 use crate::{
     attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
-    ensure_script_kind, for_each_child, get_language_variant, normalize_path, object_allocator,
-    BaseNode, Debug_, Diagnostic, Diagnostics, HasStatementsInterface, IncrementalParser,
-    IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray,
-    NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, ParsedIsolatedJSDocComment,
-    ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget,
-    SourceTextAsChars, SyntaxKind, TextChangeRange,
+    ensure_script_kind, for_each_child, get_language_variant, is_logging, normalize_path,
+    object_allocator, BaseNode, Debug_, Diagnostic, Diagnostics, HasStatementsInterface,
+    IncrementalParser, IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant,
+    Node, NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
+    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind,
+    ScriptTarget, SourceTextAsChars, SyntaxKind, TextChangeRange,
 };
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
@@ -648,7 +648,9 @@ impl ParserType {
         set_parent_nodes: Option<bool>,
         script_kind: Option<ScriptKind>,
     ) -> Rc<Node /*SourceFile*/> {
-        println!("parsing source file: {}", file_name,);
+        if is_logging {
+            println!("parsing source file: {}", file_name,);
+        }
         let set_parent_nodes = set_parent_nodes.unwrap_or(false);
         let script_kind = ensure_script_kind(file_name, script_kind);
         if script_kind == ScriptKind::JSON {

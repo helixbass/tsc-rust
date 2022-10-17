@@ -13,18 +13,18 @@ use crate::{
     get_strict_option_value, get_symbol_name_for_private_identifier,
     get_text_of_identifier_or_literal, has_dynamic_name, has_syntactic_modifier, index_of,
     is_ambient_module, is_block, is_enum_const, is_export_specifier, is_global_scope_augmentation,
-    is_jsdoc_construct_signature, is_module_block, is_named_declaration, is_private_identifier,
-    is_signed_numeric_literal, is_source_file, is_string_or_numeric_literal_like,
-    is_type_alias_declaration, length, maybe_for_each, maybe_set_parent, node_has_name,
-    node_is_missing, set_parent_recursive, token_to_string, unescape_leading_underscores,
-    AssignmentDeclarationKind, BindBinaryExpressionFlow, CompilerOptions, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticWithLocation, Diagnostics,
-    FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_rc,
-    create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
-    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags,
-    SymbolInterface,
+    is_jsdoc_construct_signature, is_logging, is_module_block, is_named_declaration,
+    is_private_identifier, is_signed_numeric_literal, is_source_file,
+    is_string_or_numeric_literal_like, is_type_alias_declaration, length, maybe_for_each,
+    maybe_set_parent, node_has_name, node_is_missing, set_parent_recursive, token_to_string,
+    unescape_leading_underscores, AssignmentDeclarationKind, BindBinaryExpressionFlow,
+    CompilerOptions, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
+    DiagnosticWithLocation, Diagnostics, FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags,
+    NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String,
+    append_if_unique_rc, create_symbol_table, get_escaped_text_of_identifier_or_literal,
+    get_name_of_declaration, is_property_name_literal, object_allocator, set_parent,
+    set_value_declaration, BaseSymbol, InternalSymbolName, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -279,7 +279,9 @@ pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
 
 pub fn bind_source_file(file: &Node /*SourceFile*/, options: Rc<CompilerOptions>) {
     let file_as_source_file = file.as_source_file();
-    Debug_.log(&format!("binding: {}", file_as_source_file.file_name()));
+    if is_logging {
+        println!("binding: {}", file_as_source_file.file_name());
+    }
     // tracing?.push(tracing.Phase.Bind, "bindSourceFile", { path: file.path }, /*separateBeginAndEnd*/ true);
     // performance.mark("beforeBind");
     // perfLogger.logStartBindFile("" + file.fileName);
