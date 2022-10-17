@@ -40,7 +40,7 @@ impl TypeChecker {
                         name,
                         SymbolFlags::Type,
                         None,
-                        Some(name.to_owned()),
+                        Some(name),
                         false,
                         None,
                     );

@@ -573,15 +573,16 @@ impl CheckTypeRelatedTo {
                 .as_ref()
                 .filter(|source_symbol| source_symbol.flags().intersects(SymbolFlags::Class))
             {
-                let private_identifier_description = unmatched_property_value_declaration
-                    .as_named_declaration()
-                    .name()
+                let unmatched_property_value_declaration_name =
+                    unmatched_property_value_declaration
+                        .as_named_declaration()
+                        .name();
+                let private_identifier_description = &unmatched_property_value_declaration_name
                     .as_private_identifier()
-                    .escaped_text
-                    .clone();
+                    .escaped_text;
                 let symbol_table_key = get_symbol_name_for_private_identifier(
                     source_symbol,
-                    &private_identifier_description,
+                    private_identifier_description,
                 );
                 if
                 /*symbolTableKey &&*/
@@ -607,14 +608,14 @@ impl CheckTypeRelatedTo {
                     self.report_error(
                         Cow::Borrowed(&Diagnostics::Property_0_in_type_1_refers_to_a_different_member_that_cannot_be_accessed_from_within_type_2),
                         Some(vec![
-                            self.type_checker.diagnostic_name(private_identifier_description.clone().into()).into_owned(),
+                            self.type_checker.diagnostic_name((&**private_identifier_description).into()).into_owned(),
                             self.type_checker.diagnostic_name(if source_name.as_identifier().escaped_text == "" {
-                                anon.to_owned().into()
+                                anon.into()
                             } else {
                                 source_name.into()
                             }).into_owned(),
                             self.type_checker.diagnostic_name(if target_name.as_identifier().escaped_text == "" {
-                                anon.to_owned().into()
+                                anon.into()
                             } else {
                                 target_name.into()
                             }).into_owned(),

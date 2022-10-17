@@ -257,7 +257,7 @@ impl TypeChecker {
             name,
             meaning,
             diagnostic,
-            Some(name.to_owned()),
+            Some(name),
             false,
             None,
         )

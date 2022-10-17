@@ -134,11 +134,12 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn diagnostic_name(&self, name_arg: ResolveNameNameArg) -> Cow<'static, str> {
+    pub(super) fn diagnostic_name<'name_arg>(
+        &self,
+        name_arg: ResolveNameNameArg<'name_arg>,
+    ) -> Cow<'name_arg, str> {
         match name_arg {
-            ResolveNameNameArg::__String(name_arg) => {
-                unescape_leading_underscores(&name_arg).to_owned().into()
-            }
+            ResolveNameNameArg::Str(name_arg) => unescape_leading_underscores(name_arg).into(),
             ResolveNameNameArg::Node(name_arg) => declaration_name_to_string(Some(name_arg)),
         }
     }
@@ -172,11 +173,11 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_and_report_error_for_missing_prefix(
+    pub(super) fn check_and_report_error_for_missing_prefix<'name_arg>(
         &self,
         error_location: &Node,
         name: &str, /*__String*/
-        name_arg: ResolveNameNameArg,
+        name_arg: ResolveNameNameArg<'name_arg>,
     ) -> bool {
         if !is_identifier(error_location)
             || &error_location.as_identifier().escaped_text != name

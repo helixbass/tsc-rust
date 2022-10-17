@@ -417,7 +417,7 @@ impl TypeChecker {
                     diag_name,
                     self.diagnostic_name(
                         type_class.as_named_declaration().maybe_name().map_or_else(|| {
-                            anon.to_owned().into()
+                            anon.into()
                         }, Into::into)
                     ).into_owned()
                 ])

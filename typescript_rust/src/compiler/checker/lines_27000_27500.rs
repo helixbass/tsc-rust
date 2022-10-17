@@ -783,7 +783,7 @@ impl TypeChecker {
                     &namespace_name,
                     SymbolFlags::Namespace,
                     None,
-                    Some(namespace_name.clone()),
+                    Some(&*namespace_name),
                     false,
                     None,
                 );

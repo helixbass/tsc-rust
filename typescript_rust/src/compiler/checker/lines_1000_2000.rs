@@ -1442,8 +1442,9 @@ impl TypeChecker {
     }
 
     pub(super) fn resolve_name_<
+        'name_arg,
         TLocation: Borrow<Node>,
-        TNameArg: Into<ResolveNameNameArg> + Clone,
+        TNameArg: Into<ResolveNameNameArg<'name_arg>> + Clone,
     >(
         &self,
         location: Option<TLocation>,
@@ -1470,8 +1471,9 @@ impl TypeChecker {
     }
 
     pub(super) fn resolve_name_helper<
+        'name_arg,
         TLocation: Borrow<Node>,
-        TNameArg: Into<ResolveNameNameArg> + Clone,
+        TNameArg: Into<ResolveNameNameArg<'name_arg>> + Clone,
         TLookup: FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Rc<Symbol>>,
     >(
         &self,
@@ -2216,19 +2218,19 @@ impl From<DiagnosticMessageChain> for DiagnosticMessageOrDiagnosticMessageChain 
 }
 
 #[derive(Clone)]
-pub(super) enum ResolveNameNameArg {
+pub(super) enum ResolveNameNameArg<'str> {
     Node(Rc<Node>),
-    __String(__String),
+    Str(&'str str),
 }
 
-impl From<Rc<Node>> for ResolveNameNameArg {
-    fn from(node: Rc<Node>) -> Self {
-        ResolveNameNameArg::Node(node)
+impl<'str> From<Rc<Node>> for ResolveNameNameArg<'str> {
+    fn from(value: Rc<Node>) -> Self {
+        ResolveNameNameArg::Node(value)
     }
 }
 
-impl From<__String> for ResolveNameNameArg {
-    fn from(string: __String) -> Self {
-        ResolveNameNameArg::__String(string)
+impl<'str> From<&'str str> for ResolveNameNameArg<'str> {
+    fn from(value: &'str str) -> Self {
+        ResolveNameNameArg::Str(value)
     }
 }

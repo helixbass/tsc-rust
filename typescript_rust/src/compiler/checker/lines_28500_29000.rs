@@ -66,9 +66,9 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_suggested_lib_for_non_existent_name(
+    pub(super) fn get_suggested_lib_for_non_existent_name<'name>(
         &self,
-        name: ResolveNameNameArg,
+        name: ResolveNameNameArg<'name>,
     ) -> Option<String> {
         let missing_name = self.diagnostic_name(name).into_owned();
         let all_features = get_script_target_features();
@@ -190,7 +190,7 @@ impl TypeChecker {
             outer_name,
             meaning,
             None,
-            Some(outer_name.to_owned()),
+            Some(outer_name),
             false,
             false,
             |symbols: &SymbolTable, name: &str /*__String*/, meaning: SymbolFlags| {

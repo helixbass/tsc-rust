@@ -406,11 +406,10 @@ impl TypeChecker {
                             SymbolFlags::Type,
                             None,
                             Some(
-                                param_as_parameter_declaration
+                                &*param_as_parameter_declaration
                                     .name()
                                     .as_identifier()
-                                    .escaped_text
-                                    .clone(),
+                                    .escaped_text,
                             ),
                             true,
                             None,

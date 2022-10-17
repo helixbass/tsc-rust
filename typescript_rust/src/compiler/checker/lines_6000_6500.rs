@@ -219,7 +219,7 @@ impl NodeBuilder {
             escaped_name,
             SymbolFlags::Type,
             None,
-            Some(escaped_name.to_owned()),
+            Some(escaped_name),
             false,
             None,
         );

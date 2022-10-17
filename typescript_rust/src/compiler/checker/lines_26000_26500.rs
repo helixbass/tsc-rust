@@ -99,7 +99,7 @@ impl TypeChecker {
                             &id.as_identifier().escaped_text,
                             SymbolFlags::Value,
                             None,
-                            Some(id.as_identifier().escaped_text.clone()),
+                            Some(&*id.as_identifier().escaped_text),
                             true,
                             None,
                         );

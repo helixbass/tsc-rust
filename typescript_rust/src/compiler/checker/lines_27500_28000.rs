@@ -406,7 +406,7 @@ impl TypeChecker {
                     &jsx_factory_namespace,
                     SymbolFlags::Value,
                     jsx_factory_ref_err,
-                    Some(jsx_factory_namespace.clone()),
+                    Some(&*jsx_factory_namespace),
                     true,
                     None,
                 );
@@ -433,7 +433,7 @@ impl TypeChecker {
                         local_jsx_namespace,
                         SymbolFlags::Value,
                         jsx_factory_ref_err,
-                        Some(local_jsx_namespace.clone()),
+                        Some(&**local_jsx_namespace),
                         true,
                         None,
                     );
