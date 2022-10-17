@@ -1429,7 +1429,7 @@ impl CheckTypeRelatedTo {
                             let suggestion_symbol = self
                                 .type_checker
                                 .get_suggested_symbol_for_nonexistent_jsx_attribute(
-                                    prop_name.clone(),
+                                    &*prop_name,
                                     &error_target,
                                 );
                             let suggestion = suggestion_symbol.as_ref().map(|suggestion_symbol| {

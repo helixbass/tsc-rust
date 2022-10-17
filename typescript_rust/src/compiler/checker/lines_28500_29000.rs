@@ -148,16 +148,17 @@ impl TypeChecker {
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<
-        TName: Into<StringOrRcNode>,
+        'name,
+        TName: Into<StrOrRcNode<'name>>,
     >(
         &self,
         name: TName, /*Identifier | PrivateIdentifier*/
         containing_type: &Type,
     ) -> Option<Rc<Symbol>> {
-        let name: StringOrRcNode = name.into();
-        let str_name = match name {
-            StringOrRcNode::String(name) => name,
-            StringOrRcNode::RcNode(name) => id_text(&name).to_owned(),
+        let name = name.into();
+        let str_name = match &name {
+            StrOrRcNode::Str(name) => *name,
+            StrOrRcNode::RcNode(name) => id_text(name),
         };
         let properties = self.get_properties_of_type(containing_type);
         let jsx_specific = if str_name == "for" {

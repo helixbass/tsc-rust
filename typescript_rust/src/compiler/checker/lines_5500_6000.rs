@@ -22,10 +22,10 @@ use crate::{
     visit_each_child, with_factory, with_synthetic_factory_and_factory, CheckFlags,
     CompilerOptions, Debug_, EmitFlags, IndexInfo, InternalSymbolName, ModifierFlags,
     ModuleResolutionKind, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature,
-    SignatureFlags, StrOrNodeArrayRef, StrOrRcNode, StringOrNodeArray, StringOrRcNode, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind, SynthesizedComment,
-    TransientSymbolInterface, Type, TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap,
-    UserPreferencesBuilder, VisitResult,
+    SignatureFlags, StrOrNodeArrayRef, StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTracker, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type,
+    TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder,
+    VisitResult,
 };
 
 impl NodeBuilder {
