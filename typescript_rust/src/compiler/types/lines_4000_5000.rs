@@ -4,7 +4,7 @@ use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use super::{
     BaseType, CancellationTokenDebuggable, CompilerOptions, DiagnosticCollection,
@@ -136,7 +136,6 @@ pub struct TypeChecker {
     pub(crate) host: Rc<dyn TypeCheckerHostDebuggable>,
     pub(crate) produce_diagnostics: bool,
     pub(crate) _rc_wrapper: RefCell<Option<Rc<TypeChecker>>>,
-    pub(crate) _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
     pub(crate) _packages_map: RefCell<Option<HashMap<String, bool>>>,
     pub(crate) cancellation_token: RefCell<Option<Rc<dyn CancellationTokenDebuggable>>>,
     pub(crate) requested_external_emit_helpers: Cell<ExternalEmitHelpers>,
@@ -924,10 +923,10 @@ impl Symbol {
 
 #[derive(Debug)]
 pub struct BaseSymbol {
-    _symbol_wrapper: RefCell<Option<Weak<Symbol>>>,
+    _symbol_wrapper: RefCell<Option<Rc<Symbol>>>,
     flags: Cell<SymbolFlags>,
     escaped_name: __String,
-    declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
+    declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>,
     value_declaration: RefCell<Option<Rc<Node>>>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
@@ -969,16 +968,11 @@ impl BaseSymbol {
 
 impl SymbolInterface for BaseSymbol {
     fn symbol_wrapper(&self) -> Rc<Symbol> {
-        self._symbol_wrapper
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .upgrade()
-            .unwrap()
+        self._symbol_wrapper.borrow().clone().unwrap()
     }
 
     fn set_symbol_wrapper(&self, wrapper: Rc<Symbol>) {
-        *self._symbol_wrapper.borrow_mut() = Some(Rc::downgrade(&wrapper));
+        *self._symbol_wrapper.borrow_mut() = Some(wrapper);
     }
 
     fn flags(&self) -> SymbolFlags {

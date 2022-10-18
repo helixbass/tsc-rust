@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::{BitAnd, BitAndAssign};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use super::{
@@ -262,7 +262,7 @@ pub enum IterationTypeCacheKey {
 #[type_type]
 pub struct TypeParameter {
     _type: BaseType,
-    pub constraint: RefCell<Option<Weak<Type>>>, // TODO: is it correct that this is weak?
+    pub constraint: RefCell<Option<Rc<Type>>>,
     pub default: RefCell<Option<Rc<Type>>>,
     pub target: Option<Rc<Type /*TypeParameter*/>>,
     pub mapper: RefCell<Option<Rc<TypeMapper>>>,
@@ -282,14 +282,11 @@ impl TypeParameter {
     }
 
     pub fn maybe_constraint(&self) -> Option<Rc<Type>> {
-        self.constraint
-            .borrow()
-            .as_ref()
-            .map(|weak| weak.upgrade().unwrap())
+        self.constraint.borrow().clone()
     }
 
     pub fn set_constraint(&self, constraint: Rc<Type>) {
-        *self.constraint.borrow_mut() = Some(Rc::downgrade(&constraint));
+        *self.constraint.borrow_mut() = Some(constraint);
     }
 
     pub fn maybe_default(&self) -> RefMut<Option<Rc<Type>>> {
@@ -1596,7 +1593,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
 pub struct BaseDiagnosticRelatedInformation {
     category: Cell<DiagnosticCategory>,
     code: u32,
-    file: Option<Weak<Node /*SourceFile*/>>,
+    file: Option<Rc<Node /*SourceFile*/>>,
     start: Cell<Option<isize>>,
     length: Cell<Option<isize>>,
     message_text: DiagnosticMessageText,
@@ -1614,7 +1611,7 @@ impl BaseDiagnosticRelatedInformation {
         Self {
             category: Cell::new(category),
             code,
-            file: file.map(|file| Rc::downgrade(&file)),
+            file,
             start: Cell::new(start),
             length: Cell::new(length),
             message_text: message_text.into(),
@@ -1640,7 +1637,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
     }
 
     fn maybe_file(&self) -> Option<Rc<Node>> {
-        self.file.as_ref().map(|weak| weak.upgrade().unwrap())
+        self.file.clone()
     }
 
     fn maybe_start(&self) -> Option<isize> {

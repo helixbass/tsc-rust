@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use crate::{
     CaseOrDefaultClauseInterface, HasArgumentsInterface, HasAssertClauseInterface,
@@ -213,7 +213,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_inference_context(&self) -> RefMut<Option<Rc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
-    fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
+    fn maybe_js_doc_cache(&self) -> Ref<Option<Vec<Rc<Node /*JSDocTag*/>>>>;
     fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Rc<Node /*JSDocTag*/>>>);
     // IncrementalElement
     fn maybe_intersects_change(&self) -> Option<bool>;
@@ -1667,7 +1667,7 @@ impl Node {
 
 #[derive(Debug)]
 pub struct BaseNode {
-    _node_wrapper: RefCell<Option<Weak<Node>>>,
+    _node_wrapper: RefCell<Option<Rc<Node>>>,
     pub kind: SyntaxKind,
     flags: Cell<NodeFlags>,
     modifier_flags_cache: Cell<ModifierFlags>,
@@ -1675,8 +1675,8 @@ pub struct BaseNode {
     pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
     pub modifiers: RefCell<Option<ModifiersArray>>,
     pub id: Cell<Option<NodeId>>,
-    pub parent: RefCell<Option<Weak<Node>>>,
-    pub original: RefCell<Option<Weak<Node>>>,
+    pub parent: RefCell<Option<Rc<Node>>>,
+    pub original: RefCell<Option<Rc<Node>>>,
     pub pos: Cell<isize>,
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Rc<Symbol>>>,
@@ -1688,7 +1688,7 @@ pub struct BaseNode {
     inference_context: RefCell<Option<Rc<InferenceContext>>>,
     flow_node: RefCell<Option<Rc<FlowNode>>>,
     js_doc: RefCell<Option<Vec<Rc<Node>>>>,
-    js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
+    js_doc_cache: RefCell<Option<Vec<Rc<Node>>>>,
     intersects_change: Cell<Option<bool>>,
 }
 
@@ -1730,16 +1730,11 @@ impl BaseNode {
 
 impl NodeInterface for BaseNode {
     fn node_wrapper(&self) -> Rc<Node> {
-        self._node_wrapper
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .upgrade()
-            .unwrap()
+        self._node_wrapper.borrow().clone().unwrap()
     }
 
     fn set_node_wrapper(&self, wrapper: Rc<Node>) {
-        *self._node_wrapper.borrow_mut() = Some(Rc::downgrade(&wrapper));
+        *self._node_wrapper.borrow_mut() = Some(wrapper);
     }
 
     fn kind(&self) -> SyntaxKind {
@@ -1803,29 +1798,23 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_parent(&self) -> Option<Rc<Node>> {
-        self.parent
-            .borrow()
-            .as_ref()
-            .map(|weak| weak.upgrade().unwrap())
+        self.parent.borrow().clone()
     }
 
     fn parent(&self) -> Rc<Node> {
-        self.parent.borrow().clone().unwrap().upgrade().unwrap()
+        self.parent.borrow().clone().unwrap()
     }
 
     fn set_parent(&self, parent: Rc<Node>) {
-        *self.parent.borrow_mut() = Some(Rc::downgrade(&parent));
+        *self.parent.borrow_mut() = Some(parent);
     }
 
     fn maybe_original(&self) -> Option<Rc<Node>> {
-        self.original
-            .borrow()
-            .as_ref()
-            .map(|weak| weak.upgrade().unwrap())
+        self.original.borrow().clone()
     }
 
     fn set_original(&self, original: Option<Rc<Node>>) {
-        *self.original.borrow_mut() = original.map(|rc| Rc::downgrade(&rc));
+        *self.original.borrow_mut() = original;
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
@@ -1916,16 +1905,12 @@ impl NodeInterface for BaseNode {
         *self.js_doc.borrow_mut() = Some(js_doc);
     }
 
-    fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node>>> {
-        self.js_doc_cache
-            .borrow()
-            .clone()
-            .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
+    fn maybe_js_doc_cache(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+        self.js_doc_cache.borrow()
     }
 
     fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Rc<Node>>>) {
-        *self.js_doc_cache.borrow_mut() = js_doc_cache
-            .map(|js_doc_cache| js_doc_cache.iter().map(|rc| Rc::downgrade(rc)).collect());
+        *self.js_doc_cache.borrow_mut() = js_doc_cache;
     }
 
     fn maybe_intersects_change(&self) -> Option<bool> {

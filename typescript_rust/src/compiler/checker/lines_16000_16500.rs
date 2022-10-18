@@ -105,7 +105,7 @@ impl TypeChecker {
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
-            .set_regular_type(&if let Some(regular_type) = regular_type {
+            .set_regular_type(if let Some(regular_type) = regular_type {
                 regular_type.borrow().type_wrapper()
             } else {
                 type_.clone()
@@ -126,7 +126,7 @@ impl TypeChecker {
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
-            .set_regular_type(&if let Some(regular_type) = regular_type {
+            .set_regular_type(if let Some(regular_type) = regular_type {
                 regular_type.borrow().type_wrapper()
             } else {
                 type_.clone()
@@ -147,7 +147,7 @@ impl TypeChecker {
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
-            .set_regular_type(&if let Some(regular_type) = regular_type {
+            .set_regular_type(if let Some(regular_type) = regular_type {
                 regular_type.borrow().type_wrapper()
             } else {
                 type_.clone()
@@ -160,7 +160,7 @@ impl TypeChecker {
             return match type_ {
                 Type::LiteralType(type_) => type_.get_or_initialize_fresh_type(self),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
-                    type_.fresh_type().upgrade().unwrap()
+                    type_.fresh_type()
                 }
                 _ => unreachable!(),
             };
@@ -175,7 +175,7 @@ impl TypeChecker {
             match type_ {
                 Type::LiteralType(type_) => type_.regular_type(),
                 Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(type_)) => {
-                    type_.regular_type().upgrade().unwrap()
+                    type_.regular_type()
                 }
                 _ => unreachable!(),
             }
@@ -208,14 +208,13 @@ impl TypeChecker {
         match type_ {
             Type::IntrinsicType(intrinsic_type) => ptr::eq(
                 type_,
-                enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
-                    .fresh_type()
-                    .as_ptr(),
+                &*enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
+                    .fresh_type(),
             ),
             Type::LiteralType(literal_type) => {
                 matches!(
                     literal_type.fresh_type(),
-                    Some(fresh_type) if ptr::eq(type_, fresh_type.as_ptr())
+                    Some(fresh_type) if ptr::eq(type_, &*fresh_type)
                 )
             }
             _ => panic!("Expected IntrinsicType or LiteralType"),

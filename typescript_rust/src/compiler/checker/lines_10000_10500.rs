@@ -231,7 +231,7 @@ impl TypeChecker {
                     .unwrap()
                     .as_type_parameter()
                     .constraint
-                    .borrow_mut() = Some(Rc::downgrade(&type_));
+                    .borrow_mut() = Some(type_.clone());
             }
             let mut instantiations: HashMap<String, Rc<Type /*TypeReference*/>> = HashMap::new();
             instantiations.insert(

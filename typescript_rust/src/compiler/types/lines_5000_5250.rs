@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use super::{
     BaseInterfaceType, BigIntLiteralType, ConditionalType, IndexType, IndexedAccessType,
@@ -19,7 +19,6 @@ use crate::{
     BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
     InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, NodeId,
     NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface,
-    WeakSelf,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -922,24 +921,32 @@ impl ObjectFlagsTypeInterface for BaseIntrinsicType {
 )]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
-    pub fresh_type: WeakSelf<Type>,
-    pub regular_type: WeakSelf<Type>,
+    pub fresh_type: RefCell<Option<Rc<Type>>>,
+    pub regular_type: RefCell<Option<Rc<Type>>>,
 }
 
 impl FreshableIntrinsicType {
     pub fn new(intrinsic_type: BaseIntrinsicType) -> Self {
         Self {
             _intrinsic_type: intrinsic_type,
-            fresh_type: WeakSelf::new(),
-            regular_type: WeakSelf::new(),
+            fresh_type: RefCell::new(None),
+            regular_type: RefCell::new(None),
         }
     }
 
-    pub fn fresh_type(&self) -> Weak<Type> {
-        self.fresh_type.get()
+    pub fn fresh_type(&self) -> Rc<Type> {
+        self.fresh_type.borrow().clone().unwrap()
     }
 
-    pub fn regular_type(&self) -> Weak<Type> {
-        self.regular_type.get()
+    pub fn set_fresh_type(&self, fresh_type: Rc<Type>) {
+        *self.fresh_type.borrow_mut() = Some(fresh_type);
+    }
+
+    pub fn regular_type(&self) -> Rc<Type> {
+        self.regular_type.borrow().clone().unwrap()
+    }
+
+    pub fn set_regular_type(&self, regular_type: Rc<Type>) {
+        *self.regular_type.borrow_mut() = Some(regular_type);
     }
 }

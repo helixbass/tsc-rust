@@ -3,24 +3,23 @@
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use super::{
     BaseType, IndexInfo, IntersectionType, MappedType, Node, PseudoBigInt, ResolvedTypeInterface,
     ReverseMappedType, Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
 use crate::{
-    EvolvingArrayType, FreshObjectLiteralTypeInterface, Number, TypeId, TypeMapper, WeakSelf,
-    __String,
+    EvolvingArrayType, FreshObjectLiteralTypeInterface, Number, TypeId, TypeMapper, __String,
 };
 use local_macros::type_type;
 
 pub trait LiteralTypeInterface: TypeInterface {
-    fn fresh_type(&self) -> Option<&Weak<Type>>;
-    fn set_fresh_type(&self, fresh_type: &Rc<Type>);
+    fn fresh_type(&self) -> Option<Rc<Type>>;
+    fn set_fresh_type(&self, fresh_type: Rc<Type>);
     fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type>;
     fn regular_type(&self) -> Rc<Type>;
-    fn set_regular_type(&self, regular_type: &Rc<Type>);
+    fn set_regular_type(&self, regular_type: Rc<Type>);
 }
 
 #[derive(Clone, Debug)]
@@ -46,27 +45,27 @@ impl LiteralType {
 #[type_type(impl_from = false)]
 pub struct BaseLiteralType {
     _type: BaseType,
-    fresh_type: WeakSelf<Type>,
-    regular_type: WeakSelf<Type>,
+    fresh_type: RefCell<Option<Rc<Type>>>,
+    regular_type: RefCell<Option<Rc<Type>>>,
 }
 
 impl BaseLiteralType {
     pub fn new(type_: BaseType) -> Self {
         Self {
             _type: type_,
-            fresh_type: WeakSelf::new(),
-            regular_type: WeakSelf::new(),
+            fresh_type: RefCell::new(None),
+            regular_type: RefCell::new(None),
         }
     }
 }
 
 impl LiteralTypeInterface for BaseLiteralType {
-    fn fresh_type(&self) -> Option<&Weak<Type>> {
-        self.fresh_type.try_get()
+    fn fresh_type(&self) -> Option<Rc<Type>> {
+        self.fresh_type.borrow().clone()
     }
 
-    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
-        self.fresh_type.init(fresh_type, false);
+    fn set_fresh_type(&self, fresh_type: Rc<Type>) {
+        *self.fresh_type.borrow_mut() = Some(fresh_type);
     }
 
     fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
@@ -74,11 +73,11 @@ impl LiteralTypeInterface for BaseLiteralType {
     }
 
     fn regular_type(&self) -> Rc<Type> {
-        self.regular_type.get().upgrade().unwrap()
+        self.regular_type.borrow().clone().unwrap()
     }
 
-    fn set_regular_type(&self, regular_type: &Rc<Type>) {
-        self.regular_type.init(regular_type, false);
+    fn set_regular_type(&self, regular_type: Rc<Type>) {
+        *self.regular_type.borrow_mut() = Some(regular_type);
     }
 }
 
@@ -122,36 +121,37 @@ impl StringLiteralType {
             self.maybe_symbol(),
             Some(self.type_wrapper()),
         );
-        fresh_type.as_literal_type().set_fresh_type(&fresh_type);
-        self.set_fresh_type(&fresh_type);
-        type_checker.keep_strong_reference_to_type(fresh_type);
-        self.fresh_type().unwrap().upgrade().unwrap()
+        fresh_type
+            .as_literal_type()
+            .set_fresh_type(fresh_type.clone());
+        self.set_fresh_type(fresh_type.clone());
+        fresh_type
     }
 }
 
 impl LiteralTypeInterface for StringLiteralType {
-    fn fresh_type(&self) -> Option<&Weak<Type>> {
+    fn fresh_type(&self) -> Option<Rc<Type>> {
         self._literal_type.fresh_type()
     }
 
-    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+    fn set_fresh_type(&self, fresh_type: Rc<Type>) {
         self._literal_type.set_fresh_type(fresh_type);
     }
 
     fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
         if self.fresh_type().is_none() {
             let fresh_type = self.create_fresh_type_from_self(type_checker);
-            self.set_fresh_type(&fresh_type);
-            return self.fresh_type().unwrap().upgrade().unwrap();
+            self.set_fresh_type(fresh_type.clone());
+            return fresh_type;
         }
-        return self.fresh_type().unwrap().upgrade().unwrap();
+        return self.fresh_type().unwrap();
     }
 
     fn regular_type(&self) -> Rc<Type> {
         self._literal_type.regular_type()
     }
 
-    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+    fn set_regular_type(&self, regular_type: Rc<Type>) {
         self._literal_type.set_regular_type(regular_type);
     }
 }
@@ -178,36 +178,37 @@ impl NumberLiteralType {
             self.maybe_symbol(),
             Some(self.type_wrapper()),
         );
-        fresh_type.as_literal_type().set_fresh_type(&fresh_type);
-        self.set_fresh_type(&fresh_type);
-        type_checker.keep_strong_reference_to_type(fresh_type);
-        self.fresh_type().unwrap().upgrade().unwrap()
+        fresh_type
+            .as_literal_type()
+            .set_fresh_type(fresh_type.clone());
+        self.set_fresh_type(fresh_type.clone());
+        fresh_type
     }
 }
 
 impl LiteralTypeInterface for NumberLiteralType {
-    fn fresh_type(&self) -> Option<&Weak<Type>> {
+    fn fresh_type(&self) -> Option<Rc<Type>> {
         self._literal_type.fresh_type()
     }
 
-    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+    fn set_fresh_type(&self, fresh_type: Rc<Type>) {
         self._literal_type.set_fresh_type(fresh_type);
     }
 
     fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
         if self.fresh_type().is_none() {
             let fresh_type = self.create_fresh_type_from_self(type_checker);
-            self.set_fresh_type(&fresh_type);
-            return self.fresh_type().unwrap().upgrade().unwrap();
+            self.set_fresh_type(fresh_type.clone());
+            return fresh_type;
         }
-        return self.fresh_type().unwrap().upgrade().unwrap();
+        return self.fresh_type().unwrap();
     }
 
     fn regular_type(&self) -> Rc<Type> {
         self._literal_type.regular_type()
     }
 
-    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+    fn set_regular_type(&self, regular_type: Rc<Type>) {
         self._literal_type.set_regular_type(regular_type);
     }
 }
@@ -234,36 +235,37 @@ impl BigIntLiteralType {
             self.maybe_symbol(),
             Some(self.type_wrapper()),
         );
-        fresh_type.as_literal_type().set_fresh_type(&fresh_type);
-        self.set_fresh_type(&fresh_type);
-        type_checker.keep_strong_reference_to_type(fresh_type);
-        self.fresh_type().unwrap().upgrade().unwrap()
+        fresh_type
+            .as_literal_type()
+            .set_fresh_type(fresh_type.clone());
+        self.set_fresh_type(fresh_type.clone());
+        fresh_type
     }
 }
 
 impl LiteralTypeInterface for BigIntLiteralType {
-    fn fresh_type(&self) -> Option<&Weak<Type>> {
+    fn fresh_type(&self) -> Option<Rc<Type>> {
         self._literal_type.fresh_type()
     }
 
-    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+    fn set_fresh_type(&self, fresh_type: Rc<Type>) {
         self._literal_type.set_fresh_type(fresh_type);
     }
 
     fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
         if self.fresh_type().is_none() {
             let fresh_type = self.create_fresh_type_from_self(type_checker);
-            self.set_fresh_type(&fresh_type);
-            return self.fresh_type().unwrap().upgrade().unwrap();
+            self.set_fresh_type(fresh_type.clone());
+            return fresh_type;
         }
-        return self.fresh_type().unwrap().upgrade().unwrap();
+        self.fresh_type().unwrap()
     }
 
     fn regular_type(&self) -> Rc<Type> {
         self._literal_type.regular_type()
     }
 
-    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+    fn set_regular_type(&self, regular_type: Rc<Type>) {
         self._literal_type.set_regular_type(regular_type);
     }
 }

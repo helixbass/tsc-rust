@@ -611,9 +611,7 @@ impl TypeChecker {
                                 intrinsic_type,
                                 [IntrinsicType, FreshableIntrinsicType]
                             )
-                            .regular_type()
-                            .upgrade()
-                            .unwrap(),
+                            .regular_type(),
                             Type::LiteralType(literal_type) => literal_type.regular_type(),
                             _ => panic!("Expected IntrinsicType or LiteralType"),
                         },

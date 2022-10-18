@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
@@ -2057,7 +2057,7 @@ pub trait CommandLineOptionInterface {
 }
 
 pub struct CommandLineOptionBase {
-    pub _command_line_option_wrapper: RefCell<Option<Weak<CommandLineOption>>>,
+    pub _command_line_option_wrapper: RefCell<Option<Rc<CommandLineOption>>>,
     pub name: String,
     pub type_: CommandLineOptionType,
     pub is_file_path: Option<bool>,
@@ -2082,16 +2082,11 @@ pub struct CommandLineOptionBase {
 
 impl CommandLineOptionInterface for CommandLineOptionBase {
     fn command_line_option_wrapper(&self) -> Rc<CommandLineOption> {
-        self._command_line_option_wrapper
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .upgrade()
-            .unwrap()
+        self._command_line_option_wrapper.borrow().clone().unwrap()
     }
 
     fn set_command_line_option_wrapper(&self, wrapper: Rc<CommandLineOption>) {
-        *self._command_line_option_wrapper.borrow_mut() = Some(Rc::downgrade(&wrapper));
+        *self._command_line_option_wrapper.borrow_mut() = Some(wrapper);
     }
 
     fn name(&self) -> &str {

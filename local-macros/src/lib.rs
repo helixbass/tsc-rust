@@ -240,7 +240,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_js_doc(js_doc)
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>> {
                         self.#first_field_name.maybe_js_doc_cache()
                     }
 
@@ -760,7 +760,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_js_doc_cache()),*
                         }
@@ -1397,11 +1397,11 @@ fn get_type_struct_interface_impl(
         "LiteralTypeInterface" => {
             quote! {
                 impl crate::LiteralTypeInterface for #type_type_name {
-                    fn fresh_type(&self) -> ::std::option::Option<&::std::rc::Weak<crate::Type>> {
+                    fn fresh_type(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
                         self.#first_field_name.fresh_type()
                     }
 
-                    fn set_fresh_type(&self, fresh_type: &::std::rc::Rc<crate::Type>) {
+                    fn set_fresh_type(&self, fresh_type: ::std::rc::Rc<crate::Type>) {
                         self.#first_field_name.set_fresh_type(fresh_type)
                     }
 
@@ -1416,7 +1416,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.regular_type()
                     }
 
-                    fn set_regular_type(&self, regular_type: &::std::rc::Rc<crate::Type>) {
+                    fn set_regular_type(&self, regular_type: ::std::rc::Rc<crate::Type>) {
                         self.#first_field_name.set_regular_type(regular_type)
                     }
                 }
@@ -1968,13 +1968,13 @@ fn get_type_enum_interface_impl(
         "LiteralTypeInterface" => {
             quote! {
                 impl crate::LiteralTypeInterface for #type_type_name {
-                    fn fresh_type(&self) -> ::std::option::Option<&::std::rc::Weak<crate::Type>> {
+                    fn fresh_type(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.fresh_type()),*
                         }
                     }
 
-                    fn set_fresh_type(&self, fresh_type: &::std::rc::Rc<crate::Type>) {
+                    fn set_fresh_type(&self, fresh_type: ::std::rc::Rc<crate::Type>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_fresh_type(fresh_type)),*
                         }
@@ -1995,7 +1995,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn set_regular_type(&self, regular_type: &::std::rc::Rc<crate::Type>) {
+                    fn set_regular_type(&self, regular_type: ::std::rc::Rc<crate::Type>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_regular_type(regular_type)),*
                         }

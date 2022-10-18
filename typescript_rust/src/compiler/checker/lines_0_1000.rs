@@ -516,7 +516,6 @@ pub fn create_type_checker(
         host,
         produce_diagnostics,
         _rc_wrapper: RefCell::new(None),
-        _types_needing_strong_references: RefCell::new(vec![]),
         _packages_map: RefCell::new(None),
         cancellation_token: RefCell::new(None),
         requested_external_emit_helpers: Cell::new(ExternalEmitHelpers::None),
@@ -1002,21 +1001,13 @@ pub fn create_type_checker(
     )
     .into();
     let false_type_as_freshable_intrinsic_type = false_type.as_freshable_intrinsic_type();
-    false_type_as_freshable_intrinsic_type
-        .regular_type
-        .init(&regular_false_type, false);
-    false_type_as_freshable_intrinsic_type
-        .fresh_type
-        .init(&false_type, false);
+    false_type_as_freshable_intrinsic_type.set_regular_type(regular_false_type.clone());
+    false_type_as_freshable_intrinsic_type.set_fresh_type(false_type.clone());
     type_checker.false_type = Some(false_type);
     let regular_false_type_as_freshable_intrinsic_type =
         regular_false_type.as_freshable_intrinsic_type();
-    regular_false_type_as_freshable_intrinsic_type
-        .regular_type
-        .init(&regular_false_type, false);
-    regular_false_type_as_freshable_intrinsic_type
-        .fresh_type
-        .init(type_checker.false_type.as_ref().unwrap(), false);
+    regular_false_type_as_freshable_intrinsic_type.set_regular_type(regular_false_type.clone());
+    regular_false_type_as_freshable_intrinsic_type.set_fresh_type(type_checker.false_type());
     type_checker.regular_false_type = Some(regular_false_type);
     let true_type: Rc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
         TypeFlags::BooleanLiteral,
@@ -1029,21 +1020,13 @@ pub fn create_type_checker(
     )
     .into();
     let true_type_as_freshable_intrinsic_type = true_type.as_freshable_intrinsic_type();
-    true_type_as_freshable_intrinsic_type
-        .regular_type
-        .init(&regular_true_type, false);
-    true_type_as_freshable_intrinsic_type
-        .fresh_type
-        .init(&true_type, false);
+    true_type_as_freshable_intrinsic_type.set_regular_type(regular_true_type.clone());
+    true_type_as_freshable_intrinsic_type.set_fresh_type(true_type.clone());
     type_checker.true_type = Some(true_type);
     let regular_true_type_as_freshable_intrinsic_type =
         regular_true_type.as_freshable_intrinsic_type();
-    regular_true_type_as_freshable_intrinsic_type
-        .regular_type
-        .init(&regular_true_type, false);
-    regular_true_type_as_freshable_intrinsic_type
-        .fresh_type
-        .init(type_checker.true_type.as_ref().unwrap(), false);
+    regular_true_type_as_freshable_intrinsic_type.set_regular_type(regular_true_type.clone());
+    regular_true_type_as_freshable_intrinsic_type.set_fresh_type(type_checker.true_type());
     type_checker.regular_true_type = Some(regular_true_type);
     type_checker.boolean_type = Some(type_checker.get_union_type(
         vec![
@@ -1417,12 +1400,6 @@ impl TypeChecker {
 
     fn set_rc_wrapper(&self, wrapper: Rc<TypeChecker>) {
         *self._rc_wrapper.borrow_mut() = Some(wrapper);
-    }
-
-    pub fn keep_strong_reference_to_type(&self, type_: Rc<Type>) {
-        self._types_needing_strong_references
-            .borrow_mut()
-            .push(type_);
     }
 
     pub(super) fn get_packages_map(&self) -> Ref<HashMap<String, bool>> {
