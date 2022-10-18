@@ -2392,6 +2392,144 @@ impl CommandLineOption {
 pub struct CharacterCodes;
 #[allow(non_upper_case_globals)]
 impl CharacterCodes {
+    pub const null_character: &'static str = "\u{0000}";
+    pub const max_ascii_character: &'static str = "\u{007f}";
+
+    pub const line_feed: &'static str = "\n";
+    pub const carriage_return: &'static str = "\r";
+    pub const line_separator: &'static str = "\u{2028}";
+    pub const paragraph_separator: &'static str = "\u{2029}";
+    pub const next_line: &'static str = "\u{0085}";
+
+    pub const space: &'static str = " ";
+    pub const non_breaking_space: &'static str = "\u{00a0}";
+    pub const en_quad: &'static str = "\u{2000}";
+    pub const em_quad: &'static str = "\u{2001}";
+    pub const en_space: &'static str = "\u{2002}";
+    pub const em_space: &'static str = "\u{2003}";
+    pub const three_per_em_space: &'static str = "\u{2004}";
+    pub const four_per_em_space: &'static str = "\u{2005}";
+    pub const six_per_em_space: &'static str = "\u{2006}";
+    pub const figure_space: &'static str = "\u{2007}";
+    pub const punctuation_space: &'static str = "\u{2008}";
+    pub const thin_space: &'static str = "\u{2009}";
+    pub const hair_space: &'static str = "\u{200a}";
+    pub const zero_width_space: &'static str = "\u{200b}";
+    pub const narrow_no_break_space: &'static str = "\u{202f}";
+    pub const ideographic_space: &'static str = "\u{3000}";
+    pub const mathematical_space: &'static str = "\u{205f}";
+    pub const ogham: &'static str = "\u{1680}";
+
+    pub const underscore: &'static str = "_";
+    pub const dollar_sign: &'static str = "$";
+
+    pub const _0: &'static str = "0";
+    pub const _1: &'static str = "1";
+    pub const _2: &'static str = "2";
+    pub const _3: &'static str = "3";
+    pub const _4: &'static str = "4";
+    pub const _5: &'static str = "5";
+    pub const _6: &'static str = "6";
+    pub const _7: &'static str = "7";
+    pub const _8: &'static str = "8";
+    pub const _9: &'static str = "9";
+
+    pub const a: &'static str = "a";
+    pub const b: &'static str = "b";
+    pub const c: &'static str = "c";
+    pub const d: &'static str = "d";
+    pub const e: &'static str = "e";
+    pub const f: &'static str = "f";
+    pub const g: &'static str = "g";
+    pub const h: &'static str = "h";
+    pub const i: &'static str = "i";
+    pub const j: &'static str = "j";
+    pub const k: &'static str = "k";
+    pub const l: &'static str = "l";
+    pub const m: &'static str = "m";
+    pub const n: &'static str = "n";
+    pub const o: &'static str = "o";
+    pub const p: &'static str = "p";
+    pub const q: &'static str = "q";
+    pub const r: &'static str = "r";
+    pub const s: &'static str = "s";
+    pub const t: &'static str = "t";
+    pub const u: &'static str = "u";
+    pub const v: &'static str = "v";
+    pub const w: &'static str = "w";
+    pub const x: &'static str = "x";
+    pub const y: &'static str = "y";
+    pub const z: &'static str = "z";
+
+    pub const A: &'static str = "A";
+    pub const B: &'static str = "B";
+    pub const C: &'static str = "C";
+    pub const D: &'static str = "D";
+    pub const E: &'static str = "E";
+    pub const F: &'static str = "F";
+    pub const G: &'static str = "G";
+    pub const H: &'static str = "H";
+    pub const I: &'static str = "I";
+    pub const J: &'static str = "J";
+    pub const K: &'static str = "K";
+    pub const L: &'static str = "L";
+    pub const M: &'static str = "M";
+    pub const N: &'static str = "N";
+    pub const O: &'static str = "O";
+    pub const P: &'static str = "P";
+    pub const Q: &'static str = "Q";
+    pub const R: &'static str = "R";
+    pub const S: &'static str = "S";
+    pub const T: &'static str = "T";
+    pub const U: &'static str = "U";
+    pub const V: &'static str = "V";
+    pub const W: &'static str = "W";
+    pub const X: &'static str = "X";
+    pub const Y: &'static str = "Y";
+    pub const Z: &'static str = "Z";
+
+    pub const ampersand: &'static str = "&";
+    pub const asterisk: &'static str = "*";
+    pub const at: &'static str = "@";
+    pub const backslash: &'static str = "\\";
+    pub const backtick: &'static str = "`";
+    pub const bar: &'static str = "|";
+    pub const caret: &'static str = "^";
+    pub const close_brace: &'static str = "}";
+    pub const close_bracket: &'static str = "]";
+    pub const close_paren: &'static str = ")";
+    pub const colon: &'static str = ":";
+    pub const comma: &'static str = ",";
+    pub const dot: &'static str = ".";
+    pub const double_quote: &'static str = "\"";
+    pub const equals: &'static str = "=";
+    pub const exclamation: &'static str = "!";
+    pub const greater_than: &'static str = ">";
+    pub const hash: &'static str = "#";
+    pub const less_than: &'static str = "<";
+    pub const minus: &'static str = "-";
+    pub const open_brace: &'static str = "{";
+    pub const open_bracket: &'static str = "[";
+    pub const open_paren: &'static str = "(";
+    pub const percent: &'static str = "%";
+    pub const plus: &'static str = "+";
+    pub const question: &'static str = "?";
+    pub const semicolon: &'static str = ";";
+    pub const single_quote: &'static str = "'";
+    pub const slash: &'static str = "/";
+    pub const tilde: &'static str = "~";
+
+    pub const backspace: &'static str = "\u{0008}";
+    pub const form_feed: &'static str = "\u{000c}";
+    pub const byte_order_mark: &'static str = "\u{feff}";
+    pub const tab: &'static str = "\t";
+    pub const vertical_tab: &'static str = "\u{000b}";
+}
+
+#[non_exhaustive]
+pub struct CharacterCodesChar;
+#[allow(non_upper_case_globals)]
+impl CharacterCodesChar {
     pub const null_character: char = '\u{0000}';
     pub const max_ascii_character: char = '\u{007f}';
 

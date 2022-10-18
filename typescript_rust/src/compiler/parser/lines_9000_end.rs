@@ -1,4 +1,4 @@
-use regex::{Captures, Regex};
+use regex::{Captures, Match, Regex};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -6,12 +6,13 @@ use std::rc::Rc;
 
 use crate::{
     file_extension_is_one_of, for_each_child_bool, get_leading_comment_ranges, get_pragma_spec,
-    map, to_pragma_name, trim_string, AmdDependency, CheckJsDirective, CommentRange, Debug_,
-    DiagnosticMessage, Diagnostics, Extension, FileReference, HasStatementsInterface,
+    map, split_matches, to_pragma_name, trim_string, AmdDependency, CheckJsDirective, CommentRange,
+    Debug_, DiagnosticMessage, Diagnostics, Extension, FileReference, HasStatementsInterface,
     IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
     NodeInterface, ParserType, PragmaArgument, PragmaArgumentName, PragmaArgumentWithCapturedSpan,
     PragmaArguments, PragmaKindFlags, PragmaName, PragmaPseudoMapEntry, PragmaSpec, PragmaValue,
-    ReadonlyPragmaMap, ReadonlyTextRange, ScriptTarget, SourceTextAsChars, SyntaxKind, TextRange,
+    ReadonlyPragmaMap, ReadonlyTextRange, ScriptTarget, SourceText, SourceTextAsChars,
+    SourceTextSlice, SyntaxKind, TextRange,
 };
 
 impl IncrementalParserType {
@@ -233,17 +234,16 @@ pub(crate) trait PragmaContext {
 
 pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
     context: &TContext,
-    source_text: &str,
-    source_text_as_chars: &SourceTextAsChars,
+    source_text: Rc<SourceText>,
 ) {
     let mut pragmas: Vec<PragmaPseudoMapEntry> = vec![];
 
-    for range in &get_leading_comment_ranges(source_text_as_chars, 0).unwrap_or_else(|| vec![]) {
+    for range in &get_leading_comment_ranges(source_text.clone(), 0).unwrap_or_else(|| vec![]) {
         // TODO: should we really be passing a slice of chars into extract_pragmas() instead?
-        let comment: String = source_text_as_chars[TryInto::<usize>::try_into(range.pos()).unwrap()
-            ..TryInto::<usize>::try_into(range.end()).unwrap()]
-            .into_iter()
-            .collect();
+        let comment = source_text.clone().slice(
+            usize::try_into(range.pos()).unwrap(),
+            Some(usize::try_into(range.end()).unwrap()),
+        );
         extract_pragmas(&mut pragmas, range, &comment);
     }
 
@@ -415,7 +415,11 @@ lazy_static! {
         Regex::new(r"(?i)(?m)///?\s*@(\S+)\s*(.*)\s*$").unwrap();
 }
 
-fn extract_pragmas(pragmas: &mut Vec<PragmaPseudoMapEntry>, range: &CommentRange, text: &str) {
+fn extract_pragmas(
+    pragmas: &mut Vec<PragmaPseudoMapEntry>,
+    range: &CommentRange,
+    text: &SourceTextSlice,
+) {
     let triple_slash = if range.kind == SyntaxKind::SingleLineCommentTrivia {
         triple_slash_xml_comment_start_reg_ex.captures(text)
     } else {
@@ -441,15 +445,14 @@ fn extract_pragmas(pragmas: &mut Vec<PragmaPseudoMapEntry>, range: &CommentRange
                 } else if let Some(match_result) = match_result {
                     let value = match_result
                         .get(2)
-                        .unwrap_or_else(|| match_result.get(3).unwrap())
-                        .as_str()
-                        .to_owned();
+                        .unwrap_or_else(|| match_result.get(3).unwrap());
+                    let value = text.slice_from_str_offsets(value.start(), Some(value.end()));
                     if arg.capture_span {
-                        // TODO: this is mixing chars + bytes?
                         let start_pos = TryInto::<usize>::try_into(range.pos()).unwrap()
-                            + match_result.get(0).unwrap().start()
-                            + (match_result.get(1).unwrap().end()
-                                - match_result.get(1).unwrap().start())
+                            + text.str_index_to_char_index(match_result.get(0).unwrap().start())
+                            + (text.str_index_to_char_index(match_result.get(1).unwrap().end())
+                                - text
+                                    .str_index_to_char_index(match_result.get(1).unwrap().start()))
                             + 1;
                         let value_len = value.len();
                         argument.insert(
@@ -461,7 +464,12 @@ fn extract_pragmas(pragmas: &mut Vec<PragmaPseudoMapEntry>, range: &CommentRange
                             }),
                         );
                     } else {
-                        argument.insert(arg.name, PragmaArgument::WithoutCapturedSpan(value));
+                        argument.insert(
+                            arg.name,
+                            PragmaArgument::WithoutCapturedSpan(
+                                text.slice_from_str_offsets(value.start(), Some(value.end())),
+                            ),
+                        );
                     }
                 }
             }
@@ -490,7 +498,13 @@ fn extract_pragmas(pragmas: &mut Vec<PragmaPseudoMapEntry>, range: &CommentRange
         None
     };
     if let Some(single_line) = single_line {
-        add_pragma_for_match(pragmas, range, PragmaKindFlags::SingleLine, single_line);
+        add_pragma_for_match(
+            pragmas,
+            range,
+            PragmaKindFlags::SingleLine,
+            single_line,
+            text,
+        );
         return;
     }
 
@@ -500,7 +514,13 @@ fn extract_pragmas(pragmas: &mut Vec<PragmaPseudoMapEntry>, range: &CommentRange
                 Regex::new(r"(?i)(?m)@(\S+)(\s+.*)?$").unwrap();
         }
         for multi_line_match in multi_line_pragma_reg_ex.captures_iter(text) {
-            add_pragma_for_match(pragmas, range, PragmaKindFlags::MultiLine, multi_line_match);
+            add_pragma_for_match(
+                pragmas,
+                range,
+                PragmaKindFlags::MultiLine,
+                multi_line_match,
+                text,
+            );
         }
     }
 }
@@ -510,6 +530,7 @@ fn add_pragma_for_match(
     range: &CommentRange,
     kind: PragmaKindFlags,
     match_: Captures,
+    text: &SourceTextSlice,
 ) {
     // if (!match) return;
     let name = to_pragma_name(&match_[1].to_lowercase());
@@ -521,8 +542,8 @@ fn add_pragma_for_match(
     if !pragma.kind.intersects(kind) {
         return;
     }
-    let args = match_.get(2).map(|value| value.as_str());
-    let argument = get_named_pragma_arguments(pragma, args);
+    let args = match_.get(2);
+    let argument = get_named_pragma_arguments(pragma, args, text);
     if argument.is_none() {
         return;
     }
@@ -536,7 +557,11 @@ fn add_pragma_for_match(
     });
 }
 
-fn get_named_pragma_arguments(pragma: &PragmaSpec, text: Option<&str>) -> Option<PragmaArguments> {
+fn get_named_pragma_arguments(
+    pragma: &PragmaSpec,
+    text: Option<Match>,
+    source_text_slice: &SourceTextSlice,
+) -> Option<PragmaArguments> {
     let mut arg_map = PragmaArguments::new();
     if text.is_none() {
         return Some(arg_map);
@@ -550,14 +575,12 @@ fn get_named_pragma_arguments(pragma: &PragmaSpec, text: Option<&str>) -> Option
     lazy_static! {
         static ref whitespace_regex: Regex = Regex::new(r"\s+").unwrap();
     }
-    let args = whitespace_regex
-        .split(trim_string(text))
-        .collect::<Vec<_>>();
+    let args = split_matches(&whitespace_regex, text.as_str()).collect::<Vec<_>>();
     for i in 0..pragma_args.len() {
         let argument = &pragma_args[i];
         if match args.get(i) {
             None => true,
-            Some(arg) => arg.is_empty(),
+            Some(arg) => arg.text.is_empty(),
         } && !argument.optional
         {
             return None;
@@ -569,7 +592,13 @@ fn get_named_pragma_arguments(pragma: &PragmaSpec, text: Option<&str>) -> Option
         }
         arg_map.insert(
             argument.name,
-            PragmaArgument::WithoutCapturedSpan(args.get(i).copied().unwrap().to_owned()),
+            PragmaArgument::WithoutCapturedSpan({
+                let arg = args.get(i).unwrap();
+                source_text_slice.slice_from_str_offsets(
+                    text.start() + arg.start,
+                    arg.end.map(|arg_end| text.start() + arg_end),
+                )
+            }),
         );
     }
     Some(arg_map)

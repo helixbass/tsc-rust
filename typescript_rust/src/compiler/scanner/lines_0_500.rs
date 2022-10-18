@@ -909,9 +909,12 @@ pub fn is_white_space_single_line(ch: char) -> bool {
         || ch == CharacterCodes::byte_order_mark
 }
 
-pub fn is_line_break(ch: char) -> bool {
-    ch == CharacterCodes::line_feed
-        || ch == CharacterCodes::carriage_return
-        || ch == CharacterCodes::line_separator
-        || ch == CharacterCodes::paragraph_separator
+pub fn is_line_break(ch: &str) -> bool {
+    matches!(
+        ch,
+        CharacterCodes::line_feed
+            | CharacterCodes::carriage_return
+            | CharacterCodes::line_separator
+            | CharacterCodes::paragraph_separator
+    )
 }

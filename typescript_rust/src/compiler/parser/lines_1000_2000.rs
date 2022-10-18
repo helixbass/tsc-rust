@@ -74,11 +74,7 @@ impl ParserType {
         );
         let source_file_as_source_file = source_file.as_source_file();
 
-        process_comment_pragmas(
-            source_file_as_source_file,
-            self.source_text(),
-            self.source_text_as_chars(),
-        );
+        process_comment_pragmas(source_file_as_source_file, self.source_text());
         let report_pragma_diagnostic = |pos: isize, end: isize, diagnostic: &DiagnosticMessage| {
             self.parse_diagnostics().push(Rc::new(
                 create_detached_diagnostic(self.file_name(), pos, end, diagnostic, None).into(),
@@ -123,7 +119,7 @@ impl ParserType {
     pub(super) fn add_jsdoc_comment(&self, node: Rc<Node>) -> Rc<Node> {
         Debug_.assert(node.maybe_js_doc().is_none(), None);
         let js_doc = map_defined(
-            get_jsdoc_comment_ranges(&*node, self.source_text_as_chars()),
+            get_jsdoc_comment_ranges(&*node, self.source_text()),
             |comment, _| {
                 self.JSDocParser_parse_jsdoc_comment(
                     &node,
@@ -333,7 +329,7 @@ impl ParserType {
         set_text_range_pos_width(
             &*source_file,
             0,
-            self.source_text_as_chars().len().try_into().unwrap(),
+            self.source_text().len().try_into().unwrap(),
         );
         self.set_external_module_indicator(&source_file);
 
@@ -347,7 +343,7 @@ impl ParserType {
         }
 
         let source_file_as_source_file = source_file.as_source_file();
-        source_file_as_source_file.set_text(self.source_text().to_string());
+        source_file_as_source_file.set_text(self.source_text());
         source_file_as_source_file.set_bind_diagnostics(Some(vec![]));
         source_file_as_source_file.set_bind_suggestion_diagnostics(None);
         source_file_as_source_file.set_language_version(language_version);
@@ -782,7 +778,7 @@ impl ParserType {
             let node_as_tagged_template_expression = node.as_tagged_template_expression();
             self.parse_error_at(
                 skip_trivia(
-                    self.source_text_as_chars(),
+                    self.source_text(),
                     node_as_tagged_template_expression.template.pos(),
                     None,
                     None,
@@ -817,7 +813,7 @@ impl ParserType {
         }
         let expression_text = expression_text.unwrap();
 
-        let pos = skip_trivia(self.source_text_as_chars(), node.pos(), None, None, None);
+        let pos = skip_trivia(self.source_text(), node.pos(), None, None, None);
 
         match expression_text {
             "const" | "let" | "var" => {

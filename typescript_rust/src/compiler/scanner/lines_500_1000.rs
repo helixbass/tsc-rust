@@ -12,8 +12,8 @@ use super::{
 use crate::{
     maybe_text_char_at_index, position_is_synthesized, text_char_at_index, text_len,
     text_substring, CharacterCodes, CommentDirective, CommentKind, CommentRange, Debug_,
-    DiagnosticMessage, Diagnostics, LanguageVariant, ScriptTarget, SourceTextAsChars, SyntaxKind,
-    TokenFlags,
+    DiagnosticMessage, Diagnostics, LanguageVariant, ScriptTarget, SourceText, SourceTextAsChars,
+    SourceTextSlice, SyntaxKind, TokenFlags,
 };
 
 pub(super) fn is_digit(ch: char) -> bool {
@@ -57,7 +57,7 @@ pub fn could_start_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
 }
 
 pub(crate) fn skip_trivia(
-    text: &SourceTextAsChars,
+    ref text: Rc<SourceText>,
     pos: isize,
     stop_after_line_break: Option<bool>,
     stop_at_comments: Option<bool>,
@@ -74,15 +74,15 @@ pub(crate) fn skip_trivia(
 
     let mut can_consume_star = false;
     loop {
-        let ch = maybe_text_char_at_index(text, pos);
-        if matches!(ch, None) {
+        let ch = text.maybe_char_at_index(pos);
+        if ch.is_none() {
             return isize::try_from(pos).unwrap();
         }
         let ch = ch.unwrap();
         match ch {
             CharacterCodes::carriage_return => {
                 if matches!(
-                    maybe_text_char_at_index(text, pos + 1),
+                    text.maybe_char_at_index(pos + 1),
                     Some(CharacterCodes::line_feed)
                 ) {
                     pos += 1;
@@ -113,12 +113,12 @@ pub(crate) fn skip_trivia(
                 true => (),
                 false => {
                     if matches!(
-                        maybe_text_char_at_index(text, pos + 1),
+                        text.maybe_char_at_index(pos + 1),
                         Some(CharacterCodes::slash)
                     ) {
                         pos += 2;
                         while pos < text_len(text) {
-                            if is_line_break(text_char_at_index(text, pos)) {
+                            if is_line_break(text.char_at_index(pos)) {
                                 break;
                             }
                             pos += 1;
@@ -128,14 +128,14 @@ pub(crate) fn skip_trivia(
                     }
 
                     if matches!(
-                        maybe_text_char_at_index(text, pos + 1),
+                        text.maybe_char_at_index(pos + 1),
                         Some(CharacterCodes::asterisk)
                     ) {
                         pos += 2;
                         while pos < text_len(text) {
-                            if text_char_at_index(text, pos) == CharacterCodes::asterisk
+                            if text.char_at_index(pos) == CharacterCodes::asterisk
                                 && matches!(
-                                    maybe_text_char_at_index(text, pos + 1),
+                                    text.maybe_char_at_index(pos + 1),
                                     Some(CharacterCodes::slash)
                                 )
                             {
@@ -166,7 +166,7 @@ pub(crate) fn skip_trivia(
             }
             CharacterCodes::hash => {
                 if pos == 0 && is_shebang_trivia(text, pos) {
-                    pos = scan_shebang_trivia(text, pos);
+                    pos = scan_shebang_trivia(text.clone(), pos);
                     can_consume_star = false;
                     continue;
                 }
@@ -197,23 +197,22 @@ pub(super) const fn merge_conflict_marker_length() -> usize {
     7
 }
 
-pub(super) fn is_conflict_marker_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
+pub(super) fn is_conflict_marker_trivia(text: &SourceText, pos: usize) -> bool {
     // Debug_.assert(pos >= 0);
 
-    if pos == 0 || matches!(maybe_text_char_at_index(text, pos - 1), Some(ch) if is_line_break(ch))
-    {
-        let ch = maybe_text_char_at_index(text, pos);
+    if pos == 0 || matches!(text.maybe_char_at_index(pos - 1), Some(ch) if is_line_break(ch)) {
+        let ch = text.maybe_char_at_index(pos);
 
-        if pos + merge_conflict_marker_length() < text_len(text) {
+        if pos + merge_conflict_marker_length() < text.len() {
             let ch = ch.unwrap();
             for i in 0..merge_conflict_marker_length() {
-                if text_char_at_index(text, pos + i) != ch {
+                if text.char_at_index(pos + i) != ch {
                     return false;
                 }
             }
 
             return ch == CharacterCodes::equals
-                || text_char_at_index(text, pos + merge_conflict_marker_length())
+                || text.char_at_index(pos + merge_conflict_marker_length())
                     == CharacterCodes::space;
         }
     }
@@ -224,7 +223,7 @@ pub(super) fn is_conflict_marker_trivia(text: &SourceTextAsChars, pos: usize) ->
 pub(super) fn scan_conflict_marker_trivia<
     TError: FnOnce(&DiagnosticMessage, Option<usize>, Option<usize>),
 >(
-    text: &SourceTextAsChars,
+    text: &SourceText,
     mut pos: usize,
     // error: Option<TError>,
     error: TError,
@@ -237,11 +236,11 @@ pub(super) fn scan_conflict_marker_trivia<
     );
     // }
 
-    let ch = text_char_at_index(text, pos);
-    let len = text_len(text);
+    let ch = text.char_at_index(pos);
+    let len = text.len();
 
     if matches!(ch, CharacterCodes::less_than | CharacterCodes::greater_than) {
-        while pos < len && !is_line_break(text_char_at_index(text, pos)) {
+        while pos < len && !is_line_break(text.char_at_index(pos)) {
             pos += 1;
         }
     } else {
@@ -250,7 +249,7 @@ pub(super) fn scan_conflict_marker_trivia<
             None,
         );
         while pos < len {
-            let current_char = text_char_at_index(text, pos);
+            let current_char = text.char_at_index(pos);
             if matches!(
                 current_char,
                 CharacterCodes::equals | CharacterCodes::greater_than
@@ -271,25 +270,9 @@ lazy_static! {
     pub(super) static ref shebang_trivia_regex: Regex = Regex::new(r"^#!.*").unwrap();
 }
 
-// pub(crate) fn is_shebang_trivia(
-//     text: &str,
-//     pos: usize, // this is a char index, not a string (byte) index, it's only ok because it's always 0 here
-// ) -> bool {
-//     Debug_.assert(pos == 0, None);
-//     shebang_trivia_regex.is_match(text)
-// }
-pub(crate) fn is_shebang_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
+pub(crate) fn is_shebang_trivia(text: &SourceText, pos: usize) -> bool {
     Debug_.assert(pos == 0, None);
-    if text_len(text) < 2 {
-        return false;
-    }
-    if text_char_at_index(text, 0) != CharacterCodes::hash {
-        return false;
-    }
-    if text_char_at_index(text, 1) != CharacterCodes::exclamation {
-        return false;
-    }
-    true
+    shebang_trivia_regex.is_match(text.str())
 }
 
 // pub(crate) fn scan_shebang_trivia(
@@ -301,7 +284,7 @@ pub(crate) fn is_shebang_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
 //     pos = pos + shebang.len();
 //     text_str_num_chars(text, original_pos, pos)
 // }
-pub(crate) fn scan_shebang_trivia(text: &SourceTextAsChars, pos: usize) -> usize {
+pub(crate) fn scan_shebang_trivia(text: Rc<SourceText>, pos: usize) -> usize {
     get_shebang(text).unwrap().len()
 }
 
@@ -311,7 +294,7 @@ pub(super) fn iterate_comment_ranges<
     TCallback: FnMut(usize, usize, CommentKind, bool, &TState, Option<TMemo>) -> TMemo,
 >(
     reduce: bool,
-    text: &SourceTextAsChars,
+    text: Rc<SourceText>,
     mut pos: isize,
     trailing: bool,
     mut cb: TCallback,
@@ -327,18 +310,18 @@ pub(super) fn iterate_comment_ranges<
     let mut accumulator = initial;
     if pos == 0 {
         collecting = true;
-        let shebang = get_shebang(text);
+        let shebang = get_shebang(text.clone());
         if let Some(shebang) = shebang {
             pos = shebang.len().try_into().unwrap();
         }
     }
-    while pos >= 0 && TryInto::<usize>::try_into(pos).unwrap() < text_len(text) {
+    while pos >= 0 && TryInto::<usize>::try_into(pos).unwrap() < text.len() {
         let mut pos_as_usize: usize = pos.try_into().unwrap();
-        let ch = text_char_at_index(text, pos_as_usize);
+        let ch = text.char_at_index(pos_as_usize);
         match ch {
             CharacterCodes::carriage_return => {
                 if matches!(
-                    maybe_text_char_at_index(text, pos_as_usize + 1),
+                    text.maybe_char_at_index(pos_as_usize + 1),
                     Some(CharacterCodes::line_feed)
                 ) {
                     pos += 1;
@@ -380,7 +363,7 @@ pub(super) fn iterate_comment_ranges<
                 continue;
             }
             CharacterCodes::slash => {
-                let next_char = maybe_text_char_at_index(text, pos_as_usize + 1);
+                let next_char = text.maybe_char_at_index(pos_as_usize + 1);
                 let mut has_trailing_new_line = false;
                 if matches!(
                     next_char,
@@ -396,8 +379,8 @@ pub(super) fn iterate_comment_ranges<
                     pos += 2;
                     pos_as_usize += 2;
                     if next_char == CharacterCodes::slash {
-                        while pos_as_usize < text_len(text) {
-                            if is_line_break(text_char_at_index(text, pos_as_usize)) {
+                        while pos_as_usize < text.len() {
+                            if is_line_break(text.char_at_index(pos_as_usize)) {
                                 has_trailing_new_line = true;
                                 break;
                             }
@@ -405,10 +388,10 @@ pub(super) fn iterate_comment_ranges<
                             pos_as_usize += 1;
                         }
                     } else {
-                        while pos_as_usize < text_len(text) {
-                            if text_char_at_index(text, pos_as_usize) == CharacterCodes::asterisk
+                        while pos_as_usize < text.len() {
+                            if text.char_at_index(pos_as_usize) == CharacterCodes::asterisk
                                 && matches!(
-                                    maybe_text_char_at_index(text, pos_as_usize + 1),
+                                    text.maybe_char_at_index(pos_as_usize + 1),
                                     Some(CharacterCodes::slash)
                                 )
                             {
@@ -481,7 +464,7 @@ pub fn for_each_leading_comment_range<
     TMemo,
     TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> TMemo,
 >(
-    text: &SourceTextAsChars,
+    text: Rc<SourceText>,
     pos: isize,
     mut cb: TCallback,
     state: &TState, // TODO: expose a for_each_leading_comment_no_state variant (with different callback args and no state arg)?
@@ -504,7 +487,7 @@ pub fn for_each_trailing_comment_range<
     TMemo,
     TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> TMemo,
 >(
-    text: &SourceTextAsChars,
+    text: Rc<SourceText>,
     pos: isize,
     mut cb: TCallback,
     state: &TState,
@@ -527,7 +510,7 @@ pub fn reduce_each_leading_comment_range<
     TMemo,
     TCallback: FnMut(usize, usize, CommentKind, bool, &TState, TMemo) -> TMemo,
 >(
-    text: &SourceTextAsChars,
+    text: Rc<SourceText>,
     pos: isize,
     mut cb: TCallback,
     state: &TState,
@@ -552,7 +535,7 @@ pub fn reduce_each_trailing_comment_range<
     TMemo,
     TCallback: FnMut(usize, usize, CommentKind, bool, &TState, TMemo) -> TMemo,
 >(
-    text: &SourceTextAsChars,
+    text: Rc<SourceText>,
     pos: isize,
     mut cb: TCallback,
     state: &TState,
@@ -594,45 +577,17 @@ pub(super) fn append_comment_range(
     Some(comments)
 }
 
-pub fn get_leading_comment_ranges(
-    text: &SourceTextAsChars,
-    pos: isize,
-) -> Option<Vec<CommentRange>> {
+pub fn get_leading_comment_ranges(text: Rc<SourceText>, pos: isize) -> Option<Vec<CommentRange>> {
     reduce_each_leading_comment_range(text, pos, append_comment_range, &(), None)
 }
 
-pub fn get_trailing_comment_ranges(
-    text: &SourceTextAsChars,
-    pos: isize,
-) -> Option<Vec<CommentRange>> {
+pub fn get_trailing_comment_ranges(text: Rc<SourceText>, pos: isize) -> Option<Vec<CommentRange>> {
     reduce_each_trailing_comment_range(text, pos, append_comment_range, &(), None)
 }
 
-// pub(super) fn get_shebang(text: &str) -> Option<String> {
-//     let match_ = shebang_trivia_regex.find(text);
-//     match_.map(|match_| match_.as_str().to_string())
-// }
-pub fn get_shebang(text: &SourceTextAsChars) -> Option<Vec<char>> {
-    if text_len(text) < 2 {
-        return None;
-    }
-    if text_char_at_index(text, 0) != CharacterCodes::hash {
-        return None;
-    }
-    if text_char_at_index(text, 1) != CharacterCodes::exclamation {
-        return None;
-    }
-    let mut shebang = vec!['#', '!'];
-    let mut pos = 2;
-    while pos < text_len(text) {
-        let ch = text_char_at_index(text, pos);
-        if ch == CharacterCodes::line_feed {
-            break;
-        }
-        shebang.push(ch);
-        pos += 1;
-    }
-    Some(shebang)
+pub fn get_shebang(text: Rc<SourceText>) -> Option<SourceTextSlice> {
+    let match_ = shebang_trivia_regex.find(text.str());
+    match_.map(|match_| text.slice_from_str_offsets(match_.start(), Some(match_.end())))
 }
 
 pub fn is_identifier_start(ch: char, language_version: Option<ScriptTarget>) -> bool {

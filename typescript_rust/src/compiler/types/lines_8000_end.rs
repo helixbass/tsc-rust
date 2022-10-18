@@ -12,8 +12,8 @@ use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, S
 use crate::{
     BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint, FileIncludeReason,
     ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules, Path,
-    RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SymlinkCache, SyntaxKind,
-    TempFlags, TextRange,
+    RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SourceTextSlice, SymlinkCache,
+    SyntaxKind, TempFlags, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1111,7 +1111,7 @@ impl PragmaArgumentName {
 
 #[derive(Debug)]
 pub enum PragmaArgument {
-    WithoutCapturedSpan(String),
+    WithoutCapturedSpan(SourceTextSlice),
     WithCapturedSpan(PragmaArgumentWithCapturedSpan),
 }
 
@@ -1127,7 +1127,7 @@ impl PragmaArgument {
 
 #[derive(Debug)]
 pub struct PragmaArgumentWithCapturedSpan {
-    pub value: String,
+    pub value: SourceTextSlice,
     pub pos: usize,
     pub end: usize,
 }

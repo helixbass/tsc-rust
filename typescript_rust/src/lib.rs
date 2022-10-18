@@ -628,6 +628,8 @@ pub use rust_helpers::debugging::{
     if_debugging, is_logging, start_debugging, stop_debugging, while_debugging,
 };
 pub use rust_helpers::number::{is_finite, is_nan, Number};
+pub use rust_helpers::regex::split_matches;
+pub use rust_helpers::source_text::{SourceText, SourceTextSlice, SourceTextSliceOrStaticCow};
 pub use rust_helpers::sys::{
     fs_readdir_sync_with_file_types, fs_stat_sync, is_windows, process_cwd,
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,

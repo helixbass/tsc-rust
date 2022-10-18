@@ -4,6 +4,8 @@ use std::rc::Rc;
 
 pub mod debugging;
 pub mod number;
+pub mod regex;
+pub mod source_text;
 pub mod sys;
 pub mod weak_self;
 

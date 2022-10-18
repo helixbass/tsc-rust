@@ -157,22 +157,22 @@ impl ParserType {
                             &*opening_as_jsx_opening_element.tag_name,
                             &Diagnostics::JSX_element_0_has_no_corresponding_closing_tag,
                             Some(vec![get_text_of_node_from_source_text(
-                                self.source_text_as_chars(),
+                                self.source_text(),
                                 &opening_as_jsx_opening_element.tag_name,
                                 None,
                             )
-                            .into_owned()]),
+                            .into()]),
                         );
                     } else {
                         self.parse_error_at_range(
                             &*closing_element_as_jsx_closing_element.tag_name,
                             &Diagnostics::Expected_corresponding_JSX_closing_tag_for_0,
                             Some(vec![get_text_of_node_from_source_text(
-                                self.source_text_as_chars(),
+                                self.source_text(),
                                 &opening_as_jsx_opening_element.tag_name,
                                 None,
                             )
-                            .into_owned()]),
+                            .into()]),
                         );
                     }
                 }
@@ -218,7 +218,7 @@ impl ParserType {
                     self.create_missing_node(SyntaxKind::CommaToken, false, None, None);
                 set_text_range_pos_width(&operator_token, invalid_element.pos(), 0);
                 self.parse_error_at(
-                    skip_trivia(self.source_text_as_chars(), top_bad_pos, None, None, None),
+                    skip_trivia(self.source_text(), top_bad_pos, None, None, None),
                     invalid_element.end(),
                     &Diagnostics::JSX_expressions_must_have_one_parent_element,
                     None,
@@ -271,14 +271,13 @@ impl ParserType {
                 } else {
                     let opening_tag_as_jsx_opening_element = opening_tag.as_jsx_opening_element();
                     let tag = &opening_tag_as_jsx_opening_element.tag_name;
-                    let start =
-                        skip_trivia(self.source_text_as_chars(), tag.pos(), None, None, None);
+                    let start = skip_trivia(self.source_text(), tag.pos(), None, None, None);
                     self.parse_error_at(
                         start,
                         tag.end(),
                         &Diagnostics::JSX_element_0_has_no_corresponding_closing_tag,
                         Some(vec![get_text_of_node_from_source_text(
-                            self.source_text_as_chars(),
+                            self.source_text(),
                             &opening_tag_as_jsx_opening_element.tag_name,
                             None,
                         )

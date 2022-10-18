@@ -17,28 +17,29 @@ use super::{
     full_triple_slash_reference_type_reference_directive_reg_ex,
 };
 use crate::{
-    HasStatementsInterface, Type, __String, binary_search_copy_key, compare_values,
-    create_mode_aware_cache, escape_jsx_attribute_string, escape_leading_underscores,
-    escape_non_ascii_string, escape_string, find_ancestor, for_each_child_bool,
-    full_triple_slash_amd_reference_path_reg_ex, full_triple_slash_reference_path_reg_ex,
-    get_base_file_name, get_combined_node_flags, get_compiler_option_value, get_emit_module_kind,
-    get_line_and_character_of_position, get_line_starts, get_mode_for_resolution_at_index,
-    get_root_declaration, get_strict_option_value, has_jsdoc_nodes, id_text, is_big_int_literal,
-    is_export_declaration, is_external_module, is_function_like_or_class_static_block_declaration,
-    is_identifier, is_import_call, is_import_type_node, is_in_jsdoc, is_jsdoc_node,
-    is_jsdoc_type_expression, is_line_break, is_module_declaration, is_namespace_export,
-    is_numeric_literal, is_private_identifier, is_prologue_directive, is_source_file,
-    is_string_literal, is_string_or_numeric_literal_like, is_white_space_like,
-    maybe_text_char_at_index, module_resolution_option_declarations, node_is_synthesized,
+    binary_search_copy_key, compare_values, create_mode_aware_cache, escape_jsx_attribute_string,
+    escape_leading_underscores, escape_non_ascii_string, escape_string, find_ancestor,
+    for_each_child_bool, full_triple_slash_amd_reference_path_reg_ex,
+    full_triple_slash_reference_path_reg_ex, get_base_file_name, get_combined_node_flags,
+    get_compiler_option_value, get_emit_module_kind, get_line_and_character_of_position,
+    get_line_starts, get_mode_for_resolution_at_index, get_root_declaration,
+    get_strict_option_value, has_jsdoc_nodes, id_text, is_big_int_literal, is_export_declaration,
+    is_external_module, is_function_like_or_class_static_block_declaration, is_identifier,
+    is_import_call, is_import_type_node, is_in_jsdoc, is_jsdoc_node, is_jsdoc_type_expression,
+    is_line_break, is_module_declaration, is_namespace_export, is_numeric_literal,
+    is_private_identifier, is_prologue_directive, is_source_file, is_string_literal,
+    is_string_or_numeric_literal_like, is_white_space_like, maybe_text_char_at_index,
+    module_resolution_option_declarations, node_is_synthesized,
     options_affecting_program_structure, skip_trivia, starts_with_use_strict, text_char_at_index,
     text_substring, trim_string_start, CharacterCodes, CommandLineOption, CommentDirective,
     CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_, EmitFlags, EmitTextWriter,
-    IndexInfo, LiteralLikeNodeInterface, ModeAwareCache, ModuleKind, NamedDeclarationInterface,
-    Node, NodeArray, NodeFlags, NodeInterface, PackageId, ProjectReference, ReadonlyCollection,
-    ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
-    SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
-    TokenFlags, UnderscoreEscapedMap,
+    HasStatementsInterface, IndexInfo, LiteralLikeNodeInterface, ModeAwareCache, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PackageId,
+    ProjectReference, ReadonlyCollection, ReadonlyTextRange, ResolvedModuleFull,
+    ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface, SourceFileLike,
+    SourceText, SourceTextAsChars, SourceTextSlice, SourceTextSliceOrStaticCow, StringOrNumber,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
+    TextRange, TokenFlags, Type, UnderscoreEscapedMap,
 };
 
 thread_local! {
@@ -979,10 +980,10 @@ pub fn get_source_text_of_node_from_source_file(
     source_file: &Node, /*SourceFile*/
     node: &Node,
     include_trivia: Option<bool>,
-) -> Cow<'static, str> {
+) -> SourceTextSliceOrStaticCow {
     let include_trivia = include_trivia.unwrap_or(false);
     get_text_of_node_from_source_text(
-        &source_file.as_source_file().text_as_chars(),
+        source_file.as_source_file().text(),
         node,
         Some(include_trivia),
     )
@@ -1013,10 +1014,10 @@ pub fn is_export_namespace_as_default_declaration(node: &Node) -> bool {
 }
 
 pub fn get_text_of_node_from_source_text(
-    source_text: &SourceTextAsChars,
+    source_text: Rc<SourceText>,
     node: &Node,
     include_trivia: Option<bool>,
-) -> Cow<'static, str> {
+) -> SourceTextSliceOrStaticCow {
     let include_trivia = include_trivia.unwrap_or(false);
     if node_is_missing(Some(node)) {
         return "".into();
@@ -1025,23 +1026,19 @@ pub fn get_text_of_node_from_source_text(
     let start = if include_trivia {
         node.pos()
     } else {
-        skip_trivia(source_text, node.pos(), None, None, None)
+        skip_trivia(source_text.clone(), node.pos(), None, None, None)
     };
     let end = node.end();
     if !(start >= 0 && end >= 0 && end - start >= 0) {
         return "".into();
     }
-    let mut text = text_substring(
-        source_text,
-        start.try_into().unwrap(),
-        end.try_into().unwrap(),
-    );
+    let text = source_text.slice(start.try_into().unwrap(), Some(end.try_into().unwrap()));
 
     if is_jsdoc_type_expression_or_child(node) {
         lazy_static! {
             static ref line_ending_regex: Regex = Regex::new(r#"\r\n|\n|\r"#).unwrap();
         }
-        text = line_ending_regex
+        let text = line_ending_regex
             .split(&text)
             .map(|line| {
                 lazy_static! {
@@ -1051,6 +1048,7 @@ pub fn get_text_of_node_from_source_text(
             })
             .collect::<Vec<_>>()
             .join("\n");
+        return text.into();
     }
 
     text.into()

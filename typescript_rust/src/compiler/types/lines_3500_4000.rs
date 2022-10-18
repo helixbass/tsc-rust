@@ -20,7 +20,7 @@ use crate::{
     ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
     ProjectReference, RawSourceMap, RedirectTargetsMap, ResolvedProjectReference,
-    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type, TypeFlags,
+    SourceOfProjectReferenceRedirect, SourceText, StructureIsReused, SymlinkCache, Type, TypeFlags,
     TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
@@ -72,31 +72,31 @@ impl IncompleteType {
     }
 }
 
-pub type SourceTextAsChars = Vec<char>;
+// pub type SourceTextAsChars = Vec<char>;
 
-pub fn str_to_source_text_as_chars(str_: &str) -> SourceTextAsChars {
-    str_.chars().collect()
-}
+// pub fn str_to_source_text_as_chars(str_: &str) -> SourceTextAsChars {
+//     str_.chars().collect()
+// }
 
-pub fn text_len(text: &SourceTextAsChars) -> usize {
-    text.len()
-}
+// pub fn text_len(text: &SourceText) -> usize {
+//     text.len()
+// }
 
-pub fn maybe_text_char_at_index(text: &SourceTextAsChars, index: usize) -> Option<char> {
-    text.get(index).map(|ch| *ch)
-}
+// pub fn maybe_text_char_at_index(text: &SourceTextAsChars, index: usize) -> Option<char> {
+//     text.get(index).map(|ch| *ch)
+// }
 
-pub fn text_char_at_index(text: &SourceTextAsChars, index: usize) -> char {
-    maybe_text_char_at_index(text, index).unwrap()
-}
+// pub fn text_char_at_index(text: &SourceTextAsChars, index: usize) -> char {
+//     maybe_text_char_at_index(text, index).unwrap()
+// }
 
-pub fn text_substring(text: &SourceTextAsChars, start: usize, end: usize) -> String {
-    text[start..end].into_iter().collect()
-}
+// pub fn text_substring(text: &SourceTextAsChars, start: usize, end: usize) -> String {
+//     text[start..end].into_iter().collect()
+// }
 
-pub fn text_str_num_chars(text: &str, start: usize, end: usize) -> usize {
-    text[start..end].chars().count()
-}
+// pub fn text_str_num_chars(text: &str, start: usize, end: usize) -> usize {
+//     text[start..end].chars().count()
+// }
 
 #[derive(Debug)]
 pub struct AmdDependency {
@@ -105,8 +105,7 @@ pub struct AmdDependency {
 }
 
 pub trait SourceFileLike {
-    fn text(&self) -> Ref<String>;
-    fn text_as_chars(&self) -> Ref<SourceTextAsChars>;
+    fn text(&self) -> Rc<SourceText>;
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>>;
     fn line_map(&self) -> Ref<Vec<usize>>;
     fn maybe_get_position_of_line_and_character(
@@ -142,8 +141,7 @@ pub struct SourceFileContents {
 
     file_name: RefCell<String>,
     path: RefCell<Option<Path>>,
-    text: RefCell<String>,
-    text_as_chars: RefCell<SourceTextAsChars>,
+    text: RefCell<Rc<SourceText>>,
     resolved_path: RefCell<Option<Path>>,
     original_file_name: RefCell<Option<String>>,
 
@@ -212,14 +210,13 @@ impl SourceFile {
         statements: NodeArray,
         end_of_file_token: Rc<Node>,
         file_name: String,
-        text: String,
+        text: Rc<SourceText>,
         language_version: ScriptTarget,
         language_variant: LanguageVariant,
         script_kind: ScriptKind,
         is_declaration_file: bool,
         has_no_default_lib: bool,
     ) -> Self {
-        let text_as_chars = text.chars().collect();
         Self {
             _node: base_node,
             contents: Box::new(SourceFileContents {
@@ -229,7 +226,6 @@ impl SourceFile {
                 file_name: RefCell::new(file_name),
                 path: RefCell::new(None),
                 text: RefCell::new(text),
-                text_as_chars: RefCell::new(text_as_chars),
                 resolved_path: RefCell::new(None),
                 original_file_name: RefCell::new(None),
                 redirect_info: RefCell::new(None),
@@ -303,8 +299,7 @@ impl SourceFile {
         *self.contents.path.borrow_mut() = Some(path);
     }
 
-    pub fn set_text(&self, text: String) {
-        *self.contents.text_as_chars.borrow_mut() = text.chars().collect();
+    pub fn set_text(&self, text: Rc<SourceText>) {
         *self.contents.text.borrow_mut() = text;
     }
 
@@ -672,12 +667,8 @@ impl SourceFile {
 }
 
 impl SourceFileLike for SourceFile {
-    fn text(&self) -> Ref<String> {
-        self.contents.text.borrow()
-    }
-
-    fn text_as_chars(&self) -> Ref<SourceTextAsChars> {
-        self.contents.text_as_chars.borrow()
+    fn text(&self) -> Rc<SourceText> {
+        self.contents.text.borrow().clone()
     }
 
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {

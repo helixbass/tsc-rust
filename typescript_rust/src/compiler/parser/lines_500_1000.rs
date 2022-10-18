@@ -12,7 +12,7 @@ use crate::{
     IncrementalParser, IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant,
     Node, NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
     ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind,
-    ScriptTarget, SourceTextAsChars, SyntaxKind, TextChangeRange,
+    ScriptTarget, SourceText, SourceTextAsChars, SyntaxKind, TextChangeRange,
 };
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
@@ -269,8 +269,7 @@ pub struct ParserType {
     pub(super) factory: Rc<NodeFactory<ParserType>>,
     pub(super) file_name: Option<String>,
     pub(super) source_flags: Cell<Option<NodeFlags>>,
-    pub(super) source_text: Option<String>,
-    pub(super) source_text_as_chars: Option<SourceTextAsChars>,
+    pub(super) source_text: Option<Rc<SourceText>>,
     pub(super) language_version: Option<ScriptTarget>,
     pub(super) script_kind: Option<ScriptKind>,
     pub(super) language_variant: Option<LanguageVariant>,
@@ -429,19 +428,12 @@ impl ParserType {
         self.source_flags.set(Some(source_flags));
     }
 
-    pub(super) fn source_text(&self) -> &str {
-        self.source_text.as_ref().unwrap()
+    pub(super) fn source_text(&self) -> Rc<SourceText> {
+        self.source_text.clone().unwrap()
     }
 
-    pub(super) fn set_source_text(&mut self, source_text: Option<String>) {
-        self.source_text_as_chars = source_text
-            .as_ref()
-            .map(|source_text| source_text.chars().collect());
+    pub(super) fn set_source_text(&mut self, source_text: Option<Rc<SourceText>>) {
         self.source_text = source_text;
-    }
-
-    pub(super) fn source_text_as_chars(&self) -> &SourceTextAsChars {
-        self.source_text_as_chars.as_ref().unwrap()
     }
 
     pub(super) fn language_version(&self) -> ScriptTarget {
@@ -857,6 +849,7 @@ impl ParserType {
         _syntax_cursor: Option<IncrementalParserSyntaxCursor>,
         _script_kind: ScriptKind,
     ) {
+        let source_text = Rc::new(SourceText::new(_source_text));
         self.set_NodeConstructor(object_allocator.get_node_constructor());
         self.set_IdentifierConstructor(object_allocator.get_identifier_constructor());
         self.set_PrivateIdentifierConstructor(
@@ -866,7 +859,7 @@ impl ParserType {
         self.set_SourceFileConstructor(object_allocator.get_source_file_constructor());
 
         self.set_file_name(normalize_path(_file_name));
-        self.set_source_text(Some(_source_text.clone()));
+        self.set_source_text(Some(source_text.clone()));
         self.set_language_version(Some(_language_version));
         self.set_syntax_cursor(_syntax_cursor);
         self.set_script_kind(Some(_script_kind));
@@ -895,12 +888,7 @@ impl ParserType {
         self.set_parse_error_before_next_finished_node(false);
 
         let mut scanner = self.scanner_mut();
-        scanner.set_text(
-            Some(_source_text.chars().collect()),
-            Some(_source_text.to_string()),
-            None,
-            None,
-        );
+        scanner.set_text(Some(source_text), None, None);
         // scanner.set_on_error(Some(Box::new(move |message, length| {
         //     self.scan_error(message, length)
         // })));

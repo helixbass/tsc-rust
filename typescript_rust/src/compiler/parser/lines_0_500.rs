@@ -8,7 +8,7 @@ use std::rc::Rc;
 use super::ParserType;
 use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
-    CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, SourceTextAsChars, SyntaxKind,
+    CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, SourceText, SyntaxKind,
 };
 
 bitflags! {
@@ -172,15 +172,9 @@ pub(super) fn visit_nodes_returns<
     None
 }
 
-pub(crate) fn is_jsdoc_like_text(text: &SourceTextAsChars, start: usize) -> bool {
-    matches!(
-        maybe_text_char_at_index(text, start + 1),
-        Some(CharacterCodes::asterisk)
-    ) && matches!(
-        maybe_text_char_at_index(text, start + 2),
-        Some(CharacterCodes::asterisk)
-    ) && !matches!(
-        maybe_text_char_at_index(text, start + 3),
-        Some(CharacterCodes::slash)
-    )
+pub(crate) fn is_jsdoc_like_text(text: &SourceText, start: usize) -> bool {
+    text.len() >= start + 3 && {
+        let text_slice = text.slice(1, None);
+        text_slice.starts_with("**") && !text_slice.starts_with("**/")
+    }
 }

@@ -21,8 +21,8 @@ use crate::{
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticWithLocation, EmitFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
     HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars,
-    SyntaxKind, TextRange, TextSpan,
+    NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, SourceFileLike, SourceText,
+    SourceTextAsChars, SyntaxKind, TextRange, TextSpan,
 };
 
 pub fn create_diagnostic_for_node(
@@ -468,7 +468,7 @@ pub fn get_leading_comment_ranges_of_node(
 
 pub fn get_jsdoc_comment_ranges<TNode: NodeInterface>(
     node: &TNode,
-    text: &SourceTextAsChars,
+    text: Rc<SourceText>,
 ) -> Option<Vec<CommentRange>> {
     let comment_ranges = if matches!(
         node.kind(),
@@ -481,18 +481,18 @@ pub fn get_jsdoc_comment_ranges<TNode: NodeInterface>(
     ) {
         Some(concatenate(
             // TODO: should get_trailing_comment_ranges()/get_leading_comment_ranges() accept isize instead?
-            get_trailing_comment_ranges(text, node.pos().try_into().unwrap())
+            get_trailing_comment_ranges(text.clone(), node.pos().try_into().unwrap())
                 .unwrap_or_else(|| vec![]),
-            get_leading_comment_ranges(text, node.pos().try_into().unwrap())
+            get_leading_comment_ranges(text.clone(), node.pos().try_into().unwrap())
                 .unwrap_or_else(|| vec![]),
         ))
     } else {
-        get_leading_comment_ranges(text, node.pos().try_into().unwrap())
+        get_leading_comment_ranges(text.clone(), node.pos().try_into().unwrap())
     };
     maybe_filter(comment_ranges.as_deref(), |comment| {
-        matches!(maybe_text_char_at_index(text, (comment.pos() + 1).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
-            && matches!(maybe_text_char_at_index(text, (comment.pos() + 2).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
-            && match maybe_text_char_at_index(text, (comment.pos() + 3).try_into().unwrap()) {
+        matches!(text.maybe_char_at_index((comment.pos() + 1).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
+            && matches!(text.maybe_char_at_index((comment.pos() + 2).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
+            && match text.maybe_char_at_index((comment.pos() + 3).try_into().unwrap()) {
                 None => true,
                 Some(ch) if ch != CharacterCodes::slash => true,
                 _ => false,

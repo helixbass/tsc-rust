@@ -10,10 +10,10 @@ use super::ParserType;
 use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
     is_export_declaration, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property,
-    last_index_of_returns_isize, set_parent, some, BaseNode, BaseNodeFactory, Debug_, Diagnostic,
-    HasStatementsInterface, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
-    ScriptKind, ScriptTarget, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
+    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property, set_parent, some, BaseNode,
+    BaseNodeFactory, Debug_, Diagnostic, HasStatementsInterface, JSDoc, LanguageVariant, Node,
+    NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceText, StringOrNodeArray,
+    SyntaxKind,
 };
 
 impl ParserType {
@@ -312,21 +312,20 @@ impl ParserType {
     ) -> Option<JSDoc> {
         let start = start.unwrap_or(0);
         let content = self.source_text();
-        let content_as_chars = self.source_text_as_chars();
         let end = match length {
-            None => content_as_chars.len(),
+            None => content.len(),
             Some(length) => start + length,
         };
         let length = end - start;
 
         // Debug_.assert(start >= 0, None);
         Debug_.assert(start <= end, None);
-        Debug_.assert(end <= content_as_chars.len(), None);
+        Debug_.assert(end <= content.len(), None);
 
-        if !is_jsdoc_like_text(content_as_chars, start) {
+        if !is_jsdoc_like_text(&content, start) {
             return None;
         }
-        ParseJSDocCommentWorker::new(self, start, end, length, content, content_as_chars).call()
+        ParseJSDocCommentWorker::new(self, start, end, length, content).call()
     }
 }
 
@@ -335,8 +334,7 @@ pub(super) struct ParseJSDocCommentWorker<'parser> {
     pub(super) start: usize,
     pub(super) end: usize,
     pub(super) length: usize,
-    pub(super) content_str: &'parser str,
-    pub(super) content: &'parser SourceTextAsChars,
+    pub(super) content: Rc<SourceText>,
     pub(super) tags: Option<Vec<Rc<Node /*JSDocTag*/>>>,
     pub(super) tags_pos: Option<isize>,
     pub(super) tags_end: Option<isize>,
@@ -352,15 +350,13 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         end: usize,
         length: usize,
-        content_str: &'parser str,
-        content: &'parser SourceTextAsChars,
+        content_str: Rc<SourceText>,
     ) -> Self {
         Self {
             parser,
             start,
             end,
             length,
-            content_str,
             content,
             tags: None,
             tags_pos: None,
@@ -399,7 +395,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 let mut state = JSDocState::SawAsterisk;
                 let mut margin: Option<usize> = None;
                 let mut indent: usize = self.start
-                    - usize::try_from(last_index_of_returns_isize(self.content, &'\n', |a, b| a == b, Some(self.start)) + 1).unwrap()
+                    - usize::try_from(self.content.last_index_of_returns_isize('\n', Some(self.start)) + 1).unwrap()
                     + 4;
 
                 self.parser.next_token_jsdoc();

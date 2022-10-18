@@ -894,7 +894,7 @@ impl ParserType {
         let simple_unary_expression = self.parse_simple_unary_expression();
         if self.token() == SyntaxKind::AsteriskAsteriskToken {
             let pos = skip_trivia(
-                self.source_text_as_chars(),
+                self.source_text(),
                 simple_unary_expression.pos(),
                 None,
                 None,
