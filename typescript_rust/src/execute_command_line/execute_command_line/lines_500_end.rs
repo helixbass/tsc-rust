@@ -26,23 +26,13 @@ use crate::{
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
-    if !command_line_args.is_empty()
-        && matches!(
-            command_line_args[0].chars().next(),
-            Some(CharacterCodes::minus)
-        )
-    {
-        let first_option: String = {
-            let chars: Vec<char> = command_line_args[0].chars().collect();
-            chars[(if matches!(chars.get(1), Some(&CharacterCodes::minus)) {
-                2
-            } else {
-                1
-            })..]
-                .iter()
-                .collect::<String>()
-                .to_lowercase()
-        };
+    if !command_line_args.is_empty() && command_line_args[0].starts_with("-") {
+        let first_option = if command_line_args[0].starts_with("--") {
+            &command_line_args[0][2..]
+        } else {
+            &command_line_args[0][1..]
+        }
+        .to_lowercase();
         return matches!(&*first_option, "build" | "b");
     }
     false

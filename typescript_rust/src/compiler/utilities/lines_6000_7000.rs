@@ -20,15 +20,15 @@ use crate::{
     get_normalized_path_components, get_string_comparer, has_extension, index_of,
     index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map, normalize_path,
     remove_trailing_directory_separator, skip_trivia, some, sort, to_path, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseTextRange, CharacterCodes, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
-    CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
-    MapLike, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray, NodeInterface, Path,
-    Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
-    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
-    WatchOptions,
+    BaseDiagnosticRelatedInformation, BaseTextRange, CharacterCodes, CharacterCodesChar,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
+    FileExtensionInfo, JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind,
+    MultiMap, Node, NodeArray, NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName,
+    PragmaName, ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
+    ScriptTarget, SourceFileLike, TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -1068,7 +1068,7 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref wildcard_char_codes: Vec<char> =
+    static ref wildcard_char_codes: Vec<&'static str> =
         vec![CharacterCodes::asterisk, CharacterCodes::question];
     static ref implicit_exclude_path_regex_pattern: String =
         format!("(?!({})(/|$))", common_package_folders.join("|"));
@@ -1250,11 +1250,11 @@ pub fn get_sub_pattern_from_spec(
             if usage != "exclude" {
                 let mut component_pattern = "".to_owned();
                 let component_char_code_at_0 = component.chars().next();
-                if component_char_code_at_0 == Some(CharacterCodes::asterisk) {
+                if component_char_code_at_0 == Some(CharacterCodesChar::asterisk) {
                     component_pattern
                         .push_str(&format!("([^./]{})?", single_asterisk_regex_fragment));
                     component = component[1..].to_owned();
-                } else if component_char_code_at_0 == Some(CharacterCodes::question) {
+                } else if component_char_code_at_0 == Some(CharacterCodesChar::question) {
                     component_pattern.push_str("[^./]");
                     component = component[1..].to_owned();
                 }
@@ -1986,7 +1986,7 @@ pub fn range_of_type_parameters(
 ) -> BaseTextRange {
     let pos = type_parameters.pos() - 1;
     let end = skip_trivia(
-        &source_file.as_source_file().text_as_chars(),
+        source_file.as_source_file().text(),
         type_parameters.end(),
         None,
         None,

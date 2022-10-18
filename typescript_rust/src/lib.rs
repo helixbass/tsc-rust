@@ -281,20 +281,20 @@ pub use compiler::types::{
     BreakStatement, Bundle, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
     BundleFileSectionKind, CallExpression, CallSignatureDeclaration, CancellationToken,
     CancellationTokenDebuggable, CaseBlock, CaseClause, CaseOrDefaultClauseInterface, CatchClause,
-    CharacterCodes, CheckFlags, CheckJsDirective, ClassDeclaration, ClassExpression,
-    ClassLikeDeclarationBase, ClassLikeDeclarationInterface, ClassStaticBlockDeclaration,
-    CommaListExpression, CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType,
-    CommandLineOptionOfListType, CommandLineOptionOfNumberType, CommandLineOptionOfStringType,
-    CommandLineOptionType, CommentDirective, CommentDirectiveType, CommentKind, CommentRange,
-    CompilerHost, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
-    ComputedPropertyName, ConditionalExpression, ConditionalRoot, ConditionalType,
-    ConditionalTypeNode, ConfigFileSpecs, ConstructSignatureDeclaration, ConstructorDeclaration,
-    ConstructorTypeNode, ContextFlags, ContinueStatement, CoreTransformationContext,
-    CreateProgramOptions, CustomTransformer, CustomTransformerFactory, CustomTransformers,
-    DebuggerStatement, Decorator, DefaultClause, DeleteExpression, DetachedCommentInfo, Diagnostic,
-    DiagnosticCategory, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    CharacterCodes, CharacterCodesChar, CheckFlags, CheckJsDirective, ClassDeclaration,
+    ClassExpression, ClassLikeDeclarationBase, ClassLikeDeclarationInterface,
+    ClassStaticBlockDeclaration, CommaListExpression, CommandLineOption, CommandLineOptionBase,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType,
+    CommandLineOptionOfCustomType, CommandLineOptionOfListType, CommandLineOptionOfNumberType,
+    CommandLineOptionOfStringType, CommandLineOptionType, CommentDirective, CommentDirectiveType,
+    CommentKind, CommentRange, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
+    CompilerOptionsValue, ComputedPropertyName, ConditionalExpression, ConditionalRoot,
+    ConditionalType, ConditionalTypeNode, ConfigFileSpecs, ConstructSignatureDeclaration,
+    ConstructorDeclaration, ConstructorTypeNode, ContextFlags, ContinueStatement,
+    CoreTransformationContext, CreateProgramOptions, CustomTransformer, CustomTransformerFactory,
+    CustomTransformers, DebuggerStatement, Decorator, DefaultClause, DeleteExpression,
+    DetachedCommentInfo, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     DidYouMeanOptionsDiagnostics, DoStatement, ElementAccessExpression, ElementFlags, EmitFlags,
     EmitHelper, EmitHelperBase, EmitHelperText, EmitHint, EmitHost, EmitResolver,
@@ -629,7 +629,10 @@ pub use rust_helpers::debugging::{
 };
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::regex::split_matches;
-pub use rust_helpers::source_text::{SourceText, SourceTextSlice, SourceTextSliceOrStaticCow};
+pub use rust_helpers::source_text::{
+    SourceText, SourceTextSlice, SourceTextSliceOrStaticCow, SourceTextSliceOrStaticStr,
+    SourceTextSliceOrString,
+};
 pub use rust_helpers::sys::{
     fs_readdir_sync_with_file_types, fs_stat_sync, is_windows, process_cwd,
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,

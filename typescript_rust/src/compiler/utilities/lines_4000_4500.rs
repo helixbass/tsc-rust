@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use regex::Regex;
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::io;
@@ -16,24 +17,38 @@ use crate::{
     is_jsdoc_signature, is_json_source_file, is_qualified_name, is_source_file_js,
     is_string_literal_like, is_white_space_like, last, node_is_present, normalize_path,
     path_is_relative, remove_file_extension, str_to_source_text_as_chars, string_contains, to_path,
-    AllAccessorDeclarations, CharacterCodes, CompilerOptions, Debug_, DiagnosticCollection,
-    Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
+    AllAccessorDeclarations, CharacterCodes, CharacterCodesChar, CompilerOptions, Debug_,
+    DiagnosticCollection, Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
     FunctionLikeDeclarationInterface, HasTypeInterface, ModuleKind, NamedDeclarationInterface,
     Node, NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface,
     SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
     WriteFileCallback,
 };
 
-pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
-    matches!(
-        char_code,
-        CharacterCodes::single_quote | CharacterCodes::double_quote | CharacterCodes::backtick
-    )
+// pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
+//     matches!(
+//         char_code,
+//         CharacterCodes::single_quote | CharacterCodes::double_quote | CharacterCodes::backtick
+//     )
+// }
+
+pub(super) fn starts_with_quote_or_backtick(str: &str) -> bool {
+    lazy_static! {
+        static ref starts_with_quote_or_backtick_regex: Regex = Regex::new(r#"^['"`]"#).unwrap();
+    }
+    starts_with_quote_or_backtick_regex.is_match(str)
+}
+
+pub(super) fn ends_with_quote_or_backtick(str: &str) -> bool {
+    lazy_static! {
+        static ref ends_with_quote_or_backtick_regex: Regex = Regex::new(r#"['"`]$"#).unwrap();
+    }
+    ends_with_quote_or_backtick_regex.is_match(str)
 }
 
 pub fn is_intrinsic_jsx_name(name: &str) -> bool {
     let ch = name.chars().next();
-    matches!(ch, Some(ch) if ch >= CharacterCodes::a && ch <= CharacterCodes::z)
+    matches!(ch, Some(ch) if ch >= CharacterCodesChar::a && ch <= CharacterCodesChar::z)
         || string_contains(name, "-")
         || string_contains(name, ":")
 }

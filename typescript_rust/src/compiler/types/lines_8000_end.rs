@@ -1116,7 +1116,7 @@ pub enum PragmaArgument {
 }
 
 impl PragmaArgument {
-    pub fn as_without_captured_span(&self) -> &String {
+    pub fn as_without_captured_span(&self) -> &SourceTextSlice {
         enum_unwrapped!(self, [PragmaArgument, WithoutCapturedSpan])
     }
 

@@ -12,7 +12,7 @@ use std::ops::Deref;
 use std::ptr;
 use std::rc::Rc;
 
-use super::is_quote_or_backtick;
+use super::{ends_with_quote_or_backtick, starts_with_quote_or_backtick};
 use crate::{
     binary_search, compare_diagnostics, compare_diagnostics_skip_related_information,
     compare_strings_case_sensitive, concatenate, filter, flat_map_to_mutable,
@@ -1052,19 +1052,19 @@ fn encode_jsx_character_entity(char_code: u32) -> String {
 }
 
 fn get_jsx_attribute_string_replacement(c: &str) -> Cow<'static, str> {
-    let c_as_chars = c.chars().collect::<Vec<_>>();
-    if c_as_chars[0] == CharacterCodes::null_character {
+    let c_0 = c.chars().next().unwrap();
+    if c_0 == CharacterCodes::null_character {
         return "&#0;".into();
     }
     if let Some(escaped) = jsx_escaped_chars_map.get(&c) {
         return (*escaped).into();
     }
-    encode_jsx_character_entity(c_as_chars[0] as u32).into()
+    encode_jsx_character_entity(c_0 as u32).into()
 }
 
 pub fn escape_jsx_attribute_string<'string>(
     s: &'string str,
-    quote_char: Option<char /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote*/>,
+    quote_char: Option<&'str /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote*/>,
 ) -> Cow<'string, str> {
     let escaped_chars_reg_exp = match quote_char {
         Some(quote_char) if quote_char == CharacterCodes::single_quote => {
@@ -1078,17 +1078,14 @@ pub fn escape_jsx_attribute_string<'string>(
     })
 }
 
-pub fn strip_quotes<'name>(name: &'name str) -> Cow<'name, str> {
-    let name_as_chars = name.chars().collect::<Vec<_>>();
-    let length = name_as_chars.len();
-    if length >= 2
-        && name_as_chars[0] == name_as_chars[length - 1]
-        && is_quote_or_backtick(name_as_chars[0])
+pub fn strip_quotes(name: &str) -> &str {
+    let length = name.len();
+    if name.len() >= 2
+        && starts_with_quote_or_backtick(name)
+        && ends_with_quote_or_backtick(name)
+        && name[0..1] == name[length - 1..length]
     {
-        return name_as_chars[1..length - 1]
-            .iter()
-            .collect::<String>()
-            .into();
+        return &name[1..length - 1];
     }
-    name.into()
+    name
 }

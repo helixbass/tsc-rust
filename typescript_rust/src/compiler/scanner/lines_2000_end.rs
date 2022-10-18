@@ -12,8 +12,8 @@ use super::{
 };
 use crate::{
     append, trim_string_start, BaseTextRange, CharacterCodes, CommentDirective,
-    CommentDirectiveType, Debug_, Diagnostics, LanguageVariant, ScriptTarget, SourceTextAsChars,
-    SyntaxKind, TokenFlags,
+    CommentDirectiveType, Debug_, Diagnostics, LanguageVariant, ScriptTarget, SourceText,
+    SourceTextAsChars, SyntaxKind, TokenFlags,
 };
 
 impl Scanner {
@@ -638,8 +638,8 @@ impl Scanner {
         self.speculation_helper(callback, false)
     }
 
-    pub fn get_text(&self) -> Ref<String> {
-        self.text_str()
+    pub fn get_text(&self) -> Rc<SourceText> {
+        self.text()
     }
 
     pub fn clear_comment_directives(&self) {
@@ -648,16 +648,14 @@ impl Scanner {
 
     pub fn set_text(
         &self,
-        new_text_as_chars: Option<SourceTextAsChars>,
-        new_text: Option<String>,
+        new_text: Option<Rc<SourceText>>,
         start: Option<usize>,
         length: Option<usize>,
     ) {
-        let text = new_text.unwrap_or_else(|| "".to_string());
-        let text_as_chars = new_text_as_chars.unwrap_or_else(|| vec![]);
-        let text_as_chars_len = text_as_chars.len();
-        self.set_text_(text_as_chars, text);
-        self.set_end(length.map_or(text_as_chars_len, |length| start.unwrap() + length));
+        let text = new_text.unwrap_or_else(|| Rc::new(Default::default()));
+        let text_len = text.len();
+        self.set_text_(text);
+        self.set_end(length.map_or(text_len, |length| start.unwrap() + length));
         self.set_text_pos(start.unwrap_or(0));
     }
 
@@ -694,15 +692,15 @@ impl Scanner {
     }
 }
 
-pub(super) fn maybe_code_point_at(s: &SourceTextAsChars, i: usize) -> Option<char> {
-    s.get(i).map(|ch| *ch)
+pub(super) fn maybe_code_point_at(s: &SourceText, i: usize) -> Option<&str> {
+    s.maybe_char_at_index(i).map(|ch| ch)
 }
 
-pub(super) fn code_point_at(s: &SourceTextAsChars, i: usize) -> char {
-    s[i]
+pub(super) fn code_point_at(s: &SourceText, i: usize) -> &str {
+    s.char_at_index(i)
 }
 
-pub(super) fn char_size(ch: char) -> usize {
+pub(super) const fn char_size(_ch: &str) -> usize {
     1
 }
 

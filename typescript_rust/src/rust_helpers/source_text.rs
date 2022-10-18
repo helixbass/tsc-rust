@@ -3,6 +3,7 @@ use std::convert::TryInto;
 use std::ops::Deref;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub enum SourceText {
     AsciiOnly(SourceTextAsciiOnly),
     ContainsNonAscii(SourceTextContainsNonAscii),
@@ -94,7 +95,7 @@ impl SourceText {
                     value
                         .char_indices
                         .iter()
-                        .rfind(ch)
+                        .rposition(|char_index| char_index.1 == ch)
                         .map(|char_index| char_index.0)
                 }
             }
@@ -147,6 +148,14 @@ impl SourceText {
     }
 }
 
+impl Default for SourceText {
+    fn default() -> Self {
+        Self::AsciiOnly(SourceTextAsciiOnly {
+            text: Rc::new("".to_owned()),
+        })
+    }
+}
+
 // this is tempting but allows for accidentally misusing the underlying &str?
 // impl Deref for SourceText {
 //     type Target = str;
@@ -175,16 +184,18 @@ impl SourceText {
 //     }
 // }
 
+#[derive(Debug)]
 pub struct SourceTextAsciiOnly {
     pub text: Rc<String>,
 }
 
+#[derive(Debug)]
 pub struct SourceTextContainsNonAscii {
     pub text: Rc<String>,
     pub char_indices: Vec<(usize, char)>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SourceTextSlice {
     pub source_text: Rc<SourceText>,
     pub start: usize,
@@ -258,11 +269,62 @@ impl From<String> for SourceTextSliceOrStaticCow {
     }
 }
 
+impl From<Cow<'static, str>> for SourceTextSliceOrStaticCow {
+    fn from(value: Cow<'static, str>) -> Self {
+        Self::StaticCow(value)
+    }
+}
+
 impl From<SourceTextSliceOrStaticCow> for String {
-    pub fn from(value: SourceTextSliceOrStaticCow) -> Self {
+    fn from(value: SourceTextSliceOrStaticCow) -> Self {
         match value {
-            SourceTextSliceOrStaticCow::SourceTextSlice(value) => value.to_owned(),
+            SourceTextSliceOrStaticCow::SourceTextSlice(value) => (*value).to_owned(),
             SourceTextSliceOrStaticCow::StaticCow(value) => value.into_owned(),
+        }
+    }
+}
+
+pub enum SourceTextSliceOrStaticStr {
+    SourceTextSlice(SourceTextSlice),
+    StaticStr(&'static str),
+}
+
+impl From<SourceTextSlice> for SourceTextSliceOrStaticStr {
+    fn from(value: SourceTextSlice) -> Self {
+        Self::SourceTextSlice(value)
+    }
+}
+
+impl From<&'static str> for SourceTextSliceOrStaticStr {
+    fn from(value: &'static str) -> Self {
+        Self::StaticStr(value.into())
+    }
+}
+
+pub enum SourceTextSliceOrString {
+    SourceTextSlice(SourceTextSlice),
+    String(String),
+}
+
+impl From<SourceTextSlice> for SourceTextSliceOrString {
+    fn from(value: SourceTextSlice) -> Self {
+        Self::SourceTextSlice(value)
+    }
+}
+
+impl From<String> for SourceTextSliceOrString {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl Deref for SourceTextSliceOrString {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::SourceTextSlice(value) => &**value,
+            Self::String(value) => &**value,
         }
     }
 }

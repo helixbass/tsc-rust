@@ -31,15 +31,15 @@ use crate::{
     is_string_or_numeric_literal_like, is_white_space_like, maybe_text_char_at_index,
     module_resolution_option_declarations, node_is_synthesized,
     options_affecting_program_structure, skip_trivia, starts_with_use_strict, text_char_at_index,
-    text_substring, trim_string_start, CharacterCodes, CommandLineOption, CommentDirective,
-    CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_, EmitFlags, EmitTextWriter,
-    HasStatementsInterface, IndexInfo, LiteralLikeNodeInterface, ModeAwareCache, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PackageId,
-    ProjectReference, ReadonlyCollection, ReadonlyTextRange, ResolvedModuleFull,
-    ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface, SourceFileLike,
-    SourceText, SourceTextAsChars, SourceTextSlice, SourceTextSliceOrStaticCow, StringOrNumber,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
-    TextRange, TokenFlags, Type, UnderscoreEscapedMap,
+    text_substring, trim_string_start, CharacterCodes, CharacterCodesChar, CommandLineOption,
+    CommentDirective, CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_,
+    EmitFlags, EmitTextWriter, HasStatementsInterface, IndexInfo, LiteralLikeNodeInterface,
+    ModeAwareCache, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, PackageId, ProjectReference, ReadonlyCollection, ReadonlyTextRange,
+    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface,
+    SourceFileLike, SourceText, SourceTextAsChars, SourceTextSlice, SourceTextSliceOrStaticCow,
+    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter,
+    SyntaxKind, TextRange, TokenFlags, Type, UnderscoreEscapedMap,
 };
 
 thread_local! {
@@ -707,14 +707,14 @@ pub fn get_end_line_position<TSourceFile: SourceFileLike>(
     let line_starts = get_line_starts(source_file);
 
     let line_index = line;
-    let source_text = source_file.text_as_chars();
+    let source_text = source_file.text();
     if line_index + 1 == line_starts.len() {
         source_text.len() - 1
     } else {
         let start = line_starts[line_index];
         let mut pos = line_starts[line_index + 1] - 1;
-        Debug_.assert(is_line_break(text_char_at_index(&source_text, pos)), None);
-        while start <= pos && is_line_break(text_char_at_index(&source_text, pos)) {
+        Debug_.assert(is_line_break(source_text.char_at_index(pos)), None);
+        while start <= pos && is_line_break(source_text.char_at_index(pos)) {
             pos -= 1;
         }
         pos
@@ -906,14 +906,14 @@ pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
 
     if is_jsdoc_node(node) || node.kind() == SyntaxKind::JsxText {
         return skip_trivia(
-            &source_file
+            source_file
                 .as_ref()
                 .map_or_else(
                     || get_source_file_of_node(Some(node)).unwrap(),
                     |source_file| source_file.borrow().node_wrapper(),
                 )
                 .as_source_file()
-                .text_as_chars(),
+                .text(),
             node.pos(),
             Some(false),
             Some(true),
@@ -937,14 +937,14 @@ pub fn get_token_pos_of_node<TSourceFile: Borrow<Node>>(
     }
 
     skip_trivia(
-        &source_file
+        source_file
             .as_ref()
             .map_or_else(
                 || get_source_file_of_node(Some(node)).unwrap(),
                 |source_file| source_file.borrow().node_wrapper(),
             )
             .as_source_file()
-            .text_as_chars(),
+            .text(),
         node.pos(),
         Some(false),
         Some(false),
@@ -961,14 +961,14 @@ pub fn get_non_decorator_token_pos_of_node<TSourceFile: Borrow<Node>>(
     }
 
     skip_trivia(
-        &source_file
+        source_file
             .as_ref()
             .map_or_else(
                 || get_source_file_of_node(Some(node)).unwrap(),
                 |source_file| source_file.borrow().node_wrapper(),
             )
             .as_source_file()
-            .text_as_chars(),
+            .text(),
         node.maybe_decorators().as_ref().unwrap().end(),
         None,
         None,
@@ -1054,7 +1054,7 @@ pub fn get_text_of_node_from_source_text(
     text.into()
 }
 
-pub fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> Cow<'static, str> {
+pub fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> SourceTextSliceOrStaticCow {
     let include_trivia = include_trivia.unwrap_or(false);
     get_source_text_of_node_from_source_file(
         &get_source_file_of_node(Some(node)).unwrap(),
@@ -1282,7 +1282,7 @@ pub fn get_literal_text<TSourceFile: Borrow<Node>>(
     node: &Node, /*LiteralLikeNode*/
     source_file: Option<TSourceFile /*SourceFile*/>,
     flags: GetLiteralTextFlags,
-) -> Cow<'static, str> {
+) -> SourceTextSliceOrStaticCow {
     if can_use_original_text(node, flags) {
         return get_source_text_of_node_from_source_file(source_file.unwrap().borrow(), node, None);
     }
@@ -1303,7 +1303,7 @@ pub fn get_literal_text<TSourceFile: Borrow<Node>>(
                     "'{}'",
                     escape_text(
                         &*node_as_string_literal.text(),
-                        Some(CharacterCodes::single_quote)
+                        Some(CharacterCodesChar::single_quote)
                     )
                 )
                 .into()
@@ -1312,7 +1312,7 @@ pub fn get_literal_text<TSourceFile: Borrow<Node>>(
                     "\"{}\"",
                     escape_text(
                         &*node_as_string_literal.text(),
-                        Some(CharacterCodes::double_quote)
+                        Some(CharacterCodesChar::double_quote)
                     )
                 )
                 .into()
@@ -1333,7 +1333,7 @@ pub fn get_literal_text<TSourceFile: Borrow<Node>>(
                 .unwrap_or_else(|| {
                     escape_template_substitution(&escape_text(
                         &*node_as_template_literal_like_node.text(),
-                        Some(CharacterCodes::backtick),
+                        Some(CharacterCodesChar::backtick),
                     ))
                 });
 

@@ -41,7 +41,7 @@ pub fn create_diagnostic_for_node_array(
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
     let start = skip_trivia(
-        &source_file.as_source_file().text_as_chars(),
+        &source_file.as_source_file().text(),
         nodes.pos(),
         None,
         None,
@@ -87,21 +87,11 @@ fn assert_diagnostic_location<TFile: Borrow<Node>>(
     if let Some(file) = file {
         let file = file.borrow();
         let file_as_source_file = file.as_source_file();
-        Debug_.assert_less_than_or_equal(
-            start,
-            file_as_source_file
-                .text_as_chars()
-                .len()
-                .try_into()
-                .unwrap(),
-        );
+        Debug_
+            .assert_less_than_or_equal(start, file_as_source_file.text().len().try_into().unwrap());
         Debug_.assert_less_than_or_equal(
             start + length,
-            file_as_source_file
-                .text_as_chars()
-                .len()
-                .try_into()
-                .unwrap(),
+            file_as_source_file.text().len().try_into().unwrap(),
         );
     }
 }
@@ -180,8 +170,7 @@ pub fn get_span_of_token_at_position(
         source_file_as_source_file.language_version(),
         true,
         Some(source_file_as_source_file.language_variant()),
-        Some(source_file_as_source_file.text_as_chars().to_owned()),
-        Some(source_file_as_source_file.text().to_owned()),
+        Some(source_file_as_source_file.text()),
         // /*onError: */ undefined,
         Some(pos),
         None,
@@ -200,7 +189,7 @@ fn get_error_span_for_arrow_function(
 ) -> TextSpan {
     let source_file_as_source_file = source_file.as_source_file();
     let pos = skip_trivia(
-        &source_file_as_source_file.text_as_chars(),
+        source_file_as_source_file.text(),
         node.pos(),
         None,
         None,
@@ -242,14 +231,14 @@ pub fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -
     match node.kind() {
         SyntaxKind::SourceFile => {
             let pos = skip_trivia(
-                &source_file_as_source_file.text_as_chars(),
+                source_file_as_source_file.text(),
                 0,
                 Some(false),
                 None,
                 None,
             );
             let pos_as_usize = usize::try_from(pos).unwrap();
-            if pos_as_usize == source_file_as_source_file.text_as_chars().len() {
+            if pos_as_usize == source_file_as_source_file.text().len() {
                 return create_text_span(0, 0);
             }
             return get_span_of_token_at_position(source_file, pos_as_usize);
@@ -279,7 +268,7 @@ pub fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -
         SyntaxKind::CaseClause => {
             let node_as_case_clause = node.as_case_clause();
             let start = skip_trivia(
-                &source_file_as_source_file.text_as_chars(),
+                source_file_as_source_file.text(),
                 node.pos(),
                 None,
                 None,
@@ -295,7 +284,7 @@ pub fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -
         SyntaxKind::DefaultClause => {
             let node_as_default_clause = node.as_default_clause();
             let start = skip_trivia(
-                &source_file_as_source_file.text_as_chars(),
+                source_file_as_source_file.text(),
                 node.pos(),
                 None,
                 None,
@@ -323,7 +312,7 @@ pub fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -
         error_node.pos()
     } else {
         skip_trivia(
-            &source_file_as_source_file.text_as_chars(),
+            source_file_as_source_file.text(),
             error_node.pos(),
             None,
             None,
@@ -458,7 +447,7 @@ pub fn get_leading_comment_ranges_of_node(
 ) -> Option<Vec<CommentRange>> {
     if node.kind() != SyntaxKind::JsxText {
         get_leading_comment_ranges(
-            &source_file_of_node.as_source_file().text_as_chars(),
+            source_file_of_node.as_source_file().text(),
             node.pos().try_into().unwrap(),
         )
     } else {

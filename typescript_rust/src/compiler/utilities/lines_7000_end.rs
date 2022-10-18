@@ -12,7 +12,7 @@ use crate::{
     is_expression_node, is_expression_statement, is_for_statement, is_identifier, is_jsdoc_node,
     is_parameter, is_parenthesized_expression, is_part_of_type_query,
     is_shorthand_property_assignment, is_type_reference_node, is_void_expression, last,
-    parameter_is_this_keyword, some, string_contains, CharacterCodes, CompilerOptions, Debug_,
+    parameter_is_this_keyword, some, string_contains, CharacterCodesChar, CompilerOptions, Debug_,
     FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
     ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind,
@@ -34,19 +34,19 @@ pub fn parse_pseudo_big_int(string_value: &str) -> String {
     let string_value = string_value.chars().collect::<Vec<_>>();
     let log_2_base: usize;
     match string_value.get(1).copied() {
-        Some(CharacterCodes::b) | Some(CharacterCodes::B) => {
+        Some(CharacterCodesChar::b) | Some(CharacterCodesChar::B) => {
             log_2_base = 1;
         }
-        Some(CharacterCodes::o) | Some(CharacterCodes::O) => {
+        Some(CharacterCodesChar::o) | Some(CharacterCodesChar::O) => {
             log_2_base = 3;
         }
-        Some(CharacterCodes::x) | Some(CharacterCodes::X) => {
+        Some(CharacterCodesChar::x) | Some(CharacterCodesChar::X) => {
             log_2_base = 4;
         }
         _ => {
             let n_index = string_value.len() - 1;
             let mut non_zero_start = 0;
-            while string_value.get(non_zero_start).copied() == Some(CharacterCodes::_0) {
+            while string_value.get(non_zero_start).copied() == Some(CharacterCodesChar::_0) {
                 non_zero_start += 1;
             }
             return if non_zero_start < n_index {
@@ -67,14 +67,14 @@ pub fn parse_pseudo_big_int(string_value: &str) -> String {
     while i >= start_index {
         let segment = bit_offset >> 4;
         let digit_char = string_value[i];
-        let digit: u32 = if digit_char <= CharacterCodes::_9 {
-            Into::<u32>::into(digit_char) - Into::<u32>::into(CharacterCodes::_0)
+        let digit: u32 = if digit_char <= CharacterCodesChar::_9 {
+            Into::<u32>::into(digit_char) - Into::<u32>::into(CharacterCodesChar::_0)
         } else {
             10 + Into::<u32>::into(digit_char)
-                - Into::<u32>::into(if digit_char <= CharacterCodes::F {
-                    CharacterCodes::A
+                - Into::<u32>::into(if digit_char <= CharacterCodesChar::F {
+                    CharacterCodesChar::A
                 } else {
-                    CharacterCodes::a
+                    CharacterCodesChar::a
                 })
         };
         let shifted_digit = digit << (bit_offset & 15);

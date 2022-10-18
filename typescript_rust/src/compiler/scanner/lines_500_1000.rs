@@ -16,11 +16,11 @@ use crate::{
     SourceTextSlice, SyntaxKind, TokenFlags,
 };
 
-pub(super) fn is_digit(ch: char) -> bool {
+pub(super) fn is_digit(ch: &str) -> bool {
     ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
 }
 
-pub(super) fn is_hex_digit(ch: char) -> bool {
+pub(super) fn is_hex_digit(ch: &str) -> bool {
     is_digit(ch)
         || ch >= CharacterCodes::A && ch <= CharacterCodes::F
         || ch >= CharacterCodes::a && ch <= CharacterCodes::f
@@ -30,7 +30,7 @@ pub(super) fn is_code_point(code: u32) -> bool {
     code <= 0x10ffff
 }
 
-pub(crate) fn is_octal_digit(ch: char) -> bool {
+pub(crate) fn is_octal_digit(ch: &str) -> bool {
     ch >= CharacterCodes::_0 && ch <= CharacterCodes::_7
 }
 
@@ -645,13 +645,12 @@ pub fn create_scanner(
     language_version: ScriptTarget,
     skip_trivia: bool,
     language_variant: Option<LanguageVariant>,
-    text_initial_as_chars: Option<SourceTextAsChars>,
-    text_initial: Option<String>,
+    text_initial: Option<Rc<SourceText>>,
     /*onError?: ErrorCallback,*/ start: Option<usize>,
     length: Option<usize>,
 ) -> Scanner {
     let mut scanner = Scanner::new(language_version, skip_trivia, language_variant);
-    scanner.set_text(text_initial_as_chars, text_initial, start, length);
+    scanner.set_text(text_initial, start, length);
     /*if Debug.isDebugging {
     Object.defineProperty(scanner, "__debugShowCurrentPositionInText"*/
     scanner
@@ -662,8 +661,7 @@ pub struct Scanner /*<'on_error>*/ {
     pub(super) skip_trivia: bool,
     pub(super) language_variant: Option<LanguageVariant>,
     // on_error: Option<ErrorCallback<'on_error>>,
-    pub(super) text: RefCell<Option<SourceTextAsChars>>,
-    pub(super) text_str: RefCell<Option<String>>,
+    pub(super) text: RefCell<Option<Rc<SourceText>>>,
     pub(super) pos: RefCell<Option<usize>>,
     pub(super) end: Cell<Option<usize>>,
     pub(super) start_pos: RefCell<Option<usize>>,
@@ -687,7 +685,6 @@ impl Scanner {
             language_variant,
             // on_error: None,
             text: RefCell::new(None),
-            text_str: RefCell::new(None),
             pos: RefCell::new(None),
             end: Cell::new(None),
             start_pos: RefCell::new(None),
@@ -700,31 +697,34 @@ impl Scanner {
         }
     }
 
-    pub(super) fn text(&self) -> Ref<SourceTextAsChars> {
-        Ref::map(self.text.borrow(), |text| text.as_ref().unwrap())
+    pub(super) fn text(&self) -> Rc<SourceText> {
+        self.text.borrow().clone().unwrap()
     }
 
-    pub(super) fn text_str(&self) -> Ref<String> {
-        Ref::map(self.text_str.borrow(), |text_str| {
-            text_str.as_ref().unwrap()
-        })
-    }
+    // pub(super) fn text_str(&self) -> Ref<String> {
+    //     Ref::map(self.text_str.borrow(), |text_str| {
+    //         text_str.as_ref().unwrap()
+    //     })
+    // }
 
-    pub(super) fn set_text_(&self, text: SourceTextAsChars, text_str: String) {
+    pub(super) fn set_text_(&self, text: Rc<SourceText>) {
         *self.text.borrow_mut() = Some(text);
-        *self.text_str.borrow_mut() = Some(text_str);
     }
 
-    pub(super) fn maybe_text_char_at_index(&self, index: usize) -> Option<char> {
-        maybe_text_char_at_index(&self.text(), index)
+    pub(super) fn maybe_text_char_at_index(&self, index: usize) -> Option<&str> {
+        self.text().maybe_char_at_index(index)
     }
 
-    pub(super) fn text_char_at_index(&self, index: usize) -> char {
-        text_char_at_index(&self.text(), index)
+    pub(super) fn text_char_at_index(&self, index: usize) -> &str {
+        self.text().char_at_index(index)
     }
 
-    pub(super) fn text_substring(&self, start: usize, end: usize) -> String {
-        text_substring(&self.text(), start, end)
+    // pub(super) fn text_substring(&self, start: usize, end: usize) -> String {
+    //     text_substring(&self.text(), start, end)
+    // }
+
+    pub(super) fn text_slice(&self, start: usize, end: usize) -> SourceTextSlice {
+        self.text().slice(start, Some(end))
     }
 
     pub(super) fn pos(&self) -> usize {

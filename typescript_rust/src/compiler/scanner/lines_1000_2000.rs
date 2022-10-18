@@ -1,5 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Cow;
+
 use super::{
     char_size, code_point_at, comment_directive_reg_ex_multi_line,
     comment_directive_reg_ex_single_line, hex_digits_to_u32, is_code_point,
@@ -9,7 +11,8 @@ use super::{
     utf16_encode_as_string, ErrorCallback, Scanner,
 };
 use crate::{
-    parse_pseudo_big_int, CharacterCodes, DiagnosticMessage, Diagnostics, ScriptTarget, SyntaxKind,
+    parse_pseudo_big_int, CharacterCodes, DiagnosticMessage, Diagnostics, ScriptTarget,
+    SourceTextSliceOrStaticCow, SourceTextSliceOrStaticStr, SourceTextSliceOrString, SyntaxKind,
     TokenFlags,
 };
 
@@ -222,8 +225,10 @@ impl Scanner {
         can_have_separators: bool,
     ) -> Result<u32, String> {
         let value_string = self.scan_hex_digits(on_error, count, false, can_have_separators);
+        match value_string {
+            Some(value_string) => hex_digits_to_u32(&value_string),
+        }
         if !value_string.is_empty() {
-            hex_digits_to_u32(&value_string)
         } else {
             Err("Couldn't scan any hex digits".to_string())
         }
@@ -234,7 +239,7 @@ impl Scanner {
         on_error: Option<ErrorCallback>,
         count: usize,
         can_have_separators: bool,
-    ) -> String {
+    ) -> Option<SourceTextSliceOrString> {
         self.scan_hex_digits(on_error, count, true, can_have_separators)
     }
 
@@ -244,12 +249,14 @@ impl Scanner {
         min_count: usize,
         scan_as_many_as_possible: bool,
         can_have_separators: bool,
-    ) -> String {
-        let mut value_chars: Vec<char> = vec![];
+    ) -> Option<SourceTextSliceOrString> {
+        let mut value_chunks: Option<Vec<SourceTextSliceOrStaticStr>> = None;
         let mut allow_separator = false;
         let mut is_previous_token_separator = false;
-        while value_chars.len() < min_count || scan_as_many_as_possible {
-            let mut ch = self.text_char_at_index(self.pos());
+        let start = self.pos();
+        let mut last_push_pos: Option<usize> = None;
+        while self.pos() - start < min_count || scan_as_many_as_possible {
+            let ch = self.text_char_at_index(self.pos());
             if can_have_separators && ch == CharacterCodes::underscore {
                 self.add_token_flag(TokenFlags::ContainsSeparator);
                 if allow_separator {
@@ -275,26 +282,45 @@ impl Scanner {
             }
             allow_separator = can_have_separators;
             if ch >= CharacterCodes::A && ch <= CharacterCodes::F {
-                ch = match ch {
-                    CharacterCodes::A => CharacterCodes::a,
-                    CharacterCodes::B => CharacterCodes::b,
-                    CharacterCodes::C => CharacterCodes::c,
-                    CharacterCodes::D => CharacterCodes::d,
-                    CharacterCodes::E => CharacterCodes::e,
-                    CharacterCodes::F => CharacterCodes::f,
-                    _ => panic!("Expected uppercase hex digit"),
-                };
+                let should_push_initial_source_text_slice =
+                    self.pos() > start && value_chunks.is_none();
+                let value_chunks = value_chunks.get_or_insert_with(|| vec![]);
+                if should_push_initial_source_text_slice {
+                    value_chunks.push(self.text_slice(start, self.pos() + 1).into());
+                }
+                value_chunks.push(
+                    match ch {
+                        CharacterCodes::A => CharacterCodes::a,
+                        CharacterCodes::B => CharacterCodes::b,
+                        CharacterCodes::C => CharacterCodes::c,
+                        CharacterCodes::D => CharacterCodes::d,
+                        CharacterCodes::E => CharacterCodes::e,
+                        CharacterCodes::F => CharacterCodes::f,
+                        _ => panic!("Expected uppercase hex digit"),
+                    }
+                    .into(),
+                );
+                last_push_pos = Some(self.pos());
             } else if !(ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
                 || ch >= CharacterCodes::a && ch <= CharacterCodes::f)
             {
                 break;
             }
-            value_chars.push(ch);
             self.increment_pos();
             is_previous_token_separator = false;
         }
-        if value_chars.len() < min_count {
-            value_chars = vec![];
+        if matches!(
+            last_push_pos,
+            Some(last_push_pos) if self.pos() > last_push_pos + 1
+        ) {
+            value_chunks
+                .as_mut()
+                .unwrap()
+                .push(self.text_slice(last_push_pos + 1, self.pos()).into());
+        }
+        let mut should_return_none = false;
+        if self.pos() - start < min_count {
+            should_return_none = true;
         }
         if self.text_char_at_index(self.pos() - 1) == CharacterCodes::underscore {
             self.error(
@@ -304,7 +330,31 @@ impl Scanner {
                 Some(1),
             );
         }
-        value_chars.into_iter().collect()
+        if should_return_none {
+            None
+        } else {
+            match value_chunks {
+                None => {
+                    if self.pos() > start {
+                        Some(self.text_slice(start, self.pos()).into())
+                    } else {
+                        None
+                    }
+                }
+                Some(value_chunks) => Some(
+                    value_chunks
+                        .iter()
+                        .map(|value_chunk| match value_chunk {
+                            SourceTextSliceOrStaticStr::SourceTextSlice(value_chunk) => {
+                                &**value_chunk
+                            }
+                            SourceTextSliceOrStaticStr::StaticStr(value_chunk) => *value_chunk,
+                        })
+                        .concat()
+                        .into(),
+                ),
+            }
+        }
     }
 
     pub(super) fn scan_string(
@@ -449,13 +499,13 @@ impl Scanner {
         &self,
         on_error: Option<ErrorCallback>,
         is_tagged_template: Option<bool>,
-    ) -> String {
+    ) -> SourceTextSliceOrStaticCow {
         let is_tagged_template = is_tagged_template.unwrap_or(false);
         let start = self.pos();
         self.increment_pos();
         if self.pos() >= self.end() {
             self.error(on_error, &Diagnostics::Unexpected_end_of_text, None, None);
-            return "".to_string();
+            return "".into();
         }
         let ch = self.text_char_at_index(self.pos());
         self.increment_pos();
@@ -467,18 +517,18 @@ impl Scanner {
                 {
                     self.increment_pos();
                     self.add_token_flag(TokenFlags::ContainsInvalidEscape);
-                    return self.text_substring(start, self.pos());
+                    return self.text_slice(start, self.pos()).into();
                 }
-                "\0".to_string()
+                "\0".into()
             }
-            CharacterCodes::b => "\u{0008}".to_string(),
-            CharacterCodes::t => "\t".to_string(),
-            CharacterCodes::n => "\n".to_string(),
-            CharacterCodes::v => "\u{000b}".to_string(),
-            CharacterCodes::f => "\u{000c}".to_string(),
-            CharacterCodes::r => "\r".to_string(),
-            CharacterCodes::single_quote => "'".to_string(),
-            CharacterCodes::double_quote => "\"".to_string(),
+            CharacterCodes::b => "\u{0008}".into(),
+            CharacterCodes::t => "\t".into(),
+            CharacterCodes::n => "\n".into(),
+            CharacterCodes::v => "\u{000b}".into(),
+            CharacterCodes::f => "\u{000c}".into(),
+            CharacterCodes::r => "\r".into(),
+            CharacterCodes::single_quote => "'".into(),
+            CharacterCodes::double_quote => "\"".into(),
             CharacterCodes::u => {
                 if is_tagged_template {
                     let mut escape_pos = self.pos();
@@ -489,7 +539,7 @@ impl Scanner {
                         {
                             self.set_pos(escape_pos);
                             self.add_token_flag(TokenFlags::ContainsInvalidEscape);
-                            return self.text_substring(start, self.pos());
+                            return self.text_slice(start, self.pos()).into();
                         }
                         escape_pos += 1;
                     }
@@ -501,18 +551,18 @@ impl Scanner {
 
                     if is_tagged_template && !is_hex_digit(self.text_char_at_index(self.pos())) {
                         self.add_token_flag(TokenFlags::ContainsInvalidEscape);
-                        return self.text_substring(start, self.pos());
+                        return self.text_slice(start, self.pos());
                     }
 
                     if is_tagged_template {
                         let save_pos = self.pos();
                         let escaped_value_string =
                             self.scan_minimum_number_of_hex_digits(on_error, 1, false);
-                        let is_escaped_value_empty = escaped_value_string.is_empty();
+                        let is_escaped_value_empty = escaped_value_string.is_none();
                         let escaped_value = if !is_escaped_value_empty {
-                            hex_digits_to_u32(&escaped_value_string)
+                            hex_digits_to_u32(&escaped_value_string.unwrap())
                         } else {
-                            Err("Couldn't scan any hex digits".to_string())
+                            Err("Couldn't scan any hex digits".to_owned())
                         };
 
                         if !match (is_escaped_value_empty, escaped_value) {
@@ -522,31 +572,31 @@ impl Scanner {
                         } || self.text_char_at_index(self.pos()) != CharacterCodes::close_brace
                         {
                             self.add_token_flag(TokenFlags::ContainsInvalidEscape);
-                            return self.text_substring(start, self.pos());
+                            return self.text_slice(start, self.pos()).into();
                         } else {
                             self.set_pos(save_pos);
                         }
                     }
                     self.add_token_flag(TokenFlags::ExtendedUnicodeEscape);
-                    return self.scan_extended_unicode_escape(on_error);
+                    return self.scan_extended_unicode_escape(on_error).into();
                 }
 
                 self.add_token_flag(TokenFlags::UnicodeEscape);
-                self.scan_hexadecimal_escape(on_error, 4)
+                self.scan_hexadecimal_escape(on_error, 4).into()
             }
             CharacterCodes::x => {
                 if is_tagged_template {
                     if !is_hex_digit(self.text_char_at_index(self.pos())) {
                         self.add_token_flag(TokenFlags::ContainsInvalidEscape);
-                        return self.text_substring(start, self.pos());
+                        return self.text_slice(start, self.pos()).into();
                     } else if !is_hex_digit(self.text_char_at_index(self.pos() + 1)) {
                         self.increment_pos();
                         self.add_token_flag(TokenFlags::ContainsInvalidEscape);
-                        return self.text_substring(start, self.pos());
+                        return self.text_slice(start, self.pos()).into();
                     }
                 }
 
-                self.scan_hexadecimal_escape(on_error, 2)
+                self.scan_hexadecimal_escape(on_error, 2).into()
             }
             CharacterCodes::carriage_return => {
                 if self.pos() < self.end()
@@ -554,12 +604,12 @@ impl Scanner {
                 {
                     self.increment_pos();
                 }
-                "".to_string()
+                "".into()
             }
             CharacterCodes::line_feed
             | CharacterCodes::line_separator
-            | CharacterCodes::paragraph_separator => "".to_string(),
-            _ => ch.to_string(),
+            | CharacterCodes::paragraph_separator => "".into(),
+            _ => self.text_slice(self.pos() - 1, self.pos()).into(),
         }
     }
 
@@ -567,11 +617,11 @@ impl Scanner {
         &self,
         on_error: Option<ErrorCallback>,
         num_digits: usize,
-    ) -> String {
+    ) -> Cow<'static, str> {
         let escaped_value = self.scan_exact_number_of_hex_digits(on_error, num_digits, false);
 
         match escaped_value {
-            Ok(escaped_value) => escaped_value.to_string(),
+            Ok(escaped_value) => escaped_value.to_string().into(),
             Err(_) => {
                 self.error(
                     on_error,
@@ -579,15 +629,15 @@ impl Scanner {
                     None,
                     None,
                 );
-                "".to_string()
+                "".into()
             }
         }
     }
 
     pub(super) fn scan_extended_unicode_escape(&self, on_error: Option<ErrorCallback>) -> String {
         let escaped_value_string = self.scan_minimum_number_of_hex_digits(on_error, 1, false);
-        let escaped_value = if !escaped_value_string.is_empty() {
-            hex_digits_to_u32(&escaped_value_string)
+        let escaped_value = if !escaped_value_string.is_none() {
+            hex_digits_to_u32(&escaped_value_string.unwrap())
         } else {
             Err("Couldn't scan any hex digits".to_string())
         };
@@ -626,7 +676,7 @@ impl Scanner {
         }
 
         if is_invalid_extended_escape {
-            return "".to_string();
+            return "".to_owned();
         }
 
         utf16_encode_as_string(escaped_value.unwrap())
@@ -840,7 +890,7 @@ impl Scanner {
                 && self.pos() == 0
                 && is_shebang_trivia(&self.text(), self.pos())
             {
-                self.set_pos(scan_shebang_trivia(&self.text(), self.pos()));
+                self.set_pos(scan_shebang_trivia(self.text(), self.pos()));
                 if self.skip_trivia {
                     continue;
                 } else {

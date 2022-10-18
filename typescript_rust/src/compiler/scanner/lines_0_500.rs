@@ -894,7 +894,7 @@ pub fn is_white_space_like(ch: char) -> bool {
     is_white_space_single_line(ch) || is_line_break(ch)
 }
 
-pub fn is_white_space_single_line(ch: char) -> bool {
+pub fn is_white_space_single_line(ch: &str) -> bool {
     ch == CharacterCodes::space
         || ch == CharacterCodes::tab
         || ch == CharacterCodes::vertical_tab
