@@ -22,10 +22,10 @@ use crate::{
     ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression,
     ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
-    SpreadElement, StrOrRcNode, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind,
-    SyntaxKindOrRcNode, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion,
-    TypeOfExpression, TypeOperatorNode, VoidExpression, YieldExpression,
+    SourceTextSliceOrString, SpreadElement, StrOrRcNode, StringOrNumberOrBoolOrRcNode,
+    StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode, TaggedTemplateExpression, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags,
+    TypeAssertion, TypeOfExpression, TypeOperatorNode, VoidExpression, YieldExpression,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -1147,7 +1147,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        text: String,
+        text: SourceTextSliceOrString,
         raw_text: Option<String>,
         template_flags: Option<TokenFlags>,
     ) -> TemplateLiteralLikeNode {

@@ -15,8 +15,9 @@ use crate::{
     is_this_property, map, some, unescape_leading_underscores, AssignmentDeclarationKind,
     CheckFlags, Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
     JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
-    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, Node, NodeInterface,
-    ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    SourceTextSliceOrString, SymbolFlags, UnionOrIntersectionTypeInterface, __String,
+    get_object_flags, Node, NodeInterface, ObjectFlags, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -24,7 +25,7 @@ impl TypeChecker {
         &self,
         name_of_attrib_prop_container: &str, /*__String*/
         jsx_namespace: Option<TJsxNamespace>,
-    ) -> Option<__String> {
+    ) -> Option<SourceTextSliceOrString> {
         let jsx_namespace =
             jsx_namespace.map(|jsx_namespace| jsx_namespace.borrow().symbol_wrapper());
         let jsx_element_attrib_prop_interface_sym =
@@ -50,12 +51,12 @@ impl TypeChecker {
             properties_of_jsx_element_attrib_prop_interface.as_ref()
         {
             if properties_of_jsx_element_attrib_prop_interface.is_empty() {
-                return Some("".to_owned());
+                return Some("".into());
             } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {
                 return Some(
                     properties_of_jsx_element_attrib_prop_interface[0]
                         .escaped_name()
-                        .to_owned(),
+                        .clone(),
                 );
             } else if properties_of_jsx_element_attrib_prop_interface.len() > 1 {
                 let jsx_element_attrib_prop_interface_sym =
@@ -108,7 +109,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_element_children_property_name<TJsxNamespace: Borrow<Symbol>>(
         &self,
         jsx_namespace: Option<TJsxNamespace>,
-    ) -> Option<__String> {
+    ) -> Option<SourceTextSliceOrString /*__String*/> {
         self.get_name_from_jsx_element_attributes_container(
             &JsxNames::ElementChildrenAttributeNameContainer,
             jsx_namespace,

@@ -263,7 +263,7 @@ impl TypeChecker {
         let synthetic_args_symbol: Rc<Symbol> = self
             .create_symbol(
                 SymbolFlags::Variable,
-                "args".to_owned(),
+                "args".into(),
                 Some(CheckFlags::RestParameter),
             )
             .into();

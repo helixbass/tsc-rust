@@ -1011,7 +1011,7 @@ impl TypeChecker {
         let symbol: Rc<Symbol> = self
             .create_symbol(
                 source.flags(),
-                source.escaped_name().to_owned(),
+                source.escaped_name().clone(),
                 Some(get_check_flags(source) & CheckFlags::Readonly),
             )
             .into();

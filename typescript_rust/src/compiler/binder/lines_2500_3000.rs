@@ -457,7 +457,7 @@ impl BinderType {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::TypeLiteral,
-            InternalSymbolName::Type.to_owned(),
+            InternalSymbolName::Type.into(),
         )
     }
 
@@ -489,7 +489,8 @@ impl BinderType {
             format!(
                 "\"{}\"",
                 remove_file_extension(&self.file().as_source_file().file_name())
-            ),
+            )
+            .into(),
         );
     }
 
@@ -499,7 +500,7 @@ impl BinderType {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::Value,
-                self.get_declaration_name(node).unwrap().into_owned(),
+                self.get_declaration_name(node).unwrap(),
             );
         } else {
             let flags = if export_assignment_is_alias(node) {
@@ -581,7 +582,7 @@ impl BinderType {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::ExportStar,
-                self.get_declaration_name(node).unwrap().into_owned(),
+                self.get_declaration_name(node).unwrap(),
             );
         } else if node_as_export_declaration.export_clause.is_none() {
             self.declare_symbol(

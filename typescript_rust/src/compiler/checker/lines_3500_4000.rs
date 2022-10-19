@@ -271,7 +271,7 @@ impl TypeChecker {
         reference_parent: &Node, /*ImportDeclaration | ImportCall*/
     ) -> Rc<Symbol> {
         let result: Rc<Symbol> = self
-            .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
+            .create_symbol(symbol.flags(), symbol.escaped_name().clone(), None)
             .into();
         result.set_declarations(
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {

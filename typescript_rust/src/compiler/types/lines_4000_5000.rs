@@ -17,8 +17,8 @@ use super::{
 use crate::{
     CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo,
     IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
-    PatternAmbientModule, ReverseMappedSymbol, StringOrNumber, TypeId, TypeSystemEntity,
-    TypeSystemPropertyName, VarianceFlags,
+    PatternAmbientModule, ReverseMappedSymbol, SourceTextSliceOrString, StringOrNumber, TypeId,
+    TypeSystemEntity, TypeSystemPropertyName, VarianceFlags,
 };
 use local_macros::{enum_unwrapped, symbol_type};
 
@@ -140,7 +140,7 @@ pub struct TypeChecker {
     pub(crate) cancellation_token: RefCell<Option<Rc<dyn CancellationTokenDebuggable>>>,
     pub(crate) requested_external_emit_helpers: Cell<ExternalEmitHelpers>,
     pub(crate) external_helpers_module: RefCell<Option<Rc<Symbol>>>,
-    pub(crate) Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
+    pub(crate) Symbol: fn(SymbolFlags, SourceTextSliceOrString /*__String*/) -> BaseSymbol,
     pub(crate) Type: fn(TypeFlags) -> BaseType,
     pub(crate) Signature: fn(SignatureFlags) -> Signature,
     pub(crate) type_count: Cell<u32>,
@@ -180,7 +180,8 @@ pub struct TypeChecker {
     pub(crate) tuple_types: RefCell<HashMap<String, Rc</*GenericType*/ Type>>>,
     pub(crate) union_types: RefCell<HashMap<String, Rc</*UnionType*/ Type>>>,
     pub(crate) intersection_types: RefCell<HashMap<String, Rc<Type>>>,
-    pub(crate) string_literal_types: RefCell<HashMap<String, Rc</*StringLiteralType*/ Type>>>,
+    pub(crate) string_literal_types:
+        RefCell<HashMap<SourceTextSliceOrString, Rc</*StringLiteralType*/ Type>>>,
     pub(crate) number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
     pub(crate) big_int_literal_types: RefCell<HashMap<String, Rc</*BigIntLiteralType*/ Type>>>,
     pub(crate) enum_literal_types: RefCell<HashMap<String, Rc</*LiteralType*/ Type>>>,
@@ -194,7 +195,8 @@ pub struct TypeChecker {
 
     pub(crate) unknown_symbol: Option<Rc<Symbol>>,
     pub(crate) resolving_symbol: Option<Rc<Symbol>>,
-    pub(crate) unresolved_symbols: RefCell<HashMap<String, Rc<Symbol /*TransientSymbol*/>>>,
+    pub(crate) unresolved_symbols:
+        RefCell<HashMap<SourceTextSliceOrString, Rc<Symbol /*TransientSymbol*/>>>,
     pub(crate) error_types: RefCell<HashMap<String, Rc<Type>>>,
 
     pub(crate) any_type: Option<Rc<Type>>,
@@ -852,7 +854,7 @@ pub trait SymbolInterface {
     fn set_symbol_wrapper(&self, wrapper: Rc<Symbol>);
     fn flags(&self) -> SymbolFlags;
     fn set_flags(&self, flags: SymbolFlags);
-    fn escaped_name(&self) -> &str /*__String*/;
+    fn escaped_name(&self) -> &SourceTextSliceOrString /*__String*/;
     fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>>;
     fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>>;
     fn set_declarations(&self, declarations: Vec<Rc<Node>>);
@@ -925,7 +927,7 @@ impl Symbol {
 pub struct BaseSymbol {
     _symbol_wrapper: RefCell<Option<Rc<Symbol>>>,
     flags: Cell<SymbolFlags>,
-    escaped_name: __String,
+    escaped_name: SourceTextSliceOrString, /*__String*/
     declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>,
     value_declaration: RefCell<Option<Rc<Node>>>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
@@ -943,7 +945,7 @@ pub struct BaseSymbol {
 }
 
 impl BaseSymbol {
-    pub fn new(flags: SymbolFlags, name: __String) -> Self {
+    pub fn new(flags: SymbolFlags, name: SourceTextSliceOrString /*__String*/) -> Self {
         Self {
             _symbol_wrapper: RefCell::new(None),
             flags: Cell::new(flags),
@@ -983,7 +985,7 @@ impl SymbolInterface for BaseSymbol {
         self.flags.set(flags);
     }
 
-    fn escaped_name(&self) -> &str /*__String*/ {
+    fn escaped_name(&self) -> &SourceTextSliceOrString /*__String*/ {
         &self.escaped_name
     }
 

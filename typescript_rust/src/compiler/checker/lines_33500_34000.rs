@@ -8,7 +8,7 @@ use std::rc::Rc;
 use super::{get_node_id, CheckMode};
 use crate::{
     append, has_jsdoc_nodes, is_call_chain, is_call_expression, is_require_call, set_node_flags,
-    text_char_at_index, CharacterCodes, Debug_, Number, SymbolFlags, __String, concatenate, every,
+    CharacterCodes, Debug_, Number, SymbolFlags, __String, concatenate, every,
     get_combined_node_flags, get_effective_initializer, get_jsdoc_type_assertion_type,
     is_array_literal_expression, is_assertion_expression, is_const_type_reference,
     is_declaration_readonly, is_in_js_file, is_jsdoc_type_assertion, is_omitted_expression,
@@ -473,7 +473,7 @@ impl TypeChecker {
                     name,
                 );
                 let symbol: Rc<Symbol> = self
-                    .create_symbol(SymbolFlags::TypeParameter, new_name, None)
+                    .create_symbol(SymbolFlags::TypeParameter, new_name.into(), None)
                     .into();
                 let mut new_type_parameter = self.create_type_parameter(Some(&*symbol));
                 new_type_parameter.target = Some(tp.clone());
@@ -525,8 +525,8 @@ impl TypeChecker {
         let base_name_as_chars = base_name.chars().collect::<Vec<_>>();
         let mut len = base_name_as_chars.len();
         while len > 1
-            && text_char_at_index(&base_name_as_chars, len - 1) >= CharacterCodes::_0
-            && text_char_at_index(&base_name_as_chars, len - 1) <= CharacterCodes::_9
+            && base_name_as_chars[len - 1] >= CharacterCodes::_0
+            && base_name_as_chars[len - 1] <= CharacterCodes::_9
         {
             len -= 1;
         }

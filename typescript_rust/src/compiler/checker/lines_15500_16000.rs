@@ -927,7 +927,7 @@ impl TypeChecker {
                 let result: Rc<Symbol> = self
                     .create_symbol(
                         flags,
-                        prop.escaped_name().to_owned(),
+                        prop.escaped_name().clone(),
                         Some(
                             self.get_is_late_check_flag(&prop)
                                 | if readonly {
@@ -1113,7 +1113,7 @@ impl TypeChecker {
                     );
                     let flags = SymbolFlags::Property | (left_prop.flags() & SymbolFlags::Optional);
                     let result: Rc<Symbol> = self
-                        .create_symbol(flags, left_prop.escaped_name().to_owned(), None)
+                        .create_symbol(flags, left_prop.escaped_name().clone(), None)
                         .into();
                     let result_links = result.as_transient_symbol().symbol_links();
                     let mut result_links = result_links.borrow_mut();

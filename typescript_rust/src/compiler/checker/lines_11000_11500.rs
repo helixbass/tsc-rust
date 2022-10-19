@@ -115,7 +115,7 @@ impl TypeChecker {
                         } else {
                             SymbolFlags::None
                         },
-                    param_name.unwrap_or_else(|| format!("arg{}", i)),
+                    param_name.unwrap_or_else(|| format!("arg{}", i).into()),
                     None,
                 )
                 .into();
@@ -132,7 +132,7 @@ impl TypeChecker {
         }
         if needs_extra_rest_element {
             let rest_param_symbol: Rc<Symbol> = self
-                .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
+                .create_symbol(SymbolFlags::FunctionScopedVariable, "args".into(), None)
                 .into();
             rest_param_symbol
                 .as_transient_symbol()
@@ -708,7 +708,7 @@ impl TypeChecker {
                 };
             let inferred_prop = self.create_symbol(
                 SymbolFlags::Property | prop.flags() & optional_mask,
-                prop.escaped_name().to_owned(),
+                prop.escaped_name().clone(),
                 Some(check_flags),
             );
             if let Some(prop_declarations) = prop.maybe_declarations().clone() {
@@ -1043,7 +1043,7 @@ impl TypeChecker {
                         } else {
                             SymbolFlags::None
                         },
-                    (*prop_name).to_owned(),
+                    prop_name.clone(),
                     Some(
                         late_flag
                             | CheckFlags::Mapped

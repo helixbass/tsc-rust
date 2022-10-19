@@ -13,9 +13,9 @@ use crate::{
     FunctionLikeDeclarationInterface, IndexInfo, InferenceContext, InferenceInfo,
     InterfaceTypeInterface, IntrinsicType, LiteralTypeInterface, Node, NodeFlags, NodeInterface,
     Number, NumberLiteralType, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
-    PseudoBigInt, Signature, SignatureFlags, StringLiteralType, StringOrNumber, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
+    PseudoBigInt, Signature, SignatureFlags, SourceTextSliceOrString, StringLiteralType,
+    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback, TypePredicate,
     TypeReferenceInterface, UniqueESSymbolType, __String, get_assignment_declaration_kind,
     get_check_flags, get_host_signature_from_jsdoc, get_symbol_id, get_this_container,
     is_binary_expression, is_class_like, maybe_is_class_like,
@@ -48,7 +48,7 @@ impl TypeChecker {
         let result: Rc<Symbol> = self
             .create_symbol(
                 flags,
-                prop.escaped_name().to_owned(),
+                prop.escaped_name().clone(),
                 Some(
                     self.get_is_late_check_flag(prop)
                         | if readonly {
@@ -95,7 +95,7 @@ impl TypeChecker {
     pub fn create_string_literal_type<TSymbol: Borrow<Symbol>, TRegularType: Borrow<Type>>(
         &self,
         flags: TypeFlags,
-        value: String,
+        value: SourceTextSliceOrString,
         symbol: Option<TSymbol>,
         regular_type: Option<TRegularType>,
     ) -> Rc<Type> {
@@ -221,18 +221,18 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_string_literal_type(&self, value: &str) -> Rc<Type> {
+    pub(super) fn get_string_literal_type(&self, value: &SourceTextSliceOrString) -> Rc<Type> {
         let mut string_literal_types = self.string_literal_types();
         if string_literal_types.contains_key(value) {
             return string_literal_types.get(value).unwrap().clone();
         }
         let type_ = self.create_string_literal_type(
             TypeFlags::StringLiteral,
-            value.to_owned(),
+            value.clone(),
             Option::<&Symbol>::None,
             Option::<&Type>::None,
         );
-        string_literal_types.insert(value.to_owned(), type_.clone());
+        string_literal_types.insert(value.clone(), type_.clone());
         type_
     }
 
@@ -943,7 +943,7 @@ impl TypeChecker {
         }
         let result = self.create_symbol(
             symbol.flags(),
-            symbol.escaped_name().to_owned(),
+            symbol.escaped_name().clone(),
             Some(
                 CheckFlags::Instantiated
                     | get_check_flags(&symbol)

@@ -21,14 +21,13 @@ use crate::{
     is_class_expression, is_class_like, is_declaration, is_element_access_expression,
     is_entity_name_expression, is_export_assignment, is_in_js_file, is_interface_declaration,
     is_no_substitution_template_literal, is_numeric_literal, is_prefix_unary_expression,
-    is_property_access_expression, is_source_file, is_string_literal_like,
-    maybe_text_char_at_index, position_is_synthesized, single_element_array, skip_parentheses,
-    some, starts_with, string_to_token, token_to_string, AssignmentDeclarationKind, CharacterCodes,
-    Debug_, InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, ReadonlyTextRange, SortedArray, Symbol, SymbolInterface,
-    SyntaxKind, TokenFlags, __String, escape_leading_underscores, get_name_of_declaration,
-    insert_sorted, is_member_name, Diagnostic, DiagnosticCollection,
-    DiagnosticRelatedInformationInterface,
+    is_property_access_expression, is_source_file, is_string_literal_like, position_is_synthesized,
+    single_element_array, skip_parentheses, some, starts_with, string_to_token, token_to_string,
+    AssignmentDeclarationKind, CharacterCodes, Debug_, InterfaceOrClassLikeDeclarationInterface,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ReadonlyTextRange,
+    SortedArray, SourceTextSliceOrString, Symbol, SymbolInterface, SyntaxKind, TokenFlags,
+    __String, escape_leading_underscores, get_name_of_declaration, insert_sorted, is_member_name,
+    Diagnostic, DiagnosticCollection, DiagnosticRelatedInformationInterface,
 };
 
 pub fn is_literal_computed_property_declaration_name(node: &Node) -> bool {
@@ -391,22 +390,25 @@ pub fn is_dynamic_name(name: &Node /*DeclarationName*/) -> bool {
 
 pub fn get_property_name_for_property_name_node<'name>(
     name: &'name Node, /*PropertyName*/
-) -> Option<Cow<'name, str> /*__String*/> {
+) -> Option<SourceTextSliceOrString /*__String*/> {
     match name.kind() {
-        SyntaxKind::Identifier => Some((&*name.as_identifier().escaped_text).into()),
-        SyntaxKind::PrivateIdentifier => Some((&*name.as_private_identifier().escaped_text).into()),
+        SyntaxKind::Identifier => Some(name.as_identifier().escaped_text.clone()),
+        SyntaxKind::PrivateIdentifier => Some(name.as_private_identifier().escaped_text.clone()),
         SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral => Some(
-            escape_leading_underscores(&name.as_literal_like_node().text())
-                .into_owned()
-                .into(),
+            name.as_literal_like_node()
+                .text()
+                .clone()
+                .escape_leading_underscores(),
         ),
         SyntaxKind::ComputedPropertyName => {
             let name_expression = &name.as_computed_property_name().expression;
             if is_string_or_numeric_literal_like(name_expression) {
                 Some(
-                    escape_leading_underscores(&name_expression.as_literal_like_node().text())
-                        .into_owned()
-                        .into(),
+                    name_expression
+                        .as_literal_like_node()
+                        .text()
+                        .clone()
+                        .escape_leading_underscores(),
                 )
             } else if is_signed_numeric_literal(name_expression) {
                 let name_expression_as_prefix_unary_expression =
@@ -417,7 +419,7 @@ pub fn get_property_name_for_property_name_node<'name>(
                             "{}{}",
                             token_to_string(name_expression_as_prefix_unary_expression.operator)
                                 .unwrap(),
-                            name_expression_as_prefix_unary_expression
+                            &**name_expression_as_prefix_unary_expression
                                 .operand
                                 .as_literal_like_node()
                                 .text()
@@ -430,8 +432,7 @@ pub fn get_property_name_for_property_name_node<'name>(
                             .operand
                             .as_literal_like_node()
                             .text()
-                            .clone()
-                            .into(),
+                            .clone(),
                     )
                 }
             } else {
@@ -452,22 +453,55 @@ pub fn is_property_name_literal(node: &Node) -> bool {
     )
 }
 
-pub fn get_text_of_identifier_or_literal<'node>(node: &'node Node) -> Cow<'node, str> {
+pub fn get_text_of_identifier_or_literal<'node>(
+    node: &'node Node,
+) -> StrOrSourceTextSliceOrString<'node> {
     if is_member_name(node) {
         id_text(node).into()
     } else {
-        node.as_literal_like_node().text().to_owned().into()
+        node.as_literal_like_node().text().clone().into()
     }
 }
 
-pub fn get_escaped_text_of_identifier_or_literal<'node>(node: &'node Node) -> Cow<'node, str> /*__String*/
+pub enum StrOrSourceTextSliceOrString<'str> {
+    Str(&'str str),
+    SourceTextSliceOrString(SourceTextSliceOrString),
+}
+
+impl Deref for StrOrSourceTextSliceOrString<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Str(value) => *value,
+            Self::SourceTextSliceOrString(value) => &**value,
+        }
+    }
+}
+
+impl<'str> From<&'str str> for StrOrSourceTextSliceOrString<'str> {
+    fn from(value: &'str str) -> Self {
+        Self::Str(value)
+    }
+}
+
+impl<'str> From<SourceTextSliceOrString> for StrOrSourceTextSliceOrString<'str> {
+    fn from(value: SourceTextSliceOrString) -> Self {
+        Self::SourceTextSliceOrString(value)
+    }
+}
+
+pub fn get_escaped_text_of_identifier_or_literal<'node>(
+    node: &'node Node,
+) -> SourceTextSliceOrString /*__String*/
 {
     if is_member_name(node) {
-        node.as_member_name().escaped_text().into()
+        node.as_member_name().escaped_text().clone()
     } else {
-        escape_leading_underscores(&node.as_literal_like_node().text())
-            .into_owned()
-            .into()
+        node.as_literal_like_node()
+            .text()
+            .clone()
+            .escape_leading_underscores()
     }
 }
 
@@ -1064,7 +1098,9 @@ fn get_jsx_attribute_string_replacement(c: &str) -> Cow<'static, str> {
 
 pub fn escape_jsx_attribute_string<'string>(
     s: &'string str,
-    quote_char: Option<&'str /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote*/>,
+    quote_char: Option<
+        &'string str, /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote*/
+    >,
 ) -> Cow<'string, str> {
     let escaped_chars_reg_exp = match quote_char {
         Some(quote_char) if quote_char == CharacterCodes::single_quote => {

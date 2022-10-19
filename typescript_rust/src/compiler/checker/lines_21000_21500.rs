@@ -897,7 +897,11 @@ impl TypeChecker {
             if !t.flags().intersects(TypeFlags::StringLiteral) {
                 return None;
             }
-            let name = escape_leading_underscores(&t.as_string_literal_type().value).into_owned();
+            let name = t
+                .as_string_literal_type()
+                .value
+                .clone()
+                .escape_leading_underscores();
             let literal_prop: Rc<Symbol> = self
                 .create_symbol(SymbolFlags::Property, name.clone(), None)
                 .into();

@@ -16,8 +16,8 @@ use crate::{
     ComputedPropertyName, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
     Diagnostics, HasStatementsInterface, IncrementalParser, IncrementalParserSyntaxCursor,
     IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
-    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
-    TransformFlags,
+    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SourceTextSliceOrString,
+    SyntaxKind, TextRange, TransformFlags,
 };
 
 impl ParserType {
@@ -1181,17 +1181,15 @@ impl ParserType {
         self.finish_node(result, pos, None)
     }
 
-    pub(super) fn intern_identifier(&self, text: &str) -> String {
+    pub(super) fn intern_identifier(
+        &self,
+        text: &SourceTextSliceOrString,
+    ) -> SourceTextSliceOrString {
         let identifiers = self.identifiers();
         let mut identifiers = identifiers.borrow_mut();
-        let mut identifier: Option<String> = identifiers
-            .get(text)
-            .map(|identifier| identifier.to_owned());
-        if identifier.is_none() {
-            identifier = Some(text.to_owned());
-            identifiers.insert(text.to_owned(), identifier.clone().unwrap());
-        }
-        identifier.unwrap()
+        identifiers
+            .get_or_insert_with(text, || text.clone())
+            .clone()
     }
 
     pub(super) fn create_identifier(

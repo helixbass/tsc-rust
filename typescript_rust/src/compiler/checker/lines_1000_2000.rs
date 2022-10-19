@@ -37,12 +37,12 @@ use crate::{
     DuplicateInfoForSymbol, EmitResolverDebuggable, FindAncestorCallbackReturn,
     HasInitializerInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray,
     NodeFlags, PatternAmbientModule, PragmaArgumentName, PragmaName, ReadonlyTextRange,
-    ScriptTarget, VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores,
-    factory, get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
-    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
-    TransientSymbolInterface, TypeChecker,
+    ScriptTarget, SourceTextSliceOrString, VisitResult, __String, create_diagnostic_for_node,
+    escape_leading_underscores, factory, get_first_identifier, get_source_file_of_node,
+    is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
+    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
+    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
+    TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -450,14 +450,16 @@ impl TypeChecker {
         self.add_deprecated_suggestion_worker(&vec![declaration.node_wrapper()], diagnostic)
     }
 
+    // pub(super) fn create_symbol<TName: Into<SourceTextSliceOrString>>(
     pub(super) fn create_symbol(
         &self,
         flags: SymbolFlags,
-        name: __String,
+        name: SourceTextSliceOrString, /*TName*/
+        /*__String*/
         check_flags: Option<CheckFlags>,
     ) -> TransientSymbol {
         self.increment_symbol_count();
-        let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
+        let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name /*.into()*/);
         let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None));
         symbol.into()
     }
@@ -526,7 +528,7 @@ impl TypeChecker {
 
     pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
         let result: Rc<Symbol> = self
-            .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
+            .create_symbol(symbol.flags(), symbol.escaped_name().clone(), None)
             .into();
         result.set_declarations(
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {

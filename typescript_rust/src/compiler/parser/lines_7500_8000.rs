@@ -350,7 +350,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         end: usize,
         length: usize,
-        content_str: Rc<SourceText>,
+        content: Rc<SourceText>,
     ) -> Self {
         Self {
             parser,

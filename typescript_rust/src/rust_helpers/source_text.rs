@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::cmp::PartialEq;
 use std::convert::TryInto;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -91,13 +92,13 @@ impl SourceText {
                 if let Some(position) = position {
                     value.char_indices[0..=position]
                         .iter()
-                        .rfind(ch)
+                        .rfind(|char_index| char_index.1 == ch)
                         .map(|char_index| char_index.0)
                 } else {
                     value
                         .char_indices
                         .iter()
-                        .rposition(|char_index| char_index.1 == ch)
+                        .rfind(|char_index| char_index.1 == ch)
                         .map(|char_index| char_index.0)
                 }
             }
@@ -252,120 +253,35 @@ impl Deref for SourceTextSlice {
     }
 }
 
-#[derive(Clone)]
-pub enum SourceTextSliceOrStaticCow {
-    SourceTextSlice(SourceTextSlice),
-    StaticCow(Cow<'static, str>),
-}
-
-impl Deref for SourceTextSliceOrStaticCow {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::SourceTextSlice(value) => &**value,
-            Self::StaticCow(value) => &**value,
-        }
-    }
-}
-
-impl From<SourceTextSlice> for SourceTextSliceOrStaticCow {
-    fn from(value: SourceTextSlice) -> Self {
-        Self::SourceTextSlice(value)
-    }
-}
-
-impl From<&'static str> for SourceTextSliceOrStaticCow {
-    fn from(value: &'static str) -> Self {
-        Self::StaticCow(value.into())
-    }
-}
-
-impl From<String> for SourceTextSliceOrStaticCow {
-    fn from(value: String) -> Self {
-        Self::StaticCow(value.into())
-    }
-}
-
-impl From<Cow<'static, str>> for SourceTextSliceOrStaticCow {
-    fn from(value: Cow<'static, str>) -> Self {
-        Self::StaticCow(value)
-    }
-}
-
-impl From<SourceTextSliceOrString> for SourceTextSliceOrStaticCow {
-    fn from(value: SourceTextSliceOrString) -> Self {
-        match value {
-            SourceTextSliceOrString::SourceTextSlice(value) => Self::SourceTextSlice(value),
-            SourceTextSliceOrString::String(value) => Self::StaticCow(value.into()),
-        }
-    }
-}
-
-impl From<SourceTextSliceOrStaticCow> for String {
-    fn from(value: SourceTextSliceOrStaticCow) -> Self {
-        match value {
-            SourceTextSliceOrStaticCow::SourceTextSlice(value) => (*value).to_owned(),
-            SourceTextSliceOrStaticCow::StaticCow(value) => value.into_owned(),
-        }
-    }
-}
-
-pub fn reduce_source_text_slice_or_static_cows(
-    items: Vec<SourceTextSliceOrStaticCow>,
-) -> SourceTextSliceOrStaticCow {
-    let mut last_slice_end: Option<usize> = None;
-    items
-        .into_iter()
-        .reduce(|a, b| match a {
-            SourceTextSliceOrStaticCow::SourceTextSlice(a) => match b {
-                SourceTextSliceOrStaticCow::SourceTextSlice(b) => {
-                    Debug_.assert(
-                        last_slice_end == Some(a.start),
-                        Some("Source text slices should be contiguous"),
-                    );
-                    last_slice_end = b.end;
-                    a.extended(b.end).into()
-                }
-                SourceTextSliceOrStaticCow::StaticCow(b) => format!("{}{}", &*a, b).into(),
-            },
-            SourceTextSliceOrStaticCow::StaticCow(a) => format!("{}{}", a, &*b).into(),
-        })
-        .unwrap()
-}
-
-pub enum SourceTextSliceOrStaticStr {
-    SourceTextSlice(SourceTextSlice),
-    StaticStr(&'static str),
-}
-
-impl From<SourceTextSlice> for SourceTextSliceOrStaticStr {
-    fn from(value: SourceTextSlice) -> Self {
-        Self::SourceTextSlice(value)
-    }
-}
-
-impl From<&'static str> for SourceTextSliceOrStaticStr {
-    fn from(value: &'static str) -> Self {
-        Self::StaticStr(value.into())
-    }
-}
-
+#[derive(Clone, Debug)]
 pub enum SourceTextSliceOrString {
     SourceTextSlice(SourceTextSlice),
-    String(String),
+    StaticStr(&'static str),
+    String(Rc<String>),
 }
 
-impl From<SourceTextSlice> for SourceTextSliceOrString {
-    fn from(value: SourceTextSlice) -> Self {
-        Self::SourceTextSlice(value)
+impl SourceTextSliceOrString {
+    pub fn escape_leading_underscores(self) -> Self {
+        if self.starts_with("__") {
+            format!("_{}", &*self).into()
+        } else {
+            self
+        }
     }
-}
 
-impl From<String> for SourceTextSliceOrString {
-    fn from(value: String) -> Self {
-        Self::String(value)
-    }
+    // pub fn unescape_leading_underscores(&self) -> Cow<'_, Self> {
+    //     if self.starts_with("___") {
+    //         match self {
+    //             Self::SourceTextSlice(value) => SourceTextSlice::new(value.source_text.clone(), value.start + 1, value.end).into(),
+    //             Self::StaticStr(value) => Self::StaticStr(&value[1..]),
+    //             // TODO: this is actually doing extra allocation vs "simple"
+    //             // unescape_leading_underscores() never allocates?
+    //             Self::String(value) => Self::String(Rc::new(value[1..].to_owned())),
+    //         }
+    //     } else {
+    //         self.into()
+    //     }
+    // }
 }
 
 impl Deref for SourceTextSliceOrString {
@@ -374,7 +290,76 @@ impl Deref for SourceTextSliceOrString {
     fn deref(&self) -> &Self::Target {
         match self {
             Self::SourceTextSlice(value) => &**value,
-            Self::String(value) => &**value,
+            Self::StaticStr(value) => *value,
+            Self::String(value) => &***value,
         }
     }
+}
+
+impl PartialEq<&str> for SourceTextSliceOrString {
+    fn eq(&self, other: &&str) -> bool {
+        &**self == *other
+    }
+}
+
+impl From<SourceTextSlice> for SourceTextSliceOrString {
+    fn from(value: SourceTextSlice) -> Self {
+        Self::SourceTextSlice(value)
+    }
+}
+
+impl From<&'static str> for SourceTextSliceOrString {
+    fn from(value: &'static str) -> Self {
+        Self::StaticStr(value)
+    }
+}
+
+impl From<String> for SourceTextSliceOrString {
+    fn from(value: String) -> Self {
+        Self::String(Rc::new(value))
+    }
+}
+
+impl From<Cow<'static, str>> for SourceTextSliceOrString {
+    fn from(value: Cow<'static, str>) -> Self {
+        match value {
+            Cow::Owned(value) => Self::String(Rc::new(value)),
+            Cow::Borrowed(value) => Self::StaticStr(value),
+        }
+    }
+}
+
+// impl From<SourceTextSliceOrString> for String {
+//     fn from(value: SourceTextSliceOrString) -> Self {
+//         match value {
+//             SourceTextSliceOrString::SourceTextSlice(value) => (*value).to_owned(),
+//             SourceTextSliceOrString::StaticStr(value) => value.to_owned(),
+//             SourceTextSliceOrString::String(value) => value,
+//         }
+//     }
+// }
+
+pub fn reduce_source_text_slice_or_static_cows(
+    items: Vec<SourceTextSliceOrString>,
+) -> SourceTextSliceOrString {
+    let mut last_slice_end: Option<usize> = None;
+    items
+        .into_iter()
+        .reduce(|a, b| match a {
+            SourceTextSliceOrString::SourceTextSlice(a) => match b {
+                SourceTextSliceOrString::SourceTextSlice(b) => {
+                    Debug_.assert(
+                        last_slice_end == Some(a.start),
+                        Some("Source text slices should be contiguous"),
+                    );
+                    last_slice_end = b.end;
+                    a.extended(b.end).into()
+                }
+                SourceTextSliceOrString::StaticStr(b) => format!("{}{}", &*a, b).into(),
+                SourceTextSliceOrString::String(b) => format!("{}{}", &*a, b).into(),
+            },
+            SourceTextSliceOrString::StaticStr(a) => format!("{}{}", a, &*b).into(),
+            SourceTextSliceOrString::String(a) => format!("{}{}", a, &*b).into(),
+        })
+        .unwrap()
 }

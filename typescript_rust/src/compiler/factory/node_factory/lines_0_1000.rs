@@ -7,7 +7,7 @@ use std::rc::Rc;
 use super::{
     aggregate_children_flags, propagate_child_flags, propagate_children_flags,
     propagate_identifier_name_flags, update_with_original, update_without_original,
-    PseudoBigIntOrString,
+    PseudoBigIntOrSourceTextSliceOrString,
 };
 use crate::{
     create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
@@ -23,8 +23,8 @@ use crate::{
     LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
     NodeInterface, Number, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
     PrefixUnaryExpression, PrivateIdentifier, ReadonlyTextRange, RegularExpressionLiteral,
-    SignatureDeclarationInterface, StringLiteral, StringOrNodeArray, SyntaxKind, TokenFlags,
-    TransformFlags,
+    SignatureDeclarationInterface, SourceTextSliceOrString, StringLiteral, StringOrNodeArray,
+    SyntaxKind, TokenFlags, TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -992,13 +992,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        text: String,
+        text: SourceTextSliceOrString,
     ) -> BaseLiteralLikeNode {
         let node = self.create_base_token(base_factory, kind);
         BaseLiteralLikeNode::new(node, text)
     }
 
-    pub fn create_numeric_literal<TValue: Into<StringOrNumber>>(
+    pub fn create_numeric_literal<TValue: Into<SourceTextSliceOrStringOrNumber>>(
         &self,
         base_factory: &TBaseNodeFactory,
         value: TValue,
@@ -1010,8 +1010,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::NumericLiteral,
             match value {
-                StringOrNumber::String(value) => value,
-                StringOrNumber::Number(value) => value.to_string(),
+                SourceTextSliceOrStringOrNumber::SourceTextSliceOrString(value) => value,
+                SourceTextSliceOrStringOrNumber::Number(value) => value.to_string().into(),
             },
         );
         let mut node = NumericLiteral::new(node, numeric_literal_flags);
@@ -1021,19 +1021,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_big_int_literal<TPseudoBigIntOrString: Into<PseudoBigIntOrString>>(
+    pub fn create_big_int_literal<TValue: Into<PseudoBigIntOrSourceTextSliceOrString>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        value: TPseudoBigIntOrString,
+        value: TValue,
     ) -> BigIntLiteral {
         let value = value.into();
         let node = self.create_base_literal(
             base_factory,
             SyntaxKind::BigIntLiteral,
             match value {
-                PseudoBigIntOrString::String(value) => value,
-                PseudoBigIntOrString::PseudoBigInt(value) => {
-                    format!("{}n", pseudo_big_int_to_string(&value))
+                PseudoBigIntOrSourceTextSliceOrString::SourceTextSliceOrString(value) => value,
+                PseudoBigIntOrSourceTextSliceOrString::PseudoBigInt(value) => {
+                    format!("{}n", pseudo_big_int_to_string(&value)).into()
                 }
             },
         );
@@ -1045,7 +1045,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_base_string_literal(
         &self,
         base_factory: &TBaseNodeFactory,
-        text: String,
+        text: SourceTextSliceOrString,
         is_single_quote: Option<bool>,
     ) -> StringLiteral {
         let node = self.create_base_literal(base_factory, SyntaxKind::StringLiteral, text);
@@ -1055,7 +1055,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_string_literal(
         &self,
         base_factory: &TBaseNodeFactory,
-        text: String,
+        text: SourceTextSliceOrString,
         is_single_quote: Option<bool>,
         has_extended_unicode_escape: Option<bool>,
     ) -> StringLiteral {
@@ -1084,7 +1084,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_regular_expression_literal(
         &self,
         base_factory: &TBaseNodeFactory,
-        text: String,
+        text: SourceTextSliceOrString,
     ) -> RegularExpressionLiteral {
         let node =
             self.create_base_literal(base_factory, SyntaxKind::RegularExpressionLiteral, text);
@@ -1095,7 +1095,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind, /*LiteralToken["kind"] | SyntaxKind.JsxTextAllWhiteSpaces*/
-        text: String,
+        text: SourceTextSliceOrString,
     ) -> Node {
         match kind {
             SyntaxKind::NumericLiteral => self
@@ -1128,17 +1128,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub(crate) fn create_base_identifier(
         &self,
         base_factory: &TBaseNodeFactory,
-        text: &str,
+        text: SourceTextSliceOrString,
         mut original_keyword_kind: Option<SyntaxKind>,
     ) -> Identifier {
         if original_keyword_kind.is_none() && !text.is_empty() {
-            original_keyword_kind = string_to_token(text);
+            original_keyword_kind = string_to_token(&text);
         }
         if matches!(original_keyword_kind, Some(SyntaxKind::Identifier)) {
             original_keyword_kind = None;
         }
         let node = base_factory.create_base_identifier_node(SyntaxKind::Identifier);
-        let mut node = Identifier::new(node, escape_leading_underscores(text).into_owned());
+        let mut node = Identifier::new(node, text.escape_leading_underscores());
         node.original_keyword_kind = original_keyword_kind;
         node
     }
@@ -1159,7 +1159,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_identifier<TTypeArguments: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        text: &str,
+        text: SourceTextSliceOrString,
         type_arguments: Option<TTypeArguments>,
         original_keyword_kind: Option<SyntaxKind>,
     ) -> Identifier {
@@ -1367,6 +1367,24 @@ impl From<String> for StringOrNumber {
 }
 
 impl From<Number> for StringOrNumber {
+    fn from(value: Number) -> Self {
+        Self::Number(value)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum SourceTextSliceOrStringOrNumber {
+    SourceTextSliceOrString(SourceTextSliceOrString),
+    Number(Number),
+}
+
+impl From<SourceTextSliceOrString> for SourceTextSliceOrStringOrNumber {
+    fn from(value: SourceTextSliceOrString) -> Self {
+        Self::SourceTextSliceOrString(value)
+    }
+}
+
+impl From<Number> for SourceTextSliceOrStringOrNumber {
     fn from(value: Number) -> Self {
         Self::Number(value)
     }

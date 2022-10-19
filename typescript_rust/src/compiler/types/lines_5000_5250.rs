@@ -18,7 +18,8 @@ use super::{
 use crate::{
     BaseTransientSymbol, EvolvingArrayType, FreshObjectLiteralTypeInterface, GenericTypeInterface,
     InterfaceTypeInterface, IterationTypeCacheKey, IterationTypes, JsxFlags, Node, NodeId,
-    NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface,
+    NotActuallyInterfaceType, ObjectFlags, Pattern, SourceTextSliceOrString, StringOrNumber,
+    TypeReferenceInterface,
 };
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
@@ -102,7 +103,7 @@ pub type __String = String;
 
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
-pub type SymbolTable = IndexMap<__String, Rc<Symbol>>;
+pub type SymbolTable = IndexMap<SourceTextSliceOrString, Rc<Symbol>>;
 
 #[derive(Clone, Debug)]
 pub struct PatternAmbientModule {

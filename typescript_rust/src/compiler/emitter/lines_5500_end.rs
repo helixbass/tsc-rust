@@ -9,7 +9,7 @@ use crate::{
     emit_detached_comments, for_each_leading_comment_range, for_each_trailing_comment_range,
     is_recognized_triple_slash_comment, last, try_parse_raw_source_map, write_comment_range,
     EmitHint, EmitTextWriter, ListFormat, Node, Printer, RawSourceMap, ReadonlyTextRange,
-    SourceFileLike, SourceMapSource, SourceTextAsChars, SyntaxKind,
+    SourceFileLike, SourceMapSource, SyntaxKind,
 };
 
 impl Printer {

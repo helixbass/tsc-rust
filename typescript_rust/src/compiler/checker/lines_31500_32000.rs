@@ -262,13 +262,13 @@ impl TypeChecker {
 
     pub(super) fn create_new_target_expression_type(&self, target_type: &Type) -> Rc<Type> {
         let symbol: Rc<Symbol> = self
-            .create_symbol(SymbolFlags::None, "NewTargetExpression".to_owned(), None)
+            .create_symbol(SymbolFlags::None, "NewTargetExpression".into(), None)
             .into();
 
         let target_property_symbol: Rc<Symbol> = self
             .create_symbol(
                 SymbolFlags::Property,
-                "target".to_owned(),
+                "target".into(),
                 Some(CheckFlags::Readonly),
             )
             .into();

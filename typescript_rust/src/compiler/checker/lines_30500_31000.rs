@@ -354,11 +354,7 @@ impl TypeChecker {
             })
         });
         let parameter_symbol: Rc<Symbol> = self
-            .create_symbol(
-                SymbolFlags::FunctionScopedVariable,
-                "props".to_owned(),
-                None,
-            )
+            .create_symbol(SymbolFlags::FunctionScopedVariable, "props".into(), None)
             .into();
         parameter_symbol
             .as_transient_symbol()

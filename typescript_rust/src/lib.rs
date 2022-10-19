@@ -86,8 +86,9 @@ pub use compiler::factory::node_converters::{create_node_converters, null_node_c
 pub use compiler::factory::node_factory::{
     create_node_factory, factory, has_option_node_array_changed, set_original_node,
     synthetic_factory, with_factory, with_synthetic_factory, with_synthetic_factory_and_factory,
-    BaseNodeFactorySynthetic, MaybeChangedNodeArray, NodeFactoryFlags, StrOrRcNode, StringOrNumber,
-    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKindOrRcNode,
+    BaseNodeFactorySynthetic, MaybeChangedNodeArray, NodeFactoryFlags,
+    SourceTextSliceOrStringOrNumber, StrOrRcNode, StringOrNumber, StringOrNumberOrBoolOrRcNode,
+    StringOrRcNode, SyntaxKindOrRcNode,
 };
 pub use compiler::factory::node_tests::{
     is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,
@@ -266,12 +267,10 @@ use compiler::types::{
 };
 pub use compiler::types::{
     extend_compiler_options, extend_watch_options, get_pragma_spec, maybe_extend_compiler_options,
-    maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
-    text_str_num_chars, text_substring, to_pragma_name, AllAccessorDeclarations,
-    AlternateModeDiagnostics, AmdDependency, ArrayBindingPattern, ArrayLiteralExpression,
-    ArrayTypeNode, ArrowFunction, AsExpression, AssertClause, AssertEntry,
-    AssignmentDeclarationKind, AutomaticTypeDirectiveFile, AwaitExpression,
-    BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    to_pragma_name, AllAccessorDeclarations, AlternateModeDiagnostics, AmdDependency,
+    ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
+    AssertClause, AssertEntry, AssignmentDeclarationKind, AutomaticTypeDirectiveFile,
+    AwaitExpression, BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
     BaseInterfaceType, BaseIntrinsicType, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseLiteralType, BaseNamedDeclaration, BaseNode, BaseObjectType,
@@ -630,8 +629,7 @@ pub use rust_helpers::debugging::{
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::regex::split_matches;
 pub use rust_helpers::source_text::{
-    reduce_source_text_slice_or_static_cows, SourceText, SourceTextSlice,
-    SourceTextSliceOrStaticCow, SourceTextSliceOrStaticStr, SourceTextSliceOrString,
+    reduce_source_text_slice_or_static_cows, SourceText, SourceTextSlice, SourceTextSliceOrString,
 };
 pub use rust_helpers::sys::{
     fs_readdir_sync_with_file_types, fs_stat_sync, is_windows, process_cwd,

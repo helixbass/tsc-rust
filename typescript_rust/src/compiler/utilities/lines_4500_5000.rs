@@ -20,10 +20,9 @@ use crate::{
     is_heritage_clause, is_in_js_file, is_jsdoc_property_like_tag, is_jsdoc_signature,
     is_jsdoc_template_tag, is_jsdoc_type_alias, is_left_hand_side_expression, is_parameter,
     is_pinned_comment, is_property_access_entity_name_expression, is_white_space_single_line, last,
-    maybe_filter, maybe_is_class_like, maybe_text_char_at_index, skip_trivia, synthetic_factory,
-    text_char_at_index, text_substring, trim_string, CharacterCodes, CommentRange, EmitTextWriter,
-    Extension, ModifierFlags, ModifiersArray, Node, NodeArray, NodeFlags, NodeInterface,
-    ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
+    maybe_filter, maybe_is_class_like, skip_trivia, synthetic_factory, trim_string, CharacterCodes,
+    CommentRange, EmitTextWriter, Extension, ModifierFlags, ModifiersArray, Node, NodeArray,
+    NodeFlags, NodeInterface, ReadonlyTextRange, SyntaxKind, TextRange,
 };
 
 pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {

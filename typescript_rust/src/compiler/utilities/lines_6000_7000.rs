@@ -28,7 +28,7 @@ use crate::{
     FileExtensionInfo, JsxEmit, LanguageVariant, MapLike, ModuleKind, ModuleResolutionKind,
     MultiMap, Node, NodeArray, NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName,
     PragmaName, ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
-    ScriptTarget, SourceFileLike, TypeAcquisition, WatchOptions,
+    ScriptTarget, SourceFileLike, SourceTextSliceOrString, TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -751,7 +751,7 @@ pub fn get_compiler_option_value(
 pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
     compiler_options: &CompilerOptions,
     file: Option<TFile /*SourceFile*/>,
-) -> Option<String> {
+) -> Option<SourceTextSliceOrString> {
     let file: Option<Rc<Node>> = file.map(|file| file.borrow().node_wrapper());
     let jsx_import_source_pragmas = file.as_ref().and_then(|file| {
         file.as_source_file()
@@ -781,9 +781,10 @@ pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
                         .unwrap()
                         .as_without_captured_span()
                         .clone()
+                        .into()
                 })
-                .or_else(|| compiler_options.jsx_import_source.clone())
-                .unwrap_or_else(|| "react".to_owned()),
+                .or_else(|| compiler_options.jsx_import_source.clone().into())
+                .unwrap_or_else(|| "react".into()),
         )
     } else {
         None

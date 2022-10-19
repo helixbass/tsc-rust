@@ -20,8 +20,8 @@ use crate::{
     ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
     ProjectReference, RawSourceMap, RedirectTargetsMap, ResolvedProjectReference,
-    SourceOfProjectReferenceRedirect, SourceText, StructureIsReused, SymlinkCache, Type, TypeFlags,
-    TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    SourceOfProjectReferenceRedirect, SourceText, SourceTextSliceOrString, StructureIsReused,
+    SymlinkCache, Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -135,7 +135,6 @@ pub struct SourceFile {
 
 #[derive(Debug)]
 pub struct SourceFileContents {
-    _symbols_without_a_symbol_table_strong_references: RefCell<Vec<Rc<Symbol>>>,
     statements: NodeArray,
     end_of_file_token: Rc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
 
@@ -148,7 +147,7 @@ pub struct SourceFileContents {
     redirect_info: RefCell<Option<RedirectInfo>>,
 
     amd_dependencies: RefCell<Option<Vec<AmdDependency>>>,
-    module_name: RefCell<Option<String>>,
+    module_name: RefCell<Option<SourceTextSliceOrString>>,
     referenced_files: RefCell<Option<Vec<FileReference>>>,
     type_reference_directives: RefCell<Option<Vec<FileReference>>>,
     lib_reference_directives: RefCell<Option<Vec<FileReference>>>,
@@ -220,7 +219,6 @@ impl SourceFile {
         Self {
             _node: base_node,
             contents: Box::new(SourceFileContents {
-                _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
                 statements,
                 end_of_file_token,
                 file_name: RefCell::new(file_name),
@@ -367,7 +365,7 @@ impl SourceFile {
         *self.contents.amd_dependencies.borrow_mut() = Some(amd_dependencies);
     }
 
-    pub fn maybe_module_name(&self) -> RefMut<Option<String>> {
+    pub fn maybe_module_name(&self) -> RefMut<Option<SourceTextSliceOrString>> {
         self.contents.module_name.borrow_mut()
     }
 
@@ -657,13 +655,6 @@ impl SourceFile {
     pub fn maybe_end_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
         self.contents.end_flow_node.borrow_mut()
     }
-
-    pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
-        self.contents
-            ._symbols_without_a_symbol_table_strong_references
-            .borrow_mut()
-            .push(symbol);
-    }
 }
 
 impl SourceFileLike for SourceFile {
@@ -728,7 +719,7 @@ impl PragmaContext for SourceFile {
         self.contents.has_no_default_lib.set(has_no_default_lib);
     }
 
-    fn maybe_module_name(&self) -> RefMut<Option<String>> {
+    fn maybe_module_name(&self) -> RefMut<Option<SourceTextSliceOrString>> {
         self.contents.module_name.borrow_mut()
     }
 }
@@ -830,8 +821,7 @@ impl HasOldFileOfCurrentEmitInterface for InputFiles {
 pub struct UnparsedSource {
     _node: BaseNode,
     pub file_name: String,
-    text: RefCell<String>,
-    text_as_chars: RefCell<SourceTextAsChars>,
+    text: RefCell<Rc<SourceText>>,
     pub prologues: Vec<Rc<Node /*UnparsedPrologue*/>>,
     pub helpers: Option<Vec<Rc<EmitHelper /*UnscopedEmitHelper*/>>>,
 
@@ -855,11 +845,10 @@ impl UnparsedSource {
         synthetic_references: Option<Vec<Rc<Node>>>,
         texts: Vec<Rc<Node>>,
         file_name: String,
-        text: String,
+        text: Rc<SourceText>,
         referenced_files: Vec<FileReference>,
         lib_reference_directives: Vec<FileReference>,
     ) -> Self {
-        let text_as_chars = text.chars().collect::<Vec<_>>();
         Self {
             _node: base_node,
             prologues,
@@ -867,7 +856,6 @@ impl UnparsedSource {
             texts,
             file_name,
             text: RefCell::new(text),
-            text_as_chars: RefCell::new(text_as_chars),
             referenced_files,
             lib_reference_directives,
             helpers: None,
@@ -894,12 +882,8 @@ impl HasOldFileOfCurrentEmitInterface for UnparsedSource {
 }
 
 impl SourceFileLike for UnparsedSource {
-    fn text(&self) -> Ref<String> {
-        self.text.borrow()
-    }
-
-    fn text_as_chars(&self) -> Ref<SourceTextAsChars> {
-        self.text_as_chars.borrow()
+    fn text(&self) -> Rc<SourceText> {
+        self.text.borrow().clone()
     }
 
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {

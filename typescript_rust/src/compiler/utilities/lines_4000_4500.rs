@@ -16,12 +16,12 @@ use crate::{
     get_root_length, has_dynamic_name, is_accessor, is_constructor_declaration, is_external_module,
     is_jsdoc_signature, is_json_source_file, is_qualified_name, is_source_file_js,
     is_string_literal_like, is_white_space_like, last, node_is_present, normalize_path,
-    path_is_relative, remove_file_extension, str_to_source_text_as_chars, string_contains, to_path,
-    AllAccessorDeclarations, CharacterCodes, CharacterCodesChar, CompilerOptions, Debug_,
-    DiagnosticCollection, Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
-    FunctionLikeDeclarationInterface, HasTypeInterface, ModuleKind, NamedDeclarationInterface,
-    Node, NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface,
-    SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
+    path_is_relative, remove_file_extension, string_contains, to_path, AllAccessorDeclarations,
+    CharacterCodes, CharacterCodesChar, CompilerOptions, Debug_, DiagnosticCollection, Diagnostics,
+    EmitHost, EmitResolver, EmitTextWriter, Extension, FunctionLikeDeclarationInterface,
+    HasTypeInterface, ModuleKind, NamedDeclarationInterface, Node, NodeInterface,
+    ScriptReferenceHost, SignatureDeclarationInterface, SourceFileMayBeEmittedHost,
+    SourceTextSliceOrString, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
     WriteFileCallback,
 };
 
@@ -643,7 +643,7 @@ pub fn get_resolved_external_module_name<
     host: &THost,
     file: &Node, /*SourceFile*/
     reference_file: Option<TReferenceFile /*SourceFile*/>,
-) -> String {
+) -> SourceTextSliceOrString {
     let file_as_source_file = file.as_source_file();
     file_as_source_file
         .maybe_module_name()
@@ -659,6 +659,7 @@ pub fn get_resolved_external_module_name<
                         })
                         .as_deref(),
                 )
+                .into()
             },
             |module_name| module_name.clone(),
         )

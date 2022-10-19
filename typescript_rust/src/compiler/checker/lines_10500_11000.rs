@@ -18,10 +18,10 @@ use crate::{
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
     ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature,
-    SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags,
-    SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
-    __String,
+    SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, SourceTextSliceOrString,
+    Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, Ternary,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
@@ -47,7 +47,7 @@ impl TypeChecker {
     pub(super) fn get_property_name_from_type<'type_>(
         &self,
         type_: &'type_ Type, /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/
-    ) -> Cow<'type_, str> /*__String*/ {
+    ) -> SourceTextSliceOrString /*__String*/ {
         if type_.flags().intersects(TypeFlags::UniqueESSymbol) {
             return (&*type_.as_unique_es_symbol_type().escaped_name).into();
         }
@@ -135,22 +135,22 @@ impl TypeChecker {
                 let symbol_flags = decl.symbol().flags();
 
                 let mut late_symbol: Option<Rc<Symbol>> =
-                    late_symbols.get(&*member_name).map(Clone::clone);
+                    late_symbols.get(&member_name).map(Clone::clone);
                 if late_symbol.is_none() {
                     late_symbol = Some(
                         self.create_symbol(
                             SymbolFlags::None,
-                            (*member_name).to_owned(),
+                            member_name.clone(),
                             Some(CheckFlags::Late),
                         )
                         .into(),
                     );
-                    late_symbols.insert((*member_name).to_owned(), late_symbol.clone().unwrap());
+                    late_symbols.insert(member_name.clone(), late_symbol.clone().unwrap());
                 }
                 let mut late_symbol = late_symbol.unwrap();
 
                 let early_symbol =
-                    early_symbols.and_then(|early_symbols| early_symbols.get(&*member_name));
+                    early_symbols.and_then(|early_symbols| early_symbols.get(&member_name));
                 if late_symbol
                     .flags()
                     .intersects(self.get_excluded_symbol_flags(symbol_flags))
@@ -186,11 +186,7 @@ impl TypeChecker {
                         Some(vec![name]),
                     );
                     late_symbol = self
-                        .create_symbol(
-                            SymbolFlags::None,
-                            member_name.into_owned(),
-                            Some(CheckFlags::Late),
-                        )
+                        .create_symbol(SymbolFlags::None, member_name, Some(CheckFlags::Late))
                         .into();
                 }
                 late_symbol

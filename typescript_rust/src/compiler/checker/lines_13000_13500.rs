@@ -809,11 +809,11 @@ impl TypeChecker {
                 None
             };
             let path = if let Some(parent_symbol) = parent_symbol.as_ref() {
-                format!("{}.{}", self.get_symbol_path(parent_symbol), &**text)
+                format!("{}.{}", self.get_symbol_path(parent_symbol), &**text).into()
             } else {
-                (&**text).to_owned()
+                text.clone()
             };
-            let mut result = self.unresolved_symbols().get(&path).map(Clone::clone);
+            let mut result = self.unresolved_symbols().get(&path).cloned();
             if result.is_none() {
                 result = Some(
                     self.create_symbol(

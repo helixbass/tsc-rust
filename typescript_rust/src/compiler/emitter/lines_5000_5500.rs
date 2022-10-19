@@ -10,7 +10,7 @@ use crate::{
     is_jsdoc_like_text, is_node_descendant_of, is_pinned_comment, is_string_literal,
     make_identifier_from_module_name, maybe_for_each, write_comment_range, Debug_, EmitFlags,
     EmitHint, GeneratedIdentifierFlags, LiteralLikeNodeInterface, Node, NodeInterface, Printer,
-    ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SymbolFlags, SymbolInterface, SyntaxKind,
+    ReadonlyTextRange, SourceFileLike, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TextRange,
 };
 

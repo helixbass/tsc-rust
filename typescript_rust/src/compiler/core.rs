@@ -10,7 +10,7 @@ use std::hash::Hash;
 use std::mem;
 use std::rc::Rc;
 
-use crate::{__String, text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
+use crate::{Comparison, Debug_, SortedArray, __String};
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
     array.map_or(0, |array| array.len())

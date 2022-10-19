@@ -164,7 +164,7 @@ impl TypeChecker {
                     } else {
                         SymbolFlags::None
                     };
-                let symbol: Rc<Symbol> = self.create_symbol(flags, text.into_owned(), None).into();
+                let symbol: Rc<Symbol> = self.create_symbol(flags, text, None).into();
                 symbol
                     .as_transient_symbol()
                     .symbol_links()
@@ -422,7 +422,7 @@ impl TypeChecker {
                     )
                     .unwrap();
                 let result: Rc<Symbol> = self
-                    .create_symbol(file_symbol.flags(), "exports".to_owned(), None)
+                    .create_symbol(file_symbol.flags(), "exports".into(), None)
                     .into();
                 result.set_declarations(
                     file_symbol

@@ -13,12 +13,12 @@ use super::{
 use crate::{
     append, get_source_text_of_node_from_source_file, has_jsdoc_nodes, is_in_js_file,
     is_prologue_directive, set_parent_recursive, BaseTextRange,
-    DiagnosticRelatedInformationInterface, NodeArray, TextRange, TokenFlags, __String,
-    create_file_diagnostic, create_symbol_table, declaration_name_to_string, find_ancestor,
-    get_assignment_declaration_property_access_kind, get_containing_class, get_emit_script_target,
-    get_enclosing_block_scope_container, get_error_span_for_node, get_name_of_declaration,
-    get_span_of_token_at_position, get_token_pos_of_node, id_text, is_assignment_operator,
-    is_assignment_target, is_declaration_statement, is_external_module,
+    DiagnosticRelatedInformationInterface, NodeArray, SourceTextSliceOrString, TextRange,
+    TokenFlags, __String, create_file_diagnostic, create_symbol_table, declaration_name_to_string,
+    find_ancestor, get_assignment_declaration_property_access_kind, get_containing_class,
+    get_emit_script_target, get_enclosing_block_scope_container, get_error_span_for_node,
+    get_name_of_declaration, get_span_of_token_at_position, get_token_pos_of_node, id_text,
+    is_assignment_operator, is_assignment_target, is_declaration_statement, is_external_module,
     is_external_or_common_js_module, is_function_like_or_class_static_block_declaration,
     is_identifier, is_identifier_name, is_in_top_level_context, is_jsdoc_enum_tag,
     is_left_hand_side_expression, is_property_access_entity_name_expression,
@@ -64,16 +64,13 @@ impl BinderType {
         let symbol = self
             .create_symbol(
                 SymbolFlags::Signature,
-                self.get_declaration_name(node).unwrap().into_owned(),
+                self.get_declaration_name(node).unwrap(),
             )
             .wrap();
         self.add_declaration_to_symbol(&symbol, node, SymbolFlags::Signature);
 
         let type_literal_symbol = self
-            .create_symbol(
-                SymbolFlags::TypeLiteral,
-                InternalSymbolName::Type.to_owned(),
-            )
+            .create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type.into())
             .wrap();
         self.add_declaration_to_symbol(&type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let mut type_literal_symbol_members = type_literal_symbol.maybe_members_mut();
@@ -142,7 +139,7 @@ impl BinderType {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::ObjectLiteral,
-            InternalSymbolName::Object.to_owned(),
+            InternalSymbolName::Object.into(),
         );
     }
 
@@ -150,7 +147,7 @@ impl BinderType {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::ObjectLiteral,
-            InternalSymbolName::JSXAttributes.to_owned(),
+            InternalSymbolName::JSXAttributes.into(),
         )
     }
 
@@ -167,15 +164,12 @@ impl BinderType {
         &self,
         node: &Node,
         symbol_flags: SymbolFlags,
-        name: __String,
+        name: SourceTextSliceOrString, /*__String*/
     ) -> Rc<Symbol> {
         let symbol = self.create_symbol(symbol_flags, name).wrap();
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
             symbol.set_parent(self.container().maybe_symbol());
         }
-        self.file()
-            .as_source_file()
-            .keep_strong_reference_to_symbol(symbol.clone());
         self.add_declaration_to_symbol(&symbol, node, symbol_flags);
         symbol
     }

@@ -259,7 +259,7 @@ impl TypeChecker {
                 let attribute_symbol: Rc<Symbol> = self
                     .create_symbol(
                         SymbolFlags::Property | member.flags(),
-                        member.escaped_name().to_owned(),
+                        member.escaped_name().clone(),
                         None,
                     )
                     .into();

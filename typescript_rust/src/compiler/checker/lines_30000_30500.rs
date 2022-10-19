@@ -11,12 +11,12 @@ use crate::{
     get_jsdoc_class_tag, get_object_flags, get_selected_effective_modifier_flags,
     get_source_file_of_node, has_syntactic_modifier, is_call_chain, is_call_expression,
     is_in_js_file, is_line_break, is_outermost_optional_chain, last, length, map_defined,
-    min_and_max, skip_trivia, text_char_at_index, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, HasTypeArgumentsInterface,
-    InferenceFlags, MinAndMax, ModifierFlags, Node, NodeInterface, ObjectFlags, ReadonlyTextRange,
-    ScriptTarget, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface, UnionReduction,
+    min_and_max, skip_trivia, Debug_, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticRelatedInformation, Diagnostics, HasTypeArgumentsInterface, InferenceFlags,
+    MinAndMax, ModifierFlags, Node, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget,
+    Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {

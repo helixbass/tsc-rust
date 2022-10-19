@@ -8,9 +8,8 @@ use std::convert::TryInto;
 use std::iter::FromIterator;
 
 use crate::{
-    arrays_equal, binary_search_copy_key, compare_values, maybe_text_char_at_index,
-    text_char_at_index, text_len, CharacterCodes, Debug_, DiagnosticMessage, LineAndCharacter,
-    ScriptTarget, SourceFileLike, SourceTextAsChars, SyntaxKind,
+    arrays_equal, binary_search_copy_key, compare_values, CharacterCodes, Debug_,
+    DiagnosticMessage, LineAndCharacter, ScriptTarget, SourceFileLike, SyntaxKind,
 };
 
 pub type ErrorCallback<'callback> = &'callback dyn Fn(&DiagnosticMessage, usize);

@@ -10,11 +10,9 @@ use super::{
     maybe_code_point_at,
 };
 use crate::{
-    maybe_text_char_at_index, position_is_synthesized, text_char_at_index, text_len,
-    text_substring, CharacterCodes, CharacterCodesChar, CommentDirective, CommentKind,
+    position_is_synthesized, CharacterCodes, CharacterCodesChar, CommentDirective, CommentKind,
     CommentRange, Debug_, DiagnosticMessage, Diagnostics, LanguageVariant, ScriptTarget,
-    SourceText, SourceTextAsChars, SourceTextSlice, SourceTextSliceOrStaticCow, SyntaxKind,
-    TokenFlags,
+    SourceText, SourceTextSlice, SourceTextSliceOrString, SyntaxKind, TokenFlags,
 };
 
 pub(super) fn is_digit(ch: &str) -> bool {
@@ -668,7 +666,7 @@ pub struct Scanner /*<'on_error>*/ {
     pub(super) start_pos: RefCell<Option<usize>>,
     pub(super) token_pos: RefCell<Option<usize>>,
     pub(super) token: RefCell<Option<SyntaxKind>>,
-    pub(super) token_value: RefCell<Option<SourceTextSliceOrStaticCow>>,
+    pub(super) token_value: RefCell<Option<SourceTextSliceOrString>>,
     pub(super) token_flags: RefCell<Option<TokenFlags>>,
     pub(super) comment_directives: RefCell<Option<Vec<Rc<CommentDirective>>>>,
     pub(super) in_jsdoc_type: Cell<isize>,
@@ -777,21 +775,21 @@ impl Scanner {
         token
     }
 
-    pub(super) fn token_value(&self) -> Ref<SourceTextSliceOrStaticCow> {
+    pub(super) fn token_value(&self) -> Ref<SourceTextSliceOrString> {
         Ref::map(self.token_value.borrow(), |token_value| {
             token_value.as_ref().unwrap()
         })
     }
 
-    pub(super) fn maybe_token_value(&self) -> Ref<Option<SourceTextSliceOrStaticCow>> {
+    pub(super) fn maybe_token_value(&self) -> Ref<Option<SourceTextSliceOrString>> {
         self.token_value.borrow()
     }
 
-    pub(super) fn set_token_value(&self, token_value: SourceTextSliceOrStaticCow) {
+    pub(super) fn set_token_value(&self, token_value: SourceTextSliceOrString) {
         *self.token_value.borrow_mut() = Some(token_value);
     }
 
-    pub(super) fn set_maybe_token_value(&self, token_value: Option<SourceTextSliceOrStaticCow>) {
+    pub(super) fn set_maybe_token_value(&self, token_value: Option<SourceTextSliceOrString>) {
         *self.token_value.borrow_mut() = token_value;
     }
 
@@ -835,11 +833,11 @@ impl Scanner {
         self.token_pos()
     }
 
-    pub fn get_token_text(&self) -> String {
-        self.text_substring(self.token_pos(), self.pos())
+    pub fn get_token_text(&self) -> SourceTextSlice {
+        self.text_slice(self.token_pos(), self.pos())
     }
 
-    pub fn get_token_value(&self) -> Ref<String> {
+    pub fn get_token_value(&self) -> Ref<SourceTextSliceOrString> {
         self.token_value()
     }
 

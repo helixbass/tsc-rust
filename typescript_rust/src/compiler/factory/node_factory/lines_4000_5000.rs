@@ -13,8 +13,8 @@ use crate::{
     JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StrOrRcNode, StringOrNodeArray,
-    StringOrRcNode, SyntaxKind, TransformFlags,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, SourceTextSliceOrString, StrOrRcNode,
+    StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -790,7 +790,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsx_text(
         &self,
         base_factory: &TBaseNodeFactory,
-        text: String,
+        text: SourceTextSliceOrString,
         contains_only_trivia_white_spaces: Option<bool>,
     ) -> JsxText {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxText);

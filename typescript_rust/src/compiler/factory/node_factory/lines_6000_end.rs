@@ -11,8 +11,9 @@ use crate::{
     add_range, create_base_node_factory, create_scanner, is_named_declaration, is_property_name,
     maybe_append_if_unique_rc, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     Debug_, EmitFlags, EmitNode, LanguageVariant, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange, StrOrRcNode,
-    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, TransformFlags,
+    NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange,
+    SourceTextSliceOrString, StrOrRcNode, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind,
+    TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -401,20 +402,20 @@ thread_local! {
         create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
 }
 
-pub enum PseudoBigIntOrString {
+pub enum PseudoBigIntOrSourceTextSliceOrString {
     PseudoBigInt(PseudoBigInt),
-    String(String),
+    SourceTextSliceOrString(SourceTextSliceOrString),
 }
 
-impl From<PseudoBigInt> for PseudoBigIntOrString {
-    fn from(pseudo_big_int: PseudoBigInt) -> Self {
-        PseudoBigIntOrString::PseudoBigInt(pseudo_big_int)
+impl From<PseudoBigInt> for PseudoBigIntOrSourceTextSliceOrString {
+    fn from(value: PseudoBigInt) -> Self {
+        Self::PseudoBigInt(value)
     }
 }
 
-impl From<String> for PseudoBigIntOrString {
-    fn from(string: String) -> Self {
-        PseudoBigIntOrString::String(string)
+impl From<SourceTextSliceOrString> for PseudoBigIntOrSourceTextSliceOrString {
+    fn from(value: SourceTextSliceOrString) -> Self {
+        Self::SourceTextSliceOrString(value)
     }
 }
 

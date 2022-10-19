@@ -325,14 +325,14 @@ impl TypeChecker {
             .is_none()
         {
             let symbol: Rc<Symbol> = self
-                .create_symbol(SymbolFlags::None, "ImportMetaExpression".to_owned(), None)
+                .create_symbol(SymbolFlags::None, "ImportMetaExpression".into(), None)
                 .into();
             let import_meta_type = self.get_global_import_meta_type();
 
             let meta_property_symbol: Rc<Symbol> = self
                 .create_symbol(
                     SymbolFlags::Property,
-                    "meta".to_owned(),
+                    "meta".into(),
                     Some(CheckFlags::Readonly),
                 )
                 .into();
@@ -1018,7 +1018,7 @@ impl TypeChecker {
                                 } else {
                                     SymbolFlags::None
                                 },
-                            i.to_string(),
+                            i.to_string().into(),
                             Some(if readonly {
                                 CheckFlags::Readonly
                             } else {
@@ -1039,7 +1039,7 @@ impl TypeChecker {
         }
         let fixed_length = properties.len();
         let length_symbol: Rc<Symbol> = self
-            .create_symbol(SymbolFlags::Property, "length".to_owned(), None)
+            .create_symbol(SymbolFlags::Property, "length".into(), None)
             .into();
         if combined_flags.intersects(ElementFlags::Variable) {
             length_symbol

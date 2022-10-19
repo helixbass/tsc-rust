@@ -20,11 +20,11 @@ use crate::{
     unescape_leading_underscores, AssignmentDeclarationKind, BindBinaryExpressionFlow,
     CompilerOptions, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
     DiagnosticWithLocation, Diagnostics, FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags,
-    NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String,
-    append_if_unique_rc, create_symbol_table, get_escaped_text_of_identifier_or_literal,
-    get_name_of_declaration, is_property_name_literal, object_allocator, set_parent,
-    set_value_declaration, BaseSymbol, InternalSymbolName, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    NodeId, ScriptTarget, SignatureDeclarationInterface, SourceTextSliceOrString, Symbol,
+    SymbolTable, SyntaxKind, __String, append_if_unique_rc, create_symbol_table,
+    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_property_name_literal,
+    object_allocator, set_parent, set_value_declaration, BaseSymbol, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -328,7 +328,8 @@ pub(crate) struct BinderType {
     pub(super) symbol_count: Cell<usize>,
 
     pub(super) Symbol: RefCell<Option<fn(SymbolFlags, __String) -> BaseSymbol>>,
-    pub(super) classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
+    pub(super) classifiable_names:
+        RefCell<Option<Rc<RefCell<HashSet<SourceTextSliceOrString /*__String*/>>>>>,
 
     pub(super) unreachable_flow: RefCell<Rc<FlowNode>>,
     pub(super) reported_unreachable_flow: RefCell<Rc<FlowNode>>,
@@ -659,26 +660,29 @@ impl BinderType {
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn Symbol(&self) -> fn(SymbolFlags, __String) -> BaseSymbol {
+    pub(super) fn Symbol(
+        &self,
+    ) -> fn(SymbolFlags, SourceTextSliceOrString /*__String*/) -> BaseSymbol {
         self.Symbol.borrow().unwrap()
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn set_Symbol(&self, Symbol: fn(SymbolFlags, __String) -> BaseSymbol) {
+    pub(super) fn set_Symbol(
+        &self,
+        Symbol: fn(SymbolFlags, SourceTextSliceOrString /*__String*/) -> BaseSymbol,
+    ) {
         *self.Symbol.borrow_mut() = Some(Symbol);
     }
 
-    pub(super) fn classifiable_names(&self) -> Rc<RefCell<HashSet<__String>>> {
-        self.classifiable_names
-            .borrow()
-            .as_ref()
-            .map(|rc| rc.clone())
-            .unwrap()
+    pub(super) fn classifiable_names(
+        &self,
+    ) -> Rc<RefCell<HashSet<SourceTextSliceOrString /*__String*/>>> {
+        self.classifiable_names.borrow().clone().unwrap()
     }
 
     pub(super) fn set_classifiable_names(
         &self,
-        classifiable_names: Option<Rc<RefCell<HashSet<__String>>>>,
+        classifiable_names: Option<Rc<RefCell<HashSet<SourceTextSliceOrString /*__String*/>>>>,
     ) {
         *self.classifiable_names.borrow_mut() = classifiable_names;
     }
@@ -771,7 +775,11 @@ impl BinderType {
         }
     }
 
-    pub(super) fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
+    pub(super) fn create_symbol(
+        &self,
+        flags: SymbolFlags,
+        name: SourceTextSliceOrString,
+    ) -> Symbol {
         self.increment_symbol_count();
         self.Symbol()(flags, name).into()
     }
@@ -824,10 +832,10 @@ impl BinderType {
         }
     }
 
-    pub(super) fn get_declaration_name<'node>(
+    pub(super) fn get_declaration_name(
         &self,
-        node: &'node Node,
-    ) -> Option<Cow<'node, str> /*__String*/> {
+        node: &Node,
+    ) -> Option<SourceTextSliceOrString /*__String*/> {
         if node.kind() == SyntaxKind::ExportAssignment {
             return Some(
                 if matches!(node.as_export_assignment().is_export_equals, Some(true)) {
@@ -845,16 +853,17 @@ impl BinderType {
                 return Some(if is_global_scope_augmentation(node) {
                     "__global".into()
                 } else {
-                    format!("\"{}\"", module_name).into()
+                    format!("\"{}\"", &*module_name).into()
                 });
             }
             if name.kind() == SyntaxKind::ComputedPropertyName {
                 let name_expression = &name.as_computed_property_name().expression;
                 if is_string_or_numeric_literal_like(name_expression) {
                     return Some(
-                        escape_leading_underscores(&name_expression.as_literal_like_node().text())
-                            .into_owned()
-                            .into(),
+                        name_expression
+                            .as_literal_like_node()
+                            .text()
+                            .escape_leading_underscores(),
                     );
                 }
                 if is_signed_numeric_literal(name_expression) {
@@ -865,7 +874,7 @@ impl BinderType {
                             "{}{}",
                             token_to_string(name_expression_as_prefix_unary_expression.operator)
                                 .unwrap(),
-                            name_expression_as_prefix_unary_expression
+                            &**name_expression_as_prefix_unary_expression
                                 .operand
                                 .as_literal_like_node()
                                 .text()
@@ -890,11 +899,7 @@ impl BinderType {
                 );
             }
             return if is_property_name_literal(&name) {
-                Some(
-                    get_escaped_text_of_identifier_or_literal(&name)
-                        .into_owned()
-                        .into(),
-                )
+                Some(get_escaped_text_of_identifier_or_literal(&name))
             } else {
                 None
             };
@@ -973,7 +978,7 @@ impl BinderType {
             || is_export_specifier(node)
                 && node.as_export_specifier().name.as_identifier().escaped_text == "default";
 
-        let name: Option<Cow<'_, str> /*__String*/> = if is_computed_name {
+        let name: Option<SourceTextSliceOrString /*__String*/> = if is_computed_name {
             Some(InternalSymbolName::Computed.into())
         } else if is_default_export && parent.is_some() {
             Some(InternalSymbolName::Default.into())
@@ -985,12 +990,12 @@ impl BinderType {
         match name {
             None => {
                 symbol = Some(
-                    self.create_symbol(SymbolFlags::None, InternalSymbolName::Missing.to_owned())
+                    self.create_symbol(SymbolFlags::None, InternalSymbolName::Missing.into())
                         .wrap(),
                 );
             }
             Some(name) => {
-                symbol = symbol_table.get(&*name).cloned();
+                symbol = symbol_table.get(&name).cloned();
 
                 if includes.intersects(SymbolFlags::Classifiable) {
                     self.classifiable_names()
@@ -1000,11 +1005,8 @@ impl BinderType {
 
                 match symbol.as_ref() {
                     None => {
-                        symbol = Some(
-                            self.create_symbol(SymbolFlags::None, (*name).to_owned())
-                                .wrap(),
-                        );
-                        symbol_table.insert(name.into_owned(), symbol.as_ref().unwrap().clone());
+                        symbol = Some(self.create_symbol(SymbolFlags::None, name.clone()).wrap());
+                        symbol_table.insert(name, symbol.as_ref().unwrap().clone());
                         if is_replaceable_by_method {
                             symbol
                                 .as_ref()
@@ -1020,12 +1022,9 @@ impl BinderType {
                     }
                     Some(symbol_present) if symbol_present.flags().intersects(excludes) => {
                         if matches!(symbol_present.maybe_is_replaceable_by_method(), Some(true)) {
-                            symbol = Some(
-                                self.create_symbol(SymbolFlags::None, (*name).to_owned())
-                                    .wrap(),
-                            );
-                            symbol_table
-                                .insert(name.into_owned(), symbol.as_ref().unwrap().clone());
+                            symbol =
+                                Some(self.create_symbol(SymbolFlags::None, name.clone()).wrap());
+                            symbol_table.insert(name, symbol.as_ref().unwrap().clone());
                         } else if !(includes.intersects(SymbolFlags::Variable)
                             && symbol_present.flags().intersects(SymbolFlags::Assignment))
                         {
@@ -1177,10 +1176,7 @@ impl BinderType {
                                 .bind_diagnostics_mut()
                                 .push(diag);
 
-                            symbol = Some(
-                                self.create_symbol(SymbolFlags::None, name.into_owned())
-                                    .wrap(),
-                            );
+                            symbol = Some(self.create_symbol(SymbolFlags::None, name).wrap());
                         }
                     }
                     _ => (),

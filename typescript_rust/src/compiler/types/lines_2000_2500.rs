@@ -4,10 +4,10 @@ use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
-use super::{
+use crate::{
     BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasElementsInterface,
     HasQuestionTokenInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeArray, SyntaxKind,
+    NamedDeclarationInterface, Node, NodeArray, SourceTextSliceOrString, SyntaxKind,
 };
 use local_macros::ast_type;
 
@@ -145,13 +145,13 @@ impl ArrowFunction {
 #[ast_type(impl_from = false)]
 pub struct BaseLiteralLikeNode {
     _node: BaseNode,
-    text: RefCell<String>,
+    text: RefCell<SourceTextSliceOrString>,
     is_unterminated: Cell<Option<bool>>,
     has_extended_unicode_escape: Cell<Option<bool>>,
 }
 
 impl BaseLiteralLikeNode {
-    pub fn new(base_node: BaseNode, text: String) -> Self {
+    pub fn new(base_node: BaseNode, text: SourceTextSliceOrString) -> Self {
         Self {
             _node: base_node,
             text: RefCell::new(text),
@@ -162,11 +162,11 @@ impl BaseLiteralLikeNode {
 }
 
 impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
-    fn text(&self) -> Ref<String> {
+    fn text(&self) -> Ref<SourceTextSliceOrString> {
         self.text.borrow()
     }
 
-    fn set_text(&self, text: String) {
+    fn set_text(&self, text: SourceTextSliceOrString) {
         *self.text.borrow_mut() = text;
     }
 
@@ -189,8 +189,8 @@ impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
 }
 
 pub trait LiteralLikeNodeInterface {
-    fn text(&self) -> Ref<String>;
-    fn set_text(&self, text: String);
+    fn text(&self) -> Ref<SourceTextSliceOrString>;
+    fn set_text(&self, text: SourceTextSliceOrString);
     fn is_unterminated(&self) -> Option<bool>;
     fn set_is_unterminated(&self, is_unterminated: Option<bool>);
     fn has_extended_unicode_escape(&self) -> Option<bool>;

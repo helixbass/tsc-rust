@@ -8,17 +8,17 @@ use crate::{
     get_jsdoc_type_tag, get_text_of_identifier_or_literal, is_effective_module_declaration,
     is_external_module_reference, is_function_like, is_private_identifier, is_property_assignment,
     is_property_name_literal, skip_parentheses, try_cast, try_get_import_from_module_specifier,
-    HasTypeArgumentsInterface, NamedDeclarationInterface, NodeFlags, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, __String, escape_leading_underscores, every, for_each,
-    get_leftmost_access_expression, get_source_text_of_node_from_source_file, id_text,
-    is_access_expression, is_assignment_expression, is_binary_expression, is_call_expression,
-    is_dynamic_name, is_element_access_expression, is_entity_name_expression, is_identifier,
-    is_json_source_file, is_namespace_export, is_numeric_literal, is_object_literal_expression,
+    HasTypeArgumentsInterface, NamedDeclarationInterface, NodeFlags, NodeInterface,
+    SourceTextSliceOrString, Symbol, SymbolInterface, SyntaxKind, __String,
+    escape_leading_underscores, every, for_each, get_leftmost_access_expression,
+    get_source_text_of_node_from_source_file, id_text, is_access_expression,
+    is_assignment_expression, is_binary_expression, is_call_expression, is_dynamic_name,
+    is_element_access_expression, is_entity_name_expression, is_identifier, is_json_source_file,
+    is_namespace_export, is_numeric_literal, is_object_literal_expression,
     is_property_access_expression, is_prototype_access, is_string_literal_like,
     is_string_or_numeric_literal_like, is_type_reference_node, is_variable_declaration,
-    is_variable_statement, is_void_expression, length, maybe_text_char_at_index,
-    AssignmentDeclarationKind, CharacterCodes, Debug_, HasInitializerInterface,
-    LiteralLikeNodeInterface, Node,
+    is_variable_statement, is_void_expression, length, AssignmentDeclarationKind, CharacterCodes,
+    Debug_, HasInitializerInterface, LiteralLikeNodeInterface, Node,
 };
 
 pub fn is_part_of_type_query(node: &Node) -> bool {
@@ -306,7 +306,7 @@ pub fn get_assigned_expando_initializer<TNode: Borrow<Node>>(
         let node_as_call_expression = node.as_call_expression();
         let result = has_expando_value_property(
             &node_as_call_expression.arguments[2],
-            &*node_as_call_expression.arguments[1]
+            &**node_as_call_expression.arguments[1]
                 .as_literal_like_node()
                 .text()
                 == "prototype",
@@ -650,7 +650,7 @@ fn is_void_zero(node: &Node) -> bool {
     }
     let node_expression_as_numeric_literal =
         node_as_void_expression.expression.as_numeric_literal();
-    &*node_expression_as_numeric_literal.text() == "0"
+    &**node_expression_as_numeric_literal.text() == "0"
 }
 
 pub(crate) fn get_element_or_property_access_argument_expression_or_name(
@@ -673,7 +673,7 @@ pub(crate) fn get_element_or_property_access_argument_expression_or_name(
 
 pub(crate) fn get_element_or_property_access_name(
     node: &Node, /*AccessExpression*/
-) -> Option<__String> {
+) -> Option<SourceTextSliceOrString> {
     let name = get_element_or_property_access_argument_expression_or_name(node);
     name.and_then(|name| {
         if is_identifier(&name) {
@@ -681,7 +681,9 @@ pub(crate) fn get_element_or_property_access_name(
         }
         if is_string_literal_like(&name) || is_numeric_literal(&name) {
             return Some(
-                escape_leading_underscores(&name.as_literal_like_node().text()).into_owned(),
+                name.as_literal_like_node()
+                    .text()
+                    .escape_leading_underscores(),
             );
         }
         None
@@ -796,7 +798,7 @@ pub fn is_function_symbol<TSymbol: Borrow<Symbol>>(symbol: Option<TSymbol>) -> b
 
 pub fn try_get_module_specifier_from_declaration(
     node: &Node, /*AnyImportOrRequire*/
-) -> Option<String> {
+) -> Option<SourceTextSliceOrString> {
     match node.kind() {
         SyntaxKind::VariableDeclaration => Some(
             node.as_variable_declaration()

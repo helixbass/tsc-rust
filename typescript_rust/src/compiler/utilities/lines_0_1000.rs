@@ -28,18 +28,17 @@ use crate::{
     is_import_call, is_import_type_node, is_in_jsdoc, is_jsdoc_node, is_jsdoc_type_expression,
     is_line_break, is_module_declaration, is_namespace_export, is_numeric_literal,
     is_private_identifier, is_prologue_directive, is_source_file, is_string_literal,
-    is_string_or_numeric_literal_like, is_white_space_like, maybe_text_char_at_index,
-    module_resolution_option_declarations, node_is_synthesized,
-    options_affecting_program_structure, skip_trivia, starts_with_use_strict, text_char_at_index,
-    text_substring, trim_string_start, CharacterCodes, CharacterCodesChar, CommandLineOption,
-    CommentDirective, CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_,
-    EmitFlags, EmitTextWriter, HasStatementsInterface, IndexInfo, LiteralLikeNodeInterface,
-    ModeAwareCache, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, PackageId, ProjectReference, ReadonlyCollection, ReadonlyTextRange,
-    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface,
-    SourceFileLike, SourceText, SourceTextAsChars, SourceTextSlice, SourceTextSliceOrStaticCow,
-    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter,
-    SyntaxKind, TextRange, TokenFlags, Type, UnderscoreEscapedMap,
+    is_string_or_numeric_literal_like, is_white_space_like, module_resolution_option_declarations,
+    node_is_synthesized, options_affecting_program_structure, skip_trivia, starts_with_use_strict,
+    trim_string_start, CharacterCodes, CharacterCodesChar, CommandLineOption, CommentDirective,
+    CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_, EmitFlags, EmitTextWriter,
+    HasStatementsInterface, IndexInfo, LiteralLikeNodeInterface, ModeAwareCache, ModuleKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PackageId,
+    ProjectReference, ReadonlyCollection, ReadonlyTextRange, ResolvedModuleFull,
+    ResolvedTypeReferenceDirective, ScriptKind, SignatureDeclarationInterface, SourceFileLike,
+    SourceText, SourceTextAsChars, SourceTextSlice, SourceTextSliceOrString, StringOrNumber,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
+    TextRange, TokenFlags, Type, UnderscoreEscapedMap,
 };
 
 thread_local! {
@@ -980,7 +979,7 @@ pub fn get_source_text_of_node_from_source_file(
     source_file: &Node, /*SourceFile*/
     node: &Node,
     include_trivia: Option<bool>,
-) -> SourceTextSliceOrStaticCow {
+) -> SourceTextSliceOrString {
     let include_trivia = include_trivia.unwrap_or(false);
     get_text_of_node_from_source_text(
         source_file.as_source_file().text(),
@@ -1017,7 +1016,7 @@ pub fn get_text_of_node_from_source_text(
     source_text: Rc<SourceText>,
     node: &Node,
     include_trivia: Option<bool>,
-) -> SourceTextSliceOrStaticCow {
+) -> SourceTextSliceOrString {
     let include_trivia = include_trivia.unwrap_or(false);
     if node_is_missing(Some(node)) {
         return "".into();
@@ -1054,7 +1053,7 @@ pub fn get_text_of_node_from_source_text(
     text.into()
 }
 
-pub fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> SourceTextSliceOrStaticCow {
+pub fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> SourceTextSliceOrString {
     let include_trivia = include_trivia.unwrap_or(false);
     get_source_text_of_node_from_source_file(
         &get_source_file_of_node(Some(node)).unwrap(),
@@ -1282,7 +1281,7 @@ pub fn get_literal_text<TSourceFile: Borrow<Node>>(
     node: &Node, /*LiteralLikeNode*/
     source_file: Option<TSourceFile /*SourceFile*/>,
     flags: GetLiteralTextFlags,
-) -> SourceTextSliceOrStaticCow {
+) -> SourceTextSliceOrString {
     if can_use_original_text(node, flags) {
         return get_source_text_of_node_from_source_file(source_file.unwrap().borrow(), node, None);
     }

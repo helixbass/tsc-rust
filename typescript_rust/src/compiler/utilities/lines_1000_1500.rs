@@ -15,14 +15,13 @@ use crate::{
     is_function_like, is_identifier, is_import_type_node, is_jsdoc, is_jsx_text,
     is_literal_type_node, is_meta_property, is_parameter_property_declaration,
     is_property_declaration, is_property_signature, is_string_literal, is_variable_declaration,
-    is_variable_statement, maybe_filter, maybe_text_char_at_index, node_is_missing,
-    single_or_undefined, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    CharacterCodes, ClassLikeDeclarationInterface, CommentRange, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticWithLocation, EmitFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasTypeArgumentsInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, SourceFileLike, SourceText,
-    SourceTextAsChars, SyntaxKind, TextRange, TextSpan,
+    is_variable_statement, maybe_filter, node_is_missing, single_or_undefined, skip_trivia,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, CharacterCodes,
+    ClassLikeDeclarationInterface, CommentRange, Debug_, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticWithLocation, EmitFlags,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeArgumentsInterface,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    ReadonlyTextRange, ScriptKind, SourceFileLike, SourceText, SyntaxKind, TextRange, TextSpan,
 };
 
 pub fn create_diagnostic_for_node(

@@ -11,8 +11,8 @@ use crate::{
     IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
     NodeInterface, ParserType, PragmaArgument, PragmaArgumentName, PragmaArgumentWithCapturedSpan,
     PragmaArguments, PragmaKindFlags, PragmaName, PragmaPseudoMapEntry, PragmaSpec, PragmaValue,
-    ReadonlyPragmaMap, ReadonlyTextRange, ScriptTarget, SourceText, SourceTextAsChars,
-    SourceTextSlice, SyntaxKind, TextRange,
+    ReadonlyPragmaMap, ReadonlyTextRange, ScriptTarget, SourceText, SourceTextSlice,
+    SourceTextSliceOrString, SyntaxKind, TextRange,
 };
 
 impl IncrementalParserType {
@@ -229,7 +229,7 @@ pub(crate) trait PragmaContext {
     fn maybe_amd_dependencies(&self) -> RefMut<Option<Vec<AmdDependency>>>;
     fn maybe_has_no_default_lib(&self) -> Option<bool>;
     fn set_has_no_default_lib(&self, has_no_default_lib: bool);
-    fn maybe_module_name(&self) -> RefMut<Option<String>>;
+    fn maybe_module_name(&self) -> RefMut<Option<SourceTextSliceOrString>>;
 }
 
 pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
@@ -357,7 +357,8 @@ pub(crate) fn process_pragmas_into_fields<
                             .get(&PragmaArgumentName::Name)
                             .unwrap()
                             .as_without_captured_span()
-                            .clone(),
+                            .clone()
+                            .into(),
                     );
                 }
             }
@@ -467,7 +468,7 @@ fn extract_pragmas(
                         argument.insert(
                             arg.name,
                             PragmaArgument::WithoutCapturedSpan(
-                                text.slice_from_str_offsets(value.start(), Some(value.end())),
+                                text.slice_from_str_offsets(value.start, value.end),
                             ),
                         );
                     }
@@ -613,7 +614,7 @@ pub(crate) fn tag_names_are_equivalent(
     }
 
     if lhs.kind() == SyntaxKind::Identifier {
-        return lhs.as_identifier().escaped_text == rhs.as_identifier().escaped_text;
+        return lhs.as_identifier().escaped_text == &*rhs.as_identifier().escaped_text;
     }
 
     if lhs.kind() == SyntaxKind::ThisKeyword {
@@ -626,7 +627,7 @@ pub(crate) fn tag_names_are_equivalent(
         .name
         .as_member_name()
         .escaped_text()
-        == rhs_as_property_access_expression
+        == &**rhs_as_property_access_expression
             .name
             .as_member_name()
             .escaped_text()

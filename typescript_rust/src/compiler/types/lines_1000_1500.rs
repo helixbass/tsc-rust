@@ -5,11 +5,11 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ops::Deref;
 use std::rc::Rc;
 
-use super::{
+use crate::{
     BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
     HasInitializerInterface, HasLeftAndRightInterface, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
-    ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
+    ReadonlyTextRange, SourceTextSliceOrString, SyntaxKind, TransformFlags, __String,
 };
 use local_macros::ast_type;
 
@@ -197,7 +197,7 @@ bitflags! {
 #[ast_type]
 pub struct Identifier {
     _node: BaseNode,
-    pub escaped_text: __String,
+    pub escaped_text: SourceTextSliceOrString,
     pub original_keyword_kind: Option<SyntaxKind>,
     pub(crate) auto_generate_flags: Option<GeneratedIdentifierFlags>,
     pub(crate) auto_generate_id: Option<usize>,
@@ -208,7 +208,7 @@ pub struct Identifier {
 }
 
 impl Identifier {
-    pub fn new(base_node: BaseNode, escaped_text: __String) -> Self {
+    pub fn new(base_node: BaseNode, escaped_text: SourceTextSliceOrString) -> Self {
         Self {
             _node: base_node,
             escaped_text,
@@ -313,7 +313,7 @@ impl HasLeftAndRightInterface for QualifiedName {
 }
 
 pub trait MemberNameInterface: NodeInterface {
-    fn escaped_text(&self) -> &str /*__String*/;
+    fn escaped_text(&self) -> &SourceTextSliceOrString /*__String*/;
 }
 
 pub trait NamedDeclarationInterface: NodeInterface {

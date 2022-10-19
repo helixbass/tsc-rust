@@ -1210,7 +1210,7 @@ impl TypeChecker {
         let result: Rc<Symbol> = self
             .create_symbol(
                 value_symbol.flags() | type_symbol.flags(),
-                value_symbol.escaped_name().to_owned(),
+                value_symbol.escaped_name().clone(),
                 None,
             )
             .into();

@@ -13,9 +13,8 @@ use super::{
 };
 use crate::{
     parse_pseudo_big_int, reduce_source_text_slice_or_static_cows, CharacterCodes,
-    CharacterCodesChar, Debug_, DiagnosticMessage, Diagnostics, ScriptTarget,
-    SourceTextSliceOrStaticCow, SourceTextSliceOrStaticStr, SourceTextSliceOrString, SyntaxKind,
-    TokenFlags,
+    CharacterCodesChar, Debug_, DiagnosticMessage, Diagnostics, ScriptTarget, SourceTextSlice,
+    SourceTextSliceOrString, SyntaxKind, TokenFlags,
 };
 
 impl Scanner {
@@ -38,7 +37,7 @@ impl Scanner {
     pub(super) fn scan_number_fragment(
         &self,
         on_error: Option<ErrorCallback>,
-    ) -> SourceTextSliceOrStaticCow {
+    ) -> SourceTextSliceOrString {
         let mut start = self.pos();
         let mut allow_separator = false;
         let mut is_previous_token_separator = false;
@@ -110,8 +109,8 @@ impl Scanner {
     pub(super) fn scan_number(&self, on_error: Option<ErrorCallback>) -> ScanNumberReturn {
         let start = self.pos();
         let main_fragment = self.scan_number_fragment(on_error);
-        let mut decimal_fragment: Option<SourceTextSliceOrStaticCow> = None;
-        let mut scientific_fragment: Option<SourceTextSliceOrStaticCow> = None;
+        let mut decimal_fragment: Option<SourceTextSliceOrString> = None;
+        let mut scientific_fragment: Option<SourceTextSliceOrString> = None;
         if self.maybe_text_char_at_index(self.pos()) == Some(CharacterCodes::dot) {
             self.increment_pos();
             decimal_fragment = Some(self.scan_number_fragment(on_error));
@@ -137,17 +136,20 @@ impl Scanner {
             } else {
                 let slice = self.text_slice(end, pre_numeric_part);
                 scientific_fragment = Some(match final_fragment {
-                    SourceTextSliceOrStaticCow::SourceTextSlice(final_fragment) => {
+                    SourceTextSliceOrString::SourceTextSlice(final_fragment) => {
                         slice.extended(final_fragment.end()).into()
                     }
-                    SourceTextSliceOrStaticCow::StaticCow(final_fragment) => {
+                    SourceTextSliceOrString::StaticStr(final_fragment) => {
+                        format!("{}{}", &*slice, final_fragment)
+                    }
+                    SourceTextSliceOrString::String(final_fragment) => {
                         format!("{}{}", &*slice, final_fragment)
                     }
                 });
                 end = self.pos();
             }
         }
-        let mut result: SourceTextSliceOrStaticCow;
+        let mut result: SourceTextSliceOrString;
         if self.token_flags().intersects(TokenFlags::ContainsSeparator) {
             result = main_fragment;
             if let Some(decimal_fragment) = decimal_fragment.as_ref() {
@@ -271,7 +273,7 @@ impl Scanner {
         scan_as_many_as_possible: bool,
         can_have_separators: bool,
     ) -> Option<SourceTextSliceOrString> {
-        let mut value_chunks: Option<Vec<SourceTextSliceOrStaticStr>> = None;
+        let mut value_chunks: Option<Vec<SourceTextSliceOrString>> = None;
         let mut allow_separator = false;
         let mut is_previous_token_separator = false;
         let start = self.pos();
@@ -365,12 +367,7 @@ impl Scanner {
                 Some(value_chunks) => Some(
                     value_chunks
                         .iter()
-                        .map(|value_chunk| match value_chunk {
-                            SourceTextSliceOrStaticStr::SourceTextSlice(value_chunk) => {
-                                &**value_chunk
-                            }
-                            SourceTextSliceOrStaticStr::StaticStr(value_chunk) => *value_chunk,
-                        })
+                        .map(|value_chunk| &**value_chunk)
                         .concat()
                         .into(),
                 ),
@@ -382,11 +379,11 @@ impl Scanner {
         &self,
         on_error: Option<ErrorCallback>,
         jsx_attribute_string: Option<bool>,
-    ) -> SourceTextSliceOrStaticCow {
+    ) -> SourceTextSliceOrString {
         let jsx_attribute_string = jsx_attribute_string.unwrap_or(false);
         let quote = self.text_char_at_index(self.pos());
         self.increment_pos();
-        let mut result: Option<Vec<SourceTextSliceOrStaticCow>> = None;
+        let mut result: Option<Vec<SourceTextSliceOrString>> = None;
         let mut start = self.pos();
         loop {
             if self.pos() >= self.end() {
@@ -465,7 +462,7 @@ impl Scanner {
 
         self.increment_pos();
         let mut start = self.pos();
-        let mut contents: Option<Vec<SourceTextSliceOrStaticCow>> = None;
+        let mut contents: Option<Vec<SourceTextSliceOrString>> = None;
         let resulting_token: SyntaxKind;
 
         loop {
@@ -586,7 +583,7 @@ impl Scanner {
         &self,
         on_error: Option<ErrorCallback>,
         is_tagged_template: Option<bool>,
-    ) -> SourceTextSliceOrStaticCow {
+    ) -> SourceTextSliceOrString {
         let is_tagged_template = is_tagged_template.unwrap_or(false);
         let start = self.pos();
         self.increment_pos();
@@ -816,8 +813,8 @@ impl Scanner {
     pub(super) fn scan_identifier_parts(
         &self,
         on_error: Option<ErrorCallback>,
-    ) -> SourceTextSliceOrStaticCow {
-        let mut result: Option<Vec<SourceTextSliceOrStaticCow>> = None;
+    ) -> SourceTextSliceOrString {
+        let mut result: Option<Vec<SourceTextSliceOrString>> = None;
         let mut start = self.pos();
         while self.pos() < self.end() {
             let ch = code_point_at(&self.text(), self.pos());
@@ -954,12 +951,13 @@ impl Scanner {
     pub(super) fn check_big_int_suffix(&self) -> SyntaxKind {
         if self.maybe_text_char_at_index(self.pos()) == Some(CharacterCodes::n) {
             self.set_token_value(match &*self.token_value() {
-                SourceTextSliceOrStaticCow::SourceTextSlice(token_value) => token_value
+                SourceTextSliceOrString::SourceTextSlice(token_value) => token_value
                     .extended(Some(token_value.end.unwrap() + 1))
                     .into(),
-                SourceTextSliceOrStaticCow::StaticCow(token_value) => {
+                SourceTextSliceOrString::StaticCow(token_value) => {
                     format!("{}n", token_value).into()
                 }
+                SourceTextSliceOrString::String(token_value) => format!("{}n", token_value).into(),
             });
             if self
                 .token_flags()
@@ -1730,5 +1728,5 @@ impl Scanner {
 
 pub(super) struct ScanNumberReturn {
     type_: SyntaxKind,
-    value: SourceTextSliceOrStaticCow,
+    value: SourceTextSliceOrString,
 }

@@ -348,11 +348,11 @@ fn get_ast_struct_interface_impl(
         "LiteralLikeNodeInterface" => {
             quote! {
                 impl crate::LiteralLikeNodeInterface for #ast_type_name {
-                    fn text(&self) -> ::std::cell::Ref<String> {
+                    fn text(&self) -> ::std::cell::Ref<crate::SourceTextSliceOrString> {
                         self.#first_field_name.text()
                     }
 
-                    fn set_text(&self, text: String) {
+                    fn set_text(&self, text: crate::SourceTextSliceOrString) {
                         self.#first_field_name.set_text(text)
                     }
 
@@ -818,13 +818,13 @@ fn get_ast_enum_interface_impl(
         "LiteralLikeNodeInterface" => {
             quote! {
                 impl crate::LiteralLikeNodeInterface for #ast_type_name {
-                    fn text(&self) -> ::std::cell::Ref<String> {
+                    fn text(&self) -> ::std::cell::Ref<crate::SourceTextSliceOrString> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.text()),*
                         }
                     }
 
-                    fn set_text(&self, text: String) {
+                    fn set_text(&self, text: crate::SourceTextSliceOrString) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_text(text)),*
                         }
@@ -2594,7 +2594,7 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_flags(flags)
                     }
 
-                    fn escaped_name(&self) -> &str {
+                    fn escaped_name(&self) -> &crate::SourceTextSliceOrString {
                         self.#first_field_name.escaped_name()
                     }
 
@@ -2774,7 +2774,7 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn escaped_name(&self) -> &str {
+                    fn escaped_name(&self) -> &crate::SourceTextSliceOrString {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.escaped_name()),*
                         }

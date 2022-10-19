@@ -10,7 +10,8 @@ use super::{
     ReverseMappedType, Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
 use crate::{
-    EvolvingArrayType, FreshObjectLiteralTypeInterface, Number, TypeId, TypeMapper, __String,
+    EvolvingArrayType, FreshObjectLiteralTypeInterface, Number, SourceTextSliceOrString, TypeId,
+    TypeMapper, __String,
 };
 use local_macros::type_type;
 
@@ -103,11 +104,11 @@ impl UniqueESSymbolType {
 #[type_type(ancestors = "LiteralType")]
 pub struct StringLiteralType {
     _literal_type: BaseLiteralType,
-    pub value: String,
+    pub value: SourceTextSliceOrString,
 }
 
 impl StringLiteralType {
-    pub fn new(literal_type: BaseLiteralType, value: String) -> Self {
+    pub fn new(literal_type: BaseLiteralType, value: SourceTextSliceOrString) -> Self {
         Self {
             _literal_type: literal_type,
             value,

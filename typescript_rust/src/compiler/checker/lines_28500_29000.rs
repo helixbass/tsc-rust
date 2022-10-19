@@ -220,10 +220,10 @@ impl TypeChecker {
                 if ptr::eq(symbols, &*self.globals()) {
                     let primitives = map_defined(
                         Some(["string", "number", "boolean", "object", "bigint", "symbol"]),
-                        |s: &str, _| {
+                        |s: &'static str, _| {
                             if symbols.contains_key(&capitalize(s)) {
                                 Some(
-                                    self.create_symbol(SymbolFlags::TypeAlias, s.to_owned(), None)
+                                    self.create_symbol(SymbolFlags::TypeAlias, s.into(), None)
                                         .into(),
                                 )
                             } else {

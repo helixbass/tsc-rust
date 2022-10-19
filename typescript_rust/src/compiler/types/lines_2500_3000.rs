@@ -3,12 +3,12 @@
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
-use super::{
+use crate::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
     BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
     HasMembersInterface, HasPropertiesInterface, HasPropertyNameInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SyntaxKind,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SourceTextSliceOrString, SyntaxKind,
     VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
@@ -359,14 +359,18 @@ impl HasExpressionInterface for JsxExpression {
 #[ast_type]
 pub struct JsxText {
     _node: BaseNode,
-    text: RefCell<String>,
+    text: RefCell<SourceTextSliceOrString>,
     pub is_unterminated: Cell<Option<bool>>,
     pub has_extended_unicode_escape: Cell<Option<bool>>,
     pub contains_only_trivia_white_spaces: bool,
 }
 
 impl JsxText {
-    pub fn new(base_node: BaseNode, text: String, contains_only_trivia_white_spaces: bool) -> Self {
+    pub fn new(
+        base_node: BaseNode,
+        text: SourceTextSliceOrString,
+        contains_only_trivia_white_spaces: bool,
+    ) -> Self {
         Self {
             _node: base_node,
             text: RefCell::new(text),
@@ -378,11 +382,11 @@ impl JsxText {
 }
 
 impl LiteralLikeNodeInterface for JsxText {
-    fn text(&self) -> Ref<String> {
+    fn text(&self) -> Ref<SourceTextSliceOrString> {
         self.text.borrow()
     }
 
-    fn set_text(&self, text: String) {
+    fn set_text(&self, text: SourceTextSliceOrString) {
         *self.text.borrow_mut() = text;
     }
 

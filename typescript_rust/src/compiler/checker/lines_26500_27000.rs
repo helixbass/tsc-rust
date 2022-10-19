@@ -304,7 +304,7 @@ impl TypeChecker {
                         } else {
                             SymbolFlags::None
                         },
-                    param_name.unwrap_or_else(|| format!("arg{}", i)),
+                    param_name.unwrap_or_else(|| format!("arg{}", i).into()),
                     None,
                 )
                 .into();
@@ -321,7 +321,7 @@ impl TypeChecker {
         }
         if needs_extra_rest_element {
             let rest_param_symbol: Rc<Symbol> = self
-                .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
+                .create_symbol(SymbolFlags::FunctionScopedVariable, "args".into(), None)
                 .into();
             let rest_param_symbol_type =
                 self.create_array_type(&self.get_type_at_position(shorter, longest_count), None);
@@ -1045,14 +1045,14 @@ impl TypeChecker {
                 let prop: Rc<Symbol> = if let Some(name_type) = name_type {
                     self.create_symbol(
                         SymbolFlags::Property | member_present.flags(),
-                        self.get_property_name_from_type(name_type).into_owned(),
+                        self.get_property_name_from_type(name_type),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()
                 } else {
                     self.create_symbol(
                         SymbolFlags::Property | member_present.flags(),
-                        member_present.escaped_name().to_owned(),
+                        member_present.escaped_name().clone(),
                         Some(check_flags | CheckFlags::Late),
                     )
                     .into()

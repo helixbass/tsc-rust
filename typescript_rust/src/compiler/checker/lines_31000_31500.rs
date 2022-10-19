@@ -11,9 +11,10 @@ use crate::{
     is_identifier, is_parameter, is_property_access_expression, is_require_call, is_source_file,
     length, Debug_, Diagnostics, ElementFlags, EnumKind, Extension, ExternalEmitHelpers,
     HasTypeArgumentsInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface,
-    NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
-    TransientSymbolInterface, __String, has_initializer, Node, NodeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    NodeFlags, Number, ObjectFlags, ScriptTarget, Signature, SignatureFlags,
+    SourceTextSliceOrString, SymbolFlags, TransientSymbolInterface, __String, has_initializer,
+    Node, NodeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -24,7 +25,7 @@ impl TypeChecker {
         let node_as_call_expression = node.as_call_expression();
         let mut left = node_as_call_expression.expression.clone();
         if is_property_access_expression(&left)
-            && left
+            && *left
                 .as_property_access_expression()
                 .name
                 .as_member_name()
@@ -147,11 +148,7 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let mut member_table = create_symbol_table(None);
         let new_symbol: Rc<Symbol> = self
-            .create_symbol(
-                SymbolFlags::Alias,
-                InternalSymbolName::Default.to_owned(),
-                None,
-            )
+            .create_symbol(SymbolFlags::Alias, InternalSymbolName::Default.into(), None)
             .into();
         new_symbol.set_parent(Some(original_symbol.symbol_wrapper()));
         {
@@ -225,7 +222,7 @@ impl TypeChecker {
                     let anonymous_symbol: Rc<Symbol> = self
                         .create_symbol(
                             SymbolFlags::TypeLiteral,
-                            InternalSymbolName::Type.to_owned(),
+                            InternalSymbolName::Type.into(),
                             None,
                         )
                         .into();
@@ -569,7 +566,7 @@ impl TypeChecker {
     pub(super) fn get_tuple_element_label(
         &self,
         d: &Node, /*ParameterDeclaration | NamedTupleMember*/
-    ) -> __String {
+    ) -> SourceTextSliceOrString {
         Debug_.assert(is_identifier(&d.as_named_declaration().name()), None);
         d.as_named_declaration()
             .name()
@@ -583,7 +580,7 @@ impl TypeChecker {
         signature: &Signature,
         pos: usize,
         override_rest_type: Option<TOverrideRestType>,
-    ) -> __String {
+    ) -> SourceTextSliceOrString /*__String*/ {
         let param_count = signature.parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
@@ -591,7 +588,7 @@ impl TypeChecker {
                 0
             };
         if pos < param_count {
-            return signature.parameters()[pos].escaped_name().to_owned();
+            return signature.parameters()[pos].escaped_name().clone();
         }
         let rest_parameter = signature
             .parameters()
@@ -612,9 +609,9 @@ impl TypeChecker {
             let index = pos - param_count;
             return associated_names
                 .map(|associated_names| self.get_tuple_element_label(&associated_names[index]))
-                .unwrap_or_else(|| format!("{}_{}", rest_parameter.escaped_name(), index));
+                .unwrap_or_else(|| format!("{}_{}", rest_parameter.escaped_name(), index).into());
         }
-        rest_parameter.escaped_name().to_owned()
+        rest_parameter.escaped_name().clone()
     }
 
     pub(super) fn get_parameter_identifier_name_at_position(

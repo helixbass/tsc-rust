@@ -835,7 +835,7 @@ impl Printer {
             {
                 self.write_comment(&format!(
                     "/// <amd-module name=\"{}\" />",
-                    current_source_file_module_name,
+                    &**current_source_file_module_name,
                 ));
                 self.write_line(None);
             }

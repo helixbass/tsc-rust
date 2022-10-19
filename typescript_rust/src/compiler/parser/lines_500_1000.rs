@@ -12,7 +12,7 @@ use crate::{
     IncrementalParser, IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant,
     Node, NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
     ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind,
-    ScriptTarget, SourceText, SourceTextAsChars, SyntaxKind, TextChangeRange,
+    ScriptTarget, SourceText, SourceTextSliceOrString, SyntaxKind, TextChangeRange,
 };
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
@@ -280,8 +280,8 @@ pub struct ParserType {
     pub(super) syntax_cursor: RefCell<Option<IncrementalParserSyntaxCursor>>,
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
     pub(super) node_count: Cell<Option<usize>>,
-    pub(super) identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
-    pub(super) private_identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
+    pub(super) identifiers: RefCell<Option<Rc<RefCell<HashSet<SourceTextSliceOrString>>>>>,
+    pub(super) private_identifiers: RefCell<Option<Rc<RefCell<HashSet<SourceTextSliceOrString>>>>>,
     pub(super) identifier_count: Cell<Option<usize>>,
     pub(super) parsing_context: Cell<Option<ParsingContext>>,
     pub(super) not_parenthesized_arrow: RefCell<Option<HashSet<usize>>>,
@@ -297,7 +297,6 @@ impl ParserType {
             scanner: RefCell::new(create_scanner(
                 ScriptTarget::Latest,
                 true,
-                None,
                 None,
                 None,
                 None,
@@ -318,7 +317,6 @@ impl ParserType {
             file_name: None,
             source_flags: Cell::new(None),
             source_text: None,
-            source_text_as_chars: None,
             language_version: None,
             script_kind: None,
             language_variant: None,
@@ -529,30 +527,24 @@ impl ParserType {
         self.node_count.set(Some(self.node_count() + 1));
     }
 
-    pub(super) fn identifiers_rc(&self) -> Rc<RefCell<HashMap<String, String>>> {
+    pub(super) fn identifiers(&self) -> Rc<RefCell<HashSet<SourceTextSliceOrString>>> {
         self.identifiers.borrow().clone().unwrap()
-    }
-
-    pub(super) fn identifiers(&self) -> Ref<Rc<RefCell<HashMap<String, String>>>> {
-        Ref::map(self.identifiers.borrow(), |option| option.as_ref().unwrap())
     }
 
     pub(super) fn set_identifiers(
         &self,
-        identifiers: Option<Rc<RefCell<HashMap<String, String>>>>,
+        identifiers: Option<Rc<RefCell<HashSet<SourceTextSliceOrString>>>>,
     ) {
         *self.identifiers.borrow_mut() = identifiers;
     }
 
-    pub(super) fn private_identifiers(&self) -> Ref<Rc<RefCell<HashMap<String, String>>>> {
-        Ref::map(self.private_identifiers.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub(super) fn private_identifiers(&self) -> Rc<RefCell<HashSet<SourceTextSliceOrString>>> {
+        self.private_identifiers.borrow().clone().unwrap()
     }
 
     pub(super) fn set_private_identifiers(
         &self,
-        private_identifiers: Option<Rc<RefCell<HashMap<String, String>>>>,
+        private_identifiers: Option<Rc<RefCell<HashSet<SourceTextSliceOrString>>>>,
     ) {
         *self.private_identifiers.borrow_mut() = private_identifiers;
     }

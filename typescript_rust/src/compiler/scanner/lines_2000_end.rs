@@ -13,7 +13,7 @@ use super::{
 use crate::{
     append, trim_string_start, BaseTextRange, CharacterCodes, CommentDirective,
     CommentDirectiveType, Debug_, Diagnostics, LanguageVariant, ScriptTarget, SourceText,
-    SourceTextAsChars, SourceTextSliceOrStaticCow, SyntaxKind, TokenFlags,
+    SourceTextSliceOrString, SyntaxKind, TokenFlags,
 };
 
 impl Scanner {
@@ -55,8 +55,8 @@ impl Scanner {
                 self.set_token_value(
                     match (&*self.token_value(), &self.scan_identifier_parts(on_error)) {
                         (
-                            SourceTextSliceOrStaticCow::SourceTextSlice(token_value),
-                            SourceTextSliceOrStaticCow::SourceTextSlice(identifier_parts),
+                            SourceTextSliceOrString::SourceTextSlice(token_value),
+                            SourceTextSliceOrString::SourceTextSlice(identifier_parts),
                         ) if token_value.end == Some(identifier_parts.start) => {
                             token_value.extended(identifier_parts.end).into()
                         }

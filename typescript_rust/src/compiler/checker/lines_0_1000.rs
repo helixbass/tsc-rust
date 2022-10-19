@@ -23,10 +23,10 @@ use crate::{
     IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
     NodeCheckFlags, NodeFlags, NodeId, NodeInterface, NodeLinks, Number, ObjectFlags, Path,
     PatternAmbientModule, PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags,
-    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
-    SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker,
-    TypeCheckerHost, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags, __String,
+    SignatureKind, SourceTextSliceOrString, StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags,
+    SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker, SyntaxKind, Type,
+    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId,
+    TypeInterface, TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags, __String,
     create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
     get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
     get_module_instance_state, get_parse_tree_node, get_strict_option_value,
@@ -828,7 +828,7 @@ pub fn create_type_checker(
     type_checker.emit_resolver = Some(type_checker.create_resolver());
     type_checker.undefined_symbol = Some(
         type_checker
-            .create_symbol(SymbolFlags::Property, "undefined".to_owned(), None)
+            .create_symbol(SymbolFlags::Property, "undefined".into(), None)
             .into(),
     );
     type_checker
@@ -840,7 +840,7 @@ pub fn create_type_checker(
         type_checker
             .create_symbol(
                 SymbolFlags::Module,
-                "globalThis".to_owned(),
+                "globalThis".into(),
                 Some(CheckFlags::Readonly),
             )
             .into(),
@@ -857,24 +857,24 @@ pub fn create_type_checker(
     );
     type_checker.arguments_symbol = Some(
         type_checker
-            .create_symbol(SymbolFlags::Property, "arguments".to_owned(), None)
+            .create_symbol(SymbolFlags::Property, "arguments".into(), None)
             .into(),
     );
     type_checker.require_symbol = Some(
         type_checker
-            .create_symbol(SymbolFlags::Property, "require".to_owned(), None)
+            .create_symbol(SymbolFlags::Property, "require".into(), None)
             .into(),
     );
     type_checker.unknown_symbol = Some(
         type_checker
-            .create_symbol(SymbolFlags::Property, "unknown".to_owned(), None)
+            .create_symbol(SymbolFlags::Property, "unknown".into(), None)
             .into(),
     );
     type_checker.resolving_symbol = Some(
         type_checker
             .create_symbol(
                 SymbolFlags::None,
-                InternalSymbolName::Resolving.to_owned(),
+                InternalSymbolName::Resolving.into(),
                 None,
             )
             .into(),
@@ -1156,7 +1156,7 @@ pub fn create_type_checker(
 
     let empty_type_literal_symbol = type_checker.create_symbol(
         SymbolFlags::TypeLiteral,
-        InternalSymbolName::Type.to_owned(),
+        InternalSymbolName::Type.into(),
         None,
     );
     *empty_type_literal_symbol.maybe_members_mut() =
@@ -2536,7 +2536,7 @@ impl TypeChecker {
 
     pub(super) fn string_literal_types(
         &self,
-    ) -> RefMut<HashMap<String, Rc</*NumberLiteralType*/ Type>>> {
+    ) -> RefMut<HashMap<SourceTextSliceOrString, Rc</*NumberLiteralType*/ Type>>> {
         self.string_literal_types.borrow_mut()
     }
 
@@ -2600,7 +2600,9 @@ impl TypeChecker {
         self.resolving_symbol.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unresolved_symbols(&self) -> RefMut<HashMap<String, Rc<Symbol>>> {
+    pub(super) fn unresolved_symbols(
+        &self,
+    ) -> RefMut<HashMap<SourceTextSliceOrString, Rc<Symbol>>> {
         self.unresolved_symbols.borrow_mut()
     }
 

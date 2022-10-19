@@ -7,8 +7,8 @@ use std::rc::Rc;
 
 use super::ParserType;
 use crate::{
-    create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
-    CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, SourceText, SyntaxKind,
+    create_node_factory, object_allocator, BaseNode, BaseNodeFactory, CharacterCodes, Node,
+    NodeArray, NodeFactory, NodeFactoryFlags, SourceText, SyntaxKind,
 };
 
 bitflags! {

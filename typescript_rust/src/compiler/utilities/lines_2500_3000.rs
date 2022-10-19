@@ -502,7 +502,7 @@ pub fn get_parameter_symbol_from_jsdoc(node: &Node, /*JSDocParameterTag*/) -> Op
     let decl = decl?;
     let parameter = find(decl.as_signature_declaration().parameters(), |p, _| {
         let p_name = p.as_parameter_declaration().name();
-        p_name.kind() == SyntaxKind::Identifier && &p_name.as_identifier().escaped_text == name
+        p_name.kind() == SyntaxKind::Identifier && p_name.as_identifier().escaped_text == &**name
     });
     parameter.and_then(|parameter| parameter.maybe_symbol())
 }
@@ -574,14 +574,14 @@ pub fn get_type_parameter_from_js_doc(
         .as_ref()
         .and_then(|type_parameters| {
             find(type_parameters, |p, _| {
-                &p.as_type_parameter_declaration()
+                &*p.as_type_parameter_declaration()
                     .name()
                     .as_identifier()
                     .escaped_text
-                    == name
+                    == &**name
             })
         })
-        .map(Clone::clone)
+        .cloned()
 }
 
 pub fn has_rest_parameter(node: &Node /*SignatureDeclaration | JSDocSignature*/) -> bool {
