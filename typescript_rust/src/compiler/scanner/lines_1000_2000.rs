@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Cow;
+use std::rc::Rc;
 
 use super::{
     char_size, code_point_at, comment_directive_reg_ex_multi_line,
@@ -11,7 +12,8 @@ use super::{
     utf16_encode_as_string, ErrorCallback, Scanner,
 };
 use crate::{
-    parse_pseudo_big_int, CharacterCodes, DiagnosticMessage, Diagnostics, ScriptTarget,
+    parse_pseudo_big_int, reduce_source_text_slice_or_static_cows, CharacterCodes,
+    CharacterCodesChar, Debug_, DiagnosticMessage, Diagnostics, ScriptTarget,
     SourceTextSliceOrStaticCow, SourceTextSliceOrStaticStr, SourceTextSliceOrString, SyntaxKind,
     TokenFlags,
 };
@@ -33,11 +35,14 @@ impl Scanner {
         }
     }
 
-    pub(super) fn scan_number_fragment(&self, on_error: Option<ErrorCallback>) -> String {
+    pub(super) fn scan_number_fragment(
+        &self,
+        on_error: Option<ErrorCallback>,
+    ) -> SourceTextSliceOrStaticCow {
         let mut start = self.pos();
         let mut allow_separator = false;
         let mut is_previous_token_separator = false;
-        let mut result = "".to_string();
+        let mut result: Option<Vec<SourceTextSlice>> = None;
         loop {
             let ch = self.maybe_text_char_at_index(self.pos());
             let ch = match ch {
@@ -49,7 +54,9 @@ impl Scanner {
                 if allow_separator {
                     allow_separator = false;
                     is_previous_token_separator = true;
-                    result.push_str(&self.text_substring(start, self.pos()));
+                    result
+                        .get_or_insert_with(|| vec![])
+                        .push(self.text_slice(start, self.pos()));
                 } else if is_previous_token_separator {
                     self.error(
                         on_error,
@@ -85,16 +92,26 @@ impl Scanner {
                 Some(1),
             );
         }
-        let mut ret = result;
-        ret.push_str(&self.text_substring(start, self.pos()));
-        ret
+        match result {
+            None => {
+                if self.pos() > start {
+                    self.text_slice(start, self.pos()).into()
+                } else {
+                    "".into()
+                }
+            }
+            Some(result) => {
+                result.push(self.text_slice(start, self.pos()));
+                result.iter().map(|slice| &**slice).concat().into()
+            }
+        }
     }
 
     pub(super) fn scan_number(&self, on_error: Option<ErrorCallback>) -> ScanNumberReturn {
         let start = self.pos();
         let main_fragment = self.scan_number_fragment(on_error);
-        let mut decimal_fragment: Option<String> = None;
-        let mut scientific_fragment: Option<String> = None;
+        let mut decimal_fragment: Option<SourceTextSliceOrStaticCow> = None;
+        let mut scientific_fragment: Option<SourceTextSliceOrStaticCow> = None;
         if self.maybe_text_char_at_index(self.pos()) == Some(CharacterCodes::dot) {
             self.increment_pos();
             decimal_fragment = Some(self.scan_number_fragment(on_error));
@@ -118,25 +135,29 @@ impl Scanner {
             if final_fragment.is_empty() {
                 self.error(on_error, &Diagnostics::Digit_expected, None, None);
             } else {
-                scientific_fragment = Some(format!(
-                    "{}{}",
-                    self.text_substring(end, pre_numeric_part),
-                    final_fragment
-                ));
+                let slice = self.text_slice(end, pre_numeric_part);
+                scientific_fragment = Some(match final_fragment {
+                    SourceTextSliceOrStaticCow::SourceTextSlice(final_fragment) => {
+                        slice.extended(final_fragment.end()).into()
+                    }
+                    SourceTextSliceOrStaticCow::StaticCow(final_fragment) => {
+                        format!("{}{}", &*slice, final_fragment)
+                    }
+                });
                 end = self.pos();
             }
         }
-        let mut result: String;
+        let mut result: SourceTextSliceOrStaticCow;
         if self.token_flags().intersects(TokenFlags::ContainsSeparator) {
             result = main_fragment;
             if let Some(decimal_fragment) = decimal_fragment.as_ref() {
-                result.push_str(&format!(".{}", decimal_fragment));
+                result = format!("{}.{}", &*result, &**decimal_fragment).into();
             }
             if let Some(scientific_fragment) = scientific_fragment {
-                result.push_str(&scientific_fragment);
+                result = format!("{}{}", &*result, &**scientific_fragment).into();
             }
         } else {
-            result = self.text_substring(start, end);
+            result = self.text_slice(start, end).into();
         }
 
         if decimal_fragment.is_some() || self.token_flags().intersects(TokenFlags::Scientific) {
@@ -150,7 +171,7 @@ impl Scanner {
             );
             ScanNumberReturn {
                 type_: SyntaxKind::NumericLiteral,
-                value: result.parse::<f64>().unwrap().to_string(),
+                value: result.parse::<f64>().unwrap().to_string().into(),
             }
         } else {
             self.set_token_value(result);
@@ -215,7 +236,7 @@ impl Scanner {
         while matches!(self.maybe_text_char_at_index(self.pos()), Some(ch) if is_octal_digit(ch)) {
             self.increment_pos();
         }
-        u32::from_str_radix(&self.text_substring(start, self.pos()), 10).unwrap()
+        u32::from_str_radix(&self.text_slice(start, self.pos()), 10).unwrap()
     }
 
     pub(super) fn scan_exact_number_of_hex_digits(
@@ -361,15 +382,14 @@ impl Scanner {
         &self,
         on_error: Option<ErrorCallback>,
         jsx_attribute_string: Option<bool>,
-    ) -> String {
+    ) -> SourceTextSliceOrStaticCow {
         let jsx_attribute_string = jsx_attribute_string.unwrap_or(false);
         let quote = self.text_char_at_index(self.pos());
         self.increment_pos();
-        let mut result = String::new();
+        let mut result: Option<Vec<SourceTextSliceOrStaticCow>> = None;
         let mut start = self.pos();
         loop {
             if self.pos() >= self.end() {
-                result.push_str(&self.text_substring(start, self.pos()));
                 self.add_token_flag(TokenFlags::Unterminated);
                 self.error(
                     on_error,
@@ -377,22 +397,35 @@ impl Scanner {
                     None,
                     None,
                 );
+                let slice = self.text_slice(start, self.pos());
+                match result.as_mut() {
+                    None => return slice.into(),
+                    Some(result) => {
+                        result.push(slice.into());
+                    }
+                }
                 break;
             }
             let ch = self.text_char_at_index(self.pos());
             if ch == quote {
-                result.push_str(&self.text_substring(start, self.pos()));
+                let slice = self.text_slice(start, self.pos());
                 self.increment_pos();
+                match result.as_mut() {
+                    None => return slice.into(),
+                    Some(result) => {
+                        result.push(slice.into());
+                    }
+                }
                 break;
             }
             if ch == CharacterCodes::backslash && !jsx_attribute_string {
-                result.push_str(&self.text_substring(start, self.pos()));
-                result.push_str(&self.scan_escape_sequence(on_error, None));
+                let result = result.get_or_insert_with(|| vec![]);
+                result.push(self.text_slice(start, self.pos()).into());
+                result.push(self.scan_escape_sequence(on_error, None));
                 start = self.pos();
                 continue;
             }
             if is_line_break(ch) && !jsx_attribute_string {
-                result.push_str(&self.text_substring(start, self.pos()));
                 self.add_token_flag(TokenFlags::Unterminated);
                 self.error(
                     on_error,
@@ -400,11 +433,27 @@ impl Scanner {
                     None,
                     None,
                 );
+                let slice = self.text_slice(start, self.pos());
+                match result.as_mut() {
+                    None => return slice.into(),
+                    Some(result) => {
+                        result.push(slice.into());
+                    }
+                }
                 break;
             }
             self.increment_pos();
         }
-        result
+        match result {
+            None => "".into(),
+            Some(result) => {
+                Debug_.assert(
+                    result.len() > 1,
+                    Some("Should've early-returned without allocating a result Vec"),
+                );
+                reduce_source_text_slice_or_static_cows(result)
+            }
+        }
     }
 
     pub(super) fn scan_template_and_set_token_value(
@@ -416,12 +465,11 @@ impl Scanner {
 
         self.increment_pos();
         let mut start = self.pos();
-        let mut contents = String::new();
+        let mut contents: Option<Vec<SourceTextSliceOrStaticCow>> = None;
         let resulting_token: SyntaxKind;
 
         loop {
             if self.pos() >= self.end() {
-                contents.push_str(&self.text_substring(start, self.pos()));
                 self.add_token_flag(TokenFlags::Unterminated);
                 self.error(
                     on_error,
@@ -434,19 +482,38 @@ impl Scanner {
                 } else {
                     SyntaxKind::TemplateTail
                 };
+                let slice = self.text_slice(start, self.pos());
+                match contents.as_mut() {
+                    None => {
+                        self.set_token_value(slice.into());
+                        return resulting_token;
+                    }
+                    Some(contents) => {
+                        contents.push(slice.into());
+                    }
+                }
                 break;
             }
 
             let curr_char = self.text_char_at_index(self.pos());
 
             if curr_char == CharacterCodes::backtick {
-                contents.push_str(&self.text_substring(start, self.pos()));
                 self.increment_pos();
                 resulting_token = if started_with_backtick {
                     SyntaxKind::NoSubstitutionTemplateLiteral
                 } else {
                     SyntaxKind::TemplateTail
                 };
+                let slice = self.text_slice(start, self.pos());
+                match contents.as_mut() {
+                    None => {
+                        self.set_token_value(slice.into());
+                        return resulting_token;
+                    }
+                    Some(contents) => {
+                        contents.push(slice.into());
+                    }
+                }
                 break;
             }
 
@@ -454,25 +521,36 @@ impl Scanner {
                 && self.pos() + 1 < self.end()
                 && self.text_char_at_index(self.pos() + 1) == CharacterCodes::open_brace
             {
-                contents.push_str(&self.text_substring(start, self.pos()));
                 self.increment_pos_by(2);
                 resulting_token = if started_with_backtick {
                     SyntaxKind::TemplateHead
                 } else {
                     SyntaxKind::TemplateMiddle
                 };
+                let slice = self.text_slice(start, self.pos());
+                match contents.as_mut() {
+                    None => {
+                        self.set_token_value(slice.into());
+                        return resulting_token;
+                    }
+                    Some(contents) => {
+                        contents.push(slice.into());
+                    }
+                }
                 break;
             }
 
             if curr_char == CharacterCodes::backslash {
-                contents.push_str(&self.text_substring(start, self.pos()));
-                contents.push_str(&self.scan_escape_sequence(on_error, Some(is_tagged_template)));
+                let contents = contents.get_or_insert_with(|| vec![]);
+                contents.push(self.text_slice(start, self.pos()).into());
+                contents.push(self.scan_escape_sequence(on_error, Some(is_tagged_template)));
                 start = self.pos();
                 continue;
             }
 
             if curr_char == CharacterCodes::carriage_return {
-                contents.push_str(&self.text_substring(start, self.pos()));
+                let contents = contents.get_or_insert_with(|| vec![]);
+                contents.push(self.text_slice(start, self.pos()).into());
                 self.increment_pos();
 
                 if self.pos() < self.end()
@@ -481,7 +559,7 @@ impl Scanner {
                     self.increment_pos();
                 }
 
-                contents.push_str("\n");
+                contents.push("\n".into());
                 start = self.pos();
                 continue;
             }
@@ -491,7 +569,16 @@ impl Scanner {
 
         // Debug.assert(resultingToken !== undefined);
 
-        self.set_token_value(contents);
+        self.set_token_value(match contents {
+            None => "".into(),
+            Some(contents) => {
+                Debug_.assert(
+                    contents.len() > 1,
+                    Some("Should've early-returned without allocating a result Vec"),
+                );
+                reduce_source_text_slice_or_static_cows(contents)
+            }
+        });
         resulting_token
     }
 
@@ -639,7 +726,7 @@ impl Scanner {
         let escaped_value = if !escaped_value_string.is_none() {
             hex_digits_to_u32(&escaped_value_string.unwrap())
         } else {
-            Err("Couldn't scan any hex digits".to_string())
+            Err("Couldn't scan any hex digits")
         };
         let mut is_invalid_extended_escape = false;
 
@@ -701,7 +788,7 @@ impl Scanner {
     pub(super) fn peek_extended_unicode_escape(
         &self,
         on_error: Option<ErrorCallback>,
-    ) -> Result<u32, String> {
+    ) -> Result<u32, &'static str> {
         if self.language_version >= ScriptTarget::ES2015
             && matches!(
                 maybe_code_point_at(&self.text(), self.pos() + 1),
@@ -715,23 +802,30 @@ impl Scanner {
             let start = self.pos();
             self.increment_pos_by(3);
             let escaped_value_string = self.scan_minimum_number_of_hex_digits(on_error, 1, false);
-            let escaped_value = if !escaped_value_string.is_empty() {
-                hex_digits_to_u32(&escaped_value_string)
+            let escaped_value = if !escaped_value_string.is_none() {
+                hex_digits_to_u32(&escaped_value_string.unwrap())
             } else {
-                Err("Couldn't scan any hex digits".to_string())
+                Err("Couldn't scan any hex digits")
             };
             self.set_pos(start);
             return escaped_value;
         }
-        Err("Didn't find extended Unicode escape".to_string())
+        Err("Didn't find extended Unicode escape")
     }
 
-    pub(super) fn scan_identifier_parts(&self, on_error: Option<ErrorCallback>) -> String {
-        let mut result = "".to_string();
+    pub(super) fn scan_identifier_parts(
+        &self,
+        on_error: Option<ErrorCallback>,
+    ) -> SourceTextSliceOrStaticCow {
+        let mut result: Option<Vec<SourceTextSliceOrStaticCow>> = None;
         let mut start = self.pos();
         while self.pos() < self.end() {
             let ch = code_point_at(&self.text(), self.pos());
-            if is_identifier_part(ch, Some(self.language_version), None) {
+            if is_identifier_part(
+                ch.chars().next().unwrap(),
+                Some(self.language_version),
+                None,
+            ) {
                 self.increment_pos_by(char_size(ch));
             } else if ch == CharacterCodes::backslash {
                 let ch_u32 = self.peek_extended_unicode_escape(on_error);
@@ -741,7 +835,9 @@ impl Scanner {
                     {
                         self.increment_pos_by(3);
                         self.add_token_flag(TokenFlags::ExtendedUnicodeEscape);
-                        result.push_str(&self.scan_extended_unicode_escape(on_error));
+                        result
+                            .get_or_insert_with(|| vec![])
+                            .push(self.scan_extended_unicode_escape(on_error).into());
                         start = self.pos();
                         continue;
                     }
@@ -766,17 +862,24 @@ impl Scanner {
                     }
                 };
                 self.add_token_flag(TokenFlags::UnicodeEscape);
-                result.push_str(&self.text_substring(start, self.pos()));
+                let result = result.get_or_insert_with(|| vec![]);
+                result.push(self.text_slice(start, self.pos()).into());
                 // result.push_str(&utf16_encode_as_string(ch));
-                result.push(ch);
+                result.push(ch.to_string().into());
                 self.increment_pos_by(6);
                 start = self.pos();
             } else {
                 break;
             }
         }
-        result.push_str(&self.text_substring(start, self.pos()));
-        result
+        let slice = self.text_slice(start, self.pos());
+        match result {
+            None => slice.into(),
+            Some(result) => {
+                result.push(slice.into());
+                result.iter().map(|value| &**value).concat().into()
+            }
+        }
     }
 
     pub(super) fn get_identifier_token(&self) -> SyntaxKind {
@@ -798,7 +901,7 @@ impl Scanner {
         on_error: Option<ErrorCallback>,
         base: u32, /*2 | 8*/
     ) -> String {
-        let mut value = "".to_string();
+        let mut value = "".to_owned();
         let mut separator_allowed = false;
         let mut is_previous_token_separator = false;
         loop {
@@ -828,11 +931,12 @@ impl Scanner {
             }
             separator_allowed = true;
             if !matches!(ch, Some(ch) if is_digit(ch))
-                || ch.unwrap() as u32 - CharacterCodes::_0 as u32 >= base
+                || ch.unwrap().chars().next().unwrap() as u32 - CharacterCodesChar::_0 as u32
+                    >= base
             {
                 break;
             }
-            value.push(self.text_char_at_index(self.pos()));
+            value.push_str(self.text_char_at_index(self.pos()));
             self.increment_pos();
             is_previous_token_separator = false;
         }
@@ -849,12 +953,21 @@ impl Scanner {
 
     pub(super) fn check_big_int_suffix(&self) -> SyntaxKind {
         if self.maybe_text_char_at_index(self.pos()) == Some(CharacterCodes::n) {
-            self.set_token_value(format!("{}n", self.token_value()));
+            self.set_token_value(match &*self.token_value() {
+                SourceTextSliceOrStaticCow::SourceTextSlice(token_value) => token_value
+                    .extended(Some(token_value.end.unwrap() + 1))
+                    .into(),
+                SourceTextSliceOrStaticCow::StaticCow(token_value) => {
+                    format!("{}n", token_value).into()
+                }
+            });
             if self
                 .token_flags()
                 .intersects(TokenFlags::BinaryOrOctalSpecifier)
             {
-                self.set_token_value(format!("{}n", parse_pseudo_big_int(&self.token_value())));
+                self.set_token_value(
+                    format!("{}n", parse_pseudo_big_int(&self.token_value())).into(),
+                );
             }
             self.increment_pos();
             SyntaxKind::BigIntLiteral
@@ -870,7 +983,7 @@ impl Scanner {
                     u32::from_str_radix(&self.token_value(), 10).unwrap()
                 }
             };
-            self.set_token_value(numeric_value.to_string());
+            self.set_token_value(numeric_value.to_string().into());
             SyntaxKind::NumericLiteral
         }
     }
@@ -1128,8 +1241,8 @@ impl Scanner {
 
                         /*self.set_comment_directives(*/
                         self.append_if_comment_directive(
-                            self.maybe_comment_directives_mut(),
-                            &self.text_substring(self.token_pos(), self.pos()),
+                            &mut self.maybe_comment_directives_mut(),
+                            &self.text_slice(self.token_pos(), self.pos()),
                             &comment_directive_reg_ex_single_line,
                             self.token_pos(),
                         )/*)*/;
@@ -1181,8 +1294,8 @@ impl Scanner {
 
                         /*self.set_comment_directives(*/
                         self.append_if_comment_directive(
-                            self.maybe_comment_directives_mut(),
-                            &self.text_substring(last_line_start, self.pos()),
+                            &mut self.maybe_comment_directives_mut(),
+                            &self.text_slice(last_line_start, self.pos()),
                             &comment_directive_reg_ex_multi_line,
                             last_line_start
                         )/*)*/;
@@ -1219,7 +1332,10 @@ impl Scanner {
                     {
                         self.increment_pos_by(2);
                         self.set_token_value(
-                            self.scan_minimum_number_of_hex_digits(on_error, 1, true),
+                            match self.scan_minimum_number_of_hex_digits(on_error, 1, true) {
+                                None => "".into(),
+                                Some(value) => Some(Rc::new(value.into())),
+                            },
                         );
                         if self.token_value().is_empty() {
                             self.error(
@@ -1228,9 +1344,9 @@ impl Scanner {
                                 None,
                                 None,
                             );
-                            self.set_token_value("0".to_string());
+                            self.set_token_value("0".into());
                         }
-                        self.set_token_value(format!("0x{}", self.token_value()));
+                        self.set_token_value(format!("0x{}", &*self.token_value()).into());
                         self.add_token_flag(TokenFlags::HexSpecifier);
                         return self.set_token(self.check_big_int_suffix());
                     } else if self.pos() + 2 < self.end()
@@ -1238,12 +1354,12 @@ impl Scanner {
                         || self.text_char_at_index(self.pos() + 1) == CharacterCodes::b
                     {
                         self.increment_pos_by(2);
-                        self.set_token_value(self.scan_binary_or_octal_digits(on_error, 2));
+                        self.set_token_value(self.scan_binary_or_octal_digits(on_error, 2).into());
                         if self.token_value().is_empty() {
                             self.error(on_error, &Diagnostics::Binary_digit_expected, None, None);
-                            self.set_token_value("0".to_string());
+                            self.set_token_value("0".into());
                         }
-                        self.set_token_value(format!("0b{}", self.token_value()));
+                        self.set_token_value(format!("0b{}", &**self.token_value()).into());
                         self.add_token_flag(TokenFlags::BinarySpecifier);
                         return self.set_token(self.check_big_int_suffix());
                     } else if self.pos() + 2 < self.end()
@@ -1263,7 +1379,7 @@ impl Scanner {
                     if self.pos() + 1 < self.end()
                         && is_octal_digit(self.text_char_at_index(self.pos() + 1))
                     {
-                        self.set_token_value(self.scan_octal_digits().to_string());
+                        self.set_token_value(self.scan_octal_digits().to_string().into());
                         self.add_token_flag(TokenFlags::Octal);
                         return self.set_token(SyntaxKind::NumericLiteral);
                     }
@@ -1510,11 +1626,14 @@ impl Scanner {
                     ) {
                         self.increment_pos_by(3);
                         self.add_token_flag(TokenFlags::ExtendedUnicodeEscape);
-                        self.set_token_value(format!(
-                            "{}{}",
-                            self.scan_extended_unicode_escape(on_error),
-                            self.scan_identifier_parts(on_error)
-                        ));
+                        self.set_token_value(
+                            format!(
+                                "{}{}",
+                                self.scan_extended_unicode_escape(on_error),
+                                &*self.scan_identifier_parts(on_error)
+                            )
+                            .into(),
+                        );
                         return self.set_token(self.get_identifier_token());
                     }
 
@@ -1528,11 +1647,14 @@ impl Scanner {
                     ) {
                         self.increment_pos_by(6);
                         self.add_token_flag(TokenFlags::UnicodeEscape);
-                        self.set_token_value(format!(
-                            "{}{}",
-                            char::from_u32(cooked_char.unwrap()).unwrap(),
-                            self.scan_identifier_parts(on_error)
-                        ));
+                        self.set_token_value(
+                            format!(
+                                "{}{}",
+                                char::from_u32(cooked_char.unwrap()).unwrap(),
+                                &*self.scan_identifier_parts(on_error)
+                            )
+                            .into(),
+                        );
                         return self.set_token(self.get_identifier_token());
                     }
 
@@ -1557,7 +1679,7 @@ impl Scanner {
                         return self.set_token(SyntaxKind::Unknown);
                     }
 
-                    if matches!(maybe_code_point_at(&self.text(), self.pos() + 1), Some(ch) if is_identifier_start(ch, Some(self.language_version)))
+                    if matches!(maybe_code_point_at(&self.text(), self.pos() + 1), Some(ch) if is_identifier_start(ch.chars().next().unwrap(), Some(self.language_version)))
                     {
                         self.increment_pos();
                         self.scan_identifier(
@@ -1566,7 +1688,9 @@ impl Scanner {
                             self.language_version,
                         );
                     } else {
-                        self.set_token_value(code_point_at(&self.text(), self.pos()).to_string());
+                        self.set_token_value(
+                            code_point_at(&self.text(), self.pos()).to_owned().into(),
+                        );
                         self.error(
                             on_error,
                             &Diagnostics::Invalid_character,
@@ -1606,5 +1730,5 @@ impl Scanner {
 
 pub(super) struct ScanNumberReturn {
     type_: SyntaxKind,
-    value: String,
+    value: SourceTextSliceOrStaticCow,
 }

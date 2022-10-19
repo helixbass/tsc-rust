@@ -3,6 +3,8 @@ use std::convert::TryInto;
 use std::ops::Deref;
 use std::rc::Rc;
 
+use crate::Debug_;
+
 #[derive(Debug)]
 pub enum SourceText {
     AsciiOnly(SourceTextAsciiOnly),
@@ -233,6 +235,10 @@ impl SourceTextSlice {
         self.source_text
             .str_index_to_char_index(self.start_str + index)
     }
+
+    pub fn extended(&self, end: Option<usize>) -> Self {
+        Self::new(self.source_text.clone(), self.start, end)
+    }
 }
 
 impl Deref for SourceTextSlice {
@@ -246,9 +252,21 @@ impl Deref for SourceTextSlice {
     }
 }
 
+#[derive(Clone)]
 pub enum SourceTextSliceOrStaticCow {
     SourceTextSlice(SourceTextSlice),
     StaticCow(Cow<'static, str>),
+}
+
+impl Deref for SourceTextSliceOrStaticCow {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::SourceTextSlice(value) => &**value,
+            Self::StaticCow(value) => &**value,
+        }
+    }
 }
 
 impl From<SourceTextSlice> for SourceTextSliceOrStaticCow {
@@ -275,6 +293,15 @@ impl From<Cow<'static, str>> for SourceTextSliceOrStaticCow {
     }
 }
 
+impl From<SourceTextSliceOrString> for SourceTextSliceOrStaticCow {
+    fn from(value: SourceTextSliceOrString) -> Self {
+        match value {
+            SourceTextSliceOrString::SourceTextSlice(value) => Self::SourceTextSlice(value),
+            SourceTextSliceOrString::String(value) => Self::StaticCow(value.into()),
+        }
+    }
+}
+
 impl From<SourceTextSliceOrStaticCow> for String {
     fn from(value: SourceTextSliceOrStaticCow) -> Self {
         match value {
@@ -282,6 +309,29 @@ impl From<SourceTextSliceOrStaticCow> for String {
             SourceTextSliceOrStaticCow::StaticCow(value) => value.into_owned(),
         }
     }
+}
+
+pub fn reduce_source_text_slice_or_static_cows(
+    items: Vec<SourceTextSliceOrStaticCow>,
+) -> SourceTextSliceOrStaticCow {
+    let mut last_slice_end: Option<usize> = None;
+    items
+        .into_iter()
+        .reduce(|a, b| match a {
+            SourceTextSliceOrStaticCow::SourceTextSlice(a) => match b {
+                SourceTextSliceOrStaticCow::SourceTextSlice(b) => {
+                    Debug_.assert(
+                        last_slice_end == Some(a.start),
+                        Some("Source text slices should be contiguous"),
+                    );
+                    last_slice_end = b.end;
+                    a.extended(b.end).into()
+                }
+                SourceTextSliceOrStaticCow::StaticCow(b) => format!("{}{}", &*a, b).into(),
+            },
+            SourceTextSliceOrStaticCow::StaticCow(a) => format!("{}{}", a, &*b).into(),
+        })
+        .unwrap()
 }
 
 pub enum SourceTextSliceOrStaticStr {

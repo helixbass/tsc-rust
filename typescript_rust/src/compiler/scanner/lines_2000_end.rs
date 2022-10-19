@@ -13,7 +13,7 @@ use super::{
 use crate::{
     append, trim_string_start, BaseTextRange, CharacterCodes, CommentDirective,
     CommentDirectiveType, Debug_, Diagnostics, LanguageVariant, ScriptTarget, SourceText,
-    SourceTextAsChars, SyntaxKind, TokenFlags,
+    SourceTextAsChars, SourceTextSliceOrStaticCow, SyntaxKind, TokenFlags,
 };
 
 impl Scanner {
@@ -34,29 +34,37 @@ impl Scanner {
     pub(super) fn scan_identifier(
         &self,
         on_error: Option<ErrorCallback>,
-        start_character: char,
+        start_character: &str,
         language_version: ScriptTarget,
     ) -> Option<SyntaxKind> {
         let mut ch = start_character;
-        if is_identifier_start(ch, Some(language_version)) {
+        if is_identifier_start(ch.chars().next().unwrap(), Some(language_version)) {
             self.increment_pos_by(char_size(ch));
             loop {
                 if !(self.pos() < self.end()) {
                     break;
                 }
                 ch = code_point_at(&self.text(), self.pos());
-                if !is_identifier_part(ch, Some(language_version), None) {
+                if !is_identifier_part(ch.chars().next().unwrap(), Some(language_version), None) {
                     break;
                 }
                 self.increment_pos_by(char_size(ch));
             }
-            self.set_token_value(self.text_substring(self.token_pos(), self.pos()));
+            self.set_token_value(self.text_slice(self.token_pos(), self.pos()).into());
             if ch == CharacterCodes::backslash {
-                self.set_token_value(format!(
-                    "{}{}",
-                    self.token_value(),
-                    self.scan_identifier_parts(on_error)
-                ));
+                self.set_token_value(
+                    match (&*self.token_value(), &self.scan_identifier_parts(on_error)) {
+                        (
+                            SourceTextSliceOrStaticCow::SourceTextSlice(token_value),
+                            SourceTextSliceOrStaticCow::SourceTextSlice(identifier_parts),
+                        ) if token_value.end == Some(identifier_parts.start) => {
+                            token_value.extended(identifier_parts.end).into()
+                        }
+                        (token_value, identifier_parts) => {
+                            format!("{}{}", &**token_value, &**identifier_parts).into()
+                        }
+                    },
+                );
             }
             return Some(self.get_identifier_token());
         }
@@ -173,7 +181,7 @@ impl Scanner {
 
     pub(super) fn append_if_comment_directive(
         &self,
-        mut comment_directives: RefMut<Option<Vec<Rc<CommentDirective>>>>,
+        comment_directives: &mut Option<Vec<Rc<CommentDirective>>>,
         text: &str,
         comment_directive_reg_ex: &Regex,
         line_start: usize,
@@ -186,15 +194,11 @@ impl Scanner {
         }
         let type_ = type_.unwrap();
 
-        if comment_directives.is_none() {
-            *comment_directives = Some(vec![]);
-        }
-        let mut comment_directives =
-            RefMut::map(comment_directives, |option| option.as_mut().unwrap());
+        let comment_directives = comment_directives.get_or_insert_with(|| vec![]);
 
         /*return*/
         append(
-            &mut comment_directives,
+            comment_directives,
             Some(Rc::new(CommentDirective {
                 range: BaseTextRange::new(
                     line_start.try_into().unwrap(),
@@ -363,7 +367,7 @@ impl Scanner {
             self.increment_pos();
         }
 
-        self.set_token_value(self.text_substring(self.start_pos(), self.pos()));
+        self.set_token_value(self.text_slice(self.start_pos(), self.pos()).into());
 
         if first_non_whitespace == -1 {
             SyntaxKind::JsxTextAllWhiteSpaces
@@ -708,6 +712,6 @@ pub(crate) fn utf16_encode_as_string(code_point: u32) -> String {
     char::from_u32(code_point).unwrap().to_string()
 }
 
-pub(super) fn hex_digits_to_u32(str: &str) -> Result<u32, String> {
-    u32::from_str_radix(str, 16).map_err(|_| "Couldn't convert hex digits to u32".to_string())
+pub(super) fn hex_digits_to_u32(str: &str) -> Result<u32, &'static str> {
+    u32::from_str_radix(str, 16).map_err(|_| "Couldn't convert hex digits to u32")
 }

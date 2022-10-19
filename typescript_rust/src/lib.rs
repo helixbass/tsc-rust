@@ -630,8 +630,8 @@ pub use rust_helpers::debugging::{
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::regex::split_matches;
 pub use rust_helpers::source_text::{
-    SourceText, SourceTextSlice, SourceTextSliceOrStaticCow, SourceTextSliceOrStaticStr,
-    SourceTextSliceOrString,
+    reduce_source_text_slice_or_static_cows, SourceText, SourceTextSlice,
+    SourceTextSliceOrStaticCow, SourceTextSliceOrStaticStr, SourceTextSliceOrString,
 };
 pub use rust_helpers::sys::{
     fs_readdir_sync_with_file_types, fs_stat_sync, is_windows, process_cwd,

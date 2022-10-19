@@ -890,7 +890,7 @@ pub fn get_line_and_character_of_position<TSourceFileLike: SourceFileLike>(
     compute_line_and_character_of_position(&get_line_starts(source_file), position)
 }
 
-pub fn is_white_space_like(ch: char) -> bool {
+pub fn is_white_space_like(ch: &str) -> bool {
     is_white_space_single_line(ch) || is_line_break(ch)
 }
 
