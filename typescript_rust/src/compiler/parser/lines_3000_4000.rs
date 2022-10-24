@@ -297,7 +297,7 @@ impl ParserType {
                 &Diagnostics::_0_expected,
                 Some(vec![token_to_string(SyntaxKind::ColonToken)
                     .unwrap()
-                    .to_owned()]),
+                    .into()]),
             );
             self.next_token();
             return true;

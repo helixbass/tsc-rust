@@ -23,8 +23,8 @@ use crate::{
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags, InferenceContext,
     InferenceFlags, Node, NodeArray, NodeInterface, ReadonlyTextRange, RelationComparisonResult,
-    ScriptTarget, Signature, SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
+    ScriptTarget, Signature, SignatureFlags, SourceTextSliceOrString, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
 };
 use local_macros::enum_unwrapped;
 
@@ -363,7 +363,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*CallLikeExpression*/
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Rc<Diagnostic /*DiagnosticWithLocation*/> {
         if is_call_expression(node) {
             let GetDiagnosticSpanForCallNodeReturn {

@@ -9,7 +9,7 @@ use std::iter::FromIterator;
 
 use crate::{
     arrays_equal, binary_search_copy_key, compare_values, CharacterCodes, Debug_,
-    DiagnosticMessage, LineAndCharacter, ScriptTarget, SourceFileLike, SyntaxKind,
+    DiagnosticMessage, LineAndCharacter, ScriptTarget, SourceFileLike, SourceText, SyntaxKind,
 };
 
 pub type ErrorCallback<'callback> = &'callback dyn Fn(&DiagnosticMessage, usize);
@@ -724,7 +724,7 @@ pub fn get_position_of_line_and_character<TSourceFile: SourceFileLike>(
                 &get_line_starts(source_file),
                 line,
                 character,
-                Some(&*source_file.text_as_chars()),
+                Some(&*source_file.text()),
                 allow_edits,
             )
         })
@@ -734,7 +734,7 @@ pub(crate) fn compute_position_of_line_and_character(
     line_starts: &[usize],
     mut line: usize,
     character: usize,
-    debug_text: Option<&SourceTextAsChars>,
+    debug_text: Option<&SourceText>,
     allow_edits: Option<bool>,
 ) -> usize {
     let allow_edits = allow_edits.unwrap_or(false);
@@ -757,7 +757,7 @@ pub(crate) fn compute_position_of_line_and_character(
                 match debug_text {
                     Some(debug_text) =>
                         arrays_equal(line_starts, &compute_line_starts(debug_text)).to_string(),
-                    None => "unknown".to_string(),
+                    None => "unknown".to_owned(),
                 },
             )));
         }
@@ -767,8 +767,8 @@ pub(crate) fn compute_position_of_line_and_character(
     if allow_edits {
         return if matches!(line_starts.get(line + 1), Some(line_start) if res > *line_start) {
             line_starts[line + 1]
-        } else if matches!(debug_text, Some(debug_text) if res > text_len(debug_text)) {
-            text_len(debug_text.unwrap())
+        } else if matches!(debug_text, Some(debug_text) if res > debug_text.len()) {
+            debug_text.unwrap().len()
         } else {
             res
         };
@@ -776,22 +776,22 @@ pub(crate) fn compute_position_of_line_and_character(
     if line < line_starts.len() - 1 {
         Debug_.assert(res < line_starts[line + 1], None);
     } else if let Some(debug_text) = debug_text {
-        Debug_.assert(res <= text_len(debug_text), None);
+        Debug_.assert(res <= debug_text.len(), None);
     }
     res
 }
 
-pub(crate) fn compute_line_starts(text: &SourceTextAsChars) -> Vec<usize> {
+pub(crate) fn compute_line_starts(text: &SourceText) -> Vec<usize> {
     let mut result = vec![];
     let mut pos = 0;
     let mut line_start = 0;
-    while pos < text_len(text) {
-        let ch = text_char_at_index(text, pos);
+    while pos < text.len() {
+        let ch = text.char_at_index(pos);
         pos += 1;
         match ch {
             CharacterCodes::carriage_return => {
                 if matches!(
-                    maybe_text_char_at_index(text, pos),
+                    text.maybe_char_at_index(pos),
                     Some(CharacterCodes::line_feed)
                 ) {
                     pos += 1;

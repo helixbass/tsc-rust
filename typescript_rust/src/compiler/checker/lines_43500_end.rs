@@ -19,9 +19,10 @@ use crate::{
     HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface, ModifierFlags,
     ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
     NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
-    SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
+    SignatureKind, SourceFileLike, SourceTextSliceOrString, StringOrNumber, Symbol,
+    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult,
+    SyntaxKind, Ternary, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -195,7 +196,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> bool {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
@@ -214,7 +215,7 @@ impl TypeChecker {
         start: isize,
         length: isize,
         message: &'static DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> bool {
         let source_file = get_source_file_of_node(Some(node_for_source_file)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
@@ -231,7 +232,7 @@ impl TypeChecker {
         key: String, /*keyof CompilerOptions*/
         node: &Node,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> bool {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
@@ -245,7 +246,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> bool {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
@@ -597,7 +598,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> bool {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {

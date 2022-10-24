@@ -246,7 +246,7 @@ impl ParserType {
             return self.try_parse_bool(|| {
                 let literal_node = self.parse_literal_node();
                 let literal_node_text = literal_node.as_literal_like_node().text();
-                &*literal_node_text == "constructor"
+                &**literal_node_text == "constructor"
             });
         }
         false

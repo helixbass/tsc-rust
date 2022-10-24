@@ -4,7 +4,8 @@ use crate::{
     HasInitializerInterface, HasQuestionTokenInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
+    NodeArray, NodeInterface, SignatureDeclarationInterface, SourceTextSliceOrStringOrNodeArray,
+    StringOrNodeArray, SyntaxKind,
 };
 
 pub fn for_each_child_returns<
@@ -1266,7 +1267,7 @@ pub fn for_each_child_returns<
                 .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
         }
         Node::JSDoc(node) => {
-            (if let Some(StringOrNodeArray::NodeArray(comment)) = node.comment.as_ref() {
+            (if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.comment.as_ref() {
                 visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
             } else {
                 None
@@ -1276,7 +1277,7 @@ pub fn for_each_child_returns<
         Node::JSDocSeeTag(node) => {
             visit_node_returns(&mut cb_node, Some(node.tag_name())).or_else(|| {
                 visit_node_returns(&mut cb_node, node.name.clone()).or_else(|| {
-                    if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                    if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                         visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
                     } else {
                         None
@@ -1293,7 +1294,7 @@ pub fn for_each_child_returns<
                     visit_node_returns(&mut cb_node, Some(&*node.name)).or_else(|| {
                         visit_node_returns(&mut cb_node, node.type_expression.clone()).or_else(
                             || {
-                                if let Some(StringOrNodeArray::NodeArray(comment)) =
+                                if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
                                     node.maybe_comment()
                                 {
                                     visit_nodes_returns(
@@ -1310,7 +1311,7 @@ pub fn for_each_child_returns<
                 } else {
                     visit_node_returns(&mut cb_node, node.type_expression.clone()).or_else(|| {
                         visit_node_returns(&mut cb_node, Some(&*node.name)).or_else(|| {
-                            if let Some(StringOrNodeArray::NodeArray(comment)) =
+                            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
                                 node.maybe_comment()
                             {
                                 visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
@@ -1323,7 +1324,7 @@ pub fn for_each_child_returns<
             }),
         Node::BaseJSDocTag(node) => visit_node_returns(&mut cb_node, Some(node.tag_name()))
             .or_else(|| {
-                if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                     visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
                 } else {
                     None
@@ -1332,7 +1333,7 @@ pub fn for_each_child_returns<
         Node::JSDocImplementsTag(node) => visit_node_returns(&mut cb_node, Some(node.tag_name()))
             .or_else(|| {
                 visit_node_returns(&mut cb_node, Some(&*node.class)).or_else(|| {
-                    if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                    if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                         visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
                     } else {
                         None
@@ -1342,7 +1343,7 @@ pub fn for_each_child_returns<
         Node::JSDocAugmentsTag(node) => visit_node_returns(&mut cb_node, Some(node.tag_name()))
             .or_else(|| {
                 visit_node_returns(&mut cb_node, Some(&*node.class)).or_else(|| {
-                    if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                    if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                         visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
                     } else {
                         None
@@ -1358,7 +1359,7 @@ pub fn for_each_child_returns<
                         Some(&node.type_parameters),
                     )
                     .or_else(|| {
-                        if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                        if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                             visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
                         } else {
                             None
@@ -1372,7 +1373,7 @@ pub fn for_each_child_returns<
                 {
                     visit_node_returns(&mut cb_node, node.type_expression.clone()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.full_name.clone()).or_else(|| {
-                            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                                 visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
                             } else {
                                 None
@@ -1382,7 +1383,7 @@ pub fn for_each_child_returns<
                 } else {
                     visit_node_returns(&mut cb_node, node.full_name.clone()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.type_expression.clone()).or_else(|| {
-                            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                                 visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
                             } else {
                                 None
@@ -1396,7 +1397,7 @@ pub fn for_each_child_returns<
             visit_node_returns(&mut cb_node, Some(node.tag_name())).or_else(|| {
                 visit_node_returns(&mut cb_node, node.full_name.clone()).or_else(|| {
                     visit_node_returns(&mut cb_node, Some(&*node.type_expression)).or_else(|| {
-                        if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                        if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                             visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
                         } else {
                             None
@@ -1408,7 +1409,7 @@ pub fn for_each_child_returns<
         Node::BaseJSDocTypeLikeTag(node) => {
             visit_node_returns(&mut cb_node, Some(node.tag_name())).or_else(|| {
                 visit_node_returns(&mut cb_node, node.type_expression.clone()).or_else(|| {
-                    if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                    if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
                         visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(comment))
                     } else {
                         None

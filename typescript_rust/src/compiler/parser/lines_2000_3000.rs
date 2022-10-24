@@ -552,7 +552,7 @@ impl ParserType {
                         &Diagnostics::_0_expected,
                         Some(vec![token_to_string(SyntaxKind::ExportKeyword)
                             .unwrap()
-                            .to_owned()]),
+                            .into()]),
                     );
                 } else {
                     self.parse_error_at_current_token(
@@ -592,7 +592,7 @@ impl ParserType {
                 if is_keyword(self.token()) {
                     self.parse_error_at_current_token(
                         &Diagnostics::_0_is_not_allowed_as_a_variable_declaration_name,
-                        Some(vec![token_to_string(self.token()).unwrap().to_owned()]),
+                        Some(vec![token_to_string(self.token()).unwrap().into()]),
                     );
                 } else {
                     self.parse_error_at_current_token(
@@ -632,7 +632,7 @@ impl ParserType {
                 if is_keyword(self.token()) {
                     self.parse_error_at_current_token(
                         &Diagnostics::_0_is_not_allowed_as_a_parameter_name,
-                        Some(vec![token_to_string(self.token()).unwrap().to_owned()]),
+                        Some(vec![token_to_string(self.token()).unwrap().into()]),
                     );
                 } else {
                     self.parse_error_at_current_token(
@@ -932,7 +932,7 @@ impl ParserType {
                 Some(&Diagnostics::_0_expected),
                 Some(vec![token_to_string(SyntaxKind::CloseBraceToken)
                     .unwrap()
-                    .to_owned()]),
+                    .into()]),
             )
         }
     }

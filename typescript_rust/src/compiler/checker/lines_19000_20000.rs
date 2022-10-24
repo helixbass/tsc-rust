@@ -17,8 +17,9 @@ use crate::{
     is_named_declaration, is_private_identifier, length, push_if_unique_rc, reduce_left, some,
     CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo,
     ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
-    TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags,
+    SourceTextSliceOrString, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,
+    TypeFlags, TypeFormatFlags, TypeInterface, VarianceFlags, __String, get_check_flags,
+    get_object_flags,
 };
 
 impl CheckTypeRelatedTo {
@@ -1447,10 +1448,12 @@ impl CheckTypeRelatedTo {
                 SignatureCheckMode::None
             },
             report_errors,
-            &mut Some(&mut |message: Cow<'static, DiagnosticMessage>,
-                            args: Option<Vec<String>>| {
-                self.report_error(message, args)
-            }),
+            &mut Some(
+                &mut |message: Cow<'static, DiagnosticMessage>,
+                      args: Option<Vec<SourceTextSliceOrString>>| {
+                    self.report_error(message, args)
+                },
+            ),
             Some(&|source: &Type, target: &Type| incompatible_reporter(self, source, target)),
             Rc::new(TypeComparerIsRelatedToWorker::new(self.rc_wrapper())),
             Some(Rc::new(

@@ -23,8 +23,8 @@ use crate::{
     LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
     NodeInterface, Number, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
     PrefixUnaryExpression, PrivateIdentifier, ReadonlyTextRange, RegularExpressionLiteral,
-    SignatureDeclarationInterface, SourceTextSliceOrString, StringLiteral, StringOrNodeArray,
-    SyntaxKind, TokenFlags, TransformFlags,
+    SignatureDeclarationInterface, SourceTextSliceOrString, SourceTextSliceOrStringOrNodeArray,
+    StringLiteral, StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -170,7 +170,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocNamepathType, type_)
     }
 
-    pub fn create_jsdoc_type_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_type_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -186,7 +186,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_return_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_return_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -202,7 +202,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_this_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_this_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -218,7 +218,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_enum_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_enum_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -234,7 +234,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_author_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_author_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -248,7 +248,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_class_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_class_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -262,7 +262,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_public_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_public_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -276,7 +276,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_private_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_private_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -290,7 +290,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_protected_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_protected_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -304,7 +304,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_readonly_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_readonly_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -318,7 +318,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_override_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_override_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -332,7 +332,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_deprecated_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_deprecated_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,

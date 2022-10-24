@@ -703,7 +703,7 @@ impl BinderType {
         &self,
         node: &Node,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> DiagnosticWithLocation {
         create_diagnostic_for_node_in_source_file(
             &get_source_file_of_node(Some(node)).unwrap_or_else(|| self.file()),

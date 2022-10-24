@@ -29,8 +29,9 @@ use crate::{
     PackageJsonInfoCache, ParsedCommandLine, Path, Program, ProjectReference, ReadonlyTextRange,
     RedirectTargetsMap, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
-    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
-    TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
+    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, SourceTextSliceOrString,
+    StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost, TypeCheckerHostDebuggable,
+    TypeReferenceDirectiveResolutionCache,
 };
 use local_macros::enum_unwrapped;
 
@@ -395,7 +396,7 @@ pub(crate) struct ReferenceFileLocation {
 pub(crate) struct SyntheticReferenceFileLocation {
     pub file: Rc<Node /*SourceFile*/>,
     pub package_id: Option<PackageId>,
-    pub text: String,
+    pub text: SourceTextSliceOrString,
 }
 
 pub(crate) fn is_reference_file_location(
@@ -491,7 +492,7 @@ pub(crate) fn get_referenced_file_location<
                 .into();
             }
             pos = Some(skip_trivia(
-                &file_as_source_file.text_as_chars(),
+                file_as_source_file.text(),
                 import_literal.pos(),
                 None,
                 None,

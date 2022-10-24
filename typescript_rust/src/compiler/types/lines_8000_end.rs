@@ -12,8 +12,8 @@ use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, S
 use crate::{
     BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint, FileIncludeReason,
     ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules, Path,
-    RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SourceTextSlice, SymlinkCache,
-    SyntaxKind, TempFlags, TextRange,
+    RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SourceTextSlice,
+    SourceTextSliceOrString, SymlinkCache, SyntaxKind, TempFlags, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -708,7 +708,7 @@ pub struct ModulePath {
 
 pub struct ResolvedModuleSpecifierInfo {
     pub module_paths: Option<Vec<ModulePath>>,
-    pub module_specifiers: Option<Vec<String>>,
+    pub module_specifiers: Option<Vec<SourceTextSliceOrString>>,
     pub is_auto_importable: Option<bool>,
 }
 

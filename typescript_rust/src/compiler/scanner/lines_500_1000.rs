@@ -603,18 +603,18 @@ pub fn is_identifier_part(
     language_version: Option<ScriptTarget>,
     identifier_variant: Option<LanguageVariant>,
 ) -> bool {
-    ch >= CharacterCodes::A && ch <= CharacterCodes::Z
-        || ch >= CharacterCodes::a && ch <= CharacterCodes::z
-        || ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
-        || ch == CharacterCodes::dollar_sign
-        || ch == CharacterCodes::underscore
+    ch >= CharacterCodesChar::A && ch <= CharacterCodesChar::Z
+        || ch >= CharacterCodesChar::a && ch <= CharacterCodesChar::z
+        || ch >= CharacterCodesChar::_0 && ch <= CharacterCodesChar::_9
+        || ch == CharacterCodesChar::dollar_sign
+        || ch == CharacterCodesChar::underscore
         || match identifier_variant {
             Some(LanguageVariant::JSX) => {
-                matches!(ch, CharacterCodes::minus | CharacterCodes::colon)
+                matches!(ch, CharacterCodesChar::minus | CharacterCodesChar::colon)
             }
             _ => false,
         }
-        || ch > CharacterCodes::max_ascii_character
+        || ch > CharacterCodesChar::max_ascii_character
             && is_unicode_identifier_part(ch, language_version)
 }
 
@@ -623,7 +623,8 @@ pub fn is_identifier_text(
     language_version: Option<ScriptTarget>,
     identifier_variant: Option<LanguageVariant>,
 ) -> bool {
-    let ch = maybe_code_point_at(&name.chars().collect(), 0);
+    let name_chars = name.chars();
+    let ch = name_chars.next();
     if !matches!(
         ch,
         Some(ch) if is_identifier_start(ch, language_version)
@@ -631,7 +632,7 @@ pub fn is_identifier_text(
         return false;
     }
 
-    for ch in name.chars().skip(1) {
+    for ch in name_chars() {
         if !is_identifier_part(ch, language_version, identifier_variant) {
             return false;
         }

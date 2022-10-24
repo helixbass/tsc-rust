@@ -12,15 +12,15 @@ use super::{
 };
 use crate::{
     append, are_option_rcs_equal, contains_rc, find_ancestor, is_identifier, is_identifier_text,
-    reduce_left, some, Diagnostic, ObjectFlagsTypeInterface, UnionOrIntersectionTypeInterface,
-    __String, add_related_info, chain_diagnostic_messages, concatenate_diagnostic_message_chains,
-    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, first_or_undefined,
-    get_emit_script_target, get_object_flags, get_source_file_of_node, is_import_call,
-    is_jsx_attribute, is_jsx_attributes, is_jsx_opening_like_element,
-    is_object_literal_element_like, Debug_, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface, ObjectFlags,
-    RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    reduce_left, some, Diagnostic, ObjectFlagsTypeInterface, SourceTextSliceOrString,
+    UnionOrIntersectionTypeInterface, __String, add_related_info, chain_diagnostic_messages,
+    concatenate_diagnostic_message_chains, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, first_or_undefined, get_emit_script_target,
+    get_object_flags, get_source_file_of_node, is_import_call, is_jsx_attribute, is_jsx_attributes,
+    is_jsx_opening_like_element, is_object_literal_element_like, Debug_, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, Node, NodeInterface,
+    ObjectFlags, RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 pub(super) struct CheckTypeRelatedTo {
@@ -365,7 +365,7 @@ impl CheckTypeRelatedTo {
     pub(super) fn report_incompatible_error(
         &self,
         message: &'static DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         self.set_override_next_error_info(self.override_next_error_info() + 1);
         *self.maybe_last_skipped_info() = None;
@@ -469,7 +469,7 @@ impl CheckTypeRelatedTo {
     pub(super) fn report_error(
         &self,
         message: Cow<'static, DiagnosticMessage>,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         Debug_.assert(self.maybe_error_node().is_some(), None);
         if !self.incompatible_stack().is_empty() {
@@ -782,10 +782,11 @@ impl CheckTypeRelatedTo {
         let report_errors = report_errors.unwrap_or(false);
         let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
 
-        let mut report_error = |message: Cow<'static, DiagnosticMessage>,
-                                args: Option<Vec<String>>| {
-            self.report_error(message, args);
-        };
+        let mut report_error =
+            |message: Cow<'static, DiagnosticMessage>,
+             args: Option<Vec<SourceTextSliceOrString>>| {
+                self.report_error(message, args);
+            };
 
         if original_source.flags().intersects(TypeFlags::Object)
             && original_target.flags().intersects(TypeFlags::Primitive)

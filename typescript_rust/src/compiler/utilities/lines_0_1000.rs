@@ -80,7 +80,7 @@ pub fn create_symbol_table(symbols: Option<&[Rc<Symbol>]>) -> SymbolTable {
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for symbol in symbols {
-            result.insert(symbol.escaped_name().to_owned(), symbol.clone());
+            result.insert(symbol.escaped_name().clone(), symbol.clone());
         }
     }
     result
@@ -835,9 +835,9 @@ pub fn is_recognized_triple_slash_comment(
     false
 }
 
-pub fn is_pinned_comment(text: &SourceTextAsChars, start: usize) -> bool {
-    matches!(maybe_text_char_at_index(text, start + 1), Some(ch) if ch == CharacterCodes::asterisk)
-        && matches!(maybe_text_char_at_index(text, start + 2), Some(ch) if ch == CharacterCodes::exclamation)
+pub fn is_pinned_comment(text: &SourceText, start: usize) -> bool {
+    matches!(text.maybe_char_at_index(start + 1), Some(ch) if ch == CharacterCodes::asterisk)
+        && matches!(text.maybe_char_at_index(start + 2), Some(ch) if ch == CharacterCodes::exclamation)
 }
 
 pub fn create_comment_directives_map(
@@ -1651,7 +1651,9 @@ pub fn for_each_enclosing_block_scope_container<TCallback: FnMut(&Node)>(
     }
 }
 
-pub fn declaration_name_to_string<TName: Borrow<Node>>(name: Option<TName>) -> Cow<'static, str> {
+pub fn declaration_name_to_string<TName: Borrow<Node>>(
+    name: Option<TName>,
+) -> SourceTextSliceOrString {
     match name {
         None => "(Missing)".into(),
         Some(name) => {
@@ -1721,7 +1723,7 @@ pub fn get_text_of_property_name<'name>(
 
 pub fn entity_name_to_string<'node>(
     name: &'node Node, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
-) -> Cow<'node, str> {
+) -> SourceTextSliceOrString {
     match name.kind() {
         SyntaxKind::ThisKeyword => "this".into(),
         SyntaxKind::PrivateIdentifier | SyntaxKind::Identifier => {

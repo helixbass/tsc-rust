@@ -24,8 +24,8 @@ use crate::{
     DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo,
     HasStatementsInterface, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
     OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
-    ScriptKind, ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
-    TsConfigOnlyOption, WatchOptions,
+    ScriptKind, ScriptTarget, SourceFile, SourceTextSliceOrString, StringOrDiagnosticMessage,
+    SyntaxKind, TransformFlags, TsConfigOnlyOption, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -467,7 +467,7 @@ pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
 
 pub(crate) fn get_diagnostic_text(
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> String {
     let diagnostic = create_compiler_diagnostic(message, args);
     enum_unwrapped!(diagnostic.message_text(), [DiagnosticMessageText, String]).clone()

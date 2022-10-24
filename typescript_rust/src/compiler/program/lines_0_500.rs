@@ -809,7 +809,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
                 let source_file = source_file_cache.get(&*key);
                 matches!(
                     source_file,
-                    Some(source_file) if &**source_file.as_source_file().text() != data
+                    Some(source_file) if source_file.as_source_file().text().str() != data
                 )
             };
             if source_file_is_different {
@@ -1021,7 +1021,7 @@ fn format_code_span<THost: FormatDiagnosticsHost>(
         line: last_line,
         character: last_line_char,
     } = get_line_and_character_of_position(file_as_source_file, start_as_usize + length_as_usize);
-    let file_text = file_as_source_file.text_as_chars();
+    let file_text = file_as_source_file.text();
     let last_line_in_file =
         get_line_and_character_of_position(file_as_source_file, file_text.len()).line;
 
@@ -1055,7 +1055,7 @@ fn format_code_span<THost: FormatDiagnosticsHost>(
         } else {
             file_text.len()
         };
-        let line_content: String = file_text[line_start..line_end].into_iter().collect();
+        let line_content = file_text.slice(line_start, Some(line_end));
         let line_content = trim_string_end(&line_content);
         lazy_static! {
             static ref tab_regex: Regex = Regex::new(r"\t").unwrap();
@@ -1094,6 +1094,10 @@ fn format_code_span<THost: FormatDiagnosticsHost>(
                 static ref non_space_regex: Regex = Regex::new(r"\S").unwrap();
             }
             // TODO: this needs to be chars/bytes-aware?
+            // it doesn't look like it can be a SourceTextSlice because we've "chopped it up" via
+            // `tag_regex.replace_all()` above - although actually that should be a
+            // "one-byte-for-one-byte replacement" so maybe there's a way to still at least
+            // leverage it as a SourceTextSlice?
             context.push_str(&non_space_regex.replace_all(&line_content[0..first_line_char], " "));
             context.push_str(&dot_regex.replace_all(
                 if let Some(last_char_for_line) = last_char_for_line {

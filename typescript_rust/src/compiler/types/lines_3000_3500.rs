@@ -4,11 +4,11 @@ use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
-use super::{
+use crate::{
     BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasElementsInterface,
     HasExpressionInterface, HasIsTypeOnlyInterface, HasLeftAndRightInterface, HasTypeInterface,
     HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeArray,
-    SignatureDeclarationInterface, SyntaxKind, TextRange,
+    SignatureDeclarationInterface, SourceTextSlice, SourceTextSliceOrString, SyntaxKind, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -451,11 +451,11 @@ impl HasExpressionInterface for ExportAssignment {
 pub struct FileReference {
     pos: Cell<isize>,
     end: Cell<isize>,
-    pub file_name: String,
+    pub file_name: SourceTextSlice,
 }
 
 impl FileReference {
-    pub fn new(pos: isize, end: isize, file_name: String) -> Self {
+    pub fn new(pos: isize, end: isize, file_name: SourceTextSlice) -> Self {
         Self {
             pos: Cell::new(pos),
             end: Cell::new(end),
@@ -719,13 +719,13 @@ impl JSDocFunctionType {
 pub struct JSDoc {
     _node: BaseNode,
     pub tags: Option<NodeArray /*<JSDocTag>*/>,
-    pub comment: Option<StringOrNodeArray /*<JSDocComment>*/>,
+    pub comment: Option<SourceTextSliceOrStringOrNodeArray /*<JSDocComment>*/>,
 }
 
 impl JSDoc {
     pub fn new(
         base_node: BaseNode,
-        comment: Option<StringOrNodeArray>,
+        comment: Option<SourceTextSliceOrStringOrNodeArray>,
         tags: Option<NodeArray>,
     ) -> Self {
         Self {
@@ -738,12 +738,12 @@ impl JSDoc {
 
 pub trait JSDocTagInterface {
     fn tag_name(&self) -> Rc<Node /*Identifier*/>;
-    fn maybe_comment(&self) -> Option<&StringOrNodeArray /*<JSDocComment>*/>;
+    fn maybe_comment(&self) -> Option<&SourceTextSliceOrStringOrNodeArray /*<JSDocComment>*/>;
 }
 
 pub trait JSDocLinkLikeInterface {
     fn maybe_name(&self) -> Option<Rc<Node>>;
-    fn text(&self) -> &str;
+    fn text(&self) -> &SourceTextSliceOrString;
 }
 
 #[derive(Debug)]
@@ -751,11 +751,11 @@ pub trait JSDocLinkLikeInterface {
 pub struct JSDocLink {
     _node: BaseNode,
     pub name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
-    pub text: String,
+    pub text: SourceTextSliceOrString,
 }
 
 impl JSDocLink {
-    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: String) -> Self {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: SourceTextSliceOrString) -> Self {
         Self {
             _node: base_node,
             name,
@@ -769,7 +769,7 @@ impl JSDocLinkLikeInterface for JSDocLink {
         self.name.clone()
     }
 
-    fn text(&self) -> &str {
+    fn text(&self) -> &SourceTextSliceOrString {
         &self.text
     }
 }
@@ -779,11 +779,11 @@ impl JSDocLinkLikeInterface for JSDocLink {
 pub struct JSDocLinkCode {
     _node: BaseNode,
     pub name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
-    pub text: String,
+    pub text: SourceTextSliceOrString,
 }
 
 impl JSDocLinkCode {
-    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: String) -> Self {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: SourceTextSliceOrString) -> Self {
         Self {
             _node: base_node,
             name,
@@ -797,7 +797,7 @@ impl JSDocLinkLikeInterface for JSDocLinkCode {
         self.name.clone()
     }
 
-    fn text(&self) -> &str {
+    fn text(&self) -> &SourceTextSliceOrString {
         &self.text
     }
 }
@@ -807,11 +807,11 @@ impl JSDocLinkLikeInterface for JSDocLinkCode {
 pub struct JSDocLinkPlain {
     _node: BaseNode,
     pub name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
-    pub text: String,
+    pub text: SourceTextSliceOrString,
 }
 
 impl JSDocLinkPlain {
-    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: String) -> Self {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: SourceTextSliceOrString) -> Self {
         Self {
             _node: base_node,
             name,
@@ -825,7 +825,7 @@ impl JSDocLinkLikeInterface for JSDocLinkPlain {
         self.name.clone()
     }
 
-    fn text(&self) -> &str {
+    fn text(&self) -> &SourceTextSliceOrString {
         &self.text
     }
 }
@@ -834,11 +834,11 @@ impl JSDocLinkLikeInterface for JSDocLinkPlain {
 #[ast_type]
 pub struct JSDocText {
     _node: BaseNode,
-    pub text: String,
+    pub text: SourceTextSliceOrString,
 }
 
 impl JSDocText {
-    pub fn new(base_node: BaseNode, text: String) -> Self {
+    pub fn new(base_node: BaseNode, text: SourceTextSliceOrString) -> Self {
         Self {
             _node: base_node,
             text,
@@ -865,18 +865,36 @@ impl From<NodeArray> for StringOrNodeArray {
 }
 
 #[derive(Debug)]
+pub enum SourceTextSliceOrStringOrNodeArray {
+    SourceTextSliceOrString(SourceTextSliceOrString),
+    NodeArray(NodeArray),
+}
+
+impl From<SourceTextSliceOrString> for SourceTextSliceOrStringOrNodeArray {
+    fn from(value: SourceTextSliceOrString) -> Self {
+        Self::SourceTextSliceOrString(value)
+    }
+}
+
+impl From<NodeArray> for SourceTextSliceOrStringOrNodeArray {
+    fn from(value: NodeArray) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub struct BaseJSDocTag {
     _node: BaseNode,
     tag_name: Rc<Node /*Identifier*/>,
-    comment: Option<StringOrNodeArray /*<JSDocComment>*/>,
+    comment: Option<SourceTextSliceOrStringOrNodeArray /*<JSDocComment>*/>,
 }
 
 impl BaseJSDocTag {
     pub fn new(
         base_node: BaseNode,
         tag_name: Rc<Node>,
-        comment: Option<StringOrNodeArray>,
+        comment: Option<SourceTextSliceOrStringOrNodeArray>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -891,7 +909,7 @@ impl JSDocTagInterface for BaseJSDocTag {
         self.tag_name.clone()
     }
 
-    fn maybe_comment(&self) -> Option<&StringOrNodeArray> {
+    fn maybe_comment(&self) -> Option<&SourceTextSliceOrStringOrNodeArray> {
         self.comment.as_ref()
     }
 }

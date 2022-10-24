@@ -19,7 +19,7 @@ pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
 fn is_use_strict_prologue(node: &Node /*ExpressionStatement*/) -> bool {
     let node_as_expression_statement = node.as_expression_statement();
     is_string_literal(&node_as_expression_statement.expression)
-        && &*node_as_expression_statement
+        && &**node_as_expression_statement
             .expression
             .as_string_literal()
             .text()

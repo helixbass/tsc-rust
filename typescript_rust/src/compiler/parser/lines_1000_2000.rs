@@ -16,8 +16,8 @@ use crate::{
     ComputedPropertyName, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
     Diagnostics, HasStatementsInterface, IncrementalParser, IncrementalParserSyntaxCursor,
     IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
-    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SourceTextSliceOrString,
-    SyntaxKind, TextRange, TransformFlags,
+    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SourceText,
+    SourceTextSliceOrString, SyntaxKind, TextRange, TransformFlags,
 };
 
 impl ParserType {
@@ -25,7 +25,7 @@ impl ParserType {
         {
             let mut scanner = self.scanner_mut();
             scanner.clear_comment_directives();
-            scanner.set_text(Some(vec![]), Some("".to_owned()), None, None);
+            scanner.set_text(Some(Rc::new(SourceText::new("".to_owned()))), None, None);
             // scanner.set_on_error(None);
         }
 
@@ -86,7 +86,7 @@ impl ParserType {
             .set_comment_directives(self.scanner().get_comment_directives().clone());
         source_file_as_source_file.set_node_count(self.node_count());
         source_file_as_source_file.set_identifier_count(self.identifier_count());
-        source_file_as_source_file.set_identifiers(self.identifiers_rc());
+        source_file_as_source_file.set_identifiers(self.identifiers());
         source_file_as_source_file.set_parse_diagnostics(attach_file_to_diagnostics(
             &*self.parse_diagnostics(),
             &source_file,
@@ -487,7 +487,7 @@ impl ParserType {
     pub(super) fn parse_error_at_current_token(
         &self,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         self.parse_error_at(
             self.scanner().get_token_pos().try_into().unwrap(),
@@ -502,7 +502,7 @@ impl ParserType {
         start: isize,
         length: isize,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         {
             let mut parse_diagnostics = self.parse_diagnostics();
@@ -523,7 +523,7 @@ impl ParserType {
         start: isize,
         end: isize,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         self.parse_error_at_position(start, end - start, message, args);
     }
@@ -532,7 +532,7 @@ impl ParserType {
         &self,
         range: &TRange,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         self.parse_error_at(range.pos(), range.end(), message, args);
     }
@@ -764,7 +764,7 @@ impl ParserType {
         } else {
             self.parse_error_at_current_token(
                 &Diagnostics::_0_expected,
-                token_to_string(kind).map(|string| vec![string.to_owned()]),
+                token_to_string(kind).map(|string| vec![string.into()]),
             );
         }
         false
@@ -807,7 +807,7 @@ impl ParserType {
                 &Diagnostics::_0_expected,
                 Some(vec![token_to_string(SyntaxKind::SemicolonToken)
                     .unwrap()
-                    .to_owned()]),
+                    .into()]),
             );
             return;
         }
@@ -875,7 +875,7 @@ impl ParserType {
                 pos,
                 node.end(),
                 &Diagnostics::Unknown_keyword_or_identifier_Did_you_mean_0,
-                Some(vec![suggestion]),
+                Some(vec![suggestion.into()]),
             );
             return;
         }
@@ -947,7 +947,7 @@ impl ParserType {
                     &Diagnostics::_0_expected,
                     Some(vec![token_to_string(SyntaxKind::SemicolonToken)
                         .unwrap()
-                        .to_owned()]),
+                        .into()]),
                 );
             } else {
                 self.parse_error_at_current_token(
@@ -968,7 +968,7 @@ impl ParserType {
                     &Diagnostics::_0_expected,
                     Some(vec![token_to_string(SyntaxKind::SemicolonToken)
                         .unwrap()
-                        .to_owned()]),
+                        .into()]),
                 );
             }
 
@@ -985,7 +985,7 @@ impl ParserType {
         }
         self.parse_error_at_current_token(
             &Diagnostics::_0_expected,
-            token_to_string(kind).map(|string| vec![string.to_owned()]),
+            token_to_string(kind).map(|string| vec![string.into()]),
         );
         false
     }
@@ -1016,14 +1016,14 @@ impl ParserType {
         &self,
         t: SyntaxKind,
         diagnostic_message: Option<&DiagnosticMessage>,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Node {
         self.parse_optional_token(t).unwrap_or_else(|| {
             self.create_missing_node(
                 t,
                 false,
                 Some(diagnostic_message.unwrap_or(&Diagnostics::_0_expected)),
-                Some(args.unwrap_or_else(|| vec![token_to_string(t).unwrap().to_owned()])),
+                Some(args.unwrap_or_else(|| vec![token_to_string(t).unwrap().into()])),
             )
             .into()
         })
@@ -1035,7 +1035,7 @@ impl ParserType {
                 t,
                 false,
                 Some(&Diagnostics::_0_expected),
-                Some(vec![token_to_string(t).unwrap().to_owned()]),
+                Some(vec![token_to_string(t).unwrap().into()]),
             )
             .into()
         })
@@ -1137,7 +1137,7 @@ impl ParserType {
         kind: SyntaxKind,
         report_at_current_position: bool,
         diagnostic_message: Option<&DiagnosticMessage>,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Node {
         if report_at_current_position {
             self.parse_error_at_position(
@@ -1153,25 +1153,19 @@ impl ParserType {
         let pos = self.get_node_pos();
         let result = if kind == SyntaxKind::Identifier {
             self.factory
-                .create_identifier(self, "", Option::<NodeArray>::None, None)
+                .create_identifier(self, "".into(), Option::<NodeArray>::None, None)
                 .into()
         } else if is_template_literal_kind(kind) {
             self.factory
-                .create_template_literal_like_node(
-                    self,
-                    kind,
-                    "".to_owned(),
-                    Some("".to_owned()),
-                    None,
-                )
+                .create_template_literal_like_node(self, kind, "".into(), Some("".to_owned()), None)
                 .into()
         } else if kind == SyntaxKind::NumericLiteral {
             self.factory
-                .create_numeric_literal(self, "".to_owned(), None)
+                .create_numeric_literal(self, Into::<SourceTextSliceOrString>::into(""), None)
                 .into()
         } else if kind == SyntaxKind::StringLiteral {
             self.factory
-                .create_string_literal(self, "".to_owned(), None, None)
+                .create_string_literal(self, "".into(), None, None)
                 .into()
         } else if kind == SyntaxKind::MissingDeclaration {
             self.factory.create_missing_declaration(self).into()
@@ -1187,9 +1181,11 @@ impl ParserType {
     ) -> SourceTextSliceOrString {
         let identifiers = self.identifiers();
         let mut identifiers = identifiers.borrow_mut();
-        identifiers
-            .get_or_insert_with(text, || text.clone())
-            .clone()
+        if let Some(identifier) = identifiers.get(text) {
+            return identifier.clone();
+        }
+        identifiers.insert(text.clone());
+        text.clone()
     }
 
     pub(super) fn create_identifier(
@@ -1208,7 +1204,7 @@ impl ParserType {
                 self.factory
                     .create_identifier(
                         self,
-                        &text,
+                        text,
                         Option::<NodeArray>::None,
                         Some(original_keyword_kind),
                     )
@@ -1261,7 +1257,7 @@ impl ParserType {
             SyntaxKind::Identifier,
             report_at_current_position,
             Some(diagnostic_message.unwrap_or(default_message)),
-            Some(vec![msg_arg]),
+            Some(vec![msg_arg.into()]),
         )
     }
 
@@ -1348,24 +1344,24 @@ impl ParserType {
         )
     }
 
-    pub(super) fn intern_private_identifier(&self, text: &str) -> String {
+    pub(super) fn intern_private_identifier(
+        &self,
+        text: &SourceTextSliceOrString,
+    ) -> SourceTextSliceOrString {
         let private_identifiers = self.private_identifiers();
         let mut private_identifiers = private_identifiers.borrow_mut();
-        let mut private_identifier: Option<String> = private_identifiers
-            .get(text)
-            .map(|private_identifier| private_identifier.to_owned());
-        if private_identifier.is_none() {
-            private_identifier = Some(text.to_owned());
-            private_identifiers.insert(text.to_owned(), private_identifier.clone().unwrap());
+        if let Some(private_identifier) = private_identifiers.get(text) {
+            return private_identifier.clone();
         }
-        private_identifier.unwrap()
+        private_identifiers.insert(text.clone());
+        text.clone()
     }
 
     pub(super) fn parse_private_identifier(&self) -> Node {
         let pos = self.get_node_pos();
         let node = self.factory.create_private_identifier(
             self,
-            &self.intern_private_identifier(&self.scanner().get_token_text()),
+            &self.intern_private_identifier(&self.scanner().get_token_text().into()),
         );
         self.next_token();
         self.finish_node(node.into(), pos, None)

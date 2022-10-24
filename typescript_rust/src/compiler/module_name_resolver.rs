@@ -20,14 +20,14 @@ use crate::{
     Diagnostics, Extension, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
     PackageId, Path, PathAndParts, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
     ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, StringOrBool, StringOrPattern,
-    Version, VersionRange,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, SourceTextSliceOrString, StringOrBool,
+    StringOrPattern, Version, VersionRange,
 };
 
 pub(crate) fn trace(
     host: &dyn ModuleResolutionHost,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) {
     host.trace(&format_message(None, message, args))
 }
@@ -223,7 +223,7 @@ fn read_package_json_field<'json_content>(
             trace(
                 state.host,
                 &Diagnostics::package_json_does_not_have_a_0_field,
-                Some(vec![field_name.to_owned()]),
+                Some(vec![field_name.to_owned().into()]),
             );
         }
         return None;
@@ -235,13 +235,13 @@ fn read_package_json_field<'json_content>(
                 state.host,
                 &Diagnostics::Expected_type_of_0_field_in_package_json_to_be_1_got_2,
                 Some(vec![
-                    field_name.to_owned(),
+                    field_name.to_owned().into(),
                     match type_of_tag {
-                        StringOrObject::String => "string".to_owned(),
-                        StringOrObject::Object => "object".to_owned(),
+                        StringOrObject::String => "string".into(),
+                        StringOrObject::Object => "object".into(),
                     },
                     if matches!(value, serde_json::Value::Null) {
-                        "null".to_owned()
+                        "null".into()
                     } else {
                         unimplemented!()
                     },
@@ -267,7 +267,7 @@ fn read_package_json_path_field(
             trace(
                 state.host,
                 &Diagnostics::package_json_had_a_falsy_0_field,
-                Some(vec![field_name.to_owned()]),
+                Some(vec![field_name.to_owned().into()]),
             );
         }
         return None;
@@ -278,9 +278,9 @@ fn read_package_json_path_field(
             state.host,
             &Diagnostics::package_json_has_0_field_1_that_references_2,
             Some(vec![
-                field_name.to_owned(),
-                file_name.to_owned(),
-                path.clone(),
+                field_name.to_owned().into(),
+                file_name.to_owned().into(),
+                path.clone().into(),
             ]),
         );
     }
@@ -370,7 +370,7 @@ fn read_package_json_types_version_paths(
                     state.host,
                     &Diagnostics::package_json_has_a_typesVersions_entry_0_that_is_not_a_valid_semver_range,
                     Some(vec![
-                        key.clone(),
+                        key.clone().into(),
                     ])
                 );
             }
@@ -384,7 +384,7 @@ fn read_package_json_types_version_paths(
                 state.host,
                 &Diagnostics::package_json_does_not_have_a_typesVersions_entry_that_matches_version_0,
                 Some(vec![
-                    version_major_minor.to_owned(),
+                    version_major_minor.into(),
                 ])
             );
         }
@@ -400,8 +400,8 @@ fn read_package_json_types_version_paths(
                 state.host,
                 &Diagnostics::Expected_type_of_0_field_in_package_json_to_be_1_got_2,
                 Some(vec![
-                    format!("typesVersions['{}']", best_version_key),
-                    "object".to_owned(),
+                    format!("typesVersions['{}']", best_version_key).into(),
+                    "object".into(),
                     unimplemented!(),
                 ]),
             );
@@ -557,8 +557,8 @@ pub fn resolve_type_reference_directive(
                 host,
                 &Diagnostics::Resolving_type_reference_directive_0_containing_file_1,
                 Some(vec![
-                    type_reference_directive_name.to_owned(),
-                    containing_file.unwrap().to_owned(),
+                    type_reference_directive_name.to_owned().into(),
+                    containing_file.unwrap().to_owned().into(),
                 ]),
             );
             if let Some(redirected_reference) = redirected_reference.as_ref() {
@@ -569,15 +569,16 @@ pub fn resolve_type_reference_directive(
                         .source_file
                         .as_source_file()
                         .file_name()
-                        .clone()]),
+                        .clone()
+                        .into()]),
                 );
             }
             trace(
                 host,
                 &Diagnostics::Resolution_for_type_reference_directive_0_was_found_in_cache_from_location_1,
                 Some(vec![
-                    type_reference_directive_name.to_owned(),
-                    containing_directory.clone().unwrap(),
+                    type_reference_directive_name.to_owned().into(),
+                    containing_directory.clone().unwrap().into(),
                 ])
             );
             trace_result(result);
@@ -600,7 +601,7 @@ pub fn resolve_type_reference_directive(
                             host,
                             &Diagnostics::Resolving_type_reference_directive_0_containing_file_not_set_root_directory_not_set,
                             Some(vec![
-                                type_reference_directive_name.to_owned(),
+                                type_reference_directive_name.to_owned().into(),
                             ])
                         );
                     }
@@ -609,9 +610,9 @@ pub fn resolve_type_reference_directive(
                             host,
                             &Diagnostics::Resolving_type_reference_directive_0_containing_file_not_set_root_directory_1,
                             Some(vec![
-                                type_reference_directive_name.to_owned(),
+                                type_reference_directive_name.to_owned().into(),
                                 // TODO: not sure if this is the correct string-ification? (same below)
-                                type_roots.join(", "),
+                                type_roots.join(", ").into(),
                             ])
                         );
                     }
@@ -623,8 +624,8 @@ pub fn resolve_type_reference_directive(
                             host,
                             &Diagnostics::Resolving_type_reference_directive_0_containing_file_1_root_directory_not_set,
                             Some(vec![
-                                type_reference_directive_name.to_owned(),
-                                containing_file.to_owned(),
+                                type_reference_directive_name.to_owned().into(),
+                                containing_file.to_owned().into(),
                             ])
                         );
                 }
@@ -633,9 +634,9 @@ pub fn resolve_type_reference_directive(
                             host,
                             &Diagnostics::Resolving_type_reference_directive_0_containing_file_1_root_directory_2,
                             Some(vec![
-                                type_reference_directive_name.to_owned(),
-                                containing_file.to_owned(),
-                                type_roots.join(", "),
+                                type_reference_directive_name.to_owned().into(),
+                                containing_file.to_owned().into(),
+                                type_roots.join(", ").into(),
                             ])
                         );
                 }
@@ -649,7 +650,8 @@ pub fn resolve_type_reference_directive(
                     .source_file
                     .as_source_file()
                     .file_name()
-                    .clone()]),
+                    .clone()
+                    .into()]),
             );
         }
     }
@@ -740,7 +742,7 @@ fn primary_lookup(
             trace(
                 host,
                 &Diagnostics::Resolving_with_primary_search_path_0,
-                Some(vec![type_roots.join(", ")]),
+                Some(vec![type_roots.join(", ").into()]),
             );
         }
         first_defined(type_roots, |type_root: &String, _| {
@@ -755,7 +757,7 @@ fn primary_lookup(
                 trace(
                     host,
                     &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                    Some(vec![candidate_directory]),
+                    Some(vec![candidate_directory.into()]),
                 );
             }
             resolved_type_script_only(
@@ -798,7 +800,7 @@ fn secondary_lookup(
             trace(
                 host,
                 &Diagnostics::Looking_up_in_node_modules_folder_initial_location_0,
-                Some(vec![initial_location_for_secondary_lookup.clone()]),
+                Some(vec![initial_location_for_secondary_lookup.clone().into()]),
             );
         }
         let result: Option<Resolved>;
@@ -876,7 +878,7 @@ pub fn get_automatic_type_directive_names(
                         if !is_not_needed_package {
                             let base_file_name = get_base_file_name(&normalized, None, None);
 
-                            if base_file_name.chars().next() != Some(CharacterCodes::dot) {
+                            if !base_file_name.starts_with(".") {
                                 result.push(base_file_name);
                             }
                         }
@@ -1516,7 +1518,10 @@ pub fn resolve_module_name(
         trace(
             host,
             &Diagnostics::Resolving_module_0_from_1,
-            Some(vec![module_name.to_owned(), containing_file.to_owned()]),
+            Some(vec![
+                module_name.to_owned().into(),
+                containing_file.to_owned().into(),
+            ]),
         );
         if let Some(redirected_reference) = redirected_reference.as_ref() {
             trace(
@@ -1526,7 +1531,8 @@ pub fn resolve_module_name(
                     .source_file
                     .as_source_file()
                     .file_name()
-                    .clone()]),
+                    .clone()
+                    .into()]),
             );
         }
     }
@@ -1543,7 +1549,10 @@ pub fn resolve_module_name(
             trace(
                 host,
                 &Diagnostics::Resolution_for_module_0_was_found_in_cache_from_location_1,
-                Some(vec![module_name.to_owned(), containing_directory.clone()]),
+                Some(vec![
+                    module_name.to_owned().into(),
+                    containing_directory.clone().into(),
+                ]),
             );
         }
     } else {
@@ -1567,7 +1576,7 @@ pub fn resolve_module_name(
                 trace(
                     host,
                     &Diagnostics::Module_resolution_kind_is_not_specified_using_0,
-                    Some(vec![format!("{:?}", module_resolution)]),
+                    Some(vec![format!("{:?}", module_resolution).into()]),
                 );
             }
         } else {
@@ -1575,7 +1584,7 @@ pub fn resolve_module_name(
                 trace(
                     host,
                     &Diagnostics::Explicitly_specified_module_resolution_kind_Colon_0,
-                    Some(vec![format!("{:?}", module_resolution.unwrap())]),
+                    Some(vec![format!("{:?}", module_resolution.unwrap()).into()]),
                 );
             }
         }
@@ -1666,9 +1675,9 @@ pub fn resolve_module_name(
                     host,
                     &Diagnostics::Module_name_0_was_successfully_resolved_to_1_with_Package_ID_2,
                     Some(vec![
-                        module_name.to_owned(),
-                        result_resolved_module.resolved_file_name.clone(),
-                        package_id_to_string(result_resolved_module_package_id),
+                        module_name.to_owned().into(),
+                        result_resolved_module.resolved_file_name.clone().into(),
+                        package_id_to_string(result_resolved_module_package_id).into(),
                     ]),
                 );
             } else {
@@ -1676,8 +1685,8 @@ pub fn resolve_module_name(
                     host,
                     &Diagnostics::Module_name_0_was_successfully_resolved_to_1,
                     Some(vec![
-                        module_name.to_owned(),
-                        result_resolved_module.resolved_file_name.clone(),
+                        module_name.to_owned().into(),
+                        result_resolved_module.resolved_file_name.clone().into(),
                     ]),
                 );
             }
@@ -1685,7 +1694,7 @@ pub fn resolve_module_name(
             trace(
                 host,
                 &Diagnostics::Module_name_0_was_not_resolved,
-                Some(vec![module_name.to_owned()]),
+                Some(vec![module_name.to_owned().into()]),
             );
         }
     }
@@ -1739,8 +1748,8 @@ fn try_load_module_using_paths_if_eligible(
                         state.host,
                         &Diagnostics::baseUrl_option_is_set_to_0_using_this_value_to_resolve_non_relative_module_name_1,
                         Some(vec![
-                            base_url.clone(),
-                            module_name.to_owned(),
+                            base_url.clone().into(),
+                            module_name.to_owned().into(),
                         ])
                     );
                 }
@@ -1748,7 +1757,7 @@ fn try_load_module_using_paths_if_eligible(
                     state.host,
                     &Diagnostics::paths_option_is_specified_looking_for_a_pattern_to_match_module_name_0,
                     Some(vec![
-                        module_name.to_owned(),
+                        module_name.to_owned().into(),
                     ])
                 );
             }
@@ -1799,7 +1808,7 @@ fn try_load_module_using_root_dirs(
         trace(
             state.host,
             &Diagnostics::rootDirs_option_is_set_using_it_to_resolve_relative_module_name_0,
-            Some(vec![module_name.to_owned()]),
+            Some(vec![module_name.to_owned().into()]),
         );
     }
 
@@ -1842,7 +1851,10 @@ fn try_load_module_using_root_dirs(
             trace(
                 state.host,
                 &Diagnostics::Longest_matching_prefix_for_0_is_1,
-                Some(vec![candidate.clone(), matched_normalized_prefix.clone()]),
+                Some(vec![
+                    candidate.clone().into(),
+                    matched_normalized_prefix.clone().into(),
+                ]),
             );
         }
         let suffix = &candidate[matched_normalized_prefix.len()..];
@@ -1852,9 +1864,9 @@ fn try_load_module_using_root_dirs(
                 state.host,
                 &Diagnostics::Loading_0_from_the_root_dir_1_candidate_location_2,
                 Some(vec![
-                    suffix.to_owned(),
-                    matched_normalized_prefix.clone(),
-                    candidate.clone(),
+                    suffix.to_owned().into(),
+                    matched_normalized_prefix.clone().into(),
+                    candidate.clone().into(),
                 ]),
             );
         }
@@ -1891,7 +1903,11 @@ fn try_load_module_using_root_dirs(
                 trace(
                     state.host,
                     &Diagnostics::Loading_0_from_the_root_dir_1_candidate_location_2,
-                    Some(vec![suffix.to_owned(), root_dir.clone(), candidate.clone()]),
+                    Some(vec![
+                        suffix.to_owned().into(),
+                        root_dir.clone().into(),
+                        candidate.clone().into(),
+                    ]),
                 );
             }
             let base_directory = get_directory_path(&candidate);
@@ -1932,8 +1948,8 @@ fn try_load_module_using_base_url(
             state.host,
             &Diagnostics::baseUrl_option_is_set_to_0_using_this_value_to_resolve_non_relative_module_name_1,
             Some(vec![
-                base_url.clone(),
-                module_name.to_owned(),
+                base_url.clone().into(),
+                module_name.to_owned().into(),
             ])
         );
     }
@@ -1943,9 +1959,9 @@ fn try_load_module_using_base_url(
             state.host,
             &Diagnostics::Resolving_module_name_0_relative_to_base_url_1_2,
             Some(vec![
-                module_name.to_owned(),
-                base_url.clone(),
-                candidate.clone(),
+                module_name.to_owned().into(),
+                base_url.clone().into(),
+                candidate.clone().into(),
             ]),
         );
     }
@@ -2167,7 +2183,10 @@ fn try_resolve(
                 trace(
                     host,
                     &Diagnostics::Loading_module_0_from_node_modules_folder_target_file_type_1,
-                    Some(vec![module_name.to_owned(), format!("{:?}", extensions)]),
+                    Some(vec![
+                        module_name.to_owned().into(),
+                        format!("{:?}", extensions).into(),
+                    ]),
                 );
             }
             resolved = load_module_from_nearest_node_modules_directory(
@@ -2249,7 +2268,7 @@ fn real_path(path: &str, host: &dyn ModuleResolutionHost, trace_enabled: bool) -
         trace(
             host,
             &Diagnostics::Resolving_real_path_for_0_result_1,
-            Some(vec![path.to_owned(), real.clone()]),
+            Some(vec![path.to_owned().into(), real.clone().into()]),
         );
     }
     Debug_.assert(
@@ -2271,8 +2290,8 @@ fn node_load_module_by_relative_name(
             state.host,
             &Diagnostics::Loading_module_as_file_Slash_folder_candidate_module_location_0_target_file_type_1,
             Some(vec![
-                candidate.to_owned(),
-                format!("{:?}", extensions)
+                candidate.to_owned().into(),
+                format!("{:?}", extensions).into()
             ])
         );
     }
@@ -2288,7 +2307,7 @@ fn node_load_module_by_relative_name(
                     trace(
                         state.host,
                         &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                        Some(vec![parent_of_candidate]),
+                        Some(vec![parent_of_candidate.into()]),
                     );
                 }
                 only_record_failures = true;
@@ -2319,7 +2338,7 @@ fn node_load_module_by_relative_name(
                 trace(
                     state.host,
                     &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                    Some(vec![candidate.to_owned()]),
+                    Some(vec![candidate.to_owned().into()]),
                 );
             }
             only_record_failures = true;
@@ -2438,7 +2457,10 @@ fn load_module_from_file_no_implicit_extensions(
             trace(
                 state.host,
                 &Diagnostics::File_name_0_has_a_1_extension_stripping_it,
-                Some(vec![candidate.to_owned(), extension.to_owned()]),
+                Some(vec![
+                    candidate.to_owned().into(),
+                    extension.to_owned().into(),
+                ]),
             );
         }
         return try_adding_extensions(
@@ -2568,7 +2590,7 @@ fn try_file(
                 trace(
                     state.host,
                     &Diagnostics::File_0_exist_use_it_as_a_name_resolution_result,
-                    Some(vec![file_name.to_owned()]),
+                    Some(vec![file_name.to_owned().into()]),
                 );
             }
             return Some(file_name.to_owned());
@@ -2577,7 +2599,7 @@ fn try_file(
                 trace(
                     state.host,
                     &Diagnostics::File_0_does_not_exist,
-                    Some(vec![file_name.to_owned()]),
+                    Some(vec![file_name.to_owned().into()]),
                 );
             }
         }
@@ -2667,7 +2689,7 @@ pub(crate) fn get_package_json_info(
                     trace(
                         host,
                         &Diagnostics::File_0_exists_according_to_earlier_cached_lookups,
-                        Some(vec![package_json_path]),
+                        Some(vec![package_json_path.into()]),
                     );
                 }
                 return Some(existing.clone());
@@ -2677,7 +2699,7 @@ pub(crate) fn get_package_json_info(
                     trace(
                         host,
                         &Diagnostics::File_0_does_not_exist_according_to_earlier_cached_lookups,
-                        Some(vec![package_json_path.clone()]),
+                        Some(vec![package_json_path.clone().into()]),
                     );
                 }
                 state
@@ -2700,7 +2722,7 @@ pub(crate) fn get_package_json_info(
             trace(
                 host,
                 &Diagnostics::Found_package_json_at_0,
-                Some(vec![package_json_path.clone()]),
+                Some(vec![package_json_path.clone().into()]),
             );
         }
         let version_paths = read_package_json_types_version_paths(&package_json_content, state);
@@ -2719,7 +2741,7 @@ pub(crate) fn get_package_json_info(
             trace(
                 host,
                 &Diagnostics::File_0_does_not_exist,
-                Some(vec![package_json_path.clone()]),
+                Some(vec![package_json_path.clone().into()]),
             );
         }
         if let Some(state_package_json_info_cache) = state.package_json_info_cache.as_ref() {
@@ -2773,7 +2795,7 @@ fn load_node_module_from_directory_worker(
                     trace(
                         state.host,
                         &Diagnostics::File_0_has_an_unsupported_extension_so_skipping_it,
-                        Some(vec![from_file.clone()]),
+                        Some(vec![from_file.clone().into()]),
                     );
                 }
             }
@@ -2836,9 +2858,9 @@ fn load_node_module_from_directory_worker(
                     state.host,
                     &Diagnostics::package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
                     Some(vec![
-                        version_paths.version.clone(),
-                        version.to_owned(),
-                        module_name.clone(),
+                        version_paths.version.clone().into(),
+                        version.into(),
+                        module_name.clone().into(),
                     ])
                 );
             }
@@ -3069,7 +3091,7 @@ fn load_module_from_immediate_node_modules_directory(
         trace(
             state.host,
             &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-            Some(vec![node_modules_folder.clone()]),
+            Some(vec![node_modules_folder.clone().into()]),
         );
     }
 
@@ -3103,7 +3125,7 @@ fn load_module_from_immediate_node_modules_directory(
                 trace(
                     state.host,
                     &Diagnostics::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                    Some(vec![node_modules_at_types_.clone()]),
+                    Some(vec![node_modules_at_types_.clone().into()]),
                 );
             }
             node_modules_at_types_exists = false;
@@ -3231,9 +3253,9 @@ fn load_module_from_specific_node_modules_directory(
                     state.host,
                     &Diagnostics::package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
                     Some(vec![
-                        package_info_version_paths.version.clone(),
-                        version.to_owned(),
-                        rest.clone(),
+                        package_info_version_paths.version.clone().into(),
+                        version.into(),
+                        rest.clone().into(),
                     ])
                 );
             }
@@ -3314,7 +3336,10 @@ fn try_load_module_using_paths(
             trace(
                 state.host,
                 &Diagnostics::Module_name_0_matched_pattern_1,
-                Some(vec![module_name.to_owned(), matched_pattern_text.clone()]),
+                Some(vec![
+                    module_name.to_owned().into(),
+                    matched_pattern_text.clone().into(),
+                ]),
             );
         }
         let resolved = maybe_for_each(paths.get(&matched_pattern_text), |subst: &String, _| {
@@ -3328,7 +3353,7 @@ fn try_load_module_using_paths(
                 trace(
                     state.host,
                     &Diagnostics::Trying_substitution_0_candidate_module_location_Colon_1,
-                    Some(vec![subst.clone(), path.clone()]),
+                    Some(vec![subst.clone().into(), path.clone().into()]),
                 );
             }
             let extension = try_get_extension_from_path(subst);
@@ -3369,7 +3394,7 @@ pub(crate) fn mangle_scoped_package_name_with_trace(
         trace(
             state.host,
             &Diagnostics::Scoped_package_detected_looking_in_0,
-            Some(vec![mangled.clone()]),
+            Some(vec![mangled.clone().into()]),
         );
     }
     mangled
@@ -3406,8 +3431,8 @@ fn try_find_non_relative_module_name_in_cache(
             state.host,
             &Diagnostics::Resolution_for_module_0_was_found_in_cache_from_location_1,
             Some(vec![
-                module_name.to_owned(),
-                containing_directory.to_owned(),
+                module_name.to_owned().into(),
+                containing_directory.to_owned().into(),
             ]),
         );
     }

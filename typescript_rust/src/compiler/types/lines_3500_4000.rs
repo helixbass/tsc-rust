@@ -20,8 +20,9 @@ use crate::{
     ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
     ProjectReference, RawSourceMap, RedirectTargetsMap, ResolvedProjectReference,
-    SourceOfProjectReferenceRedirect, SourceText, SourceTextSliceOrString, StructureIsReused,
-    SymlinkCache, Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    SourceOfProjectReferenceRedirect, SourceText, SourceTextSlice, SourceTextSliceOrString,
+    StructureIsReused, SymlinkCache, Type, TypeFlags, TypeInterface,
+    TypeReferenceDirectiveResolutionCache, __String,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -100,8 +101,8 @@ impl IncompleteType {
 
 #[derive(Debug)]
 pub struct AmdDependency {
-    pub path: String,
-    pub name: Option<String>,
+    pub path: SourceTextSlice,
+    pub name: Option<SourceTextSlice>,
 }
 
 pub trait SourceFileLike {
@@ -166,7 +167,7 @@ pub struct SourceFileContents {
     common_js_module_indicator: RefCell<Option<Rc<Node>>>,
     js_global_augmentations: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
 
-    identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
+    identifiers: RefCell<Option<Rc<RefCell<HashSet<SourceTextSliceOrString>>>>>,
     node_count: Cell<Option<usize>>,
     identifier_count: Cell<Option<usize>>,
     symbol_count: Cell<Option<usize>>,
@@ -465,11 +466,11 @@ impl SourceFile {
         self.contents.js_global_augmentations.borrow_mut()
     }
 
-    pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {
+    pub fn identifiers(&self) -> Rc<RefCell<HashSet<SourceTextSliceOrString>>> {
         self.contents.identifiers.borrow().clone().unwrap()
     }
 
-    pub fn set_identifiers(&self, identifiers: Rc<RefCell<HashMap<String, String>>>) {
+    pub fn set_identifiers(&self, identifiers: Rc<RefCell<HashSet<SourceTextSliceOrString>>>) {
         *self.contents.identifiers.borrow_mut() = Some(identifiers);
     }
 
@@ -1148,7 +1149,7 @@ pub struct FilePreprocessingReferencedDiagnostic {
     pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic*/
     pub reason: ReferencedFile,
     pub diagnostic: &'static DiagnosticMessage,
-    pub args: Option<Vec<String>>,
+    pub args: Option<Vec<SourceTextSliceOrString>>,
 }
 
 pub struct FilePreprocessingFileExplainingDiagnostic {
@@ -1156,7 +1157,7 @@ pub struct FilePreprocessingFileExplainingDiagnostic {
     pub file: Option<Path>,
     pub file_processing_reason: FileIncludeReason,
     pub diagnostic: &'static DiagnosticMessage,
-    pub args: Option<Vec<String>>,
+    pub args: Option<Vec<SourceTextSliceOrString>>,
 }
 
 pub enum FilePreprocessingDiagnostics {

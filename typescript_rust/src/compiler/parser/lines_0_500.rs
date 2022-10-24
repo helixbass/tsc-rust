@@ -172,7 +172,7 @@ pub(super) fn visit_nodes_returns<
     None
 }
 
-pub(crate) fn is_jsdoc_like_text(text: &SourceText, start: usize) -> bool {
+pub(crate) fn is_jsdoc_like_text(text: Rc<SourceText>, start: usize) -> bool {
     text.len() >= start + 3 && {
         let text_slice = text.slice(1, None);
         text_slice.starts_with("**") && !text_slice.starts_with("**/")

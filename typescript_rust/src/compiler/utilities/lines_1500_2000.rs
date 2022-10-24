@@ -98,7 +98,7 @@ pub fn get_property_assignment(
             }
             false
         })
-        .map(Clone::clone)
+        .cloned()
         .collect()
 }
 
@@ -122,10 +122,10 @@ pub fn get_property_array_element_value(
                         .elements,
                     |element, _| {
                         is_string_literal(element)
-                            && &*element.as_string_literal().text() == element_value
+                            && &**element.as_string_literal().text() == element_value
                     },
                 )
-                .map(Clone::clone)
+                .cloned()
             } else {
                 None
             }
@@ -174,7 +174,7 @@ pub fn get_ts_config_prop_array_element_value<TTsConfigSourceFile: Borrow<Node>>
                         .elements,
                     |element, _| {
                         is_string_literal(element)
-                            && &*element.as_string_literal().text() == element_value
+                            && &**element.as_string_literal().text() == element_value
                     },
                 )
                 .map(Clone::clone)

@@ -696,7 +696,7 @@ impl ParserType {
                             Some(&Diagnostics::_0_expected),
                             Some(vec![token_to_string(SyntaxKind::ColonToken)
                                 .unwrap()
-                                .to_owned()]),
+                                .into()]),
                         )
                         .wrap()
                     },
@@ -904,8 +904,11 @@ impl ParserType {
             if simple_unary_expression.kind() == SyntaxKind::TypeAssertionExpression {
                 self.parse_error_at(pos, end, &Diagnostics::A_type_assertion_expression_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses, None);
             } else {
-                self.parse_error_at(pos, end, &Diagnostics::An_unary_expression_with_the_0_operator_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses,
-                                    Some(vec![token_to_string(unary_operator).unwrap().to_owned()]));
+                self.parse_error_at(
+                    pos,
+                    end,
+                    &Diagnostics::An_unary_expression_with_the_0_operator_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses,
+                    Some(vec![token_to_string(unary_operator).unwrap().into()]));
             }
         }
         simple_unary_expression

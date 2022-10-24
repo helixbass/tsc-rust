@@ -10,7 +10,7 @@ use crate::{
     is_jsdoc_like_text, is_node_descendant_of, is_pinned_comment, is_string_literal,
     make_identifier_from_module_name, maybe_for_each, write_comment_range, Debug_, EmitFlags,
     EmitHint, GeneratedIdentifierFlags, LiteralLikeNodeInterface, Node, NodeInterface, Printer,
-    ReadonlyTextRange, SourceFileLike, SymbolFlags, SymbolInterface, SyntaxKind,
+    ReadonlyTextRange, SourceFileLike, SourceText, SymbolFlags, SymbolInterface, SyntaxKind,
     SynthesizedComment, TextRange,
 };
 
@@ -716,10 +716,10 @@ impl Printer {
         }
     }
 
-    pub(super) fn should_write_comment(&self, text: &SourceTextAsChars, pos: isize) -> bool {
+    pub(super) fn should_write_comment(&self, text: Rc<SourceText>, pos: isize) -> bool {
         if self.printer_options.only_print_js_doc_style == Some(true) {
-            return is_jsdoc_like_text(text, pos.try_into().unwrap())
-                || is_pinned_comment(text, pos.try_into().unwrap());
+            return is_jsdoc_like_text(text.clone(), pos.try_into().unwrap())
+                || is_pinned_comment(&text, pos.try_into().unwrap());
         }
         true
     }

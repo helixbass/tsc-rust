@@ -112,7 +112,7 @@ impl ParserType {
                                 self.finish_node(
                                     self.factory.create_identifier(
                                         self,
-                                        "",
+                                        "".into(),
                                         Option::<NodeArray>::None,
                                         None,
                                     ),
@@ -280,8 +280,7 @@ impl ParserType {
                             self.source_text(),
                             &opening_tag_as_jsx_opening_element.tag_name,
                             None,
-                        )
-                        .into_owned()]),
+                        )]),
                     );
                 }
                 None

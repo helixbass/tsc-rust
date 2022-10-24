@@ -25,9 +25,10 @@ use crate::{
     single_element_array, skip_parentheses, some, starts_with, string_to_token, token_to_string,
     AssignmentDeclarationKind, CharacterCodes, Debug_, InterfaceOrClassLikeDeclarationInterface,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ReadonlyTextRange,
-    SortedArray, SourceTextSliceOrString, Symbol, SymbolInterface, SyntaxKind, TokenFlags,
-    __String, escape_leading_underscores, get_name_of_declaration, insert_sorted, is_member_name,
-    Diagnostic, DiagnosticCollection, DiagnosticRelatedInformationInterface,
+    SortedArray, SourceTextSliceOrString, StrOrSourceTextSliceOrString, Symbol, SymbolInterface,
+    SyntaxKind, TokenFlags, __String, escape_leading_underscores, get_name_of_declaration,
+    insert_sorted, is_member_name, Diagnostic, DiagnosticCollection,
+    DiagnosticRelatedInformationInterface,
 };
 
 pub fn is_literal_computed_property_declaration_name(node: &Node) -> bool {
@@ -463,34 +464,6 @@ pub fn get_text_of_identifier_or_literal<'node>(
     }
 }
 
-pub enum StrOrSourceTextSliceOrString<'str> {
-    Str(&'str str),
-    SourceTextSliceOrString(SourceTextSliceOrString),
-}
-
-impl Deref for StrOrSourceTextSliceOrString<'_> {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Str(value) => *value,
-            Self::SourceTextSliceOrString(value) => &**value,
-        }
-    }
-}
-
-impl<'str> From<&'str str> for StrOrSourceTextSliceOrString<'str> {
-    fn from(value: &'str str) -> Self {
-        Self::Str(value)
-    }
-}
-
-impl<'str> From<SourceTextSliceOrString> for StrOrSourceTextSliceOrString<'str> {
-    fn from(value: SourceTextSliceOrString) -> Self {
-        Self::SourceTextSliceOrString(value)
-    }
-}
-
 pub fn get_escaped_text_of_identifier_or_literal<'node>(
     node: &'node Node,
 ) -> SourceTextSliceOrString /*__String*/
@@ -506,7 +479,7 @@ pub fn get_escaped_text_of_identifier_or_literal<'node>(
 }
 
 pub fn get_property_name_for_unique_es_symbol(symbol: &Symbol) -> __String {
-    format!("__@{}@{}", get_symbol_id(symbol), symbol.escaped_name())
+    format!("__@{}@{}", get_symbol_id(symbol), &**symbol.escaped_name())
 }
 
 pub fn get_symbol_name_for_private_identifier(

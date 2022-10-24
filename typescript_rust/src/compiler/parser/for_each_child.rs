@@ -4,7 +4,8 @@ use crate::{
     HasInitializerInterface, HasQuestionTokenInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
     InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
+    NodeArray, NodeInterface, SignatureDeclarationInterface, SourceTextSliceOrStringOrNodeArray,
+    StringOrNodeArray, SyntaxKind,
 };
 
 pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeArray)>(
@@ -1032,7 +1033,9 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, node.maybe_type());
         }
         Node::JSDoc(node) => {
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.comment.as_ref() {
+            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                node.comment.as_ref()
+            {
                 visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
             }
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.tags.as_ref());
@@ -1040,7 +1043,9 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
         Node::JSDocSeeTag(node) => {
             visit_node(&mut cb_node, Some(node.tag_name()));
             visit_node(&mut cb_node, node.name.clone());
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                node.maybe_comment()
+            {
                 visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
             }
         }
@@ -1056,34 +1061,44 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             if node.is_name_first {
                 visit_node(&mut cb_node, Some(&*node.name));
                 visit_node(&mut cb_node, node.type_expression.clone());
-                if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                    node.maybe_comment()
+                {
                     visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
                 }
             } else {
                 visit_node(&mut cb_node, node.type_expression.clone());
                 visit_node(&mut cb_node, Some(&*node.name));
-                if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                    node.maybe_comment()
+                {
                     visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
                 }
             }
         }
         Node::BaseJSDocTag(node) => {
             visit_node(&mut cb_node, Some(node.tag_name()));
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                node.maybe_comment()
+            {
                 visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
             }
         }
         Node::JSDocImplementsTag(node) => {
             visit_node(&mut cb_node, Some(node.tag_name()));
             visit_node(&mut cb_node, Some(&*node.class));
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                node.maybe_comment()
+            {
                 visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
             }
         }
         Node::JSDocAugmentsTag(node) => {
             visit_node(&mut cb_node, Some(node.tag_name()));
             visit_node(&mut cb_node, Some(&*node.class));
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                node.maybe_comment()
+            {
                 visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
             }
         }
@@ -1091,7 +1106,9 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, Some(node.tag_name()));
             visit_node(&mut cb_node, node.constraint.clone());
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.type_parameters));
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                node.maybe_comment()
+            {
                 visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
             }
         }
@@ -1101,13 +1118,17 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             {
                 visit_node(&mut cb_node, node.type_expression.clone());
                 visit_node(&mut cb_node, node.full_name.clone());
-                if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                    node.maybe_comment()
+                {
                     visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
                 }
             } else {
                 visit_node(&mut cb_node, node.full_name.clone());
                 visit_node(&mut cb_node, node.type_expression.clone());
-                if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                    node.maybe_comment()
+                {
                     visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
                 }
             }
@@ -1116,14 +1137,18 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, Some(node.tag_name()));
             visit_node(&mut cb_node, node.full_name.clone());
             visit_node(&mut cb_node, Some(&*node.type_expression));
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                node.maybe_comment()
+            {
                 visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
             }
         }
         Node::BaseJSDocTypeLikeTag(node) => {
             visit_node(&mut cb_node, Some(node.tag_name()));
             visit_node(&mut cb_node, node.type_expression.clone());
-            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+            if let Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comment)) =
+                node.maybe_comment()
+            {
                 visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(comment));
             }
         }

@@ -425,8 +425,8 @@ pub fn is_same_entity_name(
     initializer: &Node, /*Expression*/
 ) -> bool {
     if is_property_name_literal(name) && is_property_name_literal(initializer) {
-        return get_text_of_identifier_or_literal(name)
-            == get_text_of_identifier_or_literal(initializer);
+        return get_text_of_identifier_or_literal(name).as_deref()
+            == get_text_of_identifier_or_literal(initializer).as_deref();
     }
     if is_identifier(name) && is_literal_like_access(initializer) {
         let initializer_as_has_expression = initializer.as_has_expression();
@@ -451,8 +451,8 @@ pub fn is_same_entity_name(
         }
     }
     if is_literal_like_access(name) && is_literal_like_access(initializer) {
-        return get_element_or_property_access_name(name)
-            == get_element_or_property_access_name(initializer)
+        return get_element_or_property_access_name(name).as_deref()
+            == get_element_or_property_access_name(initializer).as_deref()
             && is_same_entity_name(
                 &name.as_has_expression().expression(),
                 &initializer.as_has_expression().expression(),

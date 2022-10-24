@@ -6,14 +6,15 @@ use std::rc::Rc;
 
 use super::{DeclarationSpaces, TypeFacts};
 use crate::{
-    map, Signature, SignatureKind, UnionReduction, __String, declaration_name_to_string,
-    for_each_child_returns, get_declaration_of_kind, get_escaped_text_of_identifier_or_literal,
-    get_module_instance_state, get_name_of_declaration, has_syntactic_modifier, is_ambient_module,
-    is_computed_property_name, is_entity_name_expression, is_export_assignment,
-    is_private_identifier, is_property_name_literal, is_static, maybe_for_each, node_is_missing,
-    node_is_present, Debug_, DiagnosticMessage, Diagnostics, ModifierFlags, ModuleInstanceState,
-    Node, NodeArray, NodeInterface, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    map, Signature, SignatureKind, SourceTextSliceOrString, UnionReduction, __String,
+    declaration_name_to_string, for_each_child_returns, get_declaration_of_kind,
+    get_escaped_text_of_identifier_or_literal, get_module_instance_state, get_name_of_declaration,
+    has_syntactic_modifier, is_ambient_module, is_computed_property_name,
+    is_entity_name_expression, is_export_assignment, is_private_identifier,
+    is_property_name_literal, is_static, maybe_for_each, node_is_missing, node_is_present, Debug_,
+    DiagnosticMessage, Diagnostics, ModifierFlags, ModuleInstanceState, Node, NodeArray,
+    NodeInterface, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -283,7 +284,7 @@ impl TypeChecker {
         type_: &Type,
         error_node: Option<TErrorNode>,
         diagnostic_message: Option<&DiagnosticMessage>,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Option<Rc<Type>> {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         let promised_type = self.get_promised_type_of_promise(type_, error_node.as_deref());
@@ -390,7 +391,7 @@ impl TypeChecker {
         with_alias: bool,
         error_node: &Node,
         diagnostic_message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Rc<Type> {
         let awaited_type = if with_alias {
             self.get_awaited_type_(type_, Some(error_node), Some(diagnostic_message), args)
@@ -508,7 +509,7 @@ impl TypeChecker {
         type_: &Type,
         error_node: Option<TErrorNode>,
         diagnostic_message: Option<&DiagnosticMessage>,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Option<Rc<Type>> {
         if self.is_type_any(Some(type_)) {
             return Some(type_.type_wrapper());

@@ -235,7 +235,7 @@ pub fn update_source_file(
 }
 
 pub(crate) fn parse_isolated_jsdoc_comment(
-    content: String,
+    content: Rc<SourceText>,
     start: Option<usize>,
     length: Option<usize>,
 ) -> Option<ParsedIsolatedJSDocComment> {
@@ -813,7 +813,7 @@ impl ParserType {
         let source_file_as_source_file = source_file.as_source_file();
         source_file_as_source_file.set_node_count(self.node_count());
         source_file_as_source_file.set_identifier_count(self.identifier_count());
-        source_file_as_source_file.set_identifiers(self.identifiers_rc());
+        source_file_as_source_file.set_identifiers(self.identifiers());
         source_file_as_source_file.set_parse_diagnostics(attach_file_to_diagnostics(
             &*self.parse_diagnostics(),
             &source_file,
@@ -833,15 +833,18 @@ impl ParserType {
         result
     }
 
-    pub(super) fn initialize_state(
+    pub(super) fn initialize_state<TSourceText: Into<StringOrRcSourceText>>(
         &mut self,
         _file_name: &str,
-        _source_text: String,
+        _source_text: TSourceText,
         _language_version: ScriptTarget,
         _syntax_cursor: Option<IncrementalParserSyntaxCursor>,
         _script_kind: ScriptKind,
     ) {
-        let source_text = Rc::new(SourceText::new(_source_text));
+        let source_text = match _source_text.into() {
+            StringOrRcSourceText::String(source_text) => Rc::new(SourceText::new(source_text)),
+            StringOrRcSourceText::RcSourceText(source_text) => source_text,
+        };
         self.set_NodeConstructor(object_allocator.get_node_constructor());
         self.set_IdentifierConstructor(object_allocator.get_identifier_constructor());
         self.set_PrivateIdentifierConstructor(
@@ -859,8 +862,8 @@ impl ParserType {
 
         self.set_parse_diagnostics(Some(vec![]));
         self.set_parsing_context(ParsingContext::None);
-        self.set_identifiers(Some(Rc::new(RefCell::new(HashMap::new()))));
-        self.set_private_identifiers(Some(Rc::new(RefCell::new(HashMap::new()))));
+        self.set_identifiers(Some(Rc::new(RefCell::new(HashSet::new()))));
+        self.set_private_identifiers(Some(Rc::new(RefCell::new(HashSet::new()))));
         self.set_identifier_count(0);
         self.set_node_count(0);
         self.set_source_flags(NodeFlags::None);
@@ -886,5 +889,22 @@ impl ParserType {
         // })));
         scanner.set_script_target(self.language_version());
         scanner.set_language_variant(self.language_variant());
+    }
+}
+
+pub enum StringOrRcSourceText {
+    String(String),
+    RcSourceText(Rc<SourceText>),
+}
+
+impl From<String> for StringOrRcSourceText {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Rc<SourceText>> for StringOrRcSourceText {
+    fn from(value: Rc<SourceText>) -> Self {
+        Self::RcSourceText(value)
     }
 }

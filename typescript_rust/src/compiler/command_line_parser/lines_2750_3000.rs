@@ -21,14 +21,14 @@ use crate::{
     CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry, Extension,
     JsonConversionNotifier, ModuleResolutionKind, Node, NodeInterface, ParseConfigHost, Path,
-    TypeAcquisition, WatchOptions,
+    SourceTextSliceOrString, TypeAcquisition, WatchOptions,
 };
 
 pub(super) fn create_compiler_diagnostic_only_if_json<TSourceFile: Borrow<Node>>(
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
     errors: &mut Vec<Rc<Diagnostic>>,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) {
     if source_file.is_none() {
         errors.push(Rc::new(create_compiler_diagnostic(message, args).into()));

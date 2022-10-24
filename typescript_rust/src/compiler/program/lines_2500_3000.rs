@@ -23,7 +23,8 @@ use crate::{
     FileIncludeKind, FileIncludeReason, FileReference, LiteralLikeNodeInterface, ModifierFlags,
     ModuleResolutionKind, Node, NodeArray, NodeInterface, PackageId, Path, Program,
     ReadonlyTextRange, ReferencedFile, ResolvedProjectReference, ResolvedTypeReferenceDirective,
-    ScriptReferenceHost, SourceFileLike, SourceOfProjectReferenceRedirect, SyntaxKind,
+    ScriptReferenceHost, SourceFileLike, SourceOfProjectReferenceRedirect, SourceTextSliceOrString,
+    SyntaxKind,
 };
 
 impl Program {
@@ -33,7 +34,7 @@ impl Program {
         file: &Node,
         is_external_module_file: bool,
         module_augmentations: &mut Option<Vec<Rc<Node>>>,
-        ambient_modules: &mut Option<Vec<String>>,
+        ambient_modules: &mut Option<Vec<SourceTextSliceOrString>>,
         node: &Node, /*Statement*/
         in_ambient_module: bool,
     ) {
@@ -81,7 +82,7 @@ impl Program {
                     if file.as_source_file().is_declaration_file() {
                         ambient_modules
                             .get_or_insert_with(|| vec![])
-                            .push(name_text.into_owned());
+                            .push(name_text.into());
                     }
                     let body = node.as_module_declaration().body.as_ref();
                     if let Some(body) = body {
@@ -111,12 +112,15 @@ impl Program {
         lazy_static! {
             static ref r: Regex = Regex::new(r"import|require").unwrap();
         }
-        for match_ in r.find_iter(&file.as_source_file().text()) {
+        let file_text = file.as_source_file().text();
+        for match_ in r.find_iter(file_text.str()) {
             let ref node = self.get_node_at_position(
                 is_java_script_file,
                 file,
-                // TODO: I think this needs to use "char count" rather than "byte count" somehow?
-                match_.start().try_into().unwrap(),
+                file_text
+                    .str_index_to_char_index(match_.start())
+                    .try_into()
+                    .unwrap(),
             );
             if is_java_script_file && is_require_call(node, true) {
                 set_parent_recursive(Some(&**node), false);
@@ -326,7 +330,8 @@ impl Program {
                 )
             },
             Some(
-                |diagnostic: &'static DiagnosticMessage, args: Option<Vec<String>>| {
+                |diagnostic: &'static DiagnosticMessage,
+                 args: Option<Vec<SourceTextSliceOrString>>| {
                     self.add_file_preprocessing_file_explaining_diagnostic(
                         Option::<&Node>::None,
                         reason,
@@ -975,6 +980,8 @@ impl Program {
                     if resolved_type_reference_directive.resolved_file_name
                         != previous_resolution.resolved_file_name
                     {
+                        // TODO: should .read_file() return an Rc<SourceText> so that things like
+                        // this are effectively cached at that level (if I'm understanding)?
                         let other_file_text = self
                             .host()
                             .read_file(
@@ -991,7 +998,7 @@ impl Program {
                             .unwrap();
                         if !matches!(
                             other_file_text.as_ref(),
-                            Some(other_file_text) if other_file_text == &*existing_file.as_source_file().text()
+                            Some(other_file_text) if other_file_text == existing_file.as_source_file().text().str()
                         ) {
                             self.add_file_preprocessing_file_explaining_diagnostic(
                                 Some(&*existing_file),

@@ -76,8 +76,12 @@ impl ParserType {
             self.increment_identifier_count();
             expression = Some(
                 self.finish_node(
-                    self.factory
-                        .create_identifier(self, "", Option::<NodeArray>::None, None),
+                    self.factory.create_identifier(
+                        self,
+                        "".into(),
+                        Option::<NodeArray>::None,
+                        None,
+                    ),
                     self.get_node_pos(),
                     None,
                 )

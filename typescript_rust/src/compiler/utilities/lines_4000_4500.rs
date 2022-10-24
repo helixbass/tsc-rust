@@ -679,7 +679,7 @@ pub fn get_external_module_name_from_declaration<THost: ResolveModuleNameResolut
     host: &THost,
     resolver: &dyn EmitResolver,
     declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
-) -> Option<String> {
+) -> Option<SourceTextSliceOrString> {
     let file = resolver.get_external_module_file_from_declaration(declaration);
     if match file.as_ref() {
         None => true,
@@ -1109,7 +1109,7 @@ pub fn get_all_accessor_declarations(
                 let member_name = get_property_name_for_property_name_node(&member_name);
                 let accessor_name = accessor.as_named_declaration().name();
                 let accessor_name = get_property_name_for_property_name_node(&accessor_name);
-                if member_name == accessor_name {
+                if member_name.as_deref() == accessor_name.as_deref() {
                     if first_accessor.is_none() {
                         first_accessor = Some(member.clone());
                     } else if second_accessor.is_none() {

@@ -12,6 +12,7 @@ use crate::{
     CommentDirectivesMap, Debug_, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
     EmitFlags, FileIncludeReason, HasStatementsInterface, Node, NodeArray, NodeFlags,
     NodeInterface, Program, ResolvedProjectReference, ScriptKind, SortedArray, SourceFileLike,
+    SourceTextSliceOrString,
 };
 
 impl Program {
@@ -170,7 +171,7 @@ impl Program {
             return None;
         }
         let mut line = line - 1;
-        let file_text_as_chars = file_as_source_file.text_as_chars();
+        let file_text = file_as_source_file.text();
         loop
         /*while (line >= 0)*/
         {
@@ -178,13 +179,11 @@ impl Program {
                 return Some(line);
             }
 
-            let line_text: String = if line == line_starts.len() - 1 {
-                &file_text_as_chars[line_starts[line]..]
+            let line_text = if line == line_starts.len() - 1 {
+                file_text.slice(line_starts[line], None)
             } else {
-                &file_text_as_chars[line_starts[line]..line_starts[line + 1]]
-            }
-            .into_iter()
-            .collect();
+                file_text.slice(line_starts[line], Some(line_starts[line + 1]))
+            };
             let line_text = line_text.trim();
             lazy_static! {
                 static ref comment_regex: Regex = Regex::new(r"^(\s*)//(.*)$").unwrap();
@@ -284,11 +283,15 @@ impl Program {
         );
     }
 
-    pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Rc<Node> {
+    pub fn create_synthetic_import(
+        &self,
+        text: SourceTextSliceOrString,
+        file: &Node, /*SourceFile*/
+    ) -> Rc<Node> {
         let external_helpers_module_reference: Rc<Node> =
             with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                 factory
-                    .create_string_literal(synthetic_factory, text.to_owned(), None, None)
+                    .create_string_literal(synthetic_factory, text, None, None)
                     .into()
             });
         let import_decl: Rc<Node> =
@@ -330,23 +333,19 @@ impl Program {
             && !file_as_source_file.is_declaration_file()
         {
             if self.options.import_helpers == Some(true) {
-                imports =
-                    Some(vec![self.create_synthetic_import(
-                        external_helpers_module_name_text,
-                        file,
-                    )]);
+                imports = Some(vec![self.create_synthetic_import(
+                    external_helpers_module_name_text.into(),
+                    file,
+                )]);
             }
             let jsx_import = get_jsx_runtime_import(
                 get_jsx_implicit_import_base(&self.options, Some(file)).as_deref(),
                 &self.options,
             );
-            if let Some(jsx_import) = jsx_import
-                .as_ref()
-                .filter(|jsx_import| !jsx_import.is_empty())
-            {
+            if let Some(jsx_import) = jsx_import.filter(|jsx_import| !jsx_import.is_empty()) {
                 imports
                     .get_or_insert_with(|| vec![])
-                    .push(self.create_synthetic_import(jsx_import, file));
+                    .push(self.create_synthetic_import(jsx_import.into(), file));
             }
         }
 

@@ -241,8 +241,8 @@ pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
     for range in &get_leading_comment_ranges(source_text.clone(), 0).unwrap_or_else(|| vec![]) {
         // TODO: should we really be passing a slice of chars into extract_pragmas() instead?
         let comment = source_text.clone().slice(
-            usize::try_into(range.pos()).unwrap(),
-            Some(usize::try_into(range.end()).unwrap()),
+            range.pos().try_into().unwrap(),
+            Some(range.end().try_into().unwrap()),
         );
         extract_pragmas(&mut pragmas, range, &comment);
     }
@@ -623,7 +623,7 @@ pub(crate) fn tag_names_are_equivalent(
 
     let lhs_as_property_access_expression = lhs.as_property_access_expression();
     let rhs_as_property_access_expression = rhs.as_property_access_expression();
-    lhs_as_property_access_expression
+    &**lhs_as_property_access_expression
         .name
         .as_member_name()
         .escaped_text()

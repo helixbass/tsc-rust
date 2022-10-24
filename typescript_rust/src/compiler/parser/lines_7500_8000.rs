@@ -10,10 +10,11 @@ use super::ParserType;
 use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
     is_export_declaration, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property, set_parent, some, BaseNode,
-    BaseNodeFactory, Debug_, Diagnostic, HasStatementsInterface, JSDoc, LanguageVariant, Node,
-    NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceText, StringOrNodeArray,
-    SyntaxKind,
+    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property, join_source_text_slices,
+    reduce_source_text_slice_or_string_refs, set_parent, some, BaseNode, BaseNodeFactory, Debug_,
+    Diagnostic, HasStatementsInterface, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags,
+    NodeInterface, ScriptKind, ScriptTarget, SourceText, SourceTextSlice, SourceTextSliceOrString,
+    SourceTextSliceOrStringOrNodeArray, StringOrNodeArray, SyntaxKind,
 };
 
 impl ParserType {
@@ -121,6 +122,7 @@ impl ParserType {
         start: Option<usize>,
         length: Option<usize>,
     ) -> Option<ParsedJSDocTypeExpression> {
+        let content = Rc::new(SourceText::new(content));
         self.initialize_state(
             "file.js",
             content.clone(),
@@ -128,12 +130,7 @@ impl ParserType {
             None,
             ScriptKind::JS,
         );
-        self.scanner_mut().set_text(
-            Some(content.chars().collect()),
-            Some(content),
-            start,
-            length,
-        );
+        self.scanner_mut().set_text(Some(content), start, length);
         self.set_current_token(
             self.scanner()
                 .scan(Some(&|message, length| self.scan_error(message, length))),
@@ -229,7 +226,7 @@ impl ParserType {
 
     pub fn JSDocParser_parse_isolated_jsdoc_comment(
         &mut self,
-        content: String,
+        content: Rc<SourceText>,
         start: Option<usize>,
         length: Option<usize>,
     ) -> Option<ParsedIsolatedJSDocComment> {
@@ -322,7 +319,7 @@ impl ParserType {
         Debug_.assert(start <= end, None);
         Debug_.assert(end <= content.len(), None);
 
-        if !is_jsdoc_like_text(&content, start) {
+        if !is_jsdoc_like_text(content.clone(), start) {
             return None;
         }
         ParseJSDocCommentWorker::new(self, start, end, length, content).call()
@@ -340,7 +337,7 @@ pub(super) struct ParseJSDocCommentWorker<'parser> {
     pub(super) tags_end: Option<isize>,
     pub(super) link_end: Option<usize>,
     pub(super) comments_pos: Option<isize>,
-    pub(super) comments: RefCell<Vec<String>>,
+    pub(super) comments: RefCell<Vec<SourceTextSliceOrString>>,
     pub(super) parts: Vec<Rc<Node /*JSDocComment*/>>,
 }
 
@@ -384,7 +381,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         self.link_end.unwrap()
     }
 
-    pub(super) fn comments(&self) -> RefMut<Vec<String>> {
+    pub(super) fn comments(&self) -> RefMut<Vec<SourceTextSliceOrString>> {
         self.comments.borrow_mut()
     }
 
@@ -423,14 +420,14 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 let margin_and_indent = self.push_comment(
                                     margin,
                                     indent,
-                                    self.parser.scanner().get_token_text(),
+                                    self.parser.scanner().get_token_text().into(),
                                 );
                                 margin = margin_and_indent.0;
                                 indent = margin_and_indent.1;
                             }
                         }
                         SyntaxKind::NewLineTrivia => {
-                            self.comments().push(self.parser.scanner().get_token_text());
+                            self.comments().push(self.parser.scanner().get_token_text().into());
                             state = JSDocState::BeginningOfLine;
                             indent = 0;
                         }
@@ -440,39 +437,39 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                             {
                                 state = JSDocState::SavingComments;
                                 let margin_and_indent =
-                                    self.push_comment(margin, indent, asterisk);
+                                    self.push_comment(margin, indent, asterisk.into());
                                 margin = margin_and_indent.0;
                                 indent = margin_and_indent.1;
                             } else {
                                 state = JSDocState::SawAsterisk;
-                                indent += asterisk.chars().count();
+                                indent += asterisk.len();
                             }
                         }
                         SyntaxKind::WhitespaceTrivia => {
                             let whitespace = self.parser.scanner().get_token_text();
-                            let whitespace_chars: Vec<char> = whitespace.chars().collect();
                             if state == JSDocState::SavingComments {
-                                self.comments().push(whitespace);
+                                self.comments().push(whitespace.clone().into());
                             } else if let Some(margin) = margin {
-                                if indent + whitespace_chars.len() > margin {
+                                if indent + whitespace.len() > margin {
                                     self.comments()
-                                        .push(whitespace_chars[(
+                                        .push(whitespace.slice(
                                             // this looks like `margin - indent` can be negative so
                                             // mimic the behavior of .slice() with a negative
                                             // argument (and avoid usize underflow)
                                             if indent > margin {
-                                                if indent > whitespace_chars.len() + margin {
+                                                if indent > whitespace.len() + margin {
                                                     0
                                                 } else {
-                                                    whitespace_chars.len() + margin - indent
+                                                    whitespace.len() + margin - indent
                                                 }
                                             } else {
                                                 margin - indent
-                                            }
-                                        )..].into_iter().collect());
+                                            },
+                                            None
+                                        ).into());
                                 }
                             }
-                            indent += whitespace_chars.len();
+                            indent += whitespace.len();
                         }
                         SyntaxKind::EndOfFileToken => {
                             break;
@@ -494,7 +491,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                     self.parser.finish_node(
                                         self.parser.factory.create_jsdoc_text(
                                             self.parser,
-                                            self.comments().join(""),
+                                            reduce_source_text_slice_or_string_refs(&*self.comments(), false),
                                         ),
                                         self.link_end.unwrap_or(self.start).try_into().unwrap(),
                                         Some(comment_end.try_into().unwrap()),
@@ -510,7 +507,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                             let margin_and_indent = self.push_comment(
                                 margin,
                                 indent,
-                                self.parser.scanner().get_token_text(),
+                                self.parser.scanner().get_token_text().into(),
                             );
                             margin = margin_and_indent.0;
                             indent = margin_and_indent.1;
@@ -522,7 +519,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 if !self.parts.is_empty() && !self.comments().is_empty() {
                     let part: Rc<Node> =
                         self.parser.finish_node(
-                            self.parser.factory.create_jsdoc_text(self.parser, self.comments().join("")),
+                            self.parser.factory.create_jsdoc_text(self.parser, reduce_source_text_slice_or_string_refs(&*self.comments(), false)),
                             self.link_end.unwrap_or(self.start).try_into().unwrap(),
                             self.comments_pos,
                         ).into();
@@ -535,9 +532,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     |tags| self.parser.create_node_array(tags.clone(), self.tags_pos.unwrap(), self.tags_end, None));
                 self.parser.finish_node(
                     self.parser.factory.create_jsdoc_comment(self.parser, if !self.parts.is_empty() {
-                        Some(Into::<StringOrNodeArray>::into(self.parser.create_node_array(self.parts.clone(), self.start.try_into().unwrap(), self.comments_pos, None)))
+                        Some(Into::<SourceTextSliceOrStringOrNodeArray>::into(self.parser.create_node_array(self.parts.clone(), self.start.try_into().unwrap(), self.comments_pos, None)))
                     } else if !self.comments().is_empty() {
-                        Some(Into::<StringOrNodeArray>::into(self.comments().join("")))
+                        Some(Into::<SourceTextSliceOrStringOrNodeArray>::into(reduce_source_text_slice_or_string_refs(&*self.comments(), false)))
                     } else {
                         None
                     }, tags_array),
@@ -551,24 +548,24 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         &self,
         mut margin: Option<usize>,
         mut indent: usize,
-        text: String,
+        text: SourceTextSliceOrString,
     ) -> (Option<usize>, usize) {
         if margin.is_none() {
             margin = Some(indent);
         }
-        let text_len = text.chars().count();
+        let text_len = text.len();
         self.comments().push(text);
         indent += text_len;
         (margin, indent)
     }
 
-    pub(super) fn remove_leading_newlines(&self, comments: &mut Vec<String>) {
+    pub(super) fn remove_leading_newlines(&self, comments: &mut Vec<SourceTextSliceOrString>) {
         while !comments.is_empty() && matches!(&*comments[0], "\n" | "\r") {
             comments.remove(0);
         }
     }
 
-    pub(super) fn remove_trailing_whitespace(&self, comments: &mut Vec<String>) {
+    pub(super) fn remove_trailing_whitespace(&self, comments: &mut Vec<SourceTextSliceOrString>) {
         while !comments.is_empty() && comments[comments.len() - 1].trim() == "" {
             comments.pop().unwrap();
         }
@@ -609,7 +606,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         }
     }
 
-    pub(super) fn skip_whitespace_or_asterisk(&self) -> Cow<'static, str> {
+    pub(super) fn skip_whitespace_or_asterisk(&self) -> SourceTextSliceOrString {
         if matches!(
             self.parser.token(),
             SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
@@ -624,25 +621,30 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
 
         let mut preceding_line_break = self.parser.scanner().has_preceding_line_break();
         let mut seen_line_break = false;
-        let mut indent_text = "".to_owned();
+        let mut indent_text: Option<Vec<SourceTextSlice>> = None;
         while preceding_line_break && self.parser.token() == SyntaxKind::AsteriskToken
             || matches!(
                 self.parser.token(),
                 SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
             )
         {
-            indent_text.push_str(&self.parser.scanner().get_token_text());
+            indent_text
+                .get_or_insert_with(|| vec![])
+                .push(self.parser.scanner().get_token_text());
             if self.parser.token() == SyntaxKind::NewLineTrivia {
                 preceding_line_break = true;
                 seen_line_break = true;
-                indent_text = "".to_owned();
+                indent_text = None;
             } else if self.parser.token() == SyntaxKind::AsteriskToken {
                 preceding_line_break = false;
             }
             self.parser.next_token_jsdoc();
         }
         if seen_line_break {
-            indent_text.into()
+            match indent_text {
+                None => "".into(),
+                Some(indent_text) => join_source_text_slices(&indent_text),
+            }
         } else {
             "".into()
         }
@@ -877,21 +879,32 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         pos: usize,
         end: usize,
         mut margin: usize,
-        indent_text: &str,
-    ) -> Option<StringOrNodeArray> {
+        indent_text: &SourceTextSliceOrString,
+    ) -> Option<SourceTextSliceOrStringOrNodeArray> {
         if indent_text.is_empty() {
             margin += end - pos;
         }
-        self.parse_tag_comments(margin, Some(indent_text.chars().skip(margin).collect()))
+        self.parse_tag_comments(
+            margin,
+            Some(match indent_text {
+                SourceTextSliceOrString::SourceTextSlice(indent_text) => {
+                    indent_text.slice(4, None).into()
+                }
+                SourceTextSliceOrString::StaticStr(indent_text) => (&indent_text[margin..]).into(),
+                SourceTextSliceOrString::String(indent_text) => {
+                    indent_text[margin..].to_owned().into()
+                }
+            }),
+        )
     }
 
     pub(super) fn parse_tag_comments(
         &self,
         mut indent: usize,
-        initial_margin: Option<String>,
-    ) -> Option<StringOrNodeArray> {
+        initial_margin: Option<SourceTextSliceOrString>,
+    ) -> Option<SourceTextSliceOrStringOrNodeArray> {
         let comments_pos = self.parser.get_node_pos();
-        let mut comments: Vec<String> = vec![];
+        let mut comments: Vec<SourceTextSliceOrString> = vec![];
         let mut parts: Vec<Rc<Node /*JSDocComment*/>> = vec![];
         let mut link_end: Option<usize> = None;
         let mut state = JSDocState::BeginningOfLine;
@@ -910,7 +923,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             match tok {
                 SyntaxKind::NewLineTrivia => {
                     state = JSDocState::BeginningOfLine;
-                    comments.push(self.parser.scanner().get_token_text());
+                    comments.push(self.parser.scanner().get_token_text().into());
                     indent = 0;
                 }
                 SyntaxKind::AtToken => {
@@ -921,7 +934,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                     .parser
                                     .look_ahead_bool(|| self.is_next_jsdoc_token_whitespace()))
                     {
-                        comments.push(self.parser.scanner().get_token_text());
+                        comments.push(self.parser.scanner().get_token_text().into());
                     }
                     break;
                 }
@@ -936,21 +949,18 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                         let margin_and_indent = self.push_comment(
                             margin,
                             indent,
-                            self.parser.scanner().get_token_text(),
+                            self.parser.scanner().get_token_text().into(),
                         );
                         margin = margin_and_indent.0;
                         indent = margin_and_indent.1;
                     } else {
                         let whitespace = self.parser.scanner().get_token_text();
-                        let whitespace_chars: Vec<char> = whitespace.chars().collect();
                         if let Some(margin) = margin {
-                            if indent + whitespace_chars.len() > margin {
-                                comments.push(
-                                    whitespace_chars[margin - indent..].into_iter().collect(),
-                                );
+                            if indent + whitespace.len() > margin {
+                                comments.push(whitespace.slice(margin - indent, None).into());
                             }
                         }
-                        indent += whitespace_chars.len();
+                        indent += whitespace.len();
                     }
                 }
                 SyntaxKind::OpenBraceToken => {
@@ -962,9 +972,10 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                         parts.push(
                             self.parser
                                 .finish_node(
-                                    self.parser
-                                        .factory
-                                        .create_jsdoc_text(self.parser, comments.join("")),
+                                    self.parser.factory.create_jsdoc_text(
+                                        self.parser,
+                                        reduce_source_text_slice_or_string_refs(&comments, false),
+                                    ),
                                     link_end
                                         .map(|link_end| link_end.try_into().unwrap())
                                         .unwrap_or(comments_pos),
@@ -979,7 +990,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                         let margin_and_indent = self.push_comment(
                             margin,
                             indent,
-                            self.parser.scanner().get_token_text(),
+                            self.parser.scanner().get_token_text().into(),
                         );
                         margin = margin_and_indent.0;
                         indent = margin_and_indent.1;
@@ -991,8 +1002,11 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     } else {
                         state = JSDocState::SavingBackticks;
                     }
-                    let margin_and_indent =
-                        self.push_comment(margin, indent, self.parser.scanner().get_token_text());
+                    let margin_and_indent = self.push_comment(
+                        margin,
+                        indent,
+                        self.parser.scanner().get_token_text().into(),
+                    );
                     margin = margin_and_indent.0;
                     indent = margin_and_indent.1;
                 }
@@ -1007,7 +1021,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                         let margin_and_indent = self.push_comment(
                             margin,
                             indent,
-                            self.parser.scanner().get_token_text(),
+                            self.parser.scanner().get_token_text().into(),
                         );
                         margin = margin_and_indent.0;
                         indent = margin_and_indent.1;
@@ -1017,8 +1031,11 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     if state != JSDocState::SavingBackticks {
                         state = JSDocState::SavingComments;
                     }
-                    let margin_and_indent =
-                        self.push_comment(margin, indent, self.parser.scanner().get_token_text());
+                    let margin_and_indent = self.push_comment(
+                        margin,
+                        indent,
+                        self.parser.scanner().get_token_text().into(),
+                    );
                     margin = margin_and_indent.0;
                     indent = margin_and_indent.1;
                 }
@@ -1034,9 +1051,10 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 parts.push(
                     self.parser
                         .finish_node(
-                            self.parser
-                                .factory
-                                .create_jsdoc_text(self.parser, comments.join("")),
+                            self.parser.factory.create_jsdoc_text(
+                                self.parser,
+                                reduce_source_text_slice_or_string_refs(&comments, false),
+                            ),
                             link_end
                                 .map(|link_end| link_end.try_into().unwrap())
                                 .unwrap_or(comments_pos),
@@ -1056,7 +1074,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     .into(),
             )
         } else if !comments.is_empty() {
-            Some(comments.join("").into())
+            Some(reduce_source_text_slice_or_string_refs(&comments, false).into())
         } else {
             None
         }

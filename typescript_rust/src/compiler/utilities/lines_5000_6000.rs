@@ -23,8 +23,9 @@ use crate::{
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     Extension, MapLike, ModifierFlags, NamedDeclarationInterface, NewLineKind, Node, NodeFlags,
     NodeInterface, ObjectFlags, ReadonlyTextRange, Signature, SignatureFlags, SignatureKind,
-    SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransformFlags,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, __String,
+    SourceFileLike, SourceTextSliceOrString, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransformFlags, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    __String,
 };
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
@@ -714,7 +715,7 @@ pub fn create_detached_diagnostic(
     start: isize,
     length: isize,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> DiagnosticWithDetachedLocation {
     let mut text = get_locale_specific_message(message);
 
@@ -818,7 +819,7 @@ pub fn create_file_diagnostic(
     start: isize,
     length: isize,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> DiagnosticWithLocation {
     let mut text = get_locale_specific_message(message);
 
@@ -844,7 +845,7 @@ pub fn create_file_diagnostic(
 pub fn format_message(
     _dummy: Option<()>,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> String {
     let mut text = get_locale_specific_message(message);
 
@@ -859,7 +860,7 @@ pub fn format_message(
 
 pub fn create_compiler_diagnostic(
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> BaseDiagnostic {
     let mut text = get_locale_specific_message(message);
 

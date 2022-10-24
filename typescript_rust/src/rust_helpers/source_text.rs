@@ -1,6 +1,7 @@
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::cmp::PartialEq;
 use std::convert::TryInto;
+use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -228,8 +229,13 @@ impl SourceTextSlice {
     }
 
     pub fn slice_from_str_offsets(&self, start: usize, end: Option<usize>) -> SourceTextSlice {
-        self.source_text
-            .slice_from_str_offsets(self.start_str + start, end.map(|end| self.start_str + end))
+        self.source_text.slice_from_str_offsets(
+            self.start_str + start,
+            match end {
+                None => self.end_str,
+                Some(end) => Some(self.start_str + end),
+            },
+        )
     }
 
     pub fn str_index_to_char_index(&self, index: usize) -> usize {
@@ -240,6 +246,16 @@ impl SourceTextSlice {
     pub fn extended(&self, end: Option<usize>) -> Self {
         Self::new(self.source_text.clone(), self.start, end)
     }
+
+    pub fn slice(&self, start: usize, end: Option<usize>) -> SourceTextSlice {
+        self.source_text.slice(
+            self.start + start,
+            match end {
+                None => self.end,
+                Some(end) => Some(self.start + end),
+            },
+        )
+    }
 }
 
 impl Deref for SourceTextSlice {
@@ -249,6 +265,36 @@ impl Deref for SourceTextSlice {
         match self.end_str {
             None => &self.source_text.str()[self.start_str..],
             Some(end_str) => &self.source_text.str()[self.start_str..end_str],
+        }
+    }
+}
+
+pub fn join_source_text_slices<'iter, TItems: IntoIterator<Item = &'iter SourceTextSlice>>(
+    items: TItems,
+) -> SourceTextSliceOrString {
+    let items = items.into_iter();
+    let first_item = items.next();
+    if first_item.is_none() {
+        return "".into();
+    }
+    let first_item = first_item.unwrap();
+    let mut last_slice_end: Option<usize> = first_item.end;
+    let mut result: SourceTextSlice = first_item.clone();
+    loop {
+        let item = items.next();
+        match item {
+            None => {
+                return result.into();
+            }
+            Some(item) => {
+                if Some(item.start) == last_slice_end {
+                    last_slice_end = item.end;
+                    result = result.extended(item.end);
+                } else {
+                    use itertools::Itertools;
+                    return format!("{}{}", &*result, items.map(|item| &**item).concat()).into();
+                }
+            }
         }
     }
 }
@@ -282,6 +328,14 @@ impl SourceTextSliceOrString {
     //         self.into()
     //     }
     // }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Self::SourceTextSlice(value) => value.len(),
+            Self::StaticStr(value) => value.chars().count(),
+            Self::String(value) => value.chars().count(),
+        }
+    }
 }
 
 impl Deref for SourceTextSliceOrString {
@@ -299,6 +353,29 @@ impl Deref for SourceTextSliceOrString {
 impl PartialEq<&str> for SourceTextSliceOrString {
     fn eq(&self, other: &&str) -> bool {
         &**self == *other
+    }
+}
+
+impl PartialEq for SourceTextSliceOrString {
+    fn eq(&self, other: &SourceTextSliceOrString) -> bool {
+        &**self == &**other
+    }
+}
+
+impl Eq for SourceTextSliceOrString {}
+
+impl Hash for SourceTextSliceOrString {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        (&**self).hash(state)
+    }
+}
+
+impl Borrow<str> for SourceTextSliceOrString {
+    fn borrow(&self) -> &str {
+        &**self
     }
 }
 
@@ -329,6 +406,15 @@ impl From<Cow<'static, str>> for SourceTextSliceOrString {
     }
 }
 
+impl From<StrOrSourceTextSliceOrString<'_>> for SourceTextSliceOrString {
+    fn from(value: StrOrSourceTextSliceOrString<'_>) -> Self {
+        match value {
+            StrOrSourceTextSliceOrString::Str(value) => Self::String(value.to_owned()),
+            StrOrSourceTextSliceOrString::SourceTextSliceOrString(value) => value,
+        }
+    }
+}
+
 // impl From<SourceTextSliceOrString> for String {
 //     fn from(value: SourceTextSliceOrString) -> Self {
 //         match value {
@@ -339,8 +425,9 @@ impl From<Cow<'static, str>> for SourceTextSliceOrString {
 //     }
 // }
 
-pub fn reduce_source_text_slice_or_static_cows(
-    items: Vec<SourceTextSliceOrString>,
+pub fn reduce_source_text_slice_or_strings<TItems: IntoIterator<Item = SourceTextSliceOrString>>(
+    items: TItems,
+    should_assert_consecutive_slices: bool,
 ) -> SourceTextSliceOrString {
     let mut last_slice_end: Option<usize> = None;
     items
@@ -348,10 +435,12 @@ pub fn reduce_source_text_slice_or_static_cows(
         .reduce(|a, b| match a {
             SourceTextSliceOrString::SourceTextSlice(a) => match b {
                 SourceTextSliceOrString::SourceTextSlice(b) => {
-                    Debug_.assert(
-                        last_slice_end == Some(a.start),
-                        Some("Source text slices should be contiguous"),
-                    );
+                    if should_assert_consecutive_slices {
+                        Debug_.assert(
+                            last_slice_end == Some(a.start),
+                            Some("Source text slices should be contiguous"),
+                        );
+                    }
                     last_slice_end = b.end;
                     a.extended(b.end).into()
                 }
@@ -362,4 +451,42 @@ pub fn reduce_source_text_slice_or_static_cows(
             SourceTextSliceOrString::String(a) => format!("{}{}", a, &*b).into(),
         })
         .unwrap()
+}
+
+pub fn reduce_source_text_slice_or_string_refs<
+    'iter,
+    TItems: IntoIterator<Item = &'iter SourceTextSliceOrString>,
+>(
+    items: TItems,
+    should_assert_consecutive_slices: bool,
+) -> SourceTextSliceOrString {
+    reduce_source_text_slice_or_strings(items.cloned(), should_assert_consecutive_slices)
+}
+
+pub enum StrOrSourceTextSliceOrString<'str> {
+    Str(&'str str),
+    SourceTextSliceOrString(SourceTextSliceOrString),
+}
+
+impl Deref for StrOrSourceTextSliceOrString<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Str(value) => *value,
+            Self::SourceTextSliceOrString(value) => &**value,
+        }
+    }
+}
+
+impl<'str> From<&'str str> for StrOrSourceTextSliceOrString<'str> {
+    fn from(value: &'str str) -> Self {
+        Self::Str(value)
+    }
+}
+
+impl<'str> From<SourceTextSliceOrString> for StrOrSourceTextSliceOrString<'str> {
+    fn from(value: SourceTextSliceOrString) -> Self {
+        Self::SourceTextSliceOrString(value)
+    }
 }

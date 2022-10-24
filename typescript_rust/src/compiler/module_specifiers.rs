@@ -16,12 +16,13 @@ use crate::{
     is_non_global_ambient_module, maybe_for_each, node_modules_path_part,
     path_contains_node_modules, path_is_bare_specifier, path_is_relative, remove_file_extension,
     remove_suffix, resolve_path, some, starts_with, starts_with_directory, to_path, CharacterCodes,
-    Comparison, CompilerOptions, Debug_, Extension, FileIncludeKind, FileIncludeReason, ModuleKind,
-    ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
-    ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, Path,
-    Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences, __String,
-    get_text_of_identifier_or_literal, is_ambient_module, is_external_module_name_relative,
-    is_module_block, is_module_declaration, is_source_file, map_defined, LiteralLikeNodeInterface,
+    CharacterCodesChar, Comparison, CompilerOptions, Debug_, Extension, FileIncludeKind,
+    FileIncludeReason, ModuleKind, ModulePath, ModuleResolutionHost, ModuleResolutionHostOverrider,
+    ModuleResolutionKind, ModuleSpecifierCache, ModuleSpecifierResolutionHost, Node, NodeFlags,
+    NodeInterface, Path, SourceTextSliceOrString, Symbol, SymbolFlags, SymbolInterface,
+    TypeChecker, UserPreferences, __String, get_text_of_identifier_or_literal, is_ambient_module,
+    is_external_module_name_relative, is_module_block, is_module_declaration, is_source_file,
+    map_defined, LiteralLikeNodeInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -243,7 +244,7 @@ fn try_get_module_specifiers_from_cache_worker(
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
 ) -> (
-    Option<Vec<String>>,
+    Option<Vec<SourceTextSliceOrString>>,
     Option<Rc<Node>>,
     Option<Vec<ModulePath>>,
     Option<Rc<dyn ModuleSpecifierCache>>,
@@ -369,7 +370,7 @@ fn compute_module_specifiers(
     importing_source_file: &Node, /*SourceFile*/
     host: &dyn ModuleSpecifierResolutionHost,
     user_preferences: &UserPreferences,
-) -> Vec<String> {
+) -> Vec<SourceTextSliceOrString> {
     let importing_source_file_as_source_file = importing_source_file.as_source_file();
     let info = get_info(&importing_source_file_as_source_file.path(), host);
     let preferences = get_preferences(
@@ -419,16 +420,16 @@ fn compute_module_specifiers(
         Some(|p: &ModulePath| p.is_in_node_modules),
     );
 
-    let mut node_modules_specifiers: Option<Vec<String>> = None;
-    let mut paths_specifiers: Option<Vec<String>> = None;
-    let mut relative_specifiers: Option<Vec<String>> = None;
+    let mut node_modules_specifiers: Option<Vec<SourceTextSliceOrString>> = None;
+    let mut paths_specifiers: Option<Vec<SourceTextSliceOrString>> = None;
+    let mut relative_specifiers: Option<Vec<SourceTextSliceOrString>> = None;
     for module_path in module_paths {
         let specifier =
             try_get_module_name_as_node_module(module_path, &info, host, compiler_options, None);
         if let Some(specifier) = specifier.as_ref() {
             append(
                 node_modules_specifiers.get_or_insert_with(|| vec![]),
-                Some(specifier.clone()),
+                Some(specifier.clone().into()),
             );
         }
         if let Some(specifier) = specifier.as_ref() {
@@ -446,11 +447,14 @@ fn compute_module_specifiers(
                 preferences,
             );
             if path_is_bare_specifier(&local) {
-                append(paths_specifiers.get_or_insert_with(|| vec![]), Some(local));
+                append(
+                    paths_specifiers.get_or_insert_with(|| vec![]),
+                    Some(local.into()),
+                );
             } else if !imported_file_is_in_node_modules || module_path.is_in_node_modules {
                 append(
                     relative_specifiers.get_or_insert_with(|| vec![]),
-                    Some(local),
+                    Some(local.into()),
                 );
             }
         }
@@ -591,7 +595,7 @@ fn get_local_module_specifier(
 }
 
 pub struct ModuleSpecifiersWithCacheInfo {
-    pub module_specifiers: Vec<String>,
+    pub module_specifiers: Vec<SourceTextSliceOrString>,
     pub computed_without_cache: bool,
 }
 
@@ -601,7 +605,7 @@ pub fn count_path_components(path: &str) -> usize {
         .chars()
         .skip(if starts_with(path, "./") { 2 } else { 0 })
     {
-        if ch == CharacterCodes::slash {
+        if ch == CharacterCodesChar::slash {
             count += 1;
         }
     }
@@ -858,7 +862,7 @@ fn get_all_module_paths_worker(
 fn try_get_module_name_from_ambient_module(
     module_symbol: &Symbol,
     checker: &TypeChecker,
-) -> Option<String> {
+) -> Option<SourceTextSliceOrString> {
     let decl = module_symbol
         .maybe_declarations()
         .as_ref()

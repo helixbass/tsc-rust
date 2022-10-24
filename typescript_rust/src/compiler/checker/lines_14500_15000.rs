@@ -13,9 +13,9 @@ use crate::{
     map, ordered_remove_item_at, reduce_left, replace_element, some, symbol_name,
     unescape_leading_underscores, walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_,
     Diagnostics, IndexInfo, IndexType, InternalSymbolName, IntersectionType, ModifierFlags, Node,
-    NodeInterface, ObjectFlags, ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    NodeInterface, ObjectFlags, ObjectTypeInterface, SourceTextSliceOrString, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -921,7 +921,7 @@ impl TypeChecker {
 
     pub(super) fn get_template_literal_type(
         &self,
-        texts: &[String],
+        texts: &[SourceTextSliceOrString],
         types: &[Rc<Type>],
     ) -> Rc<Type> {
         let union_index = find_index(
@@ -951,7 +951,7 @@ impl TypeChecker {
         }
         let mut new_types: Vec<Rc<Type>> = vec![];
         let mut new_texts: Vec<String> = vec![];
-        let mut text = texts[0].clone();
+        let mut text = texts[0].into_string();
         if !self.add_spans(&mut text, &mut new_types, &mut new_texts, texts, types) {
             return self.string_type();
         }
@@ -986,7 +986,7 @@ impl TypeChecker {
         text: &mut String,
         new_types: &mut Vec<Rc<Type>>,
         new_texts: &mut Vec<String>,
-        texts: &[String],
+        texts: &[SourceTextSliceOrString],
         types: &[Rc<Type>],
     ) -> bool {
         for (i, t) in types.iter().enumerate() {

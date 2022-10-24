@@ -8,8 +8,8 @@ use std::convert::{TryFrom, TryInto};
 use crate::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, compare_values, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, get_string_comparer,
-    identity_str_to_owned, last_or_undefined, some, starts_with, string_contains, CharacterCodes,
-    Comparison, Debug_, Path,
+    identity_str_to_owned, last_or_undefined, some, starts_with, string_contains,
+    CharacterCodesChar, Comparison, Debug_, Path,
 };
 
 pub const directory_separator: char = '/';
@@ -25,7 +25,10 @@ lazy_static! {
 }
 
 pub fn is_any_directory_separator(char_code: char) -> bool {
-    matches!(char_code, CharacterCodes::slash | CharacterCodes::backslash)
+    matches!(
+        char_code,
+        CharacterCodesChar::slash | CharacterCodesChar::backslash
+    )
 }
 
 pub fn is_url(path: &str) -> bool {
@@ -83,20 +86,20 @@ pub fn has_trailing_directory_separator(path: &str) -> bool {
 }
 
 fn is_volume_character(char_code: char) -> bool {
-    char_code >= CharacterCodes::a && char_code <= CharacterCodes::z
-        || char_code >= CharacterCodes::A && char_code <= CharacterCodes::Z
+    char_code >= CharacterCodesChar::a && char_code <= CharacterCodesChar::z
+        || char_code >= CharacterCodesChar::A && char_code <= CharacterCodesChar::Z
 }
 
 fn get_file_url_volume_separator_end(url: &[char], start: usize) -> isize {
     let ch0 = url.get(start).copied();
-    if matches!(ch0, Some(CharacterCodes::colon)) {
+    if matches!(ch0, Some(CharacterCodesChar::colon)) {
         return (start + 1).try_into().unwrap();
     }
-    if matches!(ch0, Some(CharacterCodes::percent))
-        && matches!(url.get(start + 1).copied(), Some(CharacterCodes::_3))
+    if matches!(ch0, Some(CharacterCodesChar::percent))
+        && matches!(url.get(start + 1).copied(), Some(CharacterCodesChar::_3))
     {
         let ch2 = url.get(start + 2).copied();
-        if matches!(ch2, Some(CharacterCodes::a | CharacterCodes::A)) {
+        if matches!(ch2, Some(CharacterCodesChar::a | CharacterCodesChar::A)) {
             return (start + 3).try_into().unwrap();
         }
     }
@@ -111,7 +114,10 @@ fn get_encoded_root_length(path: &str) -> isize {
     }
     let ch0 = path[0];
 
-    if matches!(ch0, CharacterCodes::slash | CharacterCodes::backslash) {
+    if matches!(
+        ch0,
+        CharacterCodesChar::slash | CharacterCodesChar::backslash
+    ) {
         if path.get(1).copied() != Some(ch0) {
             return 1;
         }
@@ -120,7 +126,7 @@ fn get_encoded_root_length(path: &str) -> isize {
             .iter()
             .skip(2)
             .position(|ch| {
-                *ch == if ch0 == CharacterCodes::slash {
+                *ch == if ch0 == CharacterCodesChar::slash {
                     directory_separator
                 } else {
                     alt_directory_separator
@@ -135,9 +141,12 @@ fn get_encoded_root_length(path: &str) -> isize {
         return (p1 + 1).try_into().unwrap();
     }
 
-    if is_volume_character(ch0) && matches!(path.get(1).copied(), Some(CharacterCodes::colon)) {
+    if is_volume_character(ch0) && matches!(path.get(1).copied(), Some(CharacterCodesChar::colon)) {
         let ch2 = path.get(2).copied();
-        if matches!(ch2, Some(CharacterCodes::slash | CharacterCodes::backslash)) {
+        if matches!(
+            ch2,
+            Some(CharacterCodesChar::slash | CharacterCodesChar::backslash)
+        ) {
             return 3;
         }
         if path.len() == 2 {
@@ -168,7 +177,7 @@ fn get_encoded_root_length(path: &str) -> isize {
                         volume_separator_end.try_into().unwrap();
                     if matches!(
                         path.get(volume_separator_end_as_usize).copied(),
-                        Some(CharacterCodes::slash)
+                        Some(CharacterCodesChar::slash)
                     ) {
                         return !(volume_separator_end + 1);
                     }
@@ -250,7 +259,7 @@ fn try_get_extension_from_path<TStringEqualityComparer: FnOnce(&str, &str) -> bo
     let extension_chars: Vec<char> = extension.chars().collect();
     if path.len() >= extension.len()
         && path_chars.len() >= extension_chars.len()
-        && path_chars[path_chars.len() - extension_chars.len()] == CharacterCodes::dot
+        && path_chars[path_chars.len() - extension_chars.len()] == CharacterCodesChar::dot
     {
         let path_extension = &path[path.len() - extension.len()..];
         if string_equality_comparer(path_extension, &extension) {

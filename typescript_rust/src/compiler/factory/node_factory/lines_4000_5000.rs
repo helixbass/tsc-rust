@@ -13,8 +13,8 @@ use crate::{
     JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, SourceTextSliceOrString, StrOrRcNode,
-    StringOrNodeArray, SyntaxKind, TransformFlags,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, SourceTextSliceOrString,
+    SourceTextSliceOrStringOrNodeArray, StrOrRcNode, StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -350,7 +350,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub(crate) fn create_base_jsdoc_tag<TComment: Into<StringOrNodeArray>>(
+    pub(crate) fn create_base_jsdoc_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -363,7 +363,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub fn create_jsdoc_template_tag<
         TTypeParameters: Into<NodeArrayOrVec>,
-        TComment: Into<StringOrNodeArray>,
+        TComment: Into<SourceTextSliceOrStringOrNodeArray>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -388,7 +388,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_typedef_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_typedef_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -413,7 +413,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_parameter_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_parameter_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -441,7 +441,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_property_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_property_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -469,7 +469,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_callback_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_callback_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -494,7 +494,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_augments_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_augments_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -513,7 +513,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         JSDocAugmentsTag::new(node, class_name)
     }
 
-    pub fn create_jsdoc_implements_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_implements_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -532,7 +532,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         JSDocImplementsTag::new(node, class_name)
     }
 
-    pub fn create_jsdoc_see_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_see_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -578,7 +578,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
-        text: String,
+        text: SourceTextSliceOrString,
     ) -> JSDocLink {
         let node = self.create_base_node(base_factory, SyntaxKind::JSDocLink);
         JSDocLink::new(node, name, text)
@@ -588,7 +588,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
-        text: String,
+        text: SourceTextSliceOrString,
     ) -> JSDocLinkCode {
         let node = self.create_base_node(base_factory, SyntaxKind::JSDocLinkCode);
         JSDocLinkCode::new(node, name, text)
@@ -598,13 +598,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
-        text: String,
+        text: SourceTextSliceOrString,
     ) -> JSDocLinkPlain {
         let node = self.create_base_node(base_factory, SyntaxKind::JSDocLinkPlain);
         JSDocLinkPlain::new(node, name, text)
     }
 
-    pub(crate) fn create_jsdoc_simple_tag_worker<TComment: Into<StringOrNodeArray>>(
+    pub(crate) fn create_jsdoc_simple_tag_worker<
+        TComment: Into<SourceTextSliceOrStringOrNodeArray>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -627,7 +629,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub(crate) fn create_jsdoc_type_like_tag_worker<TComment: Into<StringOrNodeArray>>(
+    pub(crate) fn create_jsdoc_type_like_tag_worker<
+        TComment: Into<SourceTextSliceOrStringOrNodeArray>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -652,7 +656,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         BaseJSDocTypeLikeTag::new(node, type_expression)
     }
 
-    pub fn create_jsdoc_unknown_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_unknown_tag<TComment: Into<SourceTextSliceOrStringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Rc<Node /*Identifier*/>,
@@ -661,12 +665,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         self.create_base_jsdoc_tag(base_factory, SyntaxKind::JSDocTag, tag_name, comment)
     }
 
-    pub fn create_jsdoc_text(&self, base_factory: &TBaseNodeFactory, text: String) -> JSDocText {
+    pub fn create_jsdoc_text(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: SourceTextSliceOrString,
+    ) -> JSDocText {
         let node = self.create_base_node(base_factory, SyntaxKind::JSDocText);
         JSDocText::new(node, text)
     }
 
-    pub fn create_jsdoc_comment<TComment: Into<StringOrNodeArray>, TTags: Into<NodeArrayOrVec>>(
+    pub fn create_jsdoc_comment<
+        TComment: Into<SourceTextSliceOrStringOrNodeArray>,
+        TTags: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         comment: Option<TComment>,

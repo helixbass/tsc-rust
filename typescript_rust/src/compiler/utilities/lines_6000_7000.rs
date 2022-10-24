@@ -56,7 +56,7 @@ pub fn create_compiler_diagnostic_from_message_chain(
 pub fn chain_diagnostic_messages(
     details: Option<DiagnosticMessageChain>,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> DiagnosticMessageChain {
     let mut text = get_locale_specific_message(message);
 
@@ -74,7 +74,7 @@ pub fn chain_diagnostic_messages(
 pub fn chain_diagnostic_messages_multiple(
     details: Vec<DiagnosticMessageChain>,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> DiagnosticMessageChain {
     let mut text = get_locale_specific_message(message);
 

@@ -36,7 +36,7 @@ use crate::{
     ModuleResolutionKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
     ParseConfigFileHost, ParseConfigHost, Path, Program, ProjectReference, ReferencedFile,
     ResolvedConfigFileName, ResolvedModuleFull, ResolvedProjectReference, ScriptKind,
-    ScriptReferenceHost, ScriptTarget, SymlinkCache, SyntaxKind,
+    ScriptReferenceHost, ScriptTarget, SourceTextSliceOrString, SymlinkCache, SyntaxKind,
 };
 
 impl Program {
@@ -942,7 +942,7 @@ impl Program {
         file: Option<TFile>,
         mut file_processing_reason: Option<&FileIncludeReason>,
         diagnostic: &'static DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Rc<Diagnostic> {
         let mut file_include_reasons: Option<Vec<DiagnosticMessageChain>> = None;
         let mut related_info: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
@@ -1078,7 +1078,7 @@ impl Program {
         file: Option<TFile>,
         file_processing_reason: &FileIncludeReason,
         diagnostic: &'static DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         self.maybe_file_processing_diagnostics().get_or_insert_with(|| vec![]).push(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
             kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
@@ -1093,7 +1093,7 @@ impl Program {
         &self,
         file: &Node, /*SourceFile*/
         diagnostic: &'static DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         self.program_diagnostics_mut()
             .add(self.create_diagnostic_explaining_file(Some(file), None, diagnostic, args));
@@ -1222,7 +1222,7 @@ impl Program {
         key: &str,
         value_index: usize,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         unimplemented!()
     }
@@ -1232,7 +1232,7 @@ impl Program {
         on_key: bool,
         key: &str,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         unimplemented!()
     }
@@ -1258,7 +1258,7 @@ impl Program {
         &self,
         option1: &str,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         self.create_diagnostic_for_option(false, option1, None, message, args);
     }
@@ -1268,7 +1268,7 @@ impl Program {
         source_file: Option<TSourceFile /*JsonSourceFile*/>,
         index: usize,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         unimplemented!()
     }
@@ -1279,7 +1279,7 @@ impl Program {
         option1: &str,
         option2: Option<&str>,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         let compiler_options_object_literal_syntax =
             self.get_compiler_options_object_literal_syntax();
@@ -1333,7 +1333,7 @@ impl Program {
         key1: &str,
         key2: Option<&str>,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> bool {
         let props = get_property_assignment(object_literal, key1, key2);
         for prop in &props {
@@ -1977,7 +1977,7 @@ fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
     let imports = imports.as_ref().unwrap();
     let module_augmentations = file_as_source_file.maybe_module_augmentations();
     let module_augmentations = module_augmentations.as_ref().unwrap();
-    let mut res: Vec<String> = imports
+    let mut res: Vec<SourceTextSliceOrString> = imports
         .into_iter()
         .map(|i| i.as_literal_like_node().text().clone())
         .collect();

@@ -257,7 +257,7 @@ impl TypeChecker {
         &self,
         location: Option<TLocation>,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Rc<Diagnostic> {
         let diagnostic: Rc<Diagnostic> = Rc::new(if let Some(location) = location {
             let location = location.borrow();
@@ -278,7 +278,7 @@ impl TypeChecker {
         key: String, /*keyof CompilerOptions*/
         location: Option<TLocation>,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Rc<Diagnostic> {
         let diagnostic = self.error(location, message, args);
         *diagnostic.maybe_skipped_on_mut() = Some(key);
@@ -289,7 +289,7 @@ impl TypeChecker {
         &self,
         location: Option<TLocation>,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Rc<Diagnostic> {
         Rc::new(if let Some(location) = location {
             let location = location.borrow();
@@ -303,7 +303,7 @@ impl TypeChecker {
         &self,
         location: Option<TLocation>,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Rc<Diagnostic> {
         let diagnostic = self.create_error(location, message, args);
         self.diagnostics().add(diagnostic.clone());
@@ -324,7 +324,7 @@ impl TypeChecker {
         is_error: bool,
         location: &Node,
         message: DiagnosticMessageOrDiagnosticMessageChain,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         if location.pos() < 0 || location.end() < 0 {
             if !is_error {
@@ -362,7 +362,7 @@ impl TypeChecker {
         location: &Node,
         maybe_missing_await: bool,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) -> Rc<Diagnostic> {
         let diagnostic = self.error(Some(location), message, args);
         if maybe_missing_await {

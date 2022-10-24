@@ -13,7 +13,7 @@ use super::{
 use crate::{
     append, trim_string_start, BaseTextRange, CharacterCodes, CommentDirective,
     CommentDirectiveType, Debug_, Diagnostics, LanguageVariant, ScriptTarget, SourceText,
-    SourceTextSliceOrString, SyntaxKind, TokenFlags,
+    SourceTextSlice, SourceTextSliceOrString, SyntaxKind, TokenFlags,
 };
 
 impl Scanner {
@@ -165,7 +165,7 @@ impl Scanner {
 
             while p < self.end()
                 && is_identifier_part(
-                    self.text_char_at_index(p),
+                    self.text_char_at_index(p).chars().next().unwrap(),
                     Some(self.language_version),
                     None,
                 )
@@ -173,7 +173,7 @@ impl Scanner {
                 p += 1;
             }
             self.set_pos(p);
-            self.set_token_value(self.text_substring(self.token_pos(), self.pos()));
+            self.set_token_value(self.text_slice(self.token_pos(), self.pos()).into());
             self.set_token(SyntaxKind::RegularExpressionLiteral);
         }
         self.token()
@@ -382,30 +382,61 @@ impl Scanner {
             while self.pos() < self.end() {
                 let ch = self.text_char_at_index(self.pos());
                 if ch == CharacterCodes::minus {
-                    self.set_token_value(format!("{}-", self.token_value()));
+                    self.set_token_value(match &*self.token_value() {
+                        SourceTextSliceOrString::SourceTextSlice(token_value)
+                            if token_value.end == Some(self.pos()) =>
+                        {
+                            token_value.extended(Some(self.pos() + 1)).into()
+                        }
+                        token_value => format!("{}-", &**token_value).into(),
+                    });
                     self.increment_pos();
                     continue;
                 } else if ch == CharacterCodes::colon && !namespace_separator {
-                    self.set_token_value(format!("{}:", self.token_value()));
+                    self.set_token_value(match &*self.token_value() {
+                        SourceTextSliceOrString::SourceTextSlice(token_value)
+                            if token_value.end == Some(self.pos()) =>
+                        {
+                            token_value.extended(Some(self.pos() + 1)).into()
+                        }
+                        token_value => format!("{}:", &**token_value).into(),
+                    });
                     self.increment_pos();
                     namespace_separator = true;
                     self.set_token(SyntaxKind::Identifier);
                     continue;
                 }
                 let old_pos = self.pos();
-                self.set_token_value(format!(
-                    "{}{}",
-                    self.token_value(),
-                    self.scan_identifier_parts(on_error)
-                ));
+                self.set_token_value(
+                    match (&*self.token_value(), self.scan_identifier_parts(on_error)) {
+                        (
+                            SourceTextSliceOrString::SourceTextSlice(token_value),
+                            SourceTextSliceOrString::SourceTextSlice(identifier_parts),
+                        ) if token_value.end == Some(identifier_parts.start) => {
+                            token_value.extended(identifier_parts.end).into()
+                        }
+                        (token_value, identifier_parts) => {
+                            format!("{}{}", &**token_value, &*identifier_parts,).into()
+                        }
+                    },
+                );
                 if self.pos() == old_pos {
                     break;
                 }
             }
             if self.token_value().ends_with(":") {
-                let mut token_value = self.token_value().clone();
-                token_value.pop().unwrap();
-                self.set_token_value(token_value);
+                self.set_token_value(match &*self.token_value() {
+                    SourceTextSliceOrString::SourceTextSlice(token_value) => SourceTextSlice::new(
+                        token_value.source_text.clone(),
+                        token_value.start,
+                        Some(token_value.end.unwrap() - 1),
+                    ),
+                    token_value => {
+                        let mut token_value = (&**token_value).to_owned();
+                        token_value.pop().unwrap();
+                        token_value.into()
+                    }
+                });
                 self.set_pos(self.pos() - 1);
             }
         }
@@ -512,11 +543,14 @@ impl Scanner {
                 ) {
                     self.increment_pos_by(3);
                     self.add_token_flag(TokenFlags::ExtendedUnicodeEscape);
-                    self.set_token_value(format!(
-                        "{}{}",
-                        self.scan_extended_unicode_escape(on_error),
-                        self.scan_identifier_parts(on_error)
-                    ));
+                    self.set_token_value(
+                        format!(
+                            "{}{}",
+                            self.scan_extended_unicode_escape(on_error),
+                            &*self.scan_identifier_parts(on_error)
+                        )
+                        .into(),
+                    );
                     return self.set_token(self.get_identifier_token());
                 }
 
@@ -530,11 +564,14 @@ impl Scanner {
                 ) {
                     self.increment_pos_by(6);
                     self.add_token_flag(TokenFlags::UnicodeEscape);
-                    self.set_token_value(format!(
-                        "{}{}",
-                        char::from_u32(cooked_char.unwrap()).unwrap(),
-                        self.scan_identifier_parts(on_error)
-                    ));
+                    self.set_token_value(
+                        format!(
+                            "{}{}",
+                            char::from_u32(cooked_char.unwrap()).unwrap(),
+                            &*self.scan_identifier_parts(on_error)
+                        )
+                        .into(),
+                    );
                     return self.set_token(self.get_identifier_token());
                 }
                 self.increment_pos();
@@ -543,12 +580,16 @@ impl Scanner {
             _ => (),
         }
 
-        if is_identifier_start(ch, Some(self.language_version)) {
+        if is_identifier_start(ch.chars().next().unwrap(), Some(self.language_version)) {
             let mut char_ = ch;
             loop {
                 if self.pos() < self.end() {
                     char_ = code_point_at(&self.text(), self.pos());
-                    if !is_identifier_part(char_, Some(self.language_version), None) {
+                    if !is_identifier_part(
+                        char_.chars().next().unwrap(),
+                        Some(self.language_version),
+                        None,
+                    ) {
                         break;
                     }
                 } else if !matches!(
@@ -559,12 +600,12 @@ impl Scanner {
                 }
                 self.increment_pos_by(char_size(char_));
             }
-            self.set_token_value(self.text_substring(self.token_pos(), self.pos()));
+            self.set_token_value(self.text_slice(self.token_pos(), self.pos()).into());
             if char_ == CharacterCodes::backslash {
                 self.set_token_value(format!(
                     "{}{}",
-                    self.token_value(),
-                    self.scan_identifier_parts(on_error)
+                    &**self.token_value(),
+                    &*self.scan_identifier_parts(on_error)
                 ));
             }
             self.set_token(self.get_identifier_token())
@@ -697,7 +738,7 @@ impl Scanner {
 }
 
 pub(super) fn maybe_code_point_at(s: &SourceText, i: usize) -> Option<&str> {
-    s.maybe_char_at_index(i).map(|ch| ch)
+    s.maybe_char_at_index(i)
 }
 
 pub(super) fn code_point_at(s: &SourceText, i: usize) -> &str {

@@ -145,7 +145,7 @@ thread_local! {
 
 pub(super) enum CookedText {
     InvalidValue,
-    String(String),
+    String(SourceTextSliceOrString),
 }
 
 pub(super) fn get_cooked_text(
@@ -192,11 +192,11 @@ pub(super) fn get_cooked_text(
         }
 
         if raw_text_scanner_ref.is_unterminated() {
-            raw_text_scanner_ref.set_text(None, None, None, None);
+            raw_text_scanner_ref.set_text(None, None, None);
             return CookedText::InvalidValue;
         }
 
-        let mut token_value: Option<String> = None;
+        let mut token_value: Option<SourceTextSliceOrString> = None;
         match token {
             SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::TemplateHead
@@ -208,12 +208,12 @@ pub(super) fn get_cooked_text(
         }
 
         if token_value.is_none() || raw_text_scanner_ref.scan(None) != SyntaxKind::EndOfFileToken {
-            raw_text_scanner_ref.set_text(None, None, None, None);
+            raw_text_scanner_ref.set_text(None, None, None);
             return CookedText::InvalidValue;
         }
         let token_value = token_value.unwrap();
 
-        raw_text_scanner_ref.set_text(None, None, None, None);
+        raw_text_scanner_ref.set_text(None, None, None);
         CookedText::String(token_value)
     })
 }

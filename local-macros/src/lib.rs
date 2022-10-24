@@ -441,7 +441,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.tag_name()
                     }
 
-                    fn maybe_comment(&self) -> ::std::option::Option<&crate::StringOrNodeArray> {
+                    fn maybe_comment(&self) -> ::std::option::Option<&crate::SourceTextSliceOrStringOrNodeArray> {
                         self.#first_field_name.maybe_comment()
                     }
                 }
@@ -1002,7 +1002,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_comment(&self) -> ::std::option::Option<&crate::StringOrNodeArray> {
+                    fn maybe_comment(&self) -> ::std::option::Option<&crate::SourceTextSliceOrStringOrNodeArray> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_comment()),*
                         }

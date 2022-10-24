@@ -744,7 +744,7 @@ impl BinderType {
         &self,
         node: &Node,
         message: &DiagnosticMessage,
-        args: Option<Vec<String>>,
+        args: Option<Vec<SourceTextSliceOrString>>,
     ) {
         let span = get_span_of_token_at_position(&self.file(), node.pos().try_into().unwrap());
         self.file()

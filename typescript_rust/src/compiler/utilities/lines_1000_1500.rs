@@ -21,13 +21,14 @@ use crate::{
     DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticWithLocation, EmitFlags,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeArgumentsInterface,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    ReadonlyTextRange, ScriptKind, SourceFileLike, SourceText, SyntaxKind, TextRange, TextSpan,
+    ReadonlyTextRange, ScriptKind, SourceFileLike, SourceText, SourceTextSliceOrString, SyntaxKind,
+    TextRange, TextSpan,
 };
 
 pub fn create_diagnostic_for_node(
     node: &Node,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(Some(node)).unwrap();
     create_diagnostic_for_node_in_source_file(&source_file, node, message, args)
@@ -37,10 +38,10 @@ pub fn create_diagnostic_for_node_array(
     source_file: &Node, /*SourceFile*/
     nodes: &NodeArray,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> DiagnosticWithLocation {
     let start = skip_trivia(
-        &source_file.as_source_file().text(),
+        source_file.as_source_file().text(),
         nodes.pos(),
         None,
         None,
@@ -53,7 +54,7 @@ pub fn create_diagnostic_for_node_in_source_file(
     source_file: &Node, /*SourceFile*/
     node: &Node,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>,
+    args: Option<Vec<SourceTextSliceOrString>>,
 ) -> DiagnosticWithLocation {
     let span = get_error_span_for_node(source_file, node);
     create_file_diagnostic(source_file, span.start, span.length, message, args)

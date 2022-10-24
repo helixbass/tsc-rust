@@ -453,11 +453,14 @@ impl HasExpressionInterface for ComputedPropertyName {
 #[ast_type]
 pub struct PrivateIdentifier {
     _node: BaseNode,
-    pub escaped_text: __String,
+    pub escaped_text: SourceTextSliceOrString, /*__String*/
 }
 
 impl PrivateIdentifier {
-    pub fn new(base_node: BaseNode, escaped_text: __String) -> Self {
+    pub fn new(
+        base_node: BaseNode,
+        escaped_text: SourceTextSliceOrString, /*__String*/
+    ) -> Self {
         Self {
             _node: base_node,
             escaped_text,
@@ -466,7 +469,7 @@ impl PrivateIdentifier {
 }
 
 impl MemberNameInterface for PrivateIdentifier {
-    fn escaped_text(&self) -> &str /*__String*/ {
+    fn escaped_text(&self) -> &SourceTextSliceOrString /*__String*/ {
         &self.escaped_text
     }
 }

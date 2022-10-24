@@ -34,7 +34,7 @@ pub enum LiteralType {
 impl LiteralType {
     pub fn is_value_eq(&self, other: &Type) -> bool {
         match (self, other.as_literal_type()) {
-            (Self::StringLiteralType(a), Self::StringLiteralType(b)) => a.value == b.value,
+            (Self::StringLiteralType(a), Self::StringLiteralType(b)) => a.value == &*b.value,
             (Self::NumberLiteralType(a), Self::NumberLiteralType(b)) => a.value == b.value,
             (Self::BigIntLiteralType(a), Self::BigIntLiteralType(b)) => a.value == b.value,
             _ => false,

@@ -4,13 +4,14 @@ use std::rc::Rc;
 use super::{ParseJSDocCommentWorker, PropertyLikeParse};
 use crate::{
     add_related_info, append, concatenate, create_detached_diagnostic, is_identifier,
-    is_jsdoc_return_tag, is_jsdoc_type_tag, is_type_reference_node, last_or_undefined,
-    node_is_missing, some, token_is_identifier_or_keyword, BaseJSDocTag, BaseJSDocTypeLikeTag,
-    Debug_, DiagnosticMessage, Diagnostics, ExpressionWithTypeArguments, HasTypeArgumentsInterface,
-    Identifier, JSDocAugmentsTag, JSDocCallbackTag, JSDocImplementsTag, JSDocPropertyLikeTag,
-    JSDocSeeTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypedefTag, Node,
-    NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind,
-    TextChangeRange, TypeParameterDeclaration,
+    is_jsdoc_return_tag, is_jsdoc_type_tag, is_type_reference_node, join_source_text_slices,
+    last_or_undefined, node_is_missing, reduce_source_text_slice_or_string_refs, some,
+    token_is_identifier_or_keyword, BaseJSDocTag, BaseJSDocTypeLikeTag, Debug_, DiagnosticMessage,
+    Diagnostics, ExpressionWithTypeArguments, HasTypeArgumentsInterface, Identifier,
+    JSDocAugmentsTag, JSDocCallbackTag, JSDocImplementsTag, JSDocPropertyLikeTag, JSDocSeeTag,
+    JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypedefTag, Node, NodeArray, NodeFlags,
+    NodeInterface, ReadonlyTextRange, SourceTextSliceOrString, SourceTextSliceOrStringOrNodeArray,
+    StringOrNodeArray, SyntaxKind, TextChangeRange, TypeParameterDeclaration,
 };
 
 impl<'parser> ParseJSDocCommentWorker<'parser> {
@@ -79,13 +80,13 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             }
         };
         Some(self.parser.finish_node(
-            create(name, text.join("")),
+            create(name, join_source_text_slices(&text)),
             start.try_into().unwrap(),
             Some(self.parser.scanner().get_text_pos().try_into().unwrap()),
         ))
     }
 
-    pub(super) fn parse_jsdoc_link_prefix(&self) -> Option<String> {
+    pub(super) fn parse_jsdoc_link_prefix(&self) -> Option<SourceTextSliceOrString> {
         self.skip_whitespace_or_asterisk();
         if self.parser.token() == SyntaxKind::OpenBraceToken
             && self.parser.next_token_jsdoc() == SyntaxKind::AtToken
@@ -105,7 +106,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> BaseJSDocTag /*JSDocAuthorTag*/ {
         self.parser.finish_node(
             self.parser.factory.create_jsdoc_unknown_tag(
@@ -330,7 +331,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> BaseJSDocTypeLikeTag /*JSDocReturnTag*/ {
         if some(
             self.tags.as_deref(),
@@ -340,7 +341,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 tag_name.pos(),
                 self.parser.scanner().get_token_pos().try_into().unwrap(),
                 &Diagnostics::_0_tag_already_specified,
-                Some(vec![(&*tag_name.as_identifier().escaped_text).to_owned()]),
+                Some(vec![tag_name.as_identifier().escaped_text.clone()]),
             );
         }
 
@@ -367,7 +368,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: Option<usize>,
-        indent_text: Option<&str>,
+        indent_text: Option<&SourceTextSliceOrString>,
     ) -> BaseJSDocTypeLikeTag /*JSDocTypeTag*/ {
         if some(
             self.tags.as_deref(),
@@ -377,7 +378,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 tag_name.pos(),
                 self.parser.scanner().get_token_pos().try_into().unwrap(),
                 &Diagnostics::_0_tag_already_specified,
-                Some(vec![(&*tag_name.as_identifier().escaped_text).to_owned()]),
+                Some(vec![tag_name.as_identifier().escaped_text.clone()]),
             );
         }
 
@@ -410,13 +411,13 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: Option<usize>,
-        indent_text: Option<&str>,
+        indent_text: Option<&SourceTextSliceOrString>,
     ) -> JSDocSeeTag /*JSDocSeeTag*/ {
         let is_markdown_or_jsdoc_link = self.parser.token() == SyntaxKind::OpenBracketToken
             || self.parser.look_ahead_bool(|| {
                 self.parser.next_token_jsdoc() == SyntaxKind::AtToken
                     && token_is_identifier_or_keyword(self.parser.next_token_jsdoc())
-                    && &*self.parser.scanner().get_token_value() == "link"
+                    && &**self.parser.scanner().get_token_value() == "link"
             });
         let name_expression = if is_markdown_or_jsdoc_link {
             None
@@ -449,7 +450,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> BaseJSDocTag /*JSDocAuthorTag*/ {
         let comment_start = self.parser.get_node_pos();
         let text_only = self.parse_author_name_and_email();
@@ -458,8 +459,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         if comments.is_none() {
             comment_end = self.parser.scanner().get_start_pos();
         }
-        let all_parts: StringOrNodeArray = match comments {
-            Some(StringOrNodeArray::NodeArray(comments)) => self
+        let all_parts: SourceTextSliceOrStringOrNodeArray = match comments {
+            Some(SourceTextSliceOrStringOrNodeArray::NodeArray(comments)) => self
                 .parser
                 .create_node_array(
                     concatenate(
@@ -497,8 +498,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     None,
                 )
                 .into(),
-            Some(StringOrNodeArray::String(comments)) => {
-                format!("{}{}", text_only.text, comments).into()
+            Some(SourceTextSliceOrStringOrNodeArray::SourceTextSliceOrString(comments)) => {
+                reduce_source_text_slice_or_string_refs(&[text_only.text, comments], false).into()
             }
         };
         self.parser.finish_node(
@@ -536,7 +537,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
 
         self.parser
             .factory
-            .create_jsdoc_text(self.parser, comments.join(""))
+            .create_jsdoc_text(self.parser, join_source_text_slices(&comments))
     }
 
     pub(super) fn parse_implements_tag(
@@ -544,7 +545,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         margin: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> JSDocImplementsTag {
         let class_name = self.parse_expression_with_type_arguments_for_augments();
         self.parser.finish_node(
@@ -569,7 +570,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         margin: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> JSDocAugmentsTag {
         let class_name = self.parse_expression_with_type_arguments_for_augments();
         self.parser.finish_node(
@@ -633,14 +634,17 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_simple_tag<
-        TCreateTag: FnOnce(Option<Rc<Node /*Identifier*/>>, Option<StringOrNodeArray>) -> BaseJSDocTag,
+        TCreateTag: FnOnce(
+            Option<Rc<Node /*Identifier*/>>,
+            Option<SourceTextSliceOrStringOrNodeArray>,
+        ) -> BaseJSDocTag,
     >(
         &self,
         start: usize,
         create_tag: TCreateTag,
         tag_name: Rc<Node /*Identifier*/>,
         margin: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> BaseJSDocTag /*JSDocTag*/ {
         self.parser.finish_node(
             create_tag(
@@ -662,7 +666,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         margin: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> BaseJSDocTypeLikeTag /*JSDocThisTag*/ {
         let type_expression = self
             .parser
@@ -690,7 +694,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         margin: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> BaseJSDocTypeLikeTag /*JSDocEnumTag*/ {
         let type_expression = self
             .parser
@@ -718,7 +722,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> JSDocTypedefTag {
         let mut type_expression: Option<Rc<Node /*JSDocTypeExpression | JSDocTypeLiteral*/>> =
             self.try_parse_type_expression();
@@ -902,7 +906,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> JSDocCallbackTag {
         let full_name = self
             .parse_jsdoc_type_name_with_namespace(None)
@@ -963,7 +967,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             if !is_identifier(&a)
                 && !is_identifier(&b)
                 && a.as_qualified_name().right.as_identifier().escaped_text
-                    == b.as_qualified_name().right.as_identifier().escaped_text
+                    == &*b.as_qualified_name().right.as_identifier().escaped_text
             {
                 a = a.as_qualified_name().left.clone();
                 b = b.as_qualified_name().left.clone();
@@ -971,7 +975,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 return false;
             }
         }
-        a.as_identifier().escaped_text == b.as_identifier().escaped_text
+        a.as_identifier().escaped_text == &*b.as_identifier().escaped_text
     }
 
     pub(super) fn parse_child_property_tag(&self, indent: usize) -> Option<Node> {
@@ -1129,7 +1133,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
-        indent_text: &str,
+        indent_text: &SourceTextSliceOrString,
     ) -> JSDocTemplateTag {
         let constraint: Option<Rc<Node>> = if self.parser.token() == SyntaxKind::OpenBraceToken {
             Some(self.parser.JSDocParser_parse_jsdoc_type_expression(None))
@@ -1205,7 +1209,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             .finish_node(
                 self.parser.factory.create_identifier(
                     self.parser,
-                    &text,
+                    text,
                     Option::<NodeArray>::None,
                     Some(original_keyword_kind),
                 ),
