@@ -1,0 +1,20 @@
+[package]
+name = "test_runner"
+version = "0.1.0"
+edition = "2021"
+default-run = "runner"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+harness = { path = "../harness" }
+lazy_static = "1.4.0"
+regex = "1.5.4"
+
+[dev-dependencies]
+
+[lib]
+name = "test_runner"
+
+[[bin]]
+name = "runner"

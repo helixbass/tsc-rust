@@ -60,8 +60,16 @@ impl RunnerBase {
         })
     }
 
+    pub fn kind(&self) -> TestRunnerKind {
+        self.sub.kind(self)
+    }
+
+    pub fn enumerate_test_files(&self) -> Vec<StringOrFileBasedTest> {
+        self.sub.enumerate_test_files(self)
+    }
+
     pub fn initialize_tests(&self) {
-        self.sub.initialize_tests();
+        self.sub.initialize_tests(self)
     }
 }
 
@@ -87,5 +95,7 @@ pub struct EnumerateFilesOptions {
 }
 
 pub trait RunnerBaseSub {
-    fn initialize_tests(&self);
+    fn kind(&self, runner_base: &RunnerBase) -> TestRunnerKind;
+    fn initialize_tests(&self, runner_base: &RunnerBase);
+    fn enumerate_test_files(&self, runner_base: &RunnerBase) -> Vec<StringOrFileBasedTest>;
 }
