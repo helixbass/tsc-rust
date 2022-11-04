@@ -4,6 +4,7 @@ members = [
     "typescript_services_rust",
     "local-macros",
     "harness",
+    "test_runner",
 ]
 
 [profile.test]

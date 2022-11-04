@@ -1,13 +1,37 @@
 use regex::Regex;
+use std::rc::Rc;
 use typescript_rust::{map, normalize_slashes};
 
 use crate::{user_specified_root, with_io, FileBasedTest, ListFilesOptions};
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum TestRunnerKind {
+    // CompilerTestKind
+    Conformance,
+    Compiler,
+    // FourslashTestKind
+    Fourslash,
+    FourslashShims,
+    FourslashShimsPP,
+    FourslashServer,
+    Project,
+    Rwc,
+    Test262,
+    User,
+    Dt,
+    Docker,
+}
+
 pub struct RunnerBase {
+    sub: Rc<dyn RunnerBaseSub>,
     tests: Vec<StringOrFileBasedTest>,
 }
 
 impl RunnerBase {
+    pub fn new(sub: Rc<dyn RunnerBaseSub>) -> Self {
+        Self { sub, tests: vec![] }
+    }
+
     pub fn add_test(&mut self, file_name: String) {
         self.tests.push(file_name.into());
     }
@@ -35,6 +59,10 @@ impl RunnerBase {
             )
         })
     }
+
+    pub fn initialize_tests(&self) {
+        self.sub.initialize_tests();
+    }
 }
 
 pub enum StringOrFileBasedTest {
@@ -56,4 +84,8 @@ impl From<FileBasedTest> for StringOrFileBasedTest {
 
 pub struct EnumerateFilesOptions {
     pub recursive: bool,
+}
+
+pub trait RunnerBaseSub {
+    fn initialize_tests(&self);
 }
