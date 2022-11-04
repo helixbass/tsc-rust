@@ -3,8 +3,12 @@ members = [
     "typescript_rust",
     "typescript_services_rust",
     "local-macros",
+    "harness",
 ]
 
 [profile.test]
 # opt-level = 3
 # codegen-units = 16
+
+[profile.release]
+# debug = true
