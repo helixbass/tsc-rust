@@ -11,8 +11,11 @@ use typescript_rust::{
     CommandLineOptionType, StatLike,
 };
 
+use crate::{RunnerBase, StringOrFileBasedTest};
+
 pub trait IO {
     fn read_file(&self, path: &StdPath) -> Option<String>;
+    fn enumerate_test_files(&self, runner: &RunnerBase) -> Vec<StringOrFileBasedTest>;
     fn list_files(
         &self,
         path: &str,
@@ -78,6 +81,10 @@ impl IO for NodeIO {
         get_sys().read_file(path.to_str().unwrap()).unwrap()
     }
 
+    fn enumerate_test_files(&self, runner: &RunnerBase) -> Vec<StringOrFileBasedTest> {
+        runner.get_test_files()
+    }
+
     fn list_files(
         &self,
         path: &str,
@@ -90,6 +97,7 @@ impl IO for NodeIO {
 
 pub const user_specified_root: &'static str = "";
 
+#[derive(Clone)]
 pub struct FileBasedTest {
     pub file: String, /*PathBuf*/
     pub configurations: Option<Vec<FileBasedTestConfiguration>>,

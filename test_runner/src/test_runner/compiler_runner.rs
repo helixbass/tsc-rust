@@ -19,6 +19,7 @@ pub struct CompilerBaselineRunner {
     base_path: String,
     test_suite_name: TestRunnerKind,
     emit: bool,
+    pub options: Option<String>,
 }
 
 impl CompilerBaselineRunner {
@@ -37,11 +38,18 @@ impl CompilerBaselineRunner {
             .to_lowercase(),
             emit: true,
             test_suite_name,
+            options: None,
         }
     }
 
     pub fn new_runner_base(test_type: CompilerTestType) -> RunnerBase {
         RunnerBase::new(Rc::new(Self::new(test_type)))
+    }
+
+    fn parse_options(&self) {
+        if let Some(options) = self.options.as_ref().filter(|options| !options.is_empty()) {
+            unimplemented!()
+        }
     }
 }
 
@@ -62,11 +70,18 @@ impl RunnerBaseSub for CompilerBaselineRunner {
             .collect()
     }
 
-    fn initialize_tests(&self, _runner_base: &RunnerBase) {
-        describe(
-            &format!("{:?} tests", self.test_suite_name),
-            || unimplemented!(),
-        );
+    fn initialize_tests(&self, runner_base: &RunnerBase) {
+        describe(&format!("{:?} tests", self.test_suite_name), || {
+            describe("Setup compiler for compiler baselines", || {
+                self.parse_options();
+            });
+
+            let files = if !runner_base.tests.is_empty() {
+                runner_base.tests.clone()
+            } else {
+                with_io(|IO| IO.enumerate_test_files(runner_base))
+            };
+        });
     }
 }
 

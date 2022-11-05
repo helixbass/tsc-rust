@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::cell::Cell;
 use std::rc::Rc;
 use typescript_rust::{map, normalize_slashes};
 
@@ -22,9 +23,34 @@ pub enum TestRunnerKind {
     Docker,
 }
 
+thread_local! {
+    static shards_: Cell<usize> = Cell::new(1);
+    static shard_id_: Cell<usize> = Cell::new(1);
+}
+
+pub fn set_shards(count: usize) {
+    shards_.with(|shards| {
+        shards.set(count);
+    });
+}
+
+fn get_shards() -> usize {
+    shards_.with(|shards| shards.get())
+}
+
+pub fn set_shard_id(id: usize) {
+    shard_id_.with(|shard_id| {
+        shard_id.set(id);
+    });
+}
+
+fn get_shard_id() -> usize {
+    shard_id_.with(|shard_id| shard_id.get())
+}
+
 pub struct RunnerBase {
     sub: Rc<dyn RunnerBaseSub>,
-    tests: Vec<StringOrFileBasedTest>,
+    pub tests: Vec<StringOrFileBasedTest>,
 }
 
 impl RunnerBase {
@@ -68,11 +94,26 @@ impl RunnerBase {
         self.sub.enumerate_test_files(self)
     }
 
+    pub fn get_test_files(&self) -> Vec<StringOrFileBasedTest> {
+        let all = self.enumerate_test_files();
+        let shards = get_shards();
+        if shards == 1 {
+            return all;
+        }
+        let shard_id = get_shard_id();
+        all.into_iter()
+            .enumerate()
+            .filter(|(idx, _val)| idx % shards == shard_id - 1)
+            .map(|(_, value)| value)
+            .collect()
+    }
+
     pub fn initialize_tests(&self) {
         self.sub.initialize_tests(self)
     }
 }
 
+#[derive(Clone)]
 pub enum StringOrFileBasedTest {
     String(String),
     FileBasedTest(FileBasedTest),
