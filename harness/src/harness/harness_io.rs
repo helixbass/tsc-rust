@@ -357,8 +357,19 @@ pub fn get_file_based_test_configuration_description(
 pub mod TestCaseParser {
     use regex::Regex;
     use std::collections::HashMap;
+    use typescript_rust::ParsedCommandLine;
+
+    use crate::vfs;
 
     pub type CompilerSettings = HashMap<String, String>;
+
+    pub struct TestUnitData {
+        pub content: String,
+        pub name: String,
+        pub file_options: (),
+        pub original_file_path: String,
+        pub references: Vec<String>,
+    }
 
     lazy_static! {
         static ref line_ending_regex: Regex = Regex::new(r"\r?\n|\r").unwrap();
@@ -378,5 +389,23 @@ pub mod TestCaseParser {
         }
 
         opts
+    }
+
+    pub struct TestCaseContent {
+        pub settings: CompilerSettings,
+        pub test_unit_data: Vec<TestUnitData>,
+        pub ts_config: Option<ParsedCommandLine>,
+        pub ts_config_file_unit_data: Option<TestUnitData>,
+        pub symlinks: Option<vfs::FileSet>,
+    }
+
+    pub fn make_units_from_test(
+        code: &str,
+        file_name: &str,
+        root_dir: Option<&str>,
+        settings: Option<CompilerSettings>,
+    ) -> TestCaseContent {
+        let settings = settings.unwrap_or_else(|| extract_compiler_settings(code));
+        unimplemented!()
     }
 }

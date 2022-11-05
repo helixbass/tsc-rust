@@ -1,13 +1,15 @@
 use harness::{
-    describe, get_file_based_test_configuration_description, get_file_based_test_configurations,
-    vpath, with_io, EnumerateFilesOptions, FileBasedTest, FileBasedTestConfiguration, RunnerBase,
-    RunnerBaseSub, StringOrFileBasedTest, TestCaseParser, TestRunnerKind,
+    after, before, describe, get_file_based_test_configuration_description,
+    get_file_based_test_configurations, it, vpath, with_io, EnumerateFilesOptions, FileBasedTest,
+    FileBasedTestConfiguration, RunnerBase, RunnerBaseSub, StringOrFileBasedTest, TestCaseParser,
+    TestRunnerKind,
 };
 use regex::Regex;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path as StdPath;
 use std::rc::Rc;
-use typescript_rust::some;
+use typescript_rust::{get_directory_path, some};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum CompilerTestType {
@@ -86,7 +88,44 @@ impl CompilerBaselineRunner {
         test: Option<&CompilerFileBasedTest>,
         configuration: Option<&FileBasedTestConfiguration>,
     ) {
-        unimplemented!()
+        let compiler_test: RefCell<Option<CompilerTest>> = RefCell::new(None);
+        before(|| {
+            let mut payload: Option<TestCaseParser::TestCaseContent> = None;
+            if let Some(test) = test.filter(|test| {
+                matches!(
+                    test.content.as_ref(),
+                    Some(test_content) if !test_content.is_empty()
+                )
+            }) {
+                let root_dir = if !test.file.contains("conformance") {
+                    // "tests/cases/compiler/"
+                    "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                } else {
+                    format!("{}/", get_directory_path(&test.file))
+                };
+                payload = Some(TestCaseParser::make_units_from_test(
+                    test.content.as_ref().unwrap(),
+                    &test.file,
+                    Some(&root_dir),
+                    None,
+                ));
+            }
+            *compiler_test.borrow_mut() = Some(CompilerTest::new(
+                file_name.to_owned(),
+                payload,
+                configuration.cloned(),
+            ));
+        });
+        it(&format!("Correct errors for {}", file_name), || {
+            compiler_test
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .verify_diagnostics();
+        });
+        after(|| {
+            *compiler_test.borrow_mut() = None;
+        });
     }
 
     fn parse_options(&self) {
@@ -146,6 +185,14 @@ impl RunnerBaseSub for CompilerBaselineRunner {
 struct CompilerTest {}
 
 impl CompilerTest {
+    pub fn new(
+        file_name: String,
+        test_case_content: Option<TestCaseParser::TestCaseContent>,
+        configuration_overrides: Option<TestCaseParser::CompilerSettings>,
+    ) -> Self {
+        unimplemented!()
+    }
+
     fn vary_by() -> Vec<&'static str> {
         vec![
             "module",
@@ -187,5 +234,9 @@ impl CompilerTest {
             configurations,
             content: Some(content),
         }
+    }
+
+    pub fn verify_diagnostics(&self) {
+        unimplemented!()
     }
 }
