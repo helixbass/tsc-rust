@@ -553,6 +553,7 @@ dependencies = [
  "harness",
  "lazy_static",
  "regex",
+ "typescript_rust",
 ]
 
 [[package]]

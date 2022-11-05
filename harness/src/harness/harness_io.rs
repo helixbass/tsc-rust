@@ -337,6 +337,23 @@ pub fn get_file_based_test_configurations<TVaryBy: AsRef<str>>(
     Some(configurations)
 }
 
+pub fn get_file_based_test_configuration_description(
+    configuration: &FileBasedTestConfiguration,
+) -> String {
+    let mut name = "".to_owned();
+    // if (configuration) {
+    let mut keys = configuration.keys().collect::<Vec<_>>();
+    keys.sort();
+    for key in keys {
+        if !name.is_empty() {
+            name.push_str(", ");
+        }
+        name.push_str(&format!("@{}: {}", key, configuration.get(key).unwrap(),));
+    }
+    // }
+    name
+}
+
 pub mod TestCaseParser {
     use regex::Regex;
     use std::collections::HashMap;

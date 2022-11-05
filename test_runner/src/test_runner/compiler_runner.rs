@@ -1,10 +1,13 @@
 use harness::{
-    describe, get_file_based_test_configurations, with_io, EnumerateFilesOptions, FileBasedTest,
-    RunnerBase, RunnerBaseSub, StringOrFileBasedTest, TestCaseParser, TestRunnerKind,
+    describe, get_file_based_test_configuration_description, get_file_based_test_configurations,
+    vpath, with_io, EnumerateFilesOptions, FileBasedTest, FileBasedTestConfiguration, RunnerBase,
+    RunnerBaseSub, StringOrFileBasedTest, TestCaseParser, TestRunnerKind,
 };
 use regex::Regex;
+use std::collections::HashMap;
 use std::path::Path as StdPath;
 use std::rc::Rc;
+use typescript_rust::some;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum CompilerTestType {
@@ -46,6 +49,46 @@ impl CompilerBaselineRunner {
         RunnerBase::new(Rc::new(Self::new(test_type)))
     }
 
+    fn check_test_code_output(&self, file_name: &str, test: Option<&CompilerFileBasedTest>) {
+        if let Some(test) = test.filter(|test| {
+            some(
+                test.configurations.as_deref(),
+                Option::<fn(&HashMap<String, String>) -> bool>::None,
+            )
+        }) {
+            for configuration in test.configurations.as_ref().unwrap() {
+                describe(
+                    &format!(
+                        "{:?} tests for {}{}",
+                        self.test_suite_name,
+                        file_name,
+                        /*configuration ? */
+                        get_file_based_test_configuration_description(configuration) /*: ``*/
+                    ),
+                    || {
+                        self.run_suite(file_name, Some(test), Some(configuration));
+                    },
+                )
+            }
+        } else {
+            describe(
+                &format!("{:?} tests for {}", self.test_suite_name, file_name,),
+                || {
+                    self.run_suite(file_name, test, None);
+                },
+            )
+        }
+    }
+
+    fn run_suite(
+        &self,
+        file_name: &str,
+        test: Option<&CompilerFileBasedTest>,
+        configuration: Option<&FileBasedTestConfiguration>,
+    ) {
+        unimplemented!()
+    }
+
     fn parse_options(&self) {
         if let Some(options) = self.options.as_ref().filter(|options| !options.is_empty()) {
             unimplemented!()
@@ -81,6 +124,21 @@ impl RunnerBaseSub for CompilerBaselineRunner {
             } else {
                 with_io(|IO| IO.enumerate_test_files(runner_base))
             };
+            for test in files {
+                let file = match &test {
+                    StringOrFileBasedTest::String(test) => test.clone(),
+                    StringOrFileBasedTest::FileBasedTest(test) => test.file.clone(),
+                };
+                self.check_test_code_output(
+                    &vpath::normalize_separators(&file),
+                    Some(&match &test {
+                        StringOrFileBasedTest::String(test) => {
+                            CompilerTest::get_configurations(test)
+                        }
+                        StringOrFileBasedTest::FileBasedTest(test) => test.clone(),
+                    }),
+                );
+            }
         });
     }
 }
