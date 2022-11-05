@@ -88,43 +88,52 @@ impl CompilerBaselineRunner {
         test: Option<&CompilerFileBasedTest>,
         configuration: Option<&FileBasedTestConfiguration>,
     ) {
-        let compiler_test: RefCell<Option<CompilerTest>> = RefCell::new(None);
-        before(|| {
-            let mut payload: Option<TestCaseParser::TestCaseContent> = None;
-            if let Some(test) = test.filter(|test| {
-                matches!(
-                    test.content.as_ref(),
-                    Some(test_content) if !test_content.is_empty()
-                )
-            }) {
-                let root_dir = if !test.file.contains("conformance") {
-                    // "tests/cases/compiler/"
-                    "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
-                } else {
-                    format!("{}/", get_directory_path(&test.file))
-                };
-                payload = Some(TestCaseParser::make_units_from_test(
-                    test.content.as_ref().unwrap(),
-                    &test.file,
-                    Some(&root_dir),
-                    None,
-                ));
+        let compiler_test: Rc<RefCell<Option<CompilerTest>>> = Rc::new(RefCell::new(None));
+        before({
+            let compiler_test = compiler_test.clone();
+            let configuration = configuration.cloned();
+            let test = test.cloned();
+            let file_name = file_name.to_owned();
+            move || {
+                let mut payload: Option<TestCaseParser::TestCaseContent> = None;
+                if let Some(test) = test.as_ref().filter(|test| {
+                    matches!(
+                        test.content.as_ref(),
+                        Some(test_content) if !test_content.is_empty()
+                    )
+                }) {
+                    let root_dir = if !test.file.contains("conformance") {
+                        // "tests/cases/compiler/"
+                        "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                    } else {
+                        format!("{}/", get_directory_path(&test.file))
+                    };
+                    payload = Some(TestCaseParser::make_units_from_test(
+                        test.content.as_ref().unwrap(),
+                        &test.file,
+                        Some(&root_dir),
+                        None,
+                    ));
+                }
+                *compiler_test.borrow_mut() =
+                    Some(CompilerTest::new(file_name, payload, configuration));
             }
-            *compiler_test.borrow_mut() = Some(CompilerTest::new(
-                file_name.to_owned(),
-                payload,
-                configuration.cloned(),
-            ));
         });
-        it(&format!("Correct errors for {}", file_name), || {
-            compiler_test
-                .borrow()
-                .as_ref()
-                .unwrap()
-                .verify_diagnostics();
+        it(&format!("Correct errors for {}", file_name), {
+            let compiler_test = compiler_test.clone();
+            move || {
+                (*compiler_test)
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .verify_diagnostics();
+            }
         });
-        after(|| {
-            *compiler_test.borrow_mut() = None;
+        after({
+            let compiler_test = compiler_test.clone();
+            move || {
+                *compiler_test.borrow_mut() = None;
+            }
         });
     }
 
