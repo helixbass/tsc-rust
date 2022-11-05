@@ -55,7 +55,7 @@ impl RunnerBase {
                         }),
                     }),
                 ),
-                |file, _| normalize_slashes(&file),
+                |file, _| normalize_slashes(file.to_str().unwrap()),
             )
         })
     }

@@ -1,8 +1,9 @@
 use harness::{
-    describe, EnumerateFilesOptions, RunnerBase, RunnerBaseSub, StringOrFileBasedTest,
-    TestRunnerKind,
+    describe, get_file_based_test_configurations, with_io, EnumerateFilesOptions, FileBasedTest,
+    RunnerBase, RunnerBaseSub, StringOrFileBasedTest, TestCaseParser, TestRunnerKind,
 };
 use regex::Regex;
+use std::path::Path as StdPath;
 use std::rc::Rc;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -11,6 +12,8 @@ pub enum CompilerTestType {
     Regression,
     Test262,
 }
+
+pub type CompilerFileBasedTest = FileBasedTest;
 
 pub struct CompilerBaselineRunner {
     base_path: String,
@@ -26,7 +29,12 @@ impl CompilerBaselineRunner {
             CompilerTestType::Test262 => TestRunnerKind::Test262,
         };
         Self {
-            base_path: format!("tests/cases/{:?}", test_suite_name).to_lowercase(),
+            base_path: format!(
+                // "tests/cases/{:?}",
+                "../typescript_rust/typescript_src/tests/cases/{:?}",
+                test_suite_name
+            )
+            .to_lowercase(),
             emit: true,
             test_suite_name,
         }
@@ -50,7 +58,7 @@ impl RunnerBaseSub for CompilerBaselineRunner {
                 Some(EnumerateFilesOptions { recursive: true }),
             )
             .into_iter()
-            .map(|file| unimplemented!())
+            .map(|file| CompilerTest::get_configurations(&file).into())
             .collect()
     }
 
@@ -59,5 +67,52 @@ impl RunnerBaseSub for CompilerBaselineRunner {
             &format!("{:?} tests", self.test_suite_name),
             || unimplemented!(),
         );
+    }
+}
+
+struct CompilerTest {}
+
+impl CompilerTest {
+    fn vary_by() -> Vec<&'static str> {
+        vec![
+            "module",
+            "moduleResolution",
+            "target",
+            "jsx",
+            "removeComments",
+            "importHelpers",
+            "importHelpers",
+            "downlevelIteration",
+            "isolatedModules",
+            "strict",
+            "noImplicitAny",
+            "strictNullChecks",
+            "strictFunctionTypes",
+            "strictBindCallApply",
+            "strictPropertyInitialization",
+            "noImplicitThis",
+            "alwaysStrict",
+            "allowSyntheticDefaultImports",
+            "esModuleInterop",
+            "emitDecoratorMetadata",
+            "skipDefaultLibCheck",
+            "preserveConstEnums",
+            "skipLibCheck",
+            "exactOptionalPropertyTypes",
+            "useUnknownInCatchVariables",
+        ]
+    }
+
+    pub fn get_configurations<TFile: AsRef<StdPath>>(file: TFile) -> CompilerFileBasedTest {
+        let file = file.as_ref();
+        let content = with_io(|IO| IO.read_file(file)).unwrap();
+        let settings = TestCaseParser::extract_compiler_settings(&content);
+        let configurations =
+            get_file_based_test_configurations(&settings, &CompilerTest::vary_by());
+        CompilerFileBasedTest {
+            file: file.to_str().unwrap().to_owned(),
+            configurations,
+            content: Some(content),
+        }
     }
 }

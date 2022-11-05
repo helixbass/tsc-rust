@@ -1949,7 +1949,7 @@ pub struct CreateProgramOptions {
     pub config_file_parsing_diagnostics: Option<Vec<Rc<Diagnostic>>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CommandLineOptionMapTypeValue {
     StaticStr(&'static str),
     String(String),

@@ -1,7 +1,9 @@
 use encoding_rs_io::DecodeReaderBytes;
 use std::env;
+use std::ffi::OsString;
 use std::fs::{self, DirEntry, Metadata};
 use std::io::{self, Read};
+use std::path::{Path as StdPath, PathBuf};
 
 /*const*/
 pub fn is_windows() -> bool {
@@ -58,6 +60,15 @@ impl StatLike for Dirent {
     }
 }
 
+pub fn fs_readdir_sync<TPath: AsRef<StdPath>>(path: TPath) -> io::Result<Vec<OsString>> {
+    let path = path.as_ref();
+    fs::read_dir(path).map(|entries| {
+        entries
+            .filter_map(|entry| entry.map(|entry| entry.file_name()).ok())
+            .collect()
+    })
+}
+
 pub fn fs_readdir_sync_with_file_types(path: &str) -> io::Result<Vec<Dirent>> {
     fs::read_dir(path).map(|entries| {
         entries
@@ -86,8 +97,12 @@ impl StatLike for Stats {
     }
 }
 
-pub fn fs_stat_sync(path: &str) -> Option<Stats> {
+pub fn fs_stat_sync<TPath: AsRef<StdPath>>(path: TPath) -> Option<Stats> {
     fs::metadata(path).map(|metadata| Stats::new(metadata)).ok()
+}
+
+pub fn fs_exists_sync<TPath: AsRef<StdPath>>(path: TPath) -> bool {
+    path.as_ref().exists()
 }
 
 pub fn read_file_and_strip_leading_byte_order_mark(file_name: &str) -> io::Result<String> {
@@ -106,4 +121,13 @@ pub fn read_file_and_strip_leading_byte_order_mark(file_name: &str) -> io::Resul
                 contents
             }
         })
+}
+
+pub fn path_join(paths: &[&StdPath]) -> PathBuf {
+    assert!(!paths.is_empty());
+    let mut ret = paths[0].to_owned();
+    for path in &paths[1..] {
+        ret.push(path);
+    }
+    ret
 }
