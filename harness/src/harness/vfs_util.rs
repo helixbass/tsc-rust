@@ -1,6 +1,8 @@
 pub mod vfs {
     use std::collections::HashMap;
 
+    pub const src_folder: &'static str = "/.src";
+
     pub type FileSet = HashMap<String, Option<FileSetValue>>;
 
     pub enum FileSetValue {

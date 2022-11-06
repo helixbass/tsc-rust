@@ -2188,7 +2188,7 @@ pub struct CommandLineOptionOfStringType {
 }
 
 impl CommandLineOptionOfStringType {
-    pub(crate) fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+    pub fn new(command_line_option_base: CommandLineOptionBase) -> Self {
         Self {
             _command_line_option_base: command_line_option_base,
         }
@@ -2214,7 +2214,7 @@ pub struct CommandLineOptionOfBooleanType {
 }
 
 impl CommandLineOptionOfBooleanType {
-    pub(crate) fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+    pub fn new(command_line_option_base: CommandLineOptionBase) -> Self {
         Self {
             _command_line_option_base: command_line_option_base,
         }

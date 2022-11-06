@@ -342,7 +342,7 @@ impl CompilerTest {
             &to_be_compiled,
             &other_files,
             Some(&harness_settings),
-            ts_config_options,
+            ts_config_options.as_deref(),
             harness_settings
                 .get("currentDirectory")
                 .map(|value| &**value),
