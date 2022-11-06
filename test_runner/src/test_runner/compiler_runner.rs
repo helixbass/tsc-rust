@@ -11,7 +11,7 @@ use std::path::Path as StdPath;
 use std::rc::Rc;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
-    is_rooted_disk_path, some, CompilerOptions, Extension,
+    is_rooted_disk_path, some, to_path, CompilerOptions, Extension,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -413,11 +413,32 @@ impl CompilerTest {
         unimplemented!()
     }
 
+    pub fn make_unit_name(name: &str, root: &str) -> String {
+        let path = to_path(name, Some(root), |file_name| file_name.to_owned());
+        let path_start = to_path(
+            &with_io(|IO| IO.get_current_directory()),
+            Some(""),
+            |file_name| file_name.to_owned(),
+        );
+        if !path_start.is_empty() {
+            path.replace(&*path_start, "/")
+        } else {
+            path.into_string()
+        }
+    }
+
     pub fn create_harness_test_file(
         last_unit: &TestCaseParser::TestUnitData,
         root_dir: &str,
         unit_name: Option<&str>,
     ) -> Compiler::TestFile {
-        unimplemented!()
+        Compiler::TestFile {
+            unit_name: unit_name.map_or_else(
+                || Self::make_unit_name(&last_unit.name, root_dir),
+                ToOwned::to_owned,
+            ),
+            content: last_unit.content.clone(),
+            file_options: Some(last_unit.file_options.clone()),
+        }
     }
 }

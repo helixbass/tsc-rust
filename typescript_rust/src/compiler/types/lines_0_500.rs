@@ -10,6 +10,10 @@ impl Path {
     pub fn new(string: String) -> Self {
         string.into()
     }
+
+    pub fn into_string(self) -> String {
+        self.0
+    }
 }
 
 impl ToString for Path {

@@ -14,6 +14,7 @@ use typescript_rust::{
 use crate::{RunnerBase, StringOrFileBasedTest};
 
 pub trait IO {
+    fn get_current_directory(&self) -> String;
     fn read_file(&self, path: &StdPath) -> Option<String>;
     fn enumerate_test_files(&self, runner: &RunnerBase) -> Vec<StringOrFileBasedTest>;
     fn list_files(
@@ -77,6 +78,10 @@ impl NodeIO {
 }
 
 impl IO for NodeIO {
+    fn get_current_directory(&self) -> String {
+        get_sys().get_current_directory()
+    }
+
     fn read_file(&self, path: &StdPath) -> Option<String> {
         get_sys().read_file(path.to_str().unwrap()).unwrap()
     }
@@ -98,6 +103,7 @@ impl IO for NodeIO {
 pub const user_specified_root: &'static str = "";
 
 pub mod Compiler {
+    use std::collections::HashMap;
     use std::rc::Rc;
     use typescript_rust::CompilerOptions;
 
@@ -107,7 +113,7 @@ pub mod Compiler {
     pub struct TestFile {
         pub unit_name: String,
         pub content: String,
-        pub file_options: Option<()>,
+        pub file_options: Option<HashMap<String, String>>,
     }
 
     pub fn compile_files(
