@@ -1,6 +1,10 @@
 pub mod vfs {
     use std::collections::HashMap;
 
+    pub const built_folder: &'static str = "/.ts";
+
+    pub const test_lib_folder: &'static str = "/.lib";
+
     pub const src_folder: &'static str = "/.src";
 
     pub type FileSet = HashMap<String, Option<FileSetValue>>;

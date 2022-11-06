@@ -5,6 +5,7 @@ mod harness;
 mod mocha;
 
 pub use harness::compiler_impl::compiler;
+pub use harness::documents_util::documents;
 pub use harness::harness_io::{
     get_file_based_test_configuration_description, get_file_based_test_configurations,
     user_specified_root, with_io, Compiler, FileBasedTest, FileBasedTestConfiguration,

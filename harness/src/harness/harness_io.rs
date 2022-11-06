@@ -107,15 +107,16 @@ pub mod Compiler {
     use std::collections::HashMap;
     use std::rc::Rc;
     use typescript_rust::{
-        get_emit_script_target, option_declarations, parse_custom_type_option,
-        parse_list_type_option, CommandLineOption, CommandLineOptionBase,
-        CommandLineOptionInterface, CommandLineOptionOfBooleanType, CommandLineOptionOfStringType,
-        CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
-        Diagnostic, NewLineKind, StringOrDiagnosticMessage,
+        file_extension_is, get_emit_script_target, get_normalized_absolute_path, map,
+        option_declarations, parse_custom_type_option, parse_list_type_option, CommandLineOption,
+        CommandLineOptionBase, CommandLineOptionInterface, CommandLineOptionOfBooleanType,
+        CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions,
+        CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic, Extension, NewLineKind,
+        StringOrDiagnosticMessage,
     };
 
     use super::TestCaseParser;
-    use crate::{compiler, vfs};
+    use crate::{compiler, documents, vfs, vpath};
 
     #[derive(Default)]
     struct HarnessOptions {
@@ -652,6 +653,42 @@ pub mod Compiler {
         if let Some(harness_settings) = harness_settings {
             set_compiler_options_from_harness_setting(harness_settings, &mut options);
         }
+        if let Some(options_root_dirs) = options.compiler_options.root_dirs.clone().as_ref() {
+            options.compiler_options.root_dirs = Some(map(options_root_dirs, |d: &String, _| {
+                get_normalized_absolute_path(d, Some(current_directory))
+            }));
+        }
+
+        let use_case_sensitive_file_names = options
+            .harness_options
+            .use_case_sensitive_file_names
+            .unwrap_or(true);
+        let mut program_file_names = input_files
+            .into_iter()
+            .map(|file| file.unit_name.clone())
+            .filter(|file_name| !file_extension_is(file_name, Extension::Json.to_str()))
+            .collect::<Vec<_>>();
+
+        if let Some(options_include_built_file) =
+            options.harness_options.include_built_file.as_ref()
+        {
+            program_file_names.push(vpath::combine(
+                vfs::built_folder,
+                &[Some(options_include_built_file)],
+            ));
+        }
+
+        if let Some(options_lib_files) = options.harness_options.lib_files.as_ref() {
+            for file_name in options_lib_files.split(",") {
+                program_file_names.push(vpath::combine(vfs::test_lib_folder, &[Some(file_name)]));
+            }
+        }
+
+        let docs = input_files
+            .into_iter()
+            .chain(other_files.into_iter())
+            .map(|file| documents::TextDocument::from_test_file(file))
+            .collect::<Vec<_>>();
         unimplemented!()
     }
 
