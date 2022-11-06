@@ -15,3 +15,7 @@ pub use harness::runnerbase::{
 pub use harness::vfs_util::vfs;
 pub use harness::vpath_util::vpath;
 pub use mocha::{after, before, describe, it};
+
+pub mod Utils {
+    pub use super::harness::harness_utils::*;
+}

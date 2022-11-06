@@ -29,9 +29,10 @@ use compiler::command_line_parser::{
 pub use compiler::command_line_parser::{
     get_parsed_command_line_of_config_file, hash_map_to_compiler_options, option_declarations,
     parse_command_line, parse_config_file_text_to_json, parse_custom_type_option,
-    parse_list_type_option, ConfigFileDiagnosticsReporter, ConvertToTSConfigHost,
-    DiagnosticReporter, ExtendedConfigCacheEntry, OptionsNameMap,
-    ParseCommandLineWorkerDiagnostics, ParseConfigFileHost,
+    parse_json_source_file_config_file_content, parse_list_type_option,
+    ConfigFileDiagnosticsReporter, ConvertToTSConfigHost, DiagnosticReporter,
+    ExtendedConfigCacheEntry, OptionsNameMap, ParseCommandLineWorkerDiagnostics,
+    ParseConfigFileHost,
 };
 pub use compiler::core::{
     add_range, append, append_if_unique_rc, array_of, array_to_map, arrays_equal, binary_search,

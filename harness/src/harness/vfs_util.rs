@@ -18,6 +18,12 @@ pub mod vfs {
         Unlink(Unlink),
     }
 
+    impl From<Symlink> for FileSetValue {
+        fn from(value: Symlink) -> Self {
+            Self::Symlink(value)
+        }
+    }
+
     pub type Directory = ();
 
     pub type File = ();
@@ -28,7 +34,23 @@ pub mod vfs {
 
     pub type Unlink = ();
 
-    pub type Symlink = ();
+    pub struct Symlink {
+        pub symlink: String,
+        pub meta: Option<()>,
+    }
+
+    impl Symlink {
+        pub fn new(symlink: String, options: Option<SymlinkNewOptions>) -> Self {
+            Self {
+                symlink,
+                meta: options.and_then(|options| options.meta),
+            }
+        }
+    }
+
+    pub struct SymlinkNewOptions {
+        meta: Option<()>,
+    }
 
     pub type Mount = ();
 }
