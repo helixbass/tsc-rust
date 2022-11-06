@@ -1,15 +1,18 @@
 use harness::{
-    after, before, describe, get_file_based_test_configuration_description,
-    get_file_based_test_configurations, it, vpath, with_io, EnumerateFilesOptions, FileBasedTest,
-    FileBasedTestConfiguration, RunnerBase, RunnerBaseSub, StringOrFileBasedTest, TestCaseParser,
-    TestRunnerKind,
+    after, before, compiler, describe, get_file_based_test_configuration_description,
+    get_file_based_test_configurations, it, vpath, with_io, Compiler, EnumerateFilesOptions,
+    FileBasedTest, FileBasedTestConfiguration, RunnerBase, RunnerBaseSub, StringOrFileBasedTest,
+    TestCaseParser, TestRunnerKind,
 };
 use regex::Regex;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path as StdPath;
 use std::rc::Rc;
-use typescript_rust::{get_directory_path, some};
+use typescript_rust::{
+    combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
+    is_rooted_disk_path, some, CompilerOptions, Extension,
+};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum CompilerTestType {
@@ -191,15 +194,176 @@ impl RunnerBaseSub for CompilerBaselineRunner {
     }
 }
 
-struct CompilerTest {}
+struct CompilerTest {
+    file_name: String,
+    just_name: String,
+    configured_name: String,
+    last_unit: TestCaseParser::TestUnitData,
+    harness_settings: TestCaseParser::CompilerSettings,
+    has_non_dts_files: bool,
+    result: compiler::CompilationResult,
+    options: Rc<CompilerOptions>,
+    ts_config_files: Vec<Compiler::TestFile>,
+    to_be_compiled: Vec<Compiler::TestFile>,
+    other_files: Vec<Compiler::TestFile>,
+}
 
 impl CompilerTest {
     pub fn new(
         file_name: String,
-        test_case_content: Option<TestCaseParser::TestCaseContent>,
+        mut test_case_content: Option<TestCaseParser::TestCaseContent>,
         configuration_overrides: Option<TestCaseParser::CompilerSettings>,
     ) -> Self {
-        unimplemented!()
+        let just_name = vpath::basename(&file_name, None, None);
+        let configured_name = just_name.clone();
+        if let Some(configuration_overrides) = configuration_overrides.as_ref() {
+            unimplemented!()
+        }
+
+        let root_dir = if !file_name.contains("conformance") {
+            // "tests/cases/compiler/"
+            "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+        } else {
+            format!("{}/", get_directory_path(&file_name))
+        };
+
+        if test_case_content.is_none() {
+            test_case_content = Some(TestCaseParser::make_units_from_test(
+                &with_io(|IO| IO.read_file(file_name.as_ref()).unwrap()),
+                &file_name,
+                Some(&root_dir),
+                None,
+            ));
+        }
+        let mut test_case_content = test_case_content.unwrap();
+
+        if let Some(configuration_overrides) = configuration_overrides {
+            test_case_content.settings.extend(configuration_overrides);
+        }
+
+        let units = &test_case_content.test_unit_data;
+        let mut harness_settings = test_case_content.settings.clone();
+        let mut ts_config_options: Option<Rc<CompilerOptions>> = None;
+        let mut ts_config_files: Vec<Compiler::TestFile> = vec![];
+        if let Some(test_case_content_ts_config) = test_case_content.ts_config.as_ref() {
+            assert!(
+                test_case_content_ts_config.file_names.is_empty(),
+                "list of files in tsconfig is not currently supported"
+            );
+            assert!(
+                !matches!(
+                    test_case_content_ts_config.raw.as_ref(),
+                    Some(raw) if raw.get("exclude").is_some()
+                ),
+                "exclude in tsconfig is not currently supported"
+            );
+
+            ts_config_options = Some(test_case_content_ts_config.options.clone());
+            ts_config_files.push(Self::create_harness_test_file(
+                test_case_content.ts_config_file_unit_data.as_ref().unwrap(),
+                &root_dir,
+                Some(&combine_paths(
+                    &root_dir,
+                    &[ts_config_options
+                        .as_ref()
+                        .unwrap()
+                        .config_file_path
+                        .as_deref()],
+                )),
+            ));
+        } else {
+            let base_url = harness_settings.get("baseUrl").cloned();
+            if let Some(base_url) = base_url.filter(|base_url| !is_rooted_disk_path(base_url)) {
+                harness_settings.insert(
+                    "baseUrl".to_owned(),
+                    get_normalized_absolute_path(&base_url, Some(&root_dir)),
+                );
+            }
+        }
+
+        let last_unit = units[units.len() - 1].clone();
+        let has_non_dts_files = units
+            .iter()
+            .any(|unit| !file_extension_is(&unit.name, Extension::Dts.to_str()));
+        let mut to_be_compiled: Vec<Compiler::TestFile> = vec![];
+        let mut other_files: Vec<Compiler::TestFile> = vec![];
+
+        if test_case_content
+            .settings
+            .get("noImplicitReferences")
+            .filter(|value| !value.is_empty())
+            .is_some()
+            || {
+                lazy_static! {
+                    static ref require_regex: Regex = Regex::new(r"require\(").unwrap();
+                }
+                require_regex.is_match(&last_unit.content)
+            }
+            || {
+                lazy_static! {
+                    static ref reference_path_regex: Regex =
+                        Regex::new(r"reference\spath").unwrap();
+                }
+                reference_path_regex.is_match(&last_unit.content)
+            }
+        {
+            to_be_compiled.push(Self::create_harness_test_file(&last_unit, &root_dir, None));
+            for unit in units {
+                if unit.name != last_unit.name {
+                    other_files.push(Self::create_harness_test_file(unit, &root_dir, None));
+                }
+            }
+        } else {
+            to_be_compiled = units
+                .into_iter()
+                .map(|unit| Self::create_harness_test_file(unit, &root_dir, None))
+                .collect();
+        }
+
+        if let Some(ts_config_options_present) = ts_config_options
+            .clone()
+            .filter(|ts_config_options| ts_config_options.config_file_path.is_some())
+        {
+            let mut options = (*ts_config_options_present).clone();
+            options.config_file_path = Some(combine_paths(
+                &root_dir,
+                &[ts_config_options_present.config_file_path.as_deref()],
+            ));
+            options
+                .config_file
+                .as_ref()
+                .unwrap()
+                .as_source_file()
+                .set_file_name(options.config_file_path.clone().unwrap());
+            ts_config_options = Some(Rc::new(options));
+        }
+
+        let result = Compiler::compile_files(
+            &to_be_compiled,
+            &other_files,
+            Some(&harness_settings),
+            ts_config_options,
+            harness_settings
+                .get("currentDirectory")
+                .map(|value| &**value),
+            test_case_content.symlinks.as_ref(),
+        );
+
+        let options = result.options.clone();
+
+        Self {
+            file_name,
+            just_name,
+            configured_name,
+            last_unit,
+            harness_settings,
+            has_non_dts_files,
+            result,
+            options,
+            ts_config_files,
+            to_be_compiled,
+            other_files,
+        }
     }
 
     fn vary_by() -> Vec<&'static str> {
@@ -246,6 +410,14 @@ impl CompilerTest {
     }
 
     pub fn verify_diagnostics(&self) {
+        unimplemented!()
+    }
+
+    pub fn create_harness_test_file(
+        last_unit: &TestCaseParser::TestUnitData,
+        root_dir: &str,
+        unit_name: Option<&str>,
+    ) -> Compiler::TestFile {
         unimplemented!()
     }
 }

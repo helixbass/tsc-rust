@@ -97,6 +97,31 @@ impl IO for NodeIO {
 
 pub const user_specified_root: &'static str = "";
 
+pub mod Compiler {
+    use std::rc::Rc;
+    use typescript_rust::CompilerOptions;
+
+    use super::TestCaseParser;
+    use crate::{compiler, vfs};
+
+    pub struct TestFile {
+        pub unit_name: String,
+        pub content: String,
+        pub file_options: Option<()>,
+    }
+
+    pub fn compile_files(
+        input_files: &[TestFile],
+        other_files: &[TestFile],
+        harness_settings: Option<&TestCaseParser::CompilerSettings>,
+        compiler_options: Option<Rc<CompilerOptions>>,
+        current_directory: Option<&str>,
+        symlinks: Option<&vfs::FileSet>,
+    ) -> compiler::CompilationResult {
+        unimplemented!()
+    }
+}
+
 #[derive(Clone)]
 pub struct FileBasedTest {
     pub file: String, /*PathBuf*/
