@@ -712,7 +712,7 @@ pub mod Compiler {
         let docs = input_files
             .into_iter()
             .chain(other_files.into_iter())
-            .map(|file| documents::TextDocument::from_test_file(file))
+            .map(|file| Rc::new(documents::TextDocument::from_test_file(file)))
             .collect::<Vec<_>>();
         let fs = Rc::new(vfs::create_from_file_system(
             get_io().as_file_system_resolver_host(),

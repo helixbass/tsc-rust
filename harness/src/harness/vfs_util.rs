@@ -1,9 +1,11 @@
 pub mod vfs {
+    use std::cell::RefCell;
     use std::collections::HashMap;
     use std::rc::Rc;
+    use std::time::SystemTime;
     use typescript_rust::Comparison;
 
-    use crate::{collections, documents};
+    use crate::{collections, documents, vpath};
 
     pub const built_folder: &'static str = "/.ts";
 
@@ -14,10 +16,16 @@ pub mod vfs {
     pub struct FileSystem {
         pub ignore_case: bool,
         pub string_comparer: Rc<dyn Fn(&str, &str) -> Comparison>,
+
+        _time: RefCell<TimestampOrNowOrSystemTimeOrCallback>,
     }
 
     impl FileSystem {
         pub fn meta(&self) -> &collections::Metadata<String> {
+            unimplemented!()
+        }
+
+        pub fn meta_mut(&self) -> &mut collections::Metadata<String> {
             unimplemented!()
         }
 
@@ -30,18 +38,98 @@ pub mod vfs {
             unimplemented!()
         }
 
+        pub fn set_time<TValue: Into<TimestampOrNowOrSystemTimeOrCallback>>(&self, value: TValue) {
+            let value = value.into();
+            *self._time.borrow_mut() = value;
+        }
+
+        pub fn filemeta_mut(
+            &self,
+            path: &str,
+        ) -> &mut collections::Metadata<Rc<documents::TextDocument>> {
+            unimplemented!()
+        }
+
+        pub fn cwd(&self) -> &str {
+            unimplemented!()
+        }
+
+        pub fn chdir(&self, path: &str) {
+            unimplemented!()
+        }
+
         pub fn apply(&self, files: &FileSet) {
             unimplemented!()
+        }
+
+        pub fn mkdirp_sync(&self, path: &str) {
+            unimplemented!()
+        }
+
+        pub fn symlink_sync(&self, target: &str, linkpath: &str) {
+            unimplemented!()
+        }
+
+        pub fn write_file_sync(
+            &self,
+            path: &str,
+            data: &str, /*string | Buffer*/
+            encoding: Option<&str>,
+        ) {
+            unimplemented!()
+        }
+    }
+
+    pub enum TimestampOrNowOrSystemTimeOrCallback {
+        Timestamp(u128),
+        Now,
+        SystemTime(SystemTime),
+        Callback(Rc<dyn Fn() -> TimestampOrNowOrSystemTime>),
+    }
+
+    impl From<u128> for TimestampOrNowOrSystemTimeOrCallback {
+        fn from(value: u128) -> Self {
+            Self::Timestamp(value)
+        }
+    }
+
+    impl From<SystemTime> for TimestampOrNowOrSystemTimeOrCallback {
+        fn from(value: SystemTime) -> Self {
+            Self::SystemTime(value)
+        }
+    }
+
+    impl From<Rc<dyn Fn() -> TimestampOrNowOrSystemTime>> for TimestampOrNowOrSystemTimeOrCallback {
+        fn from(value: Rc<dyn Fn() -> TimestampOrNowOrSystemTime>) -> Self {
+            Self::Callback(value)
+        }
+    }
+
+    pub enum TimestampOrNowOrSystemTime {
+        Timestamp(u128),
+        Now,
+        SystemTime(SystemTime),
+    }
+
+    impl From<u128> for TimestampOrNowOrSystemTime {
+        fn from(value: u128) -> Self {
+            Self::Timestamp(value)
+        }
+    }
+
+    impl From<SystemTime> for TimestampOrNowOrSystemTime {
+        fn from(value: SystemTime) -> Self {
+            Self::SystemTime(value)
         }
     }
 
     #[derive(Default)]
     pub struct FileSystemCreateOptions {
-        pub time: Option<()>,
+        pub time: Option<TimestampOrNowOrSystemTimeOrCallback>,
         pub files: Option<FileSet>,
         pub cwd: Option<String>,
-        pub meta: Option<HashMap<String, ()>>,
-        pub documents: Option<Vec<documents::TextDocument>>,
+        pub meta: Option<HashMap<String, String>>,
+        pub documents: Option<Vec<Rc<documents::TextDocument>>>,
     }
 
     pub trait FileSystemResolverHost {}
@@ -58,7 +146,39 @@ pub mod vfs {
             time,
             meta,
         } = options.unwrap_or_default();
-        unimplemented!()
+        let fs = get_built_local(host, ignore_case).shadow(None);
+        if let Some(meta) = meta {
+            for key in meta.keys() {
+                fs.meta_mut()
+                    .set(key.clone(), meta.get(key).unwrap().clone());
+            }
+        }
+        if let Some(time) = time {
+            fs.set_time(time);
+        }
+        if let Some(cwd) = cwd.filter(|cwd| !cwd.is_empty()) {
+            fs.mkdirp_sync(&cwd);
+            fs.chdir(&cwd);
+        }
+        if let Some(documents) = documents {
+            for document in documents {
+                fs.mkdirp_sync(&vpath::dirname(&document.file));
+                fs.write_file_sync(&document.file, &document.text, Some("utf8"));
+                fs.filemeta_mut(&document.file)
+                    .set("document".to_owned(), document.clone());
+                let symlink = document.meta.get("symlink");
+                if let Some(symlink) = symlink {
+                    for link in symlink.split(",").map(|link| link.trim()) {
+                        fs.mkdirp_sync(&vpath::dirname(link));
+                        fs.symlink_sync(&vpath::resolve(fs.cwd(), &[Some(&document.file)]), link);
+                    }
+                }
+            }
+        }
+        if let Some(files) = files {
+            fs.apply(&files);
+        }
+        fs
     }
 
     pub type FileSet = HashMap<String, Option<FileSetValue>>;
@@ -115,4 +235,8 @@ pub mod vfs {
     }
 
     pub type Mount = ();
+
+    fn get_built_local(host: Rc<dyn FileSystemResolverHost>, ignore_case: bool) -> Rc<FileSystem> {
+        unimplemented!()
+    }
 }

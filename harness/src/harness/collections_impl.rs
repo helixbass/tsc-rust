@@ -65,5 +65,9 @@ pub mod collections {
         pub fn get<'self_>(&'self_ self, key: &str) -> Option<&'self_ TValue> {
             unimplemented!()
         }
+
+        pub fn set(&mut self, key: String, value: TValue) -> &mut Self {
+            unimplemented!()
+        }
     }
 }
