@@ -9,6 +9,7 @@ edition = "2021"
 lazy_static = "1.4.0"
 regex = "1.5.4"
 typescript_rust = { path = "../typescript_rust" }
+typescript_services_rust = { path = "../typescript_services_rust" }
 
 [dev-dependencies]
 

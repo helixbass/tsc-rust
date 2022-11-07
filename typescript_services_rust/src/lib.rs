@@ -16,6 +16,7 @@ pub use server::types::ServerHost;
 pub use server::typings_cache::ITypingsInstaller;
 pub use server::utilities_public::{LogLevel, Logger};
 
+pub use services::services::get_default_compiler_options;
 pub use services::types::{
     ApplyCodeActionCommandResult, HostCancellationToken, LanguageServiceMode,
 };

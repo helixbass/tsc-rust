@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::path::{Path as StdPath, PathBuf};
@@ -11,9 +11,9 @@ use typescript_rust::{
     CommandLineOptionMapTypeValue, CommandLineOptionType, StatLike,
 };
 
-use crate::{RunnerBase, StringOrFileBasedTest};
+use crate::{vfs, RunnerBase, StringOrFileBasedTest};
 
-pub trait IO {
+pub trait IO: vfs::FileSystemResolverHost {
     fn get_current_directory(&self) -> String;
     fn read_file(&self, path: &StdPath) -> Option<String>;
     fn enumerate_test_files(&self, runner: &RunnerBase) -> Vec<StringOrFileBasedTest>;
@@ -23,6 +23,7 @@ pub trait IO {
         filter: Option<&Regex>,
         options: Option<ListFilesOptions>,
     ) -> Vec<PathBuf>;
+    fn as_file_system_resolver_host(self: Rc<Self>) -> Rc<dyn vfs::FileSystemResolverHost>;
 }
 
 #[derive(Copy, Clone)]
@@ -36,6 +37,10 @@ thread_local! {
 
 pub fn with_io<TReturn, TCallback: FnMut(&dyn IO) -> TReturn>(mut callback: TCallback) -> TReturn {
     IO_.with(|io| callback(&**io.borrow()))
+}
+
+pub fn get_io() -> Rc<dyn IO> {
+    IO_.with(|io| io.borrow().clone())
 }
 
 fn create_node_io() -> NodeIO {
@@ -98,9 +103,29 @@ impl IO for NodeIO {
     ) -> Vec<PathBuf> {
         self.files_in_folder(spec, options, path)
     }
+
+    fn as_file_system_resolver_host(self: Rc<Self>) -> Rc<dyn vfs::FileSystemResolverHost> {
+        self
+    }
 }
 
+impl vfs::FileSystemResolverHost for NodeIO {}
+
 pub const user_specified_root: &'static str = "";
+
+thread_local! {
+    static light_mode_: Cell<bool> = Cell::new(false);
+}
+
+pub fn get_light_mode() -> bool {
+    light_mode_.with(|light_mode| light_mode.get())
+}
+
+pub fn set_light_mode(flag: bool) {
+    light_mode_.with(|light_mode| {
+        light_mode.set(flag);
+    })
+}
 
 pub mod Compiler {
     use std::cell::RefCell;
@@ -116,7 +141,7 @@ pub mod Compiler {
     };
 
     use super::TestCaseParser;
-    use crate::{compiler, documents, vfs, vpath};
+    use crate::{compiler, documents, fakes, get_io, vfs, vpath};
 
     #[derive(Default)]
     struct HarnessOptions {
@@ -689,7 +714,24 @@ pub mod Compiler {
             .chain(other_files.into_iter())
             .map(|file| documents::TextDocument::from_test_file(file))
             .collect::<Vec<_>>();
-        unimplemented!()
+        let fs = Rc::new(vfs::create_from_file_system(
+            get_io().as_file_system_resolver_host(),
+            !use_case_sensitive_file_names,
+            Some(vfs::FileSystemCreateOptions {
+                documents: Some(docs),
+                cwd: Some(current_directory.to_owned()),
+                ..Default::default()
+            }),
+        ));
+        if let Some(symlinks) = symlinks {
+            fs.apply(symlinks);
+        }
+        let host =
+            fakes::CompilerHost::new(fs, Some(Rc::new(options.compiler_options.clone())), None);
+        let mut result =
+            compiler::compile_files(&host, Some(&program_file_names), &options.compiler_options);
+        result.symlinks = symlinks.cloned();
+        result
     }
 
     struct CompilerOptionsAndHarnessOptions {

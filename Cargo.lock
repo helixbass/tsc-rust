@@ -303,6 +303,7 @@ dependencies = [
  "lazy_static",
  "regex",
  "typescript_rust",
+ "typescript_services_rust",
 ]
 
 [[package]]
@@ -351,17 +352,6 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 [[package]]
 name = "local-macros"
 version = "0.1.0"
-dependencies = [
- "darling 0.13.1",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "local-macros"
-version = "0.1.0"
-source = "git+https://github.com/helixbass/tsc-rust?rev=fa1079d5#fa1079d5ca92de5be3e8289893cc24bb3f9fce54"
 dependencies = [
  "darling 0.13.1",
  "proc-macro2",
@@ -557,24 +547,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tsc-rust"
-version = "0.1.0"
-source = "git+https://github.com/helixbass/tsc-rust?rev=fa1079d5#fa1079d5ca92de5be3e8289893cc24bb3f9fce54"
-dependencies = [
- "bitflags",
- "derive_builder",
- "encoding_rs",
- "encoding_rs_io",
- "fancy-regex",
- "indexmap",
- "lazy_static",
- "local-macros 0.1.0 (git+https://github.com/helixbass/tsc-rust?rev=fa1079d5)",
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "typescript_rust"
 version = "0.1.0"
 dependencies = [
@@ -586,7 +558,7 @@ dependencies = [
  "indexmap",
  "itertools",
  "lazy_static",
- "local-macros 0.1.0",
+ "local-macros",
  "pretty_assertions",
  "regex",
  "rstest",
@@ -598,7 +570,7 @@ dependencies = [
 name = "typescript_services_rust"
 version = "0.1.0"
 dependencies = [
- "tsc-rust",
+ "typescript_rust",
 ]
 
 [[package]]
