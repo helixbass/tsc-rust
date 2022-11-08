@@ -1,6 +1,7 @@
 pub mod vfs {
     use std::cell::RefCell;
     use std::collections::HashMap;
+    use std::iter::FromIterator;
     use std::rc::Rc;
     use std::time::SystemTime;
     use typescript_rust::Comparison;
@@ -9,6 +10,8 @@ pub mod vfs {
 
     pub const built_folder: &'static str = "/.ts";
 
+    pub const projects_folder: &'static str = "/.projects";
+
     pub const test_lib_folder: &'static str = "/.lib";
 
     pub const src_folder: &'static str = "/.src";
@@ -16,11 +19,78 @@ pub mod vfs {
     pub struct FileSystem {
         pub ignore_case: bool,
         pub string_comparer: Rc<dyn Fn(&str, &str) -> Comparison>,
+        _lazy: FileSystemLazy,
 
+        _cwd: Option<String>,
         _time: RefCell<TimestampOrNowOrSystemTimeOrCallback>,
+        _shadow_root: Option<Rc<FileSystem>>,
+        _dir_stack: Option<Vec<String>>,
     }
 
     impl FileSystem {
+        pub fn new(ignore_case: bool, options: Option<FileSystemOptions>) -> Self {
+            let options = options.unwrap_or_default();
+            let FileSystemOptions {
+                time,
+                files,
+                meta,
+                cwd: options_cwd,
+            } = options;
+            let time = time.unwrap_or(TimestampOrNowOrSystemTimeOrCallback::Now);
+
+            let mut ret = Self {
+                ignore_case,
+                string_comparer: Rc::new(move |a: &str, b: &str| {
+                    if ignore_case {
+                        vpath::compare_case_insensitive(a, b)
+                    } else {
+                        vpath::compare_case_sensitive(a, b)
+                    }
+                }),
+                _time: RefCell::new(time),
+                _cwd: None,
+                _dir_stack: None,
+                _lazy: Default::default(),
+                _shadow_root: None,
+            };
+
+            if let Some(meta) = meta {
+                for (key, value) in meta {
+                    ret.meta_mut().set(key, value);
+                }
+            }
+
+            if let Some(files) = files {
+                ret._apply_files(&files, "");
+            }
+
+            let mut cwd = options_cwd;
+            if match cwd.as_ref() {
+                None => true,
+                Some(cwd) => cwd.is_empty() || !vpath::is_root(cwd),
+            } {
+                if let Some(lazy_links) = ret._lazy.links.as_ref() {
+                    for name in lazy_links.keys() {
+                        cwd = Some(if let Some(cwd_present) = cwd {
+                            vpath::resolve(name, &[Some(&cwd_present)])
+                        } else {
+                            name.clone()
+                        });
+                        break;
+                    }
+                }
+            }
+
+            if let Some(cwd) = cwd.as_ref().filter(|cwd| !cwd.is_empty()) {
+                vpath::validate(cwd, Some(vpath::ValidationFlags::Absolute));
+                ret.mkdirp_sync(cwd);
+            }
+
+            ret._cwd = Some(cwd.unwrap_or_else(|| "".to_owned()));
+
+            ret
+        }
+
         pub fn meta(&self) -> &collections::Metadata<String> {
             unimplemented!()
         }
@@ -30,6 +100,10 @@ pub mod vfs {
         }
 
         pub fn is_readonly(&self) -> bool {
+            unimplemented!()
+        }
+
+        pub fn make_readonly(&self) -> &Self {
             unimplemented!()
         }
 
@@ -78,6 +152,17 @@ pub mod vfs {
         ) {
             unimplemented!()
         }
+
+        fn _apply_files(&self, files: &FileSet, dirname: &str) {
+            unimplemented!()
+        }
+    }
+
+    #[derive(Default)]
+    struct FileSystemLazy {
+        links: Option<collections::SortedMap<String, Inode>>,
+        shadows: Option<HashMap<usize, Inode>>,
+        meta: Option<collections::Metadata<()>>,
     }
 
     pub enum TimestampOrNowOrSystemTimeOrCallback {
@@ -124,6 +209,14 @@ pub mod vfs {
     }
 
     #[derive(Default)]
+    pub struct FileSystemOptions {
+        pub time: Option<TimestampOrNowOrSystemTimeOrCallback>,
+        pub files: Option<FileSet>,
+        pub cwd: Option<String>,
+        pub meta: Option<HashMap<String, String>>,
+    }
+
+    #[derive(Default)]
     pub struct FileSystemCreateOptions {
         pub time: Option<TimestampOrNowOrSystemTimeOrCallback>,
         pub files: Option<FileSet>,
@@ -132,7 +225,15 @@ pub mod vfs {
         pub documents: Option<Vec<Rc<documents::TextDocument>>>,
     }
 
-    pub trait FileSystemResolverHost {}
+    pub struct FileSystemResolver {}
+
+    pub trait FileSystemResolverHost {
+        fn get_workspace_root(&self) -> String;
+    }
+
+    pub fn create_resolver(host: Rc<dyn FileSystemResolverHost>) -> FileSystemResolver {
+        unimplemented!()
+    }
 
     pub fn create_from_file_system(
         host: Rc<dyn FileSystemResolverHost>,
@@ -199,21 +300,74 @@ pub mod vfs {
         Unlink(Unlink),
     }
 
+    impl From<FileSet> for FileSetValue {
+        fn from(value: FileSet) -> Self {
+            Self::FileSet(value)
+        }
+    }
+
+    impl From<Directory> for FileSetValue {
+        fn from(value: Directory) -> Self {
+            Self::Directory(value)
+        }
+    }
+
+    impl From<File> for FileSetValue {
+        fn from(value: File) -> Self {
+            Self::File(value)
+        }
+    }
+
+    impl From<String> for FileSetValue {
+        fn from(value: String) -> Self {
+            Self::String(value)
+        }
+    }
+
+    impl From<Link> for FileSetValue {
+        fn from(value: Link) -> Self {
+            Self::Link(value)
+        }
+    }
+
     impl From<Symlink> for FileSetValue {
         fn from(value: Symlink) -> Self {
             Self::Symlink(value)
         }
     }
 
-    pub type Directory = ();
+    impl From<Mount> for FileSetValue {
+        fn from(value: Mount) -> Self {
+            Self::Mount(value)
+        }
+    }
 
-    pub type File = ();
+    impl From<Rmdir> for FileSetValue {
+        fn from(value: Rmdir) -> Self {
+            Self::Rmdir(value)
+        }
+    }
 
-    pub type Link = ();
+    impl From<Unlink> for FileSetValue {
+        fn from(value: Unlink) -> Self {
+            Self::Unlink(value)
+        }
+    }
 
-    pub type Rmdir = ();
+    #[derive(Clone)]
+    pub struct Directory {}
 
-    pub type Unlink = ();
+    #[derive(Clone)]
+    pub struct File {}
+
+    #[derive(Clone)]
+    pub struct Link {}
+
+    #[derive(Clone)]
+    pub struct Rmdir {}
+
+    #[derive(Clone)]
+    pub struct Unlink {}
 
     #[derive(Clone)]
     pub struct Symlink {
@@ -234,9 +388,163 @@ pub mod vfs {
         meta: Option<()>,
     }
 
-    pub type Mount = ();
+    #[derive(Clone)]
+    pub struct Mount {
+        pub source: String,
+        pub resolver: Rc<FileSystemResolver>,
+        pub meta: Option<HashMap<String, ()>>,
+    }
+
+    impl Mount {
+        pub fn new(
+            source: String,
+            resolver: Rc<FileSystemResolver>,
+            options: Option<MountOptions>,
+        ) -> Self {
+            let options = options.unwrap_or_default();
+            let MountOptions { meta } = options;
+            Self {
+                source,
+                resolver,
+                meta,
+            }
+        }
+    }
+
+    #[derive(Default)]
+    pub struct MountOptions {
+        pub meta: Option<HashMap<String, ()>>,
+    }
+
+    enum Inode {
+        FileInode(FileInode),
+        DirectoryInode(DirectoryInode),
+        SymlinkInode(SymlinkInode),
+    }
+
+    struct FileInode {}
+
+    struct DirectoryInode {}
+
+    struct SymlinkInode {}
+
+    thread_local! {
+        static built_local_host_: RefCell<Option<Rc<dyn FileSystemResolverHost>>> = RefCell::new(None);
+        static built_local_ci_: RefCell<Option<Rc<FileSystem>>> = RefCell::new(None);
+        static built_local_cs_: RefCell<Option<Rc<FileSystem>>> = RefCell::new(None);
+    }
+
+    fn maybe_built_local_host() -> Option<Rc<dyn FileSystemResolverHost>> {
+        built_local_host_.with(|built_local_host| built_local_host.borrow().clone())
+    }
+
+    fn set_built_local_host(value: Option<Rc<dyn FileSystemResolverHost>>) {
+        built_local_host_.with(|built_local_host| {
+            *built_local_host.borrow_mut() = value;
+        })
+    }
+
+    fn maybe_built_local_ci() -> Option<Rc<FileSystem>> {
+        built_local_ci_.with(|built_local_ci| built_local_ci.borrow().clone())
+    }
+
+    fn set_built_local_ci(value: Option<Rc<FileSystem>>) {
+        built_local_ci_.with(|built_local_ci| {
+            *built_local_ci.borrow_mut() = value;
+        })
+    }
+
+    fn maybe_built_local_cs() -> Option<Rc<FileSystem>> {
+        built_local_cs_.with(|built_local_cs| built_local_cs.borrow().clone())
+    }
+
+    fn set_built_local_cs(value: Option<Rc<FileSystem>>) {
+        built_local_cs_.with(|built_local_cs| {
+            *built_local_cs.borrow_mut() = value;
+        })
+    }
 
     fn get_built_local(host: Rc<dyn FileSystemResolverHost>, ignore_case: bool) -> Rc<FileSystem> {
-        unimplemented!()
+        if !matches!(
+            maybe_built_local_host().as_ref(),
+            Some(built_local_host) if Rc::ptr_eq(
+                built_local_host,
+                &host,
+            )
+        ) {
+            set_built_local_ci(None);
+            set_built_local_cs(None);
+            set_built_local_host(Some(host.clone()));
+        }
+        if maybe_built_local_ci().is_none() {
+            let resolver = Rc::new(create_resolver(host.clone()));
+            set_built_local_ci(Some(Rc::new(FileSystem::new(
+                true,
+                Some(FileSystemOptions {
+                    files: Some(FileSet::from_iter(IntoIterator::into_iter([
+                        (
+                            built_folder.to_owned(),
+                            Some(
+                                Mount::new(
+                                    vpath::resolve(
+                                        &host.get_workspace_root(),
+                                        &[Some("built/local")],
+                                    ),
+                                    resolver.clone(),
+                                    None,
+                                )
+                                .into(),
+                            ),
+                        ),
+                        (
+                            test_lib_folder.to_owned(),
+                            Some(
+                                Mount::new(
+                                    vpath::resolve(
+                                        &host.get_workspace_root(),
+                                        &[Some("tests/lib")],
+                                    ),
+                                    resolver.clone(),
+                                    None,
+                                )
+                                .into(),
+                            ),
+                        ),
+                        (
+                            projects_folder.to_owned(),
+                            Some(
+                                Mount::new(
+                                    vpath::resolve(
+                                        &host.get_workspace_root(),
+                                        &[Some("tests/projects")],
+                                    ),
+                                    resolver.clone(),
+                                    None,
+                                )
+                                .into(),
+                            ),
+                        ),
+                        (src_folder.to_owned(), Some(FileSet::new().into())),
+                    ]))),
+                    cwd: Some(src_folder.to_owned()),
+                    meta: Some(HashMap::from_iter(IntoIterator::into_iter([(
+                        "defaultLibLocation".to_owned(),
+                        built_folder.to_owned(),
+                    )]))),
+                    time: None,
+                }),
+            ))));
+            maybe_built_local_ci().unwrap().make_readonly();
+        }
+        if ignore_case {
+            return maybe_built_local_ci().unwrap();
+        }
+        if maybe_built_local_cs().is_none() {
+            set_built_local_cs(Some(Rc::new(
+                maybe_built_local_ci().unwrap().shadow(Some(false)),
+            )));
+            maybe_built_local_cs().unwrap().make_readonly();
+        }
+        maybe_built_local_cs().unwrap()
     }
 }

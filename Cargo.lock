@@ -300,6 +300,7 @@ dependencies = [
 name = "harness"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
  "lazy_static",
  "regex",
  "typescript_rust",

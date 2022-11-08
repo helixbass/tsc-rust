@@ -55,6 +55,24 @@ pub mod collections {
         pub fn set(&mut self, key: TKey, value: TValue) -> &mut Self {
             unimplemented!()
         }
+
+        pub fn keys(&self) -> Keys<'_, TKey, TValue> {
+            unimplemented!()
+        }
+    }
+
+    pub struct Keys<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> {
+        sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+    }
+
+    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Iterator
+        for Keys<'sorted_map, TKey, TValue>
+    {
+        type Item = &'sorted_map TKey;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            unimplemented!()
+        }
     }
 
     pub struct Metadata<TValue> {

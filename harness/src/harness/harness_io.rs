@@ -109,7 +109,11 @@ impl IO for NodeIO {
     }
 }
 
-impl vfs::FileSystemResolverHost for NodeIO {}
+impl vfs::FileSystemResolverHost for NodeIO {
+    fn get_workspace_root(&self) -> String {
+        unimplemented!()
+    }
+}
 
 pub const user_specified_root: &'static str = "";
 
