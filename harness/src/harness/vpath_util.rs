@@ -1,10 +1,16 @@
 pub mod vpath {
     use bitflags::bitflags;
+    use fancy_regex::Regex as FancyRegex;
+    use regex::Regex;
     use typescript_rust::{
         combine_paths, compare_paths_case_insensitive, compare_paths_case_sensitive,
-        get_base_file_name, get_directory_path, is_disk_path_root, normalize_slashes, resolve_path,
-        Comparison,
+        directory_separator, directory_separator_str, get_base_file_name, get_directory_path,
+        get_path_components, get_path_from_path_components, has_trailing_directory_separator,
+        is_disk_path_root, normalize_slashes, reduce_path_components, resolve_path, Comparison,
     };
+
+    pub const sep: char = directory_separator;
+    pub const sep_str: &'static str = directory_separator_str;
 
     pub fn normalize_separators(path: &str) -> String {
         normalize_slashes(path)
@@ -14,8 +20,24 @@ pub mod vpath {
         is_disk_path_root(path)
     }
 
+    pub fn has_trailing_separator(path: &str) -> bool {
+        has_trailing_directory_separator(path)
+    }
+
     pub fn combine(path: &str, paths: &[Option<&str>]) -> String {
         combine_paths(path, paths)
+    }
+
+    pub fn parse(path: &str, current_directory: Option<&str>) -> Vec<String> {
+        get_path_components(path, current_directory)
+    }
+
+    pub fn reduce(components: &[String]) -> Vec<String> {
+        reduce_path_components(components)
+    }
+
+    pub fn format(path_components: &[String]) -> String {
+        get_path_from_path_components(path_components)
     }
 
     pub fn resolve(path: &str, paths: &[Option<&str>]) -> String {
@@ -36,6 +58,19 @@ pub mod vpath {
 
     pub fn basename(path: &str, extensions: Option<&[&str]>, ignore_case: Option<bool>) -> String {
         get_base_file_name(path, extensions, ignore_case)
+    }
+
+    lazy_static! {
+        static ref invalid_root_component_reg_exp: FancyRegex =
+            FancyRegex::new(r"^(?!(/|//\w+/|[a-zA-Z]:/?|)$)").unwrap();
+        static ref invalid_navigable_component_reg_exp: Regex = Regex::new(r#"[:*?"<>|]"#).unwrap();
+        static ref invalid_navigable_component_with_wildcards_reg_exp: Regex =
+            Regex::new(r#"[:"<>|]"#).unwrap();
+        static ref invalid_non_navigable_component_with_wildcards_reg_exp: Regex =
+            Regex::new(r#"^\.{1,2}$|[:*?"<>|]"#).unwrap();
+        static ref invalid_non_navigable_component_reg_exp: Regex =
+            Regex::new(r#"^\.{1,2}$|[:"<>|]"#).unwrap();
+        static ref ext_reg_exp: Regex = Regex::new(r"\.\w+$").unwrap();
     }
 
     bitflags! {
@@ -66,8 +101,105 @@ pub mod vpath {
         }
     }
 
+    fn validate_components(
+        components: &[String],
+        mut flags: ValidationFlags,
+        has_trailing_separator: bool,
+    ) -> bool {
+        let has_root = !components[0].is_empty();
+        let has_dirname = components.len() > 2;
+        let has_basename = components.len() > 1;
+        let has_extname = has_basename && ext_reg_exp.is_match(&components[components.len() - 1]);
+        let invalid_component_reg_exp: &Regex =
+            if flags.intersects(ValidationFlags::AllowNavigation) {
+                if flags.intersects(ValidationFlags::AllowWildcard) {
+                    &invalid_navigable_component_with_wildcards_reg_exp
+                } else {
+                    &invalid_navigable_component_reg_exp
+                }
+            } else {
+                if flags.intersects(ValidationFlags::AllowWildcard) {
+                    &invalid_non_navigable_component_with_wildcards_reg_exp
+                } else {
+                    &invalid_non_navigable_component_reg_exp
+                }
+            };
+
+        if flags.intersects(ValidationFlags::RequireRoot) && !has_root {
+            return false;
+        }
+        if flags.intersects(ValidationFlags::RequireDirname) && !has_dirname {
+            return false;
+        }
+        if flags.intersects(ValidationFlags::RequireBasename) && !has_basename {
+            return false;
+        }
+        if flags.intersects(ValidationFlags::RequireExtname) && !has_extname {
+            return false;
+        }
+        if flags.intersects(ValidationFlags::RequireTrailingSeparator) && !has_trailing_separator {
+            return false;
+        }
+
+        if flags.intersects(ValidationFlags::RequireRoot) {
+            flags |= ValidationFlags::AllowRoot;
+        }
+        if flags.intersects(ValidationFlags::RequireDirname) {
+            flags |= ValidationFlags::AllowDirname;
+        }
+        if flags.intersects(ValidationFlags::RequireBasename) {
+            flags |= ValidationFlags::AllowBasename;
+        }
+        if flags.intersects(ValidationFlags::RequireExtname) {
+            flags |= ValidationFlags::AllowExtname;
+        }
+        if flags.intersects(ValidationFlags::RequireTrailingSeparator) {
+            flags |= ValidationFlags::AllowTrailingSeparator;
+        }
+
+        if (!flags).intersects(ValidationFlags::AllowRoot) && has_root {
+            return false;
+        }
+        if (!flags).intersects(ValidationFlags::AllowDirname) && has_dirname {
+            return false;
+        }
+        if (!flags).intersects(ValidationFlags::AllowBasename) && has_basename {
+            return false;
+        }
+        if (!flags).intersects(ValidationFlags::AllowExtname) && has_extname {
+            return false;
+        }
+        if (!flags).intersects(ValidationFlags::AllowTrailingSeparator) && has_trailing_separator {
+            return false;
+        }
+
+        if invalid_root_component_reg_exp
+            .is_match(&components[0])
+            .unwrap()
+        {
+            return false;
+        }
+        for component in components.into_iter().skip(1) {
+            if invalid_component_reg_exp.is_match(component) {
+                return false;
+            }
+        }
+
+        true
+    }
+
     pub fn validate(path: &str, flags: Option<ValidationFlags>) -> String {
         let flags = flags.unwrap_or(ValidationFlags::RelativeOrAbsolute);
-        unimplemented!()
+        let components = parse(path, None);
+        let trailing = has_trailing_separator(path);
+        if !validate_components(&components, flags, trailing) {
+            // throw vfs.createIOError("ENOENT");
+            panic!("ENOENT");
+        }
+        if components.len() > 1 && trailing {
+            format!("{}{}", format(&reduce(&components)), sep,)
+        } else {
+            format(&reduce(&components))
+        }
     }
 }
