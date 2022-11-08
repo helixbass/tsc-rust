@@ -837,6 +837,7 @@ pub fn binary_search<
     TKey,
     TItem,
     TKeySelector: Fn(&TItem, Option<usize>) -> &TKey,
+    TKeyComparer: Fn(&TKey, &TKey) -> Comparison,
     // TComparer: Comparer<TKey>,
 >(
     array: &[TItem],
@@ -846,7 +847,7 @@ pub fn binary_search<
     // key_comparer: TComparer,
     // key_comparer: Comparer<&'array TKey>,
     // key_comparer: Comparer<&TKey, &TKey>,
-    key_comparer: fn(&TKey, &TKey) -> Comparison,
+    key_comparer: TKeyComparer,
     offset: Option<usize>,
 ) -> isize
 // where
@@ -887,6 +888,7 @@ fn binary_search_key<
     TItem,
     TKey,
     TKeySelector: Fn(&TItem, Option<usize>) -> &TKey,
+    TKeyComparer: Fn(&TKey, &TKey) -> Comparison,
     // TComparer: Comparer<TKey>,
 >(
     array: &[TItem],
@@ -895,7 +897,7 @@ fn binary_search_key<
     key_selector: TKeySelector,
     // key_comparer: TComparer,
     // key_comparer: Comparer<&TKey>,
-    key_comparer: fn(&TKey, &TKey) -> Comparison,
+    key_comparer: TKeyComparer,
     offset: Option<usize>,
 ) -> isize
 // where

@@ -2,8 +2,9 @@ pub mod collections {
     use std::borrow::Cow;
     use std::cell::{Cell, RefCell};
     use std::collections::HashMap;
+    use std::convert::TryInto;
     use std::rc::Rc;
-    use typescript_rust::Comparison;
+    use typescript_rust::{binary_search, Comparison};
 
     pub struct SortOptions<TKey> {
         pub comparer: Rc<dyn Fn(&TKey, &TKey) -> Comparison>,
@@ -58,7 +59,19 @@ pub mod collections {
             &'self_ self,
             key: &TKey,
         ) -> Option<(&'self_ TKey, &'self_ TValue)> {
-            unimplemented!()
+            let index = binary_search(
+                &self._keys,
+                key,
+                |key: &TKey, _| key,
+                |a: &TKey, b: &TKey| (self._comparer)(a, b),
+                None,
+            );
+            if index >= 0 {
+                let index: usize = index.try_into().unwrap();
+                Some((&self._keys[index], &self._values[index]))
+            } else {
+                None
+            }
         }
 
         pub fn set(&mut self, key: TKey, value: TValue) -> &mut Self {
