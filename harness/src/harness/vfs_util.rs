@@ -1,4 +1,5 @@
 pub mod vfs {
+    use local_macros::enum_unwrapped;
     use std::borrow::Cow;
     use std::cell::{Ref, RefCell, RefMut};
     use std::collections::HashMap;
@@ -16,6 +17,15 @@ pub mod vfs {
     pub const test_lib_folder: &'static str = "/.lib";
 
     pub const src_folder: &'static str = "/.src";
+
+    const S_IFMT: u32 = 0o170000;
+    const S_IFSOCK: u32 = 0o140000;
+    const S_IFLNK: u32 = 0o120000;
+    const S_IFREG: u32 = 0o100000;
+    const S_IFBLK: u32 = 0o060000;
+    const S_IFDIR: u32 = 0o040000;
+    const S_IFCHR: u32 = 0o020000;
+    const S_IFIFO: u32 = 0o010000;
 
     pub struct FileSystem {
         pub ignore_case: bool,
@@ -70,12 +80,12 @@ pub mod vfs {
                 None => true,
                 Some(cwd) => cwd.is_empty() || !vpath::is_root(cwd),
             } {
-                if let Some(lazy_links) = ret._lazy.links.as_ref() {
+                if let Some(lazy_links) = ret._lazy.links.borrow().as_ref() {
                     for name in lazy_links.keys() {
                         cwd = Some(if let Some(cwd_present) = cwd {
                             vpath::resolve(name, &[Some(&cwd_present)])
                         } else {
-                            name.clone()
+                            name.to_owned()
                         });
                         break;
                     }
@@ -125,6 +135,10 @@ pub mod vfs {
             unimplemented!()
         }
 
+        pub fn time(&self) -> u128 {
+            unimplemented!()
+        }
+
         pub fn set_time<TValue: Into<TimestampOrNowOrSystemTimeOrCallback>>(&self, value: TValue) {
             let value = value.into();
             *self._time.borrow_mut() = value;
@@ -166,6 +180,36 @@ pub mod vfs {
         }
 
         pub fn mkdirp_sync(&self, path: &str) {
+            let path = self._resolve(path);
+            let result = self
+                ._walk(
+                    &path,
+                    Some(true),
+                    Some(|error: &NodeJSErrnoException, result: WalkResult| {
+                        if error.code.as_deref() == Some("ENOENT") {
+                            self._mkdir(result);
+                            return OnErrorReturn::Retry;
+                        }
+                        OnErrorReturn::Throw
+                    }),
+                )
+                .unwrap();
+
+            if result.node.is_none() {
+                self._mkdir(result);
+            }
+        }
+
+        pub fn _mkdir(
+            &self,
+            WalkResult {
+                parent,
+                links,
+                node: existing_node,
+                basename,
+                ..
+            }: WalkResult,
+        ) {
             unimplemented!()
         }
 
@@ -184,6 +228,262 @@ pub mod vfs {
             encoding: Option<&str>,
         ) {
             unimplemented!()
+        }
+
+        fn _mknod(&self, dev: u32, type_: u32, mode: u32, time: Option<u128>) -> Inode {
+            let time = time.unwrap_or_else(|| self.time());
+            unimplemented!()
+        }
+
+        fn _add_link(
+            &self,
+            parent: Option<&DirectoryInode>,
+            links: &mut collections::SortedMap<String, Rc<Inode>>,
+            name: &str,
+            node: Rc<Inode>,
+            time: Option<u128>,
+        ) {
+            let time = time.unwrap_or_else(|| self.time());
+            unimplemented!()
+        }
+
+        fn _get_root_links(&self) -> Rc<collections::SortedMap<String, Rc<Inode>>> {
+            self._lazy
+                .links
+                .borrow_mut()
+                .get_or_insert_with(|| {
+                    let mut _lazy_links = collections::SortedMap::new(
+                        collections::SortOptions {
+                            comparer: {
+                                let string_comparer = self.string_comparer.clone();
+                                Rc::new(move |a: &String, b: &String| string_comparer(a, b))
+                            },
+                            sort: None,
+                        },
+                        Option::<HashMap<String, Rc<Inode>>>::None,
+                    );
+                    if let Some(_shadow_root) = self._shadow_root.as_ref() {
+                        self._copy_shadow_links(
+                            _shadow_root._get_root_links().entries(),
+                            &mut _lazy_links,
+                        );
+                    }
+                    Rc::new(_lazy_links)
+                })
+                .clone()
+        }
+
+        fn _get_links(
+            &self,
+            node: &Inode, /*DirectoryInode*/
+        ) -> Rc<collections::SortedMap<String, Rc<Inode>>> {
+            let node = node.as_directory_inode();
+            if node.maybe_links().is_none() {
+                let mut links = collections::SortedMap::new(
+                    collections::SortOptions {
+                        comparer: Rc::new({
+                            let string_comparer = self.string_comparer.clone();
+                            move |a: &String, b: &String| string_comparer(a, b)
+                        }),
+                        sort: None,
+                    },
+                    Option::<HashMap<String, Rc<Inode>>>::None,
+                );
+                let source = node.maybe_source();
+                let resolver = node.maybe_resolver();
+                if let (Some(source), Some(resolver)) = (source, resolver) {
+                    node.set_source(None);
+                    node.set_resolver(None);
+                    for name in resolver.readdir_sync(&source) {
+                        let path = vpath::combine(&source, &[Some(&name)]);
+                        let stats = resolver.stat_sync(&path);
+                        match stats.mode & S_IFMT {
+                            S_IFDIR => {
+                                let dir = self._mknod(node.dev, S_IFDIR, 0o777, None);
+                                dir.as_directory_inode()
+                                    .set_source(Some(vpath::combine(&source, &[Some(&name)])));
+                                dir.as_directory_inode()
+                                    .set_resolver(Some(resolver.clone()));
+                                self._add_link(Some(node), &mut links, &name, Rc::new(dir), None);
+                            }
+                            S_IFREG => {
+                                let mut file = self._mknod(node.dev, S_IFREG, 0o666, None);
+                                file.as_file_inode()
+                                    .set_source(Some(vpath::combine(&source, &[Some(&name)])));
+                                file.as_file_inode().set_resolver(Some(resolver.clone()));
+                                file.as_file_inode_mut().size = Some(stats.size);
+                                self._add_link(Some(node), &mut links, &name, Rc::new(file), None);
+                            }
+                            _ => (),
+                        }
+                    }
+                } else if let (Some(_shadow_root), Some(node_shadow_root)) =
+                    (self._shadow_root.as_ref(), node.shadow_root.as_ref())
+                {
+                    self._copy_shadow_links(
+                        _shadow_root._get_links(node_shadow_root).entries(),
+                        &mut links,
+                    );
+                }
+                node.set_links(Some(Rc::new(links)));
+            }
+            node.maybe_links().unwrap()
+        }
+
+        fn _copy_shadow_links<
+            'source,
+            TSource: IntoIterator<Item = (&'source String, &'source Rc<Inode>)>,
+        >(
+            &self,
+            source: TSource,
+            target: &mut collections::SortedMap<String, Rc<Inode>>,
+        ) {
+            unimplemented!()
+        }
+
+        fn _walk<TOnError: FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>(
+            &self,
+            path: &str,
+            no_follow: Option<bool>,
+            mut on_error: Option<TOnError>,
+        ) -> Option<WalkResult> {
+            let mut links = self._get_root_links();
+            let mut parent: Option<Rc<Inode>> = None;
+            let mut components = vpath::parse(path, None);
+            let mut step = 0;
+            let mut depth = 0;
+            let mut retry = false;
+            loop {
+                if depth >= 40 {
+                    // throw createIOError("ELOOP");
+                    panic!("ELOOP");
+                }
+                let last_step = step == components.len() - 1;
+                let mut basename = components[step].clone();
+                let link_entry = links.get_entry(&basename);
+                if let Some(link_entry) = link_entry {
+                    components[step] = link_entry.0.clone();
+                    basename = link_entry.0.clone();
+                }
+                let node = link_entry.map(|link_entry| link_entry.1.clone());
+                drop(link_entry);
+                if last_step && (no_follow == Some(true) || !is_symlink(node.as_deref())) {
+                    return Some(WalkResult {
+                        realpath: vpath::format(&components),
+                        basename,
+                        parent,
+                        links: links.clone(),
+                        node: node.clone(),
+                    });
+                }
+                if node.is_none() {
+                    if self.trap_error(
+                        &components,
+                        step,
+                        &mut retry,
+                        on_error.as_mut(),
+                        parent.clone(),
+                        links.clone(),
+                        create_io_error(IOErrorCode::ENOENT, None),
+                        node.clone(),
+                    ) {
+                        continue;
+                    }
+                    return None;
+                }
+                let ref node = node.unwrap();
+                if is_symlink(Some(node)) {
+                    let dirname = vpath::format(&components[..step]);
+                    let symlink =
+                        vpath::resolve(&dirname, &[Some(&node.as_symlink_inode().symlink)]);
+                    links = self._get_root_links();
+                    parent = None;
+                    let mut components_new = vpath::parse(&symlink, None);
+                    components_new.extend_from_slice(&components[step + 1..]);
+                    components = components_new;
+                    step = 0;
+                    depth += 1;
+                    retry = false;
+                    continue;
+                }
+                if is_directory(Some(node)) {
+                    links = self._get_links(node);
+                    parent = Some(node.clone());
+                    step += 1;
+                    retry = false;
+                    continue;
+                }
+                if self.trap_error(
+                    &components,
+                    step,
+                    &mut retry,
+                    on_error.as_mut(),
+                    parent.clone(),
+                    links.clone(),
+                    create_io_error(IOErrorCode::ENOTDIR, None),
+                    Some(node.clone()),
+                ) {
+                    continue;
+                }
+                return None;
+            }
+        }
+
+        fn trap_error<TOnError: FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>(
+            &self,
+            components: &[String],
+            step: usize,
+            retry: &mut bool,
+            on_error: Option<&mut TOnError>,
+            parent: Option<Rc<Inode /*DirectoryInode*/>>,
+            links: Rc<collections::SortedMap<String, Rc<Inode>>>,
+            error: NodeJSErrnoException,
+            node: Option<Rc<Inode>>,
+        ) -> bool {
+            let realpath = vpath::format(&components[..step + 1]);
+            let basename = &components[step];
+            let result = if !*retry && on_error.is_some() {
+                (on_error.unwrap())(
+                    &error,
+                    WalkResult {
+                        realpath,
+                        basename: basename.clone(),
+                        parent: parent.clone(),
+                        links,
+                        node,
+                    },
+                )
+            } else {
+                OnErrorReturn::Throw
+            };
+            if result == OnErrorReturn::Stop {
+                return false;
+            }
+            if result == OnErrorReturn::Retry {
+                *retry = true;
+                return true;
+            }
+            panic!("{}", error.message);
+        }
+
+        fn _resolve(&self, path: &str) -> String {
+            if let Some(_cwd) = self._cwd.as_ref().filter(|_cwd| !_cwd.is_empty()) {
+                vpath::resolve(
+                    _cwd,
+                    &[Some(&vpath::validate(
+                        path,
+                        Some(
+                            vpath::ValidationFlags::RelativeOrAbsolute
+                                | vpath::ValidationFlags::AllowWildcard,
+                        ),
+                    ))],
+                )
+            } else {
+                vpath::validate(
+                    path,
+                    Some(vpath::ValidationFlags::Absolute | vpath::ValidationFlags::AllowWildcard),
+                )
+            }
         }
 
         fn _apply_files(&self, files: &FileSet, dirname: &str) {
@@ -275,10 +575,17 @@ pub mod vfs {
         }
     }
 
+    #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+    enum OnErrorReturn {
+        Stop,
+        Retry,
+        Throw,
+    }
+
     #[derive(Default)]
     struct FileSystemLazy {
-        links: Option<collections::SortedMap<String, Inode>>,
-        shadows: Option<HashMap<usize, Inode>>,
+        links: RefCell<Option<Rc<collections::SortedMap<String, Rc<Inode>>>>>,
+        shadows: Option<HashMap<usize, Rc<Inode>>>,
         meta: Rc<RefCell<Option<collections::Metadata<String>>>>,
     }
 
@@ -346,6 +653,21 @@ pub mod vfs {
         pub host: Rc<dyn FileSystemResolverHost>,
     }
 
+    impl FileSystemResolver {
+        pub fn stat_sync(&self, path: &str) -> FileSystemResolverStats {
+            unimplemented!()
+        }
+
+        pub fn readdir_sync(&self, path: &str) -> Vec<String> {
+            unimplemented!()
+        }
+    }
+
+    pub struct FileSystemResolverStats {
+        pub mode: u32,
+        pub size: usize,
+    }
+
     pub trait FileSystemResolverHost {
         fn get_workspace_root(&self) -> String;
     }
@@ -398,6 +720,56 @@ pub mod vfs {
             fs.apply(&files);
         }
         fs
+    }
+
+    #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+    pub enum IOErrorCode {
+        EACCES,
+        EIO,
+        ENOENT,
+        EEXIST,
+        ELOOP,
+        ENOTDIR,
+        EISDIR,
+        EBADF,
+        EINVAL,
+        ENOTEMPTY,
+        EPERM,
+        EROFS,
+    }
+
+    impl IOErrorCode {
+        pub fn message(&self) -> &'static str {
+            match self {
+                Self::EACCES => "access denied",
+                Self::EIO => "an I/O error occurred",
+                Self::ENOENT => "no such file or directory",
+                Self::EEXIST => "file already exists",
+                Self::ELOOP => "too many symbolic links encountered",
+                Self::ENOTDIR => "no such directory",
+                Self::EISDIR => "path is a directory",
+                Self::EBADF => "invalid file descriptor",
+                Self::EINVAL => "invalid value",
+                Self::ENOTEMPTY => "directory not empty",
+                Self::EPERM => "operation not permitted",
+                Self::EROFS => "file system is read-only",
+            }
+        }
+    }
+
+    pub fn create_io_error(code: IOErrorCode, details: Option<String>) -> NodeJSErrnoException {
+        let details = details.unwrap_or_else(|| "".to_owned());
+        let err = NodeJSErrnoException {
+            message: format!("{code:?}: {} {}", code.message(), details),
+            code: Some(format!("{code:?}")),
+        };
+        // if (Error.captureStackTrace) Error.captureStackTrace(err, createIOError);
+        err
+    }
+
+    pub struct NodeJSErrnoException {
+        pub message: String,
+        pub code: Option<String>,
     }
 
     pub type FileSet = HashMap<String, Option<FileSetValue>>;
@@ -580,17 +952,124 @@ pub mod vfs {
         pub meta: Option<HashMap<String, ()>>,
     }
 
-    enum Inode {
+    #[derive(Clone)]
+    pub enum Inode {
         FileInode(FileInode),
         DirectoryInode(DirectoryInode),
         SymlinkInode(SymlinkInode),
     }
 
-    struct FileInode {}
+    impl Inode {
+        pub fn mode(&self) -> u32 {
+            unimplemented!()
+        }
 
-    struct DirectoryInode {}
+        pub fn as_file_inode(&self) -> &FileInode {
+            enum_unwrapped!(self, [Inode, FileInode])
+        }
 
-    struct SymlinkInode {}
+        pub fn as_file_inode_mut(&mut self) -> &mut FileInode {
+            match self {
+                Self::FileInode(value) => value,
+                _ => unreachable!(),
+            }
+        }
+
+        pub fn as_directory_inode(&self) -> &DirectoryInode {
+            enum_unwrapped!(self, [Inode, DirectoryInode])
+        }
+
+        pub fn as_symlink_inode(&self) -> &SymlinkInode {
+            enum_unwrapped!(self, [Inode, SymlinkInode])
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct FileInode {
+        pub size: Option<usize>,
+        source: RefCell<Option<String>>,
+        resolver: RefCell<Option<Rc<FileSystemResolver>>>,
+    }
+
+    impl FileInode {
+        pub fn maybe_source(&self) -> Option<String> {
+            self.source.borrow().clone()
+        }
+
+        pub fn set_source(&self, source: Option<String>) {
+            *self.source.borrow_mut() = source;
+        }
+
+        pub fn maybe_resolver(&self) -> Option<Rc<FileSystemResolver>> {
+            self.resolver.borrow().clone()
+        }
+
+        pub fn set_resolver(&self, resolver: Option<Rc<FileSystemResolver>>) {
+            *self.resolver.borrow_mut() = resolver;
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct DirectoryInode {
+        dev: u32,
+        links: RefCell<Option<Rc<collections::SortedMap<String, Rc<Inode>>>>>,
+        source: RefCell<Option<String>>,
+        resolver: RefCell<Option<Rc<FileSystemResolver>>>,
+        pub shadow_root: Option<Rc<Inode /*DirectoryInode*/>>,
+    }
+
+    impl DirectoryInode {
+        pub fn maybe_links(&self) -> Option<Rc<collections::SortedMap<String, Rc<Inode>>>> {
+            self.links.borrow().clone()
+        }
+
+        pub fn set_links(&self, links: Option<Rc<collections::SortedMap<String, Rc<Inode>>>>) {
+            *self.links.borrow_mut() = links;
+        }
+
+        pub fn maybe_source(&self) -> Option<String> {
+            self.source.borrow().clone()
+        }
+
+        pub fn set_source(&self, source: Option<String>) {
+            *self.source.borrow_mut() = source;
+        }
+
+        pub fn maybe_resolver(&self) -> Option<Rc<FileSystemResolver>> {
+            self.resolver.borrow().clone()
+        }
+
+        pub fn set_resolver(&self, resolver: Option<Rc<FileSystemResolver>>) {
+            *self.resolver.borrow_mut() = resolver;
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct SymlinkInode {
+        pub symlink: String,
+    }
+
+    fn is_directory(node: Option<&Inode>) -> bool {
+        matches!(
+            node,
+            Some(node) if node.mode() & S_IFMT == S_IFDIR
+        )
+    }
+
+    fn is_symlink(node: Option<&Inode>) -> bool {
+        matches!(
+            node,
+            Some(node) if node.mode() & S_IFMT == S_IFLNK
+        )
+    }
+
+    pub struct WalkResult {
+        pub realpath: String,
+        pub basename: String,
+        pub parent: Option<Rc<Inode>>,
+        pub links: Rc<collections::SortedMap<String, Rc<Inode>>>,
+        pub node: Option<Rc<Inode>>,
+    }
 
     thread_local! {
         static built_local_host_: RefCell<Option<Rc<dyn FileSystemResolverHost>>> = RefCell::new(None);

@@ -303,6 +303,7 @@ dependencies = [
  "bitflags",
  "fancy-regex",
  "lazy_static",
+ "local-macros",
  "regex",
  "typescript_rust",
  "typescript_services_rust",

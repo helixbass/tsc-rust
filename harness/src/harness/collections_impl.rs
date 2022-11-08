@@ -54,11 +54,22 @@ pub mod collections {
             ret
         }
 
+        pub fn get_entry<'self_>(
+            &'self_ self,
+            key: &TKey,
+        ) -> Option<(&'self_ TKey, &'self_ TValue)> {
+            unimplemented!()
+        }
+
         pub fn set(&mut self, key: TKey, value: TValue) -> &mut Self {
             unimplemented!()
         }
 
         pub fn keys(&self) -> Keys<'_, TKey, TValue> {
+            unimplemented!()
+        }
+
+        pub fn entries(&self) -> Entries<'_, TKey, TValue> {
             unimplemented!()
         }
     }
@@ -71,6 +82,20 @@ pub mod collections {
         for Keys<'sorted_map, TKey, TValue>
     {
         type Item = &'sorted_map TKey;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            unimplemented!()
+        }
+    }
+
+    pub struct Entries<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> {
+        sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+    }
+
+    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Iterator
+        for Entries<'sorted_map, TKey, TValue>
+    {
+        type Item = (&'sorted_map TKey, &'sorted_map TValue);
 
         fn next(&mut self) -> Option<Self::Item> {
             unimplemented!()
