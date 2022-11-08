@@ -82,12 +82,14 @@ pub mod fakes {
             };
             Self {
                 sys: sys.clone(),
-                default_lib_location: sys
-                    .vfs
-                    .meta()
-                    .get("defaultLibLocation")
-                    .cloned()
-                    .unwrap_or_else(|| "".to_owned()),
+                default_lib_location: {
+                    let value = sys
+                        .vfs
+                        .meta()
+                        .get("defaultLibLocation")
+                        .unwrap_or_else(|| "".to_owned());
+                    value
+                },
                 _new_line: get_new_line_character(
                     options.new_line,
                     Some(|| sys.new_line.to_owned()),

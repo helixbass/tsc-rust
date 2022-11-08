@@ -451,9 +451,10 @@ impl CompilerHost for CompilerHostConcrete {
     }
 
     fn get_default_lib_location(&self) -> Option<String> {
-        Some(get_directory_path(&normalize_path(
-            &self.system.get_executing_file_path(),
-        )))
+        // Some(get_directory_path(&normalize_path(
+        //     &self.system.get_executing_file_path(),
+        // )))
+        Some("/Users/jrosse/prj/TypeScript/built/local".to_owned())
     }
 
     fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {

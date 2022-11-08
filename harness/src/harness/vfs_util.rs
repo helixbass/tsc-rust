@@ -1,5 +1,5 @@
 pub mod vfs {
-    use std::cell::RefCell;
+    use std::cell::{Ref, RefCell, RefMut};
     use std::collections::HashMap;
     use std::iter::FromIterator;
     use std::rc::Rc;
@@ -56,7 +56,7 @@ pub mod vfs {
 
             if let Some(meta) = meta {
                 for (key, value) in meta {
-                    ret.meta_mut().set(key, value);
+                    ret.meta_mut().set(&key, value);
                 }
             }
 
@@ -91,12 +91,24 @@ pub mod vfs {
             ret
         }
 
-        pub fn meta(&self) -> &collections::Metadata<String> {
+        pub fn meta(&self) -> Ref<collections::Metadata<String>> {
             unimplemented!()
         }
 
-        pub fn meta_mut(&self) -> &mut collections::Metadata<String> {
+        pub fn meta_rc(&self) -> Rc<RefCell<collections::Metadata<String>>> {
             unimplemented!()
+        }
+
+        pub fn meta_mut(&self) -> RefMut<collections::Metadata<String>> {
+            RefMut::map(self._lazy.meta.borrow_mut(), |lazy_meta| {
+                lazy_meta.get_or_insert_with(|| {
+                    collections::Metadata::new(
+                        self._shadow_root
+                            .as_ref()
+                            .map(|_shadow_root| _shadow_root.meta_rc()),
+                    )
+                })
+            })
         }
 
         pub fn is_readonly(&self) -> bool {
@@ -162,7 +174,7 @@ pub mod vfs {
     struct FileSystemLazy {
         links: Option<collections::SortedMap<String, Inode>>,
         shadows: Option<HashMap<usize, Inode>>,
-        meta: Option<collections::Metadata<()>>,
+        meta: Rc<RefCell<Option<collections::Metadata<String>>>>,
     }
 
     pub enum TimestampOrNowOrSystemTimeOrCallback {
@@ -225,14 +237,16 @@ pub mod vfs {
         pub documents: Option<Vec<Rc<documents::TextDocument>>>,
     }
 
-    pub struct FileSystemResolver {}
+    pub struct FileSystemResolver {
+        pub host: Rc<dyn FileSystemResolverHost>,
+    }
 
     pub trait FileSystemResolverHost {
         fn get_workspace_root(&self) -> String;
     }
 
     pub fn create_resolver(host: Rc<dyn FileSystemResolverHost>) -> FileSystemResolver {
-        unimplemented!()
+        FileSystemResolver { host }
     }
 
     pub fn create_from_file_system(
@@ -250,8 +264,7 @@ pub mod vfs {
         let fs = get_built_local(host, ignore_case).shadow(None);
         if let Some(meta) = meta {
             for key in meta.keys() {
-                fs.meta_mut()
-                    .set(key.clone(), meta.get(key).unwrap().clone());
+                fs.meta_mut().set(key, meta.get(key).unwrap().clone());
             }
         }
         if let Some(time) = time {
@@ -266,7 +279,7 @@ pub mod vfs {
                 fs.mkdirp_sync(&vpath::dirname(&document.file));
                 fs.write_file_sync(&document.file, &document.text, Some("utf8"));
                 fs.filemeta_mut(&document.file)
-                    .set("document".to_owned(), document.clone());
+                    .set("document", document.clone());
                 let symlink = document.meta.get("symlink");
                 if let Some(symlink) = symlink {
                     for link in symlink.split(",").map(|link| link.trim()) {

@@ -111,7 +111,7 @@ impl IO for NodeIO {
 
 impl vfs::FileSystemResolverHost for NodeIO {
     fn get_workspace_root(&self) -> String {
-        unimplemented!()
+        "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/".to_owned()
     }
 }
 
