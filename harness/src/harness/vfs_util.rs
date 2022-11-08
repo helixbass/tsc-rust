@@ -1,4 +1,5 @@
 pub mod vfs {
+    use std::borrow::Cow;
     use std::cell::{Ref, RefCell, RefMut};
     use std::collections::HashMap;
     use std::iter::FromIterator;
@@ -144,11 +145,31 @@ pub mod vfs {
             unimplemented!()
         }
 
+        pub fn pushd(&self, path: Option<&str>) {
+            unimplemented!()
+        }
+
+        pub fn popd(&self) {
+            unimplemented!()
+        }
+
         pub fn apply(&self, files: &FileSet) {
             unimplemented!()
         }
 
+        pub fn mount_sync(&self, source: &str, target: &str, resolver: Rc<FileSystemResolver>) {
+            unimplemented!()
+        }
+
+        pub fn rimraf_sync(&self, path: &str) {
+            unimplemented!()
+        }
+
         pub fn mkdirp_sync(&self, path: &str) {
+            unimplemented!()
+        }
+
+        pub fn link_sync(&self, oldpath: &str, newpath: &str) {
             unimplemented!()
         }
 
@@ -166,7 +187,91 @@ pub mod vfs {
         }
 
         fn _apply_files(&self, files: &FileSet, dirname: &str) {
+            let mut deferred: Vec<(FileSetValue /*Symlink | Link | Mount*/, String)> = vec![];
+            self._apply_files_worker(files, dirname, &mut deferred);
+            for (entry, path) in deferred {
+                self.mkdirp_sync(&vpath::dirname(&path));
+                self.pushd(Some(&vpath::dirname(&path)));
+                match entry {
+                    FileSetValue::Symlink(entry) => {
+                        if (self.string_comparer)(&vpath::dirname(&path), &path)
+                            == Comparison::EqualTo
+                        {
+                            panic!("Roots cannot be symbolic links.");
+                        }
+                        self.symlink_sync(&vpath::resolve(dirname, &[Some(&entry.symlink)]), &path);
+                        self._apply_file_extended_options(&path, entry.meta.as_ref());
+                    }
+                    FileSetValue::Link(entry) => {
+                        if (self.string_comparer)(&vpath::dirname(&path), &path)
+                            == Comparison::EqualTo
+                        {
+                            panic!("Roots cannot be hard links.");
+                        }
+                        self.link_sync(&entry.path, &path);
+                    }
+                    FileSetValue::Mount(entry) => {
+                        self.mount_sync(&entry.source, &path, entry.resolver.clone());
+                        self._apply_file_extended_options(&path, entry.meta.as_ref());
+                    }
+                    _ => unreachable!(),
+                }
+                self.popd();
+            }
+        }
+
+        fn _apply_file_extended_options(
+            &self,
+            path: &str,
+            entry_meta: Option<&HashMap<String, ()>>,
+        ) {
             unimplemented!()
+        }
+
+        fn _apply_files_worker(
+            &self,
+            files: &FileSet,
+            dirname: &str,
+            deferred: &mut Vec<(FileSetValue /*Symlink | Link | Mount*/, String)>,
+        ) {
+            for (key, value) in files {
+                let value = normalize_file_set_entry(value.as_ref());
+                let path = if !dirname.is_empty() {
+                    vpath::resolve(dirname, &[Some(key)])
+                } else {
+                    key.clone()
+                };
+                vpath::validate(&path, Some(vpath::ValidationFlags::Absolute));
+
+                match value.as_deref() {
+                    None | Some(FileSetValue::Rmdir(_)) | Some(FileSetValue::Unlink(_)) => {
+                        if (self.string_comparer)(&vpath::dirname(&path), &path)
+                            == Comparison::EqualTo
+                        {
+                            panic!("Roots cannot be deleted.");
+                        }
+                        self.rimraf_sync(&path);
+                    }
+                    Some(FileSetValue::File(value)) => {
+                        if (self.string_comparer)(&vpath::dirname(&path), &path)
+                            == Comparison::EqualTo
+                        {
+                            panic!("Roots cannot be files.");
+                        }
+                        self.mkdirp_sync(&vpath::dirname(&path));
+                        self.write_file_sync(&path, &value.data, value.encoding.as_deref());
+                        self._apply_file_extended_options(&path, value.meta.as_ref());
+                    }
+                    Some(FileSetValue::Directory(value)) => {
+                        self.mkdirp_sync(&path);
+                        self._apply_file_extended_options(&path, value.meta.as_ref());
+                        self._apply_files_worker(&value.files, &path, deferred);
+                    }
+                    Some(value) => {
+                        deferred.push((value.clone(), path));
+                    }
+                }
+            }
         }
     }
 
@@ -368,13 +473,59 @@ pub mod vfs {
     }
 
     #[derive(Clone)]
-    pub struct Directory {}
+    pub struct Directory {
+        pub files: FileSet,
+        pub meta: Option<HashMap<String, ()>>,
+    }
+
+    impl Directory {
+        pub fn new(files: FileSet, options: Option<DirectoryOptions>) -> Self {
+            let options = options.unwrap_or_default();
+            let DirectoryOptions { meta } = options;
+            Self { files, meta }
+        }
+    }
+
+    #[derive(Default)]
+    pub struct DirectoryOptions {
+        pub meta: Option<HashMap<String, ()>>,
+    }
 
     #[derive(Clone)]
-    pub struct File {}
+    pub struct File {
+        pub data: String, /*Buffer | string*/
+        pub encoding: Option<String>,
+        pub meta: Option<HashMap<String, ()>>,
+    }
+
+    impl File {
+        pub fn new(data: String /*Buffer | string*/, options: Option<FileOptions>) -> Self {
+            let options = options.unwrap_or_default();
+            let FileOptions { meta, encoding } = options;
+            Self {
+                data,
+                encoding,
+                meta,
+            }
+        }
+    }
+
+    #[derive(Default)]
+    pub struct FileOptions {
+        pub encoding: Option<String>,
+        pub meta: Option<HashMap<String, ()>>,
+    }
 
     #[derive(Clone)]
-    pub struct Link {}
+    pub struct Link {
+        pub path: String,
+    }
+
+    impl Link {
+        pub fn new(path: String) -> Self {
+            Self { path }
+        }
+    }
 
     #[derive(Clone)]
     pub struct Rmdir {}
@@ -385,7 +536,7 @@ pub mod vfs {
     #[derive(Clone)]
     pub struct Symlink {
         pub symlink: String,
-        pub meta: Option<()>,
+        pub meta: Option<HashMap<String, ()>>,
     }
 
     impl Symlink {
@@ -398,7 +549,7 @@ pub mod vfs {
     }
 
     pub struct SymlinkNewOptions {
-        meta: Option<()>,
+        meta: Option<HashMap<String, ()>>,
     }
 
     #[derive(Clone)]
@@ -559,5 +710,26 @@ pub mod vfs {
             maybe_built_local_cs().unwrap().make_readonly();
         }
         maybe_built_local_cs().unwrap()
+    }
+
+    fn normalize_file_set_entry(value: Option<&FileSetValue>) -> Option<Cow<'_, FileSetValue>> {
+        let value = value?;
+        if matches!(
+            value,
+            FileSetValue::Directory(_)
+                | FileSetValue::File(_)
+                | FileSetValue::Link(_)
+                | FileSetValue::Symlink(_)
+                | FileSetValue::Mount(_)
+                | FileSetValue::Rmdir(_)
+                | FileSetValue::Unlink(_)
+        ) {
+            return Some(Cow::Borrowed(value));
+        }
+        Some(match value {
+            FileSetValue::String(value) /*|| Buffer.isBuffer(value)*/ => Cow::Owned(File::new(value.clone(), None).into()),
+            FileSetValue::FileSet(value) => Cow::Owned(Directory::new(value.clone(), None).into()),
+            _ => unreachable!(),
+        })
     }
 }
