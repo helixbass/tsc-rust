@@ -59,7 +59,8 @@ pub mod vfs {
         _cwd: RefCell<Option<String>>,
         _time: RefCell<TimestampOrNowOrSystemTimeOrCallback>,
         _shadow_root: Option<Rc<FileSystem>>,
-        _dir_stack: Option<Vec<String>>,
+        _dir_stack: RefCell<Option<Vec<String>>>,
+        _is_readonly: Cell<bool>,
     }
 
     impl FileSystem {
@@ -84,9 +85,10 @@ pub mod vfs {
                 }),
                 _time: RefCell::new(time),
                 _cwd: RefCell::new(None),
-                _dir_stack: None,
+                _dir_stack: RefCell::new(None),
                 _lazy: Default::default(),
                 _shadow_root: None,
+                _is_readonly: Cell::new(false),
             };
 
             if let Some(meta) = meta {
@@ -126,12 +128,16 @@ pub mod vfs {
             ret
         }
 
-        pub fn maybe_cwd(&self) -> Ref<Option<String>> {
+        fn maybe_cwd(&self) -> Ref<Option<String>> {
             self._cwd.borrow()
         }
 
-        pub fn set_cwd(&self, _cwd: Option<String>) {
+        fn set_cwd(&self, _cwd: Option<String>) {
             *self._cwd.borrow_mut() = _cwd;
+        }
+
+        fn maybe_dir_stack_mut(&self) -> RefMut<Option<Vec<String>>> {
+            self._dir_stack.borrow_mut()
         }
 
         pub fn meta(&self) -> Ref<collections::Metadata<String>> {
@@ -155,7 +161,8 @@ pub mod vfs {
         }
 
         pub fn is_readonly(&self) -> bool {
-            unimplemented!()
+            // return Object.isFrozen(this);
+            self._is_readonly.get()
         }
 
         pub fn make_readonly(&self) -> &Self {
@@ -207,7 +214,27 @@ pub mod vfs {
         }
 
         pub fn pushd(&self, path: Option<&str>) {
-            unimplemented!()
+            if self.is_readonly() {
+                // throw createIOError("EPERM");
+                panic!("EPERM");
+            }
+            let path = path
+                .filter(|path| !path.is_empty())
+                .map(|path| self._resolve(path));
+            if let Some(_cwd) = self.maybe_cwd().as_ref().filter(|_cwd| !_cwd.is_empty()) {
+                self.maybe_dir_stack_mut()
+                    .get_or_insert_with(|| vec![])
+                    .push(_cwd.clone());
+            }
+            if let Some(path) = path.filter(|path| {
+                !path.is_empty()
+                    && !matches!(
+                        self.maybe_cwd().as_ref(),
+                        Some(_cwd) if path == _cwd
+                    )
+            }) {
+                self.chdir(&path);
+            }
         }
 
         pub fn popd(&self) {
@@ -645,9 +672,14 @@ pub mod vfs {
         fn _apply_file_extended_options(
             &self,
             path: &str,
-            entry_meta: Option<&HashMap<String, ()>>,
+            entry_meta: Option<&HashMap<String, Rc<documents::TextDocument>>>,
         ) {
-            unimplemented!()
+            if let Some(meta) = entry_meta {
+                let filemeta = self.filemeta_mut(path);
+                for (key, value) in meta {
+                    filemeta.set(key, value.clone());
+                }
+            }
         }
 
         fn _apply_files_worker(
@@ -970,7 +1002,7 @@ pub mod vfs {
     #[derive(Clone)]
     pub struct Directory {
         pub files: FileSet,
-        pub meta: Option<HashMap<String, ()>>,
+        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
     }
 
     impl Directory {
@@ -983,14 +1015,14 @@ pub mod vfs {
 
     #[derive(Default)]
     pub struct DirectoryOptions {
-        pub meta: Option<HashMap<String, ()>>,
+        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
     pub struct File {
         pub data: String, /*Buffer | string*/
         pub encoding: Option<String>,
-        pub meta: Option<HashMap<String, ()>>,
+        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
     }
 
     impl File {
@@ -1008,7 +1040,7 @@ pub mod vfs {
     #[derive(Default)]
     pub struct FileOptions {
         pub encoding: Option<String>,
-        pub meta: Option<HashMap<String, ()>>,
+        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
@@ -1031,7 +1063,7 @@ pub mod vfs {
     #[derive(Clone)]
     pub struct Symlink {
         pub symlink: String,
-        pub meta: Option<HashMap<String, ()>>,
+        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
     }
 
     impl Symlink {
@@ -1044,14 +1076,14 @@ pub mod vfs {
     }
 
     pub struct SymlinkNewOptions {
-        meta: Option<HashMap<String, ()>>,
+        meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
     pub struct Mount {
         pub source: String,
         pub resolver: Rc<FileSystemResolver>,
-        pub meta: Option<HashMap<String, ()>>,
+        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
     }
 
     impl Mount {
@@ -1072,7 +1104,7 @@ pub mod vfs {
 
     #[derive(Default)]
     pub struct MountOptions {
-        pub meta: Option<HashMap<String, ()>>,
+        pub meta: Option<HashMap<String, Rc<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
@@ -1084,23 +1116,43 @@ pub mod vfs {
 
     impl Inode {
         pub fn dev(&self) -> u32 {
-            unimplemented!()
+            match self {
+                Self::FileInode(value) => value.dev,
+                Self::DirectoryInode(value) => value.dev,
+                Self::SymlinkInode(value) => value.dev,
+            }
         }
 
         pub fn mode(&self) -> u32 {
-            unimplemented!()
+            match self {
+                Self::FileInode(value) => value.mode,
+                Self::DirectoryInode(value) => value.mode,
+                Self::SymlinkInode(value) => value.mode,
+            }
         }
 
         pub fn increment_nlink(&self) {
-            unimplemented!()
+            match self {
+                Self::FileInode(value) => value.increment_nlink(),
+                Self::DirectoryInode(value) => value.increment_nlink(),
+                Self::SymlinkInode(value) => value.increment_nlink(),
+            }
         }
 
         pub fn set_ctime_ms(&self, ctime_ms: u128) {
-            unimplemented!()
+            match self {
+                Self::FileInode(value) => value.set_ctime_ms(ctime_ms),
+                Self::DirectoryInode(value) => value.set_ctime_ms(ctime_ms),
+                Self::SymlinkInode(value) => value.set_ctime_ms(ctime_ms),
+            }
         }
 
         pub fn set_mtime_ms(&self, mtime_ms: u128) {
-            unimplemented!()
+            match self {
+                Self::FileInode(value) => value.set_mtime_ms(mtime_ms),
+                Self::DirectoryInode(value) => value.set_mtime_ms(mtime_ms),
+                Self::SymlinkInode(value) => value.set_mtime_ms(mtime_ms),
+            }
         }
 
         pub fn as_file_inode(&self) -> &FileInode {
@@ -1147,10 +1199,10 @@ pub mod vfs {
         pub ino: u32,
         pub mode: u32,
         pub atime_ms: u128,
-        pub mtime_ms: u128,
-        pub ctime_ms: u128,
+        pub mtime_ms: Cell<u128>,
+        pub ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
-        pub nlink: usize,
+        nlink: Cell<usize>,
         pub size: Option<usize>,
         // buffer?: Buffer;
         source: RefCell<Option<String>>,
@@ -1175,16 +1227,28 @@ pub mod vfs {
                 ino,
                 mode,
                 atime_ms,
-                mtime_ms,
-                ctime_ms,
+                mtime_ms: Cell::new(mtime_ms),
+                ctime_ms: Cell::new(ctime_ms),
                 birthtime_ms,
-                nlink,
+                nlink: Cell::new(nlink),
                 size: None,
                 source: RefCell::new(None),
                 resolver: RefCell::new(None),
                 shadow_root: None,
                 meta: None,
             }
+        }
+
+        pub fn set_mtime_ms(&self, mtime_ms: u128) {
+            self.mtime_ms.set(mtime_ms);
+        }
+
+        pub fn set_ctime_ms(&self, ctime_ms: u128) {
+            self.ctime_ms.set(ctime_ms);
+        }
+
+        pub fn increment_nlink(&self) {
+            self.nlink.set(self.nlink.get() + 1);
         }
 
         pub fn maybe_source(&self) -> Option<String> {
@@ -1210,10 +1274,10 @@ pub mod vfs {
         pub ino: u32,
         pub mode: u32,
         pub atime_ms: u128,
-        pub mtime_ms: u128,
-        pub ctime_ms: u128,
+        pub mtime_ms: Cell<u128>,
+        pub ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
-        pub nlink: usize,
+        nlink: Cell<usize>,
         links: RefCell<Option<Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>>>,
         source: RefCell<Option<String>>,
         resolver: RefCell<Option<Rc<FileSystemResolver>>>,
@@ -1237,16 +1301,28 @@ pub mod vfs {
                 ino,
                 mode,
                 atime_ms,
-                mtime_ms,
-                ctime_ms,
+                mtime_ms: Cell::new(mtime_ms),
+                ctime_ms: Cell::new(ctime_ms),
                 birthtime_ms,
-                nlink,
+                nlink: Cell::new(nlink),
                 links: RefCell::new(None),
                 source: RefCell::new(None),
                 resolver: RefCell::new(None),
                 shadow_root: None,
                 meta: None,
             }
+        }
+
+        pub fn set_mtime_ms(&self, mtime_ms: u128) {
+            self.mtime_ms.set(mtime_ms);
+        }
+
+        pub fn set_ctime_ms(&self, ctime_ms: u128) {
+            self.ctime_ms.set(ctime_ms);
+        }
+
+        pub fn increment_nlink(&self) {
+            self.nlink.set(self.nlink.get() + 1);
         }
 
         pub fn maybe_links(
@@ -1285,10 +1361,10 @@ pub mod vfs {
         pub ino: u32,
         pub mode: u32,
         pub atime_ms: u128,
-        pub mtime_ms: u128,
-        pub ctime_ms: u128,
+        pub mtime_ms: Cell<u128>,
+        ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
-        pub nlink: usize,
+        nlink: Cell<usize>,
         pub symlink: Option<String>,
         pub shadow_root: Option<Rc<Inode /*SymlinkInode*/>>,
         meta: Option<Rc<collections::Metadata<()>>>,
@@ -1310,14 +1386,26 @@ pub mod vfs {
                 ino,
                 mode,
                 atime_ms,
-                mtime_ms,
-                ctime_ms,
+                mtime_ms: Cell::new(mtime_ms),
+                ctime_ms: Cell::new(ctime_ms),
                 birthtime_ms,
-                nlink,
+                nlink: Cell::new(nlink),
                 symlink: None,
                 shadow_root: None,
                 meta: None,
             }
+        }
+
+        pub fn set_mtime_ms(&self, mtime_ms: u128) {
+            self.mtime_ms.set(mtime_ms);
+        }
+
+        pub fn set_ctime_ms(&self, ctime_ms: u128) {
+            self.ctime_ms.set(ctime_ms);
+        }
+
+        pub fn increment_nlink(&self) {
+            self.nlink.set(self.nlink.get() + 1);
         }
 
         pub fn symlink(&self) -> &String {
