@@ -75,7 +75,26 @@ pub mod collections {
         }
 
         pub fn set(&mut self, key: TKey, value: TValue) -> &mut Self {
-            unimplemented!()
+            let index = binary_search(
+                &self._keys,
+                &key,
+                |key: &TKey, _| key,
+                |a: &TKey, b: &TKey| (self._comparer)(a, b),
+                None,
+            );
+            if index >= 0 {
+                let index: usize = index.try_into().unwrap();
+                self._values[index] = value;
+            } else {
+                self.write_preamble();
+                insert_at(&mut self._keys, (!index).try_into().unwrap(), key);
+                insert_at(&mut self._values, (!index).try_into().unwrap(), value);
+                if let Some(_order) = self._order.as_mut() {
+                    insert_at(_order, (!index).try_into().unwrap(), self._version);
+                }
+                self.write_post_script();
+            }
+            self
         }
 
         pub fn keys(&self) -> Keys<'_, TKey, TValue> {
@@ -84,6 +103,23 @@ pub mod collections {
 
         pub fn entries(&self) -> Entries<'_, TKey, TValue> {
             unimplemented!()
+        }
+
+        fn write_preamble(&mut self) {
+            // TODO: it looks like there'd need to be shared references to _keys/_values/_order for
+            // this to be meaningful
+            // if self._copy_on_write {
+            //     self._keys = self._keys.clone();
+            //     self._values = self._values.clone();
+            //     if self._order.is_some() {
+            //         self._order = self._order.clone();
+            //     }
+            //     self._copy_on_write = false;
+            // }
+        }
+
+        fn write_post_script(&mut self) {
+            self._version += 1;
         }
     }
 
@@ -112,6 +148,16 @@ pub mod collections {
 
         fn next(&mut self) -> Option<Self::Item> {
             unimplemented!()
+        }
+    }
+
+    pub fn insert_at<TItem>(array: &mut Vec<TItem>, index: usize, value: TItem) {
+        if index == 0 {
+            array.insert(0, value);
+        } else if index == array.len() {
+            array.push(value);
+        } else {
+            array.insert(index, value);
         }
     }
 

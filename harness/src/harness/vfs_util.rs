@@ -5,7 +5,7 @@ pub mod vfs {
     use std::collections::HashMap;
     use std::iter::FromIterator;
     use std::rc::Rc;
-    use std::time::SystemTime;
+    use std::time::{SystemTime, UNIX_EPOCH};
     use typescript_rust::Comparison;
 
     use crate::{collections, documents, vpath};
@@ -39,12 +39,24 @@ pub mod vfs {
         })
     }
 
+    thread_local! {
+        static ino_count_: Cell<u32> = Cell::new(0);
+    }
+
+    fn incremented_ino_count() -> u32 {
+        ino_count_.with(|ino_count| {
+            let ino_count_new = ino_count.get() + 1;
+            ino_count.set(ino_count_new);
+            ino_count_new
+        })
+    }
+
     pub struct FileSystem {
         pub ignore_case: bool,
         pub string_comparer: Rc<dyn Fn(&str, &str) -> Comparison>,
         _lazy: FileSystemLazy,
 
-        _cwd: Option<String>,
+        _cwd: RefCell<Option<String>>,
         _time: RefCell<TimestampOrNowOrSystemTimeOrCallback>,
         _shadow_root: Option<Rc<FileSystem>>,
         _dir_stack: Option<Vec<String>>,
@@ -71,7 +83,7 @@ pub mod vfs {
                     }
                 }),
                 _time: RefCell::new(time),
-                _cwd: None,
+                _cwd: RefCell::new(None),
                 _dir_stack: None,
                 _lazy: Default::default(),
                 _shadow_root: None,
@@ -109,9 +121,17 @@ pub mod vfs {
                 ret.mkdirp_sync(cwd);
             }
 
-            ret._cwd = Some(cwd.unwrap_or_else(|| "".to_owned()));
+            ret.set_cwd(Some(cwd.unwrap_or_else(|| "".to_owned())));
 
             ret
+        }
+
+        pub fn maybe_cwd(&self) -> Ref<Option<String>> {
+            self._cwd.borrow()
+        }
+
+        pub fn set_cwd(&self, _cwd: Option<String>) {
+            *self._cwd.borrow_mut() = _cwd;
         }
 
         pub fn meta(&self) -> Ref<collections::Metadata<String>> {
@@ -148,7 +168,22 @@ pub mod vfs {
         }
 
         pub fn time(&self) -> u128 {
-            unimplemented!()
+            let result = match self._time.borrow().clone() {
+                TimestampOrNowOrSystemTimeOrCallback::Callback(_time) => _time(),
+                TimestampOrNowOrSystemTimeOrCallback::Timestamp(_time) => _time.into(),
+                TimestampOrNowOrSystemTimeOrCallback::Now => TimestampOrNowOrSystemTime::Now,
+                TimestampOrNowOrSystemTimeOrCallback::SystemTime(_time) => _time.into(),
+            };
+            match result {
+                TimestampOrNowOrSystemTime::Timestamp(_time) => _time,
+                TimestampOrNowOrSystemTime::Now => SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+                TimestampOrNowOrSystemTime::SystemTime(_time) => {
+                    _time.duration_since(UNIX_EPOCH).unwrap().as_millis()
+                }
+            }
         }
 
         pub fn set_time<TValue: Into<TimestampOrNowOrSystemTimeOrCallback>>(&self, value: TValue) {
@@ -265,7 +300,42 @@ pub mod vfs {
 
         fn _mknod(&self, dev: u32, type_: u32, mode: u32, time: Option<u128>) -> Inode {
             let time = time.unwrap_or_else(|| self.time());
-            unimplemented!()
+            match type_ {
+                S_IFREG => FileInode::new(
+                    dev,
+                    incremented_ino_count(),
+                    (mode & !S_IFMT & !0o022 & 0o7777) | (type_ & S_IFMT),
+                    time,
+                    time,
+                    time,
+                    time,
+                    0,
+                )
+                .into(),
+                S_IFDIR => DirectoryInode::new(
+                    dev,
+                    incremented_ino_count(),
+                    (mode & !S_IFMT & !0o022 & 0o7777) | (type_ & S_IFMT),
+                    time,
+                    time,
+                    time,
+                    time,
+                    0,
+                )
+                .into(),
+                S_IFLNK => SymlinkInode::new(
+                    dev,
+                    incremented_ino_count(),
+                    (mode & !S_IFMT & !0o022 & 0o7777) | (type_ & S_IFMT),
+                    time,
+                    time,
+                    time,
+                    time,
+                    0,
+                )
+                .into(),
+                _ => unreachable!(),
+            }
         }
 
         fn _add_link(
@@ -277,7 +347,21 @@ pub mod vfs {
             time: Option<u128>,
         ) {
             let time = time.unwrap_or_else(|| self.time());
-            unimplemented!()
+            links.set(name.to_owned(), node.clone());
+            node.increment_nlink();
+            node.set_ctime_ms(time);
+            if let Some(parent) = parent {
+                parent.set_mtime_ms(time);
+            }
+            if parent.is_none()
+                && self
+                    .maybe_cwd()
+                    .as_ref()
+                    .filter(|_cwd| !_cwd.is_empty())
+                    .is_none()
+            {
+                self.set_cwd(Some(name.to_owned()));
+            }
         }
 
         fn _get_root_links(&self) -> Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>> {
@@ -433,7 +517,7 @@ pub mod vfs {
                 if is_symlink(Some(node)) {
                     let dirname = vpath::format(&components[..step]);
                     let symlink =
-                        vpath::resolve(&dirname, &[Some(&node.as_symlink_inode().symlink)]);
+                        vpath::resolve(&dirname, &[Some(node.as_symlink_inode().symlink())]);
                     links = self._get_root_links();
                     parent = None;
                     let mut components_new = vpath::parse(&symlink, None);
@@ -505,7 +589,7 @@ pub mod vfs {
         }
 
         fn _resolve(&self, path: &str) -> String {
-            if let Some(_cwd) = self._cwd.as_ref().filter(|_cwd| !_cwd.is_empty()) {
+            if let Some(_cwd) = self.maybe_cwd().as_ref().filter(|_cwd| !_cwd.is_empty()) {
                 vpath::resolve(
                     _cwd,
                     &[Some(&vpath::validate(
@@ -627,6 +711,7 @@ pub mod vfs {
         meta: Rc<RefCell<Option<collections::Metadata<String>>>>,
     }
 
+    #[derive(Clone)]
     pub enum TimestampOrNowOrSystemTimeOrCallback {
         Timestamp(u128),
         Now,
@@ -1006,6 +1091,18 @@ pub mod vfs {
             unimplemented!()
         }
 
+        pub fn increment_nlink(&self) {
+            unimplemented!()
+        }
+
+        pub fn set_ctime_ms(&self, ctime_ms: u128) {
+            unimplemented!()
+        }
+
+        pub fn set_mtime_ms(&self, mtime_ms: u128) {
+            unimplemented!()
+        }
+
         pub fn as_file_inode(&self) -> &FileInode {
             enum_unwrapped!(self, [Inode, FileInode])
         }
@@ -1026,14 +1123,70 @@ pub mod vfs {
         }
     }
 
+    impl From<FileInode> for Inode {
+        fn from(value: FileInode) -> Self {
+            Self::FileInode(value)
+        }
+    }
+
+    impl From<DirectoryInode> for Inode {
+        fn from(value: DirectoryInode) -> Self {
+            Self::DirectoryInode(value)
+        }
+    }
+
+    impl From<SymlinkInode> for Inode {
+        fn from(value: SymlinkInode) -> Self {
+            Self::SymlinkInode(value)
+        }
+    }
+
     #[derive(Clone)]
     pub struct FileInode {
+        pub dev: u32,
+        pub ino: u32,
+        pub mode: u32,
+        pub atime_ms: u128,
+        pub mtime_ms: u128,
+        pub ctime_ms: u128,
+        pub birthtime_ms: u128,
+        pub nlink: usize,
         pub size: Option<usize>,
+        // buffer?: Buffer;
         source: RefCell<Option<String>>,
         resolver: RefCell<Option<Rc<FileSystemResolver>>>,
+        shadow_root: Option<Rc<Inode /*FileInode*/>>,
+        meta: Option<Rc<collections::Metadata<()>>>,
     }
 
     impl FileInode {
+        pub fn new(
+            dev: u32,
+            ino: u32,
+            mode: u32,
+            atime_ms: u128,
+            mtime_ms: u128,
+            ctime_ms: u128,
+            birthtime_ms: u128,
+            nlink: usize,
+        ) -> Self {
+            Self {
+                dev,
+                ino,
+                mode,
+                atime_ms,
+                mtime_ms,
+                ctime_ms,
+                birthtime_ms,
+                nlink,
+                size: None,
+                source: RefCell::new(None),
+                resolver: RefCell::new(None),
+                shadow_root: None,
+                meta: None,
+            }
+        }
+
         pub fn maybe_source(&self) -> Option<String> {
             self.source.borrow().clone()
         }
@@ -1053,14 +1206,49 @@ pub mod vfs {
 
     #[derive(Clone)]
     pub struct DirectoryInode {
-        dev: u32,
+        pub dev: u32,
+        pub ino: u32,
+        pub mode: u32,
+        pub atime_ms: u128,
+        pub mtime_ms: u128,
+        pub ctime_ms: u128,
+        pub birthtime_ms: u128,
+        pub nlink: usize,
         links: RefCell<Option<Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>>>,
         source: RefCell<Option<String>>,
         resolver: RefCell<Option<Rc<FileSystemResolver>>>,
         pub shadow_root: Option<Rc<Inode /*DirectoryInode*/>>,
+        meta: Option<Rc<collections::Metadata<()>>>,
     }
 
     impl DirectoryInode {
+        pub fn new(
+            dev: u32,
+            ino: u32,
+            mode: u32,
+            atime_ms: u128,
+            mtime_ms: u128,
+            ctime_ms: u128,
+            birthtime_ms: u128,
+            nlink: usize,
+        ) -> Self {
+            Self {
+                dev,
+                ino,
+                mode,
+                atime_ms,
+                mtime_ms,
+                ctime_ms,
+                birthtime_ms,
+                nlink,
+                links: RefCell::new(None),
+                source: RefCell::new(None),
+                resolver: RefCell::new(None),
+                shadow_root: None,
+                meta: None,
+            }
+        }
+
         pub fn maybe_links(
             &self,
         ) -> Option<Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>> {
@@ -1093,7 +1281,48 @@ pub mod vfs {
 
     #[derive(Clone)]
     pub struct SymlinkInode {
-        pub symlink: String,
+        pub dev: u32,
+        pub ino: u32,
+        pub mode: u32,
+        pub atime_ms: u128,
+        pub mtime_ms: u128,
+        pub ctime_ms: u128,
+        pub birthtime_ms: u128,
+        pub nlink: usize,
+        pub symlink: Option<String>,
+        pub shadow_root: Option<Rc<Inode /*SymlinkInode*/>>,
+        meta: Option<Rc<collections::Metadata<()>>>,
+    }
+
+    impl SymlinkInode {
+        pub fn new(
+            dev: u32,
+            ino: u32,
+            mode: u32,
+            atime_ms: u128,
+            mtime_ms: u128,
+            ctime_ms: u128,
+            birthtime_ms: u128,
+            nlink: usize,
+        ) -> Self {
+            Self {
+                dev,
+                ino,
+                mode,
+                atime_ms,
+                mtime_ms,
+                ctime_ms,
+                birthtime_ms,
+                nlink,
+                symlink: None,
+                shadow_root: None,
+                meta: None,
+            }
+        }
+
+        pub fn symlink(&self) -> &String {
+            self.symlink.as_ref().unwrap()
+        }
     }
 
     fn is_directory(node: Option<&Inode>) -> bool {
