@@ -166,12 +166,31 @@ pub mod vfs {
         }
 
         pub fn make_readonly(&self) -> &Self {
-            unimplemented!()
+            // Object.freeze(this);
+            self._is_readonly.set(true);
+            self
         }
 
         pub fn shadow(self: Rc<Self>, ignore_case: Option<bool>) -> Self {
             let ignore_case = ignore_case.unwrap_or(self.ignore_case);
-            unimplemented!()
+            if !self.is_readonly() {
+                panic!("Cannot shadow a mutable file system.");
+            }
+            if ignore_case && !self.ignore_case {
+                panic!("Cannot create a case-insensitive file system from a case-sensitive one.");
+            }
+            let mut fs = FileSystem::new(
+                ignore_case,
+                Some(FileSystemOptions {
+                    time: Some(self._time.borrow().clone()),
+                    files: None,
+                    cwd: None,
+                    meta: None,
+                }),
+            );
+            fs._shadow_root = Some(self.clone());
+            fs.set_cwd(self.maybe_cwd().clone());
+            fs
         }
 
         pub fn time(&self) -> u128 {
@@ -400,42 +419,18 @@ pub mod vfs {
 
         fn _mknod(&self, dev: u32, type_: u32, mode: u32, time: Option<u128>) -> Inode {
             let time = time.unwrap_or_else(|| self.time());
-            match type_ {
-                S_IFREG => FileInode::new(
-                    dev,
-                    incremented_ino_count(),
-                    (mode & !S_IFMT & !0o022 & 0o7777) | (type_ & S_IFMT),
-                    time,
-                    time,
-                    time,
-                    time,
-                    0,
-                )
-                .into(),
-                S_IFDIR => DirectoryInode::new(
-                    dev,
-                    incremented_ino_count(),
-                    (mode & !S_IFMT & !0o022 & 0o7777) | (type_ & S_IFMT),
-                    time,
-                    time,
-                    time,
-                    time,
-                    0,
-                )
-                .into(),
-                S_IFLNK => SymlinkInode::new(
-                    dev,
-                    incremented_ino_count(),
-                    (mode & !S_IFMT & !0o022 & 0o7777) | (type_ & S_IFMT),
-                    time,
-                    time,
-                    time,
-                    time,
-                    0,
-                )
-                .into(),
-                _ => unreachable!(),
-            }
+            Inode::new(
+                type_,
+                dev,
+                incremented_ino_count(),
+                (mode & !S_IFMT & !0o022 & 0o7777) | (type_ & S_IFMT),
+                time,
+                time,
+                time,
+                time,
+                0,
+                None,
+            )
         }
 
         fn _add_link(
@@ -550,6 +545,36 @@ pub mod vfs {
             node_as_directory_inode.maybe_links().unwrap()
         }
 
+        fn _get_shadow(&self, root: Rc<Inode>) -> Rc<Inode> {
+            self._lazy
+                .shadows
+                .borrow_mut()
+                .get_or_insert_with(|| Default::default())
+                .entry(root.ino())
+                .or_insert_with(|| {
+                    let mut shadow = Inode::new(
+                        root.canonical_type(),
+                        root.dev(),
+                        root.ino(),
+                        root.mode(),
+                        root.atime_ms(),
+                        root.mtime_ms(),
+                        root.ctime_ms(),
+                        root.birthtime_ms(),
+                        root.nlink(),
+                        Some(root.clone()),
+                    );
+
+                    if is_symlink(Some(&root)) {
+                        shadow.as_symlink_inode_mut().symlink =
+                            root.as_symlink_inode().symlink.clone();
+                    }
+
+                    Rc::new(shadow)
+                })
+                .clone()
+        }
+
         fn _copy_shadow_links<
             'source,
             TSource: IntoIterator<Item = (&'source String, &'source Rc<Inode>)>,
@@ -558,7 +583,10 @@ pub mod vfs {
             source: TSource,
             target: &mut collections::SortedMap<String, Rc<Inode>>,
         ) {
-            unimplemented!()
+            let source = source.into_iter();
+            for (name, root) in source {
+                target.set(name.clone(), self._get_shadow(root.clone()));
+            }
         }
 
         fn _walk<TOnError: FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>(
@@ -812,7 +840,7 @@ pub mod vfs {
     #[derive(Default)]
     struct FileSystemLazy {
         links: RefCell<Option<Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>>>,
-        shadows: Option<HashMap<usize, Rc<Inode>>>,
+        shadows: RefCell<Option<HashMap<u32, Rc<Inode>>>>,
         meta: Rc<RefCell<Option<collections::Metadata<String>>>>,
     }
 
@@ -1188,6 +1216,67 @@ pub mod vfs {
     }
 
     impl Inode {
+        pub fn new(
+            type_: u32,
+            dev: u32,
+            ino: u32,
+            mode: u32,
+            atime_ms: u128,
+            mtime_ms: u128,
+            ctime_ms: u128,
+            birthtime_ms: u128,
+            nlink: usize,
+            shadow_root: Option<Rc<Inode>>,
+        ) -> Self {
+            match type_ {
+                S_IFREG => FileInode::new(
+                    dev,
+                    ino,
+                    mode,
+                    atime_ms,
+                    mtime_ms,
+                    ctime_ms,
+                    birthtime_ms,
+                    nlink,
+                    shadow_root,
+                )
+                .into(),
+                S_IFDIR => DirectoryInode::new(
+                    dev,
+                    ino,
+                    mode,
+                    atime_ms,
+                    mtime_ms,
+                    ctime_ms,
+                    birthtime_ms,
+                    nlink,
+                    shadow_root,
+                )
+                .into(),
+                S_IFLNK => SymlinkInode::new(
+                    dev,
+                    ino,
+                    mode,
+                    atime_ms,
+                    mtime_ms,
+                    ctime_ms,
+                    birthtime_ms,
+                    nlink,
+                    shadow_root,
+                )
+                .into(),
+                _ => unreachable!(),
+            }
+        }
+
+        pub fn canonical_type(&self) -> u32 {
+            match self {
+                Self::FileInode(_) => S_IFREG,
+                Self::DirectoryInode(_) => S_IFDIR,
+                Self::SymlinkInode(_) => S_IFLNK,
+            }
+        }
+
         pub fn dev(&self) -> u32 {
             match self {
                 Self::FileInode(value) => value.dev,
@@ -1196,11 +1285,59 @@ pub mod vfs {
             }
         }
 
+        pub fn ino(&self) -> u32 {
+            match self {
+                Self::FileInode(value) => value.ino,
+                Self::DirectoryInode(value) => value.ino,
+                Self::SymlinkInode(value) => value.ino,
+            }
+        }
+
         pub fn mode(&self) -> u32 {
             match self {
                 Self::FileInode(value) => value.mode,
                 Self::DirectoryInode(value) => value.mode,
                 Self::SymlinkInode(value) => value.mode,
+            }
+        }
+
+        pub fn atime_ms(&self) -> u128 {
+            match self {
+                Self::FileInode(value) => value.atime_ms,
+                Self::DirectoryInode(value) => value.atime_ms,
+                Self::SymlinkInode(value) => value.atime_ms,
+            }
+        }
+
+        pub fn ctime_ms(&self) -> u128 {
+            match self {
+                Self::FileInode(value) => value.ctime_ms(),
+                Self::DirectoryInode(value) => value.ctime_ms(),
+                Self::SymlinkInode(value) => value.ctime_ms(),
+            }
+        }
+
+        pub fn mtime_ms(&self) -> u128 {
+            match self {
+                Self::FileInode(value) => value.mtime_ms(),
+                Self::DirectoryInode(value) => value.mtime_ms(),
+                Self::SymlinkInode(value) => value.mtime_ms(),
+            }
+        }
+
+        pub fn birthtime_ms(&self) -> u128 {
+            match self {
+                Self::FileInode(value) => value.birthtime_ms,
+                Self::DirectoryInode(value) => value.birthtime_ms,
+                Self::SymlinkInode(value) => value.birthtime_ms,
+            }
+        }
+
+        pub fn nlink(&self) -> usize {
+            match self {
+                Self::FileInode(value) => value.nlink(),
+                Self::DirectoryInode(value) => value.nlink(),
+                Self::SymlinkInode(value) => value.nlink(),
             }
         }
 
@@ -1245,6 +1382,13 @@ pub mod vfs {
 
         pub fn as_symlink_inode(&self) -> &SymlinkInode {
             enum_unwrapped!(self, [Inode, SymlinkInode])
+        }
+
+        pub fn as_symlink_inode_mut(&mut self) -> &mut SymlinkInode {
+            match self {
+                Self::SymlinkInode(value) => value,
+                _ => unreachable!(),
+            }
         }
     }
 
@@ -1294,6 +1438,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
+            shadow_root: Option<Rc<Inode>>,
         ) -> Self {
             Self {
                 dev,
@@ -1307,17 +1452,29 @@ pub mod vfs {
                 size: None,
                 source: RefCell::new(None),
                 resolver: RefCell::new(None),
-                shadow_root: None,
+                shadow_root,
                 meta: None,
             }
+        }
+
+        pub fn mtime_ms(&self) -> u128 {
+            self.mtime_ms.get()
         }
 
         pub fn set_mtime_ms(&self, mtime_ms: u128) {
             self.mtime_ms.set(mtime_ms);
         }
 
+        pub fn ctime_ms(&self) -> u128 {
+            self.ctime_ms.get()
+        }
+
         pub fn set_ctime_ms(&self, ctime_ms: u128) {
             self.ctime_ms.set(ctime_ms);
+        }
+
+        pub fn nlink(&self) -> usize {
+            self.nlink.get()
         }
 
         pub fn increment_nlink(&self) {
@@ -1368,6 +1525,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
+            shadow_root: Option<Rc<Inode>>,
         ) -> Self {
             Self {
                 dev,
@@ -1381,17 +1539,29 @@ pub mod vfs {
                 links: RefCell::new(None),
                 source: RefCell::new(None),
                 resolver: RefCell::new(None),
-                shadow_root: None,
+                shadow_root,
                 meta: None,
             }
+        }
+
+        pub fn mtime_ms(&self) -> u128 {
+            self.mtime_ms.get()
         }
 
         pub fn set_mtime_ms(&self, mtime_ms: u128) {
             self.mtime_ms.set(mtime_ms);
         }
 
+        pub fn ctime_ms(&self) -> u128 {
+            self.ctime_ms.get()
+        }
+
         pub fn set_ctime_ms(&self, ctime_ms: u128) {
             self.ctime_ms.set(ctime_ms);
+        }
+
+        pub fn nlink(&self) -> usize {
+            self.nlink.get()
         }
 
         pub fn increment_nlink(&self) {
@@ -1453,6 +1623,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
+            shadow_root: Option<Rc<Inode>>,
         ) -> Self {
             Self {
                 dev,
@@ -1464,17 +1635,29 @@ pub mod vfs {
                 birthtime_ms,
                 nlink: Cell::new(nlink),
                 symlink: None,
-                shadow_root: None,
+                shadow_root,
                 meta: None,
             }
+        }
+
+        pub fn mtime_ms(&self) -> u128 {
+            self.mtime_ms.get()
         }
 
         pub fn set_mtime_ms(&self, mtime_ms: u128) {
             self.mtime_ms.set(mtime_ms);
         }
 
+        pub fn ctime_ms(&self) -> u128 {
+            self.ctime_ms.get()
+        }
+
         pub fn set_ctime_ms(&self, ctime_ms: u128) {
             self.ctime_ms.set(ctime_ms);
+        }
+
+        pub fn nlink(&self) -> usize {
+            self.nlink.get()
         }
 
         pub fn increment_nlink(&self) {

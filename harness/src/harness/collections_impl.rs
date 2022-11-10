@@ -113,7 +113,9 @@ pub mod collections {
         }
 
         pub fn entries(&self) -> Entries<'_, TKey, TValue> {
-            unimplemented!()
+            let indices = self.get_iteration_order();
+            self.set_copy_on_write(true);
+            Entries::new(&self._keys, &self._values, indices, self._version, self)
         }
 
         fn write_preamble(&mut self) {
@@ -210,7 +212,31 @@ pub mod collections {
     }
 
     pub struct Entries<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> {
+        _keys: &'sorted_map Vec<TKey>,
+        _values: &'sorted_map Vec<TValue>,
+        indices: Option<Vec<usize>>,
+        version: usize,
         sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+        current_index: usize,
+    }
+
+    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Entries<'sorted_map, TKey, TValue> {
+        pub fn new(
+            _keys: &'sorted_map Vec<TKey>,
+            _values: &'sorted_map Vec<TValue>,
+            indices: Option<Vec<usize>>,
+            version: usize,
+            sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+        ) -> Self {
+            Self {
+                _keys,
+                _values,
+                indices,
+                version,
+                sorted_map,
+                current_index: 0,
+            }
+        }
     }
 
     impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Iterator
@@ -219,7 +245,32 @@ pub mod collections {
         type Item = (&'sorted_map TKey, &'sorted_map TValue);
 
         fn next(&mut self) -> Option<Self::Item> {
-            unimplemented!()
+            if self.current_index >= self._keys.len() {
+                return None;
+            }
+            let ret = if let Some(indices) = self.indices.as_ref() {
+                (
+                    &self._keys[indices[self.current_index]],
+                    &self._values[indices[self.current_index]],
+                )
+            } else {
+                (
+                    &self._keys[self.current_index],
+                    &self._values[self.current_index],
+                )
+            };
+            self.current_index += 1;
+            Some(ret)
+        }
+    }
+
+    impl<'sorted_map, TKey: 'sorted_map, TValue: 'sorted_map> Drop
+        for Entries<'sorted_map, TKey, TValue>
+    {
+        fn drop(&mut self) {
+            if self.version == self.sorted_map._version {
+                self.sorted_map.set_copy_on_write(false);
+            }
         }
     }
 
