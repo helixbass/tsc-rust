@@ -210,7 +210,28 @@ pub mod vfs {
         }
 
         pub fn chdir(&self, path: &str) {
-            unimplemented!()
+            if self.is_readonly() {
+                // throw createIOError("EPERM");
+                panic!("EPERM");
+            }
+            let path = self._resolve(path);
+            let WalkResult { node, .. } = self
+                ._walk(
+                    &path,
+                    None,
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if node.is_none() {
+                // throw createIOError("ENOENT");
+                panic!("ENOENT");
+            }
+            let node = node.unwrap();
+            if !is_directory(Some(&node)) {
+                // throw createIOError("ENOTDIR");
+                panic!("ENOTDIR");
+            }
+            self.set_cwd(Some(path));
         }
 
         pub fn pushd(&self, path: Option<&str>) {
@@ -238,7 +259,15 @@ pub mod vfs {
         }
 
         pub fn popd(&self) {
-            unimplemented!()
+            if self.is_readonly() {
+                // throw createIOError("EPERM");
+                panic!("EPERM");
+            }
+            let mut _dir_stack = self._dir_stack.borrow_mut();
+            let path = _dir_stack.as_mut().and_then(|_dir_stack| _dir_stack.pop());
+            if let Some(path) = path {
+                self.chdir(&path);
+            }
         }
 
         pub fn apply(&self, files: &FileSet) {
@@ -246,7 +275,51 @@ pub mod vfs {
         }
 
         pub fn mount_sync(&self, source: &str, target: &str, resolver: Rc<FileSystemResolver>) {
-            unimplemented!()
+            if self.is_readonly() {
+                // throw createIOError("EROFS");
+                panic!("EROFS");
+            }
+
+            let source = vpath::validate(source, Some(vpath::ValidationFlags::Absolute));
+
+            let WalkResult {
+                parent,
+                links,
+                node: existing_node,
+                basename,
+                ..
+            } = self
+                ._walk(
+                    &self._resolve(target),
+                    Some(true),
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if existing_node.is_some() {
+                // throw createIOError("EEXIST");
+                panic!("EEXIST");
+            }
+
+            let time = self.time();
+            let node = self._mknod(
+                if let Some(parent) = parent.as_ref() {
+                    parent.dev()
+                } else {
+                    incremented_dev_count()
+                },
+                S_IFDIR,
+                0o777,
+                Some(time),
+            );
+            node.as_directory_inode().set_source(Some(source));
+            node.as_directory_inode().set_resolver(Some(resolver));
+            self._add_link(
+                parent.as_deref(),
+                &mut links.borrow_mut(),
+                &basename,
+                Rc::new(node),
+                Some(time),
+            );
         }
 
         pub fn rimraf_sync(&self, path: &str) {
