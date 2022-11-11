@@ -217,11 +217,42 @@ pub mod vfs {
             *self._time.borrow_mut() = value;
         }
 
-        pub fn filemeta_mut(
+        pub fn filemeta(
             &self,
             path: &str,
-        ) -> &mut collections::Metadata<Rc<documents::TextDocument>> {
-            unimplemented!()
+        ) -> Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>> {
+            let WalkResult { node, .. } = self
+                ._walk(
+                    &self._resolve(path),
+                    None,
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if node.is_none() {
+                // throw createIOError("ENOENT");
+                panic!("ENOENT");
+            }
+            let ref node = node.unwrap();
+            self._filemeta(node)
+        }
+
+        pub fn _filemeta(
+            &self,
+            node: &Inode,
+        ) -> Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>> {
+            node.meta_mut()
+                .get_or_insert_with(|| {
+                    let parent_meta = if let (Some(node_shadow_root), Some(_shadow_root)) = (
+                        node.maybe_shadow_root().as_ref(),
+                        self._shadow_root.as_ref(),
+                    ) {
+                        Some(_shadow_root._filemeta(node_shadow_root))
+                    } else {
+                        None
+                    };
+                    Rc::new(RefCell::new(collections::Metadata::new(parent_meta)))
+                })
+                .clone()
         }
 
         pub fn cwd(&self) -> &str {
@@ -833,7 +864,8 @@ pub mod vfs {
             entry_meta: Option<&HashMap<String, Rc<documents::TextDocument>>>,
         ) {
             if let Some(meta) = entry_meta {
-                let filemeta = self.filemeta_mut(path);
+                let filemeta = self.filemeta(path);
+                let mut filemeta = filemeta.borrow_mut();
                 for (key, value) in meta {
                     filemeta.set(key, value.clone());
                 }
@@ -1035,7 +1067,8 @@ pub mod vfs {
             for document in documents {
                 fs.mkdirp_sync(&vpath::dirname(&document.file));
                 fs.write_file_sync(&document.file, document.text.clone(), Some("utf8"));
-                fs.filemeta_mut(&document.file)
+                fs.filemeta(&document.file)
+                    .borrow_mut()
                     .set("document", document.clone());
                 let symlink = document.meta.get("symlink");
                 if let Some(symlink) = symlink {
@@ -1439,6 +1472,25 @@ pub mod vfs {
             }
         }
 
+        pub fn meta_mut(
+            &self,
+        ) -> RefMut<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>
+        {
+            match self {
+                Self::FileInode(value) => value.meta_mut(),
+                Self::DirectoryInode(value) => value.meta_mut(),
+                Self::SymlinkInode(value) => value.meta_mut(),
+            }
+        }
+
+        pub fn maybe_shadow_root(&self) -> Option<Rc<Inode>> {
+            match self {
+                Self::FileInode(value) => value.shadow_root.clone(),
+                Self::DirectoryInode(value) => value.shadow_root.clone(),
+                Self::SymlinkInode(value) => value.shadow_root.clone(),
+            }
+        }
+
         pub fn as_file_inode(&self) -> &FileInode {
             enum_unwrapped!(self, [Inode, FileInode])
         }
@@ -1499,7 +1551,7 @@ pub mod vfs {
         source: RefCell<Option<String>>,
         resolver: RefCell<Option<Rc<FileSystemResolver>>>,
         shadow_root: Option<Rc<Inode /*FileInode*/>>,
-        meta: Option<Rc<collections::Metadata<()>>>,
+        meta: RefCell<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>,
     }
 
     impl FileInode {
@@ -1583,6 +1635,13 @@ pub mod vfs {
         pub fn set_resolver(&self, resolver: Option<Rc<FileSystemResolver>>) {
             *self.resolver.borrow_mut() = resolver;
         }
+
+        pub fn meta_mut(
+            &self,
+        ) -> RefMut<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>
+        {
+            self.meta.borrow_mut()
+        }
     }
 
     #[derive(Clone)]
@@ -1599,7 +1658,7 @@ pub mod vfs {
         source: RefCell<Option<String>>,
         resolver: RefCell<Option<Rc<FileSystemResolver>>>,
         pub shadow_root: Option<Rc<Inode /*DirectoryInode*/>>,
-        meta: Option<Rc<collections::Metadata<()>>>,
+        meta: RefCell<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>,
     }
 
     impl DirectoryInode {
@@ -1623,11 +1682,11 @@ pub mod vfs {
                 ctime_ms: Cell::new(ctime_ms),
                 birthtime_ms,
                 nlink: Cell::new(nlink),
-                links: RefCell::new(None),
-                source: RefCell::new(None),
-                resolver: RefCell::new(None),
+                links: Default::default(),
+                source: Default::default(),
+                resolver: Default::default(),
                 shadow_root,
-                meta: None,
+                meta: Default::default(),
             }
         }
 
@@ -1683,6 +1742,13 @@ pub mod vfs {
         pub fn set_resolver(&self, resolver: Option<Rc<FileSystemResolver>>) {
             *self.resolver.borrow_mut() = resolver;
         }
+
+        pub fn meta_mut(
+            &self,
+        ) -> RefMut<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>
+        {
+            self.meta.borrow_mut()
+        }
     }
 
     #[derive(Clone)]
@@ -1697,7 +1763,7 @@ pub mod vfs {
         nlink: Cell<usize>,
         pub symlink: Option<String>,
         pub shadow_root: Option<Rc<Inode /*SymlinkInode*/>>,
-        meta: Option<Rc<collections::Metadata<()>>>,
+        meta: RefCell<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>,
     }
 
     impl SymlinkInode {
@@ -1721,9 +1787,9 @@ pub mod vfs {
                 ctime_ms: Cell::new(ctime_ms),
                 birthtime_ms,
                 nlink: Cell::new(nlink),
-                symlink: None,
+                symlink: Default::default(),
                 shadow_root,
-                meta: None,
+                meta: Default::default(),
             }
         }
 
@@ -1753,6 +1819,13 @@ pub mod vfs {
 
         pub fn symlink(&self) -> &String {
             self.symlink.as_ref().unwrap()
+        }
+
+        pub fn meta_mut(
+            &self,
+        ) -> RefMut<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>
+        {
+            self.meta.borrow_mut()
         }
     }
 
