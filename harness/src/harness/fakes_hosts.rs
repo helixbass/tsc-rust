@@ -86,6 +86,7 @@ pub mod fakes {
                     let value = sys
                         .vfs
                         .meta()
+                        .borrow()
                         .get("defaultLibLocation")
                         .unwrap_or_else(|| "".to_owned());
                     value

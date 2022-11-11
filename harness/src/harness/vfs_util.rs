@@ -93,7 +93,7 @@ pub mod vfs {
 
             if let Some(meta) = meta {
                 for (key, value) in meta {
-                    ret.meta_mut().set(&key, value);
+                    ret.meta().borrow_mut().set(&key, value);
                 }
             }
 
@@ -140,24 +140,15 @@ pub mod vfs {
             self._dir_stack.borrow_mut()
         }
 
-        pub fn meta(&self) -> Ref<collections::Metadata<String>> {
-            unimplemented!()
-        }
-
-        pub fn meta_rc(&self) -> Rc<RefCell<collections::Metadata<String>>> {
-            unimplemented!()
-        }
-
-        pub fn meta_mut(&self) -> RefMut<collections::Metadata<String>> {
-            RefMut::map(self._lazy.meta.borrow_mut(), |lazy_meta| {
-                lazy_meta.get_or_insert_with(|| {
-                    collections::Metadata::new(
-                        self._shadow_root
-                            .as_ref()
-                            .map(|_shadow_root| _shadow_root.meta_rc()),
-                    )
-                })
-            })
+        pub fn meta(&self) -> Rc<RefCell<collections::Metadata<String>>> {
+            self._lazy.meta.borrow_mut().get_or_insert_with(|| {
+                Rc::new(RefCell::new(collections::Metadata::new(
+                    self._shadow_root
+                        .as_ref()
+                        .map(|_shadow_root| _shadow_root.meta()),
+                )))
+            });
+            self._lazy.meta.borrow().clone().unwrap()
         }
 
         pub fn is_readonly(&self) -> bool {
@@ -947,7 +938,7 @@ pub mod vfs {
     struct FileSystemLazy {
         links: RefCell<Option<Rc<RefCell<collections::SortedMap<String, Rc<Inode>>>>>>,
         shadows: RefCell<Option<HashMap<u32, Rc<Inode>>>>,
-        meta: Rc<RefCell<Option<collections::Metadata<String>>>>,
+        meta: Rc<RefCell<Option<Rc<RefCell<collections::Metadata<String>>>>>>,
     }
 
     #[derive(Clone)]
@@ -1053,7 +1044,9 @@ pub mod vfs {
         let fs = get_built_local(host, ignore_case).shadow(None);
         if let Some(meta) = meta {
             for key in meta.keys() {
-                fs.meta_mut().set(key, meta.get(key).unwrap().clone());
+                fs.meta()
+                    .borrow_mut()
+                    .set(key, meta.get(key).unwrap().clone());
             }
         }
         if let Some(time) = time {
