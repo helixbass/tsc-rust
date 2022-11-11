@@ -42,7 +42,7 @@ pub(crate) enum FileSystemEntryKind {
     Directory,
 }
 
-pub type Buffer = ();
+pub type Buffer = Vec<u8>;
 
 pub trait System: ConvertToTSConfigHost {
     fn args(&self) -> &[String];
@@ -145,7 +145,7 @@ pub trait System: ConvertToTSConfigHost {
     fn base64_encode(&self, input: &str) -> Option<String> {
         None
     }
-    fn buffer_from(&self, input: &str, encoding: Option<&str>) -> Option<Buffer> {
+    fn buffer_from(&self, input: String, encoding: Option<&str>) -> Option<Buffer> {
         None
     }
     fn now(&self) -> Option<SystemTime> {
@@ -277,6 +277,10 @@ impl System for SystemConcrete {
 
     fn write(&self, s: &str) {
         print!("{}", s);
+    }
+
+    fn buffer_from(&self, input: String, encoding: Option<&str>) -> Option<Buffer> {
+        Some(input.into_bytes())
     }
 
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {

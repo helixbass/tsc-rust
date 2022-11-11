@@ -6,7 +6,7 @@ pub mod vfs {
     use std::iter::FromIterator;
     use std::rc::Rc;
     use std::time::{SystemTime, UNIX_EPOCH};
-    use typescript_rust::Comparison;
+    use typescript_rust::{get_sys, Buffer, Comparison};
 
     use crate::{collections, documents, vpath};
 
@@ -408,13 +408,70 @@ pub mod vfs {
             unimplemented!()
         }
 
-        pub fn write_file_sync(
+        pub fn write_file_sync<'data, TData: Into<StringOrRefBuffer<'data>>>(
             &self,
             path: &str,
-            data: &str, /*string | Buffer*/
+            data: TData,
             encoding: Option<&str>,
         ) {
-            unimplemented!()
+            let data = data.into();
+            if self.is_readonly() {
+                // throw createIOError("EROFS");
+                panic!("EROFS");
+            }
+
+            let WalkResult {
+                parent,
+                links,
+                node: existing_node,
+                basename,
+                ..
+            } = self
+                ._walk(
+                    &self._resolve(path),
+                    Some(false),
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if parent.is_none() {
+                // throw createIOError("EPERM");
+                panic!("EPERM");
+            }
+            let ref parent = parent.unwrap();
+
+            let time = self.time();
+            let ref node = existing_node.unwrap_or_else(|| {
+                let node = Rc::new(self._mknod(parent.dev(), S_IFREG, 0o666, Some(time)));
+                self._add_link(
+                    Some(parent),
+                    &mut links.borrow_mut(),
+                    &basename,
+                    node.clone(),
+                    Some(time),
+                );
+                node
+            });
+
+            if is_directory(Some(node)) {
+                // throw createIOError("EISDIR");
+                panic!("EISDIR");
+            }
+            if !is_file(Some(node)) {
+                // throw createIOError("EBADF");
+                panic!("EBADF");
+            }
+
+            node.as_file_inode().set_buffer(Some(match data {
+                StringOrRefBuffer::Buffer(data) => data.clone(),
+                StringOrRefBuffer::String(data) => get_sys()
+                    .buffer_from(data, Some(encoding.unwrap_or("utf8")))
+                    .unwrap(),
+            }));
+            node.as_file_inode().set_size(Some(
+                node.as_file_inode().maybe_buffer().as_ref().unwrap().len(),
+            ));
+            node.set_mtime_ms(time);
+            node.set_ctime_ms(time);
         }
 
         fn _mknod(&self, dev: u32, type_: u32, mode: u32, time: Option<u128>) -> Inode {
@@ -525,7 +582,7 @@ pub mod vfs {
                                 file.as_file_inode()
                                     .set_source(Some(vpath::combine(&source, &[Some(&name)])));
                                 file.as_file_inode().set_resolver(Some(resolver.clone()));
-                                file.as_file_inode_mut().size = Some(stats.size);
+                                file.as_file_inode().set_size(Some(stats.size));
                                 self._add_link(Some(node), &mut links, &name, Rc::new(file), None);
                             }
                             _ => (),
@@ -814,7 +871,7 @@ pub mod vfs {
                             panic!("Roots cannot be files.");
                         }
                         self.mkdirp_sync(&vpath::dirname(&path));
-                        self.write_file_sync(&path, &value.data, value.encoding.as_deref());
+                        self.write_file_sync(&path, value.data.clone(), value.encoding.as_deref());
                         self._apply_file_extended_options(&path, value.meta.as_ref());
                     }
                     Some(FileSetValue::Directory(value)) => {
@@ -827,6 +884,23 @@ pub mod vfs {
                     }
                 }
             }
+        }
+    }
+
+    pub enum StringOrRefBuffer<'buffer> {
+        String(String),
+        Buffer(&'buffer Buffer),
+    }
+
+    impl<'buffer> From<String> for StringOrRefBuffer<'buffer> {
+        fn from(value: String) -> Self {
+            Self::String(value)
+        }
+    }
+
+    impl<'buffer> From<&'buffer Buffer> for StringOrRefBuffer<'buffer> {
+        fn from(value: &'buffer Buffer) -> Self {
+            Self::Buffer(value)
         }
     }
 
@@ -960,7 +1034,7 @@ pub mod vfs {
         if let Some(documents) = documents {
             for document in documents {
                 fs.mkdirp_sync(&vpath::dirname(&document.file));
-                fs.write_file_sync(&document.file, &document.text, Some("utf8"));
+                fs.write_file_sync(&document.file, document.text.clone(), Some("utf8"));
                 fs.filemeta_mut(&document.file)
                     .set("document", document.clone());
                 let symlink = document.meta.get("symlink");
@@ -1420,8 +1494,8 @@ pub mod vfs {
         pub ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
         nlink: Cell<usize>,
-        pub size: Option<usize>,
-        // buffer?: Buffer;
+        size: Cell<Option<usize>>,
+        buffer: RefCell<Option<Buffer>>,
         source: RefCell<Option<String>>,
         resolver: RefCell<Option<Rc<FileSystemResolver>>>,
         shadow_root: Option<Rc<Inode /*FileInode*/>>,
@@ -1449,11 +1523,12 @@ pub mod vfs {
                 ctime_ms: Cell::new(ctime_ms),
                 birthtime_ms,
                 nlink: Cell::new(nlink),
-                size: None,
-                source: RefCell::new(None),
-                resolver: RefCell::new(None),
+                size: Default::default(),
+                buffer: Default::default(),
+                source: Default::default(),
+                resolver: Default::default(),
                 shadow_root,
-                meta: None,
+                meta: Default::default(),
             }
         }
 
@@ -1481,8 +1556,20 @@ pub mod vfs {
             self.nlink.set(self.nlink.get() + 1);
         }
 
+        pub fn set_size(&self, size: Option<usize>) {
+            self.size.set(size);
+        }
+
         pub fn maybe_source(&self) -> Option<String> {
             self.source.borrow().clone()
+        }
+
+        pub fn maybe_buffer(&self) -> Ref<Option<Buffer>> {
+            self.buffer.borrow()
+        }
+
+        pub fn set_buffer(&self, buffer: Option<Buffer>) {
+            *self.buffer.borrow_mut() = buffer;
         }
 
         pub fn set_source(&self, source: Option<String>) {
@@ -1667,6 +1754,13 @@ pub mod vfs {
         pub fn symlink(&self) -> &String {
             self.symlink.as_ref().unwrap()
         }
+    }
+
+    fn is_file(node: Option<&Inode>) -> bool {
+        matches!(
+            node,
+            Some(node) if node.mode() & S_IFMT == S_IFREG
+        )
     }
 
     fn is_directory(node: Option<&Inode>) -> bool {
