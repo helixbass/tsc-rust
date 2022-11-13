@@ -730,10 +730,13 @@ pub mod Compiler {
         if let Some(symlinks) = symlinks {
             fs.apply(symlinks);
         }
-        let host =
-            fakes::CompilerHost::new(fs, Some(Rc::new(options.compiler_options.clone())), None);
+        let host = Rc::new(fakes::CompilerHost::new(
+            fs,
+            Some(Rc::new(options.compiler_options.clone())),
+            None,
+        ));
         let mut result =
-            compiler::compile_files(&host, Some(&program_file_names), &options.compiler_options);
+            compiler::compile_files(host, Some(&program_file_names), &options.compiler_options);
         result.symlinks = symlinks.cloned();
         result
     }

@@ -1,7 +1,11 @@
 pub mod fakes {
     use std::collections::HashMap;
+    use std::io;
     use std::rc::Rc;
-    use typescript_rust::{get_new_line_character, CompilerOptions, Node};
+    use typescript_rust::{
+        get_new_line_character, CompilerOptions, ModuleResolutionHost,
+        ModuleResolutionHostOverrider, Node, ScriptTarget,
+    };
     use typescript_services_rust::get_default_compiler_options;
 
     use crate::{collections, documents, get_light_mode, vfs};
@@ -56,7 +60,7 @@ pub mod fakes {
     pub struct CompilerHost {
         pub sys: Rc<System>,
         pub default_lib_location: String,
-        pub outputs: Vec<documents::TextDocument>,
+        pub outputs: Vec<Rc<documents::TextDocument>>,
         _outputs_map: collections::SortedMap<String, usize>,
         pub traces: Vec<String>,
         pub should_assert_invariants: bool,
@@ -122,6 +126,10 @@ pub mod fakes {
                 _parse_config_host: None,
             }
         }
+
+        pub fn vfs(&self) -> Rc<vfs::FileSystem> {
+            self.sys.vfs.clone()
+        }
     }
 
     pub enum RcSystemOrRcFileSystem {
@@ -141,5 +149,223 @@ pub mod fakes {
         }
     }
 
-    // impl typescript_rust::CompilerHost for CompilerHost {}
+    impl typescript_rust::CompilerHost for CompilerHost {
+        fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+            unimplemented!()
+        }
+
+        fn get_source_file(
+            &self,
+            file_name: &str,
+            language_version: ScriptTarget,
+            on_error: Option<&mut dyn FnMut(&str)>,
+            should_create_new_source_file: Option<bool>,
+        ) -> Option<Rc<Node /*SourceFile*/>> {
+            unimplemented!()
+        }
+
+        fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
+            unimplemented!()
+        }
+
+        fn get_default_lib_location(&self) -> Option<String> {
+            unimplemented!()
+        }
+
+        fn write_file(
+            &self,
+            file_name: &str,
+            data: &str,
+            write_byte_order_mark: bool,
+            on_error: Option<&mut dyn FnMut(&str)>,
+            source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        ) {
+            unimplemented!()
+        }
+
+        fn write_file_non_overridden(
+            &self,
+            file_name: &str,
+            data: &str,
+            write_byte_order_mark: bool,
+            on_error: Option<&mut dyn FnMut(&str)>,
+            source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        ) {
+            unimplemented!()
+        }
+
+        fn is_write_file_supported(&self) -> bool {
+            unimplemented!()
+        }
+
+        fn set_overriding_write_file(
+            &self,
+            overriding_write_file: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        ) {
+            unimplemented!()
+        }
+
+        fn get_current_directory(&self) -> String {
+            unimplemented!()
+        }
+
+        fn get_canonical_file_name(&self, file_name: &str) -> String {
+            unimplemented!()
+        }
+
+        fn use_case_sensitive_file_names(&self) -> bool {
+            unimplemented!()
+        }
+
+        fn get_new_line(&self) -> String {
+            unimplemented!()
+        }
+
+        fn read_directory(
+            &self,
+            root_dir: &str,
+            extensions: &[&str],
+            excludes: Option<&[String]>,
+            includes: &[String],
+            depth: Option<usize>,
+        ) -> Option<Vec<String>> {
+            unimplemented!()
+        }
+
+        fn is_read_directory_implemented(&self) -> bool {
+            unimplemented!()
+        }
+
+        fn is_resolve_module_names_supported(&self) -> bool {
+            false
+        }
+
+        fn is_resolve_type_reference_directives_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_old_source_file_supported(&self) -> bool {
+            false
+        }
+
+        fn is_on_release_parsed_command_line_supported(&self) -> bool {
+            false
+        }
+
+        fn is_create_directory_supported(&self) -> bool {
+            false
+        }
+
+        fn set_overriding_create_directory(
+            &self,
+            overriding_create_directory: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        ) {
+            unreachable!()
+        }
+    }
+
+    impl ModuleResolutionHost for CompilerHost {
+        fn file_exists(&self, file_name: &str) -> bool {
+            unimplemented!()
+        }
+
+        fn file_exists_non_overridden(&self, file_name: &str) -> bool {
+            unimplemented!()
+        }
+
+        fn set_overriding_file_exists(
+            &self,
+            overriding_file_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        ) {
+            unimplemented!()
+        }
+
+        fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
+            unimplemented!()
+        }
+
+        fn set_overriding_read_file(
+            &self,
+            overriding_read_file: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        ) {
+            unimplemented!()
+        }
+
+        fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>> {
+            unimplemented!()
+        }
+
+        fn trace(&self, s: &str) {
+            unimplemented!()
+        }
+
+        fn is_trace_supported(&self) -> bool {
+            unimplemented!()
+        }
+
+        fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+            unimplemented!()
+        }
+
+        fn is_directory_exists_supported(&self) -> bool {
+            unimplemented!()
+        }
+
+        fn directory_exists_non_overridden(&self, directory_name: &str) -> Option<bool> {
+            unimplemented!()
+        }
+
+        fn set_overriding_directory_exists(
+            &self,
+            overriding_directory_exists: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        ) {
+            unimplemented!()
+        }
+
+        fn realpath(&self, path: &str) -> Option<String> {
+            unimplemented!()
+        }
+
+        fn realpath_non_overridden(&self, path: &str) -> Option<String> {
+            unimplemented!()
+        }
+
+        fn is_realpath_supported(&self) -> bool {
+            unimplemented!()
+        }
+
+        fn set_overriding_realpath(
+            &self,
+            overriding_realpath: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        ) {
+            unimplemented!()
+        }
+
+        fn get_current_directory(&self) -> Option<String> {
+            unimplemented!()
+        }
+
+        fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+            unimplemented!()
+        }
+
+        fn is_get_directories_supported(&self) -> bool {
+            unimplemented!()
+        }
+
+        fn get_directories_non_overridden(&self, path: &str) -> Option<Vec<String>> {
+            unimplemented!()
+        }
+
+        fn set_overriding_get_directories(
+            &self,
+            overriding_get_directories: Option<Rc<dyn ModuleResolutionHostOverrider>>,
+        ) {
+            unimplemented!()
+        }
+
+        fn use_case_sensitive_file_names(&self) -> Option<bool> {
+            unimplemented!()
+        }
+    }
 }

@@ -111,9 +111,12 @@ fn get_diagnostic_file_path<
     })
 }
 
-pub fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface>(
-    d1: &TDiagnosticRelatedInformation,
-    d2: &TDiagnosticRelatedInformation,
+pub fn compare_diagnostics<
+    TDiagnosticRelatedInformation1: DiagnosticRelatedInformationInterface,
+    TDiagnosticRelatedInformation2: DiagnosticRelatedInformationInterface,
+>(
+    d1: &TDiagnosticRelatedInformation1,
+    d2: &TDiagnosticRelatedInformation2,
 ) -> Comparison {
     let mut compared = compare_diagnostics_skip_related_information(d1, d2);
     if compared != Comparison::EqualTo {
@@ -131,10 +134,11 @@ pub fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInfor
 }
 
 pub fn compare_diagnostics_skip_related_information<
-    TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface,
+    TDiagnosticRelatedInformation1: DiagnosticRelatedInformationInterface,
+    TDiagnosticRelatedInformation2: DiagnosticRelatedInformationInterface,
 >(
-    d1: &TDiagnosticRelatedInformation,
-    d2: &TDiagnosticRelatedInformation,
+    d1: &TDiagnosticRelatedInformation1,
+    d2: &TDiagnosticRelatedInformation2,
 ) -> Comparison {
     let mut compared = compare_strings_case_sensitive_maybe(
         get_diagnostic_file_path(d1).as_deref(),

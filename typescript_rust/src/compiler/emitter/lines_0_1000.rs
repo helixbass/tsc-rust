@@ -5,16 +5,17 @@ use std::rc::Rc;
 use super::{create_brackets_map, TempFlags};
 use crate::{
     combine_paths, compute_common_source_directory_of_filenames, directory_separator_str, factory,
-    file_extension_is, get_base_file_name, get_directory_path,
+    file_extension_is, file_extension_is_one_of, get_base_file_name, get_directory_path,
     get_emit_module_kind_from_module_and_target, get_new_line_character,
     get_normalized_absolute_path, get_relative_path_from_directory, is_expression, is_identifier,
     is_incremental_compilation, is_option_str_empty, is_source_file, last_or_undefined,
     no_emit_notification, no_emit_substitution, normalize_slashes, out_file, remove_file_extension,
     resolve_path, BaseNodeFactorySynthetic, BundleFileInfo, BundleFileSection,
     BundleFileSectionInterface, BundleFileSectionKind, CompilerOptions, Debug_,
-    DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension, ListFormat,
-    Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine, PrintHandlers,
-    Printer, PrinterOptions, SourceMapGenerator, SourceMapSource, SyntaxKind, TextRange,
+    DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension, JsxEmit,
+    ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine,
+    PrintHandlers, Printer, PrinterOptions, SourceMapGenerator, SourceMapSource, SyntaxKind,
+    TextRange,
 };
 
 lazy_static! {
@@ -79,6 +80,22 @@ pub fn get_ts_build_info_emit_output_file_path(options: &CompilerOptions) -> Opt
         build_info_extension_less,
         Extension::TsBuildInfo.to_str()
     ))
+}
+
+pub fn get_output_extension(file_name: &str, options: &CompilerOptions) -> Extension {
+    if file_extension_is(file_name, Extension::Json.to_str()) {
+        Extension::Json
+    } else if options.jsx == Some(JsxEmit::Preserve)
+        && file_extension_is_one_of(file_name, &[Extension::Jsx, Extension::Tsx])
+    {
+        Extension::Jsx
+    } else if file_extension_is_one_of(file_name, &[Extension::Mts, Extension::Mjs]) {
+        Extension::Mjs
+    } else if file_extension_is_one_of(file_name, &[Extension::Cts, Extension::Cjs]) {
+        Extension::Cjs
+    } else {
+        Extension::Js
+    }
 }
 
 pub(crate) fn get_output_declaration_file_name<TGetCommonSourceDirectory: FnMut() -> String>(

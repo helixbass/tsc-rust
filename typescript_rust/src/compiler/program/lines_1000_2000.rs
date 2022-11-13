@@ -199,6 +199,10 @@ impl Program {
         unimplemented!()
     }
 
+    pub fn get_source_files(&self) -> Ref<Vec<Rc<Node>>> {
+        self.files()
+    }
+
     pub fn get_compiler_options(&self) -> Rc<CompilerOptions> {
         self.options.clone()
     }

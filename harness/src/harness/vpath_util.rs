@@ -3,10 +3,12 @@ pub mod vpath {
     use fancy_regex::Regex as FancyRegex;
     use regex::Regex;
     use typescript_rust::{
-        combine_paths, compare_paths_case_insensitive, compare_paths_case_sensitive,
-        directory_separator, directory_separator_str, get_base_file_name, get_directory_path,
-        get_path_components, get_path_from_path_components, has_trailing_directory_separator,
-        is_disk_path_root, normalize_slashes, reduce_path_components, resolve_path, Comparison,
+        change_any_extension, combine_paths, compare_paths_case_insensitive,
+        compare_paths_case_sensitive, directory_separator, directory_separator_str,
+        file_extension_is_one_of, get_any_extension_from_path, get_base_file_name,
+        get_directory_path, get_path_components, get_path_from_path_components,
+        has_js_file_extension, has_trailing_directory_separator, is_disk_path_root,
+        normalize_slashes, reduce_path_components, resolve_path, Comparison, Extension,
     };
 
     pub const sep: char = directory_separator;
@@ -58,6 +60,27 @@ pub mod vpath {
 
     pub fn basename(path: &str, extensions: Option<&[&str]>, ignore_case: Option<bool>) -> String {
         get_base_file_name(path, extensions, ignore_case)
+    }
+
+    pub fn extname<TExtension: AsRef<str>>(
+        path: &str,
+        extensions: Option<&[TExtension]>,
+        ignore_case: Option<bool>,
+    ) -> String {
+        get_any_extension_from_path(path, extensions, ignore_case)
+    }
+
+    pub fn change_extension<TExtension: AsRef<str>>(
+        path: &str,
+        ext: &str,
+        extensions: Option<&[TExtension]>,
+        ignore_case: Option<bool>,
+    ) -> String {
+        change_any_extension(path, ext, extensions, ignore_case)
+    }
+
+    pub fn is_java_script(file_name: &str) -> bool {
+        has_js_file_extension(file_name)
     }
 
     lazy_static! {
@@ -201,5 +224,13 @@ pub mod vpath {
         } else {
             format(&reduce(&components))
         }
+    }
+
+    pub fn is_declaration(path: &str) -> bool {
+        file_extension_is_one_of(path, &[Extension::Dmts, Extension::Dcts, Extension::Dts])
+    }
+
+    pub fn is_source_map(path: &str) -> bool {
+        !extname(path, Some(&[".map"]), Some(false)).is_empty()
     }
 }

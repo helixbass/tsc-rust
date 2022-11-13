@@ -64,7 +64,9 @@ pub use compiler::core_public::{
 };
 pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
-pub use compiler::emitter::{create_printer, get_ts_build_info_emit_output_file_path, TempFlags};
+pub use compiler::emitter::{
+    create_printer, get_output_extension, get_ts_build_info_emit_output_file_path, TempFlags,
+};
 use compiler::emitter::{
     get_common_source_directory, get_common_source_directory_of_config,
     get_output_declaration_file_name, is_build_info_file, EmitBinaryExpression,
@@ -422,7 +424,8 @@ pub use compiler::utilities::{
     get_class_extends_heritage_element, get_class_like_declaration_of_symbol,
     get_combined_local_and_export_symbol_flags, get_compiler_option_value, get_containing_class,
     get_containing_function, get_containing_function_or_class_static_block,
-    get_containing_node_array, get_declaration_modifier_flags_from_symbol, get_declaration_of_kind,
+    get_containing_node_array, get_declaration_emit_extension_for_path,
+    get_declaration_modifier_flags_from_symbol, get_declaration_of_kind,
     get_declared_expando_initializer, get_effective_base_type_node,
     get_effective_container_for_jsdoc_template_tag, get_effective_implements_type_nodes,
     get_effective_initializer, get_effective_jsdoc_host, get_effective_modifier_flags,

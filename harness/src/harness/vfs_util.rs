@@ -74,7 +74,7 @@ pub mod vfs {
             } = options;
             let time = time.unwrap_or(TimestampOrNowOrSystemTimeOrCallback::Now);
 
-            let mut ret = Self {
+            let ret = Self {
                 ignore_case,
                 string_comparer: Rc::new(move |a: &str, b: &str| {
                     if ignore_case {
@@ -599,7 +599,7 @@ pub mod vfs {
                                 self._add_link(Some(node), &mut links, &name, Rc::new(dir), None);
                             }
                             S_IFREG => {
-                                let mut file =
+                                let file =
                                     self._mknod(node_as_directory_inode.dev, S_IFREG, 0o666, None);
                                 file.as_file_inode()
                                     .set_source(Some(vpath::combine(&source, &[Some(&name)])));

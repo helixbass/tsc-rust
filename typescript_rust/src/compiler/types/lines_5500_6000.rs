@@ -1589,6 +1589,12 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
     }
 }
 
+impl From<Diagnostic> for DiagnosticRelatedInformation {
+    fn from(value: Diagnostic) -> Self {
+        Self::Diagnostic(value)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
     category: Cell<DiagnosticCategory>,
