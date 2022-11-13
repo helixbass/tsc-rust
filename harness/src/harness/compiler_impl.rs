@@ -79,7 +79,7 @@ pub mod compiler {
                 },
                 Option::<HashMap<String, Rc<documents::TextDocument>>>::None,
             );
-            for document in &host.outputs {
+            for document in &*host.outputs() {
                 if vpath::is_java_script(&document.file)
                     || file_extension_is(&document.file, Extension::Json.to_str())
                 {

@@ -64,6 +64,16 @@ pub mod collections {
             self._copy_on_write.set(_copy_on_write);
         }
 
+        pub fn has(&self, key: &TKey) -> bool {
+            binary_search(
+                &self._keys,
+                key,
+                |key: &TKey, _| key,
+                |a: &TKey, b: &TKey| (self._comparer)(a, b),
+                None,
+            ) >= 0
+        }
+
         pub fn get<'self_>(&'self_ self, key: &TKey) -> Option<&'self_ TValue> {
             let index = binary_search(
                 &self._keys,

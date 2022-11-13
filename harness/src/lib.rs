@@ -23,4 +23,5 @@ pub use mocha::{after, before, describe, it};
 
 pub mod Utils {
     pub use super::harness::harness_utils::*;
+    pub use super::harness::util::*;
 }
