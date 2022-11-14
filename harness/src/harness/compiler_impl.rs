@@ -117,7 +117,7 @@ pub mod compiler {
                     || !is_option_str_empty(options.out_file.as_deref())
                 {
                     let out_file = vpath::resolve(
-                        ret.vfs().cwd(),
+                        &ret.vfs().cwd(),
                         &[Some(
                             options
                                 .out

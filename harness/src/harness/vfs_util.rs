@@ -6,7 +6,7 @@ pub mod vfs {
     use std::iter::FromIterator;
     use std::rc::Rc;
     use std::time::{SystemTime, UNIX_EPOCH};
-    use typescript_rust::{get_sys, Buffer, Comparison};
+    use typescript_rust::{get_sys, is_option_str_empty, Buffer, Comparison, Node};
 
     use crate::{collections, documents, vpath};
 
@@ -162,6 +162,10 @@ pub mod vfs {
             self
         }
 
+        pub fn shadow_root(&self) -> Option<Rc<FileSystem>> {
+            self._shadow_root.clone()
+        }
+
         pub fn shadow(self: Rc<Self>, ignore_case: Option<bool>) -> Self {
             let ignore_case = ignore_case.unwrap_or(self.ignore_case);
             if !self.is_readonly() {
@@ -208,10 +212,7 @@ pub mod vfs {
             *self._time.borrow_mut() = value;
         }
 
-        pub fn filemeta(
-            &self,
-            path: &str,
-        ) -> Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>> {
+        pub fn filemeta(&self, path: &str) -> Rc<RefCell<collections::Metadata<MetaValue>>> {
             let WalkResult { node, .. } = self
                 ._walk(
                     &self._resolve(path),
@@ -227,10 +228,7 @@ pub mod vfs {
             self._filemeta(node)
         }
 
-        pub fn _filemeta(
-            &self,
-            node: &Inode,
-        ) -> Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>> {
+        pub fn _filemeta(&self, node: &Inode) -> Rc<RefCell<collections::Metadata<MetaValue>>> {
             node.meta_mut()
                 .get_or_insert_with(|| {
                     let parent_meta = if let (Some(node_shadow_root), Some(_shadow_root)) = (
@@ -246,8 +244,29 @@ pub mod vfs {
                 .clone()
         }
 
-        pub fn cwd(&self) -> &str {
-            unimplemented!()
+        pub fn cwd(&self) -> String {
+            let _cwd = self._cwd.borrow();
+            if is_option_str_empty(_cwd.as_deref()) {
+                panic!("The current working directory has not been set.");
+            }
+            let _cwd = _cwd.as_ref().unwrap();
+            let WalkResult { node, .. } = self
+                ._walk(
+                    _cwd,
+                    None,
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if node.is_none() {
+                // throw createIOError("ENOENT");
+                panic!("ENOENT");
+            }
+            let ref node = node.unwrap();
+            if !is_directory(Some(node)) {
+                // throw createIOError("ENOTDIR");
+                panic!("ENOTDIR");
+            }
+            _cwd.clone()
         }
 
         pub fn chdir(&self, path: &str) {
@@ -420,6 +439,14 @@ pub mod vfs {
                 Rc::new(node),
                 Some(time),
             );
+        }
+
+        pub fn exists_sync(&self, path: &str) -> bool {
+            unimplemented!()
+        }
+
+        pub fn stat_sync(&self, path: &str) -> Stats {
+            unimplemented!()
         }
 
         pub fn link_sync(&self, oldpath: &str, newpath: &str) {
@@ -858,7 +885,7 @@ pub mod vfs {
                 let filemeta = self.filemeta(path);
                 let mut filemeta = filemeta.borrow_mut();
                 for (key, value) in meta {
-                    filemeta.set(key, value.clone());
+                    filemeta.set(key, value.clone().into());
                 }
             }
         }
@@ -907,6 +934,30 @@ pub mod vfs {
                     }
                 }
             }
+        }
+    }
+
+    #[derive(Clone)]
+    pub enum MetaValue {
+        RcTextDocument(Rc<documents::TextDocument>),
+        RcNode(Rc<Node>),
+    }
+
+    impl MetaValue {
+        pub fn as_rc_node(&self) -> &Rc<Node> {
+            enum_unwrapped!(self, [MetaValue, RcNode])
+        }
+    }
+
+    impl From<Rc<documents::TextDocument>> for MetaValue {
+        fn from(value: Rc<documents::TextDocument>) -> Self {
+            Self::RcTextDocument(value)
+        }
+    }
+
+    impl From<Rc<Node>> for MetaValue {
+        fn from(value: Rc<Node>) -> Self {
+            Self::RcNode(value)
         }
     }
 
@@ -1062,12 +1113,12 @@ pub mod vfs {
                 fs.write_file_sync(&document.file, document.text.clone(), Some("utf8"));
                 fs.filemeta(&document.file)
                     .borrow_mut()
-                    .set("document", document.clone());
+                    .set("document", document.clone().into());
                 let symlink = document.meta.get("symlink");
                 if let Some(symlink) = symlink {
                     for link in symlink.split(",").map(|link| link.trim()) {
                         fs.mkdirp_sync(&vpath::dirname(link));
-                        fs.symlink_sync(&vpath::resolve(fs.cwd(), &[Some(&document.file)]), link);
+                        fs.symlink_sync(&vpath::resolve(&fs.cwd(), &[Some(&document.file)]), link);
                     }
                 }
             }
@@ -1076,6 +1127,12 @@ pub mod vfs {
             fs.apply(&files);
         }
         fs
+    }
+
+    pub struct Stats {
+        pub dev: u32,
+        pub ino: u32,
+        pub mtime_ms: u128,
     }
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -1465,10 +1522,7 @@ pub mod vfs {
             }
         }
 
-        pub fn meta_mut(
-            &self,
-        ) -> RefMut<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>
-        {
+        pub fn meta_mut(&self) -> RefMut<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>> {
             match self {
                 Self::FileInode(value) => value.meta_mut(),
                 Self::DirectoryInode(value) => value.meta_mut(),
@@ -1544,7 +1598,7 @@ pub mod vfs {
         source: RefCell<Option<String>>,
         resolver: RefCell<Option<Rc<FileSystemResolver>>>,
         shadow_root: Option<Rc<Inode /*FileInode*/>>,
-        meta: RefCell<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>,
+        meta: RefCell<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>>,
     }
 
     impl FileInode {
@@ -1629,10 +1683,7 @@ pub mod vfs {
             *self.resolver.borrow_mut() = resolver;
         }
 
-        pub fn meta_mut(
-            &self,
-        ) -> RefMut<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>
-        {
+        pub fn meta_mut(&self) -> RefMut<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>> {
             self.meta.borrow_mut()
         }
     }
@@ -1651,7 +1702,7 @@ pub mod vfs {
         source: RefCell<Option<String>>,
         resolver: RefCell<Option<Rc<FileSystemResolver>>>,
         pub shadow_root: Option<Rc<Inode /*DirectoryInode*/>>,
-        meta: RefCell<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>,
+        meta: RefCell<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>>,
     }
 
     impl DirectoryInode {
@@ -1736,10 +1787,7 @@ pub mod vfs {
             *self.resolver.borrow_mut() = resolver;
         }
 
-        pub fn meta_mut(
-            &self,
-        ) -> RefMut<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>
-        {
+        pub fn meta_mut(&self) -> RefMut<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>> {
             self.meta.borrow_mut()
         }
     }
@@ -1756,7 +1804,7 @@ pub mod vfs {
         nlink: Cell<usize>,
         pub symlink: Option<String>,
         pub shadow_root: Option<Rc<Inode /*SymlinkInode*/>>,
-        meta: RefCell<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>,
+        meta: RefCell<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>>,
     }
 
     impl SymlinkInode {
@@ -1814,10 +1862,7 @@ pub mod vfs {
             self.symlink.as_ref().unwrap()
         }
 
-        pub fn meta_mut(
-            &self,
-        ) -> RefMut<Option<Rc<RefCell<collections::Metadata<Rc<documents::TextDocument>>>>>>
-        {
+        pub fn meta_mut(&self) -> RefMut<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>> {
             self.meta.borrow_mut()
         }
     }

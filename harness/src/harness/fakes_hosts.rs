@@ -6,12 +6,12 @@ pub mod fakes {
     use std::rc::Rc;
     use std::time::SystemTime;
     use typescript_rust::{
-        get_default_lib_file_name, get_new_line_character, CompilerOptions, ConvertToTSConfigHost,
-        DirectoryWatcherCallback, ExitStatus, FileWatcher, FileWatcherCallback,
-        ModuleResolutionHost, ModuleResolutionHostOverrider, Node, ScriptTarget, System as _,
-        WatchOptions,
+        create_source_file, get_default_lib_file_name, get_new_line_character, CompilerOptions,
+        ConvertToTSConfigHost, DirectoryWatcherCallback, ExitStatus, FileWatcher,
+        FileWatcherCallback, ModuleResolutionHost, ModuleResolutionHostOverrider, Node,
+        ScriptTarget, System as _, WatchOptions,
     };
-    use typescript_services_rust::get_default_compiler_options;
+    use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
     use crate::{collections, documents, get_light_mode, vfs, vpath, Utils};
 
@@ -224,11 +224,11 @@ pub mod fakes {
 
     impl ConvertToTSConfigHost for System {
         fn get_current_directory(&self) -> String {
-            unimplemented!()
+            self.vfs.cwd()
         }
 
         fn use_case_sensitive_file_names(&self) -> bool {
-            unimplemented!()
+            self.use_case_sensitive_file_names
         }
     }
 
@@ -256,7 +256,7 @@ pub mod fakes {
         pub should_assert_invariants: bool,
 
         _set_parent_nodes: bool,
-        _source_files: collections::SortedMap<String, Rc<Node /*SourceFile*/>>,
+        _source_files: RefCell<collections::SortedMap<String, Rc<Node /*SourceFile*/>>>,
         _parse_config_host: RefCell<Option<Rc<ParseConfigHost>>>,
         _new_line: String,
 
@@ -296,7 +296,7 @@ pub mod fakes {
                     options.new_line,
                     Some(|| sys.new_line.to_owned()),
                 ),
-                _source_files: collections::SortedMap::new(
+                _source_files: RefCell::new(collections::SortedMap::new(
                     collections::SortOptions {
                         comparer: {
                             let sys_vfs_string_comparer = sys.vfs.string_comparer.clone();
@@ -305,7 +305,7 @@ pub mod fakes {
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
                     Option::<HashMap<String, Rc<Node>>>::None,
-                ),
+                )),
                 _set_parent_nodes: set_parent_nodes,
                 _outputs_map: RefCell::new(collections::SortedMap::new(
                     collections::SortOptions {
@@ -474,7 +474,7 @@ pub mod fakes {
             self.vfs()
                 .filemeta(file_name)
                 .borrow_mut()
-                .set("document", document.clone());
+                .set("document", document.clone().into());
             let mut _outputs_map = self._outputs_map.borrow_mut();
             let mut outputs = self.outputs.borrow_mut();
             if !_outputs_map.has(&document.file) {
@@ -523,7 +523,96 @@ pub mod fakes {
             on_error: Option<&mut dyn FnMut(&str)>,
             should_create_new_source_file: Option<bool>,
         ) -> Option<Rc<Node /*SourceFile*/>> {
-            unimplemented!()
+            let canonical_file_name = self.get_canonical_file_name(&vpath::resolve(
+                &typescript_rust::CompilerHost::get_current_directory(self),
+                &[Some(file_name)],
+            ));
+            let existing = self
+                ._source_files
+                .borrow()
+                .get(&canonical_file_name)
+                .cloned();
+            if existing.is_some() {
+                return existing;
+            }
+
+            let content = self.read_file(&canonical_file_name).ok().flatten()?;
+
+            let cache_key = if self.vfs().shadow_root().is_some() {
+                Some(format!(
+                    "SourceFile[languageVersion={language_version:?},setParentNodes={}]",
+                    self._set_parent_nodes
+                ))
+            } else {
+                None
+            };
+            if let Some(cache_key) = cache_key.as_ref() {
+                let meta = self.vfs().filemeta(&canonical_file_name);
+                let source_file_from_metadata = meta
+                    .borrow()
+                    .get(cache_key)
+                    .map(|value| value.as_rc_node().clone());
+                if let Some(source_file_from_metadata) =
+                    source_file_from_metadata.filter(|source_file_from_metadata| {
+                        source_file_from_metadata.get_full_text(None) == content
+                    })
+                {
+                    self._source_files
+                        .borrow_mut()
+                        .set(canonical_file_name, source_file_from_metadata.clone());
+                    return Some(source_file_from_metadata);
+                }
+            }
+
+            let parsed = create_source_file(
+                file_name,
+                content,
+                language_version,
+                Some(self._set_parent_nodes || self.should_assert_invariants),
+                None,
+            );
+            if self.should_assert_invariants {
+                Utils::assert_invariants(Some(&parsed), None);
+            }
+
+            self._source_files
+                .borrow_mut()
+                .set(canonical_file_name.clone(), parsed.clone());
+
+            if let Some(cache_key) = cache_key.as_ref() {
+                let stats = self.vfs().stat_sync(&canonical_file_name);
+
+                let mut fs = self.vfs();
+                while let Some(fs_shadow_root) = fs.shadow_root() {
+                    // try {
+                    let shadow_root_stats = if fs_shadow_root.exists_sync(&canonical_file_name) {
+                        fs_shadow_root.stat_sync(&canonical_file_name)
+                    } else {
+                        break;
+                    };
+
+                    if shadow_root_stats.dev != stats.dev
+                        || shadow_root_stats.ino != stats.ino
+                        || shadow_root_stats.mtime_ms != stats.mtime_ms
+                    {
+                        break;
+                    }
+
+                    fs = fs_shadow_root;
+                    // }
+                    // catch {
+                    //     break;
+                    // }
+                }
+
+                if !Rc::ptr_eq(&fs, &self.vfs()) {
+                    fs.filemeta(&canonical_file_name)
+                        .borrow_mut()
+                        .set(cache_key, parsed.clone().into());
+                }
+            }
+
+            Some(parsed)
         }
 
         fn is_resolve_module_names_supported(&self) -> bool {
