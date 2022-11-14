@@ -13,7 +13,7 @@ use crate::{
     WatchFileKind, WatchOptions,
 };
 
-pub(crate) fn generate_djb2_hash(data: &str) -> String {
+pub fn generate_djb2_hash(data: &str) -> String {
     unimplemented!()
 }
 

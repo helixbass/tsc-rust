@@ -1,19 +1,22 @@
 pub mod fakes {
     use std::borrow::Cow;
-    use std::cell::{Ref, RefCell};
+    use std::cell::{Cell, Ref, RefCell};
     use std::collections::HashMap;
     use std::io;
     use std::rc::Rc;
     use std::time::SystemTime;
     use typescript_rust::{
-        create_source_file, get_default_lib_file_name, get_new_line_character, CompilerOptions,
-        ConvertToTSConfigHost, DirectoryWatcherCallback, ExitStatus, FileWatcher,
-        FileWatcherCallback, ModuleResolutionHost, ModuleResolutionHostOverrider, Node,
-        ScriptTarget, System as _, WatchOptions,
+        create_source_file, generate_djb2_hash, get_default_lib_file_name, get_new_line_character,
+        match_files, millis_since_epoch_to_system_time, not_implemented, CompilerOptions,
+        ConvertToTSConfigHost, DirectoryWatcherCallback, ExitStatus, FileSystemEntries,
+        FileWatcher, FileWatcherCallback, ModuleResolutionHost, ModuleResolutionHostOverrider,
+        Node, ScriptTarget, System as _, WatchOptions,
     };
     use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
     use crate::{collections, documents, get_light_mode, vfs, vpath, Utils};
+
+    // const processExitSentinel = new Error("System exit");
 
     #[derive(Default)]
     pub struct SystemOptions {
@@ -25,13 +28,14 @@ pub mod fakes {
     pub struct System {
         pub vfs: Rc<vfs::FileSystem>,
         pub args: Vec<String>,
-        pub output: Vec<String>,
+        output: RefCell<Vec<String>>,
         pub new_line: &'static str,
         pub use_case_sensitive_file_names: bool,
         pub exit_code: Option<u32>,
 
         _executing_file_path: Option<String>,
         _env: Option<HashMap<String, String>>,
+        test_terminal_width: Cell<Option<Option<usize>>>,
     }
 
     impl System {
@@ -44,9 +48,9 @@ pub mod fakes {
             let new_line = new_line.unwrap_or("\r\n");
             let use_case_sensitive_file_names = !vfs.ignore_case;
             Self {
-                args: vec![],
-                output: vec![],
-                exit_code: None,
+                args: Default::default(),
+                output: Default::default(),
+                exit_code: Default::default(),
                 vfs: if vfs.is_readonly() {
                     Rc::new(vfs.shadow(None))
                 } else {
@@ -56,37 +60,76 @@ pub mod fakes {
                 new_line,
                 _executing_file_path: executing_file_path,
                 _env: env,
+                test_terminal_width: Default::default(),
             }
+        }
+
+        pub fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
+            let mut files: Vec<String> = vec![];
+            let mut directories: Vec<String> = vec![];
+            // try {
+            for file in self.vfs.readdir_sync(path) {
+                // try {
+                let stats = self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)]));
+                if stats.is_file() {
+                    files.push(file);
+                } else if stats.is_directory() {
+                    directories.push(file);
+                }
+                // }
+                // catch { /*ignored*/ }
+            }
+            // }
+            // catch { /*ignored*/ }
+            FileSystemEntries { files, directories }
+        }
+
+        fn _get_stats(&self, path: &str) -> Option<vfs::Stats> {
+            // try {
+            if self.vfs.exists_sync(path) {
+                Some(self.vfs.stat_sync(path))
+            } else {
+                None
+            }
+            // }
+            // catch {
+            //     return undefined;
+            // }
         }
     }
 
     impl typescript_rust::System for System {
-        fn args(&self) -> &[String] {
-            unimplemented!()
-        }
-
-        fn new_line(&self) -> &str {
-            unimplemented!()
-        }
-
-        fn write(&self, s: &str) {
-            unimplemented!()
+        fn get_width_of_terminal(&self) -> Option<usize> {
+            self.test_terminal_width.get().unwrap_or_else(|| {
+                let test_terminal_width = self
+                    .get_environment_variable("TS_TEST_TERMINAL_WIDTH")
+                    .parse::<usize>()
+                    .ok();
+                self.test_terminal_width.set(Some(test_terminal_width));
+                test_terminal_width
+            })
         }
 
         fn write_output_is_tty(&self) -> Option<bool> {
             Some(true)
         }
 
-        fn get_width_of_terminal(&self) -> Option<usize> {
-            unimplemented!()
+        fn write(&self, message: &str) {
+            self.output.borrow_mut().push(message.to_owned());
         }
 
         fn read_file(&self, path: &str) -> io::Result<Option<String>> {
-            unimplemented!()
-        }
-
-        fn get_file_size(&self, path: &str) -> Option<usize> {
-            unimplemented!()
+            // try {
+            let content = self
+                .vfs
+                .read_file_sync(path, Some("utf8"))
+                .as_string_owned();
+            /*content === undefined ? undefined :*/
+            Ok(Some(Utils::remove_byte_order_mark(content)))
+            // }
+            // catch {
+            //     return undefined;
+            // }
         }
 
         fn write_file(
@@ -95,11 +138,161 @@ pub mod fakes {
             data: &str,
             write_byte_order_mark: Option<bool>,
         ) -> io::Result<()> {
-            unimplemented!()
+            self.vfs.mkdirp_sync(&vpath::dirname(path));
+            self.vfs.write_file_sync(
+                path,
+                if write_byte_order_mark == Some(true) {
+                    Utils::add_utf8_byte_order_mark(data.to_owned())
+                } else {
+                    data.to_owned()
+                },
+                None,
+            );
+            Ok(())
+        }
+
+        fn is_delete_file_supported(&self) -> bool {
+            true
+        }
+
+        fn delete_file(&self, path: &str) {
+            self.vfs.unlink_sync(path);
+        }
+
+        fn file_exists(&self, path: &str) -> bool {
+            let stats = self._get_stats(path);
+            stats.map_or(false, |stats| stats.is_file())
+        }
+
+        fn directory_exists(&self, path: &str) -> bool {
+            let stats = self._get_stats(path);
+            stats.map_or(false, |stats| stats.is_directory())
+        }
+
+        fn create_directory(&self, path: &str) {
+            self.vfs.mkdirp_sync(path);
+        }
+
+        fn get_directories(&self, path: &str) -> Vec<String> {
+            let mut result: Vec<String> = vec![];
+            // try {
+            for file in self.vfs.readdir_sync(path) {
+                if self
+                    .vfs
+                    .stat_sync(&vpath::combine(path, &[Some(&file)]))
+                    .is_directory()
+                {
+                    result.push(file);
+                }
+            }
+            // }
+            // catch { /*ignore*/ }
+            result
+        }
+
+        fn read_directory(
+            &self,
+            path: &str,
+            extensions: Option<&[&str]>,
+            exclude: Option<&[String]>,
+            include: Option<&[String]>,
+            depth: Option<usize>,
+        ) -> Vec<String> {
+            match_files(
+                path,
+                extensions,
+                exclude,
+                include,
+                self.use_case_sensitive_file_names,
+                &self.get_current_directory(),
+                depth,
+                |path: &str| self.get_accessible_file_system_entries(path),
+                |path: &str| self.realpath(path).unwrap(),
+            )
+        }
+
+        fn exit(&self, exit_code: Option<ExitStatus>) -> ! {
+            // this.exitCode = exitCode;
+            // throw processExitSentinel;
+            panic!("System exit");
+        }
+
+        fn get_file_size(&self, path: &str) -> Option<usize> {
+            let stats = self._get_stats(path);
+            Some(
+                stats
+                    .filter(|stats| stats.is_file())
+                    .map_or(0, |stats| stats.size),
+            )
+        }
+
+        fn resolve_path(&self, path: &str) -> String {
+            vpath::resolve(&self.vfs.cwd(), &[Some(path)])
+        }
+
+        fn get_executing_file_path(&self) -> Cow<'static, str> {
+            if self._executing_file_path.is_none() {
+                not_implemented();
+            }
+            self._executing_file_path.clone().unwrap().into()
+        }
+
+        fn is_get_modified_time_supported(&self) -> bool {
+            true
+        }
+
+        fn get_modified_time(&self, path: &str) -> Option<SystemTime> {
+            let stats = self._get_stats(path);
+            stats.map(|stats| stats.mtime)
+        }
+
+        fn is_set_modified_time_supported(&self) -> bool {
+            true
+        }
+
+        fn set_modified_time(&self, path: &str, time: SystemTime) {
+            self.vfs.utimes_sync(path, time, time);
+        }
+
+        fn is_create_hash_supported(&self) -> bool {
+            true
+        }
+
+        fn create_hash(&self, data: &str) -> String {
+            format!("{}-{}", generate_djb2_hash(data), data)
+        }
+
+        fn realpath(&self, path: &str) -> Option<String> {
+            // try {
+            Some(self.vfs.realpath_sync(path))
+            // }
+            // catch {
+            //     return path;
+            // }
+        }
+
+        fn is_realpath_supported(&self) -> bool {
+            true
+        }
+
+        fn get_environment_variable(&self, name: &str) -> String {
+            self._env.as_ref().unwrap().get(name).unwrap().clone()
+        }
+
+        fn now(&self) -> Option<SystemTime> {
+            Some(millis_since_epoch_to_system_time(self.vfs.time()))
+        }
+
+        fn args(&self) -> &[String] {
+            &self.args
+        }
+
+        fn new_line(&self) -> &str {
+            self.new_line
         }
 
         fn is_watch_file_supported(&self) -> bool {
-            unimplemented!()
+            false
         }
 
         fn watch_file(
@@ -108,12 +301,13 @@ pub mod fakes {
             callback: FileWatcherCallback,
             polling_interval: Option<u32>,
             options: Option<&WatchOptions>,
+            // TODO: shouldn't this return type be Option<...> (same with watch_directory())?
         ) -> Rc<dyn FileWatcher> {
-            unimplemented!()
+            unreachable!()
         }
 
         fn is_watch_directory_supported(&self) -> bool {
-            unimplemented!()
+            false
         }
 
         fn watch_directory(
@@ -123,102 +317,15 @@ pub mod fakes {
             recursive: Option<bool>,
             options: Option<&WatchOptions>,
         ) -> Rc<dyn FileWatcher> {
-            unimplemented!()
-        }
-
-        fn resolve_path(&self, path: &str) -> String {
-            unimplemented!()
-        }
-
-        fn file_exists(&self, path: &str) -> bool {
-            unimplemented!()
-        }
-
-        fn directory_exists(&self, path: &str) -> bool {
-            unimplemented!()
-        }
-
-        fn create_directory(&self, path: &str) {
-            unimplemented!()
-        }
-
-        fn get_executing_file_path(&self) -> Cow<'static, str> {
-            unimplemented!()
-        }
-
-        fn get_directories(&self, path: &str) -> Vec<String> {
-            unimplemented!()
-        }
-
-        fn read_directory(
-            &self,
-            path: &str,
-            extensions: Option<&[&str]>,
-            excludes: Option<&[String]>,
-            includes: Option<&[String]>,
-            depth: Option<usize>,
-        ) -> Vec<String> {
-            unimplemented!()
-        }
-
-        fn is_get_modified_time_supported(&self) -> bool {
-            true
-        }
-
-        fn get_modified_time(&self, path: &str) -> Option<SystemTime> {
-            unimplemented!()
-        }
-
-        fn is_set_modified_time_supported(&self) -> bool {
-            true
-        }
-
-        fn set_modified_time(&self, path: &str, time: SystemTime) {
-            unimplemented!()
-        }
-
-        fn is_delete_file_supported(&self) -> bool {
-            true
-        }
-
-        fn delete_file(&self, path: &str) {
-            unimplemented!()
-        }
-
-        fn is_create_hash_supported(&self) -> bool {
-            true
-        }
-
-        fn create_hash(&self, data: &str) -> String {
-            unimplemented!()
-        }
-
-        fn exit(&self, exit_code: Option<ExitStatus>) -> ! {
-            unimplemented!()
-        }
-
-        fn realpath(&self, path: &str) -> Option<String> {
-            unimplemented!()
-        }
-
-        fn is_realpath_supported(&self) -> bool {
-            true
-        }
-
-        fn get_environment_variable(&self, name: &str) -> String {
-            unimplemented!()
+            unreachable!()
         }
 
         fn is_clear_screen_supported(&self) -> bool {
             false
         }
 
-        fn now(&self) -> Option<SystemTime> {
-            unimplemented!()
-        }
-
         fn as_convert_to_tsconfig_host(&self) -> &dyn ConvertToTSConfigHost {
-            unimplemented!()
+            self
         }
     }
 

@@ -17,7 +17,7 @@ pub use harness::runnerbase::{
     EnumerateFilesOptions, RunnerBase, RunnerBaseSub, StringOrFileBasedTest, TestRunnerKind,
 };
 pub use harness::vfs_util::vfs;
-pub use harness::vfs_util::vfs::{Inode, MetaValue}; // these are for enum_unwrapped!() to work
+pub use harness::vfs_util::vfs::{Inode, MetaValue, StringOrBuffer}; // these are for enum_unwrapped!() to work
 pub use harness::vpath_util::vpath;
 pub use mocha::{after, before, describe, it};
 

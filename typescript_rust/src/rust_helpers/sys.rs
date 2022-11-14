@@ -1,9 +1,11 @@
 use encoding_rs_io::DecodeReaderBytes;
+use std::convert::TryInto;
 use std::env;
 use std::ffi::OsString;
 use std::fs::{self, DirEntry, Metadata};
 use std::io::{self, Read};
 use std::path::{Path as StdPath, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /*const*/
 pub fn is_windows() -> bool {
@@ -130,4 +132,10 @@ pub fn path_join(paths: &[&StdPath]) -> PathBuf {
         ret.push(path);
     }
     ret
+}
+
+pub fn millis_since_epoch_to_system_time(millis: u128) -> SystemTime {
+    // TODO: I saw u128 being used to represent milliseconds since epoch somewhere but this only
+    // accepts u64, is that sufficient (and if so should I use that everywhere)?
+    UNIX_EPOCH + Duration::from_millis(millis.try_into().unwrap())
 }

@@ -407,6 +407,22 @@ pub mod vfs {
             }
         }
 
+        pub fn exists_sync(&self, path: &str) -> bool {
+            unimplemented!()
+        }
+
+        pub fn stat_sync(&self, path: &str) -> Stats {
+            unimplemented!()
+        }
+
+        pub fn utimes_sync(&self, path: &str, atime: SystemTime, mtime: SystemTime) {
+            unimplemented!()
+        }
+
+        pub fn readdir_sync(&self, path: &str) -> Vec<String> {
+            unimplemented!()
+        }
+
         pub fn _mkdir(
             &self,
             WalkResult {
@@ -441,19 +457,27 @@ pub mod vfs {
             );
         }
 
-        pub fn exists_sync(&self, path: &str) -> bool {
-            unimplemented!()
-        }
-
-        pub fn stat_sync(&self, path: &str) -> Stats {
-            unimplemented!()
-        }
-
         pub fn link_sync(&self, oldpath: &str, newpath: &str) {
             unimplemented!()
         }
 
+        pub fn unlink_sync(&self, path: &str) {
+            unimplemented!()
+        }
+
         pub fn symlink_sync(&self, target: &str, linkpath: &str) {
+            unimplemented!()
+        }
+
+        pub fn realpath_sync(&self, path: &str) -> String {
+            unimplemented!()
+        }
+
+        pub fn read_file_sync(
+            &self,
+            path: &str,
+            encoding: Option<&str /*BufferEncoding*/>,
+        ) -> StringOrBuffer {
             unimplemented!()
         }
 
@@ -978,6 +1002,17 @@ pub mod vfs {
         }
     }
 
+    pub enum StringOrBuffer {
+        String(String),
+        Buffer(Buffer),
+    }
+
+    impl StringOrBuffer {
+        pub fn as_string_owned(self) -> String {
+            enum_unwrapped!(self, [StringOrBuffer, String])
+        }
+    }
+
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
     enum OnErrorReturn {
         Stop,
@@ -1132,7 +1167,19 @@ pub mod vfs {
     pub struct Stats {
         pub dev: u32,
         pub ino: u32,
+        pub size: usize,
         pub mtime_ms: u128,
+        pub mtime: SystemTime,
+    }
+
+    impl Stats {
+        pub fn is_file(&self) -> bool {
+            unimplemented!()
+        }
+
+        pub fn is_directory(&self) -> bool {
+            unimplemented!()
+        }
     }
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
