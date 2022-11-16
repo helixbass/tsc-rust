@@ -5,13 +5,14 @@ use std::iter::FromIterator;
 use std::path::{Path as StdPath, PathBuf};
 use std::rc::Rc;
 use typescript_rust::{
+    compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
     equate_strings_case_insensitive, find, find_index, for_each, fs_exists_sync, fs_readdir_sync,
     fs_stat_sync, get_base_file_name, get_sys, map, option_declarations, ordered_remove_item_at,
     path_join, starts_with, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CommandLineOptionType, StatLike,
+    CommandLineOptionMapTypeValue, CommandLineOptionType, FileSystemEntries, StatLike,
 };
 
-use crate::{vfs, RunnerBase, StringOrFileBasedTest};
+use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest};
 
 pub trait IO: vfs::FileSystemResolverHost {
     fn get_current_directory(&self) -> String;
@@ -110,6 +111,49 @@ impl IO for NodeIO {
 }
 
 impl vfs::FileSystemResolverHost for NodeIO {
+    fn get_accessible_file_system_entries(&self, dirname: &str) -> FileSystemEntries {
+        // try {
+        let mut entries = fs_readdir_sync(if !dirname.is_empty() { dirname } else { "." })
+            .unwrap_or_default()
+            .into_iter()
+            .map(|os_string| os_string.into_string().unwrap())
+            .collect::<Vec<_>>();
+        let use_case_sensitive_file_names = get_sys().use_case_sensitive_file_names();
+        entries.sort_by(|a: &String, b: &String| {
+            comparison_to_ordering(if use_case_sensitive_file_names {
+                compare_strings_case_sensitive(a, b)
+            } else {
+                compare_strings_case_insensitive(a, b)
+            })
+        });
+        let mut files: Vec<String> = vec![];
+        let mut directories: Vec<String> = vec![];
+        for entry in entries {
+            if matches!(&*entry, "." | "..") {
+                continue;
+            }
+            let name = vpath::combine(dirname, &[Some(&entry)]);
+            // try {
+            let stat = fs_stat_sync(&name);
+            if stat.is_none() {
+                continue;
+            }
+            let stat = stat.unwrap();
+            if stat.is_file() {
+                files.push(entry);
+            } else if stat.is_directory() {
+                directories.push(entry);
+            }
+            // }
+            // catch { /*ignore*/ }
+        }
+        FileSystemEntries { files, directories }
+        // }
+        // catch (e) {
+        //     return { files: [], directories: [] };
+        // }
+    }
+
     fn get_workspace_root(&self) -> String {
         "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/".to_owned()
     }

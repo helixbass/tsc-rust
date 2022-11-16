@@ -6,7 +6,10 @@ pub mod vfs {
     use std::iter::FromIterator;
     use std::rc::Rc;
     use std::time::{SystemTime, UNIX_EPOCH};
-    use typescript_rust::{get_sys, is_option_str_empty, Buffer, Comparison, Node};
+    use typescript_rust::{
+        get_sys, is_option_str_empty, millis_since_epoch_to_system_time, Buffer, Comparison,
+        FileSystemEntries, Node,
+    };
 
     use crate::{collections, documents, vpath};
 
@@ -408,15 +411,59 @@ pub mod vfs {
         }
 
         pub fn exists_sync(&self, path: &str) -> bool {
-            unimplemented!()
+            let result = self._walk(
+                &self._resolve(path),
+                Some(true),
+                Some(|_: &NodeJSErrnoException, _: WalkResult| OnErrorReturn::Stop),
+            );
+            matches!(
+                result,
+                Some(result) if result.node.is_some()
+            )
         }
 
         pub fn stat_sync(&self, path: &str) -> Stats {
-            unimplemented!()
+            self._stat(
+                self._walk(
+                    &self._resolve(path),
+                    None,
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap(),
+            )
         }
 
         pub fn utimes_sync(&self, path: &str, atime: SystemTime, mtime: SystemTime) {
             unimplemented!()
+        }
+
+        fn _stat(&self, entry: WalkResult) -> Stats {
+            let node = entry.node.as_ref();
+            if node.is_none() {
+                // throw createIOError("ENOENT");
+                panic!("ENOENT");
+            }
+            let node = node.unwrap();
+            Stats::new(
+                node.dev(),
+                node.ino(),
+                node.mode(),
+                node.nlink(),
+                0,
+                if is_file(Some(node)) {
+                    self._get_size(node)
+                } else if is_symlink(Some(node)) {
+                    node.as_symlink_inode().symlink.as_ref().unwrap().len()
+                } else {
+                    0
+                },
+                4096,
+                0,
+                node.atime_ms(),
+                node.mtime_ms(),
+                node.ctime_ms(),
+                node.birthtime_ms(),
+            )
         }
 
         pub fn readdir_sync(&self, path: &str) -> Vec<String> {
@@ -478,7 +525,36 @@ pub mod vfs {
             path: &str,
             encoding: Option<&str /*BufferEncoding*/>,
         ) -> StringOrBuffer {
-            unimplemented!()
+            let WalkResult { node, .. } = self
+                ._walk(
+                    &self._resolve(path),
+                    None,
+                    Option::<fn(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>::None,
+                )
+                .unwrap();
+            if node.is_none() {
+                // throw createIOError("ENOENT");
+                panic!("ENOENT");
+            }
+            let ref node = node.unwrap();
+            if is_directory(Some(node)) {
+                // throw createIOError("EISDIR");
+                panic!("EISDIR");
+            }
+            if !is_file(Some(node)) {
+                // throw createIOError("EBADF");
+                panic!("EBADF");
+            }
+
+            let buffer = self._get_buffer(node).clone();
+            if let Some(encoding) = encoding {
+                if encoding != "utf8" {
+                    unimplemented!()
+                }
+                String::from_utf8(buffer).unwrap().into()
+            } else {
+                buffer.into()
+            }
         }
 
         pub fn write_file_sync<'data, TData: Into<StringOrRefBuffer<'data>>>(
@@ -717,6 +793,56 @@ pub mod vfs {
             for (name, root) in source {
                 target.set(name.clone(), self._get_shadow(root.clone()));
             }
+        }
+
+        fn _get_size(&self, node: &Inode /*FileInode*/) -> usize {
+            let node = node.as_file_inode();
+            if let Some(node_buffer) = node.buffer.borrow().as_ref() {
+                return node_buffer.len();
+            }
+            if let Some(node_size) = node.size.get() {
+                return node_size;
+            }
+            if let (Some(node_source), Some(node_resolver)) =
+                (node.maybe_source(), node.maybe_resolver())
+            {
+                let ret = node_resolver.stat_sync(&node_source).size;
+                node.set_size(Some(ret));
+                return ret;
+            }
+            if let (Some(_shadow_root), Some(node_shadow_root)) =
+                (self._shadow_root.as_ref(), node.shadow_root.as_ref())
+            {
+                let ret = _shadow_root._get_size(node_shadow_root);
+                node.set_size(Some(ret));
+                return ret;
+            }
+            0
+        }
+
+        fn _get_buffer<'node>(&self, node: &'node Inode /*FileInode*/) -> Ref<'node, Buffer> {
+            let node = node.as_file_inode();
+            node.buffer.borrow_mut().get_or_insert_with(|| {
+                let source = node.maybe_source();
+                let resolver = node.maybe_resolver();
+                if let (Some(source), Some(resolver)) =
+                    (source.filter(|source| !source.is_empty()), resolver)
+                {
+                    node.set_source(None);
+                    node.set_resolver(None);
+                    node.set_size(None);
+                    resolver.read_file_sync(&source)
+                } else if let (Some(_shadow_root), Some(node_shadow_root)) =
+                    (self._shadow_root.as_ref(), node.shadow_root.as_ref())
+                {
+                    _shadow_root._get_buffer(node_shadow_root).clone()
+                } else {
+                    Buffer::new() /*.allocUnsafe(0)*/
+                }
+            });
+            Ref::map(node.buffer.borrow(), |node_buffer| {
+                node_buffer.as_ref().unwrap()
+            })
         }
 
         fn _walk<TOnError: FnMut(&NodeJSErrnoException, WalkResult) -> OnErrorReturn>(
@@ -1013,6 +1139,18 @@ pub mod vfs {
         }
     }
 
+    impl From<String> for StringOrBuffer {
+        fn from(value: String) -> Self {
+            Self::String(value)
+        }
+    }
+
+    impl From<Buffer> for StringOrBuffer {
+        fn from(value: Buffer) -> Self {
+            Self::Buffer(value)
+        }
+    }
+
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
     enum OnErrorReturn {
         Stop,
@@ -1098,6 +1236,15 @@ pub mod vfs {
         }
 
         pub fn readdir_sync(&self, path: &str) -> Vec<String> {
+            let FileSystemEntries {
+                mut files,
+                mut directories,
+            } = self.host.get_accessible_file_system_entries(path);
+            directories.append(&mut files);
+            directories
+        }
+
+        pub fn read_file_sync(&self, path: &str) -> Buffer {
             unimplemented!()
         }
     }
@@ -1108,6 +1255,7 @@ pub mod vfs {
     }
 
     pub trait FileSystemResolverHost {
+        fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries;
         fn get_workspace_root(&self) -> String;
     }
 
@@ -1167,12 +1315,61 @@ pub mod vfs {
     pub struct Stats {
         pub dev: u32,
         pub ino: u32,
+        pub mode: u32,
+        pub nlink: usize,
+        pub uid: u32,
+        pub gid: u32,
+        pub rdev: u32,
         pub size: usize,
+        pub blksize: usize,
+        pub blocks: usize,
+        pub atime_ms: u128,
         pub mtime_ms: u128,
+        pub ctime_ms: u128,
+        pub birthtime_ms: u128,
+        pub atime: SystemTime,
         pub mtime: SystemTime,
+        pub ctime: SystemTime,
+        pub birthtime: SystemTime,
     }
 
     impl Stats {
+        pub fn new(
+            dev: u32,
+            ino: u32,
+            mode: u32,
+            nlink: usize,
+            rdev: u32,
+            size: usize,
+            blksize: usize,
+            blocks: usize,
+            atime_ms: u128,
+            mtime_ms: u128,
+            ctime_ms: u128,
+            birthtime_ms: u128,
+        ) -> Self {
+            Self {
+                dev,
+                ino,
+                mode,
+                nlink,
+                uid: 0,
+                gid: 0,
+                rdev,
+                size,
+                blksize,
+                blocks,
+                atime_ms,
+                mtime_ms,
+                ctime_ms,
+                birthtime_ms,
+                atime: millis_since_epoch_to_system_time(atime_ms),
+                mtime: millis_since_epoch_to_system_time(mtime_ms),
+                ctime: millis_since_epoch_to_system_time(ctime_ms),
+                birthtime: millis_since_epoch_to_system_time(birthtime_ms),
+            }
+        }
+
         pub fn is_file(&self) -> bool {
             unimplemented!()
         }
@@ -1644,7 +1841,7 @@ pub mod vfs {
         buffer: RefCell<Option<Buffer>>,
         source: RefCell<Option<String>>,
         resolver: RefCell<Option<Rc<FileSystemResolver>>>,
-        shadow_root: Option<Rc<Inode /*FileInode*/>>,
+        pub shadow_root: Option<Rc<Inode /*FileInode*/>>,
         meta: RefCell<Option<Rc<RefCell<collections::Metadata<MetaValue>>>>>,
     }
 
