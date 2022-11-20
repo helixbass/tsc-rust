@@ -1,7 +1,12 @@
 use std::cell::RefCell;
 
+struct It {
+    pub description: String,
+    pub callback: Box<dyn FnOnce()>,
+}
+
 struct DescribeContext {
-    its: Vec<Box<dyn FnOnce()>>,
+    its: Vec<It>,
     befores: Vec<Box<dyn FnOnce()>>,
     afters: Vec<Box<dyn FnOnce()>>,
 }
@@ -24,6 +29,7 @@ pub fn describe<TCallback: FnOnce()>(description: &str, callback: TCallback) {
     describe_contexts_.with(|describe_contexts| {
         describe_contexts.borrow_mut().push(DescribeContext::new());
     });
+    println!("{description}:");
     callback();
     let DescribeContext {
         its,
@@ -33,8 +39,13 @@ pub fn describe<TCallback: FnOnce()>(description: &str, callback: TCallback) {
     for before in befores {
         before()
     }
-    for it in its {
-        it()
+    for It {
+        description,
+        callback,
+    } in its
+    {
+        println!("{description}:");
+        callback()
     }
     for after in afters {
         after()
@@ -45,7 +56,10 @@ pub fn it<TCallback: FnOnce() + 'static>(description: &str, callback: TCallback)
     describe_contexts_.with(|describe_contexts| {
         let mut describe_contexts = describe_contexts.borrow_mut();
         let index = describe_contexts.len() - 1;
-        describe_contexts[index].its.push(Box::new(callback));
+        describe_contexts[index].its.push(It {
+            description: description.to_owned(),
+            callback: Box::new(callback),
+        });
     });
 }
 

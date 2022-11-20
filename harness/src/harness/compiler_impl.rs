@@ -244,8 +244,62 @@ pub mod compiler {
             self.host.vfs()
         }
 
+        pub fn common_source_directory(&self) -> String {
+            let common = self
+                .program
+                .as_ref()
+                .map(|program| program.get_common_source_directory())
+                .unwrap_or_else(|| "".to_owned());
+            if !common.is_empty() {
+                vpath::combine(&self.vfs().cwd(), &[Some(&common)])
+            } else {
+                common
+            }
+        }
+
         pub fn get_output_path(&self, path: &str, ext: &str) -> String {
-            unimplemented!()
+            let mut path = path.to_owned();
+            if !is_option_str_empty(self.options.out_file.as_deref())
+                || !is_option_str_empty(self.options.out.as_deref())
+            {
+                path = vpath::resolve(
+                    &self.vfs().cwd(),
+                    &[Some(
+                        self.options
+                            .out_file
+                            .as_deref()
+                            .filter(|options_out_file| !options_out_file.is_empty())
+                            .unwrap_or_else(|| self.options.out.as_deref().unwrap()),
+                    )],
+                );
+            } else {
+                path = vpath::resolve(&self.vfs().cwd(), &[Some(&path)]);
+                let out_dir = if matches!(ext, ".d.ts" | ".json.d.ts" | ".d.mts" | ".d.cts") {
+                    self.options
+                        .declaration_dir
+                        .as_deref()
+                        .filter(|options_declaration_dir| !options_declaration_dir.is_empty())
+                        .or_else(|| self.options.out_dir.as_deref())
+                } else {
+                    self.options.out_dir.as_deref()
+                };
+                if let Some(out_dir) = out_dir.filter(|out_dir| !out_dir.is_empty()) {
+                    let common = self.common_source_directory();
+                    if !common.is_empty() {
+                        path = vpath::relative(
+                            &common,
+                            &path,
+                            Option::<fn(&str) -> String>::None,
+                            Some(self.vfs().ignore_case),
+                        );
+                        path = vpath::combine(
+                            &vpath::resolve(&self.vfs().cwd(), &[self.options.out_dir.as_deref()]),
+                            &[Some(&path)],
+                        );
+                    }
+                }
+            }
+            vpath::change_extension(&path, ext, Option::<&[&str]>::None, None)
         }
     }
 

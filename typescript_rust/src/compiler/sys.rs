@@ -377,7 +377,14 @@ impl System for SystemConcrete {
     }
 
     fn get_file_size(&self, path: &str) -> Option<usize> {
-        unimplemented!()
+        // try {
+        let stat = self.stat_sync(path);
+        Some(
+            stat.filter(|stat| stat.is_file())
+                .map_or(0, |stat| stat.size()),
+        )
+        // }
+        // catch { /*ignore*/ }
     }
 
     fn write_file(

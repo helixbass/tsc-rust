@@ -87,6 +87,10 @@ impl Stats {
     pub fn new(metadata: Metadata) -> Self {
         Self { metadata }
     }
+
+    pub fn size(&self) -> usize {
+        self.metadata.len().try_into().unwrap()
+    }
 }
 
 impl StatLike for Stats {

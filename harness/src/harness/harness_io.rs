@@ -154,6 +154,22 @@ impl vfs::FileSystemResolverHost for NodeIO {
         // }
     }
 
+    fn get_file_size(&self, path: &str) -> usize {
+        get_sys().get_file_size(path).unwrap()
+    }
+
+    fn read_file(&self, path: &str) -> Option<String> {
+        get_sys().read_file(path).ok().flatten()
+    }
+
+    fn file_exists(&self, path: &str) -> bool {
+        get_sys().file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &str) -> bool {
+        get_sys().directory_exists(path)
+    }
+
     fn get_workspace_root(&self) -> String {
         "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/".to_owned()
     }

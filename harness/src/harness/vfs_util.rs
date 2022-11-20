@@ -1232,7 +1232,19 @@ pub mod vfs {
 
     impl FileSystemResolver {
         pub fn stat_sync(&self, path: &str) -> FileSystemResolverStats {
-            unimplemented!()
+            if self.host.directory_exists(path) {
+                FileSystemResolverStats {
+                    mode: S_IFDIR | 0o777,
+                    size: 0,
+                }
+            } else if self.host.file_exists(path) {
+                FileSystemResolverStats {
+                    mode: S_IFREG | 0o666,
+                    size: self.host.get_file_size(path),
+                }
+            } else {
+                panic!("ENOENT: path does not exist");
+            }
         }
 
         pub fn readdir_sync(&self, path: &str) -> Vec<String> {
@@ -1245,7 +1257,9 @@ pub mod vfs {
         }
 
         pub fn read_file_sync(&self, path: &str) -> Buffer {
-            unimplemented!()
+            get_sys()
+                .buffer_from(self.host.read_file(path).unwrap(), Some("utf8"))
+                .unwrap()
         }
     }
 
@@ -1256,6 +1270,10 @@ pub mod vfs {
 
     pub trait FileSystemResolverHost {
         fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries;
+        fn directory_exists(&self, path: &str) -> bool;
+        fn file_exists(&self, path: &str) -> bool;
+        fn get_file_size(&self, path: &str) -> usize;
+        fn read_file(&self, path: &str) -> Option<String>;
         fn get_workspace_root(&self) -> String;
     }
 
@@ -2198,10 +2216,11 @@ pub mod vfs {
                             built_folder.to_owned(),
                             Some(
                                 Mount::new(
-                                    vpath::resolve(
-                                        &host.get_workspace_root(),
-                                        &[Some("built/local")],
-                                    ),
+                                    // vpath::resolve(
+                                    //     &host.get_workspace_root(),
+                                    //     &[Some("built/local")],
+                                    // ),
+                                    "/Users/jrosse/prj/TypeScript/built/local/".to_owned(),
                                     resolver.clone(),
                                     None,
                                 )

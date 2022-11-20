@@ -2,7 +2,7 @@ use harness::{
     after, before, compiler, describe, get_file_based_test_configuration_description,
     get_file_based_test_configurations, it, vpath, with_io, Compiler, EnumerateFilesOptions,
     FileBasedTest, FileBasedTestConfiguration, RunnerBase, RunnerBaseSub, StringOrFileBasedTest,
-    TestCaseParser, TestRunnerKind,
+    TestCaseParser, TestRunnerKind, IO,
 };
 use regex::Regex;
 use std::cell::RefCell;
@@ -229,7 +229,7 @@ impl CompilerTest {
 
         if test_case_content.is_none() {
             test_case_content = Some(TestCaseParser::make_units_from_test(
-                &with_io(|IO| IO.read_file(file_name.as_ref()).unwrap()),
+                &with_io(|io| IO::read_file(io, file_name.as_ref()).unwrap()),
                 &file_name,
                 Some(&root_dir),
                 None,
@@ -398,7 +398,7 @@ impl CompilerTest {
 
     pub fn get_configurations<TFile: AsRef<StdPath>>(file: TFile) -> CompilerFileBasedTest {
         let file = file.as_ref();
-        let content = with_io(|IO| IO.read_file(file)).unwrap();
+        let content = with_io(|io| IO::read_file(io, file)).unwrap();
         let settings = TestCaseParser::extract_compiler_settings(&content);
         let configurations =
             get_file_based_test_configurations(&settings, &CompilerTest::vary_by());

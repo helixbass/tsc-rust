@@ -7,8 +7,9 @@ pub mod vpath {
         compare_paths_case_sensitive, directory_separator, directory_separator_str,
         file_extension_is_one_of, get_any_extension_from_path, get_base_file_name,
         get_directory_path, get_path_components, get_path_from_path_components,
-        has_js_file_extension, has_trailing_directory_separator, is_disk_path_root,
-        normalize_slashes, reduce_path_components, resolve_path, Comparison, Extension,
+        get_relative_path_from_directory, has_js_file_extension, has_trailing_directory_separator,
+        is_disk_path_root, normalize_slashes, reduce_path_components, resolve_path, Comparison,
+        Extension,
     };
 
     pub const sep: char = directory_separator;
@@ -68,6 +69,15 @@ pub mod vpath {
         ignore_case: Option<bool>,
     ) -> String {
         get_any_extension_from_path(path, extensions, ignore_case)
+    }
+
+    pub fn relative<TGetCanonicalFileName: Fn(&str) -> String>(
+        from_directory: &str,
+        to: &str,
+        get_canonical_file_name: Option<TGetCanonicalFileName>,
+        ignore_case: Option<bool>,
+    ) -> String {
+        get_relative_path_from_directory(from_directory, to, get_canonical_file_name, ignore_case)
     }
 
     pub fn change_extension<TExtension: AsRef<str>>(
