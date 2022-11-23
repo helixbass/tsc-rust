@@ -203,9 +203,9 @@ struct CompilerTest {
     has_non_dts_files: bool,
     result: compiler::CompilationResult,
     options: Rc<CompilerOptions>,
-    ts_config_files: Vec<Compiler::TestFile>,
-    to_be_compiled: Vec<Compiler::TestFile>,
-    other_files: Vec<Compiler::TestFile>,
+    ts_config_files: Vec<Rc<Compiler::TestFile>>,
+    to_be_compiled: Vec<Rc<Compiler::TestFile>>,
+    other_files: Vec<Rc<Compiler::TestFile>>,
 }
 
 impl CompilerTest {
@@ -244,7 +244,7 @@ impl CompilerTest {
         let units = &test_case_content.test_unit_data;
         let mut harness_settings = test_case_content.settings.clone();
         let mut ts_config_options: Option<Rc<CompilerOptions>> = None;
-        let mut ts_config_files: Vec<Compiler::TestFile> = vec![];
+        let mut ts_config_files: Vec<Rc<Compiler::TestFile>> = vec![];
         if let Some(test_case_content_ts_config) = test_case_content.ts_config.as_ref() {
             assert!(
                 test_case_content_ts_config.file_names.is_empty(),
@@ -259,7 +259,7 @@ impl CompilerTest {
             );
 
             ts_config_options = Some(test_case_content_ts_config.options.clone());
-            ts_config_files.push(Self::create_harness_test_file(
+            ts_config_files.push(Rc::new(Self::create_harness_test_file(
                 test_case_content.ts_config_file_unit_data.as_ref().unwrap(),
                 &root_dir,
                 Some(&combine_paths(
@@ -270,7 +270,7 @@ impl CompilerTest {
                         .config_file_path
                         .as_deref()],
                 )),
-            ));
+            )));
         } else {
             let base_url = harness_settings.get("baseUrl").cloned();
             if let Some(base_url) = base_url.filter(|base_url| !is_rooted_disk_path(base_url)) {
@@ -285,8 +285,8 @@ impl CompilerTest {
         let has_non_dts_files = units
             .iter()
             .any(|unit| !file_extension_is(&unit.name, Extension::Dts.to_str()));
-        let mut to_be_compiled: Vec<Compiler::TestFile> = vec![];
-        let mut other_files: Vec<Compiler::TestFile> = vec![];
+        let mut to_be_compiled: Vec<Rc<Compiler::TestFile>> = vec![];
+        let mut other_files: Vec<Rc<Compiler::TestFile>> = vec![];
 
         if test_case_content
             .settings
@@ -307,16 +307,20 @@ impl CompilerTest {
                 reference_path_regex.is_match(&last_unit.content)
             }
         {
-            to_be_compiled.push(Self::create_harness_test_file(&last_unit, &root_dir, None));
+            to_be_compiled.push(Rc::new(Self::create_harness_test_file(
+                &last_unit, &root_dir, None,
+            )));
             for unit in units {
                 if unit.name != last_unit.name {
-                    other_files.push(Self::create_harness_test_file(unit, &root_dir, None));
+                    other_files.push(Rc::new(Self::create_harness_test_file(
+                        unit, &root_dir, None,
+                    )));
                 }
             }
         } else {
             to_be_compiled = units
                 .into_iter()
-                .map(|unit| Self::create_harness_test_file(unit, &root_dir, None))
+                .map(|unit| Rc::new(Self::create_harness_test_file(unit, &root_dir, None)))
                 .collect();
         }
 
@@ -410,7 +414,17 @@ impl CompilerTest {
     }
 
     pub fn verify_diagnostics(&self) {
-        unimplemented!()
+        Compiler::do_error_baseline(
+            &self.configured_name,
+            &[
+                &*self.ts_config_files,
+                &*self.to_be_compiled,
+                &*self.other_files,
+            ]
+            .concat(),
+            &self.result.diagnostics,
+            Some(self.options.pretty == Some(true)),
+        )
     }
 
     pub fn make_unit_name(name: &str, root: &str) -> String {

@@ -192,6 +192,7 @@ pub fn set_light_mode(flag: bool) {
 }
 
 pub mod Compiler {
+    use regex::Regex;
     use std::cell::RefCell;
     use std::collections::HashMap;
     use std::rc::Rc;
@@ -204,7 +205,8 @@ pub mod Compiler {
         StringOrDiagnosticMessage,
     };
 
-    use super::TestCaseParser;
+    use super::{Baseline, TestCaseParser};
+
     use crate::{compiler, documents, fakes, get_io, vfs, vpath};
 
     #[derive(Default)]
@@ -700,8 +702,8 @@ pub mod Compiler {
     }
 
     pub fn compile_files(
-        input_files: &[TestFile],
-        other_files: &[TestFile],
+        input_files: &[Rc<TestFile>],
+        other_files: &[Rc<TestFile>],
         harness_settings: Option<&TestCaseParser::CompilerSettings>,
         compiler_options: Option<&CompilerOptions>,
         current_directory: Option<&str>,
@@ -804,6 +806,37 @@ pub mod Compiler {
     struct CompilerOptionsAndHarnessOptions {
         compiler_options: CompilerOptions,
         harness_options: HarnessOptions,
+    }
+
+    pub fn get_error_baseline(
+        input_files: &[Rc<TestFile>],
+        diagnostics: &[Rc<Diagnostic>],
+        pretty: Option<bool>,
+    ) -> String {
+        unimplemented!()
+    }
+
+    pub fn do_error_baseline(
+        baseline_path: &str,
+        input_files: &[Rc<TestFile>],
+        errors: &[Rc<Diagnostic>],
+        pretty: Option<bool>,
+    ) {
+        lazy_static! {
+            static ref ts_extension_regex: Regex = Regex::new(r"\.tsx?$").unwrap();
+        }
+        Baseline::run_baseline(
+            &ts_extension_regex.replace(baseline_path, ".errors.txt"),
+            if
+            /* !errors ||*/
+            !errors.is_empty() {
+                Some(get_error_baseline(input_files, errors, pretty))
+            } else {
+                None
+            }
+            .as_deref(),
+            None,
+        );
     }
 }
 
@@ -1314,6 +1347,128 @@ pub mod TestCaseParser {
         fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
             unreachable!()
         }
+    }
+}
+
+pub mod Baseline {
+    use super::{user_specified_root, with_io, IO};
+
+    const no_content: &'static str = "<no content>";
+
+    pub struct BaselineOptions {
+        pub Subfolder: Option<String>,
+        pub Baselinefolder: Option<String>,
+        pub Printdiff: Option<bool /*true*/>,
+    }
+
+    pub fn local_path(
+        file_name: &str,
+        baseline_folder: Option<&str>,
+        subfolder: Option<&str>,
+    ) -> String {
+        match baseline_folder {
+            None => baseline_path(file_name, "local", "tests/baselines", subfolder),
+            Some(baseline_folder) => baseline_path(file_name, "local", baseline_folder, subfolder),
+        }
+    }
+
+    fn reference_path(
+        file_name: &str,
+        baseline_folder: Option<&str>,
+        subfolder: Option<&str>,
+    ) -> String {
+        match baseline_folder {
+            None => baseline_path(file_name, "reference", "tests/baselines", subfolder),
+            Some(baseline_folder) => {
+                baseline_path(file_name, "reference", baseline_folder, subfolder)
+            }
+        }
+    }
+
+    fn baseline_path(
+        file_name: &str,
+        type_: &str,
+        baseline_folder: &str,
+        subfolder: Option<&str>,
+    ) -> String {
+        if let Some(subfolder) = subfolder {
+            format!(
+                "{}{baseline_folder}/{subfolder}/{type_}/{file_name}",
+                user_specified_root
+            )
+        } else {
+            format!(
+                "{}{baseline_folder}/{type_}/{file_name}",
+                user_specified_root
+            )
+        }
+    }
+
+    fn compare_to_baseline(
+        actual: Option<&str>,
+        relative_file_name: &str,
+        opts: Option<&BaselineOptions>,
+    ) -> CompareToBaselineReturn {
+        // if (actual === undefined) {
+        //     return undefined!;
+        // }
+
+        let ref_file_name = reference_path(
+            relative_file_name,
+            opts.and_then(|opts| opts.Baselinefolder.as_deref()),
+            opts.and_then(|opts| opts.Subfolder.as_deref()),
+        );
+
+        let actual = actual.unwrap_or(no_content);
+
+        let mut expected = "<no content>".to_owned();
+        if with_io(|IO| IO.file_exists(&ref_file_name)) {
+            expected = with_io(|io| IO::read_file(&*io, ref_file_name.as_ref())).unwrap();
+        }
+
+        CompareToBaselineReturn {
+            expected,
+            actual: actual.to_owned(),
+        }
+    }
+
+    struct CompareToBaselineReturn {
+        pub expected: String,
+        pub actual: String,
+    }
+
+    fn write_comparison(
+        expected: &str,
+        actual: &str,
+        relative_file_name: &str,
+        actual_file_name: &str,
+        opts: Option<&BaselineOptions>,
+    ) {
+        unimplemented!()
+    }
+
+    pub fn run_baseline(
+        relative_file_name: &str,
+        actual: Option<&str>,
+        opts: Option<BaselineOptions>,
+    ) {
+        let actual_file_name = local_path(
+            relative_file_name,
+            opts.as_ref()
+                .and_then(|opts| opts.Baselinefolder.as_deref()),
+            opts.as_ref().and_then(|opts| opts.Subfolder.as_deref()),
+        );
+        // if actual.is_none() {
+        //     panic!("The generated content was \"undefined\". Return \"null\" if no baselining is required.\"");
+        // }
+        let comparison = compare_to_baseline(actual, relative_file_name, opts.as_ref());
+        write_comparison(
+            &comparison.expected,
+            &comparison.actual,
+            relative_file_name,
+            &actual_file_name,
+            opts.as_ref(),
+        );
     }
 }
 
