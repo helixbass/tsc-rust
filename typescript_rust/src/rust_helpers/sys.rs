@@ -143,3 +143,11 @@ pub fn millis_since_epoch_to_system_time(millis: u128) -> SystemTime {
     // accepts u64, is that sufficient (and if so should I use that everywhere)?
     UNIX_EPOCH + Duration::from_millis(millis.try_into().unwrap())
 }
+
+pub fn fs_mkdir_sync<TPath: AsRef<StdPath>>(path: TPath) -> io::Result<()> {
+    fs::create_dir(path)
+}
+
+pub fn fs_unlink_sync<TPath: AsRef<StdPath>>(path: TPath) -> io::Result<()> {
+    fs::remove_file(path)
+}

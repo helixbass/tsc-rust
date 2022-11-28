@@ -4,6 +4,11 @@ use typescript_rust::{
     are_option_rcs_equal, for_each_child, Node, NodeArray, NodeInterface, ReadonlyTextRange,
 };
 
+pub fn encode_string(s: &str) -> String {
+    s.to_owned()
+    // return ts.sys.bufferFrom!(s).toString("utf8");
+}
+
 pub fn split_content_by_newlines(content: &str) -> Vec<&str> {
     let mut lines = content.split("\r\n").collect::<Vec<_>>();
     if lines.len() == 1 {

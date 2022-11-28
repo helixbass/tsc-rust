@@ -1,15 +1,17 @@
 use regex::Regex;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::io;
 use std::iter::FromIterator;
 use std::path::{Path as StdPath, PathBuf};
 use std::rc::Rc;
 use typescript_rust::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
-    equate_strings_case_insensitive, find, find_index, for_each, fs_exists_sync, fs_readdir_sync,
-    fs_stat_sync, get_base_file_name, get_sys, map, option_declarations, ordered_remove_item_at,
-    path_join, starts_with, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CommandLineOptionType, FileSystemEntries, StatLike,
+    equate_strings_case_insensitive, find, find_index, for_each, fs_exists_sync, fs_mkdir_sync,
+    fs_readdir_sync, fs_stat_sync, fs_unlink_sync, get_base_file_name, get_sys, map,
+    option_declarations, ordered_remove_item_at, path_join, starts_with, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType,
+    FileSystemEntries, StatLike,
 };
 
 use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest};
@@ -17,6 +19,9 @@ use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest};
 pub trait IO: vfs::FileSystemResolverHost {
     fn get_current_directory(&self) -> String;
     fn read_file(&self, path: &StdPath) -> Option<String>;
+    fn directory_name(&self, path: &StdPath) -> Option<String>;
+    fn create_directory(&self, path: &StdPath) -> io::Result<()>;
+    fn delete_file(&self, file_name: &StdPath);
     fn enumerate_test_files(&self, runner: &RunnerBase) -> Vec<StringOrFileBasedTest>;
     fn list_files(
         &self,
@@ -84,6 +89,14 @@ impl NodeIO {
 }
 
 impl IO for NodeIO {
+    fn delete_file(&self, file_name: &StdPath) {
+        let _ = fs_unlink_sync(file_name);
+    }
+
+    fn directory_name(&self, path: &StdPath) -> Option<String> {
+        path.parent().map(|path| path.to_str().unwrap().to_owned())
+    }
+
     fn get_current_directory(&self) -> String {
         get_sys().get_current_directory()
     }
@@ -94,6 +107,19 @@ impl IO for NodeIO {
 
     fn enumerate_test_files(&self, runner: &RunnerBase) -> Vec<StringOrFileBasedTest> {
         runner.get_test_files()
+    }
+
+    fn create_directory(&self, path: &StdPath) -> io::Result<()> {
+        fs_mkdir_sync(path).or_else(|_| {
+            // if (e.code === "ENOENT") {
+            let path_as_str = path.to_str().unwrap();
+            self.create_directory(vpath::dirname(path_as_str).as_ref())
+                .and_then(|_| self.create_directory(path))
+            // }
+            // else if (!ts.sys.directoryExists(path)) {
+            //     throw e;
+            // }
+        })
     }
 
     fn list_files(
@@ -1351,7 +1377,11 @@ pub mod TestCaseParser {
 }
 
 pub mod Baseline {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
     use super::{user_specified_root, with_io, IO};
+    use crate::Utils;
 
     const no_content: &'static str = "<no content>";
 
@@ -1404,6 +1434,10 @@ pub mod Baseline {
         }
     }
 
+    thread_local! {
+        static file_cache: RefCell<HashMap<String, bool>> = Default::default();
+    }
+
     fn compare_to_baseline(
         actual: Option<&str>,
         relative_file_name: &str,
@@ -1444,7 +1478,42 @@ pub mod Baseline {
         actual_file_name: &str,
         opts: Option<&BaselineOptions>,
     ) {
-        unimplemented!()
+        create_directory_structure(&with_io(|IO| {
+            IO.directory_name(actual_file_name.as_ref()).unwrap()
+        }));
+
+        if with_io(|IO| IO.file_exists(actual_file_name)) {
+            with_io(|IO| {
+                IO.delete_file(actual_file_name.as_ref());
+            });
+        }
+
+        let encoded_actual = Utils::encode_string(actual);
+        if expected != encoded_actual {
+            unimplemented!()
+        }
+    }
+
+    fn create_directory_structure(dir_name: &str) {
+        if file_cache.with(|file_cache_| file_cache_.borrow().get(dir_name).copied() == Some(true))
+            || with_io(|IO| IO.directory_exists(dir_name))
+        {
+            file_cache.with(|file_cache_| {
+                file_cache_.borrow_mut().insert(dir_name.to_owned(), true);
+            });
+            return;
+        }
+
+        let parent_directory = with_io(|IO| IO.directory_name(dir_name.as_ref()).unwrap());
+        if !parent_directory.is_empty() && parent_directory != dir_name {
+            create_directory_structure(&parent_directory);
+        }
+        with_io(|IO| {
+            IO.create_directory(dir_name.as_ref()).unwrap();
+        });
+        file_cache.with(|file_cache_| {
+            file_cache_.borrow_mut().insert(dir_name.to_owned(), true);
+        });
     }
 
     pub fn run_baseline(

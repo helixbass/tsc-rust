@@ -635,8 +635,8 @@ pub use rust_helpers::debugging::{
 };
 pub use rust_helpers::number::{is_finite, is_nan, Number};
 pub use rust_helpers::sys::{
-    fs_exists_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync, is_windows,
-    millis_since_epoch_to_system_time, path_join, process_cwd,
+    fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_readdir_sync_with_file_types, fs_stat_sync,
+    fs_unlink_sync, is_windows, millis_since_epoch_to_system_time, path_join, process_cwd,
     read_file_and_strip_leading_byte_order_mark, StatLike, Stats,
 };
 pub use rust_helpers::weak_self::WeakSelf;
