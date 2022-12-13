@@ -1,7 +1,9 @@
+use once_cell::sync::Lazy;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use typescript_rust::{
-    are_option_rcs_equal, for_each_child, Node, NodeArray, NodeInterface, ReadonlyTextRange,
+    are_option_rcs_equal, create_get_canonical_file_name, for_each_child, Node, NodeArray,
+    NodeInterface, ReadonlyTextRange,
 };
 
 pub fn encode_string(s: &str) -> String {
@@ -19,6 +21,11 @@ pub fn split_content_by_newlines(content: &str) -> Vec<&str> {
         }
     }
     lines
+}
+
+pub fn canonicalize_for_harness(file_name: &str) -> String {
+    static INSTANCE: Lazy<fn(&str) -> String> = Lazy::new(|| create_get_canonical_file_name(false));
+    (*Lazy::force(&INSTANCE))(file_name)
 }
 
 pub fn assert_invariants(node: Option<&Node>, parent: Option<&Node>) {

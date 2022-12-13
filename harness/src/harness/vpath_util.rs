@@ -5,8 +5,8 @@ pub mod vpath {
     use typescript_rust::{
         change_any_extension, combine_paths, compare_paths_case_insensitive,
         compare_paths_case_sensitive, directory_separator, directory_separator_str,
-        file_extension_is_one_of, get_any_extension_from_path, get_base_file_name,
-        get_directory_path, get_path_components, get_path_from_path_components,
+        ensure_trailing_directory_separator, file_extension_is_one_of, get_any_extension_from_path,
+        get_base_file_name, get_directory_path, get_path_components, get_path_from_path_components,
         get_relative_path_from_directory, has_js_file_extension, has_trailing_directory_separator,
         is_disk_path_root, normalize_slashes, reduce_path_components, resolve_path, Comparison,
         Extension,
@@ -25,6 +25,10 @@ pub mod vpath {
 
     pub fn has_trailing_separator(path: &str) -> bool {
         has_trailing_directory_separator(path)
+    }
+
+    pub fn add_trailing_separator(path: &str) -> String {
+        ensure_trailing_directory_separator(path)
     }
 
     pub fn combine(path: &str, paths: &[Option<&str>]) -> String {

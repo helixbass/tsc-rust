@@ -7,11 +7,11 @@ use std::path::{Path as StdPath, PathBuf};
 use std::rc::Rc;
 use typescript_rust::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
-    equate_strings_case_insensitive, find, find_index, for_each, fs_exists_sync, fs_mkdir_sync,
-    fs_readdir_sync, fs_stat_sync, fs_unlink_sync, get_base_file_name, get_sys, map,
-    option_declarations, ordered_remove_item_at, path_join, starts_with, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType,
-    FileSystemEntries, StatLike,
+    ends_with, equate_strings_case_insensitive, find, find_index, for_each, fs_exists_sync,
+    fs_mkdir_sync, fs_readdir_sync, fs_stat_sync, fs_unlink_sync, get_base_file_name, get_sys, map,
+    normalize_slashes, option_declarations, ordered_remove_item_at, path_join, starts_with,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    CommandLineOptionType, Extension, FileSystemEntries, StatLike,
 };
 
 use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest};
@@ -208,6 +208,8 @@ impl vfs::FileSystemResolverHost for NodeIO {
     }
 }
 
+pub const lib_folder: &'static str = "built/local/";
+
 pub const user_specified_root: &'static str = "";
 
 thread_local! {
@@ -237,12 +239,13 @@ pub mod Compiler {
         flatten_diagnostic_message_text, format_diagnostics,
         format_diagnostics_with_color_and_context, format_location, get_emit_script_target,
         get_error_count_for_summary, get_error_summary_text, get_normalized_absolute_path, map,
-        option_declarations, parse_custom_type_option, parse_list_type_option, regex, sort,
-        text_span_end, CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
-        CommandLineOptionOfBooleanType, CommandLineOptionOfStringType, CommandLineOptionType,
-        Comparison, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic,
-        DiagnosticInterface, DiagnosticRelatedInformationInterface, Extension,
-        FormatDiagnosticsHost, NewLineKind, StringOrDiagnosticMessage, TextSpan,
+        normalize_slashes, option_declarations, parse_custom_type_option, parse_list_type_option,
+        regex, sort, starts_with, text_span_end, to_path, CommandLineOption, CommandLineOptionBase,
+        CommandLineOptionInterface, CommandLineOptionOfBooleanType, CommandLineOptionOfStringType,
+        CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsBuilder,
+        CompilerOptionsValue, Diagnostic, DiagnosticInterface,
+        DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost, NewLineKind,
+        StringOrDiagnosticMessage, TextSpan,
     };
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
@@ -1287,7 +1290,18 @@ pub mod Compiler {
     }
 
     pub fn sanitize_test_file_path(name: &str) -> String {
-        unimplemented!()
+        let path = to_path(
+            &normalize_slashes(&regex!(r"\.\./").replace_all(
+                &regex!(r#"[\^<>:"|?*%]"#).replace_all(name, "_"),
+                "__dotdot/",
+            )),
+            Some(""),
+            |file_name: &str| Utils::canonicalize_for_harness(file_name),
+        );
+        if starts_with(&path, "/") {
+            return path[1..].to_owned();
+        }
+        path.to_string()
     }
 }
 
@@ -1967,11 +1981,13 @@ pub mod Baseline {
 }
 
 pub fn is_default_library_file(file_path: &str) -> bool {
-    unimplemented!()
+    let file_name = get_base_file_name(&normalize_slashes(file_path), None, None);
+    starts_with(&file_name, "lib.") && ends_with(&file_name, Extension::Dts.to_str())
 }
 
 pub fn is_built_file(file_path: &str) -> bool {
-    unimplemented!()
+    file_path.starts_with(lib_folder)
+        || file_path.starts_with(&vpath::add_trailing_separator(vfs::built_folder))
 }
 
 pub fn get_config_name_from_file_name(
