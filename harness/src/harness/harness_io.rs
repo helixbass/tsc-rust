@@ -210,7 +210,8 @@ impl vfs::FileSystemResolverHost for NodeIO {
 
 pub const lib_folder: &'static str = "built/local/";
 
-pub const user_specified_root: &'static str = "";
+// pub const user_specified_root: &'static str = "";
+pub const user_specified_root: &'static str = "../typescript_rust/typescript_src/";
 
 thread_local! {
     static light_mode_: Cell<bool> = Cell::new(false);
@@ -1824,6 +1825,7 @@ pub mod Baseline {
 
     const no_content: &'static str = "<no content>";
 
+    #[derive(Debug)]
     pub struct BaselineOptions {
         pub Subfolder: Option<String>,
         pub Baselinefolder: Option<String>,
@@ -1929,6 +1931,8 @@ pub mod Baseline {
 
         let encoded_actual = Utils::encode_string(actual);
         if expected != encoded_actual {
+            println!("expected: {}", expected);
+            println!("encoded_actual: {}", encoded_actual);
             unimplemented!()
         }
     }

@@ -39,8 +39,8 @@ impl CompilerBaselineRunner {
         };
         Self {
             base_path: format!(
-                // "tests/cases/{:?}",
-                "../typescript_rust/typescript_src/tests/cases/{:?}",
+                "tests/cases/{:?}",
+                // "../typescript_rust/typescript_src/tests/cases/{:?}",
                 test_suite_name
             )
             .to_lowercase(),
@@ -106,8 +106,8 @@ impl CompilerBaselineRunner {
                     )
                 }) {
                     let root_dir = if !test.file.contains("conformance") {
-                        // "tests/cases/compiler/"
-                        "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+                        "tests/cases/compiler/".to_owned()
+                        // "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
                     } else {
                         format!("{}/", get_directory_path(&test.file))
                     };
@@ -221,8 +221,8 @@ impl CompilerTest {
         }
 
         let root_dir = if !file_name.contains("conformance") {
-            // "tests/cases/compiler/"
-            "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
+            "tests/cases/compiler/".to_owned()
+            // "../typescript_rust/typescript_src/tests/cases/compiler/".to_owned()
         } else {
             format!("{}/", get_directory_path(&file_name))
         };
