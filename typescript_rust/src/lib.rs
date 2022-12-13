@@ -3,6 +3,7 @@ extern crate lazy_static;
 
 mod compiler;
 mod execute_command_line;
+mod macros;
 mod rust_helpers;
 
 use compiler::binder::BindBinaryExpressionFlow;
@@ -218,12 +219,12 @@ use compiler::program::{
 pub use compiler::program::{
     create_compiler_host_worker, create_program, find_config_file, flatten_diagnostic_message_text,
     format_diagnostic, format_diagnostics, format_diagnostics_with_color_and_context,
-    get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
+    format_location, get_config_file_parsing_diagnostics, get_implied_node_format_for_file,
     get_pre_emit_diagnostics, get_resolution_diagnostic, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, FilesByNameValue, FormatDiagnosticsHost,
 };
 use compiler::scanner::{
-    compute_line_and_character_of_position, compute_line_of_position, compute_line_starts,
+    compute_line_and_character_of_position, compute_line_of_position,
     compute_position_of_line_and_character, get_line_starts, get_lines_between_positions,
     is_identifier_text, is_octal_digit, is_shebang_trivia, is_unicode_identifier_start,
     scan_shebang_trivia, skip_trivia, string_to_token, text_to_keyword_obj,
@@ -231,7 +232,7 @@ use compiler::scanner::{
     utf16_encode_as_string,
 };
 pub use compiler::scanner::{
-    could_start_trivia, create_scanner, for_each_leading_comment_range,
+    compute_line_starts, could_start_trivia, create_scanner, for_each_leading_comment_range,
     for_each_trailing_comment_range, get_leading_comment_ranges,
     get_line_and_character_of_position, get_position_of_line_and_character, get_shebang,
     get_trailing_comment_ranges, is_identifier_part, is_identifier_start, is_line_break,
@@ -262,18 +263,12 @@ pub use compiler::tsbuild_public::{
     create_solution_builder_with_watch, create_solution_builder_with_watch_host, BuildOptions,
     ReportEmitErrorSummary, SolutionBuilderHostBase,
 };
-use compiler::types::{
-    diagnostic_category_name, AccessFlags, CommentDirectivesMap, EmitNode, ExternalEmitHelpers,
-    FileIncludeKind, FileIncludeReason, IterationTypes, IterationTypesKey, JsxReferenceKind,
-    MemberOverrideStatus, ModulePath, RawSourceMap, ReadonlyPragmaMap, ReferencedFile,
-    SourceOfProjectReferenceRedirect, WideningContext,
-};
 pub use compiler::types::{
-    extend_compiler_options, extend_watch_options, get_pragma_spec, maybe_extend_compiler_options,
-    maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
-    text_str_num_chars, text_substring, to_pragma_name, AllAccessorDeclarations,
-    AlternateModeDiagnostics, AmdDependency, ArrayBindingPattern, ArrayLiteralExpression,
-    ArrayTypeNode, ArrowFunction, AsExpression, AssertClause, AssertEntry,
+    diagnostic_category_name, extend_compiler_options, extend_watch_options, get_pragma_spec,
+    maybe_extend_compiler_options, maybe_text_char_at_index, str_to_source_text_as_chars,
+    text_char_at_index, text_len, text_str_num_chars, text_substring, to_pragma_name,
+    AllAccessorDeclarations, AlternateModeDiagnostics, AmdDependency, ArrayBindingPattern,
+    ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression, AssertClause, AssertEntry,
     AssignmentDeclarationKind, AutomaticTypeDirectiveFile, AwaitExpression,
     BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
@@ -396,6 +391,12 @@ pub use compiler::types::{
     VariableStatement, VarianceFlags, VisitResult, VoidExpression, WatchDirectoryFlags,
     WatchDirectoryKind, WatchFileKind, WatchOptions, WhileStatement, WithStatement,
     WriteFileCallback, YieldExpression, __String,
+};
+use compiler::types::{
+    AccessFlags, CommentDirectivesMap, EmitNode, ExternalEmitHelpers, FileIncludeKind,
+    FileIncludeReason, IterationTypes, IterationTypesKey, JsxReferenceKind, MemberOverrideStatus,
+    ModulePath, RawSourceMap, ReadonlyPragmaMap, ReferencedFile, SourceOfProjectReferenceRedirect,
+    WideningContext,
 };
 pub use compiler::utilities::{
     add_related_info, array_is_homogeneous, attach_file_to_diagnostics, chain_diagnostic_messages,
@@ -619,8 +620,8 @@ pub use compiler::visitor_public::{visit_each_child, visit_node, visit_nodes};
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
     create_watch_status_reporter, emit_files_and_report_errors_and_get_exit_status,
-    explain_if_file_is_redirect, file_include_reason_to_diagnostics, get_error_summary_text,
-    parse_config_file_with_system, perform_incremental_compilation,
+    explain_if_file_is_redirect, file_include_reason_to_diagnostics, get_error_count_for_summary,
+    get_error_summary_text, parse_config_file_with_system, perform_incremental_compilation,
     CreateWatchCompilerHostOfConfigFileInput, IncrementalCompilationOptions,
     ProgramOrBuilderProgram,
 };

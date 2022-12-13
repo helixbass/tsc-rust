@@ -1115,7 +1115,7 @@ fn format_code_span<THost: FormatDiagnosticsHost>(
     context
 }
 
-pub(crate) fn format_location<THost: FormatDiagnosticsHost, TColor: Fn(&str, &str) -> String>(
+pub fn format_location<THost: FormatDiagnosticsHost, TColor: Fn(&str, &str) -> String>(
     file: &Node, /*SourceFile*/
     start: isize,
     host: &THost,

@@ -17,6 +17,7 @@ use typescript_rust::{
 use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest};
 
 pub trait IO: vfs::FileSystemResolverHost {
+    fn new_line(&self) -> &'static str;
     fn get_current_directory(&self) -> String;
     fn read_file(&self, path: &StdPath) -> Option<String>;
     fn directory_name(&self, path: &StdPath) -> Option<String>;
@@ -48,6 +49,8 @@ pub fn with_io<TReturn, TCallback: FnMut(&dyn IO) -> TReturn>(mut callback: TCal
 pub fn get_io() -> Rc<dyn IO> {
     IO_.with(|io| io.borrow().clone())
 }
+
+pub const harness_new_line: &'static str = "\r\n";
 
 fn create_node_io() -> NodeIO {
     NodeIO {}
@@ -89,6 +92,10 @@ impl NodeIO {
 }
 
 impl IO for NodeIO {
+    fn new_line(&self) -> &'static str {
+        harness_new_line
+    }
+
     fn delete_file(&self, file_name: &StdPath) {
         let _ = fs_unlink_sync(file_name);
     }
@@ -220,20 +227,31 @@ pub fn set_light_mode(flag: bool) {
 pub mod Compiler {
     use regex::Regex;
     use std::cell::RefCell;
+    use std::cmp;
     use std::collections::HashMap;
+    use std::convert::TryInto;
     use std::rc::Rc;
     use typescript_rust::{
-        file_extension_is, get_emit_script_target, get_normalized_absolute_path, map,
-        option_declarations, parse_custom_type_option, parse_list_type_option, CommandLineOption,
-        CommandLineOptionBase, CommandLineOptionInterface, CommandLineOptionOfBooleanType,
-        CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions,
-        CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic, Extension, NewLineKind,
-        StringOrDiagnosticMessage,
+        compare_diagnostics, compare_paths, compute_line_starts, count_where,
+        create_get_canonical_file_name, diagnostic_category_name, file_extension_is,
+        flatten_diagnostic_message_text, format_diagnostics,
+        format_diagnostics_with_color_and_context, format_location, get_emit_script_target,
+        get_error_count_for_summary, get_error_summary_text, get_normalized_absolute_path, map,
+        option_declarations, parse_custom_type_option, parse_list_type_option, regex, sort,
+        text_span_end, CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
+        CommandLineOptionOfBooleanType, CommandLineOptionOfStringType, CommandLineOptionType,
+        Comparison, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic,
+        DiagnosticInterface, DiagnosticRelatedInformationInterface, Extension,
+        FormatDiagnosticsHost, NewLineKind, StringOrDiagnosticMessage, TextSpan,
     };
 
-    use super::{Baseline, TestCaseParser};
+    use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
 
-    use crate::{compiler, documents, fakes, get_io, vfs, vpath};
+    use crate::{compiler, documents, fakes, get_io, vfs, vpath, with_io, Utils};
+
+    pub fn get_canonical_file_name(file_name: &str) -> String {
+        file_name.to_owned()
+    }
 
     #[derive(Default)]
     struct HarnessOptions {
@@ -834,12 +852,400 @@ pub mod Compiler {
         harness_options: HarnessOptions,
     }
 
+    pub fn minimal_diagnostics_to_string(
+        diagnostics: &[Rc<Diagnostic>],
+        pretty: Option<bool>,
+    ) -> String {
+        let host = MinimalDiagnosticsToStringFormatDiagnosticsHost;
+        if pretty == Some(true) {
+            format_diagnostics_with_color_and_context(diagnostics, &host)
+        } else {
+            format_diagnostics(diagnostics, &host)
+        }
+    }
+
+    struct MinimalDiagnosticsToStringFormatDiagnosticsHost;
+
+    impl FormatDiagnosticsHost for MinimalDiagnosticsToStringFormatDiagnosticsHost {
+        fn get_current_directory(&self) -> String {
+            "".to_owned()
+        }
+
+        fn get_new_line(&self) -> &str {
+            with_io(|IO| IO.new_line())
+        }
+
+        fn get_canonical_file_name(&self, file_name: &str) -> String {
+            get_canonical_file_name(file_name)
+        }
+    }
+
     pub fn get_error_baseline(
         input_files: &[Rc<TestFile>],
         diagnostics: &[Rc<Diagnostic>],
         pretty: Option<bool>,
     ) -> String {
-        unimplemented!()
+        let mut output_lines = "".to_owned();
+        for value in iterate_error_baseline(
+            input_files,
+            diagnostics,
+            Some(IterateErrorBaselineOptions {
+                pretty,
+                case_sensitive: None,
+                current_directory: None,
+            }),
+        ) {
+            let (_, content, _) = value;
+            output_lines.push_str(&content);
+        }
+        if pretty == Some(true) {
+            output_lines.push_str(&get_error_summary_text(
+                get_error_count_for_summary(diagnostics),
+                with_io(|IO| IO.new_line()),
+            ));
+        }
+        output_lines
+    }
+
+    pub const diagnostic_summary_marker: &'static str = "__diagnosticSummary";
+    pub const global_errors_marker: &'static str = "__globalErrors";
+
+    pub fn iterate_error_baseline(
+        input_files: &[Rc<TestFile>],
+        diagnostics: &[Rc<Diagnostic>],
+        options: Option<IterateErrorBaselineOptions>,
+    ) -> Vec<(String, String, usize)> {
+        let diagnostics: Vec<_> = sort(diagnostics, |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| {
+            compare_diagnostics(&**a, &**b)
+        })
+        .into();
+        let mut output_lines = "".to_owned();
+        let mut total_errors_reported_in_non_library_files = 0;
+
+        let mut errors_reported = 0;
+
+        let mut first_line = true;
+
+        let format_diagnsotic_host = FormatDiagnsoticHost::new(options.as_ref());
+
+        let mut ret: Vec<(String, String, usize)> = vec![];
+        ret.push((
+            diagnostic_summary_marker.to_owned(),
+            format!(
+                "{}{}{}",
+                Utils::remove_test_path_prefixes(
+                    &minimal_diagnostics_to_string(
+                        &diagnostics,
+                        options.as_ref().and_then(|options| options.pretty)
+                    ),
+                    None,
+                ),
+                with_io(|IO| IO.new_line()),
+                with_io(|IO| IO.new_line()),
+            ),
+            diagnostics.len(),
+        ));
+
+        let global_errors = diagnostics.iter().filter(|err| err.maybe_file().is_none());
+        global_errors.for_each(|diagnostic| {
+            output_error_text(
+                &format_diagnsotic_host,
+                &mut output_lines,
+                &mut first_line,
+                &mut errors_reported,
+                &mut total_errors_reported_in_non_library_files,
+                diagnostic,
+            )
+        });
+        ret.push((
+            global_errors_marker.to_owned(),
+            output_lines.clone(),
+            errors_reported,
+        ));
+        output_lines.clear();
+        errors_reported = 0;
+
+        let mut dupe_case: HashMap<String, usize> = HashMap::new();
+        for input_file in input_files
+            .into_iter()
+            .filter(|_f| /*f.content !== undefined*/ true)
+        {
+            let file_errors = diagnostics.iter().filter(|e| {
+                let err_fn = e.maybe_file();
+                matches!(
+                    err_fn.as_ref(),
+                    Some(err_fn) if compare_paths(
+                        &Utils::remove_test_path_prefixes(
+                            &err_fn.as_source_file().file_name(),
+                            None,
+                        ),
+                        &Utils::remove_test_path_prefixes(
+                            &input_file.unit_name,
+                            None,
+                        ),
+                        Some(
+                            options.as_ref().and_then(|options| options.current_directory.clone()).unwrap_or_else(|| "".to_owned()),
+                        ),
+                        Some(options.as_ref().and_then(|options| options.case_sensitive) != Some(true))
+                    ) == Comparison::EqualTo
+                )
+            }).collect::<Vec<_>>();
+
+            output_lines.push_str(&format!(
+                "{}==== {} ({} errors) ====",
+                new_line(&mut first_line),
+                input_file.unit_name,
+                file_errors.len(),
+            ));
+
+            let mut marked_error_count = 0;
+
+            let input_file_content_as_chars = input_file.content.chars().collect::<Vec<_>>();
+            let line_starts = compute_line_starts(&input_file_content_as_chars);
+            let mut lines = input_file_content_as_chars
+                .split(|ch| *ch == '\n')
+                .collect::<Vec<_>>();
+            if lines.len() == 1 {
+                lines = input_file_content_as_chars
+                    .split(|ch| *ch == '\r')
+                    .collect::<Vec<_>>();
+            }
+
+            let lines_len = lines.len();
+            for (line_index, mut line) in lines.into_iter().enumerate() {
+                if !line.is_empty() && line[line.len() - 1] == '\r' {
+                    line = &line[0..line.len() - 1];
+                }
+
+                let this_line_start = line_starts[line_index];
+                let next_line_start: usize;
+                if line_index == lines_len - 1 {
+                    next_line_start = input_file_content_as_chars.len();
+                } else {
+                    next_line_start = line_starts[line_index + 1];
+                }
+                output_lines.push_str(&format!(
+                    "{}    {}",
+                    new_line(&mut first_line),
+                    line.iter().collect::<String>(),
+                ));
+                for &err_diagnostic in &file_errors {
+                    let err = TextSpan {
+                        start: err_diagnostic.start(),
+                        length: err_diagnostic.length(),
+                    };
+                    let end = text_span_end(&err);
+                    let this_line_start_as_isize: isize = this_line_start.try_into().unwrap();
+                    let next_line_start_as_isize: isize = next_line_start.try_into().unwrap();
+                    if end >= this_line_start_as_isize
+                        && (err.start < next_line_start_as_isize || line_index == lines_len - 1)
+                    {
+                        let relative_offset = err.start - this_line_start_as_isize;
+                        let length =
+                            (end - err.start) - cmp::max(0, this_line_start_as_isize - err.start);
+                        let squiggle_start: usize =
+                            cmp::max(0, relative_offset).try_into().unwrap();
+                        output_lines.push_str(&format!(
+                            "{}    {}{}",
+                            new_line(&mut first_line),
+                            regex!(r"[^\s]").replace_all(
+                                &line[0..squiggle_start].iter().collect::<String>(),
+                                " "
+                            ),
+                            "~".repeat(cmp::min(
+                                length.try_into().unwrap(),
+                                line.len() - squiggle_start
+                            ))
+                        ));
+
+                        if line_index == lines_len - 1 || next_line_start_as_isize > end {
+                            output_error_text(
+                                &format_diagnsotic_host,
+                                &mut output_lines,
+                                &mut first_line,
+                                &mut errors_reported,
+                                &mut total_errors_reported_in_non_library_files,
+                                err_diagnostic,
+                            );
+                            marked_error_count += 1;
+                        }
+                    }
+                }
+            }
+
+            assert_eq!(
+                marked_error_count,
+                file_errors.len(),
+                "count of errors in {}",
+                input_file.unit_name
+            );
+            let is_dupe = dupe_case.contains_key(&sanitize_test_file_path(&input_file.unit_name));
+            ret.push((
+                check_duplicated_file_name(&input_file.unit_name, &mut dupe_case),
+                output_lines.clone(),
+                errors_reported,
+            ));
+            if is_dupe && options.as_ref().and_then(|options| options.case_sensitive) != Some(true)
+            {
+                total_errors_reported_in_non_library_files -= errors_reported;
+            }
+            output_lines.clear();
+            errors_reported = 0;
+        }
+
+        let num_library_diagnostics = count_where(
+            Some(&diagnostics),
+            |diagnostic: &Rc<Diagnostic>, _| {
+                matches!(
+                    diagnostic.maybe_file().as_ref(),
+                    Some(diagnostic_file) if is_default_library_file(&diagnostic_file.as_source_file().file_name()) ||
+                        is_built_file(&diagnostic_file.as_source_file().file_name())
+                )
+            },
+        );
+
+        let num_test262_harness_diagnostics = count_where(
+            Some(&diagnostics),
+            |diagnostic: &Rc<Diagnostic>, _| {
+                matches!(
+                    diagnostic.maybe_file().as_ref(),
+                    Some(diagnostic_file) if diagnostic_file.as_source_file().file_name().contains("test262-harness")
+                )
+            },
+        );
+
+        assert_eq!(
+            total_errors_reported_in_non_library_files
+                + num_library_diagnostics
+                + num_test262_harness_diagnostics,
+            diagnostics.len(),
+            "total number of errors"
+        );
+
+        ret
+    }
+
+    fn new_line(first_line: &mut bool) -> &'static str {
+        if *first_line {
+            *first_line = false;
+            return "";
+        }
+        "\r\n"
+    }
+
+    struct FormatDiagnsoticHost<'iterate_error_baseline> {
+        options: Option<&'iterate_error_baseline IterateErrorBaselineOptions>,
+        get_canonical_file_name: fn(&str) -> String,
+    }
+
+    impl<'iterate_error_baseline> FormatDiagnsoticHost<'iterate_error_baseline> {
+        pub fn new(options: Option<&'iterate_error_baseline IterateErrorBaselineOptions>) -> Self {
+            Self {
+                options,
+                get_canonical_file_name: create_get_canonical_file_name(
+                    options
+                        .and_then(|options| options.case_sensitive)
+                        .unwrap_or(true),
+                ),
+            }
+        }
+    }
+
+    impl<'iterate_error_baseline> FormatDiagnosticsHost
+        for FormatDiagnsoticHost<'iterate_error_baseline>
+    {
+        fn get_current_directory(&self) -> String {
+            self.options
+                .and_then(|options| options.current_directory.clone())
+                .unwrap_or_else(|| "".to_owned())
+        }
+
+        fn get_new_line(&self) -> &str {
+            with_io(|IO| IO.new_line())
+        }
+
+        fn get_canonical_file_name(&self, file_name: &str) -> String {
+            (self.get_canonical_file_name)(file_name)
+        }
+    }
+
+    fn output_error_text(
+        format_diagnsotic_host: &FormatDiagnsoticHost<'_>,
+        output_lines: &mut String,
+        first_line: &mut bool,
+        errors_reported: &mut usize,
+        total_errors_reported_in_non_library_files: &mut usize,
+        error: &Diagnostic,
+    ) {
+        let message = flatten_diagnostic_message_text(
+            Some(error.message_text()),
+            with_io(|IO| IO.new_line()),
+            None,
+        );
+
+        let mut err_lines = Utils::remove_test_path_prefixes(&message, None)
+            .split("\n")
+            .map(|s| {
+                if !s.is_empty() && s.ends_with("\r") {
+                    &s[0..s.len() - 1]
+                } else {
+                    s
+                }
+            })
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                format!(
+                    "!!! {} TS{}: {}",
+                    diagnostic_category_name(error.category(), None,),
+                    error.code(),
+                    s,
+                )
+            })
+            .collect::<Vec<_>>();
+        if let Some(error_related_information) = error.maybe_related_information().as_ref() {
+            for info in error_related_information {
+                err_lines.push(format!(
+                    "!!! related TS{}{}: {}",
+                    info.code(),
+                    if let Some(info_file) = info.maybe_file().as_ref() {
+                        format!(
+                            " {}",
+                            format_location(
+                                info_file,
+                                info.start(),
+                                format_diagnsotic_host,
+                                Some(|a: &str, _b: &str| a.to_owned()),
+                            )
+                        )
+                    } else {
+                        "".to_owned()
+                    },
+                    flatten_diagnostic_message_text(
+                        Some(info.message_text()),
+                        with_io(|IO| IO.new_line()),
+                        None,
+                    )
+                ));
+            }
+        }
+        err_lines.iter().for_each(|e| {
+            output_lines.push_str(&format!("{}{}", new_line(first_line), e,));
+        });
+        *errors_reported += 1;
+
+        if match error.maybe_file().as_ref() {
+            None => true,
+            Some(error_file) => !is_default_library_file(&error_file.as_source_file().file_name()),
+        } {
+            *total_errors_reported_in_non_library_files += 1;
+        }
+    }
+
+    #[derive(Default)]
+    pub struct IterateErrorBaselineOptions {
+        pub pretty: Option<bool>,
+        pub case_sensitive: Option<bool>,
+        pub current_directory: Option<String>,
     }
 
     pub fn do_error_baseline(
@@ -863,6 +1269,25 @@ pub mod Compiler {
             .as_deref(),
             None,
         );
+    }
+
+    fn check_duplicated_file_name(
+        result_name: &str,
+        dupe_case: &mut HashMap<String, usize>,
+    ) -> String {
+        let mut result_name = sanitize_test_file_path(result_name);
+        if dupe_case.contains_key(&result_name) {
+            let count = 1 + *dupe_case.get(&result_name).unwrap();
+            dupe_case.insert(result_name.clone(), count);
+            result_name = format!("{}.dupe{}", result_name, count,);
+        } else {
+            dupe_case.insert(result_name.clone(), 0);
+        }
+        result_name
+    }
+
+    pub fn sanitize_test_file_path(name: &str) -> String {
+        unimplemented!()
     }
 }
 
@@ -1539,6 +1964,14 @@ pub mod Baseline {
             opts.as_ref(),
         );
     }
+}
+
+pub fn is_default_library_file(file_path: &str) -> bool {
+    unimplemented!()
+}
+
+pub fn is_built_file(file_path: &str) -> bool {
+    unimplemented!()
 }
 
 pub fn get_config_name_from_file_name(

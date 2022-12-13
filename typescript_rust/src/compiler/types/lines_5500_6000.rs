@@ -1883,10 +1883,7 @@ pub enum DiagnosticCategory {
     Message,
 }
 
-pub(crate) fn diagnostic_category_name(
-    category: DiagnosticCategory,
-    lower_case: Option<bool>,
-) -> String {
+pub fn diagnostic_category_name(category: DiagnosticCategory, lower_case: Option<bool>) -> String {
     let lower_case = lower_case.unwrap_or(true);
     let name = match category {
         DiagnosticCategory::Warning => "Warning",

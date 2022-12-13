@@ -782,7 +782,7 @@ pub(crate) fn compute_position_of_line_and_character(
     res
 }
 
-pub(crate) fn compute_line_starts(text: &SourceTextAsChars) -> Vec<usize> {
+pub fn compute_line_starts(text: &SourceTextAsChars) -> Vec<usize> {
     let mut result = vec![];
     let mut pos = 0;
     let mut line_start = 0;
