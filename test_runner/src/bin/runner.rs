@@ -2,8 +2,9 @@ use clap::Parser;
 
 use test_runner::{run, Args};
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Args::parse();
 
-    run(&args)
+    run(&args).await
 }

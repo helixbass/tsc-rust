@@ -130,7 +130,8 @@ pub struct Args {
     pub mocha_args: MochaArgs,
 }
 
-pub fn run(args: &Args) {
+pub async fn run(args: &Args) {
     mocha::register_config(&args.mocha_args);
-    start_test_environment()
+    start_test_environment();
+    mocha::collect_results().await
 }

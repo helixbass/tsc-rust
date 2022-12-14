@@ -1,8 +1,10 @@
 use clap::Parser;
+use futures::future::FutureExt;
 use once_cell::sync::OnceCell;
 use std::cell::{Cell, RefCell};
 use std::io::{self, Write};
-use std::thread;
+use tokio::task;
+use tokio_stream::{StreamExt, StreamMap};
 
 #[derive(Clone, Debug, Parser)]
 pub struct MochaArgs {
@@ -89,17 +91,8 @@ pub fn describe<TCallback: FnOnce()>(description: &str, callback: TCallback) {
             ..
         } = it;
         // println!("{description}: ");
-        let join_handle = thread::spawn(callback);
-        match join_handle.join() {
-            Ok(_) => {
-                print!(".");
-                io::stdout().flush();
-            }
-            Err(err) => {
-                print!("F");
-                io::stdout().flush();
-            }
-        }
+        let join_handle = task::spawn_blocking(callback);
+        register_it_join_handle(join_handle);
     }
     for after in afters {
         after()
@@ -118,6 +111,20 @@ fn should_run_it(it: &It) -> bool {
         }
     }
     true
+}
+
+thread_local! {
+    static it_join_handles_: RefCell<Option<Vec<task::JoinHandle<()>>>> = RefCell::new(Some(vec![]));
+}
+
+fn register_it_join_handle(join_handle: task::JoinHandle<()>) {
+    it_join_handles_.with(|it_join_handles| {
+        it_join_handles
+            .borrow_mut()
+            .as_mut()
+            .unwrap()
+            .push(join_handle);
+    });
 }
 
 pub fn it<TCallback: FnOnce() + Send + 'static>(description: &str, callback: TCallback) {
@@ -146,4 +153,29 @@ pub fn after<TCallback: FnOnce() + 'static>(callback: TCallback) {
         let index = describe_contexts.len() - 1;
         describe_contexts[index].afters.push(Box::new(callback));
     });
+}
+
+pub async fn collect_results() {
+    let it_join_handles = it_join_handles_
+        .with(|it_join_handles| it_join_handles.borrow_mut().take())
+        .unwrap();
+    let single_future_streams = it_join_handles
+        .into_iter()
+        .map(|join_handle| join_handle.into_stream());
+    let mut stream_map = StreamMap::new();
+    for (index, stream) in single_future_streams.enumerate() {
+        stream_map.insert(index, stream);
+    }
+    while let Some((_, join_handle_result)) = stream_map.next().await {
+        match join_handle_result {
+            Ok(_) => {
+                print!(".");
+                io::stdout().flush();
+            }
+            Err(err) => {
+                print!("F");
+                io::stdout().flush();
+            }
+        }
+    }
 }
