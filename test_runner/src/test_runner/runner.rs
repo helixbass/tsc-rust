@@ -1,9 +1,10 @@
-use harness::{vpath, RunnerBase, StringOrFileBasedTest};
+use clap::Parser;
 use regex::Regex;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use crate::{CompilerBaselineRunner, CompilerTestType};
+use harness::{mocha, vpath, MochaArgs, RunnerBase, StringOrFileBasedTest};
 
 thread_local! {
     static runners_: RefCell<Vec<RunnerBase>> = RefCell::new(vec![]);
@@ -123,6 +124,13 @@ fn start_test_environment() {
     begin_tests()
 }
 
-pub fn run() {
+#[derive(Parser)]
+pub struct Args {
+    #[clap(flatten)]
+    pub mocha_args: MochaArgs,
+}
+
+pub fn run(args: &Args) {
+    mocha::register_config(&args.mocha_args);
     start_test_environment()
 }

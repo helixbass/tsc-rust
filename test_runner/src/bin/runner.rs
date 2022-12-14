@@ -1,5 +1,9 @@
-use test_runner::run;
+use clap::Parser;
+
+use test_runner::{run, Args};
 
 fn main() {
-    run()
+    let args = Args::parse();
+
+    run(&args)
 }

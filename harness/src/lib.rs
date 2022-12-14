@@ -2,7 +2,7 @@
 extern crate lazy_static;
 
 mod harness;
-mod mocha;
+pub mod mocha;
 
 pub use harness::collections_impl::collections;
 pub use harness::compiler_impl::compiler;
@@ -19,7 +19,7 @@ pub use harness::runnerbase::{
 pub use harness::vfs_util::vfs;
 pub use harness::vfs_util::vfs::{Inode, MetaValue, StringOrBuffer}; // these are for enum_unwrapped!() to work
 pub use harness::vpath_util::vpath;
-pub use mocha::{after, before, describe, it};
+pub use mocha::{after, before, describe, it, MochaArgs};
 
 pub mod Utils {
     pub use super::harness::harness_utils::*;

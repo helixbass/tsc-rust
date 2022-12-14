@@ -11,6 +11,7 @@ harness = { path = "../harness" }
 typescript_rust = { path = "../typescript_rust" }
 lazy_static = "1.4.0"
 regex = "1.5.4"
+clap = { version = "4.0.29", features = ["derive"] }
 
 [dev-dependencies]
 
