@@ -1,8 +1,9 @@
 use std::cell::RefCell;
+use std::thread;
 
 struct It {
     pub description: String,
-    pub callback: Box<dyn FnOnce()>,
+    pub callback: Box<dyn FnOnce() + Send>,
 }
 
 struct DescribeContext {
@@ -44,15 +45,21 @@ pub fn describe<TCallback: FnOnce()>(description: &str, callback: TCallback) {
         callback,
     } in its
     {
-        println!("{description}:");
-        callback()
+        println!("{description}: ");
+        let join_handle = thread::spawn(callback);
+        match join_handle.join() {
+            Ok(_) => println!("PASSED"),
+            Err(err) => {
+                println!("FAILED");
+            }
+        }
     }
     for after in afters {
         after()
     }
 }
 
-pub fn it<TCallback: FnOnce() + 'static>(description: &str, callback: TCallback) {
+pub fn it<TCallback: FnOnce() + Send + 'static>(description: &str, callback: TCallback) {
     describe_contexts_.with(|describe_contexts| {
         let mut describe_contexts = describe_contexts.borrow_mut();
         let index = describe_contexts.len() - 1;
