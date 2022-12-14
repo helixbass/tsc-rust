@@ -20,6 +20,7 @@ pub trait IO: vfs::FileSystemResolverHost {
     fn new_line(&self) -> &'static str;
     fn get_current_directory(&self) -> String;
     fn read_file(&self, path: &StdPath) -> Option<String>;
+    fn write_file(&self, path: &StdPath, contents: &str);
     fn directory_name(&self, path: &StdPath) -> Option<String>;
     fn create_directory(&self, path: &StdPath) -> io::Result<()>;
     fn delete_file(&self, file_name: &StdPath);
@@ -30,6 +31,7 @@ pub trait IO: vfs::FileSystemResolverHost {
         filter: Option<&Regex>,
         options: Option<ListFilesOptions>,
     ) -> Vec<PathBuf>;
+    fn join_path(&self, components: &[&StdPath]) -> String;
     fn as_file_system_resolver_host(self: Rc<Self>) -> Rc<dyn vfs::FileSystemResolverHost>;
 }
 
@@ -104,12 +106,22 @@ impl IO for NodeIO {
         path.parent().map(|path| path.to_str().unwrap().to_owned())
     }
 
+    fn join_path(&self, components: &[&StdPath]) -> String {
+        path_join(components).to_str().unwrap().to_owned()
+    }
+
     fn get_current_directory(&self) -> String {
         get_sys().get_current_directory()
     }
 
     fn read_file(&self, path: &StdPath) -> Option<String> {
         get_sys().read_file(path.to_str().unwrap()).unwrap()
+    }
+
+    fn write_file(&self, path: &StdPath, content: &str) {
+        get_sys()
+            .write_file(path.to_str().unwrap(), content, None)
+            .unwrap()
     }
 
     fn enumerate_test_files(&self, runner: &RunnerBase) -> Vec<StringOrFileBasedTest> {
@@ -1829,7 +1841,7 @@ pub mod Baseline {
     pub struct BaselineOptions {
         pub Subfolder: Option<String>,
         pub Baselinefolder: Option<String>,
-        pub Printdiff: Option<bool /*true*/>,
+        pub PrintDiff: Option<bool /*true*/>,
     }
 
     pub fn local_path(
@@ -1931,9 +1943,35 @@ pub mod Baseline {
 
         let encoded_actual = Utils::encode_string(actual);
         if expected != encoded_actual {
-            println!("expected: {}", expected);
-            println!("encoded_actual: {}", encoded_actual);
-            unimplemented!()
+            if actual == no_content {
+                with_io(|IO| IO.write_file(format!("{}.delete", actual_file_name).as_ref(), ""));
+            } else {
+                with_io(|IO| IO.write_file(actual_file_name.as_ref(), &encoded_actual));
+            }
+            if
+            /* !!require &&*/
+            opts.and_then(|opts| opts.PrintDiff) == Some(true) {
+                // const Diff = require("diff");
+                // const patch = Diff.createTwoFilesPatch("Expected", "Actual", expected, actual, "The current baseline", "The new version");
+                // throw new Error(`The baseline file ${relativeFileName} has changed.${ts.ForegroundColorEscapeSequences.Grey}\n\n${patch}`);
+                // TODO: use pretty_assertions::StrComparison to format diff?
+                unimplemented!()
+            } else {
+                // TODO: this looks like a bug, `expected` would never be a file path, no?
+                if with_io(|IO| !IO.file_exists(expected)) {
+                    panic!(
+                        "New baseline created at {}",
+                        with_io(|IO| IO.join_path(&[
+                            "tests".as_ref(),
+                            "baselines".as_ref(),
+                            "local".as_ref(),
+                            relative_file_name.as_ref(),
+                        ]))
+                    );
+                } else {
+                    panic!("The baseline file {} has changed.", relative_file_name);
+                }
+            }
         }
     }
 

@@ -1,10 +1,11 @@
 use std::borrow::Cow;
-use std::io::{self};
+use std::env;
+use std::fs::{self, File};
+use std::io::{self, Write};
 use std::path::Path;
 use std::process;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{env, fs};
 
 use crate::{
     combine_paths, empty_file_system_entries, fs_readdir_sync_with_file_types, fs_stat_sync,
@@ -166,6 +167,8 @@ pub trait System: ConvertToTSConfigHost {
 pub trait FileWatcher {
     fn close(&self);
 }
+
+const byte_order_mark_indicator: &'static str = "\u{FEFF}";
 
 struct SystemConcrete {
     args: Vec<String>,
@@ -389,11 +392,26 @@ impl System for SystemConcrete {
 
     fn write_file(
         &self,
-        path: &str,
+        file_name: &str,
         data: &str,
         write_byte_order_mark: Option<bool>,
     ) -> io::Result<()> {
-        unimplemented!()
+        // perfLogger.logEvent("WriteFile: " + fileName);
+        let mut data: Cow<'_, str> = Cow::Borrowed(data);
+        if write_byte_order_mark == Some(true) {
+            data = Cow::Owned(format!("{}{}", byte_order_mark_indicator, data));
+        }
+
+        // try {
+        let mut fd = File::create(file_name /*, "w"*/)?;
+        write!(fd, "{}", data /*, "utf8"*/)?;
+        Ok(())
+        // }
+        // finally {
+        //     if (fd !== undefined) {
+        //         _fs.closeSync(fd);
+        //     }
+        // }
     }
 
     fn watch_file(

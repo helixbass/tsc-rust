@@ -305,6 +305,7 @@ dependencies = [
  "lazy_static",
  "local-macros",
  "once_cell",
+ "pretty_assertions",
  "regex",
  "typescript_rust",
  "typescript_services_rust",
