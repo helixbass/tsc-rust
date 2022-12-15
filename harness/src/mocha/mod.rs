@@ -3,6 +3,7 @@ use futures::future::FutureExt;
 use once_cell::sync::OnceCell;
 use std::cell::{Cell, RefCell};
 use std::io::{self, Write};
+use std::panic;
 use tokio::task;
 use tokio_stream::{StreamExt, StreamMap};
 
@@ -21,6 +22,7 @@ pub fn register_config(args: &MochaArgs) {
     CONFIG
         .set(args.clone())
         .expect("Should only initialize Mocha config once");
+    panic::set_hook(Box::new(|_| {}));
 }
 
 fn config() -> &'static MochaArgs {
