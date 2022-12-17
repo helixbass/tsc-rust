@@ -1389,11 +1389,11 @@ pub mod vfs {
         }
 
         pub fn is_file(&self) -> bool {
-            unimplemented!()
+            self.mode & S_IFMT == S_IFREG
         }
 
         pub fn is_directory(&self) -> bool {
-            unimplemented!()
+            self.mode & S_IFMT == S_IFDIR
         }
     }
 

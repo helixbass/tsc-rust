@@ -749,6 +749,8 @@ impl Node {
     pub fn as_jsdoc_type_like_tag(&self) -> &dyn JSDocTypeLikeTagInterface {
         match self {
             Node::BaseJSDocTypeLikeTag(node) => node,
+            Node::JSDocCallbackTag(node) => node,
+            Node::JSDocTypedefTag(node) => node,
             _ => panic!("Expected JSDoc type like tag"),
         }
     }
