@@ -688,7 +688,7 @@ impl Scanner {
         self.set_token_flags(TokenFlags::None);
     }
 
-    pub fn set_in_jsdoc_type(&mut self, in_type: bool) {
+    pub fn set_in_jsdoc_type(&self, in_type: bool) {
         self.in_jsdoc_type
             .set(self.in_jsdoc_type.get() + if in_type { 1 } else { -1 });
     }

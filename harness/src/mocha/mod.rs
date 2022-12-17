@@ -38,14 +38,16 @@ struct It {
 }
 
 struct DescribeContext {
+    description: String,
     its: Vec<It>,
     befores: Vec<Box<dyn FnOnce()>>,
     afters: Vec<Box<dyn FnOnce()>>,
 }
 
 impl DescribeContext {
-    pub fn new() -> Self {
+    pub fn new(description: String) -> Self {
         Self {
+            description,
             its: vec![],
             befores: vec![],
             afters: vec![],
@@ -55,6 +57,16 @@ impl DescribeContext {
 
 thread_local! {
     static describe_contexts_: RefCell<Vec<DescribeContext>> = RefCell::new(vec![]);
+}
+
+fn get_enclosing_describe_descriptions() -> Vec<String> {
+    describe_contexts_.with(|describe_contexts| {
+        describe_contexts
+            .borrow()
+            .iter()
+            .map(|describe_context| describe_context.description.clone())
+            .collect()
+    })
 }
 
 thread_local! {
@@ -71,14 +83,17 @@ fn get_next_it_index() -> usize {
 
 pub fn describe<TCallback: FnOnce()>(description: &str, callback: TCallback) {
     describe_contexts_.with(|describe_contexts| {
-        describe_contexts.borrow_mut().push(DescribeContext::new());
+        describe_contexts
+            .borrow_mut()
+            .push(DescribeContext::new(description.to_owned()));
     });
-    // println!("{description}:");
     callback();
+    let enclosing_descriptions = get_enclosing_describe_descriptions();
     let DescribeContext {
         its,
         befores,
         afters,
+        ..
     } = describe_contexts_.with(|describe_contexts| describe_contexts.borrow_mut().pop().unwrap());
     for before in befores {
         before()
@@ -92,9 +107,10 @@ pub fn describe<TCallback: FnOnce()>(description: &str, callback: TCallback) {
             callback,
             ..
         } = it;
-        // println!("{description}: ");
+        let mut enclosing_descriptions = enclosing_descriptions.clone();
+        enclosing_descriptions.push(description);
         let join_handle = task::spawn_blocking(callback);
-        register_it_join_handle(join_handle);
+        register_it_join_handle(join_handle, enclosing_descriptions);
     }
     for after in afters {
         after()
@@ -116,16 +132,24 @@ fn should_run_it(it: &It) -> bool {
 }
 
 thread_local! {
-    static it_join_handles_: RefCell<Option<Vec<task::JoinHandle<()>>>> = RefCell::new(Some(vec![]));
+    static it_join_handles_: RefCell<Option<Vec<ItJoinHandle>>> = RefCell::new(Some(vec![]));
 }
 
-fn register_it_join_handle(join_handle: task::JoinHandle<()>) {
+struct ItJoinHandle {
+    join_handle: task::JoinHandle<()>,
+    enclosing_descriptions: Vec<String>,
+}
+
+fn register_it_join_handle(join_handle: task::JoinHandle<()>, enclosing_descriptions: Vec<String>) {
     it_join_handles_.with(|it_join_handles| {
         it_join_handles
             .borrow_mut()
             .as_mut()
             .unwrap()
-            .push(join_handle);
+            .push(ItJoinHandle {
+                join_handle,
+                enclosing_descriptions,
+            });
     });
 }
 
@@ -161,23 +185,59 @@ pub async fn collect_results() {
     let it_join_handles = it_join_handles_
         .with(|it_join_handles| it_join_handles.borrow_mut().take())
         .unwrap();
-    let single_future_streams = it_join_handles
-        .into_iter()
-        .map(|join_handle| join_handle.into_stream());
+    let single_future_streams = it_join_handles.into_iter().map(
+        |ItJoinHandle {
+             join_handle,
+             enclosing_descriptions,
+         }| (enclosing_descriptions, join_handle.into_stream()),
+    );
     let mut stream_map = StreamMap::new();
-    for (index, stream) in single_future_streams.enumerate() {
-        stream_map.insert(index, stream);
+    for (enclosing_descriptions, stream) in single_future_streams {
+        stream_map.insert(enclosing_descriptions, stream);
     }
-    while let Some((_, join_handle_result)) = stream_map.next().await {
+    let mut num_passes = 0;
+    let mut failures: Vec<FailureInfo> = vec![];
+    while let Some((enclosing_descriptions, join_handle_result)) = stream_map.next().await {
         match join_handle_result {
             Ok(_) => {
                 print!(".");
-                io::stdout().flush();
+                io::stdout().flush().unwrap();
+                num_passes += 1;
             }
             Err(err) => {
                 print!("F");
-                io::stdout().flush();
+                io::stdout().flush().unwrap();
+                failures.push(FailureInfo::new(err, enclosing_descriptions));
             }
+        }
+    }
+    println!("\n{} passes, {} failures", num_passes, failures.len());
+    for failure in failures {
+        for (enclosing_level, description) in failure.enclosing_descriptions.iter().enumerate() {
+            println!("{}{}:", "  ".repeat(enclosing_level), description);
+        }
+        println!("{}", failure.panic_message);
+    }
+}
+
+struct FailureInfo {
+    panic_message: String,
+    enclosing_descriptions: Vec<String>,
+}
+
+impl FailureInfo {
+    pub fn new(join_error: task::JoinError, enclosing_descriptions: Vec<String>) -> Self {
+        let panic = join_error.into_panic();
+        let panic_type_id = panic.type_id();
+        Self {
+            enclosing_descriptions,
+            panic_message: match panic.downcast::<String>() {
+                Ok(panic_string) => *panic_string,
+                Err(panic) => match panic.downcast::<&str>() {
+                    Ok(panic_string) => (*panic_string).to_owned(),
+                    Err(_) => format!("Got non-string panic: {:?}", panic_type_id),
+                },
+            },
         }
     }
 }

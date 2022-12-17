@@ -70,7 +70,7 @@ impl ParserType {
     }
 
     pub(super) fn parse_jsdoc_type(&self) -> Rc<Node> {
-        self.scanner_mut().set_in_jsdoc_type(true);
+        self.scanner().set_in_jsdoc_type(true);
         let pos = self.get_node_pos();
         if self.parse_optional(SyntaxKind::ModuleKeyword) {
             let module_tag = self.factory.create_jsdoc_namepath_type(self, None);
@@ -94,7 +94,7 @@ impl ParserType {
 
         let has_dot_dot_dot = self.parse_optional(SyntaxKind::DotDotDotToken);
         let mut type_: Rc<Node> = self.parse_type_or_type_predicate();
-        self.scanner_mut().set_in_jsdoc_type(false);
+        self.scanner().set_in_jsdoc_type(false);
         if has_dot_dot_dot {
             type_ = self
                 .finish_node(

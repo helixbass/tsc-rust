@@ -1,14 +1,15 @@
+use regex::Regex;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::path::Path as StdPath;
+use std::rc::Rc;
+
 use harness::{
     after, before, compiler, describe, get_file_based_test_configuration_description,
     get_file_based_test_configurations, it, vpath, with_io, Compiler, EnumerateFilesOptions,
     FileBasedTest, FileBasedTestConfiguration, RunnerBase, RunnerBaseSub, StringOrFileBasedTest,
     TestCaseParser, TestRunnerKind, IO,
 };
-use regex::Regex;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::path::Path as StdPath;
-use std::rc::Rc;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
     is_rooted_disk_path, some, to_path, CompilerOptions, Extension,
