@@ -1829,6 +1829,7 @@ pub mod TestCaseParser {
 }
 
 pub mod Baseline {
+    use pretty_assertions::StrComparison;
     use std::cell::RefCell;
     use std::collections::HashMap;
 
@@ -1950,12 +1951,16 @@ pub mod Baseline {
             }
             if
             /* !!require &&*/
-            opts.and_then(|opts| opts.PrintDiff) == Some(true) {
+            opts.and_then(|opts| opts.PrintDiff) == Some(true) || true {
                 // const Diff = require("diff");
                 // const patch = Diff.createTwoFilesPatch("Expected", "Actual", expected, actual, "The current baseline", "The new version");
                 // throw new Error(`The baseline file ${relativeFileName} has changed.${ts.ForegroundColorEscapeSequences.Grey}\n\n${patch}`);
                 // TODO: use pretty_assertions::StrComparison to format diff?
-                unimplemented!()
+                panic!(
+                    "The baseline file {} has changed.\n\n{}",
+                    relative_file_name,
+                    StrComparison::new(expected, &encoded_actual)
+                );
             } else {
                 // TODO: this looks like a bug, `expected` would never be a file path, no?
                 if with_io(|IO| !IO.file_exists(expected)) {
