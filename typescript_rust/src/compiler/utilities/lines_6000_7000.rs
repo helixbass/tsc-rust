@@ -817,7 +817,17 @@ pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
 }
 
 pub fn has_zero_or_one_asterisk_character(str_: &str) -> bool {
-    unimplemented!()
+    let mut seen_asterisk = false;
+    for ch in str_.chars() {
+        if ch == CharacterCodes::asterisk {
+            if !seen_asterisk {
+                seen_asterisk = true;
+            } else {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 #[derive(Debug)]
