@@ -6,6 +6,7 @@ use serde::Serialize;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
@@ -2382,7 +2383,30 @@ impl CommandLineOption {
                     _ => panic!("Expected number"),
                 }))
             }
-            Self::TsConfigOnlyOption(_) => unimplemented!(),
+            Self::TsConfigOnlyOption(_) => {
+                CompilerOptionsValue::MapLikeVecString(Some(match value {
+                    serde_json::Value::Object(value) => {
+                        HashMap::from_iter(value.into_iter().map(|(key, value)| {
+                            (
+                                key.clone(),
+                                match value {
+                                    serde_json::Value::Array(value) => value
+                                        .into_iter()
+                                        .map(|item| match item {
+                                            serde_json::Value::String(item) => item.clone(),
+                                            _ => panic!("Expected string"),
+                                        })
+                                        .collect(),
+                                    // Looks like eg "paths": {"*": "*"} is accepted
+                                    serde_json::Value::String(value) => vec![value.clone()],
+                                    _ => panic!("Expected array or string"),
+                                },
+                            )
+                        }))
+                    }
+                    _ => panic!("Expected object"),
+                }))
+            }
             Self::CommandLineOptionOfListType(list_type) => unimplemented!(),
         }
     }
