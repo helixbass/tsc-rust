@@ -1955,7 +1955,6 @@ pub mod Baseline {
                 // const Diff = require("diff");
                 // const patch = Diff.createTwoFilesPatch("Expected", "Actual", expected, actual, "The current baseline", "The new version");
                 // throw new Error(`The baseline file ${relativeFileName} has changed.${ts.ForegroundColorEscapeSequences.Grey}\n\n${patch}`);
-                // TODO: use pretty_assertions::StrComparison to format diff?
                 panic!(
                     "The baseline file {} has changed.\n\n{}",
                     relative_file_name,
