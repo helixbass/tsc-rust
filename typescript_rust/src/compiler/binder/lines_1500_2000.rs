@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -640,6 +641,7 @@ impl BinderType {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(crate) struct BindBinaryExpressionFlow {
     trampoline: BinaryExpressionTrampoline<BindBinaryExpressionFlowStateMachine>,
 }
@@ -663,8 +665,9 @@ pub struct WorkArea {
     pub parent_stack: Vec<Option<Rc<Node>>>,
 }
 
+#[derive(Trace, Finalize)]
 pub(crate) struct BindBinaryExpressionFlowStateMachine {
-    binder: Rc<BinderType>,
+    binder: Gc<BinderType>,
 }
 
 impl BindBinaryExpressionFlowStateMachine {

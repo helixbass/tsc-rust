@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -225,7 +226,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     // hasBeenIncrementallyParsed: boolean;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Finalize, Trace)]
 #[ast_type(impl_from = false)]
 pub enum Node {
     BaseNode(BaseNode),
@@ -1667,30 +1668,30 @@ impl Node {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Finalize, Trace)]
 pub struct BaseNode {
-    _node_wrapper: RefCell<Option<Rc<Node>>>,
+    _node_wrapper: GcCell<Option<Gc<Node>>>,
     pub kind: SyntaxKind,
     flags: Cell<NodeFlags>,
     modifier_flags_cache: Cell<ModifierFlags>,
     transform_flags: Cell<TransformFlags>,
-    pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
-    pub modifiers: RefCell<Option<ModifiersArray>>,
+    pub decorators: GcCell<Option<NodeArray /*<Decorator>*/>>,
+    pub modifiers: GcCell<Option<ModifiersArray>>,
     pub id: Cell<Option<NodeId>>,
-    pub parent: RefCell<Option<Rc<Node>>>,
-    pub original: RefCell<Option<Rc<Node>>>,
+    pub parent: GcCell<Option<Gc<Node>>>,
+    pub original: GcCell<Option<Gc<Node>>>,
     pub pos: Cell<isize>,
     pub end: Cell<isize>,
-    pub symbol: RefCell<Option<Rc<Symbol>>>,
-    pub locals: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
-    next_container: RefCell<Option<Rc<Node>>>,
-    local_symbol: RefCell<Option<Rc<Symbol>>>,
-    emit_node: RefCell<Option<Rc<RefCell<EmitNode>>>>,
-    contextual_type: RefCell<Option<Rc<Type>>>,
-    inference_context: RefCell<Option<Rc<InferenceContext>>>,
-    flow_node: RefCell<Option<Rc<FlowNode>>>,
-    js_doc: RefCell<Option<Vec<Rc<Node>>>>,
-    js_doc_cache: RefCell<Option<Vec<Rc<Node>>>>,
+    pub symbol: GcCell<Option<Gc<Symbol>>>,
+    pub locals: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    next_container: GcCell<Option<Gc<Node>>>,
+    local_symbol: GcCell<Option<Gc<Symbol>>>,
+    emit_node: GcCell<Option<Gc<GcCell<EmitNode>>>>,
+    contextual_type: GcCell<Option<Gc<Type>>>,
+    inference_context: GcCell<Option<Gc<InferenceContext>>>,
+    flow_node: GcCell<Option<Gc<FlowNode>>>,
+    js_doc: GcCell<Option<Vec<Gc<Node>>>>,
+    js_doc_cache: GcCell<Option<Vec<Gc<Node>>>>,
     intersects_change: Cell<Option<bool>>,
 }
 

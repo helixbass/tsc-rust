@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -1525,15 +1526,16 @@ pub(super) struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
     pub file_exists: Rc<dyn ModuleResolutionHostOverrider>,
 }
 
+#[derive(Trace, Finalize)]
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
-    pub host_compiler_host: Rc<dyn CompilerHost>,
+    pub host_compiler_host: Gc<Box<dyn CompilerHost>>,
     pub host_get_symlink_cache: Rc<dyn Fn() -> Rc<SymlinkCache>>,
     pub host_to_path: Rc<dyn Fn(&str) -> Path>,
     pub host_get_resolved_project_references:
         Rc<dyn Fn() -> Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
     pub host_for_each_resolved_project_reference:
         Rc<dyn Fn(&mut dyn FnMut(Rc<ResolvedProjectReference>))>,
-    set_of_declaration_directories: RefCell<Option<HashSet<Path>>>,
+    set_of_declaration_directories: GcCell<Option<HashSet<Path>>>,
 }
 
 impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
@@ -1690,7 +1692,7 @@ pub(super) fn filter_semantic_diagnostics(
         .collect()
 }
 
-pub trait CompilerHostLike {
+pub trait CompilerHostLike: Trace + Finalize {
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_current_directory(&self) -> String;
     fn file_exists(&self, file_name: &str) -> bool;
@@ -1718,8 +1720,9 @@ pub trait CompilerHostLike {
     fn get_directories(&self, path: &str) -> Option<Vec<String>>;
 }
 
+#[derive(Trace, Finalize)]
 pub struct CompilerHostLikeRcDynCompilerHost {
-    host: Rc<dyn CompilerHost>,
+    host: Gc<Box<dyn CompilerHost>>,
 }
 
 impl CompilerHostLikeRcDynCompilerHost {
@@ -1792,8 +1795,9 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct DirectoryStructureHostRcDynCompilerHostLike {
-    host: Rc<dyn CompilerHostLike>,
+    host: Gc<Box<dyn CompilerHostLike>>,
 }
 
 impl DirectoryStructureHostRcDynCompilerHostLike {
@@ -1857,9 +1861,10 @@ pub(crate) fn parse_config_host_from_compiler_host_like(
     ParseConfigHostFromCompilerHostLike::new(host, directory_structure_host)
 }
 
+#[derive(Trace, Finalize)]
 pub struct ParseConfigHostFromCompilerHostLike {
-    host: Rc<dyn CompilerHostLike>,
-    directory_structure_host: Rc<dyn DirectoryStructureHost>,
+    host: Gc<Box<dyn CompilerHostLike>>,
+    directory_structure_host: Gc<Box<dyn DirectoryStructureHost>>,
 }
 
 impl ParseConfigHostFromCompilerHostLike {

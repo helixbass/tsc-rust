@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -1298,7 +1299,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub enum FlowNode {
     FlowStart(FlowStart),
     FlowLabel(FlowLabel),
@@ -1417,13 +1418,13 @@ impl FlowNodeBase for FlowNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct FlowStart {
     flags: Cell<FlowFlags>,
     id: Cell<Option<isize>>,
-    node: RefCell<
+    node: GcCell<
         Option<
-            Rc<
+            Gc<
                 Node, /*FunctionExpression | ArrowFunction | MethodDeclaration | GetAccessorDeclaration | SetAccessorDeclaration*/
             >,
         >,
@@ -1474,11 +1475,11 @@ impl From<FlowStart> for FlowNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct FlowLabel {
     flags: Cell<FlowFlags>,
     id: Cell<Option<isize>>,
-    antecedents: RefCell<Option<Vec<Rc<FlowNode>>>>,
+    antecedents: GcCell<Option<Vec<Gc<FlowNode>>>>,
 }
 
 impl FlowLabel {
@@ -1531,12 +1532,12 @@ pub trait HasAntecedentInterface {
     fn antecedent(&self) -> Rc<FlowNode>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct FlowAssignment {
     flags: Cell<FlowFlags>,
     id: Cell<Option<isize>>,
-    pub node: Rc<Node /*Expression | VariableDeclaration | BindingElement*/>,
-    pub antecedent: Rc<FlowNode>,
+    pub node: Gc<Node /*Expression | VariableDeclaration | BindingElement*/>,
+    pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowAssignment {
@@ -1580,12 +1581,12 @@ impl From<FlowAssignment> for FlowNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct FlowCall {
     flags: Cell<FlowFlags>,
     id: Cell<Option<isize>>,
-    pub node: Rc<Node /*CallExpression*/>,
-    pub antecedent: Rc<FlowNode>,
+    pub node: Gc<Node /*CallExpression*/>,
+    pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowCall {
@@ -1629,12 +1630,12 @@ impl From<FlowCall> for FlowNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct FlowCondition {
     flags: Cell<FlowFlags>,
     id: Cell<Option<isize>>,
-    pub node: Rc<Node /*Expression*/>,
-    pub antecedent: Rc<FlowNode>,
+    pub node: Gc<Node /*Expression*/>,
+    pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowCondition {
@@ -1678,14 +1679,14 @@ impl From<FlowCondition> for FlowNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct FlowSwitchClause {
     flags: Cell<FlowFlags>,
     id: Cell<Option<isize>>,
-    pub switch_statement: Rc<Node /*SwitchStatement*/>,
+    pub switch_statement: Gc<Node /*SwitchStatement*/>,
     pub clause_start: usize,
     pub clause_end: usize,
-    pub antecedent: Rc<FlowNode>,
+    pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowSwitchClause {
@@ -1737,12 +1738,12 @@ impl From<FlowSwitchClause> for FlowNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct FlowArrayMutation {
     flags: Cell<FlowFlags>,
     id: Cell<Option<isize>>,
-    pub node: Rc<Node /*CallExpression | BinaryExpression*/>,
-    pub antecedent: Rc<FlowNode>,
+    pub node: Gc<Node /*CallExpression | BinaryExpression*/>,
+    pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowArrayMutation {
@@ -1786,13 +1787,13 @@ impl From<FlowArrayMutation> for FlowNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct FlowReduceLabel {
     flags: Cell<FlowFlags>,
     id: Cell<Option<isize>>,
-    pub target: Rc<FlowNode /*FlowLabel*/>,
-    pub antecedents: Vec<Rc<FlowNode>>,
-    pub antecedent: Rc<FlowNode>,
+    pub target: Gc<FlowNode /*FlowLabel*/>,
+    pub antecedents: Vec<Gc<FlowNode>>,
+    pub antecedent: Gc<FlowNode>,
 }
 
 impl FlowReduceLabel {

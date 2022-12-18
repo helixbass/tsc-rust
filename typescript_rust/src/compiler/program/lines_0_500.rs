@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, GcCell, Trace};
 use regex::Regex;
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -149,22 +150,23 @@ pub fn create_compiler_host_worker(
     }
 }
 
+#[derive(Trace, Finalize)]
 struct CompilerHostConcrete {
     set_parent_nodes: Option<bool>,
-    system: Rc<dyn System>,
-    existing_directories: RefCell<HashMap<String, bool>>,
-    output_fingerprints: RefCell<Option<HashMap<String, OutputFingerprint>>>,
-    options: Rc<CompilerOptions>,
+    system: Gc<Box<dyn System>>,
+    existing_directories: GcCell<HashMap<String, bool>>,
+    output_fingerprints: GcCell<Option<HashMap<String, OutputFingerprint>>>,
+    options: Gc<CompilerOptions>,
     new_line: String,
-    current_directory: RefCell<Option<String>>,
+    current_directory: GcCell<Option<String>>,
     get_canonical_file_name: fn(&str) -> String,
-    read_file_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-    file_exists_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-    directory_exists_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-    realpath_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-    get_directories_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-    write_file_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-    create_directory_override: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+    read_file_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+    file_exists_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+    directory_exists_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+    realpath_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+    get_directories_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+    write_file_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+    create_directory_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
 }
 
 impl CompilerHostConcrete {
@@ -676,8 +678,9 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
     // };
 }
 
+#[derive(Trace, Finalize)]
 struct ChangeCompilerHostLikeToUseCacheOverrider {
-    host: Rc<dyn CompilerHost>,
+    host: Gc<Box<dyn CompilerHost>>,
     to_path: Rc<dyn Fn(&str) -> Path>,
     get_source_file: Option<
         Rc<
@@ -689,10 +692,10 @@ struct ChangeCompilerHostLikeToUseCacheOverrider {
             ) -> Option<Rc<Node>>,
         >,
     >,
-    read_file_cache: RefCell<HashMap<String, Option<String>>>,
-    file_exists_cache: RefCell<HashMap<String, bool>>,
-    directory_exists_cache: RefCell<HashMap<String, bool>>,
-    source_file_cache: RefCell<HashMap<String, Rc<Node /*SourceFile*/>>>,
+    read_file_cache: GcCell<HashMap<String, Option<String>>>,
+    file_exists_cache: GcCell<HashMap<String, bool>>,
+    directory_exists_cache: GcCell<HashMap<String, bool>>,
+    source_file_cache: GcCell<HashMap<String, Gc<Node /*SourceFile*/>>>,
     has_get_source_file_with_cache: bool,
 }
 

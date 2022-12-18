@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -17,8 +18,9 @@ pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory>(
     NodeConvertersConcrete::new(factory)
 }
 
-pub struct NodeConvertersConcrete<TBaseNodeFactory: BaseNodeFactory> {
-    factory: Rc<NodeFactory<TBaseNodeFactory>>,
+#[derive(Trace, Finalize)]
+pub struct NodeConvertersConcrete<TBaseNodeFactory: BaseNodeFactory + 'static> {
+    factory: Gc<NodeFactory<TBaseNodeFactory>>,
 }
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConvertersConcrete<TBaseNodeFactory> {
@@ -269,7 +271,9 @@ pub fn null_node_converters<TBaseNodeFactory: BaseNodeFactory>(
     NullNodeConverters::<TBaseNodeFactory>::new()
 }
 
+#[derive(Trace, Finalize)]
 pub struct NullNodeConverters<TBaseNodeFactory: BaseNodeFactory> {
+    #[unsafe_ignore_trace]
     _base_node_factory: PhantomData<TBaseNodeFactory>,
 }
 

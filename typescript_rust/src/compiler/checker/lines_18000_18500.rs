@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
@@ -23,28 +24,34 @@ use crate::{
     TypeFlags, TypeInterface,
 };
 
+#[derive(Trace, Finalize)]
 pub(super) struct CheckTypeRelatedTo {
-    _rc_wrapper: RefCell<Option<Rc<CheckTypeRelatedTo>>>,
-    pub type_checker: Rc<TypeChecker>,
-    pub source: Rc<Type>,
-    pub target: Rc<Type>,
+    _rc_wrapper: GcCell<Option<Gc<CheckTypeRelatedTo>>>,
+    pub type_checker: Gc<TypeChecker>,
+    pub source: Gc<Type>,
+    pub target: Gc<Type>,
+    #[unsafe_ignore_trace]
     pub relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-    pub error_node: RefCell<Option<Rc<Node>>>,
+    pub error_node: GcCell<Option<Gc<Node>>>,
+    #[unsafe_ignore_trace]
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
-    pub containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-    pub error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
+    pub containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+    pub error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+    #[unsafe_ignore_trace]
     pub error_info: RefCell<Option<Rc<DiagnosticMessageChain>>>,
-    pub related_info: RefCell<Option<Vec<DiagnosticRelatedInformation>>>,
+    pub related_info: GcCell<Option<Vec<DiagnosticRelatedInformation>>>,
+    #[unsafe_ignore_trace]
     pub maybe_keys: RefCell<Option<Vec<String>>>,
-    pub source_stack: RefCell<Option<Vec<Rc<Type>>>>,
-    pub target_stack: RefCell<Option<Vec<Rc<Type>>>>,
+    pub source_stack: GcCell<Option<Vec<Gc<Type>>>>,
+    pub target_stack: GcCell<Option<Vec<Gc<Type>>>>,
     pub maybe_count: Cell<usize>,
     pub source_depth: Cell<usize>,
     pub target_depth: Cell<usize>,
     pub expanding_flags: Cell<ExpandingFlags>,
     pub overflow: Cell<bool>,
     pub override_next_error_info: Cell<usize>,
-    pub last_skipped_info: RefCell<Option<(Rc<Type>, Rc<Type>)>>,
+    pub last_skipped_info: GcCell<Option<(Gc<Type>, Gc<Type>)>>,
+    #[unsafe_ignore_trace]
     pub incompatible_stack: RefCell<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>>,
     pub in_property_check: Cell<bool>,
 }

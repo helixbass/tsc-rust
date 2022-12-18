@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -531,9 +532,9 @@ impl TypeChecker {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct NodeBuilder {
-    pub type_checker: Rc<TypeChecker>,
+    pub type_checker: Gc<TypeChecker>,
 }
 
 impl NodeBuilder {

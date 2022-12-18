@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -810,11 +811,12 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 struct IssueMemberSpecificErrorContainingMessageChain {
-    type_checker: Rc<TypeChecker>,
-    declared_prop: Rc<Symbol>,
-    type_with_this: Rc<Type>,
-    base_with_this: Rc<Type>,
+    type_checker: Gc<TypeChecker>,
+    declared_prop: Gc<Symbol>,
+    type_with_this: Gc<Type>,
+    base_with_this: Gc<Type>,
 }
 
 impl IssueMemberSpecificErrorContainingMessageChain {

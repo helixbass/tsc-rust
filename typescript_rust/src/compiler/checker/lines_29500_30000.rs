@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
 use std::cmp;
@@ -1316,7 +1317,9 @@ pub(super) struct GetDiagnosticSpanForCallNodeReturn {
     pub source_file: Rc<Node /*SourceFile*/>,
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct ResolveCallContainingMessageChain {
+    #[unsafe_ignore_trace]
     chain: Option<Rc<RefCell<DiagnosticMessageChain>>>,
 }
 
@@ -1332,11 +1335,12 @@ impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
     }
 }
 
+#[derive(Trace, Finalize)]
 struct ResolveCallOverloadContainingMessageChain {
-    type_checker: Rc<TypeChecker>,
+    type_checker: Gc<TypeChecker>,
     i: Rc<Cell<usize>>,
     candidates_len: usize,
-    c: Rc<Signature>,
+    c: Gc<Signature>,
 }
 
 impl ResolveCallOverloadContainingMessageChain {

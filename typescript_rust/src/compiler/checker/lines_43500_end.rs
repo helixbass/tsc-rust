@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Trace};
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -914,7 +915,7 @@ impl TypeChecker {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub(super) struct EmitResolverCreateResolver {}
 
 impl EmitResolverCreateResolver {

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -819,8 +820,9 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct GenerateInitialErrorChain {
-    opening_like_element: Rc<Node>,
+    opening_like_element: Gc<Node>,
 }
 
 impl GenerateInitialErrorChain {

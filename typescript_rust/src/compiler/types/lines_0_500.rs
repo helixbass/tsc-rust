@@ -1,9 +1,10 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Trace};
 use std::cell::Cell;
 use std::ops::Deref;
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Trace, Finalize)]
 pub struct Path(String);
 
 impl Path {

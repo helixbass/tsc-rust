@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 use derive_builder::Builder;
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::io;
@@ -17,53 +18,63 @@ use crate::{
 };
 use local_macros::{ast_type, enum_unwrapped};
 
+#[derive(Trace, Finalize)]
 pub struct Printer {
-    pub _rc_wrapper: RefCell<Option<Rc<Printer>>>,
+    pub _rc_wrapper: GcCell<Option<Gc<Printer>>>,
     pub printer_options: PrinterOptions,
     pub handlers: Rc<dyn PrintHandlers>,
     pub extended_diagnostics: bool,
     pub new_line: String,
     pub module_kind: ModuleKind,
-    pub current_source_file: RefCell<Option<Rc<Node /*SourceFile*/>>>,
+    pub current_source_file: GcCell<Option<Gc<Node /*SourceFile*/>>>,
+    #[unsafe_ignore_trace]
     pub bundled_helpers: RefCell<HashMap<String, bool>>,
+    #[unsafe_ignore_trace]
     pub node_id_to_generated_name: RefCell<HashMap<NodeId, String>>,
+    #[unsafe_ignore_trace]
     pub auto_generated_id_to_generated_name: RefCell<HashMap<usize, String>>,
+    #[unsafe_ignore_trace]
     pub generated_names: RefCell<HashSet<String>>,
+    #[unsafe_ignore_trace]
     pub temp_flags_stack: RefCell<Vec<TempFlags>>,
     pub temp_flags: Cell<TempFlags>,
+    #[unsafe_ignore_trace]
     pub reserved_names_stack: RefCell<Vec<Option<Rc<RefCell<HashSet<String>>>>>>,
+    #[unsafe_ignore_trace]
     pub reserved_names: RefCell<Option<Rc<RefCell<HashSet<String>>>>>,
     pub preserve_source_newlines: Cell<Option<bool>>,
     pub next_list_element_pos: Cell<Option<isize>>,
 
-    pub writer: RefCell<Option<Rc<dyn EmitTextWriter>>>,
-    pub own_writer: RefCell<Option<Rc<dyn EmitTextWriter>>>,
+    pub writer: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
+    pub own_writer: GcCell<Option<Gc<Box<dyn EmitTextWriter>>>>,
     pub write: Cell<fn(&Printer, &str)>,
     pub is_own_file_emit: Cell<bool>,
-    pub bundle_file_info: RefCell<Option<BundleFileInfo>>,
+    pub bundle_file_info: GcCell<Option<BundleFileInfo>>,
     pub relative_to_build_info: Option<Rc<dyn Fn(&str) -> String>>,
     pub record_internal_section: Option<bool>,
     pub source_file_text_pos: Cell<usize>,
     pub source_file_text_kind: Cell<BundleFileSectionKind>,
 
     pub source_maps_disabled: Cell<bool>,
-    pub source_map_generator: RefCell<Option<Rc<dyn SourceMapGenerator>>>,
-    pub source_map_source: RefCell<Option<Rc<SourceMapSource>>>,
+    pub source_map_generator: GcCell<Option<Gc<Box<dyn SourceMapGenerator>>>>,
+    pub source_map_source: GcCell<Option<Gc<SourceMapSource>>>,
     pub source_map_source_index: Cell<isize>,
-    pub most_recently_added_source_map_source: RefCell<Option<Rc<SourceMapSource>>>,
+    pub most_recently_added_source_map_source: GcCell<Option<Gc<SourceMapSource>>>,
     pub most_recently_added_source_map_source_index: Cell<isize>,
 
     pub container_pos: Cell<isize>,
     pub container_end: Cell<isize>,
     pub declaration_list_container_end: Cell<isize>,
+    #[unsafe_ignore_trace]
     pub current_line_map: RefCell<Option<Vec<usize>>>,
+    #[unsafe_ignore_trace]
     pub detached_comments_info: RefCell<Option<Vec<DetachedCommentInfo>>>,
     pub has_written_comment: Cell<bool>,
     pub comments_disabled: Cell<bool>,
-    pub last_substitution: RefCell<Option<Rc<Node>>>,
-    pub current_parenthesizer_rule: RefCell<Option<Rc<dyn Fn(&Node) -> Rc<Node>>>>,
-    pub parenthesizer: Rc<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>,
-    pub emit_binary_expression: RefCell<Option<Rc<EmitBinaryExpression>>>,
+    pub last_substitution: GcCell<Option<Gc<Node>>>,
+    pub current_parenthesizer_rule: GcCell<Option<Rc<dyn Fn(&Node) -> Rc<Node>>>>,
+    pub parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    pub emit_binary_expression: GcCell<Option<Gc<EmitBinaryExpression>>>,
 }
 
 #[derive(Copy, Clone)]
@@ -101,7 +112,7 @@ impl BundleFileSectionKind {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BundleFileSectionBase {
     pos: Cell<isize>,
     end: Cell<isize>,
@@ -153,7 +164,7 @@ impl BundleFileSectionInterface for BundleFileSectionBase {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BundleFilePrologue {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -192,7 +203,7 @@ impl BundleFileSectionInterface for BundleFilePrologue {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BundleFileEmitHelpers {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -231,7 +242,7 @@ impl BundleFileSectionInterface for BundleFileEmitHelpers {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BundleFileHasNoDefaultLib {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -264,7 +275,7 @@ impl BundleFileSectionInterface for BundleFileHasNoDefaultLib {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BundleFileReference {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -303,10 +314,10 @@ impl BundleFileSectionInterface for BundleFileReference {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BundleFilePrepend {
     _bundle_file_section_base: BundleFileSectionBase,
-    pub texts: Vec<Rc<BundleFileSection /*BundleFileTextLike*/>>,
+    pub texts: Vec<Gc<BundleFileSection /*BundleFileTextLike*/>>,
 }
 
 impl BundleFilePrepend {
@@ -343,7 +354,7 @@ impl BundleFileSectionInterface for BundleFilePrepend {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BundleFileTextLike {
     _bundle_file_section_base: BundleFileSectionBase,
 }
@@ -376,7 +387,7 @@ impl BundleFileSectionInterface for BundleFileTextLike {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub enum BundleFileSection {
     BundleFilePrologue(BundleFilePrologue),
     BundleFileEmitHelpers(BundleFileEmitHelpers),
@@ -530,32 +541,36 @@ impl BundleFileSectionInterface for BundleFileSection {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct SourceFilePrologueDirectiveExpression {
     pub pos: isize,
     pub end: isize,
     pub text: String,
 }
 
+#[derive(Trace, Finalize)]
 pub struct SourceFilePrologueDirective {
     pub pos: isize,
     pub end: isize,
     pub expression: SourceFilePrologueDirectiveExpression,
 }
 
+#[derive(Trace, Finalize)]
 pub struct SourceFilePrologueInfo {
     pub file: usize,
     pub text: String,
     pub directives: Vec<SourceFilePrologueDirective>,
 }
 
-#[derive(Default)]
+#[derive(Default, Trace, Finalize)]
 pub struct SourceFileInfo {
     pub helpers: Option<Vec<String>>,
     pub prologues: Option<Vec<SourceFilePrologueInfo>>,
 }
 
+#[derive(Trace, Finalize)]
 pub struct BundleFileInfo {
-    pub sections: Vec<Rc<BundleFileSection>>,
+    pub sections: Vec<Gc<BundleFileSection>>,
     pub sources: Option<SourceFileInfo>,
 }
 
@@ -635,11 +650,11 @@ pub struct RawSourceMap {
     pub names: Option<Vec<String>>,
 }
 
-pub trait SourceMapGenerator {
+pub trait SourceMapGenerator: Trace + Finalize {
     fn add_source(&self, file_name: &str) -> usize;
 }
 
-pub trait EmitTextWriter: SymbolWriter {
+pub trait EmitTextWriter: SymbolWriter + Trace + Finalize {
     fn write(&self, s: &str);
     fn write_trailing_semicolon(&self, text: &str);
     fn write_comment(&self, text: &str);
@@ -795,11 +810,11 @@ pub struct TextChangeRange {
     pub new_length: isize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct DiagnosticCollection {
-    pub non_file_diagnostics: SortedArray<Rc<Diagnostic>>,
+    pub non_file_diagnostics: SortedArray<Gc<Diagnostic>>,
     pub files_with_diagnostics: SortedArray<String>,
-    pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic /*DiagnosticWithLocation*/>>>,
+    pub file_diagnostics: HashMap<String, SortedArray<Gc<Diagnostic /*DiagnosticWithLocation*/>>>,
     pub has_read_non_file_diagnostics: Cell<bool>,
 }
 

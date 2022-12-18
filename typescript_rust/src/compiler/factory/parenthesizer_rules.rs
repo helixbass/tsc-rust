@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::rc::Rc;
@@ -19,8 +20,9 @@ pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
     ParenthesizerRulesConcrete::new(factory)
 }
 
-pub struct ParenthesizerRulesConcrete<TBaseNodeFactory: BaseNodeFactory> {
-    factory: Rc<NodeFactory<TBaseNodeFactory>>,
+#[derive(Trace, Finalize)]
+pub struct ParenthesizerRulesConcrete<TBaseNodeFactory: BaseNodeFactory + 'static> {
+    factory: Gc<NodeFactory<TBaseNodeFactory>>,
 }
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRulesConcrete<TBaseNodeFactory> {
@@ -628,7 +630,9 @@ pub fn null_parenthesizer_rules<TBaseNodeFactory: BaseNodeFactory>(
     NullParenthesizerRules::<TBaseNodeFactory>::new()
 }
 
+#[derive(Trace, Finalize)]
 pub struct NullParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
+    #[unsafe_ignore_trace]
     _base_node_factory: PhantomData<TBaseNodeFactory>,
 }
 

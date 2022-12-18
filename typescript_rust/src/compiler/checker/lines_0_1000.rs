@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, Trace};
 use regex::Regex;
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -510,7 +511,7 @@ pub fn is_instantiated_module(
 pub fn create_type_checker(
     host: Rc<dyn TypeCheckerHostDebuggable>,
     produce_diagnostics: bool,
-) -> Rc<TypeChecker> {
+) -> Gc<TypeChecker> {
     let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
         host,
@@ -1337,7 +1338,7 @@ pub fn create_type_checker(
     rc_wrapped
 }
 
-#[derive(Default)]
+#[derive(Default, Trace, Finalize)]
 struct RestrictiveMapperFunc {}
 
 impl TypeMapperCallback for RestrictiveMapperFunc {
@@ -1350,7 +1351,7 @@ impl TypeMapperCallback for RestrictiveMapperFunc {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Trace, Finalize)]
 struct PermissiveMapperFunc {}
 
 impl TypeMapperCallback for PermissiveMapperFunc {

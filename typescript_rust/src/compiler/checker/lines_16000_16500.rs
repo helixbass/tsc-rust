@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
@@ -1138,8 +1139,9 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 struct BackreferenceMapperCallback {
-    context_inferences: Vec<Rc<InferenceInfo>>,
+    context_inferences: Vec<Gc<InferenceInfo>>,
     index: usize,
 }
 

@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -13,9 +14,9 @@ use super::{
 };
 use local_macros::ast_type;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct NodeArray {
-    _nodes: Vec<Rc<Node>>,
+    _nodes: Vec<Gc<Node>>,
     pos: Cell<isize>,
     end: Cell<isize>,
     pub has_trailing_comma: bool,

@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
@@ -34,12 +35,12 @@ pub enum ModuleInstanceState {
     ConstEnumOnly = 2,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub(super) struct ActiveLabel {
-    pub next: Option<Rc<ActiveLabel>>,
+    pub next: Option<Gc<ActiveLabel>>,
     pub name: __String,
-    break_target: Rc<FlowNode /*FlowLabel*/>,
-    continue_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    break_target: Gc<FlowNode /*FlowLabel*/>,
+    continue_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
     referenced: Cell<bool>,
 }
 
@@ -294,29 +295,30 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Rc<CompilerOptions>
 }
 
 #[allow(non_snake_case)]
+#[derive(Trace, Finalize)]
 pub(crate) struct BinderType {
-    pub(super) _rc_wrapper: RefCell<Option<Rc<BinderType>>>,
-    pub(super) file: RefCell<Option<Rc</*SourceFile*/ Node>>>,
-    pub(super) options: RefCell<Option<Rc<CompilerOptions>>>,
+    pub(super) _rc_wrapper: GcCell<Option<Gc<BinderType>>>,
+    pub(super) file: GcCell<Option<Gc</*SourceFile*/ Node>>>,
+    pub(super) options: GcCell<Option<Gc<CompilerOptions>>>,
     pub(super) language_version: Cell<Option<ScriptTarget>>,
-    pub(super) parent: RefCell<Option<Rc<Node>>>,
-    pub(super) container: RefCell<Option<Rc<Node>>>,
-    pub(super) this_parent_container: RefCell<Option<Rc<Node>>>,
-    pub(super) block_scope_container: RefCell<Option<Rc<Node>>>,
-    pub(super) last_container: RefCell<Option<Rc<Node>>>,
+    pub(super) parent: GcCell<Option<Gc<Node>>>,
+    pub(super) container: GcCell<Option<Gc<Node>>>,
+    pub(super) this_parent_container: GcCell<Option<Gc<Node>>>,
+    pub(super) block_scope_container: GcCell<Option<Gc<Node>>>,
+    pub(super) last_container: GcCell<Option<Gc<Node>>>,
     pub(super) delayed_type_aliases:
-        RefCell<Option<Vec<Rc<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
+        GcCell<Option<Vec<Gc<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
     pub(super) seen_this_keyword: Cell<Option<bool>>,
 
-    pub(super) current_flow: RefCell<Option<Rc<FlowNode>>>,
-    pub(super) current_break_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_continue_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_return_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_true_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_false_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_exception_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    pub(super) pre_switch_case_flow: RefCell<Option<Rc<FlowNode>>>,
-    pub(super) active_label_list: RefCell<Option<Rc<ActiveLabel>>>,
+    pub(super) current_flow: GcCell<Option<Gc<FlowNode>>>,
+    pub(super) current_break_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_continue_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_return_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_true_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_false_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_exception_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
+    pub(super) pre_switch_case_flow: GcCell<Option<Gc<FlowNode>>>,
+    pub(super) active_label_list: GcCell<Option<Gc<ActiveLabel>>>,
     pub(super) has_explicit_return: Cell<Option<bool>>,
 
     pub(super) emit_flags: Cell<Option<NodeFlags>>,
@@ -328,11 +330,12 @@ pub(crate) struct BinderType {
     pub(super) symbol_count: Cell<usize>,
 
     pub(super) Symbol: RefCell<Option<fn(SymbolFlags, __String) -> BaseSymbol>>,
+    #[unsafe_ignore_trace]
     pub(super) classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
 
-    pub(super) unreachable_flow: RefCell<Rc<FlowNode>>,
-    pub(super) reported_unreachable_flow: RefCell<Rc<FlowNode>>,
-    pub(super) bind_binary_expression_flow: RefCell<Option<Rc<BindBinaryExpressionFlow>>>,
+    pub(super) unreachable_flow: GcCell<Gc<FlowNode>>,
+    pub(super) reported_unreachable_flow: GcCell<Gc<FlowNode>>,
+    pub(super) bind_binary_expression_flow: GcCell<Option<Gc<BindBinaryExpressionFlow>>>,
 }
 
 pub(super) fn create_binder() -> Rc<BinderType> {

@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
@@ -34,7 +35,7 @@ use crate::{
 };
 use local_macros::enum_unwrapped;
 
-pub trait LoadWithLocalCacheLoader<TValue> {
+pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
     fn call(
         &self,
         name: &str,
@@ -43,10 +44,11 @@ pub trait LoadWithLocalCacheLoader<TValue> {
     ) -> TValue;
 }
 
+#[derive(Trace, Finalize)]
 pub struct LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
-    options: Rc<CompilerOptions>,
-    host: Rc<dyn CompilerHost>,
-    type_reference_directive_resolution_cache: Option<Rc<TypeReferenceDirectiveResolutionCache>>,
+    options: Gc<CompilerOptions>,
+    host: Gc<Box<dyn CompilerHost>>,
+    type_reference_directive_resolution_cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
 }
 
 impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
@@ -163,7 +165,7 @@ pub(crate) fn get_mode_for_usage_location(
     )
 }
 
-pub trait LoadWithModeAwareCacheLoader<TValue> {
+pub trait LoadWithModeAwareCacheLoader<TValue>: Trace + Finalize {
     fn call(
         &self,
         name: &str,
@@ -173,10 +175,11 @@ pub trait LoadWithModeAwareCacheLoader<TValue> {
     ) -> TValue;
 }
 
+#[derive(Trace, Finalize)]
 pub struct LoadWithModeAwareCacheLoaderResolveModuleName {
-    options: Rc<CompilerOptions>,
-    host: Rc<dyn CompilerHost>,
-    module_resolution_cache: Option<Rc<ModuleResolutionCache>>,
+    options: Gc<CompilerOptions>,
+    host: Gc<Box<dyn CompilerHost>>,
+    module_resolution_cache: Option<Gc<ModuleResolutionCache>>,
 }
 
 impl LoadWithModeAwareCacheLoaderResolveModuleName {
@@ -1424,7 +1427,7 @@ pub enum FilesByNameValue {
     Undefined,
 }
 
-pub trait ActualResolveModuleNamesWorker {
+pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
     fn call(
         &self,
         module_names: &[String],
@@ -1435,9 +1438,10 @@ pub trait ActualResolveModuleNamesWorker {
     ) -> Vec<Option<Rc<ResolvedModuleFull>>>;
 }
 
+#[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerHost {
-    host: Rc<dyn CompilerHost>,
-    options: Rc<CompilerOptions>,
+    host: Gc<Box<dyn CompilerHost>>,
+    options: Gc<CompilerOptions>,
 }
 
 impl ActualResolveModuleNamesWorkerHost {
@@ -1482,8 +1486,9 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
     }
 }
 
+#[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
-    loader: Rc<dyn LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>>,
+    loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Rc<ResolvedModuleFull>>>>>,
 }
 
 impl ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
@@ -1513,7 +1518,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
     }
 }
 
-pub trait ActualResolveTypeReferenceDirectiveNamesWorker {
+pub trait ActualResolveTypeReferenceDirectiveNamesWorker: Trace + Finalize {
     fn call(
         &self,
         type_directive_names: &[String],
@@ -1522,9 +1527,10 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker {
     ) -> Vec<Option<Rc<ResolvedTypeReferenceDirective>>>;
 }
 
+#[derive(Trace, Finalize)]
 struct ActualResolveTypeReferenceDirectiveNamesWorkerHost {
-    host: Rc<dyn CompilerHost>,
-    options: Rc<CompilerOptions>,
+    host: Gc<Box<dyn CompilerHost>>,
+    options: Gc<CompilerOptions>,
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerHost {
@@ -1553,8 +1559,9 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
     }
 }
 
+#[derive(Trace, Finalize)]
 struct ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
-    loader: Rc<dyn LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>>,
+    loader: Gc<Box<dyn LoadWithLocalCacheLoader<Rc<ResolvedTypeReferenceDirective>>>>,
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {

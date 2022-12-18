@@ -1,3 +1,4 @@
+use gc::{Finalize, Trace};
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -499,7 +500,7 @@ pub fn deduplicate_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
     }
 }
 
-fn deduplicate_sorted<TItem: Clone>(
+fn deduplicate_sorted<TItem: Clone + Trace + Finalize>(
     array: &SortedArray<TItem>,
     comparer: ComparerOrEqualityComparer<TItem>,
 ) -> SortedArray<TItem> {
@@ -535,7 +536,9 @@ fn deduplicate_sorted<TItem: Clone>(
     SortedArray::new(deduplicated)
 }
 
-pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
+pub fn insert_sorted<
+    TItem: Trace + Finalize, /*, TComparer: Comparer<&'array_or_item TItem>*/
+>(
     array: &mut SortedArray<TItem>,
     insert: TItem,
     // compare: Comparer<&'array_or_item TItem>,
@@ -554,7 +557,7 @@ pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
 }
 
 pub fn sort_and_deduplicate<
-    TItem: Clone,
+    TItem: Clone + Trace + Finalize,
     TComparer: Fn(&TItem, &TItem) -> Comparison,
     TEqualityComparer: Fn(&TItem, &TItem) -> bool,
 >(
@@ -761,7 +764,7 @@ pub fn stable_sort_indices<TItem, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     });
 }
 
-pub fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+pub fn sort<TItem: Clone + Trace + Finalize, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
 ) -> SortedArray<TItem> {
@@ -789,7 +792,7 @@ pub fn range_equals_rc<TItem>(
     true
 }
 
-pub fn stable_sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+pub fn stable_sort<TItem: Clone + Trace + Finalize, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
 ) -> SortedArray<TItem> {
@@ -1134,10 +1137,12 @@ pub fn clone<TValue: Cloneable>(object: &TValue) -> TValue {
 }
 
 // TODO: make the nested hash map private and implement iteration on the wrapper
-#[derive(Debug)]
-pub struct MultiMap<TKey, TValue>(pub HashMap<TKey, Vec<TValue>>);
+#[derive(Debug, Trace, Finalize)]
+pub struct MultiMap<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+    pub HashMap<TKey, Vec<TValue>>,
+);
 
-impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
+impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> MultiMap<TKey, TValue> {
     pub fn add(&mut self, key: TKey, value: TValue) {
         let values = self.0.entry(key).or_insert(vec![]);
         values.push(value);
@@ -1168,13 +1173,15 @@ impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
     }
 }
 
-pub fn create_multi_map<TKey, TValue>() -> MultiMap<TKey, TValue> {
+pub fn create_multi_map<TKey: Trace + Finalize, TValue: Trace + Finalize>() -> MultiMap<TKey, TValue>
+{
     MultiMap(HashMap::new())
 }
 
-pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
+pub type UnderscoreEscapedMultiMap<TValue: Trace + Finalize> = MultiMap<__String, TValue>;
 
-pub fn create_underscore_escaped_multi_map<TValue>() -> UnderscoreEscapedMultiMap<TValue> {
+pub fn create_underscore_escaped_multi_map<TValue: Trace + Finalize>(
+) -> UnderscoreEscapedMultiMap<TValue> {
     create_multi_map()
 }
 
@@ -1518,7 +1525,7 @@ pub fn identity_str_to_owned(str_: &str) -> String {
     str_.to_owned()
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct Pattern {
     pub prefix: String,
     pub suffix: String,

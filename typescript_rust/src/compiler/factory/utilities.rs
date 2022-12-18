@@ -1,3 +1,4 @@
+use gc::{Finalize, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
@@ -548,7 +549,7 @@ fn binary_expression_state_check_circularity(
     }
 }
 
-pub trait BinaryExpressionStateMachine {
+pub trait BinaryExpressionStateMachine: Trace + Finalize {
     type TResult: Clone;
     type TOuterState: Clone;
     type TState: Clone;
@@ -620,7 +621,7 @@ pub fn create_binary_expression_trampoline<TMachine: BinaryExpressionStateMachin
     BinaryExpressionTrampoline::new(machine)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct BinaryExpressionTrampoline<TMachine: BinaryExpressionStateMachine> {
     machine: TMachine,
 }

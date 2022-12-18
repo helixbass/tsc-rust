@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 use derive_builder::Builder;
+use gc::{Finalize, Gc, Trace};
 use serde::Serialize;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
@@ -21,7 +22,7 @@ pub struct PluginImport {
     pub name: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Trace, Finalize)]
 pub struct ProjectReference {
     pub path: String,
     pub original_path: Option<String>,
@@ -382,7 +383,7 @@ impl From<Option<PollingWatchKind>> for CompilerOptionsValue {
     }
 }
 
-#[derive(Builder, Clone, Debug, Default, Serialize)]
+#[derive(Builder, Clone, Debug, Default, Serialize, Trace, Finalize)]
 #[builder(default)]
 pub struct CompilerOptions {
     pub all: Option<bool>,
@@ -400,7 +401,7 @@ pub struct CompilerOptions {
     pub check_js: Option<bool>,
     pub config_file_path: Option<String>,
     #[serde(skip_serializing)]
-    pub config_file: Option<Rc<Node /*TsConfigSourceFile*/>>,
+    pub config_file: Option<Gc<Node /*TsConfigSourceFile*/>>,
     pub declaration: Option<bool>,
     pub declaration_map: Option<bool>,
     pub emit_declaration_only: Option<bool>,
@@ -1902,15 +1903,15 @@ impl ParsedCommandLineWithBaseOptions {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct ParsedCommandLine {
-    pub options: Rc<CompilerOptions>,
+    pub options: Gc<CompilerOptions>,
     pub type_acquisition: Option<Rc<TypeAcquisition>>,
     pub file_names: Vec<String>,
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub raw: Option<serde_json::Value>,
-    pub errors: Vec<Rc<Diagnostic>>,
+    pub errors: Vec<Gc<Diagnostic>>,
     pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
     pub compile_on_save: Option<bool>,
 }

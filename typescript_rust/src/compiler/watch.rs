@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -34,8 +35,9 @@ thread_local! {
     static sys_format_diagnostics_host: Option<Rc<SysFormatDiagnosticsHost>> = /*sys ?*/ Some(Rc::new(SysFormatDiagnosticsHost::new(get_sys())));
 }
 
+#[derive(Trace, Finalize)]
 struct SysFormatDiagnosticsHost {
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
     get_canonical_file_name: fn(&str) -> String,
 }
 
@@ -82,11 +84,12 @@ pub fn create_diagnostic_reporter(
     Rc::new(DiagnosticReporterConcrete::new(host, pretty, system))
 }
 
+#[derive(Trace, Finalize)]
 struct DiagnosticReporterConcrete {
-    host: Rc<SysFormatDiagnosticsHost>,
+    host: Gc<SysFormatDiagnosticsHost>,
     pretty: bool,
-    diagnostics: RefCell<Vec<Rc<Diagnostic>>>,
-    system: Rc<dyn System>,
+    diagnostics: GcCell<Vec<Gc<Diagnostic>>>,
+    system: Gc<Box<dyn System>>,
 }
 
 impl DiagnosticReporterConcrete {
@@ -253,9 +256,10 @@ pub fn parse_config_file_with_system(
     )
 }
 
+#[derive(Trace, Finalize)]
 struct ParseConfigFileWithSystemHost {
-    system: Rc<dyn System>,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    system: Gc<Box<dyn System>>,
+    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
 }
 
 impl ParseConfigFileWithSystemHost {
@@ -807,7 +811,7 @@ fn to_file_name<TFile: Into<StringOrRcNode>, TFileNameConvertor: Fn(&str) -> Str
 
 struct EmitFilesAndReportErrorsReturn {
     emit_result: EmitResult,
-    diagnostics: SortedArray<Rc<Diagnostic>>,
+    diagnostics: SortedArray<Gc<Diagnostic>>,
 }
 
 fn emit_files_and_report_errors<TWrite: FnMut(&str)>(

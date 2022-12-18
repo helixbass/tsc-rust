@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, Trace};
 use serde::Serialize;
 use std::borrow::Cow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -190,11 +191,11 @@ pub enum IterationTypesKey {
     NextType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct IterationTypes {
-    yield_type: Option<Rc<Type>>,
-    return_type: Option<Rc<Type>>,
-    next_type: Option<Rc<Type>>,
+    yield_type: Option<Gc<Type>>,
+    return_type: Option<Gc<Type>>,
+    next_type: Option<Gc<Type>>,
 }
 
 impl IterationTypes {
@@ -569,27 +570,27 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct Signature {
     pub flags: SignatureFlags,
-    pub declaration: Option<Rc<Node /*SignatureDeclaration | JSDocSignature*/>>,
-    type_parameters: RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>,
-    parameters: Option<Vec<Rc<Symbol>>>,
-    this_parameter: RefCell<Option<Rc<Symbol>>>,
-    resolved_return_type: RefCell<Option<Rc<Type>>>,
-    resolved_type_predicate: RefCell<Option<Rc<TypePredicate>>>,
+    pub declaration: Option<Gc<Node /*SignatureDeclaration | JSDocSignature*/>>,
+    type_parameters: GcCell<Option<Vec<Gc<Type /*TypeParameter*/>>>>,
+    parameters: Option<Vec<Gc<Symbol>>>,
+    this_parameter: GcCell<Option<Gc<Symbol>>>,
+    resolved_return_type: GcCell<Option<Gc<Type>>>,
+    resolved_type_predicate: GcCell<Option<Gc<TypePredicate>>>,
     min_argument_count: Option<usize>,
     resolved_min_argument_count: Cell<Option<usize>>,
-    pub target: Option<Rc<Signature>>,
-    pub mapper: Option<Rc<TypeMapper>>,
-    pub composite_signatures: Option<Vec<Rc<Signature>>>,
+    pub target: Option<Gc<Signature>>,
+    pub mapper: Option<Gc<TypeMapper>>,
+    pub composite_signatures: Option<Vec<Gc<Signature>>>,
     pub composite_kind: Option<TypeFlags>,
-    erased_signature_cache: RefCell<Option<Rc<Signature>>>,
-    canonical_signature_cache: RefCell<Option<Rc<Signature>>>,
-    base_signature_cache: RefCell<Option<Rc<Signature>>>,
-    optional_call_signature_cache: RefCell<Option<SignatureOptionalCallSignatureCache>>,
-    isolated_signature_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
-    instantiations: RefCell<Option<HashMap<String, Rc<Signature>>>>,
+    erased_signature_cache: GcCell<Option<Gc<Signature>>>,
+    canonical_signature_cache: GcCell<Option<Gc<Signature>>>,
+    base_signature_cache: GcCell<Option<Gc<Signature>>>,
+    optional_call_signature_cache: GcCell<Option<SignatureOptionalCallSignatureCache>>,
+    isolated_signature_type: GcCell<Option<Gc<Type /*ObjectType*/>>>,
+    instantiations: GcCell<Option<HashMap<String, Gc<Signature>>>>,
 }
 
 impl Signature {
@@ -726,15 +727,15 @@ pub enum IndexKind {
     Number,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct IndexInfo {
-    pub key_type: Rc<Type>,
-    pub type_: Rc<Type>,
+    pub key_type: Gc<Type>,
+    pub type_: Gc<Type>,
     pub is_readonly: bool,
-    pub declaration: Option<Rc<Node /*IndexSignatureDeclaration*/>>,
+    pub declaration: Option<Gc<Node /*IndexSignatureDeclaration*/>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Finalize, Trace)]
 pub enum TypeMapper {
     Simple(TypeMapperSimple),
     Array(TypeMapperArray),
@@ -743,26 +744,26 @@ pub enum TypeMapper {
     Merged(TypeMapperCompositeOrMerged),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Finalize, Trace)]
 pub struct TypeMapperSimple {
-    pub source: Rc<Type>, // TODO: should all of these be weak?
-    pub target: Rc<Type>,
+    pub source: Gc<Type>,
+    pub target: Gc<Type>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Finalize, Trace)]
 pub struct TypeMapperArray {
-    pub sources: Vec<Rc<Type>>,
-    pub targets: Option<Vec<Rc<Type>>>,
+    pub sources: Vec<Gc<Type>>,
+    pub targets: Option<Vec<Gc<Type>>>,
 }
 
-pub trait TypeMapperCallback {
+pub trait TypeMapperCallback: Trace + Finalize {
     // TODO: now that TypeChecker is wrapped in Rc should remove the checker argument here?
     fn call(&self, checker: &TypeChecker, type_: &Type) -> Rc<Type>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Finalize, Trace)]
 pub struct TypeMapperFunction {
-    pub func: Rc<dyn TypeMapperCallback>,
+    pub func: Gc<Box<dyn TypeMapperCallback>>,
 }
 
 impl fmt::Debug for TypeMapperFunction {
@@ -771,10 +772,10 @@ impl fmt::Debug for TypeMapperFunction {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Finalize, Trace)]
 pub struct TypeMapperCompositeOrMerged {
-    pub mapper1: Rc<TypeMapper>,
-    pub mapper2: Rc<TypeMapper>,
+    pub mapper1: Gc<TypeMapper>,
+    pub mapper2: Gc<TypeMapper>,
 }
 
 impl TypeMapper {
@@ -822,12 +823,12 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct InferenceInfo {
-    pub type_parameter: Rc<Type /*TypeParameter*/>,
-    candidates: RefCell<Option<Vec<Rc<Type>>>>,
-    contra_candidates: RefCell<Option<Vec<Rc<Type>>>>,
-    inferred_type: RefCell<Option<Rc<Type>>>,
+    pub type_parameter: Gc<Type /*TypeParameter*/>,
+    candidates: GcCell<Option<Vec<Gc<Type>>>>,
+    contra_candidates: GcCell<Option<Vec<Gc<Type>>>>,
+    inferred_type: GcCell<Option<Gc<Type>>>,
     priority: Cell<Option<InferencePriority>>,
     top_level: Cell<bool>,
     is_fixed: Cell<bool>,
@@ -959,19 +960,20 @@ impl BitAndAssign for Ternary {
     }
 }
 
-pub trait TypeComparer {
+pub trait TypeComparer: Trace + Finalize {
     fn call(&self, s: &Type, t: &Type, report_errors: Option<bool>) -> Ternary;
 }
 
+#[derive(Trace, Finalize)]
 pub struct InferenceContext {
-    inferences: RefCell<Vec<Rc<InferenceInfo>>>,
-    pub signature: Option<Rc<Signature>>,
+    inferences: GcCell<Vec<Gc<InferenceInfo>>>,
+    pub signature: Option<Gc<Signature>>,
     flags: Cell<InferenceFlags>,
-    pub compare_types: Rc<dyn TypeComparer>,
-    mapper: RefCell<Option<Rc<TypeMapper>>>,
-    non_fixing_mapper: RefCell<Option<Rc<TypeMapper>>>,
-    return_mapper: RefCell<Option<Rc<TypeMapper>>>,
-    inferred_type_parameters: RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>,
+    pub compare_types: Gc<Box<dyn TypeComparer>>,
+    mapper: GcCell<Option<Gc<TypeMapper>>>,
+    non_fixing_mapper: GcCell<Option<Gc<TypeMapper>>>,
+    return_mapper: GcCell<Option<Gc<TypeMapper>>>,
+    inferred_type_parameters: GcCell<Option<Vec<Gc<Type /*TypeParameter*/>>>>,
 }
 
 impl InferenceContext {
@@ -1157,7 +1159,7 @@ impl DiagnosticMessageChain {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub enum Diagnostic {
     DiagnosticWithLocation(DiagnosticWithLocation),
     DiagnosticWithDetachedLocation(DiagnosticWithDetachedLocation),
@@ -1179,11 +1181,11 @@ pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
     fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
-    related_information: RefCell<Option<Vec<Rc<DiagnosticRelatedInformation>>>>,
-    skipped_on: RefCell<Option<String /*keyof CompilerOptions*/>>,
+    related_information: GcCell<Option<Vec<Gc<DiagnosticRelatedInformation>>>>,
+    skipped_on: GcCell<Option<String /*keyof CompilerOptions*/>>,
 }
 
 impl BaseDiagnostic {
@@ -1456,7 +1458,7 @@ pub trait DiagnosticRelatedInformationInterface {
     fn message_text(&self) -> &DiagnosticMessageText;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub enum DiagnosticRelatedInformation {
     BaseDiagnosticRelatedInformation(BaseDiagnosticRelatedInformation),
     Diagnostic(Diagnostic),
@@ -1595,11 +1597,11 @@ impl From<Diagnostic> for DiagnosticRelatedInformation {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BaseDiagnosticRelatedInformation {
     category: Cell<DiagnosticCategory>,
     code: u32,
-    file: Option<Rc<Node /*SourceFile*/>>,
+    file: Option<Gc<Node /*SourceFile*/>>,
     start: Cell<Option<isize>>,
     length: Cell<Option<isize>>,
     message_text: DiagnosticMessageText,
@@ -1675,7 +1677,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct DiagnosticWithLocation {
     _diagnostic: BaseDiagnostic,
 }
@@ -1776,7 +1778,7 @@ impl From<DiagnosticWithLocation> for DiagnosticRelatedInformation {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct DiagnosticWithDetachedLocation {
     _diagnostic: BaseDiagnostic,
     pub file_name: String,

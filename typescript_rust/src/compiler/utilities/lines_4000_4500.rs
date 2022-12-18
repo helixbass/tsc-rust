@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::io;
@@ -57,7 +58,7 @@ pub fn get_indent_size() -> usize {
     indent_strings.with(|indent_strings_| indent_strings_.borrow()[1].len())
 }
 
-#[derive(Clone)]
+#[derive(Clone, Trace, Finalize)]
 pub struct TextWriter {
     new_line: String,
     output: RefCell<String>,
@@ -403,8 +404,9 @@ pub fn get_trailing_semicolon_deferring_writer(
     TrailingSemicolonDeferringWriter::new(writer)
 }
 
+#[derive(Trace, Finalize)]
 pub struct TrailingSemicolonDeferringWriter {
-    writer: Rc<dyn EmitTextWriter>,
+    writer: Gc<Box<dyn EmitTextWriter>>,
     pending_trailing_semicolon: Cell<bool>,
 }
 

@@ -1,3 +1,4 @@
+use gc::Gc;
 use regex::Regex;
 use serde_json;
 use std::borrow::{Borrow, Cow};
@@ -43,8 +44,8 @@ pub fn is_external_module_name_relative(module_name: &str) -> bool {
 }
 
 pub fn sort_and_deduplicate_diagnostics(
-    diagnostics: &[Rc<Diagnostic>],
-) -> SortedArray<Rc<Diagnostic>> {
+    diagnostics: &[Gc<Diagnostic>],
+) -> SortedArray<Gc<Diagnostic>> {
     sort_and_deduplicate(
         diagnostics,
         &|a, b| compare_diagnostics(&**a, &**b),

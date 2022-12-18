@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -1091,7 +1092,7 @@ pub trait CancellationToken {
     fn throw_if_cancellation_requested(&self);
 }
 
-pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug {}
+pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug + Trace + Finalize {}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum FileIncludeKind {
@@ -1106,39 +1107,39 @@ pub enum FileIncludeKind {
     AutomaticTypeDirectiveFile,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct RootFile {
     pub kind: FileIncludeKind, /*FileIncludeKind.RootFile*/
     pub index: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct LibFile {
     pub kind: FileIncludeKind, /*FileIncludeKind.LibFile*/
     pub index: Option<usize>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct ProjectReferenceFile {
     pub kind: FileIncludeKind, /*ProjectReferenceFileKind*/
     pub index: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct ReferencedFile {
     pub kind: FileIncludeKind, /*ReferencedFileKind*/
     pub file: Path,
     pub index: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct AutomaticTypeDirectiveFile {
     pub kind: FileIncludeKind, /*FileIncludeKind.AutomaticTypeDirectiveFile*/
     pub type_reference: String,
     pub package_id: Option<PackageId>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub enum FileIncludeReason {
     RootFile(RootFile),
     LibFile(LibFile),
@@ -1218,81 +1219,82 @@ impl FilePreprocessingDiagnostics {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct Program {
-    pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
-    pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
-    pub(crate) root_names: RefCell<Option<Vec<String>>>,
-    pub(crate) options: Rc<CompilerOptions>,
-    pub(crate) config_file_parsing_diagnostics: RefCell<Option<Vec<Rc<Diagnostic>>>>,
-    pub(crate) project_references: RefCell<Option<Vec<Rc<ProjectReference>>>>,
-    pub(crate) processing_default_lib_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
-    pub(crate) processing_other_files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
-    pub(crate) files: RefCell<Option<Vec<Rc</*SourceFile*/ Node>>>>,
-    pub(crate) symlinks: RefCell<Option<Rc<SymlinkCache>>>,
-    pub(crate) common_source_directory: RefCell<Option<String>>,
-    pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
-    pub(crate) no_diagnostics_type_checker: RefCell<Option<Rc<TypeChecker>>>,
-    pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
-    pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
-    pub(crate) file_reasons: Rc<RefCell<MultiMap<Path, FileIncludeReason>>>,
-    pub(crate) cached_bind_and_check_diagnostics_for_file: RefCell<DiagnosticCache>,
-    pub(crate) cached_declaration_diagnostics_for_file: RefCell<DiagnosticCache>,
+    pub(crate) _rc_wrapper: GcCell<Option<Gc<Program>>>,
+    pub(crate) create_program_options: GcCell<Option<CreateProgramOptions>>,
+    pub(crate) root_names: GcCell<Option<Vec<String>>>,
+    pub(crate) options: Gc<CompilerOptions>,
+    pub(crate) config_file_parsing_diagnostics: GcCell<Option<Vec<Gc<Diagnostic>>>>,
+    pub(crate) project_references: GcCell<Option<Vec<Rc<ProjectReference>>>>,
+    pub(crate) processing_default_lib_files: GcCell<Option<Vec<Gc</*SourceFile*/ Node>>>>,
+    pub(crate) processing_other_files: GcCell<Option<Vec<Gc</*SourceFile*/ Node>>>>,
+    pub(crate) files: GcCell<Option<Vec<Gc</*SourceFile*/ Node>>>>,
+    pub(crate) symlinks: GcCell<Option<Gc<SymlinkCache>>>,
+    pub(crate) common_source_directory: GcCell<Option<String>>,
+    pub(crate) diagnostics_producing_type_checker: GcCell<Option<Gc<TypeChecker>>>,
+    pub(crate) no_diagnostics_type_checker: GcCell<Option<Gc<TypeChecker>>>,
+    pub(crate) classifiable_names: GcCell<Option<HashSet<__String>>>,
+    pub(crate) ambient_module_name_to_unmodified_file_name: GcCell<HashMap<String, String>>,
+    pub(crate) file_reasons: Gc<GcCell<MultiMap<Path, FileIncludeReason>>>,
+    pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
+    pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 
     pub(crate) resolved_type_reference_directives:
-        RefCell<HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>>,
-    pub(crate) file_processing_diagnostics: RefCell<Option<Vec<FilePreprocessingDiagnostics>>>,
+        GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>,
+    pub(crate) file_processing_diagnostics: GcCell<Option<Vec<FilePreprocessingDiagnostics>>>,
 
     pub(crate) max_node_module_js_depth: usize,
     pub(crate) current_node_modules_depth: Cell<usize>,
 
-    pub(crate) modules_with_elided_imports: RefCell<HashMap<String, bool>>,
+    pub(crate) modules_with_elided_imports: GcCell<HashMap<String, bool>>,
 
-    pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
+    pub(crate) source_files_found_searching_node_modules: GcCell<HashMap<String, bool>>,
 
-    pub(crate) old_program: RefCell<Option<Rc<Program>>>,
-    pub(crate) host: RefCell<Option<Rc<dyn CompilerHost>>>,
-    pub(crate) config_parsing_host: RefCell<Option<Rc<dyn ParseConfigFileHost>>>,
+    pub(crate) old_program: GcCell<Option<Gc<Program>>>,
+    pub(crate) host: GcCell<Option<Gc<Box<dyn CompilerHost>>>>,
+    pub(crate) config_parsing_host: GcCell<Option<Gc<dyn ParseConfigFileHost>>>,
 
     pub(crate) skip_default_lib: Cell<Option<bool>>,
-    pub(crate) get_default_library_file_name_memoized: RefCell<Option<String>>,
-    pub(crate) default_library_path: RefCell<Option<String>>,
-    pub(crate) program_diagnostics: RefCell<Option<DiagnosticCollection>>,
-    pub(crate) current_directory: RefCell<Option<String>>,
-    pub(crate) supported_extensions: RefCell<Option<Vec<Vec<Extension>>>>,
+    pub(crate) get_default_library_file_name_memoized: GcCell<Option<String>>,
+    pub(crate) default_library_path: GcCell<Option<String>>,
+    pub(crate) program_diagnostics: GcCell<Option<DiagnosticCollection>>,
+    pub(crate) current_directory: GcCell<Option<String>>,
+    pub(crate) supported_extensions: GcCell<Option<Vec<Vec<Extension>>>>,
     pub(crate) supported_extensions_with_json_if_resolve_json_module:
-        RefCell<Option<Vec<Vec<Extension>>>>,
+        GcCell<Option<Vec<Vec<Extension>>>>,
 
-    pub(crate) has_emit_blocking_diagnostics: RefCell<Option<HashMap<Path, bool>>>,
+    pub(crate) has_emit_blocking_diagnostics: GcCell<Option<HashMap<Path, bool>>>,
     pub(crate) _compiler_options_object_literal_syntax:
-        RefCell<Option<Option<Rc<Node /*ObjectLiteralExpression*/>>>>,
-    pub(crate) module_resolution_cache: RefCell<Option<Rc<ModuleResolutionCache>>>,
+        GcCell<Option<Option<Gc<Node /*ObjectLiteralExpression*/>>>>,
+    pub(crate) module_resolution_cache: GcCell<Option<Gc<ModuleResolutionCache>>>,
     pub(crate) type_reference_directive_resolution_cache:
-        RefCell<Option<Rc<TypeReferenceDirectiveResolutionCache>>>,
+        GcCell<Option<Gc<TypeReferenceDirectiveResolutionCache>>>,
     pub(crate) actual_resolve_module_names_worker:
-        RefCell<Option<Rc<dyn ActualResolveModuleNamesWorker>>>,
+        GcCell<Option<Gc<Box<dyn ActualResolveModuleNamesWorker>>>>,
     pub(crate) actual_resolve_type_reference_directive_names_worker:
-        RefCell<Option<Rc<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>,
+        GcCell<Option<Gc<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
 
-    pub(crate) package_id_to_source_file: RefCell<Option<HashMap<String, Rc<Node /*SourceFile*/>>>>,
-    pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
-    pub(crate) redirect_targets_map: Rc<RefCell<RedirectTargetsMap>>,
+    pub(crate) package_id_to_source_file: GcCell<Option<HashMap<String, Gc<Node /*SourceFile*/>>>>,
+    pub(crate) source_file_to_package_name: GcCell<Option<HashMap<Path, String>>>,
+    pub(crate) redirect_targets_map: Gc<GcCell<RedirectTargetsMap>>,
     pub(crate) uses_uri_style_node_core_modules: Cell<Option<bool>>,
 
-    pub(crate) files_by_name: RefCell<Option<HashMap<String, FilesByNameValue>>>,
-    pub(crate) missing_file_paths: RefCell<Option<Vec<Path>>>,
-    pub(crate) files_by_name_ignore_case: RefCell<Option<HashMap<String, Rc<Node /*SourceFile*/>>>>,
+    pub(crate) files_by_name: GcCell<Option<HashMap<String, FilesByNameValue>>>,
+    pub(crate) missing_file_paths: GcCell<Option<Vec<Path>>>,
+    pub(crate) files_by_name_ignore_case: GcCell<Option<HashMap<String, Gc<Node /*SourceFile*/>>>>,
 
     pub(crate) resolved_project_references:
-        RefCell<Option<Vec<Option<Rc<ResolvedProjectReference>>>>>,
+        GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
     pub(crate) project_reference_redirects:
-        RefCell<Option<HashMap<Path, Option<Rc<ResolvedProjectReference>>>>>,
-    pub(crate) map_from_file_to_project_reference_redirects: RefCell<Option<HashMap<Path, Path>>>,
+        GcCell<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>>,
+    pub(crate) map_from_file_to_project_reference_redirects: GcCell<Option<HashMap<Path, Path>>>,
     pub(crate) map_from_to_project_reference_redirect_source:
-        RefCell<Option<HashMap<Path, SourceOfProjectReferenceRedirect>>>,
+        GcCell<Option<HashMap<Path, SourceOfProjectReferenceRedirect>>>,
     pub(crate) use_source_of_project_reference_redirect: Cell<Option<bool>>,
 
-    pub(crate) file_exists_rc: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
-    pub(crate) directory_exists_rc: RefCell<Option<Rc<dyn ModuleResolutionHostOverrider>>>,
+    pub(crate) file_exists_rc: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+    pub(crate) directory_exists_rc: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
 
     pub(crate) should_create_new_source_file: Cell<Option<bool>>,
     pub(crate) structure_is_reused: Cell<Option<StructureIsReused>>,

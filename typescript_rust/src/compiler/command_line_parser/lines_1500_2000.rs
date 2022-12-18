@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -474,15 +475,17 @@ pub(crate) fn get_diagnostic_text(
     enum_unwrapped!(diagnostic.message_text(), [DiagnosticMessageText, String]).clone()
 }
 
-pub trait DiagnosticReporter {
-    fn call(&self, diagnostic: Rc<Diagnostic>);
+pub trait DiagnosticReporter: Trace + Finalize {
+    fn call(&self, diagnostic: Gc<Diagnostic>);
 }
 
 pub trait ConfigFileDiagnosticsReporter {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>);
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>);
 }
 
-pub trait ParseConfigFileHost: ParseConfigHost + ConfigFileDiagnosticsReporter {
+pub trait ParseConfigFileHost:
+    ParseConfigHost + ConfigFileDiagnosticsReporter + Trace + Finalize
+{
     fn get_current_directory(&self) -> String;
 }
 

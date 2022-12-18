@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt;
@@ -152,7 +153,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
     }
 }
 
-pub trait ModuleResolutionHostOverrider {
+pub trait ModuleResolutionHostOverrider: Trace + Finalize {
     fn file_exists(&self, file_name: &str) -> bool;
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
     fn write_file(
@@ -175,7 +176,7 @@ pub trait ModuleResolutionHostOverrider {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct ResolvedModuleFull {
     pub resolved_file_name: String,
     pub is_external_library_import: Option<bool>,
@@ -267,12 +268,14 @@ impl AsRef<str> for Extension {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct ResolvedModuleWithFailedLookupLocations {
     pub resolved_module: Option<Rc<ResolvedModuleFull>>,
+    #[unsafe_ignore_trace]
     pub failed_lookup_locations: RefCell<Vec<String>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct ResolvedTypeReferenceDirective {
     pub primary: bool,
     pub resolved_file_name: Option<String>,
@@ -281,12 +284,13 @@ pub struct ResolvedTypeReferenceDirective {
     pub is_external_library_import: Option<bool>,
 }
 
+#[derive(Trace, Finalize)]
 pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
     pub resolved_type_reference_directive: Option<Rc<ResolvedTypeReferenceDirective>>,
     pub failed_lookup_locations: Vec<String>,
 }
 
-pub trait CompilerHost: ModuleResolutionHost {
+pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
     fn get_source_file(
         &self,
@@ -508,7 +512,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct SourceMapRange {
     pos: Cell<isize>,
     end: Cell<isize>,
@@ -543,9 +547,9 @@ impl TextRange for SourceMapRange {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub enum SourceMapSource {
-    SourceFile(Rc<Node /*SourceFile*/>),
+    SourceFile(Gc<Node /*SourceFile*/>),
     SourceMapSourceConcrete(SourceMapSourceConcrete),
 }
 
@@ -570,6 +574,7 @@ impl From<SourceMapSourceConcrete> for SourceMapSource {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct SourceMapSourceConcrete {
     pub file_name: String,
     pub text: String,
@@ -583,19 +588,19 @@ impl fmt::Debug for SourceMapSourceConcrete {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Trace, Finalize)]
 pub struct EmitNode {
-    pub annotated_nodes: Option<Vec<Rc<Node>>>,
+    pub annotated_nodes: Option<Vec<Gc<Node>>>,
     pub flags: Option<EmitFlags>,
     pub leading_comments: Option<Vec<Rc<SynthesizedComment>>>,
     pub trailing_comments: Option<Vec<Rc<SynthesizedComment>>>,
     pub comment_range: Option<BaseTextRange>,
-    pub source_map_range: Option<Rc<SourceMapRange>>,
-    pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Rc<SourceMapRange>>>>,
+    pub source_map_range: Option<Gc<SourceMapRange>>,
+    pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Gc<SourceMapRange>>>>,
     pub constant_value: Option<StringOrNumber>,
-    pub external_helpers_module_name: Option<Rc<Node /*Identifier*/>>,
+    pub external_helpers_module_name: Option<Gc<Node /*Identifier*/>>,
     pub external_helpers: Option<bool>,
-    pub helpers: Option<Vec<Rc<EmitHelper>>>,
+    pub helpers: Option<Vec<Gc<EmitHelper>>>,
     pub starts_on_new_line: Option<bool>,
     pub snippet_element: Option<SnippetElement>,
 }
@@ -646,13 +651,13 @@ impl From<Rc<dyn Fn(&dyn Fn(&str) -> String) -> String>> for EmitHelperText {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct ScopedEmitHelper {
     name: String,
     scoped: bool, /*true*/
     text: EmitHelperText,
     priority: Option<usize>,
-    dependencies: Option<Vec<Rc<EmitHelper>>>,
+    dependencies: Option<Vec<Gc<EmitHelper>>>,
 }
 
 impl EmitHelperBase for ScopedEmitHelper {
@@ -677,13 +682,13 @@ impl EmitHelperBase for ScopedEmitHelper {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct UnscopedEmitHelper {
     name: String,
     scoped: bool, /*false*/
     text: String,
     priority: Option<usize>,
-    dependencies: Option<Vec<Rc<EmitHelper>>>,
+    dependencies: Option<Vec<Gc<EmitHelper>>>,
     pub(crate) import_name: Option<String>,
 }
 
@@ -709,7 +714,7 @@ impl EmitHelperBase for UnscopedEmitHelper {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub enum EmitHelper {
     ScopedEmitHelper(ScopedEmitHelper),
     UnscopedEmitHelper(UnscopedEmitHelper),

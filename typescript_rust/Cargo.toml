@@ -19,6 +19,7 @@ indexmap = "1.9.1"
 encoding_rs = "0.8.31"
 encoding_rs_io = "0.1.7"
 itertools = "0.10.5"
+gc = { version = "0.4.1", features = ["derive"] }
 
 [dev-dependencies]
 rstest = "0.15.0"

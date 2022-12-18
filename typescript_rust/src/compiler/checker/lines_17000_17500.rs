@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp;
@@ -1549,11 +1550,11 @@ pub(super) struct ElaborationIteratorItem {
 pub(super) type ErrorReporter<'a> =
     &'a mut dyn FnMut(Cow<'static, DiagnosticMessage>, Option<Vec<String>>);
 
-pub(super) trait CheckTypeContainingMessageChain {
+pub(super) trait CheckTypeContainingMessageChain: Trace + Finalize {
     fn get(&self) -> Option<Rc<RefCell<DiagnosticMessageChain>>>;
 }
 
-pub(super) trait CheckTypeErrorOutputContainer {
+pub(super) trait CheckTypeErrorOutputContainer: Trace + Finalize {
     fn push_error(&self, error: Rc<Diagnostic>);
     fn set_errors(&self, errors: Vec<Rc<Diagnostic>>);
     fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>>;
@@ -1562,8 +1563,9 @@ pub(super) trait CheckTypeErrorOutputContainer {
     fn errors(&self) -> Vec<Rc<Diagnostic>>;
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct CheckTypeErrorOutputContainerConcrete {
-    errors: RefCell<Vec<Rc<Diagnostic>>>,
+    errors: GcCell<Vec<Gc<Diagnostic>>>,
     skip_logging: Option<bool>,
 }
 

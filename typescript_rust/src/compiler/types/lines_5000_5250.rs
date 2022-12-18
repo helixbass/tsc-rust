@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, Trace};
 use indexmap::IndexMap;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
@@ -104,10 +105,10 @@ pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
 pub type SymbolTable = IndexMap<__String, Rc<Symbol>>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct PatternAmbientModule {
     pub pattern: Rc<Pattern>,
-    pub symbol: Rc<Symbol>,
+    pub symbol: Gc<Symbol>,
 }
 
 impl PatternAmbientModule {
@@ -153,28 +154,28 @@ pub struct NodeLinksSerializedType {
     pub node: Rc<Node /*TypeNode*/>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct NodeLinks {
     pub flags: NodeCheckFlags,
-    pub resolved_type: Option<Rc<Type>>,
-    pub resolved_enum_type: Option<Rc<Type>>,
-    pub resolved_signature: Option<Rc<Signature>>,
-    pub resolved_symbol: Option<Rc<Symbol>>,
-    pub effects_signature: Option<Rc<Signature>>,
+    pub resolved_type: Option<Gc<Type>>,
+    pub resolved_enum_type: Option<Gc<Type>>,
+    pub resolved_signature: Option<Gc<Signature>>,
+    pub resolved_symbol: Option<Gc<Symbol>>,
+    pub effects_signature: Option<Gc<Signature>>,
     pub enum_member_value: Option<StringOrNumber>,
     pub is_visible: Option<bool>,
     pub contains_arguments_reference: Option<bool>,
     pub has_reported_statement_in_ambient_context: Option<bool>,
     pub jsx_flags: JsxFlags,
-    pub resolved_jsx_element_attributes_type: Option<Rc<Type>>,
-    pub resolved_jsdoc_type: Option<Rc<Type>>,
-    pub switch_types: Option<Vec<Rc<Type>>>,
-    pub jsx_namespace: Option<Option<Rc<Symbol>>>,
-    pub jsx_implicit_import_container: Option<Option<Rc<Symbol>>>,
-    pub context_free_type: Option<Rc<Type>>,
-    pub deferred_nodes: Option<IndexMap<NodeId, Rc<Node>>>,
-    pub captured_block_scope_bindings: Option<Vec<Rc<Symbol>>>,
-    pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub resolved_jsx_element_attributes_type: Option<Gc<Type>>,
+    pub resolved_jsdoc_type: Option<Gc<Type>>,
+    pub switch_types: Option<Vec<Gc<Type>>>,
+    pub jsx_namespace: Option<Option<Gc<Symbol>>>,
+    pub jsx_implicit_import_container: Option<Option<Gc<Symbol>>>,
+    pub context_free_type: Option<Gc<Type>>,
+    pub deferred_nodes: Option<IndexMap<NodeId, Gc<Node>>>,
+    pub captured_block_scope_bindings: Option<Vec<Gc<Symbol>>>,
+    pub outer_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
     pub is_exhaustive: Option<bool>,
     pub skip_direct_inference: Option<bool /*true*/>,
     pub declaration_requires_scope_change: Option<bool>,
@@ -286,7 +287,7 @@ bitflags! {
 
 pub type TypeId = u32;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Finalize, Trace)]
 #[type_type(impl_from = false)]
 pub enum Type {
     BaseType(BaseType),

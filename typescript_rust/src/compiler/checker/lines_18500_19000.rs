@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use regex::{Captures, Regex};
 use std::cell::Cell;
 use std::ptr;
@@ -1809,6 +1810,7 @@ impl CheckTypeRelatedTo {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct ReportUnmeasurableMarkers;
 impl TypeMapperCallback for ReportUnmeasurableMarkers {
     fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
@@ -1826,6 +1828,7 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct ReportUnreliableMarkers;
 impl TypeMapperCallback for ReportUnreliableMarkers {
     fn call(&self, checker: &TypeChecker, p: &Type /*TypeParameter*/) -> Rc<Type> {
@@ -1843,8 +1846,9 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct TypeComparerIsRelatedToWorker {
-    check_type_related_to: Rc<CheckTypeRelatedTo>,
+    check_type_related_to: Gc<CheckTypeRelatedTo>,
 }
 
 impl TypeComparerIsRelatedToWorker {

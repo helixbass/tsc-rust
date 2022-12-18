@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Trace};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
@@ -867,6 +868,7 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 struct CheckTypePredicateContainingMessageChain;
 
 impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChain {

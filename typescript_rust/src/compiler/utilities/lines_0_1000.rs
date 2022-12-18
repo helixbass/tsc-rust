@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Trace};
 use indexmap::IndexMap;
 use regex::Regex;
 use std::borrow::{Borrow, Cow};
@@ -102,6 +103,7 @@ fn create_single_line_string_writer() -> Rc<dyn EmitTextWriter> {
     Rc::new(SingleLineStringWriter::new())
 }
 
+#[derive(Trace, Finalize)]
 struct SingleLineStringWriter {
     str: RefCell<String>,
 }
@@ -575,7 +577,7 @@ pub fn type_directive_is_equal_to(
 }
 
 pub fn has_changes_in_resolutions<
-    TValue: Clone,
+    TValue: Clone + Trace + Finalize,
     TName: AsRef<str>,
     TOldSourceFile: Borrow<Node>,
     TComparer: FnMut(&TValue, &TValue) -> bool,

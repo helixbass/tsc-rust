@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use fancy_regex::{Captures, Regex};
+use gc::{Finalize, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::cmp;
@@ -836,6 +837,7 @@ pub struct SymlinkedDirectory {
     pub real_path: Path,
 }
 
+#[derive(Trace, Finalize)]
 pub struct SymlinkCache {
     cwd: String,
     get_canonical_file_name: Rc<dyn Fn(&str) -> String>,

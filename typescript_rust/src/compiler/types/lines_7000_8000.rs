@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -25,7 +26,7 @@ bitflags! {
     }
 }
 
-pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
+pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
     // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     fn parenthesize_left_side_of_binary(
@@ -128,7 +129,7 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
     ) -> Option<NodeArray /*<TypeNode>*/>;
 }
 
-pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory> {
+pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
     fn convert_to_function_block(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -172,10 +173,11 @@ pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory> {
     ) -> Rc<Node /*Expression*/>;
 }
 
-pub struct NodeFactory<TBaseNodeFactory> {
+#[derive(Trace, Finalize)]
+pub struct NodeFactory<TBaseNodeFactory: 'static> {
     pub flags: NodeFactoryFlags,
-    pub parenthesizer_rules: RefCell<Option<Rc<dyn ParenthesizerRules<TBaseNodeFactory>>>>,
-    pub converters: RefCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,
+    pub parenthesizer_rules: GcCell<Option<Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>>,
+    pub converters: GcCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,
 }
 
 bitflags! {

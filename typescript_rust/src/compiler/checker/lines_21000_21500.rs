@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
@@ -1079,8 +1080,9 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct CreateInferenceContextWorkerMapperCallback {
-    inference_context: Rc<InferenceContext>,
+    inference_context: Gc<InferenceContext>,
 }
 
 impl CreateInferenceContextWorkerMapperCallback {
@@ -1095,8 +1097,9 @@ impl TypeMapperCallback for CreateInferenceContextWorkerMapperCallback {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct CreateInferenceContextWorkerNonFixingMapperCallback {
-    inference_context: Rc<InferenceContext>,
+    inference_context: Gc<InferenceContext>,
 }
 
 impl CreateInferenceContextWorkerNonFixingMapperCallback {
@@ -1111,8 +1114,9 @@ impl TypeMapperCallback for CreateInferenceContextWorkerNonFixingMapperCallback 
     }
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct TypeComparerCompareTypesAssignable {
-    type_checker: Rc<TypeChecker>,
+    type_checker: Gc<TypeChecker>,
 }
 
 impl TypeComparerCompareTypesAssignable {

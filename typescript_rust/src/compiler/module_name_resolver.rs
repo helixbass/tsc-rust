@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use gc::{Finalize, Gc, GcCell, Trace};
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
@@ -888,20 +889,22 @@ pub fn get_automatic_type_directive_names(
     result
 }
 
+#[derive(Trace, Finalize)]
 pub struct TypeReferenceDirectiveResolutionCache {
     pub pre_directory_resolution_cache: PerDirectoryResolutionCacheConcrete<
         Rc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
     >,
-    pub package_json_info_cache: Rc<dyn PackageJsonInfoCache>,
+    pub package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
 }
 
-#[derive(Debug)]
-pub struct ModeAwareCache<TValue> {
-    underlying: RefCell<HashMap<String, TValue>>,
+#[derive(Debug, Trace, Finalize)]
+pub struct ModeAwareCache<TValue: Trace + Finalize + 'static> {
+    underlying: GcCell<HashMap<String, TValue>>,
+    #[unsafe_ignore_trace]
     memoized_reverse_keys: RefCell<HashMap<String, (String, Option<ModuleKind>)>>,
 }
 
-pub trait PerDirectoryResolutionCache<TValue> {
+pub trait PerDirectoryResolutionCache<TValue: Trace + Finalize> {
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
@@ -911,13 +914,14 @@ pub trait PerDirectoryResolutionCache<TValue> {
     fn update(&self, options: &CompilerOptions);
 }
 
+#[derive(Trace, Finalize)]
 pub struct ModuleResolutionCache {
     current_directory: String,
     get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
     pre_directory_resolution_cache:
         PerDirectoryResolutionCacheConcrete<Rc<ResolvedModuleWithFailedLookupLocations>>,
     module_name_to_directory_map: Rc<CacheWithRedirects<PerModuleNameCache>>,
-    package_json_info_cache: Rc<dyn PackageJsonInfoCache>,
+    package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
 }
 
 pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
@@ -930,26 +934,28 @@ pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
     fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache;
 }
 
-pub trait PackageJsonInfoCache {
+pub trait PackageJsonInfoCache: Trace + Finalize {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool>;
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool);
     fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)>;
     fn clear(&self);
 }
 
+#[derive(Trace, Finalize)]
 pub struct PerModuleNameCache {
     current_directory: String,
     get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
-    directory_path_map: RefCell<HashMap<String, Rc<ResolvedModuleWithFailedLookupLocations>>>,
+    directory_path_map: GcCell<HashMap<String, Rc<ResolvedModuleWithFailedLookupLocations>>>,
 }
 
-pub struct CacheWithRedirects<TCache> {
-    options: RefCell<Option<Rc<CompilerOptions>>>,
-    own_map: RefCell<Rc<RefCell<HashMap<String, Rc<TCache>>>>>,
-    redirects_map: Rc<RefCell<HashMap<Path, Rc<RefCell<HashMap<String, Rc<TCache>>>>>>>,
+#[derive(Trace, Finalize)]
+pub struct CacheWithRedirects<TCache: Trace + Finalize + 'static> {
+    options: GcCell<Option<Gc<CompilerOptions>>>,
+    own_map: GcCell<Gc<GcCell<HashMap<String, Gc<TCache>>>>>,
+    redirects_map: Gc<GcCell<HashMap<Path, Gc<GcCell<HashMap<String, Gc<TCache>>>>>>>,
 }
 
-impl<TCache> CacheWithRedirects<TCache> {
+impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
     pub fn new(options: Option<Rc<CompilerOptions>>) -> Self {
         Self {
             options: RefCell::new(options),
@@ -1013,8 +1019,8 @@ impl<TCache> CacheWithRedirects<TCache> {
     }
 }
 
-pub(crate) fn create_cache_with_redirects<TCache>(
-    options: Option<Rc<CompilerOptions>>,
+pub(crate) fn create_cache_with_redirects<TCache: Trace + Finalize>(
+    options: Option<Gc<CompilerOptions>>,
 ) -> CacheWithRedirects<TCache> {
     CacheWithRedirects::new(options)
 }
@@ -1030,9 +1036,10 @@ pub fn create_package_json_info_cache(
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct PackageJsonInfoCacheConcrete {
     pub current_directory: String,
-    pub cache: RefCell<Option<HashMap<Path, PackageJsonInfoOrBool>>>,
+    pub cache: GcCell<Option<HashMap<Path, PackageJsonInfoOrBool>>>,
     pub get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
 }
 
@@ -1078,7 +1085,7 @@ impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
     }
 }
 
-fn get_or_create_cache<TCache, TCreate: FnMut() -> TCache>(
+fn get_or_create_cache<TCache: Trace + Finalize, TCreate: FnMut() -> TCache>(
     cache_with_redirects: &CacheWithRedirects<TCache>,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
     key: &str,
@@ -1095,7 +1102,7 @@ fn get_or_create_cache<TCache, TCreate: FnMut() -> TCache>(
     result.unwrap()
 }
 
-fn create_per_directory_resolution_cache<TValue>(
+fn create_per_directory_resolution_cache<TValue: Trace + Finalize>(
     current_directory: &str,
     get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
     directory_to_module_name_map: Rc<CacheWithRedirects<ModeAwareCache<TValue>>>,
@@ -1107,13 +1114,14 @@ fn create_per_directory_resolution_cache<TValue>(
     }
 }
 
-pub struct PerDirectoryResolutionCacheConcrete<TValue> {
+#[derive(Trace, Finalize)]
+pub struct PerDirectoryResolutionCacheConcrete<TValue: Trace + Finalize + 'static> {
     pub current_directory: String,
     pub get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
     pub directory_to_module_name_map: Rc<CacheWithRedirects<ModeAwareCache<TValue>>>,
 }
 
-impl<TValue: Clone> PerDirectoryResolutionCache<TValue>
+impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
     for PerDirectoryResolutionCacheConcrete<TValue>
 {
     fn get_or_create_cache_for_directory(
@@ -1141,11 +1149,12 @@ impl<TValue: Clone> PerDirectoryResolutionCache<TValue>
     }
 }
 
-pub(crate) fn create_mode_aware_cache<TValue: Clone>() -> ModeAwareCache<TValue> {
+pub(crate) fn create_mode_aware_cache<TValue: Clone + Trace + Finalize>() -> ModeAwareCache<TValue>
+{
     ModeAwareCache::new()
 }
 
-impl<TValue: Clone> ModeAwareCache<TValue> {
+impl<TValue: Clone + Trace + Finalize> ModeAwareCache<TValue> {
     pub fn new() -> Self {
         Self {
             underlying: RefCell::new(HashMap::new()),

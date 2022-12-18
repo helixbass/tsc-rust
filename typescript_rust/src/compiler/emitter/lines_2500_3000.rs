@@ -1,3 +1,4 @@
+use gc::{Finalize, Gc, Trace};
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -1021,6 +1022,7 @@ impl Printer {
     }
 }
 
+#[derive(Trace, Finalize)]
 pub struct EmitBinaryExpression {
     trampoline: BinaryExpressionTrampoline<EmitBinaryExpressionStateMachine>,
 }
@@ -1045,8 +1047,9 @@ pub struct WorkArea {
     pub should_emit_source_maps_stack: Vec<bool>,
 }
 
+#[derive(Trace, Finalize)]
 pub struct EmitBinaryExpressionStateMachine {
-    printer: Rc<Printer>,
+    printer: Gc<Printer>,
 }
 
 impl EmitBinaryExpressionStateMachine {

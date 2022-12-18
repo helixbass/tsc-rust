@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp;
@@ -1073,6 +1074,7 @@ impl TypeChecker {
     }
 }
 
+#[derive(Trace, Finalize)]
 struct CheckTypeArgumentsErrorInfo;
 
 impl CheckTypeContainingMessageChain for CheckTypeArgumentsErrorInfo {

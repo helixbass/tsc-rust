@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
@@ -951,7 +952,7 @@ impl TypeChecker {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct CheckBinaryExpression {
     trampoline: BinaryExpressionTrampoline<CheckBinaryExpressionStateMachine>,
 }
@@ -979,9 +980,9 @@ pub struct WorkArea {
     pub type_stack: Vec<Option<Rc<Type>>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Trace, Finalize)]
 pub struct CheckBinaryExpressionStateMachine {
-    type_checker: Rc<TypeChecker>,
+    type_checker: Gc<TypeChecker>,
 }
 
 impl CheckBinaryExpressionStateMachine {
