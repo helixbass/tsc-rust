@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -72,7 +73,7 @@ impl Printer {
 
     pub(super) fn emit_helpers(&self, node: &Node) -> bool {
         let mut helpers_emitted = false;
-        let bundle: Option<Rc<Node>> = if node.kind() == SyntaxKind::Bundle {
+        let bundle: Option<Gc<Node>> = if node.kind() == SyntaxKind::Bundle {
             Some(node.node_wrapper())
         } else {
             None

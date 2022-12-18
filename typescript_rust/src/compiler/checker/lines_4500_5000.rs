@@ -45,14 +45,14 @@ impl TypeChecker {
         should_compute_aliases_to_make_visible: bool,
     ) -> Option<SymbolVisibilityResult> {
         let aliases_to_make_visible: RefCell<
-            Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
+            Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
         > = RefCell::new(None);
         if !every(
-            &maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>| {
+            &maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>| {
                 d.kind() != SyntaxKind::Identifier
             })
             .unwrap_or_else(|| vec![]),
-            |d: &Rc<Node>, _| {
+            |d: &Gc<Node>, _| {
                 self.get_is_declaration_visible(
                     symbol,
                     should_compute_aliases_to_make_visible,
@@ -75,7 +75,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         should_compute_aliases_to_make_visible: bool,
-        aliases_to_make_visible: &RefCell<Option<Vec<Rc<Node>>>>,
+        aliases_to_make_visible: &RefCell<Option<Vec<Gc<Node>>>>,
         declaration: &Node, /*Declaration*/
     ) -> bool {
         if !self.is_declaration_visible(declaration) {
@@ -161,7 +161,7 @@ impl TypeChecker {
     pub(super) fn add_visible_alias(
         &self,
         should_compute_aliases_to_make_visible: bool,
-        aliases_to_make_visible: &RefCell<Option<Vec<Rc<Node>>>>,
+        aliases_to_make_visible: &RefCell<Option<Vec<Gc<Node>>>>,
         declaration: &Node,        /*Declaration*/
         aliasing_statement: &Node, /*LateVisibilityPaintedStatement*/
     ) -> bool {
@@ -206,7 +206,7 @@ impl TypeChecker {
             &first_identifier.as_identifier().escaped_text,
             meaning,
             None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             false,
             None,
         );
@@ -270,7 +270,7 @@ impl TypeChecker {
                 None,
             )
             .unwrap();
-            let entity: Rc<Node> = entity.into();
+            let entity: Gc<Node> = entity.into();
             let mut printer = if matches!(enclosing_declaration.as_ref(), Some(enclosing_declaration) if enclosing_declaration.kind() == SyntaxKind::SourceFile)
             {
                 create_printer(
@@ -313,7 +313,7 @@ impl TypeChecker {
 
     pub(super) fn signature_to_string_<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -344,7 +344,7 @@ impl TypeChecker {
 
     pub(super) fn signature_to_string_worker<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: TypeFormatFlags,
         kind: Option<SignatureKind>,
@@ -427,7 +427,7 @@ impl TypeChecker {
             ),
             Some((*writer).borrow().as_symbol_tracker()),
         );
-        let type_node: Rc<Node> = match type_node {
+        let type_node: Gc<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
             Some(type_node) => type_node,
         };
@@ -538,7 +538,7 @@ pub struct NodeBuilder {
 }
 
 impl NodeBuilder {
-    pub fn new(type_checker: Rc<TypeChecker>) -> Self {
+    pub fn new(type_checker: Gc<TypeChecker>) -> Self {
         Self { type_checker }
     }
 
@@ -548,7 +548,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
             self.type_to_type_node_helper(Some(type_), context)
         })
@@ -560,7 +560,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
             Some(self.index_info_to_index_signature_declaration_helper(
                 index_info,
@@ -572,12 +572,12 @@ impl NodeBuilder {
 
     pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         kind: SyntaxKind,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>> {
+    ) -> Option<Gc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
             Some(self.signature_to_signature_declaration_helper(
                 signature,
@@ -595,7 +595,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node /*EntityName*/>> {
+    ) -> Option<Gc<Node /*EntityName*/>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
             Some(self.symbol_to_name(symbol, context, meaning, false))
         })
@@ -608,7 +608,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
             Some(self.symbol_to_expression_(symbol, context, meaning))
         })
@@ -632,7 +632,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
             Some(self.symbol_to_parameter_declaration_(
                 symbol,
@@ -650,7 +650,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node /*TypeParameterDeclaration*/>> {
+    ) -> Option<Gc<Node /*TypeParameterDeclaration*/>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
             Some(self.type_parameter_to_declaration_(parameter, context, None))
         })
@@ -663,7 +663,7 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
         bundled: Option<bool>,
-    ) -> Option<Vec<Rc<Node /*Statement*/>>> {
+    ) -> Option<Vec<Gc<Node /*Statement*/>>> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
             self.symbol_table_to_declaration_statements_(symbol_table, context, bundled)
         })
@@ -750,7 +750,7 @@ impl NodeBuilder {
         &self,
         type_: Option<TType>,
         context: &NodeBuilderContext,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token()
         /*&& cancellationToken.throwIfCancellationRequested*/
         {
@@ -1271,7 +1271,7 @@ impl NodeBuilder {
                                 factory_
                                     .create_type_reference_node(
                                         synthetic_factory_,
-                                        Into::<Rc<Node>>::into(factory_.create_identifier(
+                                        Into::<Gc<Node>>::into(factory_.create_identifier(
                                             synthetic_factory_,
                                             "",
                                             Option::<NodeArray>::None,
@@ -1346,7 +1346,7 @@ impl NodeBuilder {
                         factory_
                             .create_type_reference_node(
                                 synthetic_factory_,
-                                Into::<Rc<Node>>::into(factory_.create_identifier(
+                                Into::<Gc<Node>>::into(factory_.create_identifier(
                                     synthetic_factory_,
                                     &id_text(&name),
                                     Option::<NodeArray>::None,
@@ -1366,7 +1366,7 @@ impl NodeBuilder {
                         factory_
                             .create_type_reference_node(
                                 synthetic_factory_,
-                                Into::<Rc<Node>>::into(factory_.create_identifier(
+                                Into::<Gc<Node>>::into(factory_.create_identifier(
                                     synthetic_factory_,
                                     "?",
                                     Option::<NodeArray>::None,
@@ -1456,7 +1456,7 @@ impl NodeBuilder {
             let type_as_template_literal_type = type_.as_template_literal_type();
             let texts = &type_as_template_literal_type.texts;
             let types = &type_as_template_literal_type.types;
-            let template_head: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
+            let template_head: Gc<Node> = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     factory_
                         .create_template_head(
@@ -1471,7 +1471,7 @@ impl NodeBuilder {
             let template_spans = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     factory_.create_node_array(
-                        Some(map(types, |t: &Rc<Type>, i| -> Rc<Node> {
+                        Some(map(types, |t: &Gc<Type>, i| -> Gc<Node> {
                             factory_
                                 .create_template_literal_type_span(
                                     synthetic_factory_,
@@ -1587,7 +1587,7 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     fn track_symbol(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<Rc<Node>>,
+        enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
         Some(false)
@@ -1829,7 +1829,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker<'_> {
     fn track_symbol(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<Rc<Node>>,
+        enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
         let result = self
@@ -1879,7 +1879,7 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker<'_> {
 
 #[derive(Clone)]
 pub struct NodeBuilderContext<'symbol_tracker> {
-    enclosing_declaration: Rc<RefCell<Option<Rc<Node>>>>,
+    enclosing_declaration: Rc<RefCell<Option<Gc<Node>>>>,
     pub flags: Cell<NodeBuilderFlags>,
     pub tracker: RcOrReferenceToDynSymbolTracker<'symbol_tracker>,
 
@@ -1891,7 +1891,7 @@ pub struct NodeBuilderContext<'symbol_tracker> {
     pub approximate_length: Cell<usize>,
     pub truncating: Cell<Option<bool>>,
     pub type_parameter_symbol_list: Rc<RefCell<Option<HashSet<SymbolId>>>>,
-    pub type_parameter_names: Rc<RefCell<Option<HashMap<TypeId, Rc<Node /*Identifier*/>>>>>,
+    pub type_parameter_names: Rc<RefCell<Option<HashMap<TypeId, Gc<Node /*Identifier*/>>>>>,
     pub type_parameter_names_by_text: Rc<RefCell<Option<HashSet<String>>>>,
     pub type_parameter_names_by_text_next_name_count: Rc<RefCell<Option<HashMap<String, usize>>>>,
     pub used_symbol_names: Rc<RefCell<Option<HashSet<String>>>>,
@@ -1909,7 +1909,7 @@ impl<'symbol_tracker> SymbolTracker for RcOrReferenceToDynSymbolTracker<'symbol_
     fn track_symbol(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<Rc<Node>>,
+        enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
         match self {
@@ -2101,7 +2101,7 @@ impl<'symbol_tracker> SymbolTracker for RcOrReferenceToDynSymbolTracker<'symbol_
 
 impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
     pub fn new(
-        enclosing_declaration: Option<Rc<Node>>,
+        enclosing_declaration: Option<Gc<Node>>,
         flags: NodeBuilderFlags,
         tracker: RcOrReferenceToDynSymbolTracker<'symbol_tracker>,
     ) -> Self {
@@ -2126,11 +2126,11 @@ impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
         }
     }
 
-    pub fn maybe_enclosing_declaration(&self) -> Option<Rc<Node>> {
+    pub fn maybe_enclosing_declaration(&self) -> Option<Gc<Node>> {
         (*self.enclosing_declaration).borrow().clone()
     }
 
-    pub fn set_enclosing_declaration(&self, enclosing_declaration: Option<Rc<Node>>) {
+    pub fn set_enclosing_declaration(&self, enclosing_declaration: Option<Gc<Node>>) {
         *self.enclosing_declaration.borrow_mut() = enclosing_declaration;
     }
 

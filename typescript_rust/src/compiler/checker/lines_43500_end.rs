@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Finalize, Trace};
+use gc::{Finalize, Gc, Trace};
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -611,7 +611,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_ambient_modules(&self) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_ambient_modules(&self) -> Vec<Gc<Symbol>> {
         if self.ambient_modules_cache.borrow().is_none() {
             let mut ambient_modules_cache = self.ambient_modules_cache.borrow_mut();
             *ambient_modules_cache = Some(vec![]);
@@ -658,7 +658,7 @@ impl TypeChecker {
     ) -> bool {
         for_each_bool(
             named_bindings.as_has_elements().elements(),
-            |specifier: &Rc<Node>, _| {
+            |specifier: &Gc<Node>, _| {
                 if specifier.as_has_is_type_only().is_type_only() {
                     return self.grammar_error_on_first_token(
                         specifier,
@@ -718,7 +718,7 @@ impl TypeChecker {
             );
         }
 
-        let spread_element = find(node_arguments, |argument: &Rc<Node>, _| {
+        let spread_element = find(node_arguments, |argument: &Gc<Node>, _| {
             is_spread_element(argument)
         });
         if let Some(spread_element) = spread_element {
@@ -735,7 +735,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let source_object_flags = get_object_flags(source);
         if source_object_flags.intersects(ObjectFlags::Reference | ObjectFlags::Anonymous)
             && union_target.flags().intersects(TypeFlags::Union)
@@ -744,7 +744,7 @@ impl TypeChecker {
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |target: &Rc<Type>, _| {
+                |target: &Gc<Type>, _| {
                     if target.flags().intersects(TypeFlags::Object) {
                         let overlap_obj_flags = source_object_flags & get_object_flags(target);
                         if overlap_obj_flags.intersects(ObjectFlags::Reference) {
@@ -773,7 +773,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if get_object_flags(source).intersects(ObjectFlags::ObjectLiteral)
             && self.some_type(union_target, |type_: &Type| self.is_array_like_type(type_))
         {
@@ -781,7 +781,7 @@ impl TypeChecker {
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Rc<Type>, _| !self.is_array_like_type(t),
+                |t: &Gc<Type>, _| !self.is_array_like_type(t),
             )
             .map(Clone::clone);
         }
@@ -792,7 +792,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let mut signature_kind = SignatureKind::Call;
         let has_signatures = !self
             .get_signatures_of_type(source, signature_kind)
@@ -808,7 +808,7 @@ impl TypeChecker {
                 union_target
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Rc<Type>, _| !self.get_signatures_of_type(t, signature_kind).is_empty(),
+                |t: &Gc<Type>, _| !self.get_signatures_of_type(t, signature_kind).is_empty(),
             )
             .map(Clone::clone);
         }
@@ -819,8 +819,8 @@ impl TypeChecker {
         &self,
         source: &Type,
         union_target: &Type, /*UnionOrIntersectionType*/
-    ) -> Option<Rc<Type>> {
-        let mut best_match: Option<Rc<Type>> = None;
+    ) -> Option<Gc<Type>> {
+        let mut best_match: Option<Gc<Type>> = None;
         let mut matching_count = 0;
         for target in union_target
             .as_union_or_intersection_type_interface()
@@ -840,7 +840,7 @@ impl TypeChecker {
             } else if overlap.flags().intersects(TypeFlags::Union) {
                 let len = length(Some(&filter(
                     overlap.as_union_or_intersection_type_interface().types(),
-                    |type_: &Rc<Type>| self.is_unit_type(type_),
+                    |type_: &Gc<Type>| self.is_unit_type(type_),
                 )));
                 if len >= matching_count {
                     best_match = Some(target.clone());
@@ -857,7 +857,7 @@ impl TypeChecker {
     pub(super) fn filter_primitives_if_contains_non_primitive(
         &self,
         type_: &Type, /*UnionType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self.maybe_type_of_kind(type_, TypeFlags::NonPrimitive) {
             let result = self.filter_type(type_, |t: &Type| {
                 !t.flags().intersects(TypeFlags::Primitive)
@@ -875,7 +875,7 @@ impl TypeChecker {
         target: &Type,
         mut is_related_to: TIsRelatedTo,
         skip_partial: Option<bool>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if target.flags().intersects(TypeFlags::Union)
             && source
                 .flags()
@@ -894,12 +894,12 @@ impl TypeChecker {
                     target,
                     &*source_properties_filtered
                         .into_iter()
-                        .map(|p: &Rc<Symbol>| {
+                        .map(|p: &Gc<Symbol>| {
                             let p_clone = p.clone();
                             let type_checker = self.rc_wrapper();
                             (
                                 Box::new(move || type_checker.get_type_of_symbol(&p_clone))
-                                    as Box<dyn Fn() -> Rc<Type>>,
+                                    as Box<dyn Fn() -> Gc<Type>>,
                                 p.escaped_name().to_owned(),
                             )
                         })
@@ -933,14 +933,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Identifier*/
         prefix_locals: Option<bool>,
-    ) -> Option<Rc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>> {
+    ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>> {
         unimplemented!()
     }
 
     fn get_referenced_import_declaration(
         &self,
         node: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         unimplemented!()
     }
 
@@ -979,7 +979,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> Option<Vec<Rc<Node>>> {
+    ) -> Option<Vec<Gc<Node>>> {
         unimplemented!()
     }
 
@@ -1008,7 +1008,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         unimplemented!()
     }
 
@@ -1019,7 +1019,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
         add_undefined: Option<bool>,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
@@ -1029,7 +1029,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
@@ -1039,7 +1039,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         unimplemented!()
     }
 
@@ -1047,7 +1047,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: &dyn SymbolTracker,
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         unimplemented!()
     }
 
@@ -1079,7 +1079,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_referenced_value_declaration(
         &self,
         reference: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         unimplemented!()
     }
 
@@ -1109,7 +1109,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Rc<Node /*SourceFile*/>> {
+    ) -> Option<Gc<Node /*SourceFile*/>> {
         unimplemented!()
     }
 
@@ -1135,14 +1135,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         unimplemented!()
     }
 
-    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Rc<Node /*EntityName*/>> {
+    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>> {
         unimplemented!()
     }
 
     fn get_jsx_fragment_factory_entity(
         &self,
         location: Option<&Node>,
-    ) -> Option<Rc<Node /*EntityName*/>> {
+    ) -> Option<Gc<Node /*EntityName*/>> {
         unimplemented!()
     }
 
@@ -1156,7 +1156,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     fn get_symbol_of_external_module_specifier(
         &self,
         node: &Node, /*StringLiteralLike*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         unimplemented!()
     }
 
@@ -1174,7 +1174,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
         bundled: Option<bool>,
-    ) -> Option<Vec<Rc<Node /*Statement*/>>> {
+    ) -> Option<Vec<Gc<Node /*Statement*/>>> {
         unimplemented!()
     }
 

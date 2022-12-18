@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -49,7 +50,7 @@ pub fn is_external_module_import_equals_declaration(node: &Node) -> bool {
 
 pub fn get_external_module_import_equals_declaration_expression(
     node: &Node,
-) -> Rc<Node /*Expression*/> {
+) -> Gc<Node /*Expression*/> {
     Debug_.assert(is_external_module_import_equals_declaration(node), None);
     node.as_import_equals_declaration()
         .module_reference
@@ -58,7 +59,7 @@ pub fn get_external_module_import_equals_declaration_expression(
         .clone()
 }
 
-pub fn get_external_module_require_argument(node: &Node) -> Option<Rc<Node /*StringLiteral*/>> {
+pub fn get_external_module_require_argument(node: &Node) -> Option<Gc<Node /*StringLiteral*/>> {
     if is_require_variable_declaration(node) {
         Some(
             get_leftmost_access_expression(
@@ -211,7 +212,7 @@ pub fn is_assignment_declaration(decl: &Node /*Declaration*/) -> bool {
         || is_call_expression(decl)
 }
 
-pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> Option<Rc<Node>> {
+pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> Option<Gc<Node>> {
     let node_initializer = node.as_has_initializer().maybe_initializer();
     if is_in_js_file(Some(node)) {
         if let Some(node_initializer) = node_initializer.as_ref() {
@@ -240,7 +241,7 @@ pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> O
 
 pub fn get_declared_expando_initializer(
     node: &Node, /*HasExpressionInitializer*/
-) -> Option<Rc<Node /*Expression*/>> {
+) -> Option<Gc<Node /*Expression*/>> {
     let init = get_effective_initializer(node);
     init.and_then(|init| {
         get_expando_initializer(
@@ -253,7 +254,7 @@ pub fn get_declared_expando_initializer(
 pub fn has_expando_value_property(
     node: &Node, /*ObjectLiteralExpression*/
     is_prototype_assignment: bool,
-) -> Option<Rc<Node /*Expression*/>> {
+) -> Option<Gc<Node /*Expression*/>> {
     for_each(&node.as_object_literal_expression().properties, |p, _| {
         if !is_property_assignment(p) {
             return None;
@@ -275,7 +276,7 @@ pub fn has_expando_value_property(
 
 pub fn get_assigned_expando_initializer<TNode: Borrow<Node>>(
     node: Option<TNode>,
-) -> Option<Rc<Node /*Expression*/>> {
+) -> Option<Gc<Node /*Expression*/>> {
     if node.is_none() {
         return None;
     }
@@ -321,7 +322,7 @@ pub fn get_assigned_expando_initializer<TNode: Borrow<Node>>(
 pub fn get_expando_initializer(
     initializer: &Node,
     is_prototype_assignment: bool,
-) -> Option<Rc<Node /*Expression*/>> {
+) -> Option<Gc<Node /*Expression*/>> {
     if is_call_expression(initializer) {
         let e = skip_parentheses(&initializer.as_call_expression().expression, None);
         return if matches!(
@@ -355,8 +356,8 @@ pub fn get_defaulted_expando_initializer(
     name: &Node,        /*Expression*/
     initializer: &Node, /*Expression*/
     is_prototype_assignment: bool,
-) -> Option<Rc<Node /*Expression*/>> {
-    let e: Option<Rc<Node>> = if is_binary_expression(initializer) {
+) -> Option<Gc<Node /*Expression*/>> {
+    let e: Option<Gc<Node>> = if is_binary_expression(initializer) {
         let initializer_as_binary_expression = initializer.as_binary_expression();
         if matches!(
             initializer_as_binary_expression.operator_token.kind(),
@@ -377,7 +378,7 @@ pub fn get_defaulted_expando_initializer(
 
 pub fn is_defaulted_expando_initializer(node: &Node /*BinaryExpression*/) -> bool {
     let node_parent = node.parent();
-    let name: Option<Rc<Node>> = if is_variable_declaration(&node_parent) {
+    let name: Option<Gc<Node>> = if is_variable_declaration(&node_parent) {
         Some(node_parent.as_variable_declaration().name())
     } else if is_binary_expression(&node_parent)
         && node_parent.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
@@ -396,7 +397,7 @@ pub fn is_defaulted_expando_initializer(node: &Node /*BinaryExpression*/) -> boo
         && is_same_entity_name(&name, &node_as_binary_expression.left)
 }
 
-pub fn get_name_of_expando(node: &Node, /*Declaration*/) -> Option<Rc<Node /*DeclarationName*/>> {
+pub fn get_name_of_expando(node: &Node, /*Declaration*/) -> Option<Gc<Node /*DeclarationName*/>> {
     let node_parent = node.parent();
     if is_binary_expression(&node_parent) {
         let parent = if matches!(
@@ -461,7 +462,7 @@ pub fn is_same_entity_name(
     false
 }
 
-pub fn get_right_most_assigned_expression(node: &Node, /*Expression*/) -> Rc<Node /*Expression*/> {
+pub fn get_right_most_assigned_expression(node: &Node, /*Expression*/) -> Gc<Node /*Expression*/> {
     let mut node = node.node_wrapper();
     while is_assignment_expression(&node, Some(true)) {
         node = node.as_binary_expression().right.clone();
@@ -589,7 +590,7 @@ pub fn is_bindable_static_name_expression(node: &Node, exclude_this_keyword: Opt
 
 pub fn get_name_or_argument(
     expr: &Node, /*PropertyAccessExpression | LiteralLikeElementAccessExpression*/
-) -> Rc<Node> {
+) -> Gc<Node> {
     if is_property_access_expression(expr) {
         return expr.as_property_access_expression().name();
     }
@@ -728,7 +729,7 @@ pub fn get_assignment_declaration_property_access_kind(
 
 pub fn get_initializer_of_binary_expression(
     expr: &Node, /*BinaryExpression*/
-) -> Rc<Node /*Expression*/> {
+) -> Gc<Node /*Expression*/> {
     let mut expr = expr.node_wrapper();
     while is_binary_expression(&expr.as_binary_expression().right) {
         expr = expr.as_binary_expression().right.clone();
@@ -828,7 +829,7 @@ pub fn try_get_module_specifier_from_declaration(
 
 pub fn import_from_module_specifier(
     node: &Node, /*StringLiteralLike*/
-) -> Rc<Node /*AnyValidImportOrReExport*/> {
+) -> Gc<Node /*AnyValidImportOrReExport*/> {
     try_get_import_from_module_specifier(node)
         .unwrap_or_else(|| Debug_.fail_bad_syntax_kind(&node.parent(), None))
 }

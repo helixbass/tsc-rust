@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -19,7 +20,7 @@ use crate::{
 impl Printer {
     pub(super) fn emit_unparsed_prologues(
         &self,
-        prologues: &[Rc<Node /*UnparsedPrologue*/>],
+        prologues: &[Gc<Node /*UnparsedPrologue*/>],
         seen_prologue_directives: &mut HashSet<String>,
     ) {
         for prologue in prologues {
@@ -227,7 +228,7 @@ impl Printer {
         node: Option<TNode /*Expression*/>,
         equal_comment_start_pos: isize,
         container: &Node,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
     ) {
         if let Some(node) = node {
             let node = node.borrow();
@@ -267,7 +268,7 @@ impl Printer {
     pub(super) fn emit_expression_with_leading_space(
         &self,
         node: Option<&Node>,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
     ) {
         if let Some(node) = node {
             self.write_space();
@@ -386,23 +387,23 @@ impl Printer {
                     parent_node_as_arrow_function.maybe_type().is_none() &&
                         !some(
                             parent_node.maybe_decorators().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
                             parent_node.maybe_modifiers().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
                             parent_node_as_arrow_function.maybe_type_parameters().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
                             parameter.maybe_decorators().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         !some(
                             parameter.maybe_modifiers().as_deref(),
-                            Option::<fn(&Rc<Node>) -> bool>::None
+                            Option::<fn(&Gc<Node>) -> bool>::None
                         ) &&
                         parameter_as_parameter_declaration.dot_dot_dot_token.is_none() &&
                         parameter_as_parameter_declaration.question_token.is_none() &&
@@ -475,7 +476,7 @@ impl Printer {
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {
@@ -495,7 +496,7 @@ impl Printer {
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {
@@ -512,11 +513,11 @@ impl Printer {
 
     pub(super) fn emit_node_list<TNode: Borrow<Node>>(
         &self,
-        emit: fn(&Printer, Option<&Node>, Option<Rc<dyn Fn(&Node) -> Rc<Node>>>),
+        emit: fn(&Printer, Option<&Node>, Option<Rc<dyn Fn(&Node) -> Gc<Node>>>),
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {
@@ -590,7 +591,7 @@ impl Printer {
                 self.increase_indent();
             }
 
-            let mut previous_sibling: Option<Rc<Node>> = None;
+            let mut previous_sibling: Option<Gc<Node>> = None;
             let mut previous_source_file_text_kind: Option<BundleFileSectionKind> = None;
             let mut should_decrease_indent_after_emit = false;
             for i in 0..count {

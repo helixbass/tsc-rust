@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::rc::Rc;
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
 };
 
 pub fn create_incremental_compiler_host(
-    options: Rc<CompilerOptions>,
+    options: Gc<CompilerOptions>,
     system: Option<Rc<dyn System>>,
 ) -> impl CompilerHost {
     let system = system.unwrap_or_else(|| get_sys());
@@ -19,7 +20,7 @@ pub trait WatchStatusReporter {
         &self,
         diagnostic: Rc<Diagnostic>,
         new_line: &str,
-        options: Rc<CompilerOptions>,
+        options: Gc<CompilerOptions>,
         error_count: Option<usize>,
     );
 }

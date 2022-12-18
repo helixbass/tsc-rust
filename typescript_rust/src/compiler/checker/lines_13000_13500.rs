@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
@@ -23,8 +24,8 @@ impl TypeChecker {
     pub(super) fn get_inferred_type_parameter_constraint(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> Option<Rc<Type>> {
-        let mut inferences: Option<Vec<Rc<Type>>> = None;
+    ) -> Option<Gc<Type>> {
+        let mut inferences: Option<Vec<Gc<Type>>> = None;
         if let Some(type_parameter_symbol) = type_parameter.maybe_symbol() {
             if let Some(type_parameter_symbol_declarations) =
                 type_parameter_symbol.maybe_declarations().as_deref()
@@ -197,7 +198,7 @@ impl TypeChecker {
     pub(super) fn get_constraint_from_type_parameter(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let type_parameter_as_type_parameter = type_parameter.as_type_parameter();
         if type_parameter_as_type_parameter
             .maybe_constraint()
@@ -252,7 +253,7 @@ impl TypeChecker {
     pub(super) fn get_parent_symbol_of_type_parameter(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let tp =
             get_declaration_of_kind(&type_parameter.symbol(), SyntaxKind::TypeParameter).unwrap();
         let host = if is_jsdoc_template_tag(&tp.parent()) {
@@ -263,7 +264,7 @@ impl TypeChecker {
         host.and_then(|host| self.get_symbol_of_node(&host))
     }
 
-    pub(super) fn get_type_list_id(&self, types: Option<&[Rc<Type>]>) -> String {
+    pub(super) fn get_type_list_id(&self, types: Option<&[Gc<Type>]>) -> String {
         let mut result = "".to_owned();
         if let Some(types) = types {
             let length = types.len();
@@ -292,7 +293,7 @@ impl TypeChecker {
     pub(super) fn get_alias_id<TAliasSymbol: Borrow<Symbol>>(
         &self,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
+        alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> String {
         if let Some(alias_symbol) = alias_symbol {
             let alias_symbol = alias_symbol.borrow();
@@ -312,7 +313,7 @@ impl TypeChecker {
 
     pub(super) fn get_propagating_flags_of_types(
         &self,
-        types: &[Rc<Type>],
+        types: &[Gc<Type>],
         exclude_kinds: TypeFlags,
     ) -> ObjectFlags {
         let mut result = ObjectFlags::None;
@@ -327,7 +328,7 @@ impl TypeChecker {
     pub(super) fn create_type_reference(
         &self,
         target: &Type, /*GenericType*/
-        type_arguments: Option<Vec<Rc<Type>>>,
+        type_arguments: Option<Vec<Gc<Type>>>,
     ) -> Rc<Type /*TypeReference*/> {
         let id = self.get_type_list_id(type_arguments.as_deref());
         let type_ = target
@@ -345,7 +346,7 @@ impl TypeChecker {
                         ObjectFlags::None
                     },
             );
-            let type_: Rc<Type> =
+            let type_: Gc<Type> =
                 TypeReference::new(type_, target.type_wrapper(), type_arguments).into();
             target
                 .as_generic_type()
@@ -356,12 +357,12 @@ impl TypeChecker {
         type_.unwrap()
     }
 
-    pub(super) fn clone_type_reference(&self, source: &Type /*TypeReference*/) -> Rc<Type> {
+    pub(super) fn clone_type_reference(&self, source: &Type /*TypeReference*/) -> Gc<Type> {
         let type_ = self.create_type(source.flags());
         type_.set_symbol(source.maybe_symbol());
         let source_as_type_reference = source.as_type_reference_interface();
         let type_ = BaseObjectType::new(type_, source_as_type_reference.object_flags());
-        let type_: Rc<Type> = TypeReference::new(
+        let type_: Gc<Type> = TypeReference::new(
             type_,
             source_as_type_reference.target(),
             source_as_type_reference
@@ -378,7 +379,7 @@ impl TypeChecker {
         node: &Node,   /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
         mapper: Option<Rc<TypeMapper>>,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
+        alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Rc<Type /*DeferredTypeReference*/> {
         let mut alias_symbol =
             alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
@@ -395,14 +396,14 @@ impl TypeChecker {
         }
         let mut type_ = self.create_object_type(ObjectFlags::Reference, target.maybe_symbol());
         type_.mapper = mapper;
-        let type_: Rc<Type> = TypeReference::new(type_, target.type_wrapper(), None).into();
+        let type_: Gc<Type> = TypeReference::new(type_, target.type_wrapper(), None).into();
         *type_.as_type_reference().maybe_node_mut() = Some(node.node_wrapper());
         *type_.maybe_alias_symbol_mut() = alias_symbol;
         *type_.maybe_alias_type_arguments_mut() = alias_type_arguments;
         type_
     }
 
-    pub(super) fn get_type_arguments(&self, type_: &Type /*TypeReference*/) -> Vec<Rc<Type>> {
+    pub(super) fn get_type_arguments(&self, type_: &Type /*TypeReference*/) -> Vec<Gc<Type>> {
         let type_as_type_reference = type_.as_type_reference_interface();
         if type_as_type_reference
             .maybe_resolved_type_arguments()
@@ -427,7 +428,7 @@ impl TypeChecker {
                     );
             }
             let node = type_as_type_reference.maybe_node().clone();
-            let type_arguments: Vec<Rc<Type>> = if node.is_none() {
+            let type_arguments: Vec<Gc<Type>> = if node.is_none() {
                 vec![]
             } else {
                 let node = node.unwrap();
@@ -448,7 +449,7 @@ impl TypeChecker {
                 } else {
                     map(
                         &node.as_tuple_type_node().elements,
-                        |element: &Rc<Node>, _| self.get_type_from_type_node_(element),
+                        |element: &Gc<Node>, _| self.get_type_from_type_node_(element),
                     )
                 }
             };
@@ -520,7 +521,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NodeWithTypeArguments*/
         symbol: &Symbol,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_ =
             self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap());
         let type_as_interface_type = type_.as_interface_type();
@@ -619,10 +620,10 @@ impl TypeChecker {
     pub(super) fn get_type_alias_instantiation<TAliasSymbol: Borrow<Symbol>>(
         &self,
         symbol: &Symbol,
-        type_arguments: Option<&[Rc<Type>]>,
+        type_arguments: Option<&[Gc<Type>]>,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let type_ = self.get_declared_type_of_symbol(symbol);
         if Rc::ptr_eq(&type_, &self.intrinsic_marker_type())
             && intrinsic_type_kinds.contains_key(symbol.escaped_name())
@@ -674,7 +675,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NodeWithTypeArguments*/
         symbol: &Symbol,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if get_check_flags(symbol).intersects(CheckFlags::Unresolved) {
             let type_arguments = self.type_arguments_from_type_reference_node(node);
             let id = self.get_alias_id(Some(symbol), type_arguments.as_deref());
@@ -747,7 +748,7 @@ impl TypeChecker {
         let declaration = symbol_declarations.as_ref().and_then(|declarations| {
             declarations
                 .iter()
-                .find(|declaration: &&Rc<Node>| is_type_alias(declaration))
+                .find(|declaration: &&Gc<Node>| is_type_alias(declaration))
                 .map(Clone::clone)
         });
         declaration
@@ -758,7 +759,7 @@ impl TypeChecker {
     pub(super) fn get_type_reference_name(
         &self,
         node: &Node, /*TypeReferenceType*/
-    ) -> Option<Rc<Node /*EntityNameOrEntityNameExpression*/>> {
+    ) -> Option<Gc<Node /*EntityNameOrEntityNameExpression*/>> {
         match node.kind() {
             SyntaxKind::TypeReference => {
                 return Some(node.as_type_reference_node().type_name.clone());
@@ -842,7 +843,7 @@ impl TypeChecker {
         type_reference: &Node, /*TypeReferenceType*/
         meaning: SymbolFlags,
         ignore_errors: Option<bool>,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let ignore_errors = ignore_errors.unwrap_or(false);
         let name = self.get_type_reference_name(type_reference);
         let name = match name {
@@ -867,7 +868,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_reference_type(&self, node: &Node, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_reference_type(&self, node: &Node, symbol: &Symbol) -> Gc<Type> {
         if ptr::eq(symbol, Rc::as_ptr(&self.unknown_symbol())) {
             return self.error_type();
         }
@@ -907,7 +908,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NodeWithTypeArguments*/
         symbol: &Symbol,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_jsdoc_type.is_none() {
             let value_type = self.get_type_of_symbol(symbol);
@@ -929,7 +930,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_substitution_type(&self, base_type: &Type, substitute: &Type) -> Rc<Type> {
+    pub(super) fn get_substitution_type(&self, base_type: &Type, substitute: &Type) -> Gc<Type> {
         if substitute.flags().intersects(TypeFlags::AnyOrUnknown) || ptr::eq(substitute, base_type)
         {
             return base_type.type_wrapper();
@@ -944,7 +945,7 @@ impl TypeChecker {
             return cached;
         }
         let result = self.create_type(TypeFlags::Substitution);
-        let result: Rc<Type> =
+        let result: Gc<Type> =
             SubstitutionType::new(result, base_type.type_wrapper(), substitute.type_wrapper())
                 .into();
         self.substitution_types().insert(id, result.clone());
@@ -960,7 +961,7 @@ impl TypeChecker {
         type_: &Type,
         check_node: &Node,   /*TypeNode*/
         extends_node: &Node, /*TypeNode*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if self.is_unary_tuple_type_node(check_node) && self.is_unary_tuple_type_node(extends_node)
         {
             self.get_implied_constraint(
@@ -978,8 +979,8 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_conditional_flow_type_of_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
-        let mut constraints: Option<Vec<Rc<Type>>> = None;
+    pub(super) fn get_conditional_flow_type_of_type(&self, type_: &Type, node: &Node) -> Gc<Type> {
+        let mut constraints: Option<Vec<Gc<Type>>> = None;
         let mut covariant = true;
         let mut node = node.node_wrapper();
         while
@@ -1060,7 +1061,7 @@ impl TypeChecker {
     pub(super) fn get_intended_type_from_jsdoc_type_reference(
         &self,
         node: &Node, /*TypeReferenceNode*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node_as_type_reference_node = node.as_type_reference_node();
         if is_identifier(&node_as_type_reference_node.type_name) {
             let type_args = node_as_type_reference_node.maybe_type_arguments();

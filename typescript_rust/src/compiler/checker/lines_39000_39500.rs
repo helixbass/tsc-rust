@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::ptr;
 use std::rc::Rc;
 
@@ -79,13 +80,13 @@ impl TypeChecker {
         &self,
         prop_name: &Node, /*Identifier | PrivateIdentifier*/
         prop_type: &Type,
-        static_blocks: &[Rc<Node /*ClassStaticBlockDeclaration*/>],
+        static_blocks: &[Gc<Node /*ClassStaticBlockDeclaration*/>],
         start_pos: isize,
         end_pos: isize,
     ) -> bool {
         for static_block in static_blocks {
             if static_block.pos() >= start_pos && static_block.pos() <= end_pos {
-                let reference: Rc<Node> = factory.with(|factory_| {
+                let reference: Gc<Node> = factory.with(|factory_| {
                     synthetic_factory.with(|synthetic_factory_| {
                         factory_
                             .create_property_access_expression(
@@ -127,7 +128,7 @@ impl TypeChecker {
         prop_type: &Type,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> bool {
-        let reference: Rc<Node> = factory.with(|factory_| {
+        let reference: Gc<Node> = factory.with(|factory_| {
             synthetic_factory.with(|synthetic_factory_| {
                 factory_
                     .create_property_access_expression(
@@ -213,7 +214,7 @@ impl TypeChecker {
         }
         maybe_for_each(
             get_interface_base_type_nodes(node).as_ref(),
-            |heritage_element: &Rc<Node>, _| -> Option<()> {
+            |heritage_element: &Gc<Node>, _| -> Option<()> {
                 let heritage_element_as_expression_with_type_arguments =
                     heritage_element.as_expression_with_type_arguments();
                 if !is_entity_name_expression(
@@ -556,7 +557,7 @@ impl TypeChecker {
                             name = escape_leading_underscores(
                                 &cast_present(
                                     &ex.as_element_access_expression().argument_expression,
-                                    |expression: &&Rc<Node>| is_literal_expression(expression),
+                                    |expression: &&Gc<Node>| is_literal_expression(expression),
                                 )
                                 .as_literal_like_node()
                                 .text(),
@@ -662,7 +663,7 @@ impl TypeChecker {
                 let enum_is_const = is_enum_const(node);
                 for_each(
                     enum_symbol_declarations,
-                    |decl: &Rc<Node>, _| -> Option<()> {
+                    |decl: &Gc<Node>, _| -> Option<()> {
                         if is_enum_declaration(decl) && is_enum_const(decl) != enum_is_const {
                             self.error(
                                 get_name_of_declaration(Some(&**decl)),
@@ -678,7 +679,7 @@ impl TypeChecker {
             let mut seen_enum_missing_initial_initializer = false;
             maybe_for_each(
                 enum_symbol.maybe_declarations().as_ref(),
-                |declaration: &Rc<Node>, _| -> Option<()> {
+                |declaration: &Gc<Node>, _| -> Option<()> {
                     if declaration.kind() != SyntaxKind::EnumDeclaration {
                         return None;
                     }
@@ -720,7 +721,7 @@ impl TypeChecker {
     pub(super) fn get_first_non_ambient_class_or_function_declaration(
         &self,
         symbol: &Symbol,
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         let declarations = symbol.maybe_declarations();
         if let Some(declarations) = declarations.as_ref() {
             for declaration in declarations {

@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -104,13 +105,13 @@ pub fn execute_command_line<
 }
 
 pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
-    Program(Rc<Program>),
+    Program(Gc<Program>),
     EmitAndSemanticDiagnosticsBuilderProgram(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>),
     ParsedCommandLine(Rc<ParsedCommandLine>),
 }
 
-impl From<Rc<Program>> for ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
-    fn from(value: Rc<Program>) -> Self {
+impl From<Gc<Program>> for ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
+    fn from(value: Gc<Program>) -> Self {
         Self::Program(value)
     }
 }
@@ -261,15 +262,15 @@ pub(super) fn perform_build<
 struct BuilderProgramDummy {}
 
 impl BuilderProgram for BuilderProgramDummy {
-    fn get_program(&self) -> Rc<Program> {
+    fn get_program(&self) -> Gc<Program> {
         unimplemented!()
     }
 
-    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         unimplemented!()
     }
 
-    fn get_source_files(&self) -> &[Rc<Node /*SourceFile*/>] {
+    fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>] {
         unimplemented!()
     }
 }
@@ -471,7 +472,7 @@ pub(super) fn create_watch_of_config_file<
     mut cb: TCallback,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
     config_parse_result: Rc<ParsedCommandLine>,
-    options_to_extend: Rc<CompilerOptions>,
+    options_to_extend: Gc<CompilerOptions>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
 ) {
@@ -507,7 +508,7 @@ pub(super) fn create_watch_of_files_and_compiler_options<
     mut cb: TCallback,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
     root_files: &[String],
-    options: Rc<CompilerOptions>,
+    options: Gc<CompilerOptions>,
     watch_options: Option<Rc<WatchOptions>>,
 ) {
     unimplemented!()

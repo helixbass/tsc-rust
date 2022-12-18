@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -146,7 +147,7 @@ impl BinderType {
         );
     }
 
-    pub(super) fn bind_jsx_attributes(&self, node: &Node /*JsxAttributes*/) -> Rc<Symbol> {
+    pub(super) fn bind_jsx_attributes(&self, node: &Node /*JsxAttributes*/) -> Gc<Symbol> {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::ObjectLiteral,
@@ -159,7 +160,7 @@ impl BinderType {
         node: &Node, /*JsxAttribute*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes)
     }
 
@@ -168,7 +169,7 @@ impl BinderType {
         node: &Node,
         symbol_flags: SymbolFlags,
         name: __String,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let symbol = self.create_symbol(symbol_flags, name).wrap();
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
             symbol.set_parent(self.container().maybe_symbol());

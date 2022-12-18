@@ -164,7 +164,7 @@ fn create_resolved_module_with_failed_lookup_locations(
 
 pub(crate) struct ModuleResolutionState<'host_and_package_json_info_cache> {
     pub host: &'host_and_package_json_info_cache dyn ModuleResolutionHost,
-    pub compiler_options: Rc<CompilerOptions>,
+    pub compiler_options: Gc<CompilerOptions>,
     pub trace_enabled: bool,
     pub failed_lookup_locations: RefCell<Vec<String>>,
     pub result_from_cache: RefCell<Option<Rc<ResolvedModuleWithFailedLookupLocations>>>,
@@ -526,7 +526,7 @@ fn are_paths_equal(path1: &str, path2: &str, host: &dyn ModuleResolutionHost) ->
 pub fn resolve_type_reference_directive(
     type_reference_directive_name: &str,
     containing_file: Option<&str>,
-    mut options: Rc<CompilerOptions>,
+    mut options: Gc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
     cache: Option<Rc<TypeReferenceDirectiveResolutionCache>>,
@@ -956,7 +956,7 @@ pub struct CacheWithRedirects<TCache: Trace + Finalize + 'static> {
 }
 
 impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
-    pub fn new(options: Option<Rc<CompilerOptions>>) -> Self {
+    pub fn new(options: Option<Gc<CompilerOptions>>) -> Self {
         Self {
             options: RefCell::new(options),
             own_map: RefCell::new(Rc::new(RefCell::new(HashMap::new()))),
@@ -974,7 +974,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
         self.redirects_map.clone()
     }
 
-    pub fn set_own_options(&self, new_options: Rc<CompilerOptions>) {
+    pub fn set_own_options(&self, new_options: Gc<CompilerOptions>) {
         *self.options.borrow_mut() = Some(new_options);
     }
 
@@ -1217,7 +1217,7 @@ impl<TValue: Clone + Trace + Finalize> ModeAwareCache<TValue> {
 pub fn create_module_resolution_cache(
     current_directory: &str,
     get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
-    options: Option<Rc<CompilerOptions>>,
+    options: Option<Gc<CompilerOptions>>,
     directory_to_module_name_map: Option<
         Rc<CacheWithRedirects<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>>>,
     >,
@@ -1432,7 +1432,7 @@ impl PackageJsonInfoCache for ModuleResolutionCache {
 pub fn create_type_reference_directive_resolution_cache(
     current_directory: &str,
     get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
-    options: Option<Rc<CompilerOptions>>,
+    options: Option<Gc<CompilerOptions>>,
     package_json_info_cache: Option<Rc<dyn PackageJsonInfoCache>>,
     directory_to_module_name_map: Option<
         Rc<
@@ -1511,7 +1511,7 @@ impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
 pub fn resolve_module_name(
     module_name: &str,
     containing_file: &str,
-    mut compiler_options: Rc<CompilerOptions>,
+    mut compiler_options: Gc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Rc<ModuleResolutionCache>>,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
@@ -2021,7 +2021,7 @@ lazy_static! {
 pub fn node_module_name_resolver(
     module_name: &str,
     containing_file: &str,
-    compiler_options: Rc<CompilerOptions>,
+    compiler_options: Gc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Rc<ModuleResolutionCache>>,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,
@@ -2049,7 +2049,7 @@ fn node_module_name_resolver_worker(
     features: NodeResolutionFeatures,
     module_name: &str,
     containing_directory: &str,
-    compiler_options: Rc<CompilerOptions>,
+    compiler_options: Gc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Rc<ModuleResolutionCache>>,
     extensions: &[Extensions],
@@ -3442,7 +3442,7 @@ fn try_find_non_relative_module_name_in_cache(
 pub fn classic_name_resolver<TCache: NonRelativeModuleNameResolutionCache>(
     module_name: &str,
     containing_file: &str,
-    compiler_options: Rc<CompilerOptions>,
+    compiler_options: Gc<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<&TCache>,
     redirected_reference: Option<Rc<ResolvedProjectReference>>,

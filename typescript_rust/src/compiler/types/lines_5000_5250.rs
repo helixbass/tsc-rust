@@ -28,14 +28,14 @@ use local_macros::{enum_unwrapped, symbol_type, type_type};
 pub struct MappedSymbol {
     _transient_symbol: BaseTransientSymbol,
     pub mapped_type: Rc<Type /*MappedType*/>,
-    key_type: RefCell<Rc<Type>>,
+    key_type: RefCell<Gc<Type>>,
 }
 
 impl MappedSymbol {
     pub fn new(
         transient_symbol: BaseTransientSymbol,
-        mapped_type: Rc<Type>,
-        key_type: Rc<Type>,
+        mapped_type: Gc<Type>,
+        key_type: Gc<Type>,
     ) -> Self {
         Self {
             _transient_symbol: transient_symbol,
@@ -44,11 +44,11 @@ impl MappedSymbol {
         }
     }
 
-    pub fn key_type(&self) -> Rc<Type> {
+    pub fn key_type(&self) -> Gc<Type> {
         self.key_type.borrow().clone()
     }
 
-    pub fn set_key_type(&self, key_type: Rc<Type>) {
+    pub fn set_key_type(&self, key_type: Gc<Type>) {
         *self.key_type.borrow_mut() = key_type;
     }
 }
@@ -57,7 +57,7 @@ impl MappedSymbol {
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
 pub struct ReverseMappedSymbol {
     _transient_symbol: BaseTransientSymbol,
-    pub property_type: Rc<Type>,
+    pub property_type: Gc<Type>,
     pub mapped_type: Rc<Type /*MappedType*/>,
     pub constraint_type: Rc<Type /*IndexType*/>,
 }
@@ -65,9 +65,9 @@ pub struct ReverseMappedSymbol {
 impl ReverseMappedSymbol {
     pub fn new(
         transient_symbol: BaseTransientSymbol,
-        property_type: Rc<Type>,
-        mapped_type: Rc<Type>,
-        constraint_type: Rc<Type>,
+        property_type: Gc<Type>,
+        mapped_type: Gc<Type>,
+        constraint_type: Gc<Type>,
     ) -> Self {
         Self {
             _transient_symbol: transient_symbol,
@@ -103,7 +103,7 @@ pub type __String = String;
 
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
-pub type SymbolTable = IndexMap<__String, Rc<Symbol>>;
+pub type SymbolTable = IndexMap<__String, Gc<Symbol>>;
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct PatternAmbientModule {
@@ -112,7 +112,7 @@ pub struct PatternAmbientModule {
 }
 
 impl PatternAmbientModule {
-    pub fn new(pattern: Rc<Pattern>, symbol: Rc<Symbol>) -> Self {
+    pub fn new(pattern: Rc<Pattern>, symbol: Gc<Symbol>) -> Self {
         Self { pattern, symbol }
     }
 }
@@ -151,7 +151,7 @@ bitflags! {
 pub struct NodeLinksSerializedType {
     pub truncating: Option<bool>,
     pub added_length: usize,
-    pub node: Rc<Node /*TypeNode*/>,
+    pub node: Gc<Node /*TypeNode*/>,
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -529,39 +529,39 @@ impl Type {
 }
 
 pub trait TypeInterface {
-    fn type_wrapper(&self) -> Rc<Type>;
-    fn set_type_wrapper(&self, wrapper: Rc<Type>);
+    fn type_wrapper(&self) -> Gc<Type>;
+    fn set_type_wrapper(&self, wrapper: Gc<Type>);
     fn flags(&self) -> TypeFlags;
     fn set_flags(&self, flags: TypeFlags);
     fn id(&self) -> TypeId;
-    fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
-    fn symbol(&self) -> Rc<Symbol>;
-    fn set_symbol(&self, symbol: Option<Rc<Symbol>>);
-    fn maybe_pattern(&self) -> RefMut<Option<Rc<Node /*DestructuringPattern*/>>>;
-    fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>>;
-    fn maybe_alias_symbol_mut(&self) -> RefMut<Option<Rc<Symbol>>>;
-    fn maybe_alias_type_arguments(&self) -> Option<Vec<Rc<Type>>>;
-    fn maybe_alias_type_arguments_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+    fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
+    fn symbol(&self) -> Gc<Symbol>;
+    fn set_symbol(&self, symbol: Option<Gc<Symbol>>);
+    fn maybe_pattern(&self) -> RefMut<Option<Gc<Node /*DestructuringPattern*/>>>;
+    fn maybe_alias_symbol(&self) -> Option<Gc<Symbol>>;
+    fn maybe_alias_symbol_mut(&self) -> RefMut<Option<Gc<Symbol>>>;
+    fn maybe_alias_type_arguments(&self) -> Option<Vec<Gc<Type>>>;
+    fn maybe_alias_type_arguments_mut(&self) -> RefMut<Option<Vec<Gc<Type>>>>;
     fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool>;
     fn set_alias_type_arguments_contains_marker(
         &self,
         alias_type_arguments_contains_marker: Option<bool>,
     );
-    fn maybe_permissive_instantiation(&self) -> RefMut<Option<Rc<Type>>>;
-    fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Rc<Type>>>;
-    fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
-    fn maybe_widened(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_permissive_instantiation(&self) -> RefMut<Option<Gc<Type>>>;
+    fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Gc<Type>>>;
+    fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Gc<Type>>>;
+    fn maybe_widened(&self) -> RefMut<Option<Gc<Type>>>;
     // InstantiableType fields
-    fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Gc<Type>>>;
     fn maybe_resolved_index_type(&self) -> RefMut<Option<Rc<Type /*IndexType*/>>>;
     fn maybe_resolved_string_index_type(&self) -> RefMut<Option<Rc<Type /*IndexType*/>>>;
     // SyntheticDefaultModuleType fields
-    fn maybe_synthetic_type(&self) -> RefMut<Option<Rc<Type>>>;
-    fn maybe_default_only_type(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_synthetic_type(&self) -> RefMut<Option<Gc<Type>>>;
+    fn maybe_default_only_type(&self) -> RefMut<Option<Gc<Type>>>;
     // PromiseOrAwaitableType fields
-    fn maybe_promise_type_of_promise_constructor(&self) -> RefMut<Option<Rc<Type>>>;
-    fn maybe_promised_type_of_promise(&self) -> RefMut<Option<Rc<Type>>>;
-    fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_promise_type_of_promise_constructor(&self) -> RefMut<Option<Gc<Type>>>;
+    fn maybe_promised_type_of_promise(&self) -> RefMut<Option<Gc<Type>>>;
+    fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Gc<Type>>>;
     // IterableOrIteratorType fields
     fn maybe_iteration_types_of_generator_return_type(&self) -> RefMut<Option<Rc<IterationTypes>>>;
     fn maybe_iteration_types_of_async_generator_return_type(
@@ -585,29 +585,29 @@ pub trait TypeInterface {
 
 #[derive(Clone, Debug)]
 pub struct BaseType {
-    _type_wrapper: RefCell<Option<Rc<Type>>>,
+    _type_wrapper: RefCell<Option<Gc<Type>>>,
     flags: Cell<TypeFlags>,
     pub id: Option<TypeId>,
-    symbol: RefCell<Option<Rc<Symbol>>>,
-    pattern: RefCell<Option<Rc<Node>>>,
-    alias_symbol: RefCell<Option<Rc<Symbol>>>,
-    alias_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
+    symbol: RefCell<Option<Gc<Symbol>>>,
+    pattern: RefCell<Option<Gc<Node>>>,
+    alias_symbol: RefCell<Option<Gc<Symbol>>>,
+    alias_type_arguments: RefCell<Option<Vec<Gc<Type>>>>,
     alias_type_arguments_contains_marker: Cell<Option<bool>>,
-    permissive_instantiation: RefCell<Option<Rc<Type>>>,
-    restrictive_instantiation: RefCell<Option<Rc<Type>>>,
-    immediate_base_constraint: RefCell<Option<Rc<Type>>>,
-    widened: RefCell<Option<Rc<Type>>>,
+    permissive_instantiation: RefCell<Option<Gc<Type>>>,
+    restrictive_instantiation: RefCell<Option<Gc<Type>>>,
+    immediate_base_constraint: RefCell<Option<Gc<Type>>>,
+    widened: RefCell<Option<Gc<Type>>>,
     // InstantiableType fields
-    resolved_base_constraint: RefCell<Option<Rc<Type>>>,
+    resolved_base_constraint: RefCell<Option<Gc<Type>>>,
     resolved_index_type: RefCell<Option<Rc<Type /*IndexType*/>>>,
     resolved_string_index_type: RefCell<Option<Rc<Type /*IndexType*/>>>,
     // SyntheticDefaultModuleType fields
-    synthetic_type: RefCell<Option<Rc<Type>>>,
-    default_only_type: RefCell<Option<Rc<Type>>>,
+    synthetic_type: RefCell<Option<Gc<Type>>>,
+    default_only_type: RefCell<Option<Gc<Type>>>,
     // PromiseOrAwaitableType fields
-    promise_type_of_promise_constructor: RefCell<Option<Rc<Type>>>,
-    promised_type_of_promise: RefCell<Option<Rc<Type>>>,
-    awaited_type_of_type: RefCell<Option<Rc<Type>>>,
+    promise_type_of_promise_constructor: RefCell<Option<Gc<Type>>>,
+    promised_type_of_promise: RefCell<Option<Gc<Type>>>,
+    awaited_type_of_type: RefCell<Option<Gc<Type>>>,
     // IterableOrIteratorType fields
     iteration_types_of_generator_return_type: RefCell<Option<Rc<IterationTypes>>>,
     iteration_types_of_async_generator_return_type: RefCell<Option<Rc<IterationTypes>>>,
@@ -653,11 +653,11 @@ impl BaseType {
 }
 
 impl TypeInterface for BaseType {
-    fn type_wrapper(&self) -> Rc<Type> {
+    fn type_wrapper(&self) -> Gc<Type> {
         self._type_wrapper.borrow().clone().unwrap()
     }
 
-    fn set_type_wrapper(&self, wrapper: Rc<Type>) {
+    fn set_type_wrapper(&self, wrapper: Gc<Type>) {
         *self._type_wrapper.borrow_mut() = Some(wrapper);
     }
 
@@ -673,35 +673,35 @@ impl TypeInterface for BaseType {
         self.id.unwrap()
     }
 
-    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+    fn maybe_symbol(&self) -> Option<Gc<Symbol>> {
         self.symbol.borrow().as_ref().map(Clone::clone)
     }
 
-    fn symbol(&self) -> Rc<Symbol> {
+    fn symbol(&self) -> Gc<Symbol> {
         self.symbol.borrow().as_ref().unwrap().clone()
     }
 
-    fn set_symbol(&self, symbol: Option<Rc<Symbol>>) {
+    fn set_symbol(&self, symbol: Option<Gc<Symbol>>) {
         *self.symbol.borrow_mut() = symbol;
     }
 
-    fn maybe_pattern(&self) -> RefMut<Option<Rc<Node>>> {
+    fn maybe_pattern(&self) -> RefMut<Option<Gc<Node>>> {
         self.pattern.borrow_mut()
     }
 
-    fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>> {
+    fn maybe_alias_symbol(&self) -> Option<Gc<Symbol>> {
         self.alias_symbol.borrow().clone()
     }
 
-    fn maybe_alias_symbol_mut(&self) -> RefMut<Option<Rc<Symbol>>> {
+    fn maybe_alias_symbol_mut(&self) -> RefMut<Option<Gc<Symbol>>> {
         self.alias_symbol.borrow_mut()
     }
 
-    fn maybe_alias_type_arguments(&self) -> Option<Vec<Rc<Type>>> {
+    fn maybe_alias_type_arguments(&self) -> Option<Vec<Gc<Type>>> {
         self.alias_type_arguments.borrow().clone()
     }
 
-    fn maybe_alias_type_arguments_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    fn maybe_alias_type_arguments_mut(&self) -> RefMut<Option<Vec<Gc<Type>>>> {
         self.alias_type_arguments.borrow_mut()
     }
 
@@ -717,51 +717,51 @@ impl TypeInterface for BaseType {
             .set(alias_type_arguments_contains_marker);
     }
 
-    fn maybe_permissive_instantiation(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_permissive_instantiation(&self) -> RefMut<Option<Gc<Type>>> {
         self.permissive_instantiation.borrow_mut()
     }
 
-    fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Gc<Type>>> {
         self.restrictive_instantiation.borrow_mut()
     }
 
-    fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Gc<Type>>> {
         self.immediate_base_constraint.borrow_mut()
     }
 
-    fn maybe_widened(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_widened(&self) -> RefMut<Option<Gc<Type>>> {
         self.widened.borrow_mut()
     }
 
-    fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_base_constraint.borrow_mut()
     }
 
-    fn maybe_resolved_index_type(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_resolved_index_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_index_type.borrow_mut()
     }
 
-    fn maybe_resolved_string_index_type(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_resolved_string_index_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_string_index_type.borrow_mut()
     }
 
-    fn maybe_synthetic_type(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_synthetic_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.synthetic_type.borrow_mut()
     }
 
-    fn maybe_default_only_type(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_default_only_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.default_only_type.borrow_mut()
     }
 
-    fn maybe_promise_type_of_promise_constructor(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_promise_type_of_promise_constructor(&self) -> RefMut<Option<Gc<Type>>> {
         self.promise_type_of_promise_constructor.borrow_mut()
     }
 
-    fn maybe_promised_type_of_promise(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_promised_type_of_promise(&self) -> RefMut<Option<Gc<Type>>> {
         self.promised_type_of_promise.borrow_mut()
     }
 
-    fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Rc<Type>>> {
+    fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.awaited_type_of_type.borrow_mut()
     }
 
@@ -862,8 +862,8 @@ impl From<BaseType> for Type {
     }
 }
 
-impl From<BaseType> for Rc<Type> {
-    fn from(value: BaseType) -> Rc<Type> {
+impl From<BaseType> for Gc<Type> {
+    fn from(value: BaseType) -> Gc<Type> {
         let rc = Rc::new(Type::BaseType(value));
         rc.set_type_wrapper(rc.clone());
         rc
@@ -922,8 +922,8 @@ impl ObjectFlagsTypeInterface for BaseIntrinsicType {
 )]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
-    pub fresh_type: RefCell<Option<Rc<Type>>>,
-    pub regular_type: RefCell<Option<Rc<Type>>>,
+    pub fresh_type: RefCell<Option<Gc<Type>>>,
+    pub regular_type: RefCell<Option<Gc<Type>>>,
 }
 
 impl FreshableIntrinsicType {
@@ -935,19 +935,19 @@ impl FreshableIntrinsicType {
         }
     }
 
-    pub fn fresh_type(&self) -> Rc<Type> {
+    pub fn fresh_type(&self) -> Gc<Type> {
         self.fresh_type.borrow().clone().unwrap()
     }
 
-    pub fn set_fresh_type(&self, fresh_type: Rc<Type>) {
+    pub fn set_fresh_type(&self, fresh_type: Gc<Type>) {
         *self.fresh_type.borrow_mut() = Some(fresh_type);
     }
 
-    pub fn regular_type(&self) -> Rc<Type> {
+    pub fn regular_type(&self) -> Gc<Type> {
         self.regular_type.borrow().clone().unwrap()
     }
 
-    pub fn set_regular_type(&self, regular_type: Rc<Type>) {
+    pub fn set_regular_type(&self, regular_type: Gc<Type>) {
         *self.regular_type.borrow_mut() = Some(regular_type);
     }
 }

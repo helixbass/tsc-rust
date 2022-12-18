@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
@@ -196,7 +197,7 @@ impl BinderType {
         is_toplevel: bool,
         is_prototype_property: bool,
         container_is_class: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let mut namespace_symbol =
             namespace_symbol.map(|namespace_symbol| namespace_symbol.borrow().symbol_wrapper());
         if matches!(namespace_symbol.as_ref(), Some(namespace_symbol) if namespace_symbol.flags().intersects(SymbolFlags::Alias))
@@ -313,7 +314,7 @@ impl BinderType {
                         .as_object_literal_expression()
                         .properties,
                 ),
-                Some(|p: &Rc<Node>| {
+                Some(|p: &Gc<Node>| {
                     let id = get_name_of_declaration(Some(&**p));
                     matches!(id, Some(id) if is_identifier(&id) && id_text(&id) == "set")
                 }),
@@ -327,7 +328,7 @@ impl BinderType {
                         .as_object_literal_expression()
                         .properties,
                 ),
-                Some(|p: &Rc<Node>| {
+                Some(|p: &Gc<Node>| {
                     let id = get_name_of_declaration(Some(&**p));
                     matches!(id, Some(id) if is_identifier(&id) && id_text(&id) == "get")
                 }),
@@ -447,7 +448,7 @@ impl BinderType {
         false
     }
 
-    pub(super) fn get_parent_of_binary_expression(&self, expr: &Node) -> Rc<Node> {
+    pub(super) fn get_parent_of_binary_expression(&self, expr: &Node) -> Gc<Node> {
         let mut expr = expr.node_wrapper();
         while is_binary_expression(&expr.parent()) {
             expr = expr.parent();
@@ -459,7 +460,7 @@ impl BinderType {
         &self,
         node: &Node, /*BindableStaticNameExpression*/
         lookup_container: Option<TLookupContainer>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let lookup_container =
             lookup_container.map(|lookup_container| lookup_container.borrow().node_wrapper());
         let lookup_container = lookup_container.unwrap_or_else(|| self.container());
@@ -483,15 +484,15 @@ impl BinderType {
         TParent: Borrow<Symbol>,
         TAction: FnMut(
             &Node, /*Declaration*/
-            Option<Rc<Symbol>>,
-            Option<Rc<Symbol>>,
-        ) -> Option<Rc<Symbol>>,
+            Option<Gc<Symbol>>,
+            Option<Gc<Symbol>>,
+        ) -> Option<Gc<Symbol>>,
     >(
         &self,
         e: &Node, /*BindableStaticNameExpression*/
         parent: Option<TParent>,
         action: &mut TAction,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
         if is_exports_or_module_exports_or_alias(&self.file(), e) {
             self.file().maybe_symbol()
@@ -733,7 +734,7 @@ impl BinderType {
     pub(super) fn bind_function_expression(
         &self,
         node: &Node, /*FunctionExpression (actually also ArrowFunction)*/
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
         {
@@ -757,7 +758,7 @@ impl BinderType {
         node: &Node,
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if !self.file().as_source_file().is_declaration_file()
             && !node.flags().intersects(NodeFlags::Ambient)
             && is_async_function(node)
@@ -785,7 +786,7 @@ impl BinderType {
     pub(super) fn get_infer_type_container(
         &self,
         node: &Node,
-    ) -> Option<Rc<Node /*ConditionalTypeNode*/>> {
+    ) -> Option<Gc<Node /*ConditionalTypeNode*/>> {
         let extends_type = find_ancestor(
             Some(node),
             |n| matches!(n.maybe_parent(), Some(parent) if is_conditional_type_node(&parent) && ptr::eq(&*parent.as_conditional_type_node().extends_type, n)),
@@ -996,7 +997,7 @@ pub fn is_exports_or_module_exports_or_alias(
 pub(super) fn lookup_symbol_for_name(
     container: &Node,
     name: &str, /*__String*/
-) -> Option<Rc<Symbol>> {
+) -> Option<Gc<Symbol>> {
     let container_locals = container.maybe_locals();
     let local = container_locals
         .as_ref()

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -81,7 +82,7 @@ impl TypeChecker {
                             file_local_jsx_fragment_factory.as_deref(),
                             Some(|node: &Node| self.mark_as_synthetic(node)),
                             Option::<fn(&Node) -> bool>::None,
-                            Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         );
                         if let Some(file_local_jsx_fragment_factory) =
                             file_local_jsx_fragment_factory.as_ref()
@@ -130,7 +131,7 @@ impl TypeChecker {
                     _jsx_factory_entity.as_deref(),
                     Some(|node: &Node| self.mark_as_synthetic(node)),
                     Option::<fn(&Node) -> bool>::None,
-                    Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                    Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                 );
                 if let Some(_jsx_factory_entity) = _jsx_factory_entity.as_ref() {
                     *_jsx_namespace = Some(
@@ -202,7 +203,7 @@ impl TypeChecker {
                 file_local_jsx_factory.as_deref(),
                 Some(|node: &Node| self.mark_as_synthetic(node)),
                 Option::<fn(&Node) -> bool>::None,
-                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             );
             if let Some(file_local_jsx_factory) = file_local_jsx_factory.as_ref() {
                 let ret = get_first_identifier(file_local_jsx_factory)
@@ -237,8 +238,8 @@ impl TypeChecker {
                     Option<&Node>,
                     Option<fn(&Node) -> VisitResult>,
                     Option<fn(&Node) -> bool>,
-                    Option<fn(&[Rc<Node>]) -> Rc<Node>>,
-                ) -> Option<Rc<Node>>,
+                    Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                ) -> Option<Gc<Node>>,
             >::None,
         )
         .map(|rc_node| vec![rc_node])
@@ -381,7 +382,7 @@ impl TypeChecker {
 
     pub(super) fn add_deprecated_suggestion_worker(
         &self,
-        declarations: &[Rc<Node>],
+        declarations: &[Gc<Node>],
         diagnostic: Rc<Diagnostic /*DiagnosticWithLocation*/>,
     ) -> Rc<Diagnostic> {
         let deprecated_tag = for_each(declarations, |declaration, _| {
@@ -407,7 +408,7 @@ impl TypeChecker {
     pub(super) fn add_deprecated_suggestion(
         &self,
         location: &Node,
-        declarations: &[Rc<Node>],
+        declarations: &[Gc<Node>],
         deprecated_entity: &str,
     ) -> Rc<Diagnostic> {
         let diagnostic: Rc<Diagnostic> = Rc::new(
@@ -524,8 +525,8 @@ impl TypeChecker {
             .insert(source.maybe_merge_id().unwrap(), target.symbol_wrapper());
     }
 
-    pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
-        let result: Rc<Symbol> = self
+    pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Gc<Symbol> {
+        let result: Gc<Symbol> = self
             .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
             .into();
         result.set_declarations(
@@ -561,7 +562,7 @@ impl TypeChecker {
         target: &Symbol,
         source: &Symbol,
         unidirectional: Option<bool>,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let unidirectional = unidirectional.unwrap_or(false);
         let mut target = target.symbol_wrapper();
         if !target
@@ -744,7 +745,7 @@ impl TypeChecker {
 
     pub(super) fn add_duplicate_locations(
         &self,
-        locs: &mut Vec<Rc<Node /*Declaration*/>>,
+        locs: &mut Vec<Gc<Node /*Declaration*/>>,
         symbol: &Symbol,
     ) {
         if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
@@ -777,7 +778,7 @@ impl TypeChecker {
         node: &Node, /*Declaration*/
         message: &DiagnosticMessage,
         symbol_name: &str,
-        related_nodes: Option<&[Rc<Node /*Declaration*/>]>,
+        related_nodes: Option<&[Gc<Node /*Declaration*/>]>,
     ) {
         let error_node = (if get_expando_initializer(node, false).is_some() {
             get_name_of_expando(node)
@@ -999,7 +1000,7 @@ impl TypeChecker {
             if let Some(target_symbol) = target_symbol {
                 maybe_for_each(
                     target_symbol.maybe_declarations().as_deref(),
-                    |declaration: &Rc<Node /*Declaration*/>, _| {
+                    |declaration: &Gc<Node /*Declaration*/>, _| {
                         self.diagnostics().add(Rc::new(
                             create_diagnostic_for_node(
                                 declaration,
@@ -1051,7 +1052,7 @@ impl TypeChecker {
         symbols: &SymbolTable,
         name: &str, /*__String*/
         meaning: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if meaning != SymbolFlags::None {
             let symbol = self.get_merged_symbol(symbols.get(name).map(Clone::clone));
             if let Some(symbol) = symbol {
@@ -1079,7 +1080,7 @@ impl TypeChecker {
         &self,
         parameter: &Node,     /*ParameterDeclaration*/
         parameter_name: &str, /*__String*/
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let constructor_declaration = parameter.parent();
         let class_declaration = parameter.parent().parent();
 
@@ -1278,7 +1279,7 @@ impl TypeChecker {
                 return (declaration.pos() < usage.pos()).into();
             }
 
-            let property_declaration = current.maybe_parent().and_then(|parent| try_cast(parent, |node: &Rc<Node>| is_property_declaration(node)));
+            let property_declaration = current.maybe_parent().and_then(|parent| try_cast(parent, |node: &Gc<Node>| is_property_declaration(node)));
             if let Some(property_declaration) = property_declaration {
                 let initializer_of_property = matches!(property_declaration.as_property_declaration().maybe_initializer(), Some(initializer) if ptr::eq(&*initializer, current));
                 if initializer_of_property {
@@ -1290,7 +1291,7 @@ impl TypeChecker {
                             let prop_name = declaration.as_property_declaration().name();
                             if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                                 let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(declaration).unwrap());
-                                let static_blocks = filter(declaration.parent().as_class_like_declaration().members(), |node: &Rc<Node>| is_class_static_block_declaration(node));
+                                let static_blocks = filter(declaration.parent().as_class_like_declaration().members(), |node: &Gc<Node>| is_class_static_block_declaration(node));
                                 if self.is_property_initialized_in_static_blocks(&prop_name, &type_, &static_blocks, declaration.parent().pos(), current.pos()) {
                                     return true.into();
                                 }
@@ -1381,7 +1382,7 @@ impl TypeChecker {
                     links.declaration_requires_scope_change = Some(
                         for_each_bool(
                             function_location.unwrap().parameters(),
-                            |node: &Rc<Node>, _| self.requires_scope_change(target, node),
+                            |node: &Gc<Node>, _| self.requires_scope_change(target, node),
                         ) || false,
                     );
                 }
@@ -1454,7 +1455,7 @@ impl TypeChecker {
         name_arg: Option<TNameArg>,
         is_use: bool,
         exclude_globals: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let exclude_globals = exclude_globals.unwrap_or(false);
         self.resolve_name_helper(
             location,
@@ -1474,7 +1475,7 @@ impl TypeChecker {
         'name_arg,
         TLocation: Borrow<Node>,
         TNameArg: Into<ResolveNameNameArg<'name_arg>> + Clone,
-        TLookup: FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Rc<Symbol>>,
+        TLookup: FnMut(&SymbolTable, &str /*__String*/, SymbolFlags) -> Option<Gc<Symbol>>,
     >(
         &self,
         location: Option<TLocation>,
@@ -1485,19 +1486,19 @@ impl TypeChecker {
         is_use: bool,
         exclude_globals: bool,
         mut lookup: TLookup,
-    ) -> Option<Rc<Symbol>> {
-        let mut location: Option<Rc<Node>> = location.map(|node| node.borrow().node_wrapper());
+    ) -> Option<Gc<Symbol>> {
+        let mut location: Option<Gc<Node>> = location.map(|node| node.borrow().node_wrapper());
         let original_location = location.clone();
-        let mut result: Option<Rc<Symbol>> = None;
-        let mut last_location: Option<Rc<Node>> = None;
-        let mut last_self_reference_location: Option<Rc<Node>> = None;
-        let mut property_with_invalid_initializer: Option<Rc<Node>> = None;
+        let mut result: Option<Gc<Symbol>> = None;
+        let mut last_location: Option<Gc<Node>> = None;
+        let mut last_self_reference_location: Option<Gc<Node>> = None;
+        let mut property_with_invalid_initializer: Option<Gc<Node>> = None;
         let mut associated_declaration_for_containing_initializer_or_binding_name: Option<
-            Rc<Node /*ParameterDeclaration | BindingElement*/>,
+            Gc<Node /*ParameterDeclaration | BindingElement*/>,
         > = None;
         let mut within_deferred_context = false;
         let error_location = location.clone();
-        let mut grandparent: Rc<Node>;
+        let mut grandparent: Gc<Node>;
         let mut is_in_external_module = false;
 
         while let Some(mut location_unwrapped) = location {
@@ -1648,7 +1649,7 @@ impl TypeChecker {
                                             .is_some()
                                         && !some(
                                             result_unwrapped.maybe_declarations().as_deref(),
-                                            Some(|node: &Rc<Node>| is_jsdoc_type_alias(node)),
+                                            Some(|node: &Gc<Node>| is_jsdoc_type_alias(node)),
                                         )
                                     {
                                         result = None;
@@ -1977,7 +1978,7 @@ impl TypeChecker {
                             meaning,
                         )
                 } {
-                    let mut suggestion: Option<Rc<Symbol>> = None;
+                    let mut suggestion: Option<Gc<Symbol>> = None;
                     if self.suggestion_count() < self.maximum_suggestion_count {
                         suggestion = self.get_suggested_symbol_for_nonexistent_symbol_(
                             original_location.as_deref(),
@@ -2219,12 +2220,12 @@ impl From<DiagnosticMessageChain> for DiagnosticMessageOrDiagnosticMessageChain 
 
 #[derive(Clone)]
 pub(super) enum ResolveNameNameArg<'str> {
-    Node(Rc<Node>),
+    Node(Gc<Node>),
     Str(&'str str),
 }
 
-impl<'str> From<Rc<Node>> for ResolveNameNameArg<'str> {
-    fn from(value: Rc<Node>) -> Self {
+impl<'str> From<Gc<Node>> for ResolveNameNameArg<'str> {
+    fn from(value: Gc<Node>) -> Self {
         ResolveNameNameArg::Node(value)
     }
 }

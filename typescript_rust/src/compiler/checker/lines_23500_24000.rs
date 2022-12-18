@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
@@ -113,7 +114,7 @@ impl TypeChecker {
         declared_type: &Type,
         initial_type: Option<TInitialType>,
         flow_container: Option<TFlowContainer>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let initial_type = initial_type.map_or_else(
             || declared_type.type_wrapper(),
             |initial_type| initial_type.borrow().type_wrapper(),
@@ -130,11 +131,11 @@ impl TypeChecker {
 }
 
 pub(super) struct GetFlowTypeOfReference {
-    pub type_checker: Rc<TypeChecker>,
-    pub reference: Rc<Node>,
-    pub declared_type: Rc<Type>,
-    pub initial_type: Rc<Type>,
-    pub flow_container: Option<Rc<Node>>,
+    pub type_checker: Gc<TypeChecker>,
+    pub reference: Gc<Node>,
+    pub declared_type: Gc<Type>,
+    pub initial_type: Gc<Type>,
+    pub flow_container: Option<Gc<Node>>,
     key: RefCell<Option<String>>,
     is_key_set: Cell<bool>,
     flow_depth: Cell<usize>,
@@ -143,11 +144,11 @@ pub(super) struct GetFlowTypeOfReference {
 
 impl GetFlowTypeOfReference {
     pub(super) fn new(
-        type_checker: Rc<TypeChecker>,
-        reference: Rc<Node>,
-        declared_type: Rc<Type>,
-        initial_type: Rc<Type>,
-        flow_container: Option<Rc<Node>>,
+        type_checker: Gc<TypeChecker>,
+        reference: Gc<Node>,
+        declared_type: Gc<Type>,
+        initial_type: Gc<Type>,
+        flow_container: Option<Gc<Node>>,
     ) -> Self {
         Self {
             type_checker,
@@ -190,7 +191,7 @@ impl GetFlowTypeOfReference {
         self.shared_flow_start.set(Some(shared_flow_start));
     }
 
-    pub(super) fn call(&self) -> Rc<Type> {
+    pub(super) fn call(&self) -> Gc<Type> {
         if self.type_checker.flow_analysis_disabled() {
             return self.type_checker.error_type();
         }
@@ -378,7 +379,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn get_initial_or_assigned_type(
         &self,
         flow: &FlowNode, /*FlowAssignment*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node = &flow.as_flow_assignment().node;
         self.type_checker.get_narrowable_type_for_reference(
             &*if matches!(
@@ -498,7 +499,7 @@ impl GetFlowTypeOfReference {
         &self,
         type_: &Type,
         expr: &Node, /*Expression*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node = skip_parentheses(expr, Some(true));
         if node.kind() == SyntaxKind::FalseKeyword {
             return self.type_checker.unreachable_never_type();
@@ -772,7 +773,7 @@ impl GetFlowTypeOfReference {
         &self,
         flow: Rc<FlowNode /*FlowLabel*/>,
     ) -> FlowType {
-        let mut antecedent_types: Vec<Rc<Type>> = vec![];
+        let mut antecedent_types: Vec<Gc<Type>> = vec![];
         let mut subtype_reduction = false;
         let mut seen_incomplete = false;
         let mut bypass_flow: Option<Rc<FlowNode /*FlowSwitchClause*/>> = None;
@@ -895,7 +896,7 @@ impl GetFlowTypeOfReference {
                 );
             }
         }
-        let mut antecedent_types: Vec<Rc<Type>> = vec![];
+        let mut antecedent_types: Vec<Gc<Type>> = vec![];
         let mut subtype_reduction = false;
         let mut first_antecedent_type: Option<FlowType> = None;
         let flow_as_flow_label = flow.as_flow_label();

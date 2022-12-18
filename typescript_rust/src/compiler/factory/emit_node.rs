@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -55,12 +56,12 @@ pub fn dispose_emit_nodes<TSourceFile: Borrow<Node>>(
     unimplemented!()
 }
 
-pub fn set_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
+pub fn set_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {
     get_or_create_emit_node(&node).borrow_mut().flags = Some(emit_flags);
     node
 }
 
-pub fn add_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
+pub fn add_emit_flags(node: Gc<Node>, emit_flags: EmitFlags) -> Gc<Node> {
     let emit_node = get_or_create_emit_node(&node);
     let mut emit_node = emit_node.borrow_mut();
     emit_node.flags = Some(emit_node.flags.unwrap_or(EmitFlags::None) | emit_flags);
@@ -72,7 +73,7 @@ pub(crate) fn get_starts_on_new_line(node: &Node) -> Option<bool> {
         .and_then(|emit_node| (*emit_node).borrow().starts_on_new_line)
 }
 
-pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Rc<Node>*/
+pub(crate) fn set_starts_on_new_line(node: &Node, new_line: bool) /*-> Gc<Node>*/
 {
     get_or_create_emit_node(node)
         .borrow_mut()
@@ -88,7 +89,7 @@ pub fn get_comment_range(node: &Node) -> BaseTextRange {
 }
 
 pub fn set_comment_range<TRange: ReadonlyTextRange /*TextRange*/>(node: &Node, range: &TRange)
-/*-> Rc<Node>*/
+/*-> Gc<Node>*/
 {
     // unimplemented!()
 }
@@ -99,7 +100,7 @@ pub fn get_synthetic_leading_comments(node: &Node) -> Option<Vec<Rc<SynthesizedC
 }
 
 pub fn set_synthetic_leading_comments(node: &Node, comments: Option<Vec<Rc<SynthesizedComment>>>)
-/*-> Rc<Node>*/
+/*-> Gc<Node>*/
 {
     unimplemented!()
 }
@@ -109,7 +110,7 @@ pub fn add_synthetic_leading_comment(
     kind: SyntaxKind, /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
     text: &str,
     has_trailing_new_line: Option<bool>,
-) /*-> Rc<Node>*/
+) /*-> Gc<Node>*/
 {
     unimplemented!()
 }

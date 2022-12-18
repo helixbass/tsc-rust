@@ -1,4 +1,5 @@
 use fancy_regex::Regex;
+use gc::Gc;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -30,7 +31,7 @@ use crate::{
 };
 
 pub struct ExtendedConfigCacheEntry {
-    pub extended_result: Rc<Node /*TsConfigSourceFile*/>,
+    pub extended_result: Gc<Node /*TsConfigSourceFile*/>,
     pub extended_config: Option<Rc<ParsedTsconfig>>,
 }
 
@@ -47,7 +48,7 @@ pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigH
     } else {
         to_file_name_lower_case(extended_config_path)
     };
-    let mut extended_result: Option<Rc<Node /*TsConfigSourceFile*/>> = None;
+    let mut extended_result: Option<Gc<Node /*TsConfigSourceFile*/>> = None;
     let mut extended_config: Option<Rc<ParsedTsconfig>> = None;
     if let Some(extended_config_cache) = extended_config_cache.as_ref() {
         let value = extended_config_cache.get(&path);

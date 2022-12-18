@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::ptr;
 use std::rc::Rc;
@@ -104,13 +105,13 @@ impl TypeChecker {
                         node_as_signature_declaration
                             .maybe_type_parameters()
                             .as_deref(),
-                        Some(|type_parameter: &Rc<Node>| {
+                        Some(|type_parameter: &Gc<Node>| {
                             self.contains_reference(tp, type_parameter)
                         }),
                     )
                     || some(
                         Some(node_as_signature_declaration.parameters()),
-                        Some(|parameter: &Rc<Node>| self.contains_reference(tp, parameter)),
+                        Some(|parameter: &Gc<Node>| self.contains_reference(tp, parameter)),
                     )
                     || matches!(
                         node_as_signature_declaration.maybe_type(),
@@ -128,7 +129,7 @@ impl TypeChecker {
     pub(super) fn get_homomorphic_type_variable(
         &self,
         type_: &Type, /*MappedType*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let constraint_type = self.get_constraint_type_from_mapped_type(type_);
         if constraint_type.flags().intersects(TypeFlags::Index) {
             let type_variable =
@@ -145,8 +146,8 @@ impl TypeChecker {
         type_: &Type, /*MappedType*/
         mapper: Rc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let type_variable = self.get_homomorphic_type_variable(type_);
         if let Some(type_variable) = type_variable.as_ref() {
             let mapped_type_variable = self.instantiate_type(type_variable, Some(mapper.clone()));
@@ -215,13 +216,13 @@ impl TypeChecker {
         mapped_type: &Type,   /*MappedType*/
         type_variable: &Type, /*TypeVariable*/
         mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let tuple_type_as_type_reference = tuple_type.as_type_reference();
         let element_flags = &tuple_type_as_type_reference
             .target
             .as_tuple_type()
             .element_flags;
-        let element_types = map(&self.get_type_arguments(tuple_type), |t: &Rc<Type>, i| {
+        let element_types = map(&self.get_type_arguments(tuple_type), |t: &Gc<Type>, i| {
             let singleton = if element_flags[i].intersects(ElementFlags::Variadic) {
                 t.clone()
             } else if element_flags[i].intersects(ElementFlags::Rest) {
@@ -253,7 +254,7 @@ impl TypeChecker {
         array_type: &Type,
         mapped_type: &Type, /*MappedType*/
         mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let element_type =
             self.instantiate_mapped_type_template(mapped_type, &self.number_type(), true, mapper);
         if self.is_error_type(&element_type) {
@@ -274,7 +275,7 @@ impl TypeChecker {
         tuple_type: &Type,  /*TupleTypeReference*/
         mapped_type: &Type, /*MappedType*/
         mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let tuple_type_as_type_reference = tuple_type.as_type_reference_interface();
         let tuple_type_target = tuple_type_as_type_reference.target();
         let element_flags = &tuple_type_target.as_tuple_type().element_flags;
@@ -329,7 +330,7 @@ impl TypeChecker {
         key: &Type,
         is_optional: bool,
         mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let template_mapper = Rc::new(self.append_type_mapping(
             Some(mapper),
             &self.get_type_parameter_from_mapped_type(type_),
@@ -365,7 +366,7 @@ impl TypeChecker {
         type_: &Type, /*AnonymousType*/
         mut mapper: Rc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
+        alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Rc<Type /*AnonymousType*/> {
         let type_as_object_flags_type = type_.as_object_flags_type();
         let mut result = self.create_object_type(
@@ -375,7 +376,7 @@ impl TypeChecker {
         let is_mapped_type = type_as_object_flags_type
             .object_flags()
             .intersects(ObjectFlags::Mapped);
-        let mut mapped_type_type_parameter: Option<Rc<Type>> = None;
+        let mut mapped_type_type_parameter: Option<Gc<Type>> = None;
         if is_mapped_type {
             let orig_type_parameter = self.get_type_parameter_from_mapped_type(type_);
             let fresh_type_parameter = self.clone_type_parameter(&orig_type_parameter);
@@ -393,7 +394,7 @@ impl TypeChecker {
         }
         result.target = Some(type_.type_wrapper());
         result.mapper = Some(mapper.clone());
-        let result: Rc<Type> = if is_mapped_type {
+        let result: Gc<Type> = if is_mapped_type {
             let result = MappedType::new(result, type_.as_mapped_type().declaration.clone());
             *result.maybe_type_parameter() = mapped_type_type_parameter;
             result.into()
@@ -417,13 +418,13 @@ impl TypeChecker {
         type_: &Type, /*ConditionalType*/
         mapper: &TypeMapper,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let root = type_.as_conditional_type().root.clone();
         if let Some(root_outer_type_parameters) =
             (*root).borrow().outer_type_parameters.clone().as_deref()
         {
-            let type_arguments = map(root_outer_type_parameters, |t: &Rc<Type>, _| {
+            let type_arguments = map(root_outer_type_parameters, |t: &Gc<Type>, _| {
                 self.get_mapped_type(t, mapper)
             });
             let alias_symbol =
@@ -502,7 +503,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         mapper: Option<Rc<TypeMapper>>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.maybe_instantiate_type(Some(type_), mapper).unwrap()
     }
 
@@ -510,7 +511,7 @@ impl TypeChecker {
         &self,
         type_: Option<TType>,
         mapper: Option<Rc<TypeMapper>>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         match (type_.as_ref(), mapper) {
             (Some(type_), Some(mapper)) => Some(self.instantiate_type_with_alias(
                 type_.borrow(),
@@ -527,8 +528,8 @@ impl TypeChecker {
         type_: &Type,
         mapper: Rc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         if !self.could_contain_type_variables(type_) {
             return type_.type_wrapper();
         }
@@ -555,8 +556,8 @@ impl TypeChecker {
         type_: &Type,
         mapper: Rc<TypeMapper>,
         alias_symbol: Option<TSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::TypeParameter) {
             return self.get_mapped_type(type_, &mapper);
@@ -747,7 +748,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*ReverseMappedType*/
         mapper: Rc<TypeMapper>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
         let inner_mapped_type = self.instantiate_type(
             &type_as_reverse_mapped_type.mapped_type,
@@ -774,7 +775,7 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn get_permissive_instantiation(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_permissive_instantiation(&self, type_: &Type) -> Gc<Type> {
         if type_
             .flags()
             .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
@@ -789,7 +790,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_restrictive_instantiation(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_restrictive_instantiation(&self, type_: &Type) -> Gc<Type> {
         if type_
             .flags()
             .intersects(TypeFlags::Primitive | TypeFlags::AnyOrUnknown | TypeFlags::Never)
@@ -837,11 +838,11 @@ impl TypeChecker {
             }
             SyntaxKind::ObjectLiteralExpression => some(
                 Some(&node.as_object_literal_expression().properties),
-                Some(|property: &Rc<Node>| self.is_context_sensitive(property)),
+                Some(|property: &Gc<Node>| self.is_context_sensitive(property)),
             ),
             SyntaxKind::ArrayLiteralExpression => some(
                 Some(&node.as_array_literal_expression().elements),
-                Some(|element: &Rc<Node>| self.is_context_sensitive(element)),
+                Some(|element: &Gc<Node>| self.is_context_sensitive(element)),
             ),
             SyntaxKind::ConditionalExpression => {
                 let node_as_conditional_expression = node.as_conditional_expression();
@@ -865,11 +866,11 @@ impl TypeChecker {
             SyntaxKind::JsxAttributes => {
                 some(
                     Some(&node.as_jsx_attributes().properties),
-                    Some(|property: &Rc<Node>| self.is_context_sensitive(property)),
+                    Some(|property: &Gc<Node>| self.is_context_sensitive(property)),
                 ) || is_jsx_opening_element(&node.parent())
                     && some(
                         Some(&node.parent().parent().as_jsx_element().children),
-                        Some(|child: &Rc<Node>| self.is_context_sensitive(child)),
+                        Some(|child: &Gc<Node>| self.is_context_sensitive(child)),
                     )
             }
             SyntaxKind::JsxAttribute => {
@@ -928,7 +929,7 @@ impl TypeChecker {
             && self.is_context_sensitive_function_like_declaration(func)
     }
 
-    pub(super) fn get_type_without_signatures(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_type_without_signatures(&self, type_: &Type) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_);
             let resolved_as_resolved_type = resolved.as_resolved_type();
@@ -949,7 +950,7 @@ impl TypeChecker {
             return self.get_intersection_type(
                 &map(
                     type_.as_intersection_type().types(),
-                    |type_: &Rc<Type>, _| self.get_type_without_signatures(type_),
+                    |type_: &Gc<Type>, _| self.get_type_without_signatures(type_),
                 ),
                 Option::<&Symbol>::None,
                 None,
@@ -996,13 +997,13 @@ impl TypeChecker {
 
     pub(super) fn is_type_derived_from(&self, source: &Type, target: &Type) -> bool {
         if source.flags().intersects(TypeFlags::Union) {
-            every(source.as_union_type().types(), |t: &Rc<Type>, _| {
+            every(source.as_union_type().types(), |t: &Gc<Type>, _| {
                 self.is_type_derived_from(t, target)
             })
         } else if target.flags().intersects(TypeFlags::Union) {
             some(
                 Some(target.as_union_type().types()),
-                Some(|t: &Rc<Type>| self.is_type_derived_from(source, t)),
+                Some(|t: &Gc<Type>| self.is_type_derived_from(source, t)),
             )
         } else if source
             .flags()

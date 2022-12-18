@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
@@ -434,7 +435,7 @@ pub(super) fn compiler_options_alternate_mode() -> Rc<AlternateModeDiagnostics> 
 }
 
 thread_local! {
-    pub(crate) static default_init_compiler_options: Rc<CompilerOptions> =
+    pub(crate) static default_init_compiler_options: Gc<CompilerOptions> =
         Rc::new(CompilerOptionsBuilder::default()
             .module(Some(ModuleKind::CommonJS))
             .target(Some(ScriptTarget::ES2016))

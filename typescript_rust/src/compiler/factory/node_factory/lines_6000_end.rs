@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
@@ -27,7 +28,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         name: Option<TName>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         name.map(|name| match name.into() {
             StrOrRcNode::Str(name) => self
                 .create_identifier(base_factory, name, Option::<NodeArray>::None, None)
@@ -40,7 +41,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         value: Option<TValue>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         value.map(|value| match value.into() {
             StringOrNumberOrBoolOrRcNode::String(value) => self
                 .create_string_literal(base_factory, value, None, None)
@@ -63,14 +64,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         value: SyntaxKindOrRcNode,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         match value {
             SyntaxKindOrRcNode::SyntaxKind(value) => self.create_token(base_factory, value).into(),
             SyntaxKindOrRcNode::RcNode(value) => value,
         }
     }
 
-    pub(super) fn as_embedded_statement(&self, statement: Option<Rc<Node>>) -> Option<Rc<Node>> {
+    pub(super) fn as_embedded_statement(&self, statement: Option<Gc<Node>>) -> Option<Gc<Node>> {
         if false {
             unimplemented!()
         } else {
@@ -81,7 +82,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
 pub enum SyntaxKindOrRcNode {
     SyntaxKind(SyntaxKind),
-    RcNode(Rc<Node>),
+    RcNode(Gc<Node>),
 }
 
 impl From<SyntaxKind> for SyntaxKindOrRcNode {
@@ -90,20 +91,20 @@ impl From<SyntaxKind> for SyntaxKindOrRcNode {
     }
 }
 
-impl From<Rc<Node>> for SyntaxKindOrRcNode {
-    fn from(value: Rc<Node>) -> Self {
+impl From<Gc<Node>> for SyntaxKindOrRcNode {
+    fn from(value: Gc<Node>) -> Self {
         Self::RcNode(value)
     }
 }
 
-pub(super) fn update_without_original(updated: Rc<Node>, original: &Node) -> Rc<Node> {
+pub(super) fn update_without_original(updated: Gc<Node>, original: &Node) -> Gc<Node> {
     if !ptr::eq(&*updated, original) {
         set_text_range(&*updated, Some(original));
     }
     updated
 }
 
-pub(super) fn update_with_original(updated: Rc<Node>, original: &Node) -> Rc<Node> {
+pub(super) fn update_with_original(updated: Gc<Node>, original: &Node) -> Gc<Node> {
     if !ptr::eq(&*updated, original) {
         set_original_node(updated.clone(), Some(original.node_wrapper()));
         set_text_range(&*updated, Some(original));
@@ -418,7 +419,7 @@ impl From<String> for PseudoBigIntOrString {
     }
 }
 
-pub fn set_original_node(node: Rc<Node>, original: Option<Rc<Node>>) -> Rc<Node> {
+pub fn set_original_node(node: Gc<Node>, original: Option<Gc<Node>>) -> Gc<Node> {
     node.set_original(original.clone());
     if let Some(original) = original {
         let emit_node = original.maybe_emit_node();

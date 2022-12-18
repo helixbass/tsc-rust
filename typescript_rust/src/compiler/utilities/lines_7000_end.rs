@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
@@ -232,7 +233,7 @@ pub fn set_text_range_pos_width<TRange: ReadonlyTextRange>(
 pub fn set_node_flags<TNode: Borrow<Node>>(
     node: Option<TNode>,
     new_flags: NodeFlags,
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     node.map(|node| {
         let node = node.borrow();
         node.set_flags(new_flags);
@@ -250,7 +251,7 @@ pub fn set_parent<TParent: Borrow<Node>>(child: &Node, parent: Option<TParent>) 
 
 pub fn maybe_set_parent<TChild: Borrow<Node>>(
     child: Option<TChild>,
-    parent: Option<Rc<Node>>,
+    parent: Option<Gc<Node>>,
 ) -> Option<TChild> {
     if let Some(child) = child.as_ref() {
         let child = child.borrow();
@@ -395,7 +396,7 @@ pub fn has_context_sensitive_parameters(node: &Node /*FunctionLikeDeclaration*/)
     {
         if some(
             Some(&**node_as_function_like_declaration.parameters()),
-            Some(|p: &Rc<Node>| get_effective_type_annotation_node(p).is_none()),
+            Some(|p: &Gc<Node>| get_effective_type_annotation_node(p).is_none()),
         ) {
             return true;
         }

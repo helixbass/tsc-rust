@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::cell::{Cell, RefCell, RefMut};
 use std::cmp;
 use std::collections::HashMap;
@@ -21,7 +22,7 @@ impl TypeChecker {
         source_type: &Type,
         target: &Type,     /*MappedType*/
         constraint: &Type, /*IndexType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_parameter = self.get_indexed_access_type(
             &constraint.as_index_type().type_,
             &self.get_type_parameter_from_mapped_type(target),
@@ -49,7 +50,7 @@ impl TypeChecker {
         target: &Type,
         require_optional_properties: bool,
         match_discriminant_properties: bool,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let properties = self.get_properties_of_type(target);
         let mut ret = vec![];
         for target_prop in &properties {
@@ -94,7 +95,7 @@ impl TypeChecker {
         target: &Type,
         require_optional_properties: bool,
         match_discriminant_properties: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let result = self.get_unmatched_properties(
             source,
             target,
@@ -134,7 +135,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_from_inference(&self, inference: &InferenceInfo) -> Option<Rc<Type>> {
+    pub(super) fn get_type_from_inference(&self, inference: &InferenceInfo) -> Option<Gc<Type>> {
         if let Some(inference_candidates) = inference.maybe_candidates().as_ref() {
             Some(self.get_union_type(
                 inference_candidates.clone(),
@@ -165,7 +166,7 @@ impl TypeChecker {
             type_.maybe_symbol().as_ref(),
             Some(type_symbol) if some(
                 type_symbol.maybe_declarations().as_deref(),
-                Some(|declaration: &Rc<Node>| self.has_skip_direct_inference_flag(declaration))
+                Some(|declaration: &Gc<Node>| self.has_skip_direct_inference_flag(declaration))
             )
         )
     }
@@ -250,7 +251,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type, /*TemplateLiteralType*/
-    ) -> Option<Vec<Rc<Type>>> {
+    ) -> Option<Vec<Gc<Type>>> {
         let target_as_template_literal_type = target.as_template_literal_type();
         if source.flags().intersects(TypeFlags::StringLiteral) {
             self.infer_from_literal_parts_to_template_literal(
@@ -266,7 +267,7 @@ impl TypeChecker {
             ) {
                 Some(map(
                     &source_as_template_literal_type.types,
-                    |type_: &Rc<Type>, _| self.get_string_like_type_for_type(type_),
+                    |type_: &Gc<Type>, _| self.get_string_like_type_for_type(type_),
                 ))
             } else {
                 self.infer_from_literal_parts_to_template_literal(
@@ -291,7 +292,7 @@ impl TypeChecker {
             inferences.as_ref(),
             Some(inferences) if every(
                 inferences,
-                |r: &Rc<Type>, i| {
+                |r: &Gc<Type>, i| {
                     self.is_valid_type_for_template_literal_placeholder(
                         r,
                         &target_as_template_literal_type.types[i],
@@ -301,7 +302,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_string_like_type_for_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_string_like_type_for_type(&self, type_: &Type) -> Gc<Type> {
         if type_
             .flags()
             .intersects(TypeFlags::Any | TypeFlags::StringLike)
@@ -318,9 +319,9 @@ impl TypeChecker {
     pub(super) fn infer_from_literal_parts_to_template_literal(
         &self,
         source_texts: &[String],
-        source_types: &[Rc<Type>],
+        source_types: &[Gc<Type>],
         target: &Type, /*TemplateLiteralType*/
-    ) -> Option<Vec<Rc<Type>>> {
+    ) -> Option<Vec<Gc<Type>>> {
         let last_source_index = source_texts.len() - 1;
         let source_start_text = &source_texts[0];
         // TODO: should be using chars for any of this instead?
@@ -337,7 +338,7 @@ impl TypeChecker {
             return None;
         }
         let remaining_end_text = &source_end_text[0..source_end_text.len() - target_end_text.len()];
-        let mut matches: Vec<Rc<Type>> = vec![];
+        let mut matches: Vec<Gc<Type>> = vec![];
         let mut seg = 0;
         let mut pos = target_start_text.len();
         for i in 1..last_target_index {
@@ -452,8 +453,8 @@ impl TypeChecker {
         last_source_index: usize,
         seg: &mut usize,
         pos: &mut usize,
-        matches: &mut Vec<Rc<Type>>,
-        source_types: &[Rc<Type>],
+        matches: &mut Vec<Gc<Type>>,
+        source_types: &[Gc<Type>],
         s: usize,
         p: usize,
     ) {
@@ -508,13 +509,13 @@ impl TypeChecker {
 }
 
 pub(super) struct InferTypes {
-    pub type_checker: Rc<TypeChecker>,
+    pub type_checker: Gc<TypeChecker>,
     pub inferences: Vec<Rc<InferenceInfo>>,
-    pub original_target: Rc<Type>,
+    pub original_target: Gc<Type>,
     priority: Cell<InferencePriority>,
     contravariant: Cell<bool>,
     bivariant: Cell<bool>,
-    propagation_type: RefCell<Option<Rc<Type>>>,
+    propagation_type: RefCell<Option<Gc<Type>>>,
     inference_priority: Cell<InferencePriority>,
     allow_complex_constraint_inference: Cell<bool>,
     visited: RefCell<Option<HashMap<String, InferencePriority>>>,
@@ -525,9 +526,9 @@ pub(super) struct InferTypes {
 
 impl InferTypes {
     pub(super) fn new(
-        type_checker: Rc<TypeChecker>,
+        type_checker: Gc<TypeChecker>,
         inferences: Vec<Rc<InferenceInfo>>,
-        original_target: Rc<Type>,
+        original_target: Gc<Type>,
         priority: InferencePriority,
         contravariant: bool,
     ) -> Self {
@@ -572,7 +573,7 @@ impl InferTypes {
         self.bivariant.set(bivariant);
     }
 
-    pub(super) fn maybe_propagation_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_propagation_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.propagation_type.borrow_mut()
     }
 
@@ -692,7 +693,7 @@ impl InferTypes {
         } else if target.flags().intersects(TypeFlags::Intersection)
             && some(
                 Some(target.as_union_or_intersection_type_interface().types()),
-                Some(|t: &Rc<Type>| {
+                Some(|t: &Gc<Type>| {
                     self.get_inference_info_for_type(t).is_some()
                         || (self.type_checker.is_generic_mapped_type(t)
                             && self
@@ -1039,12 +1040,12 @@ impl InferTypes {
 
     pub(super) fn infer_from_matching_types<TMatches: FnMut(&Type, &Type) -> bool>(
         &self,
-        sources: &[Rc<Type>],
-        targets: &[Rc<Type>],
+        sources: &[Gc<Type>],
+        targets: &[Gc<Type>],
         mut matches: TMatches,
-    ) -> (Vec<Rc<Type>>, Vec<Rc<Type>>) {
-        let mut matched_sources: Option<Vec<Rc<Type>>> = None;
-        let mut matched_targets: Option<Vec<Rc<Type>>> = None;
+    ) -> (Vec<Gc<Type>>, Vec<Gc<Type>>) {
+        let mut matched_sources: Option<Vec<Gc<Type>>> = None;
+        let mut matched_targets: Option<Vec<Gc<Type>>> = None;
         for t in targets {
             for s in sources {
                 if matches(s, t) {
@@ -1062,14 +1063,14 @@ impl InferTypes {
         }
         (
             if let Some(matched_sources) = matched_sources.as_ref() {
-                filter(sources, |t: &Rc<Type>| {
+                filter(sources, |t: &Gc<Type>| {
                     !contains_rc(Some(matched_sources), t)
                 })
             } else {
                 sources.to_owned()
             },
             if let Some(matched_targets) = matched_targets.as_ref() {
-                filter(targets, |t: &Rc<Type>| {
+                filter(targets, |t: &Gc<Type>| {
                     !contains_rc(Some(matched_targets), t)
                 })
             } else {
@@ -1080,8 +1081,8 @@ impl InferTypes {
 
     pub(super) fn infer_from_type_arguments(
         &self,
-        source_types: &[Rc<Type>],
-        target_types: &[Rc<Type>],
+        source_types: &[Gc<Type>],
+        target_types: &[Gc<Type>],
         variances: &[VarianceFlags],
     ) {
         let count = if source_types.len() < target_types.len() {

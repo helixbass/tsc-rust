@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -11,13 +12,13 @@ pub fn visit_node<
     TNode: Borrow<Node>,
     TVisitor: FnMut(&Node) -> VisitResult,
     TTest: Fn(&Node) -> bool,
-    TLift: Fn(&[Rc<Node>]) -> Rc<Node>,
+    TLift: Fn(&[Gc<Node>]) -> Gc<Node>,
 >(
     node: Option<TNode>,
     visitor: Option<TVisitor>,
     test: Option<TTest>,
     lift: Option<TLift>,
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     let node = node?;
     let node = node.borrow();
     let mut visitor = visitor?;
@@ -71,13 +72,13 @@ pub fn visit_each_child<
     TNodeVisitorNode: Borrow<Node>,
     TNodeVisitorVisitor: FnMut(&Node) -> VisitResult,
     TNodeVisitorTest: Fn(&Node) -> bool,
-    TNodeVisitorLift: Fn(&[Rc<Node>]) -> Rc<Node>,
+    TNodeVisitorLift: Fn(&[Gc<Node>]) -> Gc<Node>,
     TNodeVisitor: FnMut(
         Option<TNodeVisitorNode>,
         Option<TNodeVisitorVisitor>,
         Option<TNodeVisitorTest>,
         Option<TNodeVisitorLift>,
-    ) -> Option<Rc<Node>>,
+    ) -> Option<Gc<Node>>,
 >(
     node: Option<TNode>,
     visitor: TVisitor,
@@ -85,7 +86,7 @@ pub fn visit_each_child<
     nodes_visitor: Option<TNodesVisitor>,
     token_visitor: Option<TTokenVisitor>,
     node_visitor: Option<TNodeVisitor>,
-) -> Option<Rc<Node>> {
+) -> Option<Gc<Node>> {
     let node = node?;
     let node: &Node = node.borrow();
 
@@ -103,7 +104,7 @@ pub fn visit_each_child<
     Some(node.node_wrapper())
 }
 
-fn extract_single_node(nodes: &[Rc<Node>]) -> Option<Rc<Node>> {
+fn extract_single_node(nodes: &[Gc<Node>]) -> Option<Gc<Node>> {
     Debug_.assert(nodes.len() <= 1, Some("Too many nodes written to output."));
     single_or_undefined(Some(nodes)).cloned()
 }

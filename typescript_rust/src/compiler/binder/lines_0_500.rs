@@ -213,12 +213,12 @@ pub(super) fn get_module_instance_state_for_alias_target(
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
 ) -> ModuleInstanceState {
     let specifier_as_export_specifier = specifier.as_export_specifier();
-    let name: Rc<Node> = specifier_as_export_specifier
+    let name: Gc<Node> = specifier_as_export_specifier
         .property_name
         .as_ref()
         .map(|property_name| property_name.clone())
         .unwrap_or_else(|| specifier_as_export_specifier.name.clone());
-    let mut p: Option<Rc<Node>> = specifier.maybe_parent();
+    let mut p: Option<Gc<Node>> = specifier.maybe_parent();
     while let Some(p_present) = p {
         if is_block(&p_present) || is_module_block(&p_present) || is_source_file(&p_present) {
             let statements = p_present.as_has_statements().statements();
@@ -278,7 +278,7 @@ pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: &Node /*SourceFile*/, options: Rc<CompilerOptions>) {
+pub fn bind_source_file(file: &Node /*SourceFile*/, options: Gc<CompilerOptions>) {
     let file_as_source_file = file.as_source_file();
     if is_logging {
         println!("binding: {}", file_as_source_file.file_name());
@@ -383,7 +383,7 @@ pub(super) fn create_binder() -> Rc<BinderType> {
 }
 
 impl BinderType {
-    pub(super) fn call(&self, f: &Node, opts: Rc<CompilerOptions>) {
+    pub(super) fn call(&self, f: &Node, opts: Gc<CompilerOptions>) {
         self.bind_source_file(f, opts);
     }
 
@@ -391,19 +391,19 @@ impl BinderType {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn file(&self) -> Rc<Node> {
+    pub(super) fn file(&self) -> Gc<Node> {
         self.file.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn set_file(&self, file: Option<Rc<Node>>) {
+    pub(super) fn set_file(&self, file: Option<Gc<Node>>) {
         *self.file.borrow_mut() = file;
     }
 
-    pub(super) fn options(&self) -> Rc<CompilerOptions> {
+    pub(super) fn options(&self) -> Gc<CompilerOptions> {
         self.options.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn set_options(&self, options: Option<Rc<CompilerOptions>>) {
+    pub(super) fn set_options(&self, options: Option<Gc<CompilerOptions>>) {
         *self.options.borrow_mut() = options;
     }
 
@@ -419,31 +419,31 @@ impl BinderType {
         self.language_version.set(language_version);
     }
 
-    pub(super) fn maybe_parent(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_parent(&self) -> Option<Gc<Node>> {
         self.parent.borrow().as_ref().map(Clone::clone)
     }
 
-    pub(super) fn parent(&self) -> Rc<Node> {
+    pub(super) fn parent(&self) -> Gc<Node> {
         self.parent.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn set_parent(&self, parent: Option<Rc<Node>>) {
+    pub(super) fn set_parent(&self, parent: Option<Gc<Node>>) {
         *self.parent.borrow_mut() = parent;
     }
 
-    pub(super) fn container(&self) -> Rc<Node> {
+    pub(super) fn container(&self) -> Gc<Node> {
         self.container.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn maybe_container(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_container(&self) -> Option<Gc<Node>> {
         self.container.borrow().as_ref().map(Clone::clone)
     }
 
-    pub(super) fn set_container(&self, container: Option<Rc<Node>>) {
+    pub(super) fn set_container(&self, container: Option<Gc<Node>>) {
         *self.container.borrow_mut() = container;
     }
 
-    pub(super) fn this_parent_container(&self) -> Rc<Node> {
+    pub(super) fn this_parent_container(&self) -> Gc<Node> {
         self.this_parent_container
             .borrow()
             .as_ref()
@@ -451,25 +451,25 @@ impl BinderType {
             .clone()
     }
 
-    pub(super) fn maybe_this_parent_container(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_this_parent_container(&self) -> Option<Gc<Node>> {
         self.this_parent_container
             .borrow()
             .as_ref()
             .map(Clone::clone)
     }
 
-    pub(super) fn set_this_parent_container(&self, this_parent_container: Option<Rc<Node>>) {
+    pub(super) fn set_this_parent_container(&self, this_parent_container: Option<Gc<Node>>) {
         *self.this_parent_container.borrow_mut() = this_parent_container;
     }
 
-    pub(super) fn maybe_block_scope_container(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_block_scope_container(&self) -> Option<Gc<Node>> {
         self.block_scope_container
             .borrow()
             .as_ref()
             .map(Clone::clone)
     }
 
-    pub(super) fn block_scope_container(&self) -> Rc<Node> {
+    pub(super) fn block_scope_container(&self) -> Gc<Node> {
         self.block_scope_container
             .borrow()
             .as_ref()
@@ -477,33 +477,33 @@ impl BinderType {
             .clone()
     }
 
-    pub(super) fn set_block_scope_container(&self, block_scope_container: Option<Rc<Node>>) {
+    pub(super) fn set_block_scope_container(&self, block_scope_container: Option<Gc<Node>>) {
         *self.block_scope_container.borrow_mut() = block_scope_container;
     }
 
-    pub(super) fn maybe_last_container(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_last_container(&self) -> Option<Gc<Node>> {
         self.last_container.borrow().as_ref().map(Clone::clone)
     }
 
-    pub(super) fn last_container(&self) -> Rc<Node> {
+    pub(super) fn last_container(&self) -> Gc<Node> {
         self.last_container.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn set_last_container(&self, last_container: Option<Rc<Node>>) {
+    pub(super) fn set_last_container(&self, last_container: Option<Gc<Node>>) {
         *self.last_container.borrow_mut() = last_container;
     }
 
-    pub(super) fn maybe_delayed_type_aliases(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    pub(super) fn maybe_delayed_type_aliases(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
         self.delayed_type_aliases.borrow_mut()
     }
 
-    pub(super) fn delayed_type_aliases(&self) -> RefMut<Vec<Rc<Node>>> {
+    pub(super) fn delayed_type_aliases(&self) -> RefMut<Vec<Gc<Node>>> {
         RefMut::map(self.delayed_type_aliases.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
 
-    pub(super) fn set_delayed_type_aliases(&self, delayed_type_aliases: Option<Vec<Rc<Node>>>) {
+    pub(super) fn set_delayed_type_aliases(&self, delayed_type_aliases: Option<Vec<Gc<Node>>>) {
         *self.delayed_type_aliases.borrow_mut() = delayed_type_aliases;
     }
 
@@ -712,7 +712,7 @@ impl BinderType {
         )
     }
 
-    pub(super) fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Rc<CompilerOptions>) {
+    pub(super) fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Gc<CompilerOptions>) {
         self.set_file(Some(f.node_wrapper()));
         self.set_options(Some(opts.clone()));
         self.set_language_version(Some(get_emit_script_target(&opts)));
@@ -967,7 +967,7 @@ impl BinderType {
         excludes: SymbolFlags,
         is_replaceable_by_method: Option<bool>,
         is_computed_name: Option<bool>,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let is_replaceable_by_method = is_replaceable_by_method.unwrap_or(false);
         let is_computed_name = is_computed_name.unwrap_or(false);
         Debug_.assert(is_computed_name || !has_dynamic_name(node), None);
@@ -984,7 +984,7 @@ impl BinderType {
             self.get_declaration_name(node)
         };
 
-        let mut symbol: Option<Rc<Symbol>> = None;
+        let mut symbol: Option<Gc<Symbol>> = None;
         match name {
             None => {
                 symbol = Some(
@@ -1105,11 +1105,11 @@ impl BinderType {
                                 ));
                             }
 
-                            let declaration_name: Rc<Node> = get_name_of_declaration(Some(node))
+                            let declaration_name: Gc<Node> = get_name_of_declaration(Some(node))
                                 .unwrap_or_else(|| node.node_wrapper());
                             maybe_for_each(
                                 symbol_present.maybe_declarations().as_ref(),
-                                |declaration: &Rc<Node>, index| {
+                                |declaration: &Gc<Node>, index| {
                                     let decl = get_name_of_declaration(Some(&**declaration))
                                         .unwrap_or_else(|| declaration.node_wrapper());
                                     let diag: Rc<Diagnostic> = Rc::new(

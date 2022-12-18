@@ -61,7 +61,7 @@ pub enum CompilerOptionsValue {
     Bool(Option<bool>),
     String(Option<String>),
     #[serde(skip_serializing)]
-    SourceFile(Option<Rc<Node /*SourceFile*/>>),
+    SourceFile(Option<Gc<Node /*SourceFile*/>>),
     ImportsNotUsedAsValues(Option<ImportsNotUsedAsValues>),
     JsxEmit(Option<JsxEmit>),
     VecString(Option<Vec<String>>),
@@ -179,7 +179,7 @@ impl CompilerOptionsValue {
         enum_unwrapped!(self, [CompilerOptionsValue, Usize])
     }
 
-    pub fn into_option_rc_node(self) -> Option<Rc<Node>> {
+    pub fn into_option_rc_node(self) -> Option<Gc<Node>> {
         enum_unwrapped!(self, [CompilerOptionsValue, SourceFile])
     }
 
@@ -293,8 +293,8 @@ impl From<Option<String>> for CompilerOptionsValue {
     }
 }
 
-impl From<Option<Rc<Node>>> for CompilerOptionsValue {
-    fn from(value: Option<Rc<Node>>) -> Self {
+impl From<Option<Gc<Node>>> for CompilerOptionsValue {
+    fn from(value: Option<Gc<Node>>) -> Self {
         Self::SourceFile(value)
     }
 }
@@ -1944,10 +1944,10 @@ pub type RequireResult = ();
 
 pub struct CreateProgramOptions {
     pub root_names: Vec<String>,
-    pub options: Rc<CompilerOptions>,
+    pub options: Gc<CompilerOptions>,
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub host: Option<Rc<dyn CompilerHost>>,
-    pub old_program: Option<Rc<Program>>,
+    pub old_program: Option<Gc<Program>>,
     pub config_file_parsing_diagnostics: Option<Vec<Rc<Diagnostic>>>,
 }
 

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -98,7 +99,7 @@ impl TypeChecker {
         &self,
         module_symbol: Option<TModuleSymbol>,
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let module_symbol = module_symbol?;
         let module_symbol = module_symbol.borrow();
         let module_symbol_exports = module_symbol.maybe_exports();
@@ -124,7 +125,7 @@ impl TypeChecker {
         &self,
         exported: Option<TExported>,
         module_symbol: &Symbol,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let exported = exported?;
         let exported = exported.borrow();
         if ptr::eq(exported, &*self.unknown_symbol())
@@ -177,7 +178,7 @@ impl TypeChecker {
         referencing_location: &Node,
         dont_resolve_alias: bool,
         suppress_interop_error: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let module_symbol =
             module_symbol.map(|module_symbol| module_symbol.borrow().symbol_wrapper());
         let symbol = self
@@ -269,8 +270,8 @@ impl TypeChecker {
         symbol: &Symbol,
         module_type: &Type,
         reference_parent: &Node, /*ImportDeclaration | ImportCall*/
-    ) -> Rc<Symbol> {
-        let result: Rc<Symbol> = self
+    ) -> Gc<Symbol> {
+        let result: Gc<Symbol> = self
             .create_symbol(symbol.flags(), symbol.escaped_name().to_owned(), None)
             .into();
         result.set_declarations(
@@ -319,7 +320,7 @@ impl TypeChecker {
             .is_some()
     }
 
-    pub(super) fn get_exports_of_module_as_array(&self, module_symbol: &Symbol) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_exports_of_module_as_array(&self, module_symbol: &Symbol) -> Vec<Gc<Symbol>> {
         self.symbols_to_array(&RefCell::borrow(
             &self.get_exports_of_module_(module_symbol),
         ))
@@ -328,7 +329,7 @@ impl TypeChecker {
     pub(super) fn get_exports_and_properties_of_module(
         &self,
         module_symbol: &Symbol,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let mut exports = self.get_exports_of_module_as_array(module_symbol);
         let export_equals = self
             .resolve_external_module_symbol(Some(module_symbol), None)
@@ -375,7 +376,7 @@ impl TypeChecker {
         &self,
         member_name: &str, /*__String*/
         module_symbol: &Symbol,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let symbol_table = self.get_exports_of_module_(module_symbol);
         // if (symbolTable) {
         let ret = RefCell::borrow(&symbol_table)
@@ -389,7 +390,7 @@ impl TypeChecker {
         &self,
         member_name: &str, /*__String*/
         module_symbol: &Symbol,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let symbol = self.try_get_member_in_module_exports_(member_name, module_symbol);
         if symbol.is_some() {
             return symbol;
@@ -519,7 +520,7 @@ impl TypeChecker {
         &self,
         module_symbol: &Symbol,
     ) -> Rc<RefCell<SymbolTable>> {
-        let mut visited_symbols: Vec<Rc<Symbol>> = vec![];
+        let mut visited_symbols: Vec<Gc<Symbol>> = vec![];
 
         let module_symbol = self
             .resolve_external_module_symbol(Some(module_symbol), None)
@@ -534,8 +535,8 @@ impl TypeChecker {
 
     pub(super) fn visit_get_exports_of_module_worker(
         &self,
-        visited_symbols: &mut Vec<Rc<Symbol>>,
-        symbol: Option<Rc<Symbol>>,
+        visited_symbols: &mut Vec<Gc<Symbol>>,
+        symbol: Option<Gc<Symbol>>,
     ) -> Option<SymbolTable> {
         let symbol = symbol?;
         if !(symbol.maybe_exports().is_some() && push_if_unique_rc(visited_symbols, &symbol)) {
@@ -603,7 +604,7 @@ impl TypeChecker {
     pub(super) fn get_merged_symbol<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let symbol = symbol?;
         let symbol = symbol.borrow();
         if let Some(symbol_merge_id) = symbol.maybe_merge_id() {
@@ -617,14 +618,14 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_symbol_of_node(&self, node: &Node) -> Option<Rc<Symbol>> {
+    pub(super) fn get_symbol_of_node(&self, node: &Node) -> Option<Gc<Symbol>> {
         self.get_merged_symbol(
             node.maybe_symbol()
                 .map(|node_symbol| self.get_late_bound_symbol(&node_symbol)),
         )
     }
 
-    pub(super) fn get_parent_of_symbol(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
+    pub(super) fn get_parent_of_symbol(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
         self.get_merged_symbol(
             symbol
                 .maybe_parent()
@@ -636,11 +637,11 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         enclosing_declaration: &Node,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let containing_file = get_source_file_of_node(Some(enclosing_declaration)).unwrap();
         let id = get_node_id(&containing_file);
         let links = self.get_symbol_links(symbol);
-        let mut results: Option<Vec<Rc<Symbol>>> = None;
+        let mut results: Option<Vec<Gc<Symbol>>> = None;
         if let Some(links_extended_containers_by_file) =
             RefCell::borrow(&links).extended_containers_by_file.as_ref()
         {
@@ -719,15 +720,15 @@ impl TypeChecker {
         symbol: &Symbol,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         meaning: SymbolFlags,
-    ) -> Option<Vec<Rc<Symbol>>> {
+    ) -> Option<Vec<Gc<Symbol>>> {
         let container = self.get_parent_of_symbol(symbol);
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         if let Some(container) = container {
             if !symbol.flags().intersects(SymbolFlags::TypeParameter) {
-                let mut additional_containers: Vec<Rc<Symbol>> = map_defined(
+                let mut additional_containers: Vec<Gc<Symbol>> = map_defined(
                     container.maybe_declarations().as_ref(),
-                    |d: &Rc<Node>, _| {
+                    |d: &Gc<Node>, _| {
                         self.get_file_symbol_if_file_symbol_export_equals_container(d, &container)
                     },
                 );
@@ -775,7 +776,7 @@ impl TypeChecker {
                     self.for_each_symbol_table_in_scope(
                         enclosing_declaration.as_deref(),
                         |t, _, _, _| {
-                            for_each_entry(&*RefCell::borrow(&t), |s: &Rc<Symbol>, _| {
+                            for_each_entry(&*RefCell::borrow(&t), |s: &Gc<Symbol>, _| {
                                 if s.flags()
                                     .intersects(self.get_qualified_left_meaning(meaning))
                                     && Rc::ptr_eq(
@@ -808,7 +809,7 @@ impl TypeChecker {
                 return Some(res);
             }
         }
-        let candidates = map_defined(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>, _| {
+        let candidates = map_defined(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>, _| {
             if !is_ambient_module(d) {
                 if let Some(d_parent) = d.maybe_parent() {
                     if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
@@ -852,7 +853,7 @@ impl TypeChecker {
         if length(Some(&candidates)) == 0 {
             return None;
         }
-        Some(map_defined(Some(candidates), |candidate: Rc<Symbol>, _| {
+        Some(map_defined(Some(candidates), |candidate: Gc<Symbol>, _| {
             if self
                 .get_alias_for_symbol_in_container(&candidate, symbol)
                 .is_some()
@@ -868,8 +869,8 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         meaning: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
-        let first_decl: Option<Rc<Node>> = if length(symbol.maybe_declarations().as_deref()) > 0 {
+    ) -> Option<Gc<Symbol>> {
+        let first_decl: Option<Gc<Node>> = if length(symbol.maybe_declarations().as_deref()) > 0 {
             Some(first(symbol.maybe_declarations().as_deref().unwrap()).clone())
         } else {
             None
@@ -904,7 +905,7 @@ impl TypeChecker {
         &self,
         d: &Node, /*Declaration*/
         container: &Symbol,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let file_symbol = self.get_external_module_container(d);
         let exported = file_symbol
             .as_ref()
@@ -927,7 +928,7 @@ impl TypeChecker {
 
 pub(super) struct ExportCollisionTracker {
     pub specifier_text: String,
-    pub exports_with_duplicate: Option<Vec<Rc<Node /*ExportDeclaration*/>>>,
+    pub exports_with_duplicate: Option<Vec<Gc<Node /*ExportDeclaration*/>>>,
 }
 
 pub(super) type ExportCollisionTrackerTable = UnderscoreEscapedMap<ExportCollisionTracker>;

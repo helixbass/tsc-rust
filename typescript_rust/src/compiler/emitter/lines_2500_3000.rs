@@ -1062,8 +1062,8 @@ impl EmitBinaryExpressionStateMachine {
         next: &Node,   /*Expression*/
         parent: &Node, /*BinaryExpression*/
         side: LeftOrRight,
-    ) -> Option<Rc<Node>> {
-        let parenthesizer_rule: Rc<dyn Fn(&Node) -> Rc<Node>> = if side == LeftOrRight::Left {
+    ) -> Option<Gc<Node>> {
+        let parenthesizer_rule: Rc<dyn Fn(&Node) -> Gc<Node>> = if side == LeftOrRight::Left {
             Rc::new({
                 let parenthesizer = self.printer.parenthesizer();
                 let parent_operator_token_kind =
@@ -1107,7 +1107,7 @@ impl EmitBinaryExpressionStateMachine {
             Debug_.assert_is_defined(&self.printer.maybe_last_substitution(), None);
             next = parenthesizer_rule(&*cast(
                 self.printer.maybe_last_substitution(),
-                |node: &Rc<Node>| is_expression(node),
+                |node: &Gc<Node>| is_expression(node),
             ));
             pipeline_phase = self.printer.get_next_pipeline_phase(
                 PipelinePhase::Substitution,
@@ -1187,7 +1187,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         next: &Node, /*Expression*/
         _work_area: Rc<RefCell<WorkArea>>,
         parent: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         self.maybe_emit_expression(next, parent, LeftOrRight::Left)
     }
 
@@ -1232,7 +1232,7 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         next: &Node, /*Expression*/
         _state: Rc<RefCell<WorkArea>>,
         parent: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         self.maybe_emit_expression(next, parent, LeftOrRight::Right)
     }
 

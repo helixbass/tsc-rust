@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::Gc;
 use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
@@ -15,18 +16,18 @@ use local_macros::ast_type;
 #[ast_type]
 pub struct BinaryExpression {
     pub _node: BaseNode,
-    pub left: Rc<Node>,
-    pub operator_token: Rc<Node>,
-    pub right: Rc<Node>,
+    pub left: Gc<Node>,
+    pub operator_token: Gc<Node>,
+    pub right: Gc<Node>,
     cached_literal_kind: Cell<Option<SyntaxKind>>,
 }
 
 impl BinaryExpression {
     pub fn new(
         base_node: BaseNode,
-        left: Rc<Node>,
-        operator_token: Rc<Node>,
-        right: Rc<Node>,
+        left: Gc<Node>,
+        operator_token: Gc<Node>,
+        right: Gc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -47,16 +48,16 @@ impl BinaryExpression {
 }
 
 pub trait HasLeftAndRightInterface {
-    fn left(&self) -> Rc<Node>;
-    fn right(&self) -> Rc<Node>;
+    fn left(&self) -> Gc<Node>;
+    fn right(&self) -> Gc<Node>;
 }
 
 impl HasLeftAndRightInterface for BinaryExpression {
-    fn left(&self) -> Rc<Node> {
+    fn left(&self) -> Gc<Node> {
         self.left.clone()
     }
 
-    fn right(&self) -> Rc<Node> {
+    fn right(&self) -> Gc<Node> {
         self.right.clone()
     }
 }
@@ -65,21 +66,21 @@ impl HasLeftAndRightInterface for BinaryExpression {
 #[ast_type]
 pub struct ConditionalExpression {
     _node: BaseNode,
-    pub condition: Rc<Node /*Expression*/>,
-    pub question_token: Rc<Node /*QuestionToken*/>,
-    pub when_true: Rc<Node /*Expression*/>,
-    pub colon_token: Rc<Node /*ColonToken*/>,
-    pub when_false: Rc<Node /*Expression*/>,
+    pub condition: Gc<Node /*Expression*/>,
+    pub question_token: Gc<Node /*QuestionToken*/>,
+    pub when_true: Gc<Node /*Expression*/>,
+    pub colon_token: Gc<Node /*ColonToken*/>,
+    pub when_false: Gc<Node /*Expression*/>,
 }
 
 impl ConditionalExpression {
     pub fn new(
         base_node: BaseNode,
-        condition: Rc<Node /*Expression*/>,
-        question_token: Rc<Node /*QuestionToken*/>,
-        when_true: Rc<Node /*Expression*/>,
-        colon_token: Rc<Node /*ColonToken*/>,
-        when_false: Rc<Node /*Expression*/>,
+        condition: Gc<Node /*Expression*/>,
+        question_token: Gc<Node /*QuestionToken*/>,
+        when_true: Gc<Node /*Expression*/>,
+        colon_token: Gc<Node /*ColonToken*/>,
+        when_false: Gc<Node /*Expression*/>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -93,13 +94,13 @@ impl ConditionalExpression {
 }
 
 impl HasConditionInterface for ConditionalExpression {
-    fn maybe_condition(&self) -> Option<Rc<Node>> {
+    fn maybe_condition(&self) -> Option<Gc<Node>> {
         Some(self.condition.clone())
     }
 }
 
 impl HasQuestionTokenInterface for ConditionalExpression {
-    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+    fn maybe_question_token(&self) -> Option<Gc<Node>> {
         Some(self.question_token.clone())
     }
 }
@@ -126,13 +127,13 @@ impl FunctionExpression {
 )]
 pub struct ArrowFunction {
     _function_like_declaration: BaseFunctionLikeDeclaration,
-    pub equals_greater_than_token: Rc<Node /*EqualsGreaterThanToken*/>,
+    pub equals_greater_than_token: Gc<Node /*EqualsGreaterThanToken*/>,
 }
 
 impl ArrowFunction {
     pub fn new(
         function_like_declaration: BaseFunctionLikeDeclaration,
-        equals_greater_than_token: Rc<Node>,
+        equals_greater_than_token: Gc<Node>,
     ) -> Self {
         Self {
             _function_like_declaration: function_like_declaration,
@@ -307,12 +308,12 @@ impl BigIntLiteral {
 #[ast_type]
 pub struct TemplateExpression {
     _node: BaseNode,
-    pub head: Rc<Node /*TemplateHead*/>,
+    pub head: Gc<Node /*TemplateHead*/>,
     pub template_spans: NodeArray, /*<TemplateSpan>*/
 }
 
 impl TemplateExpression {
-    pub fn new(base_node: BaseNode, head: Rc<Node>, template_spans: NodeArray) -> Self {
+    pub fn new(base_node: BaseNode, head: Gc<Node>, template_spans: NodeArray) -> Self {
         Self {
             _node: base_node,
             head,
@@ -325,12 +326,12 @@ impl TemplateExpression {
 #[ast_type]
 pub struct TemplateSpan {
     _node: BaseNode,
-    pub expression: Rc<Node /*Expression*/>,
-    pub literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
+    pub expression: Gc<Node /*Expression*/>,
+    pub literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
 }
 
 impl TemplateSpan {
-    pub fn new(base_node: BaseNode, expression: Rc<Node>, literal: Rc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Gc<Node>, literal: Gc<Node>) -> Self {
         Self {
             _node: base_node,
             expression,
@@ -340,14 +341,14 @@ impl TemplateSpan {
 }
 
 impl HasExpressionInterface for TemplateSpan {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
 
 pub trait HasExpressionInterface {
-    fn expression(&self) -> Rc<Node>;
-    fn maybe_expression(&self) -> Option<Rc<Node>> {
+    fn expression(&self) -> Gc<Node>;
+    fn maybe_expression(&self) -> Option<Gc<Node>> {
         Some(self.expression())
     }
 }
@@ -356,11 +357,11 @@ pub trait HasExpressionInterface {
 #[ast_type]
 pub struct ParenthesizedExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*Expression*/>,
+    pub expression: Gc<Node /*Expression*/>,
 }
 
 impl ParenthesizedExpression {
-    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Gc<Node>) -> Self {
         Self {
             _node: base_node,
             expression,
@@ -369,7 +370,7 @@ impl ParenthesizedExpression {
 }
 
 impl HasExpressionInterface for ParenthesizedExpression {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
@@ -402,11 +403,11 @@ impl HasElementsInterface for ArrayLiteralExpression {
 #[ast_type]
 pub struct SpreadElement {
     _node: BaseNode,
-    pub expression: Rc<Node /*<Expression>*/>,
+    pub expression: Gc<Node /*<Expression>*/>,
 }
 
 impl SpreadElement {
-    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Gc<Node>) -> Self {
         Self {
             _node: base_node,
             expression,
@@ -415,7 +416,7 @@ impl SpreadElement {
 }
 
 impl HasExpressionInterface for SpreadElement {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
@@ -449,24 +450,24 @@ impl HasPropertiesInterface for ObjectLiteralExpression {
 }
 
 pub trait HasQuestionDotTokenInterface {
-    fn maybe_question_dot_token(&self) -> Option<Rc<Node>>;
+    fn maybe_question_dot_token(&self) -> Option<Gc<Node>>;
 }
 
 #[derive(Debug)]
 #[ast_type]
 pub struct PropertyAccessExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*LeftHandSideExpression*/>,
-    pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
-    pub name: Rc<Node /*MemberName*/>,
+    pub expression: Gc<Node /*LeftHandSideExpression*/>,
+    pub question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+    pub name: Gc<Node /*MemberName*/>,
 }
 
 impl PropertyAccessExpression {
     pub fn new(
         base_node: BaseNode,
-        expression: Rc<Node>,
-        question_dot_token: Option<Rc<Node>>,
-        name: Rc<Node>,
+        expression: Gc<Node>,
+        question_dot_token: Option<Gc<Node>>,
+        name: Gc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -478,27 +479,27 @@ impl PropertyAccessExpression {
 }
 
 impl HasExpressionInterface for PropertyAccessExpression {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
 
 impl NamedDeclarationInterface for PropertyAccessExpression {
-    fn maybe_name(&self) -> Option<Rc<Node>> {
+    fn maybe_name(&self) -> Option<Gc<Node>> {
         Some(self.name.clone())
     }
 
-    fn name(&self) -> Rc<Node> {
+    fn name(&self) -> Gc<Node> {
         self.name.clone()
     }
 
-    fn set_name(&mut self, name: Rc<Node>) {
+    fn set_name(&mut self, name: Gc<Node>) {
         self.name = name;
     }
 }
 
 impl HasQuestionDotTokenInterface for PropertyAccessExpression {
-    fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
+    fn maybe_question_dot_token(&self) -> Option<Gc<Node>> {
         self.question_dot_token.clone()
     }
 }
@@ -507,17 +508,17 @@ impl HasQuestionDotTokenInterface for PropertyAccessExpression {
 #[ast_type]
 pub struct ElementAccessExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*LeftHandSideExpression*/>,
-    pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
-    pub argument_expression: Rc<Node /*Expression*/>,
+    pub expression: Gc<Node /*LeftHandSideExpression*/>,
+    pub question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
+    pub argument_expression: Gc<Node /*Expression*/>,
 }
 
 impl ElementAccessExpression {
     pub fn new(
         base_node: BaseNode,
-        expression: Rc<Node>,
-        question_dot_token: Option<Rc<Node>>,
-        argument_expression: Rc<Node>,
+        expression: Gc<Node>,
+        question_dot_token: Option<Gc<Node>>,
+        argument_expression: Gc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -529,13 +530,13 @@ impl ElementAccessExpression {
 }
 
 impl HasExpressionInterface for ElementAccessExpression {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
 
 impl HasQuestionDotTokenInterface for ElementAccessExpression {
-    fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
+    fn maybe_question_dot_token(&self) -> Option<Gc<Node>> {
         self.question_dot_token.clone()
     }
 }
@@ -548,8 +549,8 @@ pub trait HasArgumentsInterface {
 #[ast_type]
 pub struct CallExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*LeftHandSideExpression*/>,
-    pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+    pub expression: Gc<Node /*LeftHandSideExpression*/>,
+    pub question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
     type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub arguments: NodeArray, /*<Expression>*/
 }
@@ -557,8 +558,8 @@ pub struct CallExpression {
 impl CallExpression {
     pub fn new(
         base_node: BaseNode,
-        expression: Rc<Node>,
-        question_dot_token: Option<Rc<Node>>,
+        expression: Gc<Node>,
+        question_dot_token: Option<Gc<Node>>,
         type_arguments: Option<NodeArray>,
         arguments: NodeArray,
     ) -> Self {
@@ -573,13 +574,13 @@ impl CallExpression {
 }
 
 impl HasExpressionInterface for CallExpression {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
 
 impl HasQuestionDotTokenInterface for CallExpression {
-    fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
+    fn maybe_question_dot_token(&self) -> Option<Gc<Node>> {
         self.question_dot_token.clone()
     }
 }
@@ -601,13 +602,13 @@ impl HasTypeArgumentsInterface for CallExpression {
 pub struct ExpressionWithTypeArguments {
     _node: BaseNode,
     type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
-    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+    pub expression: Gc<Node /*LeftHandSideExpression*/>,
 }
 
 impl ExpressionWithTypeArguments {
     pub fn new(
         base_node: BaseNode,
-        expression: Rc<Node>,
+        expression: Gc<Node>,
         type_arguments: Option<NodeArray>,
     ) -> Self {
         Self {
@@ -619,7 +620,7 @@ impl ExpressionWithTypeArguments {
 }
 
 impl HasExpressionInterface for ExpressionWithTypeArguments {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
@@ -634,7 +635,7 @@ impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
 #[ast_type]
 pub struct NewExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+    pub expression: Gc<Node /*LeftHandSideExpression*/>,
     type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
     pub arguments: Option<NodeArray /*<Expression>*/>,
 }
@@ -642,7 +643,7 @@ pub struct NewExpression {
 impl NewExpression {
     pub fn new(
         base_node: BaseNode,
-        expression: Rc<Node>,
+        expression: Gc<Node>,
         type_arguments: Option<NodeArray>,
         arguments: Option<NodeArray>,
     ) -> Self {
@@ -656,7 +657,7 @@ impl NewExpression {
 }
 
 impl HasExpressionInterface for NewExpression {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
@@ -677,19 +678,19 @@ impl HasTypeArgumentsInterface for NewExpression {
 #[ast_type]
 pub struct TaggedTemplateExpression {
     _node: BaseNode,
-    pub tag: Rc<Node /*LeftHandSideExpression*/>,
+    pub tag: Gc<Node /*LeftHandSideExpression*/>,
     type_arguments: RefCell<Option<NodeArray /*<TypeNode>*/>>,
-    pub template: Rc<Node /*TemplateLiteral*/>,
-    pub(crate) question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+    pub template: Gc<Node /*TemplateLiteral*/>,
+    pub(crate) question_dot_token: Option<Gc<Node /*QuestionDotToken*/>>,
 }
 
 impl TaggedTemplateExpression {
     pub fn new(
         base_node: BaseNode,
-        tag: Rc<Node>,
+        tag: Gc<Node>,
         type_arguments: Option<NodeArray>,
-        template: Rc<Node>,
-        question_dot_token: Option<Rc<Node>>,
+        template: Gc<Node>,
+        question_dot_token: Option<Gc<Node>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -711,12 +712,12 @@ impl HasTypeArgumentsInterface for TaggedTemplateExpression {
 #[ast_type]
 pub struct AsExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*Expression*/>,
-    pub type_: Rc<Node /*TypeNode*/>,
+    pub expression: Gc<Node /*Expression*/>,
+    pub type_: Gc<Node /*TypeNode*/>,
 }
 
 impl AsExpression {
-    pub fn new(base_node: BaseNode, expression: Rc<Node>, type_: Rc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Gc<Node>, type_: Gc<Node>) -> Self {
         Self {
             _node: base_node,
             expression,
@@ -726,17 +727,17 @@ impl AsExpression {
 }
 
 impl HasExpressionInterface for AsExpression {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
 
 impl HasTypeInterface for AsExpression {
-    fn maybe_type(&self) -> Option<Rc<Node>> {
+    fn maybe_type(&self) -> Option<Gc<Node>> {
         Some(self.type_.clone())
     }
 
-    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+    fn set_type(&mut self, type_: Option<Gc<Node>>) {
         self.type_ = type_.unwrap();
     }
 }
@@ -745,12 +746,12 @@ impl HasTypeInterface for AsExpression {
 #[ast_type]
 pub struct TypeAssertion {
     _node: BaseNode,
-    pub type_: Rc<Node /*TypeNode*/>,
-    pub expression: Rc<Node /*UnaryExpression*/>,
+    pub type_: Gc<Node /*TypeNode*/>,
+    pub expression: Gc<Node /*UnaryExpression*/>,
 }
 
 impl TypeAssertion {
-    pub fn new(base_node: BaseNode, expression: Rc<Node>, type_: Rc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Gc<Node>, type_: Gc<Node>) -> Self {
         Self {
             _node: base_node,
             type_,
@@ -760,17 +761,17 @@ impl TypeAssertion {
 }
 
 impl HasExpressionInterface for TypeAssertion {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }
 
 impl HasTypeInterface for TypeAssertion {
-    fn maybe_type(&self) -> Option<Rc<Node>> {
+    fn maybe_type(&self) -> Option<Gc<Node>> {
         Some(self.type_.clone())
     }
 
-    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+    fn set_type(&mut self, type_: Option<Gc<Node>>) {
         self.type_ = type_.unwrap();
     }
 }
@@ -779,11 +780,11 @@ impl HasTypeInterface for TypeAssertion {
 #[ast_type]
 pub struct NonNullExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*Expression*/>,
+    pub expression: Gc<Node /*Expression*/>,
 }
 
 impl NonNullExpression {
-    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Gc<Node>) -> Self {
         Self {
             _node: base_node,
             expression,
@@ -792,7 +793,7 @@ impl NonNullExpression {
 }
 
 impl HasExpressionInterface for NonNullExpression {
-    fn expression(&self) -> Rc<Node> {
+    fn expression(&self) -> Gc<Node> {
         self.expression.clone()
     }
 }

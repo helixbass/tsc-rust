@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::ptr;
@@ -162,7 +163,7 @@ impl TypeChecker {
                         return !(is_jsdoc_template_tag(&decl_parent)
                             && find(
                                 decl_parent.parent().as_jsdoc().tags.as_deref().unwrap(),
-                                |tag: &Rc<Node>, _| is_jsdoc_type_alias(tag),
+                                |tag: &Gc<Node>, _| is_jsdoc_type_alias(tag),
                             )
                             .is_some());
                     }
@@ -188,7 +189,7 @@ impl TypeChecker {
         }
 
         let container = get_this_container(error_location, false);
-        let mut location: Option<Rc<Node>> = Some(container.clone());
+        let mut location: Option<Gc<Node>> = Some(container.clone());
         while let Some(location_present) = location {
             if maybe_is_class_like(location_present.maybe_parent()) {
                 let class_symbol = self.get_symbol_of_node(&location_present.parent());
@@ -266,7 +267,7 @@ impl TypeChecker {
     pub(super) fn get_entity_name_for_extending_interface(
         &self,
         node: &Node,
-    ) -> Option<Rc<Node /*EntityNameExpression*/>> {
+    ) -> Option<Gc<Node /*EntityNameExpression*/>> {
         match node.kind() {
             SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression => node
                 .maybe_parent()
@@ -302,7 +303,7 @@ impl TypeChecker {
                     name,
                     SymbolFlags::Type & !namespace_meaning,
                     None,
-                    Option::<Rc<Node>>::None,
+                    Option::<Gc<Node>>::None,
                     false,
                     None,
                 ),
@@ -358,7 +359,7 @@ impl TypeChecker {
                     name,
                     !SymbolFlags::Type & SymbolFlags::Value,
                     None,
-                    Option::<Rc<Node>>::None,
+                    Option::<Gc<Node>>::None,
                     false,
                     None,
                 ),
@@ -423,7 +424,7 @@ impl TypeChecker {
                     name,
                     SymbolFlags::Type & !SymbolFlags::Value,
                     None,
-                    Option::<Rc<Node>>::None,
+                    Option::<Gc<Node>>::None,
                     false,
                     None,
                 ),
@@ -506,7 +507,7 @@ impl TypeChecker {
                     name,
                     SymbolFlags::NamespaceModule & !SymbolFlags::Value,
                     None,
-                    Option::<Rc<Node>>::None,
+                    Option::<Gc<Node>>::None,
                     false,
                     None,
                 ),
@@ -529,7 +530,7 @@ impl TypeChecker {
                     name,
                     (SymbolFlags::ValueModule | SymbolFlags::NamespaceModule) & !SymbolFlags::Type,
                     None,
-                    Option::<Rc<Node>>::None,
+                    Option::<Gc<Node>>::None,
                     false,
                     None,
                 ),
@@ -656,7 +657,7 @@ impl TypeChecker {
     pub(super) fn get_any_import_syntax(
         &self,
         node: &Node,
-    ) -> Option<Rc<Node /*AnyImportSyntax*/>> {
+    ) -> Option<Gc<Node /*AnyImportSyntax*/>> {
         match node.kind() {
             SyntaxKind::ImportEqualsDeclaration => Some(node.node_wrapper()),
             SyntaxKind::ImportClause => node.maybe_parent(),
@@ -669,7 +670,7 @@ impl TypeChecker {
     pub(super) fn get_declaration_of_alias_symbol(
         &self,
         symbol: &Symbol,
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         symbol
             .maybe_declarations()
             .as_deref()
@@ -719,7 +720,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportEqualsDeclaration | VariableDeclaration*/
         dont_resolve_alias: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let common_js_property_access = self.get_common_js_property_access(node);
         if let Some(common_js_property_access) = common_js_property_access {
             let common_js_property_access_as_property_access_expression =
@@ -832,7 +833,7 @@ impl TypeChecker {
         name: &str, /*__String*/
         source_node: Option<TSourceNode /*TypeOnlyCompatibleAliasDeclaration*/>,
         dont_resolve_alias: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let module_symbol_exports = module_symbol.exports();
         let module_symbol_exports = RefCell::borrow(&module_symbol_exports);
         let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
@@ -932,7 +933,7 @@ impl TypeChecker {
                 default_export_symbol,
                 Some(default_export_symbol) if some(
                     default_export_symbol.maybe_declarations().as_deref(),
-                    Some(|declaration: &Rc<Node>| self.is_syntactic_default(declaration))
+                    Some(|declaration: &Gc<Node>| self.is_syntactic_default(declaration))
                 )
             ) {
                 return false;
@@ -971,7 +972,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportClause*/
         dont_resolve_alias: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let node_parent = node.parent();
         let node_parent_as_import_declaration = node_parent.as_import_declaration();
         let module_symbol = self.resolve_external_module_name_(
@@ -979,7 +980,7 @@ impl TypeChecker {
             &node_parent_as_import_declaration.module_specifier,
             None,
         )?;
-        let export_default_symbol: Option<Rc<Symbol>>;
+        let export_default_symbol: Option<Gc<Symbol>>;
         if is_shorthand_ambient_module_symbol(&module_symbol) {
             export_default_symbol = Some(module_symbol.clone());
         } else {
@@ -1138,7 +1139,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NamespaceImport*/
         dont_resolve_alias: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let module_specifier = node
             .parent()
             .parent()
@@ -1165,7 +1166,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NamespaceExport*/
         dont_resolve_alias: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let module_specifier = node
             .parent()
             .as_export_declaration()
@@ -1195,7 +1196,7 @@ impl TypeChecker {
         &self,
         value_symbol: &Symbol,
         type_symbol: &Symbol,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         if ptr::eq(value_symbol, &*self.unknown_symbol())
             && ptr::eq(type_symbol, &*self.unknown_symbol())
         {
@@ -1207,7 +1208,7 @@ impl TypeChecker {
         {
             return value_symbol.symbol_wrapper();
         }
-        let result: Rc<Symbol> = self
+        let result: Gc<Symbol> = self
             .create_symbol(
                 value_symbol.flags() | type_symbol.flags(),
                 value_symbol.escaped_name().to_owned(),
@@ -1251,7 +1252,7 @@ impl TypeChecker {
         name: &Node,      /*Identifier*/
         specifier: &Node, /*Declaration*/
         dont_resolve_alias: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if symbol.flags().intersects(SymbolFlags::Module) {
             let export_symbol = RefCell::borrow(&self.get_exports_of_symbol(symbol))
                 .get(&name.as_identifier().escaped_text)
@@ -1272,7 +1273,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         name: &str, /*__String*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if symbol.flags().intersects(SymbolFlags::Variable) {
             let type_annotation = symbol
                 .maybe_value_declaration()
@@ -1298,7 +1299,7 @@ impl TypeChecker {
         node: &Node,      /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
         specifier: &Node, /*ImportOrExportSpecifier | BindingElement | PropertyAccessExpression*/
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
         let module_specifier =
             get_external_module_require_argument(node).unwrap_or_else(|| match node {
@@ -1307,7 +1308,7 @@ impl TypeChecker {
                 _ => panic!("Expected ImportDeclaration or ExportDeclaration"),
             });
         let module_symbol = self.resolve_external_module_name_(node, &module_specifier, None);
-        let name: Rc<Node> = if !is_property_access_expression(specifier) {
+        let name: Gc<Node> = if !is_property_access_expression(specifier) {
             specifier.as_has_property_name().maybe_property_name()
         } else {
             None
@@ -1334,7 +1335,7 @@ impl TypeChecker {
                 return Some(module_symbol);
             }
 
-            let mut symbol_from_variable: Option<Rc<Symbol>>;
+            let mut symbol_from_variable: Option<Gc<Symbol>>;
             if
             /*moduleSymbol &&*/
             module_symbol
@@ -1370,7 +1371,7 @@ impl TypeChecker {
                     .and_then(|declarations| {
                         declarations
                             .iter()
-                            .find(|declaration: &&Rc<Node>| is_source_file(declaration))
+                            .find(|declaration: &&Gc<Node>| is_source_file(declaration))
                             .map(Clone::clone)
                     });
                 if self.is_only_imported_as_default(&module_specifier)
@@ -1515,7 +1516,7 @@ impl TypeChecker {
                 let exported_symbol = exports.as_ref().and_then(|exports| {
                     find(
                         &self.symbols_to_array(&RefCell::borrow(exports)),
-                        |symbol: &Rc<Symbol>, _| {
+                        |symbol: &Gc<Symbol>, _| {
                             self.get_symbol_if_same_reference(symbol, &local_symbol)
                                 .is_some()
                         },
@@ -1550,7 +1551,7 @@ impl TypeChecker {
                 {
                     add_related_info(
                         &diagnostic,
-                        map(local_symbol_declarations, |decl: &Rc<Node>, index| {
+                        map(local_symbol_declarations, |decl: &Gc<Node>, index| {
                             Rc::new(
                                 create_diagnostic_for_node(
                                     decl,
@@ -1623,7 +1624,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ImportSpecifier | BindingElement*/
         dont_resolve_alias: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let root = if is_binding_element(node) {
             get_root_declaration(node)
         } else {
@@ -1666,7 +1667,7 @@ impl TypeChecker {
     pub(super) fn get_common_js_property_access(
         &self,
         node: &Node,
-    ) -> Option<Rc<Node /*PropertyAccessExpression*/>> {
+    ) -> Option<Gc<Node /*PropertyAccessExpression*/>> {
         if is_variable_declaration(node) {
             if let Some(node_initializer) = node.as_variable_declaration().maybe_initializer() {
                 if is_property_access_expression(&node_initializer) {
@@ -1681,7 +1682,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*NamespaceExportDeclaration*/
         dont_resolve_alias: bool,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let resolved = self
             .resolve_external_module_symbol(Some(node.parent().symbol()), Some(dont_resolve_alias))
             .unwrap();
@@ -1699,7 +1700,7 @@ impl TypeChecker {
         node: &Node, /*ExportSpecifier*/
         meaning: SymbolFlags,
         dont_resolve_alias: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let resolved = if node
             .parent()
             .parent()
@@ -1734,7 +1735,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ExportAssignment | BinaryExpression*/
         dont_resolve_alias: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let expression = if is_export_assignment(node) {
             node.as_export_assignment().expression.clone()
         } else {
@@ -1754,7 +1755,7 @@ impl TypeChecker {
         &self,
         expression: &Node, /*Expression*/
         dont_resolve_alias: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if is_class_expression(expression) {
             return self
                 .check_expression_cached(expression, None)

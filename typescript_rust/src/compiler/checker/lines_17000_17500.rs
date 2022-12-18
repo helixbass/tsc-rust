@@ -94,7 +94,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::Intersection)
                 && some(
                     Some(type_.as_intersection_type().types()),
-                    Some(|type_: &Rc<Type>| self.is_or_has_generic_conditional(type_)),
+                    Some(|type_: &Gc<Type>| self.is_or_has_generic_conditional(type_)),
                 )
     }
 
@@ -224,7 +224,7 @@ impl TypeChecker {
         {
             if some(
                 Some(&signatures),
-                Some(|s: &Rc<Signature>| {
+                Some(|s: &Gc<Signature>| {
                     let return_type = self.get_return_type_of_signature(s.clone());
                     !return_type
                         .flags()
@@ -289,7 +289,7 @@ impl TypeChecker {
         }
         if some(
             Some(node_as_arrow_function.parameters()),
-            Some(|parameter: &Rc<Node>| has_type(parameter)),
+            Some(|parameter: &Gc<Node>| has_type(parameter)),
         ) {
             return false;
         }
@@ -305,7 +305,7 @@ impl TypeChecker {
         let return_expression = node_as_arrow_function.maybe_body().unwrap();
         let source_return = self.get_return_type_of_signature(source_sig);
         let target_return = self.get_union_type(
-            map(&target_signatures, |signature: &Rc<Signature>, _| {
+            map(&target_signatures, |signature: &Gc<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
             }),
             None,
@@ -403,7 +403,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         name_type: &Type,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let idx = self.get_indexed_access_type_or_undefined(
             target,
             name_type,
@@ -439,7 +439,7 @@ impl TypeChecker {
         &self,
         next: &Node, /*Expression*/
         source_prop_type: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         *next.maybe_contextual_type() = Some(source_prop_type.type_wrapper());
         let ret = self.check_expression_for_mutable_location(
             next,
@@ -1171,8 +1171,8 @@ impl TypeChecker {
 
     pub(super) fn is_signature_assignable_to(
         &self,
-        source: Rc<Signature>,
-        target: Rc<Signature>,
+        source: Gc<Signature>,
+        target: Gc<Signature>,
         ignore_return_types: bool,
     ) -> bool {
         self.compare_signatures_related(
@@ -1191,7 +1191,7 @@ impl TypeChecker {
         ) != Ternary::False
     }
 
-    pub(super) fn is_any_signature(&self, s: Rc<Signature>) -> bool {
+    pub(super) fn is_any_signature(&self, s: Gc<Signature>) -> bool {
         let s_type_parameters_is_none = s.maybe_type_parameters().is_none();
         s_type_parameters_is_none
             && match s.maybe_this_parameter().as_ref() {
@@ -1211,8 +1211,8 @@ impl TypeChecker {
 
     pub(super) fn compare_signatures_related<TIncompatibleErrorReporter: Fn(&Type, &Type)>(
         &self,
-        mut source: Rc<Signature>,
-        mut target: Rc<Signature>,
+        mut source: Gc<Signature>,
+        mut target: Gc<Signature>,
         check_mode: SignatureCheckMode,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
@@ -1541,9 +1541,9 @@ impl TypeChecker {
 
 #[derive(Debug)]
 pub(super) struct ElaborationIteratorItem {
-    pub error_node: Rc<Node>,
-    pub inner_expression: Option<Rc<Node /*Expression*/>>,
-    name_type: Rc<Type>,
+    pub error_node: Gc<Node>,
+    pub inner_expression: Option<Gc<Node /*Expression*/>>,
+    name_type: Gc<Type>,
     error_message: Option<Cow<'static, DiagnosticMessage>>,
 }
 

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
@@ -244,7 +245,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             return for_each_bool(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Rc<Type>, _| self.type_could_have_top_level_singleton_types(type_),
+                |type_: &Gc<Type>, _| self.type_could_have_top_level_singleton_types(type_),
             );
         }
 
@@ -265,13 +266,13 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         if self.is_tuple_type(source) && self.is_tuple_type(target) {
             return vec![];
         }
         self.get_properties_of_type(target)
             .into_iter()
-            .filter(|target_prop: &Rc<Symbol>| {
+            .filter(|target_prop: &Gc<Symbol>| {
                 self.is_exact_optional_property_mismatch(
                     self.get_type_of_property_of_type_(source, target_prop.escaped_name()),
                     Some(self.get_type_of_symbol(target_prop)),
@@ -298,10 +299,10 @@ impl TypeChecker {
         self.maybe_type_of_kind(source, TypeFlags::Undefined) && self.contains_missing_type(target)
     }
 
-    pub(super) fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_exact_optional_properties(&self, type_: &Type) -> Vec<Gc<Symbol>> {
         self.get_properties_of_type(type_)
             .into_iter()
-            .filter(|target_prop: &Rc<Symbol>| {
+            .filter(|target_prop: &Gc<Symbol>| {
                 self.contains_missing_type(&self.get_type_of_symbol(target_prop))
             })
             .collect()
@@ -312,7 +313,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type, /*UnionOrIntersectionType*/
         is_related_to: Option<TIsRelatedTo>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let is_related_to = |source: &Type, target: &Type| match is_related_to.as_ref() {
             None => self.compare_types_assignable(source, target),
             Some(is_related_to) => is_related_to(source, target),
@@ -330,11 +331,11 @@ impl TypeChecker {
     >(
         &self,
         target: &Type, /*UnionType*/
-        discriminators: &[(Box<dyn Fn() -> Rc<Type>>, __String)],
+        discriminators: &[(Box<dyn Fn() -> Gc<Type>>, __String)],
         mut related: TRelated,
         default_value: Option<TDefaultValue>,
         skip_partial: Option<bool>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let target_as_union_type = target.as_union_type();
         let target_types = target_as_union_type.types();
         let mut discriminable: Vec<Option<bool>> = target_types
@@ -405,13 +406,13 @@ impl TypeChecker {
                 && !resolved_as_resolved_type.properties().is_empty()
                 && every(
                     &*resolved_as_resolved_type.properties(),
-                    |p: &Rc<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
+                    |p: &Gc<Symbol>, _| p.flags().intersects(SymbolFlags::Optional),
                 );
         }
         if type_.flags().intersects(TypeFlags::Intersection) {
             return every(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Rc<Type>, _| self.is_weak_type(type_),
+                |type_: &Gc<Type>, _| self.is_weak_type(type_),
             );
         }
         false
@@ -441,7 +442,7 @@ impl TypeChecker {
             type_,
             maybe_map(
                 type_.as_generic_type().maybe_type_parameters(),
-                |t: &Rc<Type>, _| {
+                |t: &Gc<Type>, _| {
                     if ptr::eq(&**t, source) {
                         target.type_wrapper()
                     } else {
@@ -486,7 +487,7 @@ impl TypeChecker {
 
     pub(super) fn get_variances_worker<
         TCache: Into<GetVariancesCache>,
-        TCreateMarkerType: FnMut(&GetVariancesCache, &Type /*TypeParameter*/, &Type) -> Rc<Type>,
+        TCreateMarkerType: FnMut(&GetVariancesCache, &Type /*TypeParameter*/, &Type) -> Gc<Type>,
     >(
         &self,
         type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
@@ -581,7 +582,7 @@ impl TypeChecker {
 
     pub(super) fn has_covariant_void_argument(
         &self,
-        type_arguments: &[Rc<Type>],
+        type_arguments: &[Gc<Type>],
         variances: &[VarianceFlags],
     ) -> bool {
         for i in 0..variances.len() {
@@ -608,7 +609,7 @@ impl TypeChecker {
         self.is_non_deferred_type_reference(type_)
             && some(
                 Some(&*self.get_type_arguments(type_)),
-                Some(|t: &Rc<Type>| {
+                Some(|t: &Gc<Type>| {
                     t.flags().intersects(TypeFlags::TypeParameter)
                         || self.is_type_reference_with_generic_arguments(t)
                 }),
@@ -618,7 +619,7 @@ impl TypeChecker {
     pub(super) fn get_type_reference_id(
         &self,
         type_: &Type, /*TypeReference*/
-        type_parameters: &mut Vec<Rc<Type>>,
+        type_parameters: &mut Vec<Gc<Type>>,
         depth: Option<usize>,
     ) -> String {
         let depth = depth.unwrap_or(0);
@@ -672,7 +673,7 @@ impl TypeChecker {
         if self.is_type_reference_with_generic_arguments(&source)
             && self.is_type_reference_with_generic_arguments(&target)
         {
-            let mut type_parameters: Vec<Rc<Type>> = vec![];
+            let mut type_parameters: Vec<Gc<Type>> = vec![];
             return format!(
                 "{},{}{}",
                 self.get_type_reference_id(&source, &mut type_parameters, None),
@@ -731,7 +732,7 @@ impl TypeChecker {
             })
     }
 
-    pub(super) fn get_type_of_property_in_base_class(&self, property: &Symbol) -> Option<Rc<Type>> {
+    pub(super) fn get_type_of_property_in_base_class(&self, property: &Symbol) -> Option<Gc<Type>> {
         let class_type = self.get_declaring_class(property);
         let base_class_type = class_type
             .as_ref()
@@ -774,7 +775,7 @@ impl TypeChecker {
         check_class: &Type,
         prop: &Symbol,
         writing: bool,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if self.for_each_property_bool(prop, &mut |p: &Symbol| {
             if get_declaration_modifier_flags_from_symbol(p, Some(writing))
                 .intersects(ModifierFlags::Protected)
@@ -793,7 +794,7 @@ impl TypeChecker {
     pub(super) fn is_deeply_nested_type(
         &self,
         type_: &Type,
-        stack: &[Rc<Type>],
+        stack: &[Gc<Type>],
         depth: usize,
         max_depth: Option<usize>,
     ) -> bool {
@@ -952,16 +953,16 @@ impl From<Rc<RefCell<SymbolLinks>>> for GetVariancesCache {
     }
 }
 
-impl From<Rc<Type>> for GetVariancesCache {
-    fn from(value: Rc<Type>) -> Self {
+impl From<Gc<Type>> for GetVariancesCache {
+    fn from(value: Gc<Type>) -> Self {
         Self::GenericType(value)
     }
 }
 
 pub(super) enum RecursionIdentity {
-    Node(Rc<Node>),
-    Symbol(Rc<Symbol>),
-    Type(Rc<Type>),
+    Node(Gc<Node>),
+    Symbol(Gc<Symbol>),
+    Type(Gc<Type>),
     ConditionalRoot(Rc<RefCell<ConditionalRoot>>),
     None,
 }
@@ -981,20 +982,20 @@ impl PartialEq for RecursionIdentity {
 
 impl Eq for RecursionIdentity {}
 
-impl From<Rc<Node>> for RecursionIdentity {
-    fn from(value: Rc<Node>) -> Self {
+impl From<Gc<Node>> for RecursionIdentity {
+    fn from(value: Gc<Node>) -> Self {
         Self::Node(value)
     }
 }
 
-impl From<Rc<Symbol>> for RecursionIdentity {
-    fn from(value: Rc<Symbol>) -> Self {
+impl From<Gc<Symbol>> for RecursionIdentity {
+    fn from(value: Gc<Symbol>) -> Self {
         Self::Symbol(value)
     }
 }
 
-impl From<Rc<Type>> for RecursionIdentity {
-    fn from(value: Rc<Type>) -> Self {
+impl From<Gc<Type>> for RecursionIdentity {
+    fn from(value: Gc<Type>) -> Self {
         Self::Type(value)
     }
 }

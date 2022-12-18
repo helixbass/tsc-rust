@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -25,7 +26,7 @@ impl TypeChecker {
         &self,
         container: &Symbol,
         symbol: &Symbol,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if matches!(self.get_parent_of_symbol(symbol), Some(parent) if ptr::eq(container, &*parent))
         {
             return Some(symbol.symbol_wrapper());
@@ -47,7 +48,7 @@ impl TypeChecker {
                 return Some(quick.clone());
             }
         }
-        for_each_entry(&*exports, |exported: &Rc<Symbol>, _| {
+        for_each_entry(&*exports, |exported: &Gc<Symbol>, _| {
             if self
                 .get_symbol_if_same_reference(exported, symbol)
                 .is_some()
@@ -62,7 +63,7 @@ impl TypeChecker {
         &self,
         s1: &Symbol,
         s2: &Symbol,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if Rc::ptr_eq(
             &self
                 .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s1)), None))
@@ -79,7 +80,7 @@ impl TypeChecker {
     pub(super) fn get_export_symbol_of_value_symbol_if_exported<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.get_merged_symbol(symbol.and_then(|symbol| {
             let symbol = symbol.borrow();
             if symbol.flags().intersects(SymbolFlags::ExportValue) {
@@ -103,7 +104,7 @@ impl TypeChecker {
     pub(super) fn find_constructor_declaration(
         &self,
         node: &Node, /*ClassLikeDeclaration*/
-    ) -> Option<Rc<Node /*ConstructorDeclaration*/>> {
+    ) -> Option<Gc<Node /*ConstructorDeclaration*/>> {
         let members = node.as_class_like_declaration().members();
         for member in members {
             if member.kind() == SyntaxKind::Constructor
@@ -152,11 +153,11 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn create_typeof_type(&self) -> Rc<Type> {
+    pub(super) fn create_typeof_type(&self) -> Gc<Type> {
         self.get_union_type(
             typeof_eq_facts
                 .keys()
-                .map(|key| -> Rc<Type> { self.get_string_literal_type(key).into() })
+                .map(|key| -> Gc<Type> { self.get_string_literal_type(key).into() })
                 .collect::<Vec<_>>(),
             None,
             Option::<&Symbol>::None,
@@ -210,7 +211,7 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn get_named_members(&self, members: &SymbolTable) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_named_members(&self, members: &SymbolTable) -> Vec<Gc<Symbol>> {
         members
             .iter()
             .filter(|(id, symbol)| self.is_named_member(&symbol, id))
@@ -229,7 +230,7 @@ impl TypeChecker {
     pub(super) fn get_named_or_index_signature_members(
         &self,
         members: &SymbolTable,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let result = self.get_named_members(members);
         let index = self.get_index_symbol_from_symbol_table(members);
         if let Some(index) = index {
@@ -245,8 +246,8 @@ impl TypeChecker {
         &self,
         type_: &TType,
         members: Rc<RefCell<SymbolTable>>,
-        call_signatures: Vec<Rc<Signature>>,
-        construct_signatures: Vec<Rc<Signature>>,
+        call_signatures: Vec<Gc<Signature>>,
+        construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Rc<IndexInfo>>,
     ) /*-> BaseObjectType*/
     {
@@ -263,7 +264,7 @@ impl TypeChecker {
         // type_
     }
 
-    // extracted this because it's easy to do BaseObjectType.into() -> Rc<Type> to incorrectly wrap
+    // extracted this because it's easy to do BaseObjectType.into() -> Gc<Type> to incorrectly wrap
     // this return type (should be wrapped in a BaseInterfaceType) (so only "knowing" consumers
     // should call this instead of the "default" .create_anonymous_type() which does the correct
     // wrapping for you)
@@ -271,8 +272,8 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
         members: Rc<RefCell<SymbolTable>>,
-        call_signatures: Vec<Rc<Signature>>,
-        construct_signatures: Vec<Rc<Signature>>,
+        call_signatures: Vec<Gc<Signature>>,
+        construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Rc<IndexInfo>>,
     ) -> BaseObjectType {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
@@ -290,10 +291,10 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
         members: Rc<RefCell<SymbolTable>>,
-        call_signatures: Vec<Rc<Signature>>,
-        construct_signatures: Vec<Rc<Signature>>,
+        call_signatures: Vec<Gc<Signature>>,
+        construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Rc<IndexInfo>>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         BaseInterfaceType::new(
             self.create_anonymous_type_returning_base_object_type(
                 symbol,
@@ -313,7 +314,7 @@ impl TypeChecker {
     pub(super) fn get_resolved_type_without_abstract_construct_signatures(
         &self,
         type_: &Type, /*ResolvedType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_as_resolved_type = type_.as_resolved_type();
         let type_construct_signatures = type_as_resolved_type.construct_signatures();
         if type_construct_signatures.is_empty() {
@@ -325,7 +326,7 @@ impl TypeChecker {
             return type_object_type_without_abstract_construct_signatures;
         }
         let construct_signatures =
-            filter(&*type_construct_signatures, |signature: &Rc<Signature>| {
+            filter(&*type_construct_signatures, |signature: &Gc<Signature>| {
                 !signature.flags.intersects(SignatureFlags::Abstract)
             });
         if type_construct_signatures.len() == construct_signatures.len() {
@@ -361,7 +362,7 @@ impl TypeChecker {
         mut callback: TCallback,
     ) -> Option<TReturn> {
         let mut result: Option<TReturn>;
-        let mut location: Option<Rc<Node>> = enclosing_declaration
+        let mut location: Option<Gc<Node>> = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         while let Some(location_unwrapped) = location {
             if let Some(location_locals) = location_unwrapped.maybe_locals().as_ref() {
@@ -461,7 +462,7 @@ impl TypeChecker {
         visited_symbol_tables_map: Option<
             &mut HashMap<SymbolId, Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>>,
         >,
-    ) -> Option<Vec<Rc<Symbol>>> {
+    ) -> Option<Vec<Gc<Symbol>>> {
         let mut visited_symbol_tables_map_default = HashMap::new();
         let visited_symbol_tables_map =
             visited_symbol_tables_map.unwrap_or(&mut visited_symbol_tables_map_default);
@@ -535,7 +536,7 @@ impl TypeChecker {
         symbols: Rc<RefCell<SymbolTable>>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
-    ) -> Option<Vec<Rc<Symbol>>> {
+    ) -> Option<Vec<Gc<Symbol>>> {
         if !push_if_unique_rc(&mut visited_symbol_tables.borrow_mut(), &symbols) {
             return None;
         }
@@ -610,7 +611,7 @@ impl TypeChecker {
                 .unwrap(),
         )) && !some(
             symbol_from_symbol_table.maybe_declarations().as_deref(),
-            Some(|declaration: &Rc<Node>| {
+            Some(|declaration: &Gc<Node>| {
                 self.has_non_global_augmentation_external_module_symbol(declaration)
             }),
         ) && (matches!(ignore_qualification, Some(true))
@@ -639,7 +640,7 @@ impl TypeChecker {
         symbols: Rc<RefCell<SymbolTable>>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
-    ) -> Option<Vec<Rc<Symbol>>> {
+    ) -> Option<Vec<Gc<Symbol>>> {
         if self.is_accessible(
             symbol,
             meaning,
@@ -656,7 +657,7 @@ impl TypeChecker {
             return Some(vec![symbol.symbol_wrapper()]);
         }
 
-        let result: Option<Vec<Rc<Symbol>>> = for_each_entry(
+        let result: Option<Vec<Gc<Symbol>>> = for_each_entry(
             &*RefCell::borrow(&symbols),
             |symbol_from_symbol_table, _| {
                 if symbol_from_symbol_table
@@ -669,14 +670,14 @@ impl TypeChecker {
                     && (!use_only_external_aliasing
                         || some(
                             symbol_from_symbol_table.maybe_declarations().as_deref(),
-                            Some(|declaration: &Rc<Node>| {
+                            Some(|declaration: &Gc<Node>| {
                                 is_external_module_import_equals_declaration(declaration)
                             }),
                         ))
                     && if matches!(is_local_name_lookup, Some(true)) {
                         !some(
                             symbol_from_symbol_table.maybe_declarations().as_deref(),
-                            Some(|declaration: &Rc<Node>| {
+                            Some(|declaration: &Gc<Node>| {
                                 is_namespace_reexport_declaration(declaration)
                             }),
                         )
@@ -763,7 +764,7 @@ impl TypeChecker {
         symbol_from_symbol_table: &Symbol,
         resolved_import_symbol: &Symbol,
         ignore_qualification: Option<bool>,
-    ) -> Option<Vec<Rc<Symbol>>> {
+    ) -> Option<Vec<Gc<Symbol>>> {
         if self.is_accessible(
             symbol,
             meaning,
@@ -914,7 +915,7 @@ impl TypeChecker {
 
     pub(super) fn is_any_symbol_accessible<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        symbols: Option<&[Rc<Symbol>]>,
+        symbols: Option<&[Gc<Symbol>]>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         initial_symbol: &Symbol,
         meaning: SymbolFlags,
@@ -926,7 +927,7 @@ impl TypeChecker {
         }
         let symbols = symbols.unwrap();
 
-        let mut had_accessible_chain: Option<Rc<Symbol>> = None;
+        let mut had_accessible_chain: Option<Gc<Symbol>> = None;
         let mut early_module_bail = false;
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
@@ -951,7 +952,7 @@ impl TypeChecker {
             if allow_modules {
                 if some(
                     symbol.maybe_declarations().as_deref(),
-                    Some(|declaration: &Rc<Node>| {
+                    Some(|declaration: &Gc<Node>| {
                         self.has_non_global_augmentation_external_module_symbol(declaration)
                     }),
                 ) {
@@ -1075,7 +1076,7 @@ impl TypeChecker {
 
                 let symbol_external_module = maybe_for_each(
                     symbol.maybe_declarations().as_deref(),
-                    |declaration: &Rc<Node>, _| self.get_external_module_container(declaration),
+                    |declaration: &Gc<Node>, _| self.get_external_module_container(declaration),
                 );
                 if let Some(symbol_external_module) = symbol_external_module {
                     let enclosing_external_module =
@@ -1133,7 +1134,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_external_module_container(&self, declaration: &Node) -> Option<Rc<Symbol>> {
+    pub(super) fn get_external_module_container(&self, declaration: &Node) -> Option<Gc<Symbol>> {
         let node = find_ancestor(Some(declaration), |node| {
             self.has_external_module_symbol(node)
         });

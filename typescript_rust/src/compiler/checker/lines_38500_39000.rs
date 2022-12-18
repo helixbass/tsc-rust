@@ -57,7 +57,7 @@ impl TypeChecker {
             if is_constructor_declaration(member) {
                 for_each(
                     member.as_constructor_declaration().parameters(),
-                    |param: &Rc<Node>, _| -> Option<()> {
+                    |param: &Gc<Node>, _| -> Option<()> {
                         if is_parameter_property_declaration(param, member) {
                             self.check_existing_member_for_override_modifier(
                                 node,
@@ -186,7 +186,7 @@ impl TypeChecker {
             ) {
                 let base_has_abstract = some(
                     Some(base_prop_declarations),
-                    Some(|declaration: &Rc<Node>| has_abstract_modifier(declaration)),
+                    Some(|declaration: &Gc<Node>| has_abstract_modifier(declaration)),
                 );
                 if member_has_override_modifier {
                     return MemberOverrideStatus::Ok;
@@ -398,7 +398,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_target_symbol(&self, s: &Symbol) -> Rc<Symbol> {
+    pub(super) fn get_target_symbol(&self, s: &Symbol) -> Gc<Symbol> {
         if get_check_flags(s).intersects(CheckFlags::Instantiated) {
             (*s.as_transient_symbol().symbol_links())
                 .borrow()
@@ -413,8 +413,8 @@ impl TypeChecker {
     pub(super) fn get_class_or_interface_declarations_of_symbol(
         &self,
         symbol: &Symbol,
-    ) -> Option<Vec<Rc<Node>>> {
-        maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>| {
+    ) -> Option<Vec<Gc<Node>>> {
+        maybe_filter(symbol.maybe_declarations().as_deref(), |d: &Gc<Node>| {
             matches!(
                 d.kind(),
                 SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
@@ -668,13 +668,13 @@ impl TypeChecker {
         &self,
         type_: &Type, /*InterfaceType*/
         base_types: &[Rc<Type /*BaseType*/>],
-        properties: &[Rc<Symbol>],
-    ) -> Vec<Rc<Symbol>> {
+        properties: &[Gc<Symbol>],
+    ) -> Vec<Gc<Symbol>> {
         if length(Some(base_types)) == 0 {
             return properties.to_owned();
         }
-        let mut seen: HashMap<__String, Rc<Symbol>> = HashMap::new();
-        for_each(properties, |p: &Rc<Symbol>, _| -> Option<()> {
+        let mut seen: HashMap<__String, Gc<Symbol>> = HashMap::new();
+        for_each(properties, |p: &Gc<Symbol>, _| -> Option<()> {
             seen.insert(p.escaped_name().to_owned(), p.clone());
             None
         });
@@ -719,7 +719,7 @@ impl TypeChecker {
                 .as_interface_type_with_declared_members()
                 .maybe_declared_properties()
                 .as_ref(),
-            |p: &Rc<Symbol>, _| -> Option<()> {
+            |p: &Gc<Symbol>, _| -> Option<()> {
                 seen.insert(
                     p.escaped_name().to_owned(),
                     InheritanceInfoMap {
@@ -821,10 +821,10 @@ struct IssueMemberSpecificErrorContainingMessageChain {
 
 impl IssueMemberSpecificErrorContainingMessageChain {
     pub fn new(
-        type_checker: Rc<TypeChecker>,
-        declared_prop: Rc<Symbol>,
-        type_with_this: Rc<Type>,
-        base_with_this: Rc<Type>,
+        type_checker: Gc<TypeChecker>,
+        declared_prop: Gc<Symbol>,
+        type_with_this: Gc<Type>,
+        base_with_this: Gc<Type>,
     ) -> Self {
         Self {
             type_checker,
@@ -864,6 +864,6 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
 }
 
 struct InheritanceInfoMap {
-    pub prop: Rc<Symbol>,
-    pub containing_type: Rc<Type>,
+    pub prop: Gc<Symbol>,
+    pub containing_type: Gc<Type>,
 }

@@ -64,7 +64,7 @@ impl BinderType {
         &self,
         node: &Node, /*VariableDeclaration | ArrayBindingElement*/
     ) {
-        let name: Option<Rc<Node>> = if !is_omitted_expression(node) {
+        let name: Option<Gc<Node>> = if !is_omitted_expression(node) {
             node.as_named_declaration().maybe_name()
         } else {
             None
@@ -423,7 +423,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         match self.container().kind() {
             SyntaxKind::ModuleDeclaration => {
                 Some(self.declare_module_member(node, symbol_flags, symbol_excludes))
@@ -498,7 +498,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         if is_static(node) {
             self.declare_symbol(
                 &mut *self.container().symbol().exports().borrow_mut(),
@@ -527,7 +527,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         if is_external_module(&self.file()) {
             self.declare_module_member(node, symbol_flags, symbol_excludes)
         } else {
@@ -547,7 +547,7 @@ impl BinderType {
         &self,
         node: &Node, /*ModuleDeclaration | SourceFile*/
     ) -> bool {
-        let body: Option<Rc<Node>> = if is_source_file(node) {
+        let body: Option<Gc<Node>> = if is_source_file(node) {
             Some(node.node_wrapper())
         } else {
             node.as_module_declaration()
@@ -662,7 +662,7 @@ pub struct WorkArea {
     pub stack_index: isize,
     pub skip: bool,
     pub in_strict_mode_stack: Vec<Option<bool>>,
-    pub parent_stack: Vec<Option<Rc<Node>>>,
+    pub parent_stack: Vec<Option<Gc<Node>>>,
 }
 
 #[derive(Trace, Finalize)]
@@ -678,7 +678,7 @@ impl BindBinaryExpressionFlowStateMachine {
     pub fn maybe_bind(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         if
         /*node &&*/
         is_binary_expression(node) && !is_destructuring_assignment(node) {
@@ -755,7 +755,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         left: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         if !(*state).borrow().skip {
             return self.maybe_bind(left);
         }
@@ -782,7 +782,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         right: &Node, /*Expression*/
         state: Rc<RefCell<WorkArea>>,
         _node: &Node, /*BinaryExpression*/
-    ) -> Option<Rc<Node /*BinaryExpression*/>> {
+    ) -> Option<Gc<Node /*BinaryExpression*/>> {
         if !(*state).borrow().skip {
             return self.maybe_bind(right);
         }

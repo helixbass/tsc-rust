@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::rc::Rc;
 
 use crate::{
@@ -777,7 +778,7 @@ impl Printer {
         let node_as_object_literal_expression = node.as_object_literal_expression();
         for_each(
             &node_as_object_literal_expression.properties,
-            |property: &Rc<Node>, _| -> Option<()> {
+            |property: &Gc<Node>, _| -> Option<()> {
                 self.generate_member_names(Some(&**property));
                 None
             },
@@ -838,7 +839,7 @@ impl Printer {
             .question_dot_token
             .clone()
             .unwrap_or_else(|| {
-                let token: Rc<Node> =
+                let token: Gc<Node> =
                     with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                         factory
                             .create_token(synthetic_factory, SyntaxKind::DotToken)

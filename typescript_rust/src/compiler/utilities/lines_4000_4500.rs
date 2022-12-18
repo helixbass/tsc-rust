@@ -345,7 +345,7 @@ impl SymbolTracker for TextWriter {
     fn track_symbol(
         &self,
         _symbol: &Symbol,
-        _enclosing_declaration: Option<Rc<Node>>,
+        _enclosing_declaration: Option<Gc<Node>>,
         _meaning: SymbolFlags,
     ) -> Option<bool> {
         Some(false)
@@ -829,7 +829,7 @@ pub fn get_source_files_to_emit<TTargetSourceFile: Borrow<Node>>(
     host: &dyn EmitHost,
     target_source_file: Option<TTargetSourceFile /*SourceFile*/>,
     force_dts_emit: Option<bool>,
-) -> Vec<Rc<Node /*SourceFile*/>> {
+) -> Vec<Gc<Node /*SourceFile*/>> {
     let options = ScriptReferenceHost::get_compiler_options(host);
     if matches!(out_file(&options), Some(out_file) if !out_file.is_empty()) {
         let module_kind = get_emit_module_kind(&options);
@@ -925,7 +925,7 @@ pub fn write_file(
     file_name: &str,
     data: &str,
     write_byte_order_mark: bool,
-    source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    source_files: Option<&[Gc<Node /*SourceFile*/>]>,
 ) {
     write_file.call(
         file_name,
@@ -992,7 +992,7 @@ pub fn get_line_of_local_position_from_line_map(line_map: &[usize], pos: usize) 
 
 pub fn get_first_constructor_with_body(
     node: &Node, /*ClassLikeDeclaration*/
-) -> Option<Rc<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
+) -> Option<Gc<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
     find(node.as_class_like_declaration().members(), |member, _| {
         is_constructor_declaration(member)
             && node_is_present(member.as_constructor_declaration().maybe_body())
@@ -1002,7 +1002,7 @@ pub fn get_first_constructor_with_body(
 
 pub fn get_set_accessor_value_parameter(
     accessor: &Node, /*SetAccessorDeclaration*/
-) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+) -> Option<Gc<Node /*ParameterDeclaration*/>> {
     let accessor_as_set_accessor_declaration = accessor.as_set_accessor_declaration();
     let accessor_parameters = accessor_as_set_accessor_declaration.parameters();
     if
@@ -1017,14 +1017,14 @@ pub fn get_set_accessor_value_parameter(
 
 pub fn get_set_accessor_type_annotation_node(
     accessor: &Node, /*SetAccessorDeclaration*/
-) -> Option<Rc<Node /*TypeNode*/>> {
+) -> Option<Gc<Node /*TypeNode*/>> {
     let parameter = get_set_accessor_value_parameter(accessor);
     parameter.and_then(|parameter| parameter.as_parameter_declaration().maybe_type())
 }
 
 pub fn get_this_parameter(
     signature: &Node, /*SignatureDeclaration | JSDocSignature*/
-) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+) -> Option<Gc<Node /*ParameterDeclaration*/>> {
     let signature_as_signature_declaration = signature.as_signature_declaration();
     if !signature_as_signature_declaration.parameters().is_empty() && !is_jsdoc_signature(signature)
     {
@@ -1072,13 +1072,13 @@ pub fn identifier_is_this_keyword(id: &Node /*Identifier*/) -> bool {
 }
 
 pub fn get_all_accessor_declarations(
-    declarations: &[Rc<Node /*Declaration*/>],
+    declarations: &[Gc<Node /*Declaration*/>],
     accessor: &Node, /*AccessorDeclaration*/
 ) -> AllAccessorDeclarations {
-    let mut first_accessor: Option<Rc<Node>> = None;
-    let mut second_accessor: Option<Rc<Node>> = None;
-    let mut get_accessor: Option<Rc<Node>> = None;
-    let mut set_accessor: Option<Rc<Node>> = None;
+    let mut first_accessor: Option<Gc<Node>> = None;
+    let mut second_accessor: Option<Gc<Node>> = None;
+    let mut get_accessor: Option<Gc<Node>> = None;
+    let mut set_accessor: Option<Gc<Node>> = None;
     if has_dynamic_name(accessor) {
         first_accessor = Some(accessor.node_wrapper());
         if accessor.kind() == SyntaxKind::GetAccessor {

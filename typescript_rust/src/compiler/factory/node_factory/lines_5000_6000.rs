@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::rc::Rc;
 
@@ -18,7 +19,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         name: TName, /*PropertyName*/
-        initializer: Rc<Node /*Expression*/>,
+        initializer: Gc<Node /*Expression*/>,
     ) -> PropertyAssignment {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -43,7 +44,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         name: TName, /*Identifier*/
-        object_assignment_initializer: Option<Rc<Node /*Expression*/>>,
+        object_assignment_initializer: Option<Gc<Node /*Expression*/>>,
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -72,7 +73,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_spread_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> SpreadAssignment {
         let node = self.create_base_node(base_factory, SyntaxKind::SpreadAssignment);
         let mut node = SpreadAssignment::new(
@@ -92,7 +93,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         name: TName, /*Identifier*/
-        initializer: Option<Rc<Node /*Expression*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
     ) -> EnumMember {
         let node = self.create_base_node(base_factory, SyntaxKind::EnumMember);
         let mut node = EnumMember::new(
@@ -115,7 +116,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         statements: TStatements,
-        end_of_file_token: Rc<Node /*EndOfFileToken*/>,
+        end_of_file_token: Gc<Node /*EndOfFileToken*/>,
         flags: NodeFlags,
     ) -> SourceFile {
         let node = base_factory.create_base_source_file_node(SyntaxKind::SourceFile);
@@ -149,7 +150,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         type_reference_directives: Option<Vec<FileReference>>,
         has_no_default_lib: Option<bool>,
         lib_reference_directives: Option<Vec<FileReference>>,
-    ) -> Rc<Node /*SourceFile*/> {
+    ) -> Gc<Node /*SourceFile*/> {
         // TODO
         // let node_as_source_file = node.as_source_file();
         // let is_declaration_file = is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
@@ -186,8 +187,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_bundle(
         &self,
         base_factory: &TBaseNodeFactory,
-        source_files: Vec<Rc<Node /*<SourceFile>*/>>,
-        prepends: Option<Vec<Rc<Node /*<UnparsedSource | InputFiles>*/>>>,
+        source_files: Vec<Gc<Node /*<SourceFile>*/>>,
+        prepends: Option<Vec<Gc<Node /*<UnparsedSource | InputFiles>*/>>>,
     ) -> Bundle {
         let prepends = prepends.unwrap_or_else(|| vec![]);
         let node = self.create_base_node(base_factory, SyntaxKind::Bundle);
@@ -197,9 +198,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_unparsed_source(
         &self,
         base_factory: &TBaseNodeFactory,
-        prologues: Vec<Rc<Node /*<UnparsedPrologue>*/>>,
-        synthetic_references: Option<Vec<Rc<Node /*<UnparsedSyntheticReference*/>>>,
-        texts: Vec<Rc<Node /*<UnparsedSourceText>*/>>,
+        prologues: Vec<Gc<Node /*<UnparsedPrologue>*/>>,
+        synthetic_references: Option<Vec<Gc<Node /*<UnparsedSyntheticReference*/>>>,
+        texts: Vec<Gc<Node /*<UnparsedSourceText>*/>>,
     ) -> UnparsedSource {
         let node = self.create_base_node(base_factory, SyntaxKind::UnparsedSource);
         UnparsedSource::new(
@@ -238,7 +239,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         data: Option<String>,
-        texts: Vec<Rc<Node /*UnparsedTextLike*/>>,
+        texts: Vec<Gc<Node /*UnparsedTextLike*/>>,
     ) -> UnparsedPrepend {
         let node = self.create_base_unparsed_node(base_factory, SyntaxKind::UnparsedPrepend, data);
         UnparsedPrepend::new(node, texts)
@@ -270,9 +271,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_synthetic_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Rc<Type>,
+        type_: Gc<Type>,
         is_spread: Option<bool>,
-        tuple_name_source: Option<Rc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
+        tuple_name_source: Option<Gc<Node /*ParameterDeclaration | NamedTupleMember*/>>,
     ) -> SyntheticExpression {
         let is_spread = is_spread.unwrap_or(false);
         let node = self.create_base_node(base_factory, SyntaxKind::SyntheticExpression);
@@ -280,7 +281,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Rc<Node> {
+    pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Gc<Node> {
         // unimplemented!()
         // TODO: this is definitely not right
         node.node_wrapper()
@@ -295,7 +296,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         outer_expression: Option<TOuterExpression /*Expression*/>,
         inner_expression: &Node, /*Expression*/
         kinds: Option<OuterExpressionKinds>,
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
         if let Some(outer_expression) = outer_expression.filter(|outer_expression| {
             let outer_expression = outer_expression.borrow();
@@ -312,7 +313,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node: Option<TNode /*Declaration*/>,
         allow_comments: Option<bool>,
         allow_source_maps: Option<bool>,
-    ) -> Rc<Node /*Identifier*/> {
+    ) -> Gc<Node /*Identifier*/> {
         unimplemented!()
     }
 }

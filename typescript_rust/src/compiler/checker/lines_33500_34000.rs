@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
@@ -33,7 +34,7 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
         contextual_type: Option<TType>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let initializer = get_effective_initializer(declaration).unwrap();
         let type_ = self
             .get_quick_type_of_expression(&initializer)
@@ -76,7 +77,7 @@ impl TypeChecker {
         &self,
         type_: &Type,   /*TupleTypeReference*/
         pattern: &Node, /*ArrayBindingPattern*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let pattern_elements = &pattern.as_array_binding_pattern().elements;
         let mut element_types = self.get_type_arguments(type_);
         let type_target_as_tuple_type = type_.as_type_reference().target.as_tuple_type();
@@ -110,7 +111,7 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
         type_: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const)
             || is_declaration_readonly(declaration)
         {
@@ -146,7 +147,7 @@ impl TypeChecker {
                     .types();
                 return some(
                     Some(types),
-                    Some(|t: &Rc<Type>| {
+                    Some(|t: &Gc<Type>| {
                         self.is_literal_of_contextual_type(candidate_type, Some(&**t))
                     }),
                 );
@@ -212,7 +213,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
         contextual_type: Option<TContextualType>,
         force_tuple: Option<bool>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_ = self.check_expression(node, check_mode, force_tuple);
         if self.is_const_context(node) {
             self.get_regular_type_of_literal_type(&type_)
@@ -238,7 +239,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*PropertyAssignment*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_property_assignment = node.as_property_assignment();
         if node_as_property_assignment.name().kind() == SyntaxKind::ComputedPropertyName {
             self.check_computed_property_name(&node_as_property_assignment.name());
@@ -255,7 +256,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*MethodDeclaration*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.check_grammar_method(node);
 
         let node_as_method_declaration = node.as_method_declaration();
@@ -277,7 +278,7 @@ impl TypeChecker {
         node: &Node, /*Expression | MethodDeclaration | QualifiedName*/
         type_: &Type,
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if let Some(check_mode) = check_mode.filter(|check_mode| {
             check_mode.intersects(CheckMode::Inferential | CheckMode::SkipGenericFunctions)
         }) {
@@ -472,12 +473,12 @@ impl TypeChecker {
                     ),
                     name,
                 );
-                let symbol: Rc<Symbol> = self
+                let symbol: Gc<Symbol> = self
                     .create_symbol(SymbolFlags::TypeParameter, new_name, None)
                     .into();
                 let mut new_type_parameter = self.create_type_parameter(Some(&*symbol));
                 new_type_parameter.target = Some(tp.clone());
-                let new_type_parameter: Rc<Type> = new_type_parameter.into();
+                let new_type_parameter: Gc<Type> = new_type_parameter.into();
                 if old_type_parameters.is_none() {
                     old_type_parameters = Some(vec![]);
                 }
@@ -513,7 +514,7 @@ impl TypeChecker {
     ) -> bool {
         some(
             type_parameters,
-            Some(|tp: &Rc<Type>| tp.symbol().escaped_name() == name),
+            Some(|tp: &Gc<Type>| tp.symbol().escaped_name() == name),
         )
     }
 
@@ -544,7 +545,7 @@ impl TypeChecker {
     pub(super) fn get_return_type_of_single_non_generic_call_signature(
         &self,
         func_type: &Type,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let signature = self.get_single_call_signature(func_type);
         signature
             .filter(|signature| signature.maybe_type_parameters().is_none())
@@ -554,7 +555,7 @@ impl TypeChecker {
     pub(super) fn get_return_type_of_single_non_generic_signature_of_call_chain(
         &self,
         expr: &Node, /*CallChain*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let expr_as_call_expression = expr.as_call_expression();
         let func_type = self.check_expression(&expr_as_call_expression.expression, None, None);
         let non_optional_type =
@@ -569,7 +570,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_type_of_expression(&self, node: &Node /*Expression*/) -> Rc<Type> {
+    pub(super) fn get_type_of_expression(&self, node: &Node /*Expression*/) -> Gc<Type> {
         let quick_type = self.get_quick_type_of_expression(node);
         if let Some(quick_type) = quick_type {
             return quick_type;
@@ -599,7 +600,7 @@ impl TypeChecker {
     pub(super) fn get_quick_type_of_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let mut expr = skip_parentheses(node, Some(true));
         if is_jsdoc_type_assertion(&expr) {
             let type_ = get_jsdoc_type_assertion_type(&expr);
@@ -642,7 +643,7 @@ impl TypeChecker {
     pub(super) fn get_context_free_type_of_expression(
         &self,
         node: &Node, /*Expression*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let links = self.get_node_links(node);
         if let Some(links_context_free_type) = (*links).borrow().context_free_type.clone() {
             return links_context_free_type;
@@ -664,7 +665,7 @@ impl TypeChecker {
         node: &Node, /*Expression | QualifiedName*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         // tracing?.push(tracing.Phase.Check, "checkExpression", { kind: node.kind, pos: node.pos, end: node.end });
         let save_current_node = self.maybe_current_node();
         self.set_current_node(Some(node.node_wrapper()));
@@ -737,7 +738,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ParenthesizedExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_parenthesized_expression = node.as_parenthesized_expression();
         if has_jsdoc_nodes(node) && is_jsdoc_type_assertion(node) {
             let type_ = get_jsdoc_type_assertion_type(node);
@@ -760,7 +761,7 @@ impl TypeChecker {
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let kind = node.kind();
         if let Some(cancellation_token) = self.maybe_cancellation_token() {
             match kind {

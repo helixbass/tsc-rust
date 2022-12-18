@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -25,7 +26,7 @@ impl BinderType {
         node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let has_export_modifier = get_combined_modifier_flags(node)
             .intersects(ModifierFlags::Export)
             || self.jsdoc_treat_as_exported(node);
@@ -305,7 +306,7 @@ impl BinderType {
         self.set_block_scope_container(saved_block_scope_container);
     }
 
-    pub(super) fn bind_each_functions_first(&self, nodes: Option<&[Rc<Node>] /*NodeArray*/>) {
+    pub(super) fn bind_each_functions_first(&self, nodes: Option<&[Gc<Node>] /*NodeArray*/>) {
         self.bind_each_callback(nodes, |n| {
             if n.kind() == SyntaxKind::FunctionDeclaration {
                 self.bind(Some(n))
@@ -318,7 +319,7 @@ impl BinderType {
         });
     }
 
-    pub(super) fn bind_each(&self, nodes: Option<&[Rc<Node>] /*NodeArray*/>) {
+    pub(super) fn bind_each(&self, nodes: Option<&[Gc<Node>] /*NodeArray*/>) {
         if nodes.is_none() {
             return;
         }
@@ -332,7 +333,7 @@ impl BinderType {
 
     pub(super) fn bind_each_callback<TNodeCallback: FnMut(&Node)>(
         &self,
-        nodes: Option<&[Rc<Node>] /*NodeArray*/>,
+        nodes: Option<&[Gc<Node>] /*NodeArray*/>,
         mut bind_function: TNodeCallback,
     ) {
         if nodes.is_none() {

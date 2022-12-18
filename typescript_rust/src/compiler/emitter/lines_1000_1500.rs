@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::borrow::Cow;
 use std::cell::Ref;
 use std::collections::{HashMap, HashSet};
@@ -258,7 +259,7 @@ impl Printer {
     pub(super) fn emit(
         &self,
         node: Option<&Node>,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
     ) {
         if node.is_none() {
             return;
@@ -280,7 +281,7 @@ impl Printer {
     pub(super) fn emit_expression(
         &self,
         node: Option<&Node /*Expression*/>,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
     ) {
         if node.is_none() {
             return;
@@ -320,7 +321,7 @@ impl Printer {
         &self,
         emit_hint: EmitHint,
         node: &Node,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
     ) {
         self.set_current_parenthesizer_rule(parenthesizer_rule);
         let pipeline_phase = self.get_pipeline_phase(PipelinePhase::Notification, emit_hint, node);

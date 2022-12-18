@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -21,9 +22,9 @@ use crate::{
 };
 
 pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(
-    options: Rc<CompilerOptions>,
+    options: Gc<CompilerOptions>,
     to_absolute_path: TToAbsolutePath,
-) -> Rc<CompilerOptions> {
+) -> Gc<CompilerOptions> {
     let mut result: CompilerOptions = Default::default();
     let options_name_map = &get_options_name_map().options_name_map;
 
@@ -85,7 +86,7 @@ pub fn parse_json_config_file_content<THost: ParseConfigHost>(
     json: Option<serde_json::Value>,
     host: &THost,
     base_path: &str,
-    existing_options: Option<Rc<CompilerOptions>>,
+    existing_options: Option<Gc<CompilerOptions>>,
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
@@ -110,7 +111,7 @@ pub fn parse_json_source_file_config_file_content<THost: ParseConfigHost>(
     source_file: &Node, /*TsConfigSourceFile*/
     host: &THost,
     base_path: &str,
-    existing_options: Option<Rc<CompilerOptions>>,
+    existing_options: Option<Gc<CompilerOptions>>,
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
@@ -157,7 +158,7 @@ pub(super) fn parse_json_config_file_content_worker<
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
     host: &THost,
     base_path: &str,
-    existing_options: Option<Rc<CompilerOptions>>,
+    existing_options: Option<Gc<CompilerOptions>>,
     existing_watch_options: Option<Rc<WatchOptions>>,
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,

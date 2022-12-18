@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ptr;
@@ -75,7 +76,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_jsx_name(&self, node: &Node /*JsxTagNameExpression*/) -> bool {
         if is_property_access_expression(node) {
-            let mut prop_name: Rc<Node /*JsxTagNameExpression*/> = node.node_wrapper();
+            let mut prop_name: Gc<Node /*JsxTagNameExpression*/> = node.node_wrapper();
             while {
                 let check = self
                     .check_grammar_jsx_nested_identifier(&prop_name.as_named_declaration().name());
@@ -449,7 +450,7 @@ impl TypeChecker {
     pub(super) fn get_accessor_this_parameter(
         &self,
         accessor: &Node, /*AccessorDeclaration*/
-    ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
         if accessor.as_function_like_declaration().parameters().len()
             == if accessor.kind() == SyntaxKind::GetAccessor {
                 1
@@ -656,7 +657,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*BreakOrContinueStatement*/
     ) -> bool {
-        let mut current: Option<Rc<Node>> = Some(node.node_wrapper());
+        let mut current: Option<Gc<Node>> = Some(node.node_wrapper());
         let node_as_has_label = node.as_has_label();
         while let Some(current_present) = current.as_ref() {
             if is_function_like_or_class_static_block_declaration(Some(&**current_present)) {

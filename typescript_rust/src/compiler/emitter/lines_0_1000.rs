@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -290,15 +291,15 @@ impl Printer {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_source_file(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_current_source_file(&self) -> Option<Gc<Node>> {
         self.current_source_file.borrow().clone()
     }
 
-    pub(super) fn current_source_file(&self) -> Rc<Node> {
+    pub(super) fn current_source_file(&self) -> Gc<Node> {
         self.current_source_file.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_current_source_file(&self, current_source_file: Option<Rc<Node>>) {
+    pub(super) fn set_current_source_file(&self, current_source_file: Option<Gc<Node>>) {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
@@ -443,7 +444,7 @@ impl Printer {
         self.handlers.is_emit_notification_enabled(node)
     }
 
-    pub(super) fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Rc<Node>> {
+    pub(super) fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Gc<Node>> {
         Some(if self.handlers.is_substitute_node_supported() {
             self.handlers.substitute_node(hint, node).unwrap()
         } else {
@@ -668,21 +669,21 @@ impl Printer {
         self.comments_disabled.set(comments_disabled);
     }
 
-    pub(super) fn maybe_last_substitution(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_last_substitution(&self) -> Option<Gc<Node>> {
         self.last_substitution.borrow().clone()
     }
 
-    pub(super) fn set_last_substitution(&self, last_substitution: Option<Rc<Node>>) {
+    pub(super) fn set_last_substitution(&self, last_substitution: Option<Gc<Node>>) {
         *self.last_substitution.borrow_mut() = last_substitution;
     }
 
-    pub(super) fn maybe_current_parenthesizer_rule(&self) -> Option<Rc<dyn Fn(&Node) -> Rc<Node>>> {
+    pub(super) fn maybe_current_parenthesizer_rule(&self) -> Option<Rc<dyn Fn(&Node) -> Gc<Node>>> {
         self.current_parenthesizer_rule.borrow().clone()
     }
 
     pub(super) fn set_current_parenthesizer_rule(
         &self,
-        current_parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Rc<Node>>>,
+        current_parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
     ) {
         *self.current_parenthesizer_rule.borrow_mut() = current_parenthesizer_rule;
     }

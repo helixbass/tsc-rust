@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell};
 use std::fmt;
@@ -189,7 +190,7 @@ impl DebugType {
             self.format_symbol_flags(Some(symbol.flags())),
             maybe_map(
                 symbol.maybe_declarations().as_deref(),
-                |node: &Rc<Node>, _| self.format_syntax_kind(Some(node.kind()))
+                |node: &Gc<Node>, _| self.format_syntax_kind(Some(node.kind()))
             )
         )
     }

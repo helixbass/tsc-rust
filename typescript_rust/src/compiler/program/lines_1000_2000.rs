@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::cell::Ref;
 use std::ptr;
 use std::rc::Rc;
@@ -199,11 +200,11 @@ impl Program {
         unimplemented!()
     }
 
-    pub fn get_source_files(&self) -> Ref<Vec<Rc<Node>>> {
+    pub fn get_source_files(&self) -> Ref<Vec<Gc<Node>>> {
         self.files()
     }
 
-    pub fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    pub fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         self.options.clone()
     }
 
@@ -215,7 +216,7 @@ impl Program {
         unimplemented!()
     }
 
-    pub fn get_source_file_(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
+    pub fn get_source_file_(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
         self.get_source_file_by_path(&self.to_path(file_name))
     }
 
@@ -277,13 +278,13 @@ impl Program {
     pub fn get_common_source_directory(&self) -> String {
         self.maybe_common_source_directory_mut()
             .get_or_insert_with(|| {
-                let emitted_files = filter(&**self.files(), |file: &Rc<Node>| {
+                let emitted_files = filter(&**self.files(), |file: &Gc<Node>| {
                     source_file_may_be_emitted(file, self, None)
                 });
                 get_common_source_directory(
                     &self.options,
                     || {
-                        map_defined(Some(&emitted_files), |file: &Rc<Node>, _| {
+                        map_defined(Some(&emitted_files), |file: &Gc<Node>, _| {
                             let file_as_source_file = file.as_source_file();
                             if file_as_source_file.is_declaration_file() {
                                 None
@@ -578,7 +579,7 @@ impl Program {
         unimplemented!()
     }
 
-    pub(super) fn get_diagnostics_producing_type_checker(&self) -> Rc<TypeChecker> {
+    pub(super) fn get_diagnostics_producing_type_checker(&self) -> Gc<TypeChecker> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 

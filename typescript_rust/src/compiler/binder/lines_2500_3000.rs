@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -433,7 +434,7 @@ impl BinderType {
     pub(super) fn bind_property_worker(
         &self,
         node: &Node, /*PropertyDeclaration | PropertySignature*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.bind_property_or_method_or_accessor(
             node,
             SymbolFlags::Property
@@ -453,7 +454,7 @@ impl BinderType {
     pub(super) fn bind_anonymous_type_worker(
         &self,
         node: &Node, /*TypeLiteralNode | MappedTypeNode | JSDocTypeLiteral*/
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::TypeLiteral,

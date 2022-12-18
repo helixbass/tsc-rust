@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -50,7 +51,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_type(&self) -> Rc<Node /*TypeNode*/> {
+    pub(super) fn parse_type(&self) -> Gc<Node /*TypeNode*/> {
         self.do_outside_of_context(NodeFlags::TypeExcludesFlags, || {
             self.parse_type_worker(None)
         })
@@ -59,7 +60,7 @@ impl ParserType {
     pub(super) fn parse_type_worker(
         &self,
         no_conditional_types: Option<bool>,
-    ) -> Rc<Node /*TypeNode*/> {
+    ) -> Gc<Node /*TypeNode*/> {
         let no_conditional_types = no_conditional_types.unwrap_or(false);
         if self.is_start_of_function_type_or_constructor_type() {
             return self.parse_function_or_constructor_type();
@@ -92,7 +93,7 @@ impl ParserType {
         type_
     }
 
-    pub(super) fn parse_type_annotation(&self) -> Option<Rc<Node /*TypeNode*/>> {
+    pub(super) fn parse_type_annotation(&self) -> Option<Gc<Node /*TypeNode*/>> {
         if self.parse_optional(SyntaxKind::ColonToken) {
             Some(self.parse_type())
         } else {
@@ -167,7 +168,7 @@ impl ParserType {
         ) && self.is_start_of_expression()
     }
 
-    pub(super) fn parse_expression(&self) -> Rc<Node> {
+    pub(super) fn parse_expression(&self) -> Gc<Node> {
         let save_decorator_context = self.in_decorator_context();
         if save_decorator_context {
             self.set_decorator_context(false);
@@ -175,7 +176,7 @@ impl ParserType {
 
         let pos = self.get_node_pos();
         let mut expr = self.parse_assignment_expression_or_higher();
-        let mut operator_token: Option<Rc<Node /*BinaryOperatorToken*/>>;
+        let mut operator_token: Option<Gc<Node /*BinaryOperatorToken*/>>;
         while {
             operator_token = self
                 .parse_optional_token(SyntaxKind::CommaToken)
@@ -199,7 +200,7 @@ impl ParserType {
         expr
     }
 
-    pub(super) fn parse_initializer(&self) -> Option<Rc<Node>> {
+    pub(super) fn parse_initializer(&self) -> Option<Gc<Node>> {
         if self.parse_optional(SyntaxKind::EqualsToken) {
             Some(self.parse_assignment_expression_or_higher())
         } else {
@@ -207,7 +208,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_assignment_expression_or_higher(&self) -> Rc<Node> {
+    pub(super) fn parse_assignment_expression_or_higher(&self) -> Gc<Node> {
         if self.is_yield_expression() {
             return self.parse_yield_expression().into();
         }
@@ -295,9 +296,9 @@ impl ParserType {
     pub(super) fn parse_simple_arrow_function_expression(
         &self,
         pos: isize,
-        identifier: Rc<Node /*Identifier*/>,
+        identifier: Gc<Node /*Identifier*/>,
         async_modifier: Option<NodeArray /*<Modifier>*/>,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         Debug_.assert(
             self.token() == SyntaxKind::EqualsGreaterThanToken,
             Some("parseSimpleArrowFunctionExpression should only have been called if we had a =>"),
@@ -340,7 +341,7 @@ impl ParserType {
 
     pub(super) fn try_parse_parenthesized_arrow_function_expression(
         &self,
-    ) -> Option<Rc<Node /*Expression*/>> {
+    ) -> Option<Gc<Node /*Expression*/>> {
         let tri_state = self.is_parenthesized_arrow_function_expression();
         if tri_state == Tristate::False {
             return None;
@@ -483,7 +484,7 @@ impl ParserType {
 
     pub(super) fn parse_possible_parenthesized_arrow_function_expression(
         &self,
-    ) -> Option<Rc<Node /*ArrowFunction*/>> {
+    ) -> Option<Gc<Node /*ArrowFunction*/>> {
         let token_pos = self.scanner().get_token_pos();
         {
             let not_parenthesized_arrow = self.maybe_not_parenthesized_arrow();
@@ -507,7 +508,7 @@ impl ParserType {
 
     pub(super) fn try_parse_async_simple_arrow_function_expression(
         &self,
-    ) -> Option<Rc<Node /*ArrowFunction*/>> {
+    ) -> Option<Gc<Node /*ArrowFunction*/>> {
         if self.token() == SyntaxKind::AsyncKeyword {
             if self
                 .look_ahead(|| Some(self.is_un_parenthesized_async_arrow_function_worker()))
@@ -550,13 +551,13 @@ impl ParserType {
     pub(super) fn parse_parenthesized_arrow_function_expression(
         &self,
         allow_ambiguity: bool,
-    ) -> Option<Rc<Node /*ArrowFunction*/>> {
+    ) -> Option<Gc<Node /*ArrowFunction*/>> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let modifiers = self.parse_modifiers_for_arrow_function();
         let is_async = if some(
             modifiers.as_deref(),
-            Some(|modifier: &Rc<Node>| is_async_modifier(modifier)),
+            Some(|modifier: &Gc<Node>| is_async_modifier(modifier)),
         ) {
             SignatureFlags::Await
         } else {
@@ -596,13 +597,13 @@ impl ParserType {
         let last_token = self.token();
         let equals_greater_than_token =
             self.parse_expected_token(SyntaxKind::EqualsGreaterThanToken, None, None);
-        let body: Rc<Node> = if matches!(
+        let body: Gc<Node> = if matches!(
             last_token,
             SyntaxKind::EqualsGreaterThanToken | SyntaxKind::OpenBraceToken
         ) {
             self.parse_arrow_function_expression_body(some(
                 modifiers.as_deref(),
-                Some(|modifier: &Rc<Node>| is_async_modifier(modifier)),
+                Some(|modifier: &Gc<Node>| is_async_modifier(modifier)),
             ))
         } else {
             self.parse_identifier(None, None).wrap()
@@ -623,7 +624,7 @@ impl ParserType {
     pub(super) fn parse_arrow_function_expression_body(
         &self,
         is_async: bool,
-    ) -> Rc<Node /*Block | Expression*/> {
+    ) -> Gc<Node /*Block | Expression*/> {
         if self.token() == SyntaxKind::OpenBraceToken {
             return self.parse_function_block(
                 if is_async {
@@ -665,9 +666,9 @@ impl ParserType {
 
     pub(super) fn parse_conditional_expression_rest(
         &self,
-        left_operand: Rc<Node>,
+        left_operand: Gc<Node>,
         pos: isize,
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
         if question_token.is_none() {
             return left_operand;
@@ -710,7 +711,7 @@ impl ParserType {
     pub(super) fn parse_binary_expression_or_higher(
         &self,
         precedence: OperatorPrecedence,
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         let pos = self.get_node_pos();
         let left_operand = self.parse_unary_expression_or_higher();
         self.parse_binary_expression_rest(precedence, left_operand, pos)
@@ -723,9 +724,9 @@ impl ParserType {
     pub(super) fn parse_binary_expression_rest(
         &self,
         precedence: OperatorPrecedence,
-        mut left_operand: Rc<Node>,
+        mut left_operand: Gc<Node>,
         pos: isize,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         loop {
             self.re_scan_greater_token();
             let new_precedence = get_binary_operator_precedence(self.token());
@@ -778,9 +779,9 @@ impl ParserType {
 
     pub(super) fn make_binary_expression(
         &self,
-        left: Rc<Node>,
-        operator_token: Rc<Node>,
-        right: Rc<Node>,
+        left: Gc<Node>,
+        operator_token: Gc<Node>,
+        right: Gc<Node>,
         pos: isize,
     ) -> BinaryExpression {
         self.finish_node(
@@ -791,7 +792,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn make_as_expression(&self, left: Rc<Node>, right: Rc<Node>) -> AsExpression {
+    pub(super) fn make_as_expression(&self, left: Gc<Node>, right: Gc<Node>) -> AsExpression {
         let left_pos = left.pos();
         self.finish_node(
             self.factory.create_as_expression(self, left, right),
@@ -875,7 +876,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_unary_expression_or_higher(&self) -> Rc<Node> {
+    pub(super) fn parse_unary_expression_or_higher(&self) -> Gc<Node> {
         if self.is_update_expression() {
             let pos = self.get_node_pos();
             let update_expression = self.parse_update_expression();
@@ -911,7 +912,7 @@ impl ParserType {
         simple_unary_expression
     }
 
-    pub(super) fn parse_simple_unary_expression(&self) -> Rc<Node /*UnaryExpression*/> {
+    pub(super) fn parse_simple_unary_expression(&self) -> Gc<Node /*UnaryExpression*/> {
         match self.token() {
             SyntaxKind::PlusToken
             | SyntaxKind::MinusToken
@@ -953,7 +954,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_update_expression(&self) -> Rc<Node> {
+    pub(super) fn parse_update_expression(&self) -> Gc<Node> {
         if matches!(
             self.token(),
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -1005,9 +1006,9 @@ impl ParserType {
 
     pub(super) fn parse_left_hand_side_expression_or_higher(
         &self,
-    ) -> Rc<Node /*LeftHandSideExpression*/> {
+    ) -> Gc<Node /*LeftHandSideExpression*/> {
         let pos = self.get_node_pos();
-        let expression: Rc<Node>;
+        let expression: Gc<Node>;
         if self.token() == SyntaxKind::ImportKeyword {
             if self.look_ahead_bool(|| self.next_token_is_open_paren_or_less_than()) {
                 self.set_source_flags(
@@ -1042,7 +1043,7 @@ impl ParserType {
         self.parse_call_expression_rest(pos, expression)
     }
 
-    pub(super) fn parse_member_expression_or_higher(&self) -> Rc<Node /*MemberExpression*/> {
+    pub(super) fn parse_member_expression_or_higher(&self) -> Gc<Node /*MemberExpression*/> {
         let pos = self.get_node_pos();
         let expression = self.parse_primary_expression();
         self.parse_member_expression_rest(pos, expression, true)

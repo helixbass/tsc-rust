@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io;
@@ -244,7 +245,7 @@ fn try_get_module_specifiers_from_cache_worker(
     user_preferences: &UserPreferences,
 ) -> (
     Option<Vec<String>>,
-    Option<Rc<Node>>,
+    Option<Gc<Node>>,
     Option<Vec<ModulePath>>,
     Option<Rc<dyn ModuleSpecifierCache>>,
 ) {
@@ -613,7 +614,7 @@ fn uses_js_extensions_on_imports(node: &Node /*SourceFile*/) -> bool {
     imports
         .as_ref()
         .and_then(|imports| {
-            first_defined(imports, |node: &Rc<Node>, _| {
+            first_defined(imports, |node: &Gc<Node>, _| {
                 let text = node.as_literal_like_node().text();
                 if path_is_relative(&text) {
                     Some(has_js_file_extension(&text))
@@ -886,7 +887,7 @@ fn try_get_module_name_from_ambient_module(
 
     let ambient_module_declare_candidates = map_defined(
         module_symbol.maybe_declarations().as_ref(),
-        |d: &Rc<Node>, _| -> Option<Rc<Node>> {
+        |d: &Gc<Node>, _| -> Option<Gc<Node>> {
             if !is_module_declaration(d) {
                 return None;
             }
@@ -966,7 +967,7 @@ fn try_get_module_name_from_paths(
     unimplemented!()
 }
 
-fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Rc<Node> {
+fn get_top_namespace(namespace_declaration: &Node /*ModuleDeclaration*/) -> Gc<Node> {
     let mut namespace_declaration = namespace_declaration.node_wrapper();
     while namespace_declaration
         .flags()

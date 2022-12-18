@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -14,7 +15,7 @@ impl NodeBuilder {
     pub(super) fn get_effective_dot_dot_dot_for_parameter(
         &self,
         p: &Node, /*ParameterDeclaration*/
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         unimplemented!()
     }
 
@@ -22,7 +23,7 @@ impl NodeBuilder {
         &self,
         p: &Node, /*ParameterDeclaration*/
         index: usize,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         unimplemented!()
     }
 
@@ -31,7 +32,7 @@ impl NodeBuilder {
         symbol_table: &SymbolTable,
         context: &NodeBuilderContext,
         bundled: Option<bool>,
-    ) -> Option<Vec<Rc<Node /*Statement*/>>> {
+    ) -> Option<Vec<Gc<Node /*Statement*/>>> {
         unimplemented!()
     }
 }

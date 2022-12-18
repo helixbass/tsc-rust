@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -41,7 +42,7 @@ impl TypeChecker {
                     None
                 }
             },
-            Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+            Option::<fn(&NodeArray) -> Option<Gc<Node>>>::None,
         );
         if let Some(subsequent_node) = subsequent_node
             .as_ref()
@@ -248,7 +249,7 @@ impl TypeChecker {
                 let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap());
                 maybe_for_each(
                     target.maybe_declarations().as_deref(),
-                    |d: &Rc<Node>, _| -> Option<()> {
+                    |d: &Gc<Node>, _| -> Option<()> {
                         result |= self.get_declaration_spaces(d);
                         None
                     },
@@ -262,7 +263,7 @@ impl TypeChecker {
                 let target = self.resolve_alias(&self.get_symbol_of_node(&d).unwrap());
                 maybe_for_each(
                     target.maybe_declarations().as_deref(),
-                    |d: &Rc<Node>, _| -> Option<()> {
+                    |d: &Gc<Node>, _| -> Option<()> {
                         result |= self.get_declaration_spaces(d);
                         None
                     },
@@ -284,7 +285,7 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         let promised_type = self.get_promised_type_of_promise(type_, error_node.as_deref());
         promised_type.as_ref().and_then(|promised_type| {
@@ -296,7 +297,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         error_node: Option<TErrorNode>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if self.is_type_any(Some(type_)) {
             return None;
         }
@@ -341,7 +342,7 @@ impl TypeChecker {
 
         let onfulfilled_parameter_type = self.get_type_with_facts(
             &self.get_union_type(
-                map(&then_signatures, |then_signature: &Rc<Signature>, _| {
+                map(&then_signatures, |then_signature: &Gc<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(then_signature)
                 }),
                 None,
@@ -371,7 +372,7 @@ impl TypeChecker {
         let ret = self.get_union_type(
             map(
                 &onfulfilled_parameter_signatures,
-                |signature: &Rc<Signature>, _| {
+                |signature: &Gc<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(signature)
                 },
             ),
@@ -391,7 +392,7 @@ impl TypeChecker {
         error_node: &Node,
         diagnostic_message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let awaited_type = if with_alias {
             self.get_awaited_type_(type_, Some(error_node), Some(diagnostic_message), args)
         } else {
@@ -435,7 +436,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(
                 type_,
@@ -450,7 +451,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_awaited_type_if_needed(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn create_awaited_type_if_needed(&self, type_: &Type) -> Gc<Type> {
         if self.is_type_any(Some(type_)) {
             return type_.type_wrapper();
         }
@@ -495,7 +496,7 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let awaited_type =
             self.get_awaited_type_no_alias(type_, error_node, diagnostic_message, args);
         awaited_type
@@ -509,7 +510,7 @@ impl TypeChecker {
         error_node: Option<TErrorNode>,
         diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if self.is_type_any(Some(type_)) {
             return Some(type_.type_wrapper());
         }

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -318,7 +319,7 @@ impl TypeChecker {
                 &node_name.as_identifier().escaped_text,
                 SymbolFlags::Variable,
                 None,
-                Option::<Rc<Node>>::None,
+                Option::<Gc<Node>>::None,
                 false,
                 None,
             );
@@ -381,7 +382,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Gc<Type> {
         if ptr::eq(type_, &*self.auto_type()) {
             self.any_type()
         } else if ptr::eq(type_, &*self.auto_array_type()) {
@@ -478,7 +479,7 @@ impl TypeChecker {
 
             for_each(
                 node_name.as_has_elements().elements(),
-                |element: &Rc<Node>, _| -> Option<()> {
+                |element: &Gc<Node>, _| -> Option<()> {
                     self.check_source_element(Some(&**element));
                     None
                 },
@@ -586,7 +587,7 @@ impl TypeChecker {
             {
                 if some(
                     Some(symbol_declarations),
-                    Some(|d: &Rc<Node>| {
+                    Some(|d: &Gc<Node>| {
                         !ptr::eq(&**d, node)
                             && is_variable_like(d)
                             && !self.are_declaration_flags_identical(d, node)

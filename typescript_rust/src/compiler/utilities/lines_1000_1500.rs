@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use regex::Regex;
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
@@ -237,7 +238,7 @@ fn get_error_span_for_arrow_function(
 }
 
 pub fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -> TextSpan {
-    let mut error_node: Option<Rc<Node>> = Some(node.node_wrapper());
+    let mut error_node: Option<Gc<Node>> = Some(node.node_wrapper());
     let source_file_as_source_file = source_file.as_source_file();
     match node.kind() {
         SyntaxKind::SourceFile => {
@@ -638,7 +639,7 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
 }
 
 pub fn is_child_of_node_with_kind(node: &Node, kind: SyntaxKind) -> bool {
-    let mut node: Option<Rc<Node>> = Some(node.node_wrapper());
+    let mut node: Option<Gc<Node>> = Some(node.node_wrapper());
     while let Some(node_present) = node {
         if node_present.kind() == kind {
             return true;
@@ -768,7 +769,7 @@ fn for_each_yield_expression_traverse<TVisitor: FnMut(&Node)>(node: &Node, visit
 
 pub fn get_rest_parameter_element_type<TNode: Borrow<Node>>(
     node: Option<TNode /*TypeNode*/>,
-) -> Option<Rc<Node /*TypeNode*/>> {
+) -> Option<Gc<Node /*TypeNode*/>> {
     if node.is_none() {
         return None;
     }

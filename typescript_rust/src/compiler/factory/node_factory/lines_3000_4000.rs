@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
@@ -27,7 +28,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_expression_with_type_arguments<TTypeArguments: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node>, /*Expression*/
+        expression: Gc<Node>, /*Expression*/
         type_arguments: Option<TTypeArguments>,
     ) -> ExpressionWithTypeArguments {
         let node = self.create_base_node(base_factory, SyntaxKind::ExpressionWithTypeArguments);
@@ -51,8 +52,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_as_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node>, /*Expression*/
-        type_: Rc<Node /*TypeNode*/>,
+        expression: Gc<Node>, /*Expression*/
+        type_: Gc<Node /*TypeNode*/>,
     ) -> AsExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::AsExpression);
         let mut node = AsExpression::new(node, expression, type_);
@@ -67,7 +68,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_non_null_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node>, /*Expression*/
+        expression: Gc<Node>, /*Expression*/
     ) -> NonNullExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::NonNullExpression);
         let mut node = NonNullExpression::new(
@@ -84,7 +85,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_non_null_chain(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node>, /*Expression*/
+        expression: Gc<Node>, /*Expression*/
     ) -> NonNullExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::NonNullExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
@@ -103,7 +104,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         keyword_token: SyntaxKind, /*MetaProperty["keywordToken"]*/
-        name: Rc<Node>,            /*Identifier*/
+        name: Gc<Node>,            /*Identifier*/
     ) -> MetaProperty {
         let node = self.create_base_expression(base_factory, SyntaxKind::MetaProperty);
         let mut node = MetaProperty::new(node, keyword_token, name);
@@ -125,8 +126,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_template_span(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
-        literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
+        expression: Gc<Node /*Expression*/>,
+        literal: Gc<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> TemplateSpan {
         let node = self.create_base_node(base_factory, SyntaxKind::TemplateSpan);
         let mut node = TemplateSpan::new(node, expression, literal);
@@ -207,7 +208,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_expression_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> ExpressionStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::ExpressionStatement);
         let mut node = ExpressionStatement::new(
@@ -222,9 +223,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_if_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
-        then_statement: Rc<Node /*Statement*/>,
-        else_statement: Option<Rc<Node /*Statement*/>>,
+        expression: Gc<Node /*Expression*/>,
+        then_statement: Gc<Node /*Statement*/>,
+        else_statement: Option<Gc<Node /*Statement*/>>,
     ) -> IfStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::IfStatement);
         let mut node = IfStatement::new(
@@ -244,8 +245,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_do_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        statement: Rc<Node /*Statement*/>,
-        expression: Rc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> DoStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::DoStatement);
         let mut node = DoStatement::new(
@@ -263,8 +264,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_while_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
-        statement: Rc<Node /*Statement*/>,
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
     ) -> WhileStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::WhileStatement);
         let mut node = WhileStatement::new(
@@ -282,10 +283,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_for_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        initializer: Option<Rc<Node /*ForInitializer*/>>,
-        condition: Option<Rc<Node /*Expression*/>>,
-        incrementor: Option<Rc<Node /*Expression*/>>,
-        statement: Rc<Node /*Statement*/>,
+        initializer: Option<Gc<Node /*ForInitializer*/>>,
+        condition: Option<Gc<Node /*Expression*/>>,
+        incrementor: Option<Gc<Node /*Expression*/>>,
+        statement: Gc<Node /*Statement*/>,
     ) -> ForStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::ForStatement);
         let mut node = ForStatement::new(
@@ -307,9 +308,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_for_in_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        initializer: Rc<Node /*ForInitializer*/>,
-        expression: Rc<Node /*Expression*/>,
-        statement: Rc<Node /*Statement*/>,
+        initializer: Gc<Node /*ForInitializer*/>,
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
     ) -> ForInStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::ForInStatement);
         let mut node = ForInStatement::new(
@@ -329,10 +330,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_for_of_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        await_modifier: Option<Rc<Node /*AwaitKeyword*/>>,
-        initializer: Rc<Node /*ForInitializer*/>,
-        expression: Rc<Node /*Expression*/>,
-        statement: Rc<Node /*Statement*/>,
+        await_modifier: Option<Gc<Node /*AwaitKeyword*/>>,
+        initializer: Gc<Node /*ForInitializer*/>,
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
     ) -> ForOfStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::ForOfStatement);
         let await_modifier_is_some = await_modifier.is_some();
@@ -388,7 +389,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_return_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Option<Rc<Node /*Expression*/>>,
+        expression: Option<Gc<Node /*Expression*/>>,
     ) -> ReturnStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::ReturnStatement);
         let mut node = ReturnStatement::new(node, expression);
@@ -403,8 +404,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_with_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
-        statement: Rc<Node /*Statement*/>,
+        expression: Gc<Node /*Expression*/>,
+        statement: Gc<Node /*Statement*/>,
     ) -> WithStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::WithStatement);
         let mut node = WithStatement::new(
@@ -422,8 +423,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_switch_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
-        case_block: Rc<Node /*CaseBlock*/>,
+        expression: Gc<Node /*Expression*/>,
+        case_block: Gc<Node /*CaseBlock*/>,
     ) -> SwitchStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::SwitchStatement);
         let mut node = SwitchStatement::new(
@@ -443,7 +444,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         label: TLabel,
-        statement: Rc<Node /*Statement*/>,
+        statement: Gc<Node /*Statement*/>,
     ) -> LabeledStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::LabeledStatement);
         let mut node = LabeledStatement::new(
@@ -461,7 +462,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_throw_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
+        expression: Gc<Node /*Expression*/>,
     ) -> ThrowStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::ThrowStatement);
         let mut node = ThrowStatement::new(node, expression);
@@ -472,9 +473,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_try_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        try_block: Rc<Node /*Block*/>,
-        catch_clause: Option<Rc<Node /*CatchClause*/>>,
-        finally_block: Option<Rc<Node /*Block*/>>,
+        try_block: Gc<Node /*Block*/>,
+        catch_clause: Option<Gc<Node /*CatchClause*/>>,
+        finally_block: Option<Gc<Node /*Block*/>>,
     ) -> TryStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::TryStatement);
         let mut node = TryStatement::new(node, try_block, catch_clause, finally_block);
@@ -495,9 +496,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         name: Option<TName /*BindingName*/>,
-        exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
-        type_: Option<Rc<Node /*TypeNode*/>>,
-        initializer: Option<Rc<Node /*Expression*/>>,
+        exclamation_token: Option<Gc<Node /*ExclamationToken*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        initializer: Option<Gc<Node /*Expression*/>>,
     ) -> VariableDeclaration {
         let node = self.create_base_variable_like_declaration(
             base_factory,
@@ -555,12 +556,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
-        asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+        asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
         name: Option<TName /*Identifier*/>,
         type_parameters: Option<TTypeParameters /*<TypeParameterDeclaration>*/>,
         parameters: TParameters, /*<ParameterDeclaration>*/
-        type_: Option<Rc<Node /*TypeNode*/>>,
-        body: Option<Rc<Node /*Block*/>>,
+        type_: Option<Gc<Node /*TypeNode*/>>,
+        body: Option<Gc<Node /*Block*/>>,
     ) -> FunctionDeclaration {
         let mut node = self.create_base_function_like_declaration(
             base_factory,
@@ -692,7 +693,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<TModifiers>,
         name: TName,
         type_parameters: Option<TTypeParameters>,
-        type_: Rc<Node /*TypeNode*/>,
+        type_: Gc<Node /*TypeNode*/>,
     ) -> TypeAliasDeclaration {
         let node = self.create_base_generic_named_declaration(
             base_factory,
@@ -746,8 +747,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
-        name: Rc<Node /*ModuleName*/>,
-        body: Option<Rc<Node /*ModuleBody*/>>,
+        name: Gc<Node /*ModuleName*/>,
+        body: Option<Gc<Node /*ModuleBody*/>>,
         flags: Option<NodeFlags>,
     ) -> ModuleDeclaration {
         let flags = flags.unwrap_or(NodeFlags::None);
@@ -832,7 +833,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<TModifiers>,
         is_type_only: bool,
         name: TName,
-        module_reference: Rc<Node /*ModuleReference*/>,
+        module_reference: Gc<Node /*ModuleReference*/>,
     ) -> ImportEqualsDeclaration {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -860,9 +861,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
-        import_clause: Option<Rc<Node /*ImportClause*/>>,
-        module_specifier: Rc<Node /*Expression*/>,
-        assert_clause: Option<Rc<Node /*AssertClause*/>>,
+        import_clause: Option<Gc<Node /*ImportClause*/>>,
+        module_specifier: Gc<Node /*Expression*/>,
+        assert_clause: Option<Gc<Node /*AssertClause*/>>,
     ) -> ImportDeclaration {
         let node = self.create_base_declaration(
             base_factory,
@@ -882,8 +883,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         is_type_only: bool,
-        name: Option<Rc<Node /*Identifier*/>>,
-        named_bindings: Option<Rc<Node /*NamedImportBindings*/>>,
+        name: Option<Gc<Node /*Identifier*/>>,
+        named_bindings: Option<Gc<Node /*NamedImportBindings*/>>,
     ) -> ImportClause {
         let node = self.create_base_node(base_factory, SyntaxKind::ImportClause);
         let mut node = ImportClause::new(node, is_type_only, name, named_bindings);

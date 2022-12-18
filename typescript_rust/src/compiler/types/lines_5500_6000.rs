@@ -27,7 +27,7 @@ use local_macros::{enum_unwrapped, type_type};
 )]
 pub struct IntersectionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
-    resolved_apparent_type: RefCell<Option<Rc<Type>>>,
+    resolved_apparent_type: RefCell<Option<Gc<Type>>>,
 }
 
 impl IntersectionType {
@@ -38,7 +38,7 @@ impl IntersectionType {
         }
     }
 
-    pub(crate) fn maybe_resolved_apparent_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(crate) fn maybe_resolved_apparent_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_apparent_type.borrow_mut()
     }
 }
@@ -50,18 +50,18 @@ impl IntersectionType {
 )]
 pub struct MappedType {
     _object_type: BaseObjectType,
-    pub declaration: Rc<Node /*MappedTypeNode*/>,
+    pub declaration: Gc<Node /*MappedTypeNode*/>,
     type_parameter: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
-    constraint_type: RefCell<Option<Rc<Type>>>,
-    name_type: RefCell<Option<Rc<Type>>>,
-    template_type: RefCell<Option<Rc<Type>>>,
-    modifiers_type: RefCell<Option<Rc<Type>>>,
-    resolved_apparent_type: RefCell<Option<Rc<Type>>>,
+    constraint_type: RefCell<Option<Gc<Type>>>,
+    name_type: RefCell<Option<Gc<Type>>>,
+    template_type: RefCell<Option<Gc<Type>>>,
+    modifiers_type: RefCell<Option<Gc<Type>>>,
+    resolved_apparent_type: RefCell<Option<Gc<Type>>>,
     contains_error: Cell<Option<bool>>,
 }
 
 impl MappedType {
-    pub fn new(object_type: BaseObjectType, declaration: Rc<Node>) -> Self {
+    pub fn new(object_type: BaseObjectType, declaration: Gc<Node>) -> Self {
         Self {
             _object_type: object_type,
             declaration,
@@ -75,27 +75,27 @@ impl MappedType {
         }
     }
 
-    pub fn maybe_type_parameter(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_type_parameter(&self) -> RefMut<Option<Gc<Type>>> {
         self.type_parameter.borrow_mut()
     }
 
-    pub fn maybe_constraint_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_constraint_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.constraint_type.borrow_mut()
     }
 
-    pub fn maybe_name_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_name_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.name_type.borrow_mut()
     }
 
-    pub fn maybe_template_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_template_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.template_type.borrow_mut()
     }
 
-    pub fn maybe_modifiers_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_modifiers_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.modifiers_type.borrow_mut()
     }
 
-    pub fn maybe_resolved_apparent_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_resolved_apparent_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_apparent_type.borrow_mut()
     }
 
@@ -115,12 +115,12 @@ impl MappedType {
 )]
 pub struct EvolvingArrayType {
     _object_type: BaseObjectType,
-    pub element_type: Rc<Type>,
-    final_array_type: RefCell<Option<Rc<Type>>>,
+    pub element_type: Gc<Type>,
+    final_array_type: RefCell<Option<Gc<Type>>>,
 }
 
 impl EvolvingArrayType {
-    pub fn new(base_object_type: BaseObjectType, element_type: Rc<Type>) -> Self {
+    pub fn new(base_object_type: BaseObjectType, element_type: Gc<Type>) -> Self {
         Self {
             _object_type: base_object_type,
             element_type,
@@ -128,7 +128,7 @@ impl EvolvingArrayType {
         }
     }
 
-    pub fn maybe_final_array_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_final_array_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.final_array_type.borrow_mut()
     }
 }
@@ -140,7 +140,7 @@ impl EvolvingArrayType {
 )]
 pub struct ReverseMappedType {
     _object_type: BaseObjectType,
-    pub source: Rc<Type>,
+    pub source: Gc<Type>,
     pub mapped_type: Rc<Type /*MappedType*/>,
     pub constraint_type: Rc<Type /*IndexType*/>,
 }
@@ -148,7 +148,7 @@ pub struct ReverseMappedType {
 impl ReverseMappedType {
     pub fn new(
         base_object_type: BaseObjectType,
-        source: Rc<Type>,
+        source: Gc<Type>,
         mapped_type: Rc<Type /*MappedType*/>,
         constraint_type: Rc<Type /*IndexType*/>,
     ) -> Self {
@@ -165,18 +165,18 @@ pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
-    fn properties(&self) -> Ref<Vec<Rc<Symbol>>>;
-    fn properties_mut(&self) -> RefMut<Vec<Rc<Symbol>>>;
-    fn set_properties(&self, properties: Vec<Rc<Symbol>>);
-    fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
-    fn set_call_signatures(&self, call_signatures: Vec<Rc<Signature>>);
-    fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
-    fn set_construct_signatures(&self, construct_signatures: Vec<Rc<Signature>>);
+    fn properties(&self) -> Ref<Vec<Gc<Symbol>>>;
+    fn properties_mut(&self) -> RefMut<Vec<Gc<Symbol>>>;
+    fn set_properties(&self, properties: Vec<Gc<Symbol>>);
+    fn call_signatures(&self) -> Ref<Vec<Gc<Signature>>>;
+    fn set_call_signatures(&self, call_signatures: Vec<Gc<Signature>>);
+    fn construct_signatures(&self) -> Ref<Vec<Gc<Signature>>>;
+    fn set_construct_signatures(&self, construct_signatures: Vec<Gc<Signature>>);
     fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>>;
-    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Rc<Type>>;
+    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Gc<Type>>;
     fn set_object_type_without_abstract_construct_signatures(
         &self,
-        object_type_without_abstract_construct_signatures: Option<Rc<Type>>,
+        object_type_without_abstract_construct_signatures: Option<Gc<Type>>,
     );
 }
 
@@ -199,7 +199,7 @@ pub struct IterationTypes {
 }
 
 impl IterationTypes {
-    pub fn new(yield_type: Rc<Type>, return_type: Rc<Type>, next_type: Rc<Type>) -> Self {
+    pub fn new(yield_type: Gc<Type>, return_type: Gc<Type>, next_type: Gc<Type>) -> Self {
         Self {
             yield_type: Some(yield_type),
             return_type: Some(return_type),
@@ -215,7 +215,7 @@ impl IterationTypes {
         }
     }
 
-    pub fn yield_type(&self) -> Rc<Type> {
+    pub fn yield_type(&self) -> Gc<Type> {
         let cloned = self.yield_type.clone();
         if cloned.is_none() {
             Debug_.fail(Some("Not supported"));
@@ -223,7 +223,7 @@ impl IterationTypes {
         cloned.unwrap()
     }
 
-    pub fn return_type(&self) -> Rc<Type> {
+    pub fn return_type(&self) -> Gc<Type> {
         let cloned = self.return_type.clone();
         if cloned.is_none() {
             Debug_.fail(Some("Not supported"));
@@ -231,7 +231,7 @@ impl IterationTypes {
         cloned.unwrap()
     }
 
-    pub fn next_type(&self) -> Rc<Type> {
+    pub fn next_type(&self) -> Gc<Type> {
         let cloned = self.next_type.clone();
         if cloned.is_none() {
             Debug_.fail(Some("Not supported"));
@@ -239,7 +239,7 @@ impl IterationTypes {
         cloned.unwrap()
     }
 
-    pub fn get_by_key(&self, key: IterationTypesKey) -> Rc<Type> {
+    pub fn get_by_key(&self, key: IterationTypesKey) -> Gc<Type> {
         match key {
             IterationTypesKey::YieldType => self.yield_type(),
             IterationTypesKey::ReturnType => self.return_type(),
@@ -263,8 +263,8 @@ pub enum IterationTypeCacheKey {
 #[type_type]
 pub struct TypeParameter {
     _type: BaseType,
-    pub constraint: RefCell<Option<Rc<Type>>>,
-    pub default: RefCell<Option<Rc<Type>>>,
+    pub constraint: RefCell<Option<Gc<Type>>>,
+    pub default: RefCell<Option<Gc<Type>>>,
     pub target: Option<Rc<Type /*TypeParameter*/>>,
     pub mapper: RefCell<Option<Rc<TypeMapper>>>,
     pub is_this_type: Option<bool>,
@@ -282,15 +282,15 @@ impl TypeParameter {
         }
     }
 
-    pub fn maybe_constraint(&self) -> Option<Rc<Type>> {
+    pub fn maybe_constraint(&self) -> Option<Gc<Type>> {
         self.constraint.borrow().clone()
     }
 
-    pub fn set_constraint(&self, constraint: Rc<Type>) {
+    pub fn set_constraint(&self, constraint: Gc<Type>) {
         *self.constraint.borrow_mut() = Some(constraint);
     }
 
-    pub fn maybe_default(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_default(&self) -> RefMut<Option<Gc<Type>>> {
         self.default.borrow_mut()
     }
 
@@ -323,19 +323,19 @@ bitflags! {
 #[type_type]
 pub struct IndexedAccessType {
     _type: BaseType,
-    pub object_type: Rc<Type>,
-    pub index_type: Rc<Type>,
+    pub object_type: Gc<Type>,
+    pub index_type: Gc<Type>,
     pub(crate) access_flags: AccessFlags,
-    pub(crate) constraint: Option<Rc<Type>>,
-    simplified_for_reading: RefCell<Option<Rc<Type>>>,
-    simplified_for_writing: RefCell<Option<Rc<Type>>>,
+    pub(crate) constraint: Option<Gc<Type>>,
+    simplified_for_reading: RefCell<Option<Gc<Type>>>,
+    simplified_for_writing: RefCell<Option<Gc<Type>>>,
 }
 
 impl IndexedAccessType {
     pub fn new(
         base_type: BaseType,
-        object_type: Rc<Type>,
-        index_type: Rc<Type>,
+        object_type: Gc<Type>,
+        index_type: Gc<Type>,
         access_flags: AccessFlags,
     ) -> Self {
         Self {
@@ -349,11 +349,11 @@ impl IndexedAccessType {
         }
     }
 
-    pub fn maybe_simplified_for_reading(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_simplified_for_reading(&self) -> RefMut<Option<Gc<Type>>> {
         self.simplified_for_reading.borrow_mut()
     }
 
-    pub fn maybe_simplified_for_writing(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_simplified_for_writing(&self) -> RefMut<Option<Gc<Type>>> {
         self.simplified_for_writing.borrow_mut()
     }
 }
@@ -367,7 +367,7 @@ pub struct IndexType {
 }
 
 impl IndexType {
-    pub fn new(_type: BaseType, type_: Rc<Type>, strings_only: bool) -> Self {
+    pub fn new(_type: BaseType, type_: Gc<Type>, strings_only: bool) -> Self {
         Self {
             _type,
             type_,
@@ -378,27 +378,27 @@ impl IndexType {
 
 #[derive(Clone, Debug)]
 pub struct ConditionalRoot {
-    pub node: Rc<Node /*ConditionalTypeNode*/>,
-    pub check_type: Rc<Type>,
-    pub extends_type: Rc<Type>,
+    pub node: Gc<Node /*ConditionalTypeNode*/>,
+    pub check_type: Gc<Type>,
+    pub extends_type: Gc<Type>,
     pub is_distributive: bool,
     pub infer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
-    instantiations: RefCell<Option<HashMap<String, Rc<Type>>>>,
-    pub alias_symbol: Option<Rc<Symbol>>,
-    pub alias_type_arguments: Option<Vec<Rc<Type>>>,
+    instantiations: RefCell<Option<HashMap<String, Gc<Type>>>>,
+    pub alias_symbol: Option<Gc<Symbol>>,
+    pub alias_type_arguments: Option<Vec<Gc<Type>>>,
 }
 
 impl ConditionalRoot {
     pub fn new(
-        node: Rc<Node>,
-        check_type: Rc<Type>,
-        extends_type: Rc<Type>,
+        node: Gc<Node>,
+        check_type: Gc<Type>,
+        extends_type: Gc<Type>,
         is_distributive: bool,
-        infer_type_parameters: Option<Vec<Rc<Type>>>,
-        outer_type_parameters: Option<Vec<Rc<Type>>>,
-        alias_symbol: Option<Rc<Symbol>>,
-        alias_type_arguments: Option<Vec<Rc<Type>>>,
+        infer_type_parameters: Option<Vec<Gc<Type>>>,
+        outer_type_parameters: Option<Vec<Gc<Type>>>,
+        alias_symbol: Option<Gc<Symbol>>,
+        alias_type_arguments: Option<Vec<Gc<Type>>>,
     ) -> Self {
         Self {
             node,
@@ -413,7 +413,7 @@ impl ConditionalRoot {
         }
     }
 
-    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Rc<Type>>>> {
+    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Gc<Type>>>> {
         self.instantiations.borrow_mut()
     }
 }
@@ -423,12 +423,12 @@ impl ConditionalRoot {
 pub struct ConditionalType {
     _type: BaseType,
     pub root: Rc<RefCell<ConditionalRoot>>,
-    pub check_type: Rc<Type>,
-    pub extends_type: Rc<Type>,
-    resolved_true_type: RefCell<Option<Rc<Type>>>,
-    resolved_false_type: RefCell<Option<Rc<Type>>>,
-    resolved_inferred_true_type: RefCell<Option<Rc<Type>>>,
-    resolved_default_constraint: RefCell<Option<Rc<Type>>>,
+    pub check_type: Gc<Type>,
+    pub extends_type: Gc<Type>,
+    resolved_true_type: RefCell<Option<Gc<Type>>>,
+    resolved_false_type: RefCell<Option<Gc<Type>>>,
+    resolved_inferred_true_type: RefCell<Option<Gc<Type>>>,
+    resolved_default_constraint: RefCell<Option<Gc<Type>>>,
     pub(crate) mapper: Option<Rc<TypeMapper>>,
     pub(crate) combined_mapper: Option<Rc<TypeMapper>>,
 }
@@ -437,8 +437,8 @@ impl ConditionalType {
     pub fn new(
         base_type: BaseType,
         root: Rc<RefCell<ConditionalRoot>>,
-        check_type: Rc<Type>,
-        extends_type: Rc<Type>,
+        check_type: Gc<Type>,
+        extends_type: Gc<Type>,
         mapper: Option<Rc<TypeMapper>>,
         combined_mapper: Option<Rc<TypeMapper>>,
     ) -> Self {
@@ -456,19 +456,19 @@ impl ConditionalType {
         }
     }
 
-    pub(crate) fn maybe_resolved_true_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(crate) fn maybe_resolved_true_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_true_type.borrow_mut()
     }
 
-    pub(crate) fn maybe_resolved_false_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(crate) fn maybe_resolved_false_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_false_type.borrow_mut()
     }
 
-    pub(crate) fn maybe_resolved_inferred_true_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(crate) fn maybe_resolved_inferred_true_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_inferred_true_type.borrow_mut()
     }
 
-    pub(crate) fn maybe_resolved_default_constraint(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(crate) fn maybe_resolved_default_constraint(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_default_constraint.borrow_mut()
     }
 }
@@ -478,11 +478,11 @@ impl ConditionalType {
 pub struct TemplateLiteralType {
     _type: BaseType,
     pub texts: Vec<String>,
-    pub types: Vec<Rc<Type>>,
+    pub types: Vec<Gc<Type>>,
 }
 
 impl TemplateLiteralType {
-    pub fn new(_type: BaseType, texts: Vec<String>, types: Vec<Rc<Type>>) -> Self {
+    pub fn new(_type: BaseType, texts: Vec<String>, types: Vec<Gc<Type>>) -> Self {
         Self {
             _type,
             texts,
@@ -495,11 +495,11 @@ impl TemplateLiteralType {
 #[type_type]
 pub struct StringMappingType {
     _type: BaseType,
-    pub type_: Rc<Type>,
+    pub type_: Gc<Type>,
 }
 
 impl StringMappingType {
-    pub fn new(base_type: BaseType, type_: Rc<Type>) -> Self {
+    pub fn new(base_type: BaseType, type_: Gc<Type>) -> Self {
         Self {
             _type: base_type,
             type_,
@@ -512,12 +512,12 @@ impl StringMappingType {
 pub struct SubstitutionType {
     _type: BaseType,
     object_flags: Cell<ObjectFlags>,
-    pub base_type: Rc<Type>,
-    pub substitute: Rc<Type>,
+    pub base_type: Gc<Type>,
+    pub substitute: Gc<Type>,
 }
 
 impl SubstitutionType {
-    pub fn new(_type: BaseType, base_type: Rc<Type>, substitute: Rc<Type>) -> Self {
+    pub fn new(_type: BaseType, base_type: Gc<Type>, substitute: Gc<Type>) -> Self {
         Self {
             _type,
             object_flags: Cell::new(
@@ -618,35 +618,35 @@ impl Signature {
         }
     }
 
-    pub fn maybe_type_parameters(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_type_parameters(&self) -> Ref<Option<Vec<Gc<Type>>>> {
         self.type_parameters.borrow()
     }
 
-    pub fn maybe_type_parameters_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_type_parameters_mut(&self) -> RefMut<Option<Vec<Gc<Type>>>> {
         self.type_parameters.borrow_mut()
     }
 
-    pub fn parameters(&self) -> &[Rc<Symbol>] {
+    pub fn parameters(&self) -> &[Gc<Symbol>] {
         self.parameters.as_ref().unwrap()
     }
 
-    pub fn set_parameters(&mut self, parameters: Vec<Rc<Symbol>>) {
+    pub fn set_parameters(&mut self, parameters: Vec<Gc<Symbol>>) {
         self.parameters = Some(parameters);
     }
 
-    pub fn maybe_this_parameter(&self) -> Ref<Option<Rc<Symbol>>> {
+    pub fn maybe_this_parameter(&self) -> Ref<Option<Gc<Symbol>>> {
         self.this_parameter.borrow()
     }
 
-    pub fn maybe_this_parameter_mut(&self) -> RefMut<Option<Rc<Symbol>>> {
+    pub fn maybe_this_parameter_mut(&self) -> RefMut<Option<Gc<Symbol>>> {
         self.this_parameter.borrow_mut()
     }
 
-    pub fn maybe_resolved_return_type(&self) -> Option<Rc<Type>> {
+    pub fn maybe_resolved_return_type(&self) -> Option<Gc<Type>> {
         self.resolved_return_type.borrow().clone()
     }
 
-    pub fn maybe_resolved_return_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_resolved_return_type_mut(&self) -> RefMut<Option<Gc<Type>>> {
         self.resolved_return_type.borrow_mut()
     }
 
@@ -679,15 +679,15 @@ impl Signature {
             .set(Some(min_argument_count));
     }
 
-    pub fn maybe_erased_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
+    pub fn maybe_erased_signature_cache(&self) -> RefMut<Option<Gc<Signature>>> {
         self.erased_signature_cache.borrow_mut()
     }
 
-    pub fn maybe_canonical_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
+    pub fn maybe_canonical_signature_cache(&self) -> RefMut<Option<Gc<Signature>>> {
         self.canonical_signature_cache.borrow_mut()
     }
 
-    pub fn maybe_base_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
+    pub fn maybe_base_signature_cache(&self) -> RefMut<Option<Gc<Signature>>> {
         self.base_signature_cache.borrow_mut()
     }
 
@@ -697,19 +697,19 @@ impl Signature {
         self.optional_call_signature_cache.borrow_mut()
     }
 
-    pub fn maybe_isolated_signature_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_isolated_signature_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.isolated_signature_type.borrow_mut()
     }
 
-    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Rc<Signature>>>> {
+    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Gc<Signature>>>> {
         self.instantiations.borrow_mut()
     }
 }
 
 #[derive(Debug)]
 pub struct SignatureOptionalCallSignatureCache {
-    pub inner: Option<Rc<Signature>>,
-    pub outer: Option<Rc<Signature>>,
+    pub inner: Option<Gc<Signature>>,
+    pub outer: Option<Gc<Signature>>,
 }
 
 impl SignatureOptionalCallSignatureCache {
@@ -758,7 +758,7 @@ pub struct TypeMapperArray {
 
 pub trait TypeMapperCallback: Trace + Finalize {
     // TODO: now that TypeChecker is wrapped in Rc should remove the checker argument here?
-    fn call(&self, checker: &TypeChecker, type_: &Type) -> Rc<Type>;
+    fn call(&self, checker: &TypeChecker, type_: &Type) -> Gc<Type>;
 }
 
 #[derive(Clone, Finalize, Trace)]
@@ -779,11 +779,11 @@ pub struct TypeMapperCompositeOrMerged {
 }
 
 impl TypeMapper {
-    pub fn new_simple(source: Rc<Type>, target: Rc<Type>) -> Self {
+    pub fn new_simple(source: Gc<Type>, target: Gc<Type>) -> Self {
         Self::Simple(TypeMapperSimple { source, target })
     }
 
-    pub fn new_array(sources: Vec<Rc<Type>>, targets: Option<Vec<Rc<Type>>>) -> Self {
+    pub fn new_array(sources: Vec<Gc<Type>>, targets: Option<Vec<Gc<Type>>>) -> Self {
         Self::Array(TypeMapperArray { sources, targets })
     }
 
@@ -838,9 +838,9 @@ pub struct InferenceInfo {
 impl InferenceInfo {
     pub fn new(
         type_parameter: Rc<Type /*TypeParameter*/>,
-        candidates: Option<Vec<Rc<Type>>>,
-        contra_candidates: Option<Vec<Rc<Type>>>,
-        inferred_type: Option<Rc<Type>>,
+        candidates: Option<Vec<Gc<Type>>>,
+        contra_candidates: Option<Vec<Gc<Type>>>,
+        inferred_type: Option<Gc<Type>>,
         priority: Option<InferencePriority>,
         top_level: bool,
         is_fixed: bool,
@@ -858,27 +858,27 @@ impl InferenceInfo {
         }
     }
 
-    pub fn maybe_candidates(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_candidates(&self) -> Ref<Option<Vec<Gc<Type>>>> {
         self.candidates.borrow()
     }
 
-    pub fn maybe_candidates_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_candidates_mut(&self) -> RefMut<Option<Vec<Gc<Type>>>> {
         self.candidates.borrow_mut()
     }
 
-    pub fn maybe_contra_candidates(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_contra_candidates(&self) -> Ref<Option<Vec<Gc<Type>>>> {
         self.contra_candidates.borrow()
     }
 
-    pub fn maybe_contra_candidates_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_contra_candidates_mut(&self) -> RefMut<Option<Vec<Gc<Type>>>> {
         self.contra_candidates.borrow_mut()
     }
 
-    pub fn maybe_inferred_type(&self) -> Option<Rc<Type>> {
+    pub fn maybe_inferred_type(&self) -> Option<Gc<Type>> {
         self.inferred_type.borrow().clone()
     }
 
-    pub fn maybe_inferred_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
+    pub fn maybe_inferred_type_mut(&self) -> RefMut<Option<Gc<Type>>> {
         self.inferred_type.borrow_mut()
     }
 
@@ -979,13 +979,13 @@ pub struct InferenceContext {
 impl InferenceContext {
     pub fn new(
         inferences: Vec<Rc<InferenceInfo>>,
-        signature: Option<Rc<Signature>>,
+        signature: Option<Gc<Signature>>,
         flags: InferenceFlags,
         compare_types: Rc<dyn TypeComparer>,
         mapper: Option<Rc<TypeMapper>>,
         non_fixing_mapper: Option<Rc<TypeMapper>>,
         return_mapper: Option<Rc<TypeMapper>>,
-        inferred_type_parameters: Option<Vec<Rc<Type>>>,
+        inferred_type_parameters: Option<Vec<Gc<Type>>>,
     ) -> Self {
         Self {
             inferences: RefCell::new(inferences),
@@ -1039,11 +1039,11 @@ impl InferenceContext {
         *self.return_mapper.borrow_mut() = return_mapper;
     }
 
-    pub fn maybe_inferred_type_parameters(&self) -> Ref<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_inferred_type_parameters(&self) -> Ref<Option<Vec<Gc<Type>>>> {
         self.inferred_type_parameters.borrow()
     }
 
-    pub fn maybe_inferred_type_parameters_mut(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub fn maybe_inferred_type_parameters_mut(&self) -> RefMut<Option<Vec<Gc<Type>>>> {
         self.inferred_type_parameters.borrow_mut()
     }
 }
@@ -1065,8 +1065,8 @@ impl fmt::Debug for InferenceContext {
 pub(crate) struct WideningContext {
     pub parent: Option<Rc<RefCell<WideningContext>>>,
     pub property_name: Option<__String>,
-    pub siblings: Option<Vec<Rc<Type>>>,
-    pub resolved_properties: Option<Vec<Rc<Symbol>>>,
+    pub siblings: Option<Vec<Gc<Type>>>,
+    pub resolved_properties: Option<Vec<Gc<Symbol>>>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -1218,7 +1218,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.code()
     }
 
-    fn maybe_file(&self) -> Option<Rc<Node>> {
+    fn maybe_file(&self) -> Option<Gc<Node>> {
         self._diagnostic_related_information.maybe_file()
     }
 
@@ -1314,7 +1314,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
-    fn maybe_file(&self) -> Option<Rc<Node>> {
+    fn maybe_file(&self) -> Option<Gc<Node>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_file(),
             Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.maybe_file(),
@@ -1448,7 +1448,7 @@ pub trait DiagnosticRelatedInformationInterface {
     fn category(&self) -> DiagnosticCategory;
     fn set_category(&self, category: DiagnosticCategory);
     fn code(&self) -> u32;
-    fn maybe_file(&self) -> Option<Rc<Node>>;
+    fn maybe_file(&self) -> Option<Gc<Node>>;
     fn maybe_start(&self) -> Option<isize>;
     fn start(&self) -> isize;
     fn set_start(&self, start: Option<isize>);
@@ -1518,7 +1518,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
         }
     }
 
-    fn maybe_file(&self) -> Option<Rc<Node>> {
+    fn maybe_file(&self) -> Option<Gc<Node>> {
         match self {
             DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
                 base_diagnostic_related_information,
@@ -1611,7 +1611,7 @@ impl BaseDiagnosticRelatedInformation {
     pub fn new<TDiagnosticMessageText: Into<DiagnosticMessageText>>(
         category: DiagnosticCategory,
         code: u32,
-        file: Option<Rc<Node>>,
+        file: Option<Gc<Node>>,
         start: Option<isize>,
         length: Option<isize>,
         message_text: TDiagnosticMessageText,
@@ -1644,7 +1644,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
         self.code
     }
 
-    fn maybe_file(&self) -> Option<Rc<Node>> {
+    fn maybe_file(&self) -> Option<Gc<Node>> {
         self.file.clone()
     }
 
@@ -1689,7 +1689,7 @@ impl DiagnosticWithLocation {
         }
     }
 
-    pub fn file(&self) -> Rc<Node> {
+    pub fn file(&self) -> Gc<Node> {
         self.maybe_file().unwrap()
     }
 }
@@ -1711,7 +1711,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.code()
     }
 
-    fn maybe_file(&self) -> Option<Rc<Node>> {
+    fn maybe_file(&self) -> Option<Gc<Node>> {
         self._diagnostic.maybe_file()
     }
 
@@ -1810,7 +1810,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.code()
     }
 
-    fn maybe_file(&self) -> Option<Rc<Node>> {
+    fn maybe_file(&self) -> Option<Gc<Node>> {
         self._diagnostic.maybe_file()
     }
 

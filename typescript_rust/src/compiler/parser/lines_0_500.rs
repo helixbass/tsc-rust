@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;

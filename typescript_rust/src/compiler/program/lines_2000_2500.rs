@@ -1,3 +1,4 @@
+use gc::Gc;
 use regex::Regex;
 use std::convert::TryInto;
 use std::rc::Rc;
@@ -284,14 +285,14 @@ impl Program {
         );
     }
 
-    pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Rc<Node> {
-        let external_helpers_module_reference: Rc<Node> =
+    pub fn create_synthetic_import(&self, text: &str, file: &Node /*SourceFile*/) -> Gc<Node> {
+        let external_helpers_module_reference: Gc<Node> =
             with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                 factory
                     .create_string_literal(synthetic_factory, text.to_owned(), None, None)
                     .into()
             });
-        let import_decl: Rc<Node> =
+        let import_decl: Gc<Node> =
             with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                 factory
                     .create_import_declaration(
@@ -322,8 +323,8 @@ impl Program {
         let is_java_script_file = is_source_file_js(file);
         let is_external_module_file = is_external_module(file);
 
-        let mut imports: Option<Vec<Rc<Node /*StringLiteralLike*/>>> = None;
-        let mut module_augmentations: Option<Vec<Rc<Node /*StringLiteral | Identifier*/>>> = None;
+        let mut imports: Option<Vec<Gc<Node /*StringLiteralLike*/>>> = None;
+        let mut module_augmentations: Option<Vec<Gc<Node /*StringLiteral | Identifier*/>>> = None;
         let mut ambient_modules: Option<Vec<String>> = None;
 
         if (self.options.isolated_modules == Some(true) || is_external_module_file)

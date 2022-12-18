@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cmp;
 use std::ptr;
@@ -28,7 +29,7 @@ impl TypeChecker {
         context: &Node, /*JsxOpeningLikeElement*/
         ns: Option<TNs>,
         attributes_type: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let managed_sym = self.get_jsx_library_managed_attributes(ns);
         if let Some(managed_sym) = managed_sym.as_ref() {
             let declared_managed_type = self.get_declared_type_of_symbol(managed_sym);
@@ -75,9 +76,9 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_props_type_from_class_type(
         &self,
-        sig: Rc<Signature>,
+        sig: Gc<Signature>,
         context: &Node, /*JsxOpeningLikeElement*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let ns = self.get_jsx_namespace_at(Some(context));
         let forced_lookup_location = self.get_jsx_element_properties_name(ns.as_deref());
         let attributes_type = match forced_lookup_location.as_ref() {
@@ -172,12 +173,12 @@ impl TypeChecker {
 
     pub(super) fn get_intersected_signatures(
         &self,
-        signatures: &[Rc<Signature>],
-    ) -> Option<Rc<Signature>> {
+        signatures: &[Gc<Signature>],
+    ) -> Option<Gc<Signature>> {
         if get_strict_option_value(&self.compiler_options, "noImplicitAny") {
             reduce_left_no_initial_value_optional(
                 signatures,
-                |left: Option<Rc<Signature>>, right: &Rc<Signature>, _| {
+                |left: Option<Gc<Signature>>, right: &Gc<Signature>, _| {
                     if match left.as_ref() {
                         None => true,
                         Some(left) => Rc::ptr_eq(left, right),
@@ -208,7 +209,7 @@ impl TypeChecker {
         left: Option<TLeft>,
         right: Option<TRight>,
         mapper: Option<Rc<TypeMapper>>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
         let right = right.map(|right| right.borrow().symbol_wrapper());
         if left.is_none() || right.is_none() {
@@ -234,7 +235,7 @@ impl TypeChecker {
         left: &Signature,
         right: &Signature,
         mapper: Option<Rc<TypeMapper>>,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let left_count = self.get_parameter_count(left);
         let right_count = self.get_parameter_count(right);
         let longest = if left_count >= right_count {
@@ -252,7 +253,7 @@ impl TypeChecker {
             self.has_effective_rest_parameter(left) || self.has_effective_rest_parameter(right);
         let needs_extra_rest_element =
             either_has_effective_rest && !self.has_effective_rest_parameter(longest);
-        let mut params: Vec<Rc<Symbol>> =
+        let mut params: Vec<Gc<Symbol>> =
             Vec::with_capacity(longest_count + if needs_extra_rest_element { 1 } else { 0 });
         for i in 0..longest_count {
             let mut longest_param_type = self.try_get_type_at_position(longest, i).unwrap();
@@ -296,7 +297,7 @@ impl TypeChecker {
             } else {
                 None
             };
-            let param_symbol: Rc<Symbol> = self
+            let param_symbol: Gc<Symbol> = self
                 .create_symbol(
                     SymbolFlags::FunctionScopedVariable
                         | if is_optional && !is_rest_param {
@@ -320,7 +321,7 @@ impl TypeChecker {
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
-            let rest_param_symbol: Rc<Symbol> = self
+            let rest_param_symbol: Gc<Symbol> = self
                 .create_symbol(SymbolFlags::FunctionScopedVariable, "args".to_owned(), None)
                 .into();
             let rest_param_symbol_type =
@@ -344,9 +345,9 @@ impl TypeChecker {
 
     pub(super) fn combine_signatures_of_intersection_members(
         &self,
-        left: Rc<Signature>,
-        right: Rc<Signature>,
-    ) -> Rc<Signature> {
+        left: Gc<Signature>,
+        right: Gc<Signature>,
+    ) -> Gc<Signature> {
         let type_params = left
             .maybe_type_parameters()
             .clone()
@@ -405,7 +406,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         node: &Node, /*SignatureDeclaration*/
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Call);
         let applicable_by_arity = filter(&signatures, |s| !self.is_arity_smaller(s, node));
         if applicable_by_arity.len() == 1 {
@@ -446,7 +447,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_signature_for_function_like_declaration(
         &self,
         node: &Node, /*FunctionLikeDeclaration*/
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         if is_function_expression_or_arrow_function(node) || is_object_literal_method(node) {
             self.get_contextual_signature(node)
         } else {
@@ -457,7 +458,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_signature(
         &self,
         node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         Debug_.assert(
             node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
             None,
@@ -471,7 +472,7 @@ impl TypeChecker {
         if !type_.flags().intersects(TypeFlags::Union) {
             return self.get_contextual_call_signature(&type_, node);
         }
-        let mut signature_list: Option<Vec<Rc<Signature>>> = None;
+        let mut signature_list: Option<Vec<Gc<Signature>>> = None;
         let types = type_.as_union_or_intersection_type_interface().types();
         for current in types {
             let signature = self.get_contextual_call_signature(current, node);
@@ -512,7 +513,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SpreadElement*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self.language_version < ScriptTarget::ES2015 {
             self.check_external_emit_helpers(
                 node,
@@ -537,7 +538,7 @@ impl TypeChecker {
     pub(super) fn check_synthetic_expression(
         &self,
         node: &Node, /*SyntheticExpression*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_synthetic_expression = node.as_synthetic_expression();
         if node_as_synthetic_expression.is_spread {
             self.get_indexed_access_type(
@@ -568,10 +569,10 @@ impl TypeChecker {
         node: &Node, /*ArrayLiteralExpression*/
         check_mode: Option<CheckMode>,
         force_tuple: Option<bool>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let elements = &node.as_array_literal_expression().elements;
         let element_count = elements.len();
-        let mut element_types: Vec<Rc<Type>> = vec![];
+        let mut element_types: Vec<Gc<Type>> = vec![];
         let mut element_flags: Vec<ElementFlags> = vec![];
         let contextual_type = self.get_apparent_type_of_contextual_type(node, None);
         let in_destructuring_pattern = is_assignment_target(node);
@@ -674,7 +675,7 @@ impl TypeChecker {
         self.create_array_literal_type(&self.create_array_type(
             &*if !element_types.is_empty() {
                 self.get_union_type(
-                    same_map(&element_types, |t: &Rc<Type>, i| {
+                    same_map(&element_types, |t: &Gc<Type>, i| {
                         if element_flags[i].intersects(ElementFlags::Variadic) {
                             self.get_indexed_access_type_or_undefined(
                                 t,
@@ -703,7 +704,7 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn create_array_literal_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn create_array_literal_type(&self, type_: &Type) -> Gc<Type> {
         if !get_object_flags(type_).intersects(ObjectFlags::Reference) {
             return type_.type_wrapper();
         }
@@ -761,7 +762,7 @@ impl TypeChecker {
     pub(super) fn check_computed_property_name(
         &self,
         node: &Node, /*ComputedPropertyName*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_computed_property_name = node.as_computed_property_name();
         let links = self.get_node_links(&node_as_computed_property_name.expression);
         if (*links).borrow().resolved_type.is_none() {
@@ -856,10 +857,10 @@ impl TypeChecker {
         &self,
         node: &Node, /*ObjectLiteralExpression*/
         offset: usize,
-        properties: &[Rc<Symbol>],
+        properties: &[Gc<Symbol>],
         key_type: &Type,
     ) -> IndexInfo {
-        let mut prop_types: Vec<Rc<Type>> = vec![];
+        let mut prop_types: Vec<Gc<Type>> = vec![];
         for i in offset..properties.len() {
             let prop = &properties[i];
             if ptr::eq(key_type, &*self.string_type()) && !self.is_symbol_with_symbol_name(prop)
@@ -889,7 +890,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_immediate_aliased_symbol(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
+    pub(super) fn get_immediate_aliased_symbol(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
         Debug_.assert(
             symbol.flags().intersects(SymbolFlags::Alias),
             Some("Should only get Alias here."),
@@ -913,7 +914,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*ObjectLiteralExpression*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let in_destructuring_pattern = is_assignment_target(node);
         self.check_grammar_object_literal_expression(node, in_destructuring_pattern);
 
@@ -924,8 +925,8 @@ impl TypeChecker {
             None
         };
         let mut properties_table = create_symbol_table(None);
-        let mut properties_array: Vec<Rc<Symbol>> = vec![];
-        let mut spread: Rc<Type> = self.empty_object_type();
+        let mut properties_array: Vec<Gc<Symbol>> = vec![];
+        let mut spread: Gc<Type> = self.empty_object_type();
 
         let contextual_type = self.get_apparent_type_of_contextual_type(node, None);
         let contextual_type_has_pattern = matches!(
@@ -982,7 +983,7 @@ impl TypeChecker {
             ) || is_object_literal_method(member_decl)
             {
                 let member_present = member.as_ref().unwrap();
-                let mut type_: Rc<Type> = if member_decl.kind() == SyntaxKind::PropertyAssignment {
+                let mut type_: Gc<Type> = if member_decl.kind() == SyntaxKind::PropertyAssignment {
                     self.check_property_assignment(member_decl, check_mode)
                 } else if member_decl.kind() == SyntaxKind::ShorthandPropertyAssignment {
                     let member_decl_as_shorthand_property_assignment =
@@ -1042,7 +1043,7 @@ impl TypeChecker {
                 let name_type = computed_name_type.as_ref().filter(|computed_name_type| {
                     self.is_type_usable_as_property_name(computed_name_type)
                 });
-                let prop: Rc<Symbol> = if let Some(name_type) = name_type {
+                let prop: Gc<Symbol> = if let Some(name_type) = name_type {
                     self.create_symbol(
                         SymbolFlags::Property | member_present.flags(),
                         self.get_property_name_from_type(name_type).into_owned(),

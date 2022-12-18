@@ -77,7 +77,7 @@ impl TypeChecker {
     pub(super) fn get_this_argument_of_call(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Option<Rc<Node /*LeftHandSideExpression*/>> {
+    ) -> Option<Gc<Node /*LeftHandSideExpression*/>> {
         let expression = if node.kind() == SyntaxKind::CallExpression {
             Some(node.as_call_expression().expression.clone())
         } else if node.kind() == SyntaxKind::TaggedTemplateExpression {
@@ -102,8 +102,8 @@ impl TypeChecker {
         tuple_name_source: Option<
             TTupleNameSource, /*ParameterDeclaration | NamedTupleMember*/
         >,
-    ) -> Rc<Node> {
-        let result: Rc<Node> = parse_node_factory.with(|parse_node_factory_| {
+    ) -> Gc<Node> {
+        let result: Gc<Node> = parse_node_factory.with(|parse_node_factory_| {
             parse_base_node_factory.with(|parse_base_node_factory_| {
                 parse_node_factory_
                     .create_synthetic_expression(
@@ -124,10 +124,10 @@ impl TypeChecker {
     pub(super) fn get_effective_call_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
-    ) -> Vec<Rc<Node /*Expression*/>> {
+    ) -> Vec<Gc<Node /*Expression*/>> {
         if node.kind() == SyntaxKind::TaggedTemplateExpression {
             let template = &node.as_tagged_template_expression().template;
-            let mut args: Vec<Rc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
+            let mut args: Vec<Gc<Node /*Expression*/>> = vec![self.create_synthetic_expression(
                 template,
                 &self.get_global_template_strings_array_type(),
                 None,
@@ -136,7 +136,7 @@ impl TypeChecker {
             if template.kind() == SyntaxKind::TemplateExpression {
                 for_each(
                     &template.as_template_expression().template_spans,
-                    |span: &Rc<Node>, _| -> Option<()> {
+                    |span: &Gc<Node>, _| -> Option<()> {
                         args.push(span.as_template_span().expression.clone());
                         None
                     },
@@ -188,7 +188,7 @@ impl TypeChecker {
                         spread_type.as_type_reference().target.as_tuple_type();
                     for_each(
                         &self.get_type_arguments(spread_type),
-                        |t: &Rc<Type>, i| -> Option<()> {
+                        |t: &Gc<Type>, i| -> Option<()> {
                             let flags = spread_type_target_as_tuple_type.element_flags[i];
                             let synthetic_arg = self.create_synthetic_expression(
                                 arg,
@@ -223,7 +223,7 @@ impl TypeChecker {
     pub(super) fn get_effective_decorator_arguments(
         &self,
         node: &Node, /*Decorator*/
-    ) -> Vec<Rc<Node /*Expression*/>> {
+    ) -> Vec<Gc<Node /*Expression*/>> {
         let parent = node.parent();
         let expr = &node.as_decorator().expression;
         match parent.kind() {
@@ -398,7 +398,7 @@ impl TypeChecker {
                 .escaped_text,
             SymbolFlags::Value,
             None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             false,
             None,
         );
@@ -439,8 +439,8 @@ impl TypeChecker {
     pub(super) fn get_argument_arity_error(
         &self,
         node: &Node, /*CallLikeExpression*/
-        signatures: &[Rc<Signature>],
-        args: &[Rc<Node /*Expression*/>],
+        signatures: &[Gc<Signature>],
+        args: &[Gc<Node /*Expression*/>],
     ) -> Rc<Diagnostic> {
         let spread_index = self.get_spread_argument_index(args);
         if let Some(spread_index) = spread_index {
@@ -457,7 +457,7 @@ impl TypeChecker {
         let mut max_below = UsizeOrNegativeInfinity::NegativeInfinity;
         let mut min_above = usize::MAX;
 
-        let mut closest_signature: Option<Rc<Signature>> = None;
+        let mut closest_signature: Option<Gc<Signature>> = None;
         for sig in signatures {
             let min_parameter = self.get_min_argument_count(sig, None);
             let max_parameter = self.get_parameter_count(sig);
@@ -483,7 +483,7 @@ impl TypeChecker {
         }
         let has_rest_parameter = some(
             Some(signatures),
-            Some(|signature: &Rc<Signature>| self.has_effective_rest_parameter(signature)),
+            Some(|signature: &Gc<Signature>| self.has_effective_rest_parameter(signature)),
         );
         let parameter_range = if has_rest_parameter {
             min.to_string()
@@ -606,7 +606,7 @@ impl TypeChecker {
     pub(super) fn get_type_argument_arity_error(
         &self,
         node: &Node, /*CallLikeExpression*/
-        signatures: &[Rc<Signature>],
+        signatures: &[Gc<Signature>],
         type_arguments: &NodeArray, /*<TypeNode>*/
     ) -> Rc<Diagnostic> {
         let arg_count = type_arguments.len();
@@ -684,12 +684,12 @@ impl TypeChecker {
     pub(super) fn resolve_call(
         &self,
         node: &Node, /*CallLikeExpression*/
-        signatures: &[Rc<Signature>],
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        signatures: &[Gc<Signature>],
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         check_mode: CheckMode,
         call_chain_flags: SignatureFlags,
         fallback_error: Option<&'static DiagnosticMessage>,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let is_tagged_template = node.kind() == SyntaxKind::TaggedTemplateExpression;
         let is_decorator = node.kind() == SyntaxKind::Decorator;
         let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(node);
@@ -706,7 +706,7 @@ impl TypeChecker {
             {
                 maybe_for_each(
                     type_arguments.as_ref(),
-                    |type_argument: &Rc<Node>, _| -> Option<()> {
+                    |type_argument: &Gc<Node>, _| -> Option<()> {
                         self.check_source_element(Some(&**type_argument));
                         None
                     },
@@ -737,17 +737,17 @@ impl TypeChecker {
             && !is_single_non_generic_candidate
             && some(
                 Some(&*args),
-                Some(|arg: &Rc<Node>| self.is_context_sensitive(arg)),
+                Some(|arg: &Gc<Node>| self.is_context_sensitive(arg)),
             ) {
             CheckMode::SkipContextSensitive
         } else {
             CheckMode::Normal
         };
 
-        let mut candidates_for_argument_error: Option<Vec<Rc<Signature>>> = None;
-        let mut candidate_for_argument_arity_error: Option<Rc<Signature>> = None;
-        let mut candidate_for_type_argument_error: Option<Rc<Signature>> = None;
-        let mut result: Option<Rc<Signature>> = None;
+        let mut candidates_for_argument_error: Option<Vec<Gc<Signature>>> = None;
+        let mut candidate_for_argument_arity_error: Option<Gc<Signature>> = None;
+        let mut candidate_for_type_argument_error: Option<Gc<Signature>> = None;
+        let mut result: Option<Gc<Signature>> = None;
 
         let signature_help_trailing_comma = check_mode.intersects(CheckMode::IsForSignatureHelp)
             && node.kind() == SyntaxKind::CallExpression
@@ -991,7 +991,7 @@ impl TypeChecker {
                 );
             } else {
                 let signatures_with_correct_type_argument_arity =
-                    filter(signatures, |s: &Rc<Signature>| {
+                    filter(signatures, |s: &Gc<Signature>| {
                         self.has_correct_type_argument_arity(s, type_arguments.as_ref())
                     });
                 if signatures_with_correct_type_argument_arity.is_empty() {
@@ -1026,12 +1026,12 @@ impl TypeChecker {
 
     pub(super) fn add_implementation_success_elaboration(
         &self,
-        candidates_for_argument_error: &mut Option<Vec<Rc<Signature>>>,
-        candidate_for_argument_arity_error: &mut Option<Rc<Signature>>,
-        candidate_for_type_argument_error: &mut Option<Rc<Signature>>,
+        candidates_for_argument_error: &mut Option<Vec<Gc<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
         type_arguments: Option<&NodeArray>,
         node: &Node,
-        args: &[Rc<Node>],
+        args: &[Gc<Node>],
         arg_check_mode: &mut CheckMode,
         failed: &Signature,
         diagnostic: &Diagnostic,
@@ -1050,7 +1050,7 @@ impl TypeChecker {
             .unwrap_or_else(|| vec![]);
         let is_overload = failed_signature_declarations.len() > 1;
         let impl_decl = if is_overload {
-            find(&failed_signature_declarations, |d: &Rc<Node>, _| {
+            find(&failed_signature_declarations, |d: &Gc<Node>, _| {
                 is_function_like_declaration(d)
                     && node_is_present(d.as_function_like_declaration().maybe_body())
             })
@@ -1099,18 +1099,18 @@ impl TypeChecker {
 
     pub(super) fn choose_overload(
         &self,
-        candidates_for_argument_error: &mut Option<Vec<Rc<Signature>>>,
-        candidate_for_argument_arity_error: &mut Option<Rc<Signature>>,
-        candidate_for_type_argument_error: &mut Option<Rc<Signature>>,
+        candidates_for_argument_error: &mut Option<Vec<Gc<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
         type_arguments: Option<&NodeArray>,
         node: &Node,
-        args: &[Rc<Node>],
+        args: &[Gc<Node>],
         arg_check_mode: &mut CheckMode,
-        candidates: &mut Vec<Rc<Signature>>,
+        candidates: &mut Vec<Gc<Signature>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         is_single_non_generic_candidate: bool,
         signature_help_trailing_comma: Option<bool>,
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
         *candidates_for_argument_error = None;
         *candidate_for_argument_arity_error = None;
@@ -1120,7 +1120,7 @@ impl TypeChecker {
             let candidate = &candidates[0];
             if some(
                 type_arguments.map(|type_arguments| &**type_arguments),
-                Option::<fn(&Rc<Node>) -> bool>::None,
+                Option::<fn(&Gc<Node>) -> bool>::None,
             ) || !self.has_correct_arity(
                 node,
                 args,
@@ -1160,14 +1160,14 @@ impl TypeChecker {
                 continue;
             }
 
-            let mut check_candidate: Rc<Signature>;
+            let mut check_candidate: Gc<Signature>;
             let mut inference_context: Option<Rc<InferenceContext>> = None;
 
             if let Some(ref candidate_type_parameters) = candidate.maybe_type_parameters().clone() {
-                let type_argument_types: Option<Vec<Rc<Type>>>;
+                let type_argument_types: Option<Vec<Gc<Type>>>;
                 if some(
                     type_arguments.map(|type_arguments| &**type_arguments),
-                    Option::<fn(&Rc<Node>) -> bool>::None,
+                    Option::<fn(&Gc<Node>) -> bool>::None,
                 ) {
                     type_argument_types =
                         self.check_type_arguments(candidate, type_arguments.unwrap(), false, None);
@@ -1314,7 +1314,7 @@ impl TypeChecker {
 pub(super) struct GetDiagnosticSpanForCallNodeReturn {
     pub start: isize,
     pub length: isize,
-    pub source_file: Rc<Node /*SourceFile*/>,
+    pub source_file: Gc<Node /*SourceFile*/>,
 }
 
 #[derive(Trace, Finalize)]
@@ -1345,10 +1345,10 @@ struct ResolveCallOverloadContainingMessageChain {
 
 impl ResolveCallOverloadContainingMessageChain {
     pub fn new(
-        type_checker: Rc<TypeChecker>,
+        type_checker: Gc<TypeChecker>,
         i: Rc<Cell<usize>>,
         candidates_len: usize,
-        c: Rc<Signature>,
+        c: Gc<Signature>,
     ) -> Self {
         Self {
             type_checker,

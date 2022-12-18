@@ -41,8 +41,8 @@ pub enum StructureIsReused {
 pub type CustomTransformerFactory = fn(Rc<dyn TransformationContext>) -> Rc<dyn CustomTransformer>;
 
 pub trait CustomTransformer {
-    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Rc<Node /*SourceFile*/>;
-    fn transform_bundle(&self, node: &Node /*Bundle*/) -> Rc<Node /*Bundle*/>;
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Gc<Node /*SourceFile*/>;
+    fn transform_bundle(&self, node: &Node /*Bundle*/) -> Gc<Node /*Bundle*/>;
 }
 
 pub enum TransformerFactoryOrCustomTransformerFactory {
@@ -118,10 +118,10 @@ pub struct EmitResult {
 }
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
-    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
+    fn get_compiler_options(&self) -> Gc<CompilerOptions>;
 
-    fn get_source_files(&self) -> Ref<Vec<Rc<Node /*SourceFile*/>>>;
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_source_files(&self) -> Ref<Vec<Gc<Node /*SourceFile*/>>>;
+    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>>;
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
 
@@ -564,9 +564,9 @@ pub struct TypePredicate {
 
 pub struct SymbolVisibilityResult {
     pub accessibility: SymbolAccessibility,
-    pub aliases_to_make_visible: Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
+    pub aliases_to_make_visible: Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
     pub error_symbol_name: Option<String>,
-    pub error_node: Option<Rc<Node>>,
+    pub error_node: Option<Gc<Node>>,
 }
 
 impl SymbolVisibilityResult {
@@ -589,17 +589,17 @@ impl SymbolVisibilityResult {
 
 pub struct SymbolAccessibilityResult {
     pub accessibility: SymbolAccessibility,
-    pub aliases_to_make_visible: Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
+    pub aliases_to_make_visible: Option<Vec<Gc<Node /*LateVisibilityPaintedStatement*/>>>,
     pub error_symbol_name: Option<String>,
-    pub error_node: Option<Rc<Node>>,
+    pub error_node: Option<Gc<Node>>,
     pub error_module_name: Option<String>,
 }
 
 pub struct AllAccessorDeclarations {
-    pub first_accessor: Rc<Node /*AccessorDeclaration*/>,
-    pub second_accessor: Option<Rc<Node /*AccessorDeclaration*/>>,
-    pub get_accessor: Option<Rc<Node /*GetAccessorDeclaration*/>>,
-    pub set_accessor: Option<Rc<Node /*SetAccessorDeclaration*/>>,
+    pub first_accessor: Gc<Node /*AccessorDeclaration*/>,
+    pub second_accessor: Option<Gc<Node /*AccessorDeclaration*/>>,
+    pub get_accessor: Option<Gc<Node /*GetAccessorDeclaration*/>>,
+    pub set_accessor: Option<Gc<Node /*SetAccessorDeclaration*/>>,
 }
 
 pub enum TypeReferenceSerializationKind {
@@ -634,11 +634,11 @@ pub trait EmitResolver {
         &self,
         node: &Node, /*Identifier*/
         prefix_locals: Option<bool>,
-    ) -> Option<Rc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>;
+    ) -> Option<Gc<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>;
     fn get_referenced_import_declaration(
         &self,
         node: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>>;
+    ) -> Option<Gc<Node /*Declaration*/>>;
     fn is_declaration_with_colliding_name(&self, node: &Node /*Declaration*/) -> bool;
     fn is_value_alias_declaration(&self, node: &Node) -> bool;
     fn is_referenced_alias_declaration(&self, node: &Node, check_children: Option<bool>) -> bool;
@@ -653,7 +653,7 @@ pub trait EmitResolver {
         &self,
         node: &Node, /*Identifier*/
         set_visibility: Option<bool>,
-    ) -> Option<Vec<Rc<Node>>>;
+    ) -> Option<Vec<Gc<Node>>>;
     fn is_implementation_of_overload(
         &self,
         node: &Node, /*SignatureDeclaration*/
@@ -667,7 +667,7 @@ pub trait EmitResolver {
     fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> Vec<Rc<Symbol>>;
+    ) -> Vec<Gc<Symbol>>;
     fn create_type_of_declaration(
         &self,
         declaration: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
@@ -675,26 +675,26 @@ pub trait EmitResolver {
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
         add_undefined: Option<bool>,
-    ) -> Option<Rc<Node /*TypeNode*/>>;
+    ) -> Option<Gc<Node /*TypeNode*/>>;
     fn create_return_type_of_signature_declaration(
         &self,
         signature_declaration: &Node, /*SignatureDeclaration*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>>;
+    ) -> Option<Gc<Node /*TypeNode*/>>;
     fn create_type_of_expression(
         &self,
         expr: &Node, /*Expression*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>>;
+    ) -> Option<Gc<Node /*TypeNode*/>>;
     fn create_literal_const_value(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: &dyn SymbolTracker,
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn is_symbol_accessible(
         &self,
         symbol: &Symbol,
@@ -714,7 +714,7 @@ pub trait EmitResolver {
     fn get_referenced_value_declaration(
         &self,
         reference: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>>;
+    ) -> Option<Gc<Node /*Declaration*/>>;
     fn get_type_reference_serialization_kind(
         &self,
         type_name: &Node, /*EntityName*/
@@ -729,7 +729,7 @@ pub trait EmitResolver {
     fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Rc<Node /*SourceFile*/>>;
+    ) -> Option<Gc<Node /*SourceFile*/>>;
     fn get_type_reference_directives_for_entity_name(
         &self,
         name: &Node, /*EntityNameOrEntityNameExpression*/
@@ -743,11 +743,11 @@ pub trait EmitResolver {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
     ) -> bool;
-    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Rc<Node /*EntityName*/>>;
+    fn get_jsx_factory_entity(&self, location: Option<&Node>) -> Option<Gc<Node /*EntityName*/>>;
     fn get_jsx_fragment_factory_entity(
         &self,
         location: Option<&Node>,
-    ) -> Option<Rc<Node /*EntityName*/>>;
+    ) -> Option<Gc<Node /*EntityName*/>>;
     fn get_all_accessor_declarations(
         &self,
         declaration: &Node, /*AccessorDeclaration*/
@@ -755,7 +755,7 @@ pub trait EmitResolver {
     fn get_symbol_of_external_module_specifier(
         &self,
         node: &Node, /*StringLiteralLike*/
-    ) -> Option<Rc<Symbol>>;
+    ) -> Option<Gc<Symbol>>;
     fn is_binding_captured_by_node(
         &self,
         node: &Node,
@@ -767,7 +767,7 @@ pub trait EmitResolver {
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
         bundled: Option<bool>,
-    ) -> Option<Vec<Rc<Node /*Statement*/>>>;
+    ) -> Option<Vec<Gc<Node /*Statement*/>>>;
     fn is_import_required_by_augmentation(&self, decl: &Node /*ImportDeclaration*/) -> bool;
 }
 
@@ -859,16 +859,16 @@ bitflags! {
 pub type SymbolId = u32;
 
 pub trait SymbolInterface {
-    fn symbol_wrapper(&self) -> Rc<Symbol>;
-    fn set_symbol_wrapper(&self, wrapper: Rc<Symbol>);
+    fn symbol_wrapper(&self) -> Gc<Symbol>;
+    fn set_symbol_wrapper(&self, wrapper: Gc<Symbol>);
     fn flags(&self) -> SymbolFlags;
     fn set_flags(&self, flags: SymbolFlags);
     fn escaped_name(&self) -> &str /*__String*/;
-    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>>;
-    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>>;
-    fn set_declarations(&self, declarations: Vec<Rc<Node>>);
-    fn maybe_value_declaration(&self) -> Option<Rc<Node>>;
-    fn set_value_declaration(&self, node: Rc<Node>);
+    fn maybe_declarations(&self) -> Ref<Option<Vec<Gc<Node>>>>;
+    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Gc<Node>>>>;
+    fn set_declarations(&self, declarations: Vec<Gc<Node>>);
+    fn maybe_value_declaration(&self) -> Option<Gc<Node>>;
+    fn set_value_declaration(&self, node: Gc<Node>);
     fn maybe_members(&self) -> Ref<Option<Rc<RefCell<SymbolTable>>>>;
     fn maybe_members_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
@@ -881,10 +881,10 @@ pub trait SymbolInterface {
     fn set_id(&self, id: SymbolId);
     fn maybe_merge_id(&self) -> Option<u32>;
     fn set_merge_id(&self, merge_id: u32);
-    fn maybe_parent(&self) -> Option<Rc<Symbol>>;
-    fn set_parent(&self, parent: Option<Rc<Symbol>>);
-    fn maybe_export_symbol(&self) -> Option<Rc<Symbol>>;
-    fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>);
+    fn maybe_parent(&self) -> Option<Gc<Symbol>>;
+    fn set_parent(&self, parent: Option<Gc<Symbol>>);
+    fn maybe_export_symbol(&self) -> Option<Gc<Symbol>>;
+    fn set_export_symbol(&self, export_symbol: Option<Gc<Symbol>>);
     fn maybe_const_enum_only_module(&self) -> Option<bool>;
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>);
     fn maybe_is_referenced(&self) -> Option<SymbolFlags>;
@@ -895,7 +895,7 @@ pub trait SymbolInterface {
     fn set_is_assigned(&self, is_assigned: Option<bool>);
     fn maybe_assignment_declaration_members(
         &self,
-    ) -> RefMut<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>;
+    ) -> RefMut<Option<HashMap<NodeId, Gc<Node /*Declaration*/>>>>;
 }
 
 #[derive(Debug, Finalize, Trace)]
@@ -906,7 +906,7 @@ pub enum Symbol {
 }
 
 impl Symbol {
-    pub fn wrap(self) -> Rc<Symbol> {
+    pub fn wrap(self) -> Gc<Symbol> {
         let rc = Rc::new(self);
         rc.set_symbol_wrapper(rc.clone());
         rc
@@ -978,11 +978,11 @@ impl BaseSymbol {
 }
 
 impl SymbolInterface for BaseSymbol {
-    fn symbol_wrapper(&self) -> Rc<Symbol> {
+    fn symbol_wrapper(&self) -> Gc<Symbol> {
         self._symbol_wrapper.borrow().clone().unwrap()
     }
 
-    fn set_symbol_wrapper(&self, wrapper: Rc<Symbol>) {
+    fn set_symbol_wrapper(&self, wrapper: Gc<Symbol>) {
         *self._symbol_wrapper.borrow_mut() = Some(wrapper);
     }
 
@@ -998,23 +998,23 @@ impl SymbolInterface for BaseSymbol {
         &self.escaped_name
     }
 
-    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+    fn maybe_declarations(&self) -> Ref<Option<Vec<Gc<Node>>>> {
         self.declarations.borrow()
     }
 
-    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
         self.declarations.borrow_mut()
     }
 
-    fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
+    fn set_declarations(&self, declarations: Vec<Gc<Node>>) {
         *self.declarations.borrow_mut() = Some(declarations);
     }
 
-    fn maybe_value_declaration(&self) -> Option<Rc<Node>> {
+    fn maybe_value_declaration(&self) -> Option<Gc<Node>> {
         self.value_declaration.borrow().clone()
     }
 
-    fn set_value_declaration(&self, node: Rc<Node>) {
+    fn set_value_declaration(&self, node: Gc<Node>) {
         *self.value_declaration.borrow_mut() = Some(node);
     }
 
@@ -1066,19 +1066,19 @@ impl SymbolInterface for BaseSymbol {
         self.merge_id.set(Some(merge_id));
     }
 
-    fn maybe_parent(&self) -> Option<Rc<Symbol>> {
+    fn maybe_parent(&self) -> Option<Gc<Symbol>> {
         self.parent.borrow().as_ref().map(Clone::clone)
     }
 
-    fn set_parent(&self, parent: Option<Rc<Symbol>>) {
+    fn set_parent(&self, parent: Option<Gc<Symbol>>) {
         *self.parent.borrow_mut() = parent;
     }
 
-    fn maybe_export_symbol(&self) -> Option<Rc<Symbol>> {
+    fn maybe_export_symbol(&self) -> Option<Gc<Symbol>> {
         self.export_symbol.borrow().as_ref().map(Clone::clone)
     }
 
-    fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>) {
+    fn set_export_symbol(&self, export_symbol: Option<Gc<Symbol>>) {
         *self.export_symbol.borrow_mut() = export_symbol;
     }
 
@@ -1114,7 +1114,7 @@ impl SymbolInterface for BaseSymbol {
         self.is_assigned.set(is_assigned);
     }
 
-    fn maybe_assignment_declaration_members(&self) -> RefMut<Option<HashMap<NodeId, Rc<Node>>>> {
+    fn maybe_assignment_declaration_members(&self) -> RefMut<Option<HashMap<NodeId, Gc<Node>>>> {
         self.assignment_declaration_members.borrow_mut()
     }
 }
@@ -1267,9 +1267,9 @@ pub enum TransientSymbol {
 impl TransientSymbol {
     pub fn into_reverse_mapped_symbol(
         self,
-        property_type: Rc<Type>,
-        mapped_type: Rc<Type>,
-        constraint_type: Rc<Type>,
+        property_type: Gc<Type>,
+        mapped_type: Gc<Type>,
+        constraint_type: Gc<Type>,
     ) -> Self {
         match self {
             Self::BaseTransientSymbol(symbol) => Self::ReverseMappedSymbol(
@@ -1279,7 +1279,7 @@ impl TransientSymbol {
         }
     }
 
-    pub fn into_mapped_symbol(self, mapped_type: Rc<Type>, key_type: Rc<Type>) -> Self {
+    pub fn into_mapped_symbol(self, mapped_type: Gc<Type>, key_type: Gc<Type>) -> Self {
         match self {
             Self::BaseTransientSymbol(symbol) => {
                 Self::MappedSymbol(MappedSymbol::new(symbol, mapped_type, key_type))

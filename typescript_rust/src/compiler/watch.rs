@@ -190,7 +190,7 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         &self,
         diagnostic: Rc<Diagnostic>,
         new_line: &str,
-        options: Rc<CompilerOptions>,
+        options: Gc<CompilerOptions>,
         _error_count: Option<usize>,
     ) {
         if self.pretty {
@@ -239,7 +239,7 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
 
 pub fn parse_config_file_with_system(
     config_file_name: &str,
-    options_to_extend: Rc<CompilerOptions>,
+    options_to_extend: Gc<CompilerOptions>,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     system: Rc<dyn System>,
@@ -355,19 +355,19 @@ pub fn get_error_summary_text(error_count: usize, new_line: &str) -> String {
 }
 
 pub enum ProgramOrBuilderProgram {
-    Program(Rc<Program>),
+    Program(Gc<Program>),
     BuilderProgram(Rc<dyn BuilderProgram>),
 }
 
 impl ProgramOrBuilderProgram {
-    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         match self {
             Self::Program(program) => program.get_compiler_options(),
             Self::BuilderProgram(program) => program.get_compiler_options(),
         }
     }
 
-    fn get_source_files(&self) -> Vec<Rc<Node>> {
+    fn get_source_files(&self) -> Vec<Gc<Node>> {
         match self {
             Self::Program(program) => program.get_source_files().clone(),
             Self::BuilderProgram(program) => program.get_source_files().to_owned(),
@@ -375,8 +375,8 @@ impl ProgramOrBuilderProgram {
     }
 }
 
-impl From<Rc<Program>> for ProgramOrBuilderProgram {
-    fn from(value: Rc<Program>) -> Self {
+impl From<Gc<Program>> for ProgramOrBuilderProgram {
+    fn from(value: Gc<Program>) -> Self {
         Self::Program(value)
     }
 }
@@ -815,7 +815,7 @@ struct EmitFilesAndReportErrorsReturn {
 }
 
 fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
-    program: Rc<Program>,
+    program: Gc<Program>,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
@@ -910,7 +910,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
 }
 
 pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
-    program: Rc<Program>,
+    program: Gc<Program>,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,

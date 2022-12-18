@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -171,7 +172,7 @@ impl TypeChecker {
         type_: &Type,
         resolver: &IterationTypesResolver,
     ) -> Option<Rc<IterationTypes>> {
-        let mut global_type: Rc<Type>;
+        let mut global_type: Gc<Type>;
         if self.is_reference_to_type(type_, &*{
             let type_ = (resolver.get_global_iterable_type)(self, false);
             global_type = type_.clone();
@@ -277,7 +278,7 @@ impl TypeChecker {
             .map(|method_type| self.get_signatures_of_type(method_type, SignatureKind::Call));
         if !some(
             signatures.as_deref(),
-            Option::<fn(&Rc<Signature>) -> bool>::None,
+            Option::<fn(&Gc<Signature>) -> bool>::None,
         ) {
             return self.set_cached_iteration_types(
                 type_,
@@ -288,7 +289,7 @@ impl TypeChecker {
         let signatures = signatures.unwrap();
 
         let iterator_type = self.get_intersection_type(
-            &map(&signatures, |signature: &Rc<Signature>, _| {
+            &map(&signatures, |signature: &Gc<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
             }),
             Option::<&Symbol>::None,
@@ -641,13 +642,13 @@ impl TypeChecker {
             }
         }
 
-        let mut method_parameter_types: Option<Vec<Rc<Type>>> = None;
-        let mut method_return_types: Option<Vec<Rc<Type>>> = None;
+        let mut method_parameter_types: Option<Vec<Gc<Type>>> = None;
+        let mut method_return_types: Option<Vec<Gc<Type>>> = None;
         for signature in &method_signatures {
             if method_name != "throw"
                 && some(
                     Some(signature.parameters()),
-                    Option::<fn(&Rc<Symbol>) -> bool>::None,
+                    Option::<fn(&Gc<Symbol>) -> bool>::None,
                 )
             {
                 if method_parameter_types.is_none() {
@@ -667,8 +668,8 @@ impl TypeChecker {
             );
         }
 
-        let mut return_types: Option<Vec<Rc<Type>>> = None;
-        let mut next_type: Option<Rc<Type>> = None;
+        let mut return_types: Option<Vec<Gc<Type>>> = None;
+        let mut next_type: Option<Gc<Type>> = None;
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         if method_name != "throw" {
             let method_parameter_type = if let Some(method_parameter_types) = method_parameter_types
@@ -703,7 +704,7 @@ impl TypeChecker {
             }
         }
 
-        let yield_type: Rc<Type>;
+        let yield_type: Gc<Type>;
         let method_return_type = if let Some(method_return_types) = method_return_types.as_ref() {
             self.get_intersection_type(method_return_types, Option::<&Symbol>::None, None)
         } else {
@@ -771,7 +772,7 @@ impl TypeChecker {
         kind: IterationTypeKind,
         return_type: &Type,
         is_async_generator: bool,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if self.is_type_any(Some(return_type)) {
             return None;
         }
@@ -821,7 +822,7 @@ impl TypeChecker {
         &self,
         return_type: &Type,
         function_flags: FunctionFlags,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let is_generator = function_flags.intersects(FunctionFlags::Generator);
         let is_async = function_flags.intersects(FunctionFlags::Async);
         if is_generator {

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use regex::{Captures, Regex};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -38,11 +39,11 @@ impl NodeBuilder {
     pub(super) fn create_access_from_symbol_chain(
         &self,
         context: &NodeBuilderContext,
-        override_type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
-        chain: &[Rc<Symbol>],
+        override_type_arguments: Option<&[Gc<Node /*TypeNode*/>]>,
+        chain: &[Gc<Symbol>],
         index: usize,
         stopper: usize,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let type_parameter_nodes = if index == chain.len() - 1 {
             override_type_arguments.map(ToOwned::to_owned)
         } else {
@@ -75,7 +76,7 @@ impl NodeBuilder {
             /*&& getExportsOfSymbol(parent)*/
             {
                 let exports = self.type_checker.get_exports_of_symbol(parent);
-                for_each_entry_bool(&*(*exports).borrow(), |ex: &Rc<Symbol>, name: &__String| {
+                for_each_entry_bool(&*(*exports).borrow(), |ex: &Gc<Symbol>, name: &__String| {
                     if self
                         .type_checker
                         .get_symbol_if_same_reference(ex, symbol)
@@ -244,7 +245,7 @@ impl NodeBuilder {
         &self,
         type_: &Type, /*TypeParameter*/
         context: &NodeBuilderContext,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if context
             .flags()
             .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
@@ -334,7 +335,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         expects_identifier: bool,
-    ) -> Rc<Node /*EntityName*/> {
+    ) -> Gc<Node /*EntityName*/> {
         let chain = self.lookup_symbol_chain(symbol, context, meaning, None);
 
         if expects_identifier
@@ -352,9 +353,9 @@ impl NodeBuilder {
     pub(super) fn create_entity_name_from_symbol_chain(
         &self,
         context: &NodeBuilderContext,
-        chain: &[Rc<Symbol>],
+        chain: &[Gc<Symbol>],
         index: usize,
-    ) -> Rc<Node /*EntityName*/> {
+    ) -> Gc<Node /*EntityName*/> {
         let type_parameter_nodes = self.lookup_type_parameter_nodes(chain, index, context);
         let symbol = &chain[index];
 
@@ -398,7 +399,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let chain = self.lookup_symbol_chain(symbol, context, meaning, None);
 
         self.create_expression_from_symbol_chain(context, &chain, chain.len() - 1)
@@ -407,9 +408,9 @@ impl NodeBuilder {
     pub(super) fn create_expression_from_symbol_chain(
         &self,
         context: &NodeBuilderContext,
-        chain: &[Rc<Symbol>],
+        chain: &[Gc<Symbol>],
         index: usize,
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         let type_parameter_nodes = self.lookup_type_parameter_nodes(chain, index, context);
         let symbol = &chain[index];
 
@@ -428,7 +429,7 @@ impl NodeBuilder {
         if is_single_or_double_quote(first_char)
             && some(
                 symbol.maybe_declarations().as_deref(),
-                Some(|declaration: &Rc<Node>| {
+                Some(|declaration: &Gc<Node>| {
                     self.type_checker
                         .has_non_global_augmentation_external_module_symbol(declaration)
                 }),
@@ -489,7 +490,7 @@ impl NodeBuilder {
                 symbol_name = symbol_name[1..symbol_name.len() - 1].to_owned();
                 first_char = symbol_name.chars().next().unwrap();
             }
-            let mut expression: Option<Rc<Node /*Expression*/>> = None;
+            let mut expression: Option<Gc<Node /*Expression*/>> = None;
             if is_single_or_double_quote(first_char) {
                 expression = Some(with_synthetic_factory_and_factory(
                     |synthetic_factory_, factory_| {
@@ -592,11 +593,11 @@ impl NodeBuilder {
         &self,
         symbol: &Symbol,
         context: &NodeBuilderContext,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let single_quote = length(symbol.maybe_declarations().as_deref()) > 0
             && every(
                 symbol.maybe_declarations().as_deref().unwrap(),
-                |declaration: &Rc<Node>, _| self.is_single_quoted_string_named(declaration),
+                |declaration: &Gc<Node>, _| self.is_single_quoted_string_named(declaration),
             );
         let from_name_type = self.get_property_name_node_for_symbol_from_name_type(
             symbol,
@@ -610,7 +611,7 @@ impl NodeBuilder {
         let string_named = length(symbol.maybe_declarations().as_deref()) > 0
             && every(
                 symbol.maybe_declarations().as_deref().unwrap(),
-                |declaration: &Rc<Node>, _| self.is_string_named(declaration),
+                |declaration: &Gc<Node>, _| self.is_string_named(declaration),
             );
         self.create_property_name_node_for_identifier_or_literal(
             raw_name.to_owned(),
@@ -624,7 +625,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         single_quote: Option<bool>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let name_type = (*self.type_checker.get_symbol_links(symbol))
             .borrow()
             .name_type
@@ -707,7 +708,7 @@ impl NodeBuilder {
         name: String,
         string_named: Option<bool>,
         single_quote: Option<bool>,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if is_identifier_text(
             &name,
             Some(get_emit_script_target(&self.type_checker.compiler_options)),
@@ -783,14 +784,14 @@ impl NodeBuilder {
         &self,
         symbol: &Symbol,
         enclosing_declaration: Option<TEnclosingDeclaration>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         symbol
             .maybe_declarations()
             .as_deref()
             .and_then(|symbol_declarations| {
-                find(symbol_declarations, |s: &Rc<Node>, _| {
+                find(symbol_declarations, |s: &Gc<Node>, _| {
                     get_effective_type_annotation_node(s).is_some()
                         && (match enclosing_declaration.as_ref() {
                             None => true,
@@ -836,7 +837,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         include_private_symbol: Option<&TIncludePrivateSymbol>,
         bundled: Option<bool>,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if !self.type_checker.is_error_type(type_) {
             if let Some(enclosing_declaration) = enclosing_declaration {
                 let enclosing_declaration: &Node = enclosing_declaration.borrow();
@@ -885,7 +886,7 @@ impl NodeBuilder {
                 None => true,
                 Some(context_enclosing_declaration) => some(
                     symbol.maybe_declarations().as_deref(),
-                    Some(|d: &Rc<Node>| {
+                    Some(|d: &Gc<Node>| {
                         Rc::ptr_eq(
                             get_source_file_of_node(Some(&**d)).as_ref().unwrap(),
                             get_source_file_of_node(Some(&**context_enclosing_declaration))
@@ -910,7 +911,7 @@ impl NodeBuilder {
         signature: &Signature,
         include_private_symbol: Option<&TIncludePrivateSymbol>,
         bundled: Option<bool>,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if !self.type_checker.is_error_type(type_) {
             if let Some(context_enclosing_declaration) =
                 context.maybe_enclosing_declaration().as_ref()
@@ -1049,7 +1050,7 @@ impl NodeBuilder {
         existing: &Node, /*TypeNode*/
         include_private_symbol: Option<&TIncludePrivateSymbol>,
         bundled: Option<bool>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token() {
             cancellation_token.throw_if_cancellation_requested();
         }
@@ -1067,7 +1068,7 @@ impl NodeBuilder {
                 )
             }),
             Option::<fn(&Node) -> bool>::None,
-            Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
         )
         .unwrap();
         if had_error {
@@ -1124,7 +1125,7 @@ impl NodeBuilder {
                                     )
                                 }),
                                 Option::<fn(&Node) -> bool>::None,
-                                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             )
                             .unwrap(),
                             factory
@@ -1156,7 +1157,7 @@ impl NodeBuilder {
                                     )
                                 }),
                                 Option::<fn(&Node) -> bool>::None,
-                                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             )
                             .unwrap(),
                             factory
@@ -1183,7 +1184,7 @@ impl NodeBuilder {
                     )
                 }),
                 Option::<fn(&Node) -> bool>::None,
-                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
             )
             .unwrap()]);
         }
@@ -1204,7 +1205,7 @@ impl NodeBuilder {
                                 )
                             }),
                             Option::<fn(&Node) -> bool>::None,
-                            Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                            Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                         )
                         .unwrap(),
                     )
@@ -1218,7 +1219,7 @@ impl NodeBuilder {
                         synthetic_factory,
                         maybe_map(
                             node.as_jsdoc_type_literal().js_doc_property_tags.as_deref(),
-                            |t: &Rc<Node>, _| -> Rc<Node> {
+                            |t: &Gc<Node>, _| -> Gc<Node> {
                                 let t_as_jsdoc_property_like_tag = t.as_jsdoc_property_like_tag();
                                 let name = if is_identifier(
                                     &t_as_jsdoc_property_like_tag.name
@@ -1270,7 +1271,7 @@ impl NodeBuilder {
                                                 Some(&*t_type_expression.as_jsdoc_type_expression().type_),
                                                 Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                                 Option::<fn(&Node) -> bool>::None,
-                                                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                             )
                                         })
                                     }).unwrap_or_else(|| {
@@ -1342,7 +1343,7 @@ impl NodeBuilder {
                                                     )
                                                 }),
                                                 Option::<fn(&Node) -> bool>::None,
-                                                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                             ),
                                             None,
                                         )
@@ -1364,7 +1365,7 @@ impl NodeBuilder {
                                             )
                                         }),
                                         Option::<fn(&Node) -> bool>::None,
-                                        Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                     ),
                                 )
                                 .into()]),
@@ -1376,7 +1377,7 @@ impl NodeBuilder {
         if is_jsdoc_function_type(node) {
             let node_as_jsdoc_function_type = node.as_jsdoc_function_type();
             if is_jsdoc_construct_signature(node) {
-                let mut new_type_node: Option<Rc<Node>> = None;
+                let mut new_type_node: Option<Gc<Node>> = None;
                 return Some(vec![with_synthetic_factory_and_factory(
                     |synthetic_factory, factory| {
                         factory.create_constructor_type_node(
@@ -1390,7 +1391,7 @@ impl NodeBuilder {
                         ),
                         map_defined(
                             Some(node_as_jsdoc_function_type.parameters()),
-                            |p: &Rc<Node>, i| -> Option<Rc<Node>> {
+                            |p: &Gc<Node>, i| -> Option<Gc<Node>> {
                                 let p_as_parameter_declaration = p.as_parameter_declaration();
                                 if matches!(
                                     p_as_parameter_declaration.maybe_name().as_ref(),
@@ -1411,7 +1412,7 @@ impl NodeBuilder {
                                                 p_as_parameter_declaration.maybe_type(),
                                                 Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                                 Option::<fn(&Node) -> bool>::None,
-                                                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                             ),
                                             None,
                                         ).into()
@@ -1424,7 +1425,7 @@ impl NodeBuilder {
                                 new_type_node.clone().or_else(|| node_as_jsdoc_function_type.maybe_type()),
                                 Some(|node: &Node| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                                 Option::<fn(&Node) -> bool>::None,
-                                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                             ).unwrap_or_else(|| {
                                 with_synthetic_factory_and_factory(|synthetic_factory, factory| {
                                     factory.create_keyword_type_node(
@@ -1460,7 +1461,7 @@ impl NodeBuilder {
                                 ),
                                 map(
                                     node_as_jsdoc_function_type.parameters(),
-                                    |p: &Rc<Node>, i| -> Rc<Node> {
+                                    |p: &Gc<Node>, i| -> Gc<Node> {
                                         let p_as_parameter_declaration =
                                             p.as_parameter_declaration();
                                         with_synthetic_factory_and_factory(
@@ -1486,7 +1487,7 @@ impl NodeBuilder {
                                                             )
                                                         }),
                                                         Option::<fn(&Node) -> bool>::None,
-                                                        Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                                     ),
                                                     None,
                                                 )
@@ -1508,7 +1509,7 @@ impl NodeBuilder {
                                             )
                                         }),
                                         Option::<fn(&Node) -> bool>::None,
-                                        Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                                        Option::<fn(&[Gc<Node>]) -> Gc<Node>>::None,
                                     )
                                     .unwrap_or_else(|| {
                                         with_synthetic_factory_and_factory(
@@ -1642,8 +1643,8 @@ impl NodeBuilder {
                     Option<&Node>,
                     Option<fn(&Node) -> VisitResult>,
                     Option<fn(&Node) -> bool>,
-                    Option<fn(&[Rc<Node>]) -> Rc<Node>>,
-                ) -> Option<Rc<Node>>,
+                    Option<fn(&[Gc<Node>]) -> Gc<Node>>,
+                ) -> Option<Gc<Node>>,
             >::None,
         )
         .unwrap()])
@@ -1652,5 +1653,5 @@ impl NodeBuilder {
 
 pub(super) struct TrackExistingEntityNameReturn {
     pub introduces_error: bool,
-    pub node: Rc<Node>,
+    pub node: Gc<Node>,
 }

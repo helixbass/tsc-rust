@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -23,7 +24,7 @@ impl TypeChecker {
         &self,
         signature: &Signature,
         fallback_type: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if !signature.parameters().is_empty() {
             self.get_type_at_position(signature, 0)
         } else {
@@ -34,7 +35,7 @@ impl TypeChecker {
     pub(super) fn infer_from_annotated_parameters(
         &self,
         signature: &Signature,
-        context: Rc<Signature>,
+        context: Gc<Signature>,
         inference_context: &InferenceContext,
     ) {
         let len = signature.parameters().len()
@@ -193,7 +194,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn create_promise_type(&self, promised_type: &Type) -> Rc<Type> {
+    pub(super) fn create_promise_type(&self, promised_type: &Type) -> Gc<Type> {
         let global_promise_type = self.get_global_promise_type(true);
         if !Rc::ptr_eq(&global_promise_type, &self.empty_generic_type()) {
             let promised_type = self
@@ -210,7 +211,7 @@ impl TypeChecker {
         self.unknown_type()
     }
 
-    pub(super) fn create_promise_like_type(&self, promised_type: &Type) -> Rc<Type> {
+    pub(super) fn create_promise_like_type(&self, promised_type: &Type) -> Gc<Type> {
         let global_promise_like_type = self.get_global_promise_like_type(true);
         if !Rc::ptr_eq(&global_promise_like_type, &self.empty_generic_type()) {
             let promised_type = self
@@ -232,7 +233,7 @@ impl TypeChecker {
         &self,
         func: &Node, /*FunctionLikeDeclaration | ImportCall*/
         promised_type: &Type,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let promise_type = self.create_promise_type(promised_type);
         if Rc::ptr_eq(&promise_type, &self.unknown_type()) {
             self.error(
@@ -260,12 +261,12 @@ impl TypeChecker {
         promise_type
     }
 
-    pub(super) fn create_new_target_expression_type(&self, target_type: &Type) -> Rc<Type> {
-        let symbol: Rc<Symbol> = self
+    pub(super) fn create_new_target_expression_type(&self, target_type: &Type) -> Gc<Type> {
+        let symbol: Gc<Symbol> = self
             .create_symbol(SymbolFlags::None, "NewTargetExpression".to_owned(), None)
             .into();
 
-        let target_property_symbol: Rc<Symbol> = self
+        let target_property_symbol: Gc<Symbol> = self
             .create_symbol(
                 SymbolFlags::Property,
                 "target".to_owned(),
@@ -290,7 +291,7 @@ impl TypeChecker {
         &self,
         func: &Node, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let func_as_function_like_declaration = func.as_function_like_declaration();
         if func_as_function_like_declaration.maybe_body().is_none() {
             return self.error_type();
@@ -301,9 +302,9 @@ impl TypeChecker {
         let is_async = function_flags.intersects(FunctionFlags::Async);
         let is_generator = function_flags.intersects(FunctionFlags::Generator);
 
-        let mut return_type: Option<Rc<Type>> = None;
-        let mut yield_type: Option<Rc<Type>> = None;
-        let mut next_type: Option<Rc<Type>> = None;
+        let mut return_type: Option<Gc<Type>> = None;
+        let mut yield_type: Option<Gc<Type>> = None;
+        let mut next_type: Option<Gc<Type>> = None;
         let mut fallback_return_type = self.void_type();
         if func_body.kind() != SyntaxKind::Block {
             return_type = Some(self.check_expression_cached(
@@ -343,7 +344,7 @@ impl TypeChecker {
                 yield_types,
                 next_types,
             } = self.check_and_aggregate_yield_operand_types(func, check_mode);
-            yield_type = if some(Some(&yield_types), Option::<fn(&Rc<Type>) -> bool>::None) {
+            yield_type = if some(Some(&yield_types), Option::<fn(&Gc<Type>) -> bool>::None) {
                 Some(self.get_union_type(
                     yield_types,
                     Some(UnionReduction::Subtype),
@@ -354,7 +355,7 @@ impl TypeChecker {
             } else {
                 None
             };
-            next_type = if some(Some(&next_types), Option::<fn(&Rc<Type>) -> bool>::None) {
+            next_type = if some(Some(&next_types), Option::<fn(&Gc<Type>) -> bool>::None) {
                 Some(self.get_intersection_type(&next_types, Option::<&Symbol>::None, None))
             } else {
                 None
@@ -500,7 +501,7 @@ impl TypeChecker {
         return_type: &Type,
         next_type: &Type,
         is_async_generator: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let resolver = if is_async_generator {
             &self.async_iteration_types_resolver
         } else {
@@ -559,8 +560,8 @@ impl TypeChecker {
         func: &Node, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
     ) -> CheckAndAggregateYieldOperandTypesReturn {
-        let mut yield_types: Vec<Rc<Type>> = vec![];
-        let mut next_types: Vec<Rc<Type>> = vec![];
+        let mut yield_types: Vec<Gc<Type>> = vec![];
+        let mut next_types: Vec<Gc<Type>> = vec![];
         let is_async = get_function_flags(Some(func)).intersects(FunctionFlags::Async);
         for_each_yield_expression(
             &func.as_function_like_declaration().maybe_body().unwrap(),
@@ -581,7 +582,7 @@ impl TypeChecker {
                 ) {
                     push_if_unique_rc(&mut yield_types, yielded_type);
                 }
-                let next_type: Option<Rc<Type>>;
+                let next_type: Option<Gc<Type>>;
                 if yield_expression_as_yield_expression
                     .asterisk_token
                     .is_some()
@@ -616,7 +617,7 @@ impl TypeChecker {
         expression_type: &Type,
         sent_type: &Type,
         is_async: bool,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node_as_yield_expression = node.as_yield_expression();
         let error_node = node_as_yield_expression
             .expression
@@ -767,7 +768,7 @@ impl TypeChecker {
         if switch_types.is_empty()
             || some(
                 Some(&switch_types),
-                Some(|switch_type: &Rc<Type>| self.is_neither_unit_type_nor_never(switch_type)),
+                Some(|switch_type: &Gc<Type>| self.is_neither_unit_type_nor_never(switch_type)),
             )
         {
             return false;
@@ -798,9 +799,9 @@ impl TypeChecker {
         &self,
         func: &Node, /*FunctionLikeDeclaration*/
         check_mode: Option<CheckMode>,
-    ) -> Option<Vec<Rc<Type>>> {
+    ) -> Option<Vec<Gc<Type>>> {
         let function_flags = get_function_flags(Some(func));
-        let mut aggregated_types: Vec<Rc<Type>> = vec![];
+        let mut aggregated_types: Vec<Gc<Type>> = vec![];
         let mut has_return_with_no_expression = self.function_has_implicit_return(func);
         let mut has_return_of_type_never = false;
         for_each_return_statement(
@@ -947,6 +948,6 @@ impl TypeChecker {
 }
 
 pub(super) struct CheckAndAggregateYieldOperandTypesReturn {
-    pub yield_types: Vec<Rc<Type>>,
-    pub next_types: Vec<Rc<Type>>,
+    pub yield_types: Vec<Gc<Type>>,
+    pub next_types: Vec<Gc<Type>>,
 }

@@ -28,7 +28,7 @@ use local_macros::{ast_type, enum_unwrapped};
 
 #[derive(Clone, Debug)]
 pub enum FlowType {
-    Type(Rc<Type>),
+    Type(Gc<Type>),
     IncompleteType(IncompleteType),
 }
 
@@ -44,13 +44,13 @@ impl FlowType {
         enum_unwrapped!(self, [FlowType, IncompleteType])
     }
 
-    pub fn as_type(&self) -> &Rc<Type> {
+    pub fn as_type(&self) -> &Gc<Type> {
         enum_unwrapped!(self, [FlowType, Type])
     }
 }
 
-impl From<Rc<Type>> for FlowType {
-    fn from(value: Rc<Type>) -> Self {
+impl From<Gc<Type>> for FlowType {
+    fn from(value: Gc<Type>) -> Self {
         Self::Type(value)
     }
 }
@@ -64,11 +64,11 @@ impl From<IncompleteType> for FlowType {
 #[derive(Clone, Debug)]
 pub struct IncompleteType {
     pub flags: TypeFlags,
-    pub type_: Rc<Type>,
+    pub type_: Gc<Type>,
 }
 
 impl IncompleteType {
-    pub fn new(flags: TypeFlags, type_: Rc<Type>) -> Self {
+    pub fn new(flags: TypeFlags, type_: Gc<Type>) -> Self {
         Self { flags, type_ }
     }
 }
@@ -120,8 +120,8 @@ pub trait SourceFileLike {
 
 #[derive(Debug)]
 pub struct RedirectInfo {
-    pub redirect_target: Rc<Node /*SourceFile*/>,
-    pub undirected: Rc<Node /*SourceFile*/>,
+    pub redirect_target: Gc<Node /*SourceFile*/>,
+    pub undirected: Gc<Node /*SourceFile*/>,
 }
 
 pub trait HasStatementsInterface {
@@ -137,9 +137,9 @@ pub struct SourceFile {
 
 #[derive(Debug)]
 pub struct SourceFileContents {
-    _symbols_without_a_symbol_table_strong_references: RefCell<Vec<Rc<Symbol>>>,
+    _symbols_without_a_symbol_table_strong_references: RefCell<Vec<Gc<Symbol>>>,
     statements: NodeArray,
-    end_of_file_token: Rc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
+    end_of_file_token: Gc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
 
     file_name: RefCell<String>,
     path: RefCell<Option<Path>>,
@@ -166,8 +166,8 @@ pub struct SourceFileContents {
 
     script_kind: Cell<ScriptKind>,
 
-    external_module_indicator: RefCell<Option<Rc<Node>>>,
-    common_js_module_indicator: RefCell<Option<Rc<Node>>>,
+    external_module_indicator: RefCell<Option<Gc<Node>>>,
+    common_js_module_indicator: RefCell<Option<Gc<Node>>>,
     js_global_augmentations: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
 
     identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
@@ -189,16 +189,16 @@ pub struct SourceFileContents {
         RefCell<Option<ModeAwareCache<Option<Rc<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
         RefCell<Option<ModeAwareCache<Option<Rc<ResolvedTypeReferenceDirective>>>>>,
-    imports: RefCell<Option<Vec<Rc<Node /*StringLiteralLike*/>>>>,
-    module_augmentations: RefCell<Option<Vec<Rc<Node /*StringLiteral | Identifier*/>>>>,
+    imports: RefCell<Option<Vec<Gc<Node /*StringLiteralLike*/>>>>,
+    module_augmentations: RefCell<Option<Vec<Gc<Node /*StringLiteral | Identifier*/>>>>,
     pattern_ambient_modules: RefCell<Option<Vec<Rc<PatternAmbientModule>>>>,
     ambient_module_names: RefCell<Option<Vec<String>>>,
     check_js_directive: RefCell<Option<CheckJsDirective>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
     local_jsx_namespace: RefCell<Option<__String>>,
     local_jsx_fragment_namespace: RefCell<Option<__String>>,
-    local_jsx_factory: RefCell<Option<Rc<Node>>>,
-    local_jsx_fragment_factory: RefCell<Option<Rc<Node>>>,
+    local_jsx_factory: RefCell<Option<Gc<Node>>>,
+    local_jsx_fragment_factory: RefCell<Option<Gc<Node>>>,
 
     end_flow_node: RefCell<Option<Rc<FlowNode>>>,
 
@@ -211,7 +211,7 @@ impl SourceFile {
     pub fn new(
         base_node: BaseNode,
         statements: NodeArray,
-        end_of_file_token: Rc<Node>,
+        end_of_file_token: Gc<Node>,
         file_name: String,
         text: String,
         language_version: ScriptTarget,
@@ -278,7 +278,7 @@ impl SourceFile {
         }
     }
 
-    pub fn end_of_file_token(&self) -> Rc<Node> {
+    pub fn end_of_file_token(&self) -> Gc<Node> {
         self.contents.end_of_file_token.clone()
     }
 
@@ -443,28 +443,28 @@ impl SourceFile {
         self.contents.implied_node_format.set(implied_node_format);
     }
 
-    pub(crate) fn maybe_external_module_indicator(&self) -> Option<Rc<Node>> {
+    pub(crate) fn maybe_external_module_indicator(&self) -> Option<Gc<Node>> {
         self.contents.external_module_indicator.borrow().clone()
     }
 
     pub(crate) fn set_external_module_indicator(
         &self,
-        external_module_indicator: Option<Rc<Node>>,
+        external_module_indicator: Option<Gc<Node>>,
     ) {
         *self.contents.external_module_indicator.borrow_mut() = external_module_indicator;
     }
 
-    pub(crate) fn maybe_common_js_module_indicator(&self) -> Option<Rc<Node>> {
+    pub(crate) fn maybe_common_js_module_indicator(&self) -> Option<Gc<Node>> {
         self.contents.common_js_module_indicator.borrow().clone()
     }
 
-    pub(crate) fn maybe_common_js_module_indicator_mut(&self) -> RefMut<Option<Rc<Node>>> {
+    pub(crate) fn maybe_common_js_module_indicator_mut(&self) -> RefMut<Option<Gc<Node>>> {
         self.contents.common_js_module_indicator.borrow_mut()
     }
 
     pub(crate) fn set_common_js_module_indicator(
         &self,
-        common_js_module_indicator: Option<Rc<Node>>,
+        common_js_module_indicator: Option<Gc<Node>>,
     ) {
         *self.contents.common_js_module_indicator.borrow_mut() = common_js_module_indicator;
     }
@@ -590,15 +590,15 @@ impl SourceFile {
             .borrow_mut()
     }
 
-    pub fn maybe_imports(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+    pub fn maybe_imports(&self) -> Ref<Option<Vec<Gc<Node>>>> {
         self.contents.imports.borrow()
     }
 
-    pub fn maybe_imports_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    pub fn maybe_imports_mut(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
         self.contents.imports.borrow_mut()
     }
 
-    pub fn maybe_module_augmentations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    pub fn maybe_module_augmentations(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
         self.contents.module_augmentations.borrow_mut()
     }
 
@@ -636,11 +636,11 @@ impl SourceFile {
         self.contents.local_jsx_fragment_namespace.borrow_mut()
     }
 
-    pub fn maybe_local_jsx_factory(&self) -> RefMut<Option<Rc<Node>>> {
+    pub fn maybe_local_jsx_factory(&self) -> RefMut<Option<Gc<Node>>> {
         self.contents.local_jsx_factory.borrow_mut()
     }
 
-    pub fn maybe_local_jsx_fragment_factory(&self) -> RefMut<Option<Rc<Node>>> {
+    pub fn maybe_local_jsx_fragment_factory(&self) -> RefMut<Option<Gc<Node>>> {
         self.contents.local_jsx_fragment_factory.borrow_mut()
     }
 
@@ -664,7 +664,7 @@ impl SourceFile {
         self.contents.end_flow_node.borrow_mut()
     }
 
-    pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
+    pub fn keep_strong_reference_to_symbol(&self, symbol: Gc<Symbol>) {
         self.contents
             ._symbols_without_a_symbol_table_strong_references
             .borrow_mut()
@@ -761,14 +761,14 @@ pub enum CommentDirectiveType {
     Ignore,
 }
 
-pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Rc<Symbol>>;
+pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Gc<Symbol>>;
 
 #[derive(Debug)]
 #[ast_type]
 pub struct Bundle {
     _node: BaseNode,
-    pub prepends: Vec<Rc<Node /*InputFiles | UnparsedSource*/>>,
-    pub source_files: Vec<Rc<Node /*SourceFile*/>>,
+    pub prepends: Vec<Gc<Node /*InputFiles | UnparsedSource*/>>,
+    pub source_files: Vec<Gc<Node /*SourceFile*/>>,
     pub(crate) synthetic_file_references: Option<Vec<FileReference>>,
     pub(crate) synthetic_type_references: Option<Vec<FileReference>>,
     pub(crate) synthetic_lib_references: Option<Vec<FileReference>>,
@@ -776,7 +776,7 @@ pub struct Bundle {
 }
 
 impl Bundle {
-    pub fn new(base_node: BaseNode, prepends: Vec<Rc<Node>>, source_files: Vec<Rc<Node>>) -> Self {
+    pub fn new(base_node: BaseNode, prepends: Vec<Gc<Node>>, source_files: Vec<Gc<Node>>) -> Self {
         Self {
             _node: base_node,
             prepends,
@@ -842,7 +842,7 @@ pub struct UnparsedSource {
     pub file_name: String,
     text: RefCell<String>,
     text_as_chars: RefCell<SourceTextAsChars>,
-    pub prologues: Vec<Rc<Node /*UnparsedPrologue*/>>,
+    pub prologues: Vec<Gc<Node /*UnparsedPrologue*/>>,
     pub helpers: Option<Vec<Rc<EmitHelper /*UnscopedEmitHelper*/>>>,
 
     pub referenced_files: Vec<FileReference>,
@@ -852,8 +852,8 @@ pub struct UnparsedSource {
 
     pub source_map_path: Option<String>,
     pub source_map_text: Option<String>,
-    pub synthetic_references: Option<Vec<Rc<Node /*UnparsedSyntheticReference*/>>>,
-    pub texts: Vec<Rc<Node /*UnparsedSourceText*/>>,
+    pub synthetic_references: Option<Vec<Gc<Node /*UnparsedSyntheticReference*/>>>,
+    pub texts: Vec<Gc<Node /*UnparsedSourceText*/>>,
     pub(crate) old_file_of_current_emit: Option<bool>,
     pub(crate) parsed_source_map: RefCell<Option<Option<Rc<RawSourceMap>>>>,
 }
@@ -861,9 +861,9 @@ pub struct UnparsedSource {
 impl UnparsedSource {
     pub fn new(
         base_node: BaseNode,
-        prologues: Vec<Rc<Node>>,
-        synthetic_references: Option<Vec<Rc<Node>>>,
-        texts: Vec<Rc<Node>>,
+        prologues: Vec<Gc<Node>>,
+        synthetic_references: Option<Vec<Gc<Node>>>,
+        texts: Vec<Gc<Node>>,
         file_name: String,
         text: String,
         referenced_files: Vec<FileReference>,
@@ -892,7 +892,7 @@ impl UnparsedSource {
 }
 
 impl HasTextsInterface for UnparsedSource {
-    fn texts(&self) -> &[Rc<Node>] {
+    fn texts(&self) -> &[Gc<Node>] {
         &self.texts
     }
 }
@@ -974,11 +974,11 @@ impl UnparsedPrologue {
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedPrepend {
     _unparsed_node: BaseUnparsedNode,
-    texts: Vec<Rc<Node /*UnparsedTextLike*/>>,
+    texts: Vec<Gc<Node /*UnparsedTextLike*/>>,
 }
 
 impl UnparsedPrepend {
-    pub fn new(base_unparsed_node: BaseUnparsedNode, texts: Vec<Rc<Node>>) -> Self {
+    pub fn new(base_unparsed_node: BaseUnparsedNode, texts: Vec<Gc<Node>>) -> Self {
         Self {
             _unparsed_node: base_unparsed_node,
             texts,
@@ -987,11 +987,11 @@ impl UnparsedPrepend {
 }
 
 pub trait HasTextsInterface {
-    fn texts(&self) -> &[Rc<Node>];
+    fn texts(&self) -> &[Gc<Node>];
 }
 
 impl HasTextsInterface for UnparsedPrepend {
-    fn texts(&self) -> &[Rc<Node>] {
+    fn texts(&self) -> &[Gc<Node>] {
         &self.texts
     }
 }
@@ -1027,9 +1027,9 @@ impl UnparsedSyntheticReference {
 }
 
 pub trait ScriptReferenceHost {
-    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
-    fn get_source_file_by_path(&self, path: &Path) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_compiler_options(&self) -> Gc<CompilerOptions>;
+    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>>;
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Gc<Node /*SourceFile*/>>;
     fn get_current_directory(&self) -> String;
 }
 
@@ -1082,7 +1082,7 @@ pub trait WriteFileCallback {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&dyn FnMut(String)>,
-        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     );
 }
 

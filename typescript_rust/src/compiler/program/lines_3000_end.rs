@@ -203,7 +203,7 @@ impl Program {
 
     pub fn check_source_files_belong_to_path(
         &self,
-        source_files: &[Rc<Node /*SourceFile*/>],
+        source_files: &[Gc<Node /*SourceFile*/>],
         root_directory: &str,
     ) -> bool {
         unimplemented!()
@@ -559,7 +559,7 @@ impl Program {
         let language_version = get_emit_script_target(&self.options);
 
         let first_non_ambient_external_module_source_file =
-            find(&**self.files(), |f: &Rc<Node>, _| {
+            find(&**self.files(), |f: &Gc<Node>, _| {
                 is_external_module(f) && !f.as_source_file().is_declaration_file()
             })
             .cloned();
@@ -584,7 +584,7 @@ impl Program {
                 );
             }
 
-            let first_non_external_module_source_file = find(&**self.files(), |f: &Rc<Node>, _| {
+            let first_non_external_module_source_file = find(&**self.files(), |f: &Gc<Node>, _| {
                 !is_external_module(f)
                     && !is_source_file_js(f)
                     && !f.as_source_file().is_declaration_file()
@@ -1303,7 +1303,7 @@ impl Program {
         }
     }
 
-    pub fn get_compiler_options_object_literal_syntax(&self) -> Option<Rc<Node>> {
+    pub fn get_compiler_options_object_literal_syntax(&self) -> Option<Gc<Node>> {
         if self
             .maybe_compiler_options_object_literal_syntax()
             .is_none()
@@ -1669,7 +1669,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ) {
         unreachable!()
     }
@@ -1997,6 +1997,6 @@ fn get_module_names(file: &Node /*SourceFile*/) -> Vec<String> {
 pub(crate) fn get_module_name_string_literal_at<TFile: SourceFileImportsList>(
     file: &TFile,
     index: usize,
-) -> Rc<Node /*StringLiteralLike*/> {
+) -> Gc<Node /*StringLiteralLike*/> {
     unimplemented!()
 }

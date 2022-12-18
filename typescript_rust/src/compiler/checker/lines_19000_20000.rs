@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::collections::HashSet;
@@ -47,8 +48,8 @@ impl CheckTypeRelatedTo {
         original_error_info: &mut Option<Rc<DiagnosticMessageChain>>,
         save_error_info: &ErrorCalculationState,
         variance_check_failed: &mut bool,
-        source_type_arguments: Option<&[Rc<Type>]>,
-        target_type_arguments: Option<&[Rc<Type>]>,
+        source_type_arguments: Option<&[Gc<Type>]>,
+        target_type_arguments: Option<&[Gc<Type>]>,
         variances: &[VarianceFlags],
         intersection_state: IntersectionState,
     ) -> Option<Ternary> {
@@ -209,7 +210,7 @@ impl CheckTypeRelatedTo {
             }
         }
 
-        let mut source_discriminant_types: Vec<Vec<Rc<Type>>> =
+        let mut source_discriminant_types: Vec<Vec<Gc<Type>>> =
             Vec::with_capacity(source_properties_filtered.len());
         let mut excluded_properties: HashSet<__String> = HashSet::new();
         for (i, source_property) in source_properties_filtered.iter().enumerate() {
@@ -230,7 +231,7 @@ impl CheckTypeRelatedTo {
         }
 
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
-        let mut matching_types: Vec<Rc<Type>> = vec![];
+        let mut matching_types: Vec<Gc<Type>> = vec![];
         for combination in &discriminant_combinations {
             let mut has_match = false;
             'outer: for type_ in target.as_union_or_intersection_type_interface().types() {
@@ -308,14 +309,14 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn exclude_properties(
         &self,
-        properties: &[Rc<Symbol>],
+        properties: &[Gc<Symbol>],
         excluded_properties: Option<&HashSet<__String>>,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         if excluded_properties.is_none() || properties.is_empty() {
             return properties.to_owned();
         }
         let excluded_properties = excluded_properties.unwrap();
-        let mut result: Option<Vec<Rc<Symbol>>> = None;
+        let mut result: Option<Vec<Gc<Symbol>>> = None;
         for i in 0..properties.len() {
             if !excluded_properties.contains(properties[i].escaped_name()) {
                 if let Some(result) = result.as_mut() {
@@ -329,7 +330,7 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn is_property_symbol_type_related<
-        TGetTypeOfSourceProperty: FnMut(&Symbol) -> Rc<Type>,
+        TGetTypeOfSourceProperty: FnMut(&Symbol) -> Gc<Type>,
     >(
         &self,
         source_prop: &Symbol,
@@ -358,7 +359,7 @@ impl CheckTypeRelatedTo {
         )
     }
 
-    pub(super) fn property_related_to<TGetTypeOfSourceProperty: FnMut(&Symbol) -> Rc<Type>>(
+    pub(super) fn property_related_to<TGetTypeOfSourceProperty: FnMut(&Symbol) -> Gc<Type>>(
         &self,
         source: &Type,
         target: &Type,
@@ -683,7 +684,7 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None, None,
                         ),
-                        (&props[0..4]).into_iter().map(|p: &Rc<Symbol>|
+                        (&props[0..4]).into_iter().map(|p: &Gc<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
@@ -707,7 +708,7 @@ impl CheckTypeRelatedTo {
                             Option::<&Node>::None,
                             None, None,
                         ),
-                        props.iter().map(|p: &Rc<Symbol>|
+                        props.iter().map(|p: &Gc<Symbol>|
                             self.type_checker.symbol_to_string_(
                                 p,
                                 Option::<&Node>::None,
@@ -1267,7 +1268,7 @@ impl CheckTypeRelatedTo {
                     Some(source_signature_declaration) if source_signature_declaration.kind() == SyntaxKind::Constructor
                 ))
             {
-                let construct_signature_to_string = |signature: Rc<Signature>| -> String {
+                let construct_signature_to_string = |signature: Gc<Signature>| -> String {
                     self.type_checker.signature_to_string_(
                         signature,
                         Option::<&Node>::None,
@@ -1424,8 +1425,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn signature_related_to(
         &self,
-        source: Rc<Signature>,
-        target: Rc<Signature>,
+        source: Gc<Signature>,
+        target: Gc<Signature>,
         erase: bool,
         report_errors: bool,
         incompatible_reporter: fn(&Self, &Type, &Type),

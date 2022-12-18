@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -175,7 +176,7 @@ impl TypeChecker {
         }
         for_each_entry_bool(
             &*(*self.get_exports_of_symbol(symbol)).borrow(),
-            |p: &Rc<Symbol>, _| {
+            |p: &Gc<Symbol>, _| {
                 p.flags().intersects(SymbolFlags::Value)
                     && matches!(
                         p.maybe_value_declaration().as_ref(),
@@ -188,7 +189,7 @@ impl TypeChecker {
     pub(super) fn get_properties_of_container_function(
         &self,
         node: &Node, /*Declaration*/
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let declaration = get_parse_tree_node(Some(node), Some(is_function_declaration));
         if declaration.is_none() {
             return vec![];
@@ -421,7 +422,7 @@ impl TypeChecker {
         mut flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
         add_undefined: Option<bool>,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         let declaration = get_parse_tree_node(
             Some(declaration_in),
             Some(|node: &Node| is_variable_like_or_accessor(node)),
@@ -468,7 +469,7 @@ impl TypeChecker {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         let signature_declaration = get_parse_tree_node(
             Some(signature_declaration_in),
             Some(|node: &Node| is_function_like(Some(node))),
@@ -498,7 +499,7 @@ impl TypeChecker {
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
         tracker: &dyn SymbolTracker,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
             return Some(with_synthetic_factory_and_factory(
@@ -528,7 +529,7 @@ impl TypeChecker {
         &self,
         reference: &Node, /*Identifier*/
         start_in_declaration_container: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let resolved_symbol = (*self.get_node_links(reference))
             .borrow()
             .resolved_symbol
@@ -558,7 +559,7 @@ impl TypeChecker {
             &reference.as_identifier().escaped_text,
             SymbolFlags::Value | SymbolFlags::ExportValue | SymbolFlags::Alias,
             None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             true,
             None,
         )
@@ -567,7 +568,7 @@ impl TypeChecker {
     pub(super) fn get_referenced_value_declaration(
         &self,
         reference_in: &Node, /*Identifier*/
-    ) -> Option<Rc<Node /*Declaration*/>> {
+    ) -> Option<Gc<Node /*Declaration*/>> {
         if !is_generated_identifier(reference_in) {
             let reference =
                 get_parse_tree_node(Some(reference_in), Some(|node: &Node| is_identifier(node)));
@@ -602,7 +603,7 @@ impl TypeChecker {
         type_: &Type, /*FreshableType*/
         enclosing: &Node,
         tracker: &dyn SymbolTracker,
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         let enum_result = if type_.flags().intersects(TypeFlags::EnumLiteral) {
             self.node_builder().symbol_to_expression(
                 &type_.symbol(),
@@ -655,7 +656,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: &dyn SymbolTracker,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let ref type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap());
         self.literal_type_to_node(type_, node, tracker)
     }
@@ -663,7 +664,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_factory_entity(
         &self,
         location: &Node,
-    ) -> Option<Rc<Node /*EntityName*/>> {
+    ) -> Option<Gc<Node /*EntityName*/>> {
         /*location ?*/
         self.get_jsx_namespace_(Some(location));
         get_source_file_of_node(Some(location))
@@ -678,7 +679,7 @@ impl TypeChecker {
     pub(super) fn get_jsx_fragment_factory_entity(
         &self,
         location: &Node,
-    ) -> Option<Rc<Node /*EntityName*/>> {
+    ) -> Option<Gc<Node /*EntityName*/>> {
         // if (location) {
         let file = get_source_file_of_node(Some(location));
         if let Some(file) = file.as_ref() {
@@ -727,11 +728,11 @@ impl TypeChecker {
     pub(super) fn get_external_module_file_from_declaration(
         &self,
         declaration: &Node, /*AnyImportOrReExport | ModuleDeclaration | ImportTypeNode | ImportCall*/
-    ) -> Option<Rc<Node /*SourceFile*/>> {
+    ) -> Option<Gc<Node /*SourceFile*/>> {
         let specifier = if declaration.kind() == SyntaxKind::ModuleDeclaration {
             try_cast(
                 declaration.as_module_declaration().name(),
-                |node: &Rc<Node>| is_string_literal(node),
+                |node: &Gc<Node>| is_string_literal(node),
             )
         } else {
             get_external_module_name(declaration)
@@ -753,7 +754,7 @@ impl TypeChecker {
 
         *self.maybe_amalgamated_duplicates() = Some(HashMap::new());
 
-        let mut augmentations: Option<Vec<Vec<Rc<Node /*StringLiteral | Identifier*/>>>> = None;
+        let mut augmentations: Option<Vec<Vec<Gc<Node /*StringLiteral | Identifier*/>>>> = None;
         for file in &*self.host.get_source_files() {
             let file_as_source_file = file.as_source_file();
             if file_as_source_file.maybe_redirect_info().is_some() {
@@ -1070,7 +1071,7 @@ impl TypeChecker {
                                     {
                                         if !some(
                                             Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
-                                            Some(|signature: &Rc<Signature>| {
+                                            Some(|signature: &Gc<Signature>| {
                                                 self.get_parameter_count(signature) > 3
                                             }),
                                         ) {
@@ -1089,7 +1090,7 @@ impl TypeChecker {
                                     {
                                         if !some(
                                             Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
-                                            Some(|signature: &Rc<Signature>| {
+                                            Some(|signature: &Gc<Signature>| {
                                                 self.get_parameter_count(signature) > 4
                                             }),
                                         ) {
@@ -1106,7 +1107,7 @@ impl TypeChecker {
                                     } else if helper.intersects(ExternalEmitHelpers::SpreadArray) {
                                         if !some(
                                             Some(&*self.get_signatures_of_symbol(Some(&**symbol))),
-                                            Some(|signature: &Rc<Signature>| {
+                                            Some(|signature: &Gc<Signature>| {
                                                 self.get_parameter_count(signature) > 2
                                             }),
                                         ) {
@@ -1168,7 +1169,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*SourceFile*/
         error_node: &Node,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let mut external_helpers_module = self.maybe_external_helpers_module();
         if external_helpers_module.is_none() {
             *external_helpers_module = Some(
@@ -1243,11 +1244,11 @@ impl TypeChecker {
             return quick_result;
         }
 
-        let mut last_static: Option<Rc<Node>> = None;
-        let mut last_declare: Option<Rc<Node>> = None;
-        let mut last_async: Option<Rc<Node>> = None;
-        let mut last_readonly: Option<Rc<Node>> = None;
-        let mut last_override: Option<Rc<Node>> = None;
+        let mut last_static: Option<Gc<Node>> = None;
+        let mut last_declare: Option<Gc<Node>> = None;
+        let mut last_async: Option<Gc<Node>> = None;
+        let mut last_readonly: Option<Gc<Node>> = None;
+        let mut last_override: Option<Gc<Node>> = None;
         let mut flags = ModifierFlags::None;
         for modifier in node.maybe_modifiers().as_ref().unwrap() {
             if modifier.kind() != SyntaxKind::ReadonlyKeyword {

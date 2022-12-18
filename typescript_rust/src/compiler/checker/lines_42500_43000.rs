@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -231,9 +232,9 @@ impl TypeChecker {
 
     pub(super) fn get_non_simple_parameters(
         &self,
-        parameters: &[Rc<Node /*ParameterDeclaration*/>],
-    ) -> Vec<Rc<Node /*ParameterDeclaration*/>> {
-        filter(parameters, |parameter: &Rc<Node>| {
+        parameters: &[Gc<Node /*ParameterDeclaration*/>],
+    ) -> Vec<Gc<Node /*ParameterDeclaration*/>> {
+        filter(parameters, |parameter: &Gc<Node>| {
             let parameter_as_parameter_declaration = parameter.as_parameter_declaration();
             parameter_as_parameter_declaration
                 .maybe_initializer()
@@ -260,7 +261,7 @@ impl TypeChecker {
                 if length(Some(&*non_simple_parameters)) > 0 {
                     for_each(
                         &non_simple_parameters,
-                        |parameter: &Rc<Node>, _| -> Option<()> {
+                        |parameter: &Gc<Node>, _| -> Option<()> {
                             add_related_info(
                                 &self.error(
                                     Some(&**parameter),
@@ -615,7 +616,7 @@ impl TypeChecker {
         }
         some(
             Some(&**types),
-            Some(|type_: &Rc<Node>| self.check_grammar_expression_with_type_arguments(type_)),
+            Some(|type_: &Gc<Node>| self.check_grammar_expression_with_type_arguments(type_)),
         )
     }
 

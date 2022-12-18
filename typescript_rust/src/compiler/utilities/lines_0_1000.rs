@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Trace};
+use gc::{Finalize, Gc, Trace};
 use indexmap::IndexMap;
 use regex::Regex;
 use std::borrow::{Borrow, Cow};
@@ -43,9 +43,9 @@ use crate::{
 };
 
 thread_local! {
-    static resolving_empty_array_: Rc<Vec<Rc<Type>>> = Rc::new(vec![]);
+    static resolving_empty_array_: Rc<Vec<Gc<Type>>> = Rc::new(vec![]);
 }
-pub fn resolving_empty_array() -> Rc<Vec<Rc<Type>>> {
+pub fn resolving_empty_array() -> Rc<Vec<Gc<Type>>> {
     resolving_empty_array_.with(|resolving_empty_array| resolving_empty_array.clone())
 }
 
@@ -57,7 +57,7 @@ pub const no_truncation_maximum_truncation_length: usize = 1_000_000;
 pub fn get_declaration_of_kind(
     symbol: &Symbol,
     kind: SyntaxKind,
-) -> Option<Rc<Node /*T extends Declaration*/>> {
+) -> Option<Gc<Node /*T extends Declaration*/>> {
     let maybe_declarations = symbol.maybe_declarations();
     let declarations = maybe_declarations.as_ref();
     if let Some(declarations) = declarations {
@@ -77,7 +77,7 @@ pub fn create_underscore_escaped_map<TValue>() -> UnderscoreEscapedMap<TValue> {
 
 // function hasEntries
 
-pub fn create_symbol_table(symbols: Option<&[Rc<Symbol>]>) -> SymbolTable {
+pub fn create_symbol_table(symbols: Option<&[Gc<Symbol>]>) -> SymbolTable {
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for symbol in symbols {
@@ -244,7 +244,7 @@ impl SymbolTracker for SingleLineStringWriter {
     fn track_symbol(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<Rc<Node>>,
+        enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
         Some(false)
@@ -647,7 +647,7 @@ fn aggregate_child_data(node: &Node) {
 
 pub fn get_source_file_of_node<TNode: Borrow<Node>>(
     node: Option<TNode>,
-) -> Option<Rc<Node /*SourceFile*/>> {
+) -> Option<Gc<Node /*SourceFile*/>> {
     let mut node = node.map(|node| {
         let node = node.borrow();
         node.node_wrapper()
@@ -658,7 +658,7 @@ pub fn get_source_file_of_node<TNode: Borrow<Node>>(
     node
 }
 
-pub fn get_source_file_of_module(module: &Symbol) -> Option<Rc<Node /*SourceFile*/>> {
+pub fn get_source_file_of_module(module: &Symbol) -> Option<Gc<Node /*SourceFile*/>> {
     get_source_file_of_node(
         module
             .maybe_value_declaration()
@@ -750,8 +750,8 @@ pub fn node_is_present<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
 }
 
 fn insert_statements_after_prologue<TIsPrologueDirective: FnMut(&Node) -> bool>(
-    to: &mut Vec<Rc<Node>>,
-    from: Option<&[Rc<Node>]>,
+    to: &mut Vec<Gc<Node>>,
+    from: Option<&[Gc<Node>]>,
     mut is_prologue_directive: TIsPrologueDirective,
 ) {
     if from.is_none() {
@@ -775,8 +775,8 @@ fn insert_statements_after_prologue<TIsPrologueDirective: FnMut(&Node) -> bool>(
 }
 
 fn insert_statement_after_prologue<TIsPrologueDirective: FnMut(&Node) -> bool>(
-    to: &mut Vec<Rc<Node>>,
-    statement: Option<Rc<Node>>,
+    to: &mut Vec<Gc<Node>>,
+    statement: Option<Gc<Node>>,
     mut is_prologue_directive: TIsPrologueDirective,
 ) {
     if statement.is_none() {
@@ -798,24 +798,24 @@ fn is_any_prologue_directive(node: &Node) -> bool {
 }
 
 pub fn insert_statements_after_standard_prologue(
-    to: &mut Vec<Rc<Node>>,
-    from: Option<&[Rc<Node>]>,
+    to: &mut Vec<Gc<Node>>,
+    from: Option<&[Gc<Node>]>,
 ) {
     insert_statements_after_prologue(to, from, is_prologue_directive)
 }
 
-pub fn insert_statements_after_custom_prologue(to: &mut Vec<Rc<Node>>, from: Option<&[Rc<Node>]>) {
+pub fn insert_statements_after_custom_prologue(to: &mut Vec<Gc<Node>>, from: Option<&[Gc<Node>]>) {
     insert_statements_after_prologue(to, from, is_any_prologue_directive)
 }
 
 pub fn insert_statement_after_standard_prologue(
-    to: &mut Vec<Rc<Node>>,
-    statement: Option<Rc<Node>>,
+    to: &mut Vec<Gc<Node>>,
+    statement: Option<Gc<Node>>,
 ) {
     insert_statement_after_prologue(to, statement, is_prologue_directive)
 }
 
-pub fn insert_statement_after_custom_prologue(to: &mut Vec<Rc<Node>>, statement: Option<Rc<Node>>) {
+pub fn insert_statement_after_custom_prologue(to: &mut Vec<Gc<Node>>, statement: Option<Gc<Node>>) {
     insert_statement_after_prologue(to, statement, is_any_prologue_directive)
 }
 
@@ -1071,7 +1071,7 @@ fn get_pos(range: &Node) -> isize {
     range.pos()
 }
 
-pub fn index_of_node(node_array: &[Rc<Node>], node: &Node) -> isize {
+pub fn index_of_node(node_array: &[Gc<Node>], node: &Node) -> isize {
     binary_search_copy_key(
         node_array,
         &node.node_wrapper(),
@@ -1476,7 +1476,7 @@ pub fn is_module_augmentation_external(node: &Node /*AmbientModuleDeclaration*/)
     }
 }
 
-pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Rc<Node /*Declaration*/>> {
+pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Gc<Node /*Declaration*/>> {
     symbol
         .maybe_declarations()
         .as_ref()
@@ -1639,7 +1639,7 @@ pub fn is_any_import_or_re_export(node: &Node) -> bool {
     is_any_import_syntax(node) || is_export_declaration(node)
 }
 
-pub fn get_enclosing_block_scope_container(node: &Node) -> Option<Rc<Node>> {
+pub fn get_enclosing_block_scope_container(node: &Node) -> Option<Gc<Node>> {
     find_ancestor(node.maybe_parent(), |current| {
         is_block_scope(current, current.maybe_parent())
     })

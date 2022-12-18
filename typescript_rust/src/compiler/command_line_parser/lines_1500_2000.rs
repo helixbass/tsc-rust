@@ -491,7 +491,7 @@ pub trait ParseConfigFileHost:
 
 pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     config_file_name: &str,
-    options_to_extend: Option<Rc<CompilerOptions>>,
+    options_to_extend: Option<Gc<CompilerOptions>>,
     host: &THost,
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
@@ -571,7 +571,7 @@ pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> Rea
 pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
     file_name: &str,
     read_file: TReadFile,
-) -> Rc<Node /*TsConfigSourceFile*/> {
+) -> Gc<Node /*TsConfigSourceFile*/> {
     let text_or_diagnostic = try_read_file(file_name, read_file);
     match text_or_diagnostic {
         StringOrRcDiagnostic::String(text_or_diagnostic) => {
@@ -585,7 +585,7 @@ pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>
                 -1,
                 -1,
             );
-            let end_of_file_token: Rc<Node> = BaseNode::new(
+            let end_of_file_token: Gc<Node> = BaseNode::new(
                 SyntaxKind::EndOfFileToken,
                 NodeFlags::None,
                 TransformFlags::None,
@@ -593,7 +593,7 @@ pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>
                 -1,
             )
             .into();
-            let source_file: Rc<Node> = SourceFile::new(
+            let source_file: Gc<Node> = SourceFile::new(
                 base_node,
                 NodeArray::new(vec![], -1, -1, false, None),
                 end_of_file_token,

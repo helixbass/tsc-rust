@@ -157,7 +157,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRulesConcrete<TBa
         operand: &Node, /*Expression*/
         is_left_side_of_binary: bool,
         left_operand: Option<TLeftOperand /*Expression*/>,
-    ) -> Rc<Node /*Expression*/> {
+    ) -> Gc<Node /*Expression*/> {
         let skipped = skip_partially_emitted_expressions(operand);
 
         if skipped.kind() == SyntaxKind::ParenthesizedExpression {
@@ -183,7 +183,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRulesConcrete<TBa
         base_node_factory: &TBaseNodeFactory,
         node: &Node, /*TypeNode*/
         i: usize,
-    ) -> Rc<Node /*TypeNode*/> {
+    ) -> Gc<Node /*TypeNode*/> {
         if i == 0
             && is_function_or_constructor_type_node(node)
             && node
@@ -208,7 +208,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         binary_operator: SyntaxKind,
         left_side: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         self.parenthesize_binary_operand(
             base_node_factory,
             binary_operator,
@@ -222,9 +222,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         binary_operator: SyntaxKind,
-        left_side: Option<Rc<Node>>,
+        left_side: Option<Gc<Node>>,
         right_side: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         self.parenthesize_binary_operand(
             base_node_factory,
             binary_operator,
@@ -238,7 +238,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if is_comma_sequence(expression) {
             self.factory
                 .create_parenthesized_expression(base_node_factory, expression.node_wrapper())
@@ -252,7 +252,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         condition: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let conditional_precedence = get_operator_precedence(
             SyntaxKind::ConditionalExpression,
             SyntaxKind::QuestionToken,
@@ -275,7 +275,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         branch: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let emitted_expression = skip_partially_emitted_expressions(branch);
         if is_comma_sequence(&emitted_expression) {
             self.factory
@@ -290,7 +290,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let check = skip_partially_emitted_expressions(expression);
         let mut needs_parens = is_comma_sequence(&check);
         if !needs_parens {
@@ -314,7 +314,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let leftmost_expr = get_leftmost_expression(expression, true);
         match leftmost_expr.kind() {
             SyntaxKind::CallExpression => {
@@ -346,7 +346,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression);
         if is_left_hand_side_expression(&emitted_expression)
             && (emitted_expression.kind() != SyntaxKind::NewExpression
@@ -356,7 +356,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         }
 
         set_text_range(
-            &*Into::<Rc<Node>>::into(
+            &*Into::<Gc<Node>>::into(
                 self.factory
                     .create_parenthesized_expression(base_node_factory, expression.node_wrapper()),
             ),
@@ -369,12 +369,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         operand: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if is_left_hand_side_expression(operand) {
             operand.node_wrapper()
         } else {
             set_text_range(
-                &*Into::<Rc<Node>>::into(
+                &*Into::<Gc<Node>>::into(
                     self.factory
                         .create_parenthesized_expression(base_node_factory, operand.node_wrapper()),
                 ),
@@ -388,12 +388,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         operand: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if is_unary_expression(operand) {
             operand.node_wrapper()
         } else {
             set_text_range(
-                &*Into::<Rc<Node>>::into(
+                &*Into::<Gc<Node>>::into(
                     self.factory
                         .create_parenthesized_expression(base_node_factory, operand.node_wrapper()),
                 ),
@@ -438,7 +438,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression);
         let expression_precedence = get_expression_precedence(&emitted_expression);
         let comma_precedence =
@@ -447,7 +447,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             expression.node_wrapper()
         } else {
             set_text_range(
-                &*Into::<Rc<Node>>::into(
+                &*Into::<Gc<Node>>::into(
                     self.factory.create_parenthesized_expression(
                         base_node_factory,
                         expression.node_wrapper(),
@@ -463,7 +463,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let emitted_expression = skip_partially_emitted_expressions(expression);
         if is_call_expression(&emitted_expression) {
             let emitted_expression_as_call_expression = emitted_expression.as_call_expression();
@@ -477,7 +477,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
                     base_node_factory,
                     &emitted_expression,
                     set_text_range(
-                        &*Into::<Rc<Node>>::into(self.factory.create_parenthesized_expression(
+                        &*Into::<Gc<Node>>::into(self.factory.create_parenthesized_expression(
                             base_node_factory,
                             callee.node_wrapper(),
                         )),
@@ -502,7 +502,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
             SyntaxKind::ObjectLiteralExpression | SyntaxKind::FunctionExpression
         ) {
             return set_text_range(
-                &*Into::<Rc<Node>>::into(
+                &*Into::<Gc<Node>>::into(
                     self.factory.create_parenthesized_expression(
                         base_node_factory,
                         expression.node_wrapper(),
@@ -520,14 +520,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         body: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if !is_block(body)
             && (is_comma_sequence(body)
                 || get_leftmost_expression(body, false).kind()
                     == SyntaxKind::ObjectLiteralExpression)
         {
             return set_text_range(
-                &*Into::<Rc<Node>>::into(
+                &*Into::<Gc<Node>>::into(
                     self.factory
                         .create_parenthesized_expression(base_node_factory, body.node_wrapper()),
                 ),
@@ -543,7 +543,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         member: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         if member.kind() == SyntaxKind::ConditionalType {
             self.factory
                 .create_parenthesized_type(base_node_factory, member.node_wrapper())
@@ -557,7 +557,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         member: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         match member.kind() {
             SyntaxKind::UnionType
             | SyntaxKind::IntersectionType
@@ -574,7 +574,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         &self,
         base_node_factory: &TBaseNodeFactory,
         member: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         match member.kind() {
             SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => self
                 .factory
@@ -608,7 +608,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
     ) -> Option<NodeArray> {
         if some(
             type_arguments.as_deref(),
-            Option::<fn(&Rc<Node>) -> bool>::None,
+            Option::<fn(&Gc<Node>) -> bool>::None,
         ) {
             return Some(self.factory.create_node_array(
                 maybe_same_map(type_arguments.as_deref(), |type_arguments, index| {
@@ -652,7 +652,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         base_node_factory: &TBaseNodeFactory,
         _: SyntaxKind,
         left_side: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         left_side.node_wrapper()
     }
 
@@ -660,9 +660,9 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         _: SyntaxKind,
-        _left_side: Option<Rc<Node>>,
+        _left_side: Option<Gc<Node>>,
         right_side: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         right_side.node_wrapper()
     }
 
@@ -670,7 +670,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         expression.node_wrapper()
     }
 
@@ -678,7 +678,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         condition: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         condition.node_wrapper()
     }
 
@@ -686,7 +686,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         branch: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         branch.node_wrapper()
     }
 
@@ -694,7 +694,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         expression.node_wrapper()
     }
 
@@ -702,7 +702,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         expression.node_wrapper()
     }
 
@@ -710,7 +710,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         expression.node_wrapper()
     }
 
@@ -718,7 +718,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         operand: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         operand.node_wrapper()
     }
 
@@ -726,7 +726,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         operand: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         operand.node_wrapper()
     }
 
@@ -747,7 +747,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         expression.node_wrapper()
     }
 
@@ -755,7 +755,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         expression.node_wrapper()
     }
 
@@ -763,7 +763,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         expression.node_wrapper()
     }
 
@@ -771,7 +771,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         member: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         member.node_wrapper()
     }
 
@@ -779,7 +779,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         member: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         member.node_wrapper()
     }
 
@@ -787,7 +787,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
         &self,
         base_node_factory: &TBaseNodeFactory,
         member: &Node,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         member.node_wrapper()
     }
 

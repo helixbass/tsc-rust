@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -109,7 +110,7 @@ pub(super) fn update_report_diagnostic(
 }
 
 pub(super) enum CompilerOptionsOrBuildOptions {
-    CompilerOptions(Rc<CompilerOptions>),
+    CompilerOptions(Gc<CompilerOptions>),
     BuildOptions(Rc<BuildOptions>),
 }
 
@@ -122,8 +123,8 @@ impl CompilerOptionsOrBuildOptions {
     }
 }
 
-impl From<Rc<CompilerOptions>> for CompilerOptionsOrBuildOptions {
-    fn from(value: Rc<CompilerOptions>) -> Self {
+impl From<Gc<CompilerOptions>> for CompilerOptionsOrBuildOptions {
+    fn from(value: Gc<CompilerOptions>) -> Self {
         Self::CompilerOptions(value)
     }
 }

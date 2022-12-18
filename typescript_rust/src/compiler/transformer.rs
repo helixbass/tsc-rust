@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use gc::Gc;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -179,7 +180,7 @@ fn get_declaration_transformers(
 
 fn wrap_custom_transformer(transformer: Rc<dyn CustomTransformer>) -> Transformer /*<Bundle | SourceFile>*/
 {
-    let wrapped_transformer = move |node: &Node| -> Rc<Node> {
+    let wrapped_transformer = move |node: &Node| -> Gc<Node> {
         if is_bundle(node) {
             transformer.transform_bundle(node)
         } else {
@@ -225,7 +226,7 @@ fn passthrough_transformer(
     transform_source_file
 }
 
-pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Rc<Node> {
+pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Gc<Node> {
     node.node_wrapper()
 }
 
@@ -237,20 +238,20 @@ pub fn transform_nodes(
     resolver: Option<Rc<dyn EmitResolver>>,
     host: Option<Rc<dyn EmitHost>>,
     factory: Rc<NodeFactory<BaseNodeFactorySynthetic>>,
-    options: Rc<CompilerOptions>,
-    nodes: &[Rc<Node>],
+    options: Gc<CompilerOptions>,
+    nodes: &[Gc<Node>],
     transformers: &[TransformerFactory],
     allow_dts_files: bool,
     // ) -> impl TransformationResult {
 ) -> Rc<dyn TransformationResult> {
-    let mut lexical_environment_variable_declarations: Option<Vec<Rc<Node>>> = None;
-    let mut lexical_environment_function_declarations: Option<Vec<Rc<Node>>> = None;
-    let mut lexical_environment_variable_declarations_stack: Vec<Option<Vec<Rc<Node>>>> = vec![];
-    let mut lexical_environment_function_declarations_stack: Vec<Option<Vec<Rc<Node>>>> = vec![];
+    let mut lexical_environment_variable_declarations: Option<Vec<Gc<Node>>> = None;
+    let mut lexical_environment_function_declarations: Option<Vec<Gc<Node>>> = None;
+    let mut lexical_environment_variable_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
+    let mut lexical_environment_function_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
     let mut emit_helpers: Option<Vec<Rc<EmitHelper>>> = None;
     let state = TransformationState::Uninitialized;
     let diagnostics: Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> = vec![];
-    let mut transformed: Vec<Rc<Node>> = vec![];
+    let mut transformed: Vec<Gc<Node>> = vec![];
 
     let transformation_result = TransformNodesTransformationResult::new(
         transformed,
@@ -274,34 +275,34 @@ pub fn transform_nodes(
 }
 
 pub struct TransformNodesTransformationResult {
-    transformed: RefCell<Vec<Rc<Node>>>,
+    transformed: RefCell<Vec<Gc<Node>>>,
     state: Cell<TransformationState>,
-    nodes: Vec<Rc<Node>>,
+    nodes: Vec<Gc<Node>>,
     rc_wrapper: RefCell<Option<Weak<TransformNodesTransformationResult>>>,
     enabled_syntax_kind_features: RefCell<HashMap<SyntaxKind, SyntaxKindFeatureFlags>>,
     lexical_environment_variable_declarations:
-        RefCell<Option<Vec<Rc<Node /*VariableDeclaration*/>>>>,
+        RefCell<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>,
     lexical_environment_function_declarations:
-        RefCell<Option<Vec<Rc<Node /*FunctionDeclaration*/>>>>,
-    lexical_environment_statements: RefCell<Option<Vec<Rc<Node /*Statement*/>>>>,
+        RefCell<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>,
+    lexical_environment_statements: RefCell<Option<Vec<Gc<Node /*Statement*/>>>>,
     lexical_environment_flags: Cell<LexicalEnvironmentFlags>,
     lexical_environment_variable_declarations_stack:
-        RefCell<Option<Vec<Option<Vec<Rc<Node /*VariableDeclaration*/>>>>>>,
+        RefCell<Option<Vec<Option<Vec<Gc<Node /*VariableDeclaration*/>>>>>>,
     lexical_environment_function_declarations_stack:
-        RefCell<Option<Vec<Option<Vec<Rc<Node /*FunctionDeclaration*/>>>>>>,
-    lexical_environment_statements_stack: RefCell<Option<Vec<Option<Vec<Rc<Node /*Statement*/>>>>>>,
+        RefCell<Option<Vec<Option<Vec<Gc<Node /*FunctionDeclaration*/>>>>>>,
+    lexical_environment_statements_stack: RefCell<Option<Vec<Option<Vec<Gc<Node /*Statement*/>>>>>>,
     lexical_environment_flags_stack: RefCell<Option<Vec<LexicalEnvironmentFlags>>>,
     lexical_environment_suspended: Cell<bool>,
     block_scoped_variable_declarations_stack:
-        RefCell<Option<Vec<Option<Vec<Rc<Node /*Identifier*/>>>>>>,
+        RefCell<Option<Vec<Option<Vec<Gc<Node /*Identifier*/>>>>>>,
     block_scope_stack_offset: Cell<usize>,
-    block_scoped_variable_declarations: RefCell<Option<Vec<Rc<Node /*Identifier*/>>>>,
+    block_scoped_variable_declarations: RefCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
     emit_helpers: RefCell<Option<Vec<Rc<EmitHelper>>>>,
     diagnostics: RefCell<Vec<Rc<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
     transformers_with_context: RefCell<Option<Vec<Transformer>>>,
     allow_dts_files: bool,
-    options: Rc<CompilerOptions>,
+    options: Gc<CompilerOptions>,
     resolver: Option<Rc<dyn EmitResolver>>,
     host: Option<Rc<dyn EmitHost>>,
     created_emit_helper_factory: RefCell<Option<Rc<EmitHelperFactory>>>,
@@ -310,18 +311,18 @@ pub struct TransformNodesTransformationResult {
 
 impl TransformNodesTransformationResult {
     pub fn new(
-        transformed: Vec<Rc<Node>>,
+        transformed: Vec<Gc<Node>>,
         state: TransformationState,
-        nodes: Vec<Rc<Node>>,
-        lexical_environment_variable_declarations: Option<Vec<Rc<Node>>>,
-        lexical_environment_function_declarations: Option<Vec<Rc<Node>>>,
-        lexical_environment_variable_declarations_stack: Vec<Option<Vec<Rc<Node>>>>,
-        lexical_environment_function_declarations_stack: Vec<Option<Vec<Rc<Node>>>>,
+        nodes: Vec<Gc<Node>>,
+        lexical_environment_variable_declarations: Option<Vec<Gc<Node>>>,
+        lexical_environment_function_declarations: Option<Vec<Gc<Node>>>,
+        lexical_environment_variable_declarations_stack: Vec<Option<Vec<Gc<Node>>>>,
+        lexical_environment_function_declarations_stack: Vec<Option<Vec<Gc<Node>>>>,
         emit_helpers: Option<Vec<Rc<EmitHelper>>>,
         diagnostics: Vec<Rc<Diagnostic>>,
         transformers: Vec<TransformerFactory>,
         allow_dts_files: bool,
-        options: Rc<CompilerOptions>,
+        options: Gc<CompilerOptions>,
         resolver: Option<Rc<dyn EmitResolver>>,
         host: Option<Rc<dyn EmitHost>>,
         factory: Rc<NodeFactory<BaseNodeFactorySynthetic>>,
@@ -384,44 +385,44 @@ impl TransformNodesTransformationResult {
             .unwrap()
     }
 
-    fn lexical_environment_variable_declarations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    fn lexical_environment_variable_declarations(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
         self.lexical_environment_variable_declarations.borrow_mut()
     }
 
     fn set_lexical_environment_variable_declarations(
         &self,
-        lexical_environment_variable_declarations: Option<Vec<Rc<Node>>>,
+        lexical_environment_variable_declarations: Option<Vec<Gc<Node>>>,
     ) {
         *self.lexical_environment_variable_declarations.borrow_mut() =
             lexical_environment_variable_declarations;
     }
 
-    fn lexical_environment_function_declarations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    fn lexical_environment_function_declarations(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
         self.lexical_environment_function_declarations.borrow_mut()
     }
 
     fn set_lexical_environment_function_declarations(
         &self,
-        lexical_environment_function_declarations: Option<Vec<Rc<Node>>>,
+        lexical_environment_function_declarations: Option<Vec<Gc<Node>>>,
     ) {
         *self.lexical_environment_function_declarations.borrow_mut() =
             lexical_environment_function_declarations;
     }
 
-    fn lexical_environment_statements(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    fn lexical_environment_statements(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
         self.lexical_environment_statements.borrow_mut()
     }
 
     fn set_lexical_environment_statements(
         &self,
-        lexical_environment_statements: Option<Vec<Rc<Node>>>,
+        lexical_environment_statements: Option<Vec<Gc<Node>>>,
     ) {
         *self.lexical_environment_statements.borrow_mut() = lexical_environment_statements;
     }
 
     fn lexical_environment_variable_declarations_stack(
         &self,
-    ) -> RefMut<Vec<Option<Vec<Rc<Node>>>>> {
+    ) -> RefMut<Vec<Option<Vec<Gc<Node>>>>> {
         RefMut::map(
             self.lexical_environment_variable_declarations_stack
                 .borrow_mut(),
@@ -431,7 +432,7 @@ impl TransformNodesTransformationResult {
 
     fn set_lexical_environment_variable_declarations_stack(
         &self,
-        lexical_environment_variable_declarations_stack: Option<Vec<Option<Vec<Rc<Node>>>>>,
+        lexical_environment_variable_declarations_stack: Option<Vec<Option<Vec<Gc<Node>>>>>,
     ) {
         *self
             .lexical_environment_variable_declarations_stack
@@ -440,7 +441,7 @@ impl TransformNodesTransformationResult {
 
     fn lexical_environment_function_declarations_stack(
         &self,
-    ) -> RefMut<Vec<Option<Vec<Rc<Node>>>>> {
+    ) -> RefMut<Vec<Option<Vec<Gc<Node>>>>> {
         RefMut::map(
             self.lexical_environment_function_declarations_stack
                 .borrow_mut(),
@@ -450,14 +451,14 @@ impl TransformNodesTransformationResult {
 
     fn set_lexical_environment_function_declarations_stack(
         &self,
-        lexical_environment_function_declarations_stack: Option<Vec<Option<Vec<Rc<Node>>>>>,
+        lexical_environment_function_declarations_stack: Option<Vec<Option<Vec<Gc<Node>>>>>,
     ) {
         *self
             .lexical_environment_function_declarations_stack
             .borrow_mut() = lexical_environment_function_declarations_stack;
     }
 
-    fn lexical_environment_statements_stack(&self) -> RefMut<Vec<Option<Vec<Rc<Node>>>>> {
+    fn lexical_environment_statements_stack(&self) -> RefMut<Vec<Option<Vec<Gc<Node>>>>> {
         RefMut::map(
             self.lexical_environment_statements_stack.borrow_mut(),
             |option| option.as_mut().unwrap(),
@@ -471,7 +472,7 @@ impl TransformNodesTransformationResult {
         )
     }
 
-    fn block_scoped_variable_declarations_stack(&self) -> RefMut<Vec<Option<Vec<Rc<Node>>>>> {
+    fn block_scoped_variable_declarations_stack(&self) -> RefMut<Vec<Option<Vec<Gc<Node>>>>> {
         RefMut::map(
             self.block_scoped_variable_declarations_stack.borrow_mut(),
             |option| option.as_mut().unwrap(),
@@ -480,19 +481,19 @@ impl TransformNodesTransformationResult {
 
     fn set_block_scoped_variable_declarations_stack(
         &self,
-        block_scoped_variable_declarations_stack: Option<Vec<Option<Vec<Rc<Node>>>>>,
+        block_scoped_variable_declarations_stack: Option<Vec<Option<Vec<Gc<Node>>>>>,
     ) {
         *self.block_scoped_variable_declarations_stack.borrow_mut() =
             block_scoped_variable_declarations_stack;
     }
 
-    fn block_scoped_variable_declarations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    fn block_scoped_variable_declarations(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
         self.block_scoped_variable_declarations.borrow_mut()
     }
 
     fn set_block_scoped_variable_declarations(
         &self,
-        block_scoped_variable_declarations: Option<Vec<Rc<Node>>>,
+        block_scoped_variable_declarations: Option<Vec<Gc<Node>>>,
     ) {
         *self.block_scoped_variable_declarations.borrow_mut() = block_scoped_variable_declarations;
     }
@@ -527,7 +528,7 @@ impl TransformNodesTransformationResult {
         *self.transformers_with_context.borrow_mut() = Some(transformers_with_context);
     }
 
-    fn transformed(&self) -> RefMut<Vec<Rc<Node>>> {
+    fn transformed(&self) -> RefMut<Vec<Gc<Node>>> {
         self.transformed.borrow_mut()
     }
 
@@ -600,7 +601,7 @@ impl TransformNodesTransformationResult {
         // performance.measure("transformTime", "beforeTransform", "afterTransform");
     }
 
-    fn transformation(&self, node: &Node) -> Rc<Node> {
+    fn transformation(&self, node: &Node) -> Gc<Node> {
         let mut node = node.node_wrapper();
         for transform in self.transformers_with_context().iter() {
             node = transform(&node);
@@ -608,7 +609,7 @@ impl TransformNodesTransformationResult {
         node
     }
 
-    fn transform_root(&self, node: &Node) -> Rc<Node> {
+    fn transform_root(&self, node: &Node) -> Gc<Node> {
         if
         /*node &&*/
         !is_source_file(node) || !node.as_source_file().is_declaration_file() {
@@ -624,7 +625,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         self.factory.clone()
     }
 
-    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         self.options.clone()
     }
 
@@ -705,7 +706,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         self.set_lexical_environment_suspended(false);
     }
 
-    fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+    fn end_lexical_environment(&self) -> Option<Vec<Gc<Node /*Statement*/>>> {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot modify the lexical environment during initialization."),
@@ -719,7 +720,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             Some("Lexical environment is suspended."),
         );
 
-        let mut statements: Option<Vec<Rc<Node>>> = None;
+        let mut statements: Option<Vec<Gc<Node>>> = None;
         let mut lexical_environment_variable_declarations =
             self.lexical_environment_variable_declarations();
         let mut lexical_environment_function_declarations =
@@ -743,7 +744,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                         self.factory.create_variable_statement(
                             synthetic_factory_,
                             Option::<NodeArray>::None,
-                            Into::<Rc<Node>>::into(self.factory.create_variable_declaration_list(
+                            Into::<Gc<Node>>::into(self.factory.create_variable_declaration_list(
                                 synthetic_factory_,
                                 lexical_environment_variable_declarations.clone(),
                                 None,
@@ -874,7 +875,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         // blockScopedVariableDeclarations = undefined!;
     }
 
-    fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+    fn end_block_scope(&self) -> Option<Vec<Gc<Node /*Statement*/>>> {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot end a block scope during initialization."),
@@ -884,16 +885,16 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             Some("Cannot end a block scope after transformation has completed."),
         );
         let block_scoped_variable_declarations = self.block_scoped_variable_declarations();
-        let statements: Option<Vec<Rc<Node>>> = if some(
+        let statements: Option<Vec<Gc<Node>>> = if some(
             block_scoped_variable_declarations.as_deref(),
-            Option::<fn(&Rc<Node>) -> bool>::None,
+            Option::<fn(&Gc<Node>) -> bool>::None,
         ) {
             Some(vec![synthetic_factory.with(|synthetic_factory_| {
                 self.factory()
                     .create_variable_statement(
                         synthetic_factory_,
                         Option::<NodeArray>::None,
-                        Into::<Rc<Node>>::into(
+                        Into::<Gc<Node>>::into(
                             self.factory().create_variable_declaration_list(
                                 synthetic_factory_,
                                 block_scoped_variable_declarations
@@ -911,7 +912,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
                                             )
                                             .into()
                                     })
-                                    .collect::<Vec<Rc<Node>>>(),
+                                    .collect::<Vec<Gc<Node>>>(),
                                 Some(NodeFlags::Let),
                             ),
                         ),
@@ -1049,7 +1050,7 @@ impl TransformationContext for TransformNodesTransformationResult {
     }
 
     // TODO: need to support setting of onSubstituteNode?
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
         no_emit_substitution(hint, node)
     }
 
@@ -1081,7 +1082,7 @@ impl TransformationContext for TransformNodesTransformationResult {
 }
 
 impl TransformationResult for TransformNodesTransformationResult {
-    fn transformed(&self) -> Vec<Rc<Node>> {
+    fn transformed(&self) -> Vec<Gc<Node>> {
         self.transformed.borrow().clone()
     }
 
@@ -1089,7 +1090,7 @@ impl TransformationResult for TransformNodesTransformationResult {
         Some(self.diagnostics.borrow().clone())
     }
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node> {
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
         Debug_.assert(
             self.state() < TransformationState::Disposed,
             Some("Cannot substitute a node after the result is disposed."),
@@ -1167,7 +1168,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
         factory_static.with(|factory_| factory_.clone())
     }
 
-    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         Rc::new(Default::default())
     }
 
@@ -1183,7 +1184,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
 
     fn resume_lexical_environment(&self) {}
 
-    fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+    fn end_lexical_environment(&self) -> Option<Vec<Gc<Node /*Statement*/>>> {
         None
     }
 
@@ -1193,7 +1194,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
 
     fn start_block_scope(&self) {}
 
-    fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+    fn end_block_scope(&self) -> Option<Vec<Gc<Node /*Statement*/>>> {
         None
     }
 
@@ -1227,7 +1228,7 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node> {
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node> {
         no_emit_substitution(hint, node)
     }
 

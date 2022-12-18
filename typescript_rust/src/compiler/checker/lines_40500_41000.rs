@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -46,7 +47,7 @@ impl TypeChecker {
         &self,
         location: &Node,
         meaning: SymbolFlags,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         if location.flags().intersects(NodeFlags::InWithStatement) {
             return vec![];
         }
@@ -63,7 +64,7 @@ impl TypeChecker {
 
     pub(super) fn populate_symbols(
         &self,
-        location: &mut Option<Rc<Node>>,
+        location: &mut Option<Gc<Node>>,
         meaning: SymbolFlags,
         symbols: &mut SymbolTable,
         is_static_symbol: &mut bool,
@@ -314,7 +315,7 @@ impl TypeChecker {
     pub(super) fn get_left_side_of_import_equals_or_export_assignment(
         &self,
         node_on_right_side: &Node, /*EntityName*/
-    ) -> Option<Rc<Node /*ImportEqualsDeclaration | ExportAssignment*/>> {
+    ) -> Option<Gc<Node /*ImportEqualsDeclaration | ExportAssignment*/>> {
         let mut node_on_right_side = node_on_right_side.node_wrapper();
         while node_on_right_side.parent().kind() == SyntaxKind::QualifiedName {
             node_on_right_side = node_on_right_side.parent();
@@ -362,7 +363,7 @@ impl TypeChecker {
     pub(super) fn get_special_property_assignment_symbol_from_entity_name(
         &self,
         entity_name: &Node, /*EntityName | PropertyAccessExpression*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let special_property_assignment_kind =
             get_assignment_declaration_kind(&entity_name.parent().parent());
         match special_property_assignment_kind {
@@ -382,7 +383,7 @@ impl TypeChecker {
     pub(super) fn is_import_type_qualifier_part(
         &self,
         node: &Node, /*EntityName*/
-    ) -> Option<Rc<Node /*ImportTypeNode*/>> {
+    ) -> Option<Gc<Node /*ImportTypeNode*/>> {
         let mut parent = node.parent();
         let mut node = node.node_wrapper();
         while is_qualified_name(&parent) {
@@ -408,7 +409,7 @@ impl TypeChecker {
     pub(super) fn get_symbol_of_name_or_property_access_expression(
         &self,
         name: &Node, /*EntityName | PrivateIdentifier | PropertyAccessExpression | JSDocMemberName*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if is_declaration_name(name) {
             return self.get_symbol_of_node(&name.parent());
         }
@@ -621,7 +622,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*EntityName | JSDocMemberName*/
         container: Option<TContainer>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let container = container.map(|container| container.borrow().symbol_wrapper());
         if is_entity_name(name) {
             let meaning = SymbolFlags::Type | SymbolFlags::Namespace | SymbolFlags::Value;
@@ -682,7 +683,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         ignore_errors: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if node.kind() == SyntaxKind::SourceFile {
             return if is_external_module(node) {
                 self.get_merged_symbol(node.maybe_symbol())

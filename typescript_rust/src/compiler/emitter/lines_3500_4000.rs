@@ -1,3 +1,4 @@
+use gc::Gc;
 use regex::Regex;
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -923,14 +924,14 @@ impl Printer {
     pub(super) fn emit_source_file_worker(&self, node: &Node /*SourceFile*/) {
         let statements = node.as_source_file().statements();
         self.push_name_generation_scope(Some(node));
-        for_each(statements, |statement: &Rc<Node>, _| -> Option<()> {
+        for_each(statements, |statement: &Gc<Node>, _| -> Option<()> {
             self.generate_names(Some(&**statement));
             None
         });
         self.emit_helpers(node);
         let index = find_index(
             statements,
-            |statement: &Rc<Node>, _| !is_prologue_directive(statement),
+            |statement: &Gc<Node>, _| !is_prologue_directive(statement),
             None,
         );
         self.emit_triple_slash_directives_if_needed(node);
@@ -968,7 +969,7 @@ impl Printer {
 
     pub(super) fn emit_prologue_directives(
         &self,
-        statements: &[Rc<Node>],
+        statements: &[Gc<Node>],
         source_file: Option<&Node /*SourceFile*/>,
         seen_prologue_directives: &mut Option<HashSet<String>>,
         record_bundle_file_section: Option<bool /*true*/>,

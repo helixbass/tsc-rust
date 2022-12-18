@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Finalize, Trace};
+use gc::{Finalize, Gc, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp;
@@ -37,11 +37,11 @@ impl TypeChecker {
 
     pub(super) fn get_spread_argument_index(
         &self,
-        args: &[Rc<Node /*Expression*/>],
+        args: &[Gc<Node /*Expression*/>],
     ) -> Option<usize> {
         find_index(
             args,
-            |arg: &Rc<Node>, _| self.is_spread_argument(Some(&**arg)),
+            |arg: &Gc<Node>, _| self.is_spread_argument(Some(&**arg)),
             None,
         )
     }
@@ -59,7 +59,7 @@ impl TypeChecker {
     pub(super) fn has_correct_arity(
         &self,
         node: &Node, /*CallLikeExpression*/
-        args: &[Rc<Node /*Expression*/>],
+        args: &[Gc<Node /*Expression*/>],
         signature: &Signature,
         signature_help_trailing_comma: Option<bool>,
     ) -> bool {
@@ -172,7 +172,7 @@ impl TypeChecker {
             self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref());
         !some(
             type_arguments.map(|type_arguments| &**type_arguments),
-            Option::<fn(&Rc<Node>) -> bool>::None,
+            Option::<fn(&Gc<Node>) -> bool>::None,
         ) || {
             let type_arguments = type_arguments.unwrap();
             type_arguments.len() >= min_type_argument_count
@@ -180,14 +180,14 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_single_call_signature(&self, type_: &Type) -> Option<Rc<Signature>> {
+    pub(super) fn get_single_call_signature(&self, type_: &Type) -> Option<Gc<Signature>> {
         self.get_single_signature(type_, SignatureKind::Call, false)
     }
 
     pub(super) fn get_single_call_or_construct_signature(
         &self,
         type_: &Type,
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         self.get_single_signature(type_, SignatureKind::Call, false)
             .or_else(|| self.get_single_signature(type_, SignatureKind::Construct, false))
     }
@@ -197,7 +197,7 @@ impl TypeChecker {
         type_: &Type,
         kind: SignatureKind,
         allow_members: bool,
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_);
             let resolved_as_resolved_type = resolved.as_resolved_type();
@@ -224,11 +224,11 @@ impl TypeChecker {
 
     pub(super) fn instantiate_signature_in_context_of(
         &self,
-        signature: Rc<Signature>,
-        contextual_signature: Rc<Signature>,
+        signature: Gc<Signature>,
+        contextual_signature: Gc<Signature>,
         inference_context: Option<&InferenceContext>,
         compare_types: Option<Rc<dyn TypeComparer>>,
-    ) -> Rc<Signature> {
+    ) -> Gc<Signature> {
         let context = self.create_inference_context(
             &signature.maybe_type_parameters().clone().unwrap(),
             Some(signature.clone()),
@@ -284,10 +284,10 @@ impl TypeChecker {
     pub(super) fn infer_jsx_type_arguments(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         check_mode: CheckMode,
         context: Rc<InferenceContext>,
-    ) -> Vec<Rc<Type>> {
+    ) -> Vec<Gc<Type>> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
         let check_attr_type = self.check_expression_with_contextual_type(
@@ -309,7 +309,7 @@ impl TypeChecker {
     pub(super) fn get_this_argument_type<TThisArgumentNode: Borrow<Node>>(
         &self,
         this_argument_node: Option<TThisArgumentNode /*LeftHandSideExpression*/>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if this_argument_node.is_none() {
             return self.void_type();
         }
@@ -328,11 +328,11 @@ impl TypeChecker {
     pub(super) fn infer_type_arguments(
         &self,
         node: &Node, /*CallLikeExpression*/
-        signature: Rc<Signature>,
-        args: &[Rc<Node /*Expression*/>],
+        signature: Gc<Signature>,
+        args: &[Gc<Node /*Expression*/>],
         check_mode: CheckMode,
         context: Rc<InferenceContext>,
-    ) -> Vec<Rc<Type>> {
+    ) -> Vec<Gc<Type>> {
         if is_jsx_opening_like_element(node) {
             return self.infer_jsx_type_arguments(node, signature, check_mode, context);
         }
@@ -343,7 +343,7 @@ impl TypeChecker {
                 Some(
                     if maybe_every(
                         signature.maybe_type_parameters().as_deref(),
-                        |p: &Rc<Type>, _| self.get_default_from_type_parameter_(p).is_some(),
+                        |p: &Gc<Type>, _| self.get_default_from_type_parameter_(p).is_some(),
                     ) {
                         ContextFlags::SkipBindingPatterns
                     } else {
@@ -442,7 +442,7 @@ impl TypeChecker {
                 info.set_implied_arity(
                     if find_index(
                         args,
-                        |arg: &Rc<Node>, _| self.is_spread_argument(Some(&**arg)),
+                        |arg: &Gc<Node>, _| self.is_spread_argument(Some(&**arg)),
                         None,
                     )
                     .is_none()
@@ -496,7 +496,7 @@ impl TypeChecker {
         self.get_inferred_types(&context)
     }
 
-    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_mutable_array_or_tuple_type(&self, type_: &Type) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(
                 type_,
@@ -542,13 +542,13 @@ impl TypeChecker {
 
     pub(super) fn get_spread_argument_type(
         &self,
-        args: &[Rc<Node /*Expression*/>],
+        args: &[Gc<Node /*Expression*/>],
         index: usize,
         arg_count: usize,
         rest_type: &Type,
         context: Option<Rc<InferenceContext>>,
         check_mode: CheckMode,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if index >= arg_count - 1 {
             let arg = &args[arg_count - 1];
             if self.is_spread_argument(Some(&**arg)) {
@@ -566,9 +566,9 @@ impl TypeChecker {
                 });
             }
         }
-        let mut types: Vec<Rc<Type>> = vec![];
+        let mut types: Vec<Gc<Type>> = vec![];
         let mut flags: Vec<ElementFlags> = vec![];
-        let mut names: Vec<Rc<Node>> = vec![];
+        let mut names: Vec<Gc<Node>> = vec![];
         for i in index..arg_count {
             let arg = &args[i];
             if self.is_spread_argument(Some(&**arg)) {
@@ -645,15 +645,15 @@ impl TypeChecker {
     pub(super) fn check_type_arguments(
         &self,
         signature: &Signature,
-        type_argument_nodes: &[Rc<Node /*TypeNode*/>],
+        type_argument_nodes: &[Gc<Node /*TypeNode*/>],
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
-    ) -> Option<Vec<Rc<Type>>> {
+    ) -> Option<Vec<Gc<Type>>> {
         let is_javascript = is_in_js_file(signature.declaration.as_deref());
         let type_parameters = signature.maybe_type_parameters().clone().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(
-                Some(map(type_argument_nodes, |node: &Rc<Node>, _| {
+                Some(map(type_argument_nodes, |node: &Gc<Node>, _| {
                     self.get_type_from_type_node_(node)
                 })),
                 Some(&type_parameters),
@@ -738,7 +738,7 @@ impl TypeChecker {
     pub(super) fn check_applicable_signature_for_jsx_opening_like_element(
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
@@ -908,8 +908,8 @@ impl TypeChecker {
     pub(super) fn get_signature_applicability_error(
         &self,
         node: &Node, /*CallLikeExpression*/
-        args: &[Rc<Node /*Expression*/>],
-        signature: Rc<Signature>,
+        args: &[Gc<Node /*Expression*/>],
+        signature: Gc<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,

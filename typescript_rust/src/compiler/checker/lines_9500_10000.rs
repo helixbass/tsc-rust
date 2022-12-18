@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -22,7 +23,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_base_type_variable_of_class(&self, symbol: &Symbol) -> Option<Rc<Type>> {
+    pub(super) fn get_base_type_variable_of_class(&self, symbol: &Symbol) -> Option<Gc<Type>> {
         let base_constructor_type = self.get_base_constructor_type_of_class(
             &self.get_declared_type_of_class_or_interface(symbol),
         );
@@ -39,7 +40,7 @@ impl TypeChecker {
                 base_constructor_type
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |t: &Rc<Type>, _| t.flags().intersects(TypeFlags::TypeVariable),
+                |t: &Gc<Type>, _| t.flags().intersects(TypeFlags::TypeVariable),
             )
             .map(Clone::clone)
         } else {
@@ -47,7 +48,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_of_func_class_enum_module(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_func_class_enum_module(&self, symbol: &Symbol) -> Gc<Type> {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         let mut symbol = symbol.symbol_wrapper();
@@ -72,7 +73,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_type_of_func_class_enum_module_worker(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_func_class_enum_module_worker(&self, symbol: &Symbol) -> Gc<Type> {
         let declaration = symbol.maybe_value_declaration();
         if symbol.flags().intersects(SymbolFlags::Module)
             && is_shorthand_ambient_module_symbol(symbol)
@@ -124,7 +125,7 @@ impl TypeChecker {
                 return type_;
             }
         }
-        let type_: Rc<Type> = self
+        let type_: Gc<Type> = self
             .create_object_type(ObjectFlags::Anonymous, Some(symbol))
             .into();
         if symbol.flags().intersects(SymbolFlags::Class) {
@@ -147,7 +148,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_of_enum_member(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_enum_member(&self, symbol: &Symbol) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_type) = (*links).borrow().type_.clone() {
             return links_type;
@@ -157,7 +158,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_type_of_alias(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_alias(&self, symbol: &Symbol) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
             let target_symbol = self.resolve_alias(symbol);
@@ -170,7 +171,7 @@ impl TypeChecker {
             let declared_type = export_symbol.as_ref().and_then(|export_symbol| {
                 maybe_first_defined(
                     export_symbol.maybe_declarations().as_deref(),
-                    |d: &Rc<Node>, _| {
+                    |d: &Gc<Node>, _| {
                         if is_export_assignment(d) {
                             self.try_get_type_from_effective_type_node(d)
                         } else {
@@ -202,7 +203,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         if (*links).borrow().type_.is_none() {
             if !self.push_type_resolution(
@@ -231,7 +232,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn report_circularity_error(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn report_circularity_error(&self, symbol: &Symbol) -> Gc<Type> {
         let declaration = symbol.maybe_value_declaration().unwrap();
         if get_effective_type_annotation_node(&declaration).is_some() {
             self.error(
@@ -265,7 +266,7 @@ impl TypeChecker {
         self.any_type()
     }
 
-    pub(super) fn get_type_of_symbol_with_deferred_type(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_symbol_with_deferred_type(&self, symbol: &Symbol) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         let mut links = links.borrow_mut();
         if links.type_.is_none() {
@@ -298,7 +299,7 @@ impl TypeChecker {
         links.type_.clone().unwrap()
     }
 
-    pub(super) fn get_set_accessor_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_set_accessor_type_of_symbol(&self, symbol: &Symbol) -> Gc<Type> {
         if symbol.flags().intersects(SymbolFlags::Accessor) {
             let type_ = self.get_type_of_set_accessor(symbol);
             if let Some(type_) = type_ {
@@ -308,7 +309,7 @@ impl TypeChecker {
         self.get_type_of_symbol(symbol)
     }
 
-    pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> Gc<Type> {
         let check_flags = get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::DeferredType) {
             return self.get_type_of_symbol_with_deferred_type(symbol);
@@ -349,7 +350,7 @@ impl TypeChecker {
         self.error_type()
     }
 
-    pub(super) fn get_non_missing_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_non_missing_type_of_symbol(&self, symbol: &Symbol) -> Gc<Type> {
         self.remove_missing_type(
             &self.get_type_of_symbol(symbol),
             symbol.flags().intersects(SymbolFlags::Optional),
@@ -362,7 +363,7 @@ impl TypeChecker {
             && ptr::eq(&*type_.as_type_reference_interface().target(), target)
     }
 
-    pub(super) fn get_target_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_target_type(&self, type_: &Type) -> Gc<Type> {
         if get_object_flags(type_).intersects(ObjectFlags::Reference) {
             type_.as_type_reference_interface().target()
         } else {
@@ -387,12 +388,12 @@ impl TypeChecker {
             matches!(check_base, Some(check_base) if ptr::eq(&*target, check_base))
                 || some(
                     Some(&*self.get_base_types(&target)),
-                    Some(|type_: &Rc<Type>| self.has_base_type_check(check_base, type_)),
+                    Some(|type_: &Gc<Type>| self.has_base_type_check(check_base, type_)),
                 )
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             some(
                 Some(type_.as_union_or_intersection_type_interface().types()),
-                Some(|type_: &Rc<Type>| self.has_base_type_check(check_base, type_)),
+                Some(|type_: &Gc<Type>| self.has_base_type_check(check_base, type_)),
             )
         } else {
             false
@@ -401,9 +402,9 @@ impl TypeChecker {
 
     pub(super) fn append_type_parameters(
         &self,
-        mut type_parameters: Option<Vec<Rc<Type>>>,
-        declarations: &[Rc<Node>],
-    ) -> Option<Vec<Rc<Type>>> {
+        mut type_parameters: Option<Vec<Gc<Type>>>,
+        declarations: &[Gc<Node>],
+    ) -> Option<Vec<Gc<Type>>> {
         for declaration in declarations {
             type_parameters = Some(maybe_append_if_unique_rc(
                 type_parameters,
@@ -546,7 +547,7 @@ impl TypeChecker {
                     return if let Some(node_tags) = node_present.as_jsdoc().tags.as_deref() {
                         self.append_type_parameters(
                             outer_type_parameters,
-                            &flat_map(Some(node_tags), |t: &Rc<Node>, _| {
+                            &flat_map(Some(node_tags), |t: &Gc<Node>, _| {
                                 if is_jsdoc_template_tag(t) {
                                     t.as_jsdoc_template_tag().type_parameters.to_vec()
                                 } else {
@@ -661,21 +662,21 @@ impl TypeChecker {
     pub(super) fn get_base_type_node_of_class(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> Option<Rc<Node /*ExpressionWithTypeArguments*/>> {
+    ) -> Option<Gc<Node /*ExpressionWithTypeArguments*/>> {
         get_effective_base_type_node(&type_.symbol().maybe_value_declaration().unwrap())
     }
 
     pub(super) fn get_constructors_for_type_arguments(
         &self,
         type_: &Type,
-        type_argument_nodes: Option<&[Rc<Node /*TypeNode*/>]>,
+        type_argument_nodes: Option<&[Gc<Node /*TypeNode*/>]>,
         location: &Node,
-    ) -> Vec<Rc<Signature>> {
+    ) -> Vec<Gc<Signature>> {
         let type_arg_count = length(type_argument_nodes);
         let is_javascript = is_in_js_file(Some(location));
         filter(
             &self.get_signatures_of_type(type_, SignatureKind::Construct),
-            |sig: &Rc<Signature>| {
+            |sig: &Gc<Signature>| {
                 (is_javascript
                     || type_arg_count
                         >= self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref()))
@@ -687,18 +688,18 @@ impl TypeChecker {
     pub(super) fn get_instantiated_constructors_for_type_arguments(
         &self,
         type_: &Type,
-        type_argument_nodes: Option<&[Rc<Node /*TypeNode*/>]>,
+        type_argument_nodes: Option<&[Gc<Node /*TypeNode*/>]>,
         location: &Node,
-    ) -> Vec<Rc<Signature>> {
+    ) -> Vec<Gc<Signature>> {
         let signatures =
             self.get_constructors_for_type_arguments(type_, type_argument_nodes, location);
-        let type_arguments = maybe_map(type_argument_nodes, |type_argument_node: &Rc<Node>, _| {
+        let type_arguments = maybe_map(type_argument_nodes, |type_argument_node: &Gc<Node>, _| {
             self.get_type_from_type_node_(type_argument_node)
         });
-        same_map(&signatures, |sig: &Rc<Signature>, _| {
+        same_map(&signatures, |sig: &Gc<Signature>, _| {
             if some(
                 sig.maybe_type_parameters().as_deref(),
-                Option::<fn(&Rc<Type>) -> bool>::None,
+                Option::<fn(&Gc<Type>) -> bool>::None,
             ) {
                 self.get_signature_instantiation(
                     sig.clone(),
@@ -715,7 +716,7 @@ impl TypeChecker {
     pub(super) fn get_base_constructor_type_of_class(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         if type_as_not_actually_interface_type
             .maybe_resolved_base_constructor_type()
@@ -942,11 +943,11 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_tuple_base_type(&self, type_: &Type /*TupleType*/) -> Rc<Type> {
+    pub(super) fn get_tuple_base_type(&self, type_: &Type /*TupleType*/) -> Gc<Type> {
         let type_as_tuple_type = type_.as_tuple_type();
         let element_types = maybe_same_map(
             type_as_tuple_type.maybe_type_parameters(),
-            |t: &Rc<Type>, i| {
+            |t: &Gc<Type>, i| {
                 if type_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic) {
                     self.get_indexed_access_type(
                         t,
@@ -991,7 +992,7 @@ impl TypeChecker {
             return ret;
         }
         let base_type_node = self.get_base_type_node_of_class(type_).unwrap();
-        let base_type: Rc<Type>;
+        let base_type: Gc<Type>;
         let original_base_type = base_constructor_type
             .maybe_symbol()
             .map(|symbol| self.get_declared_type_of_symbol(&symbol));

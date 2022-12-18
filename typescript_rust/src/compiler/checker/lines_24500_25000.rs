@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::ptr;
 use std::rc::Rc;
 
@@ -33,7 +34,7 @@ impl GetFlowTypeOfReference {
         operator: SyntaxKind,
         identifier: &Node, /*Expression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if if assume_true {
             !matches!(
                 operator,
@@ -107,7 +108,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*BinaryExpression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let expr_as_binary_expression = expr.as_binary_expression();
         let left = self
             .type_checker
@@ -139,7 +140,7 @@ impl GetFlowTypeOfReference {
             return type_.type_wrapper();
         }
 
-        let mut target_type: Option<Rc<Type>> = None;
+        let mut target_type: Option<Gc<Type>> = None;
         let prototype_property =
             self.type_checker
                 .get_property_of_type_(&right_type, "prototype", None);
@@ -174,7 +175,7 @@ impl GetFlowTypeOfReference {
                 .get_signatures_of_type(&right_type, SignatureKind::Construct);
             target_type = Some(if !construct_signatures.is_empty() {
                 self.type_checker.get_union_type(
-                    map(&construct_signatures, |signature: &Rc<Signature>, _| {
+                    map(&construct_signatures, |signature: &Gc<Signature>, _| {
                         self.type_checker.get_return_type_of_signature(
                             self.type_checker.get_erased_signature(signature.clone()),
                         )
@@ -192,7 +193,7 @@ impl GetFlowTypeOfReference {
 
         if !assume_true && right_type.flags().intersects(TypeFlags::Union) {
             let non_constructor_type_in_union =
-                find(&right_type.as_union_type().types(), |t: &Rc<Type>, _| {
+                find(&right_type.as_union_type().types(), |t: &Gc<Type>, _| {
                     !self.type_checker.is_constructor_type(t)
                 })
                 .cloned();
@@ -215,7 +216,7 @@ impl GetFlowTypeOfReference {
         candidate: &Type,
         assume_true: bool,
         mut is_related: TIsRelated,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if !assume_true {
             return self
                 .type_checker
@@ -250,7 +251,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self
             .type_checker
             .has_matching_argument(call_expression, &self.reference)
@@ -325,7 +326,7 @@ impl GetFlowTypeOfReference {
         predicate: &TypePredicate,
         call_expression: &Node, /*CallExpression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let mut type_ = type_.type_wrapper();
         if let Some(predicate_type) = predicate.type_.as_ref().filter(|predicate_type| {
             !(self.type_checker.is_type_any(Some(&*type_))
@@ -386,7 +387,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*Expression*/
         assume_true: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if is_expression_of_optional_chain_root(expr) || {
             let expr_parent = expr.parent();
             is_binary_expression(&expr_parent) && {
@@ -476,7 +477,7 @@ impl GetFlowTypeOfReference {
         type_: &Type,
         expr: &Node, /*Expression*/
         assume_present: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if self
             .type_checker
             .is_matching_reference(&self.reference, expr)
@@ -512,7 +513,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         location: &Node,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let symbol = symbol
             .maybe_export_symbol()
             .unwrap_or_else(|| symbol.symbol_wrapper());
@@ -555,7 +556,7 @@ impl TypeChecker {
         self.get_non_missing_type_of_symbol(&symbol)
     }
 
-    pub(super) fn get_control_flow_container(&self, node: &Node) -> Rc<Node> {
+    pub(super) fn get_control_flow_container(&self, node: &Node) -> Gc<Node> {
         find_ancestor(node.maybe_parent(), |node: &Node| {
             is_function_like(Some(node))
                 && get_immediately_invoked_function_expression(node).is_none()
@@ -632,7 +633,7 @@ impl TypeChecker {
         &self,
         declared_type: &Type,
         declaration: &Node, /*VariableLikeDeclaration (actually also includes BindingElement)*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let declaration_as_has_initializer = declaration.as_has_initializer();
         if self.push_type_resolution(
             &declaration.symbol().into(),
@@ -716,7 +717,7 @@ impl TypeChecker {
         type_: &Type,
         reference: &Node,
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let substitute_constraints = !matches!(
             check_mode,
             Some(check_mode) if check_mode.intersects(CheckMode::Inferential)
@@ -795,7 +796,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Identifier*/
         check_mode: Option<CheckMode>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let symbol = self.get_resolved_symbol(node);
         if Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
             return self.error_type();

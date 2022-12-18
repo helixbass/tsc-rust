@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::rc::Rc;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};
@@ -25,7 +26,7 @@ impl TypeChecker {
     pub(super) fn get_first_non_module_exports_identifier(
         &self,
         node: &Node, /*EntityNameOrEntityNameExpression*/
-    ) -> Rc<Node /*Identifier*/> {
+    ) -> Gc<Node /*Identifier*/> {
         match node.kind() {
             SyntaxKind::Identifier => node.node_wrapper(),
             SyntaxKind::QualifiedName => {
@@ -360,7 +361,7 @@ impl TypeChecker {
                         if module_existed.is_some() {
                             for_each(
                                 &import_clause_named_bindings.as_named_imports().elements,
-                                |element: &Rc<Node>, _| -> Option<()> {
+                                |element: &Gc<Node>, _| -> Option<()> {
                                     self.check_import_binding(element);
                                     None
                                 },
@@ -496,7 +497,7 @@ impl TypeChecker {
             {
                 for_each(
                     &node_export_clause.as_named_exports().elements,
-                    |element: &Rc<Node>, _| -> Option<()> {
+                    |element: &Gc<Node>, _| -> Option<()> {
                         self.check_export_specifier(element);
                         None
                     },
@@ -715,7 +716,7 @@ impl TypeChecker {
                     | SymbolFlags::Namespace
                     | SymbolFlags::Alias,
                 None,
-                Option::<Rc<Node>>::None,
+                Option::<Gc<Node>>::None,
                 true,
                 None,
             );
@@ -952,7 +953,7 @@ impl TypeChecker {
                     continue;
                 }
                 let exported_declarations_count =
-                    count_where(declarations.as_deref(), |declaration: &Rc<Node>, _| {
+                    count_where(declarations.as_deref(), |declaration: &Gc<Node>, _| {
                         is_not_overload_and_not_accessor(declaration)
                     });
                 if flags.intersects(SymbolFlags::TypeAlias) && exported_declarations_count <= 2 {

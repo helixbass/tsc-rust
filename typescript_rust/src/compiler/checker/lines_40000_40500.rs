@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use indexmap::IndexMap;
 use std::borrow::Borrow;
 use std::rc::Rc;
@@ -19,7 +20,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn is_duplicated_common_js_export(&self, declarations: Option<&[Rc<Node>]>) -> bool {
+    pub(super) fn is_duplicated_common_js_export(&self, declarations: Option<&[Gc<Node>]>) -> bool {
         matches!(
             declarations,
             Some(declarations) if declarations.len() > 1 &&
@@ -48,9 +49,9 @@ impl TypeChecker {
         if is_in_js_file(Some(node)) {
             maybe_for_each(
                 node.maybe_js_doc().as_ref(),
-                |jsdoc: &Rc<Node>, _| -> Option<()> {
+                |jsdoc: &Gc<Node>, _| -> Option<()> {
                     let tags = jsdoc.as_jsdoc().tags.as_ref();
-                    maybe_for_each(tags, |tag: &Rc<Node>, _| -> Option<()> {
+                    maybe_for_each(tags, |tag: &Gc<Node>, _| -> Option<()> {
                         self.check_source_element(Some(&**tag));
                         None
                     });
@@ -394,7 +395,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_jsdoc_variadic_type(
         &self,
         node: &Node, /*JSDocVariadicType*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let ref type_ =
             self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap());
         let ref parent = node.parent();
@@ -566,7 +567,7 @@ impl TypeChecker {
     pub(super) fn get_potentially_unused_identifiers(
         &self,
         source_file: &Node, /*SourceFile*/
-    ) -> Vec<Rc<Node /*PotentiallyUnusedIdentifier*/>> {
+    ) -> Vec<Gc<Node /*PotentiallyUnusedIdentifier*/>> {
         self.all_potentially_unused_identifiers()
             .get(&source_file.as_source_file().path())
             .cloned()
@@ -642,7 +643,7 @@ impl TypeChecker {
                 if !potential_this_collisions.is_empty() {
                     for_each(
                         &*potential_this_collisions,
-                        |potential_this_collision: &Rc<Node>, _| -> Option<()> {
+                        |potential_this_collision: &Gc<Node>, _| -> Option<()> {
                             self.check_if_this_is_captured_in_enclosing_scope(
                                 potential_this_collision,
                             );
@@ -658,7 +659,7 @@ impl TypeChecker {
                 if !potential_new_target_collisions.is_empty() {
                     for_each(
                         &*potential_new_target_collisions,
-                        |potential_new_target_collision: &Rc<Node>, _| -> Option<()> {
+                        |potential_new_target_collision: &Gc<Node>, _| -> Option<()> {
                             self.check_if_new_target_is_captured_in_enclosing_scope(
                                 potential_new_target_collision,
                             );
@@ -675,7 +676,7 @@ impl TypeChecker {
                 if !potential_weak_map_set_collisions.is_empty() {
                     for_each(
                         &*potential_weak_map_set_collisions,
-                        |potential_weak_map_set_collision: &Rc<Node>, _| -> Option<()> {
+                        |potential_weak_map_set_collision: &Gc<Node>, _| -> Option<()> {
                             self.check_weak_map_set_collision(potential_weak_map_set_collision);
                             None
                         },
@@ -689,7 +690,7 @@ impl TypeChecker {
                 if !potential_reflect_collisions.is_empty() {
                     for_each(
                         &*potential_reflect_collisions,
-                        |potential_reflect_collision: &Rc<Node>, _| -> Option<()> {
+                        |potential_reflect_collision: &Gc<Node>, _| -> Option<()> {
                             self.check_reflect_collision(potential_reflect_collision);
                             None
                         },
@@ -749,7 +750,7 @@ impl TypeChecker {
 
         for_each(
             &*self.host.get_source_files(),
-            |source_file: &Rc<Node>, _| -> Option<()> {
+            |source_file: &Gc<Node>, _| -> Option<()> {
                 self.check_source_file(source_file);
                 None
             },

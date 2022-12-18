@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::{Borrow, Cow};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
@@ -109,8 +110,8 @@ impl TypeChecker {
 
     pub(super) fn is_implementation_compatible_with_overload(
         &self,
-        implementation: Rc<Signature>,
-        overload: Rc<Signature>,
+        implementation: Gc<Signature>,
+        overload: Gc<Signature>,
     ) -> bool {
         let erased_source = self.get_erased_signature(implementation.clone());
         let erased_target = self.get_erased_signature(overload.clone());
@@ -154,12 +155,12 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::Union) {
             some(
                 Some(type_.as_union_or_intersection_type_interface().types()),
-                Some(|type_: &Rc<Type>| self.is_empty_object_type(type_)),
+                Some(|type_: &Gc<Type>| self.is_empty_object_type(type_)),
             )
         } else if type_.flags().intersects(TypeFlags::Intersection) {
             every(
                 type_.as_union_or_intersection_type_interface().types(),
-                |type_: &Rc<Type>, _| self.is_empty_object_type(type_),
+                |type_: &Gc<Type>, _| self.is_empty_object_type(type_),
             )
         } else {
             false
@@ -187,7 +188,7 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::UnionOrIntersection)
                 && every(
                     type_.as_union_or_intersection_type_interface().types(),
-                    |type_: &Rc<Type>, _| self.is_string_index_signature_only_type(type_),
+                    |type_: &Gc<Type>, _| self.is_string_index_signature_only_type(type_),
                 )
             || false
     }
@@ -463,10 +464,10 @@ impl TypeChecker {
             && self.is_hyphenated_jsx_name(source_prop.escaped_name())
     }
 
-    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> Rc<Type> {
+    pub(super) fn get_normalized_type(&self, type_: &Type, writing: bool) -> Gc<Type> {
         let mut type_ = type_.type_wrapper();
         loop {
-            let mut t: Rc<Type> = if self.is_fresh_literal_type(&type_) {
+            let mut t: Gc<Type> = if self.is_fresh_literal_type(&type_) {
                 match &*type_ {
                     Type::IntrinsicType(intrinsic_type) => {
                         enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::{Finalize, Trace};
+use gc::{Finalize, Gc, Trace};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
@@ -275,7 +275,7 @@ impl TypeChecker {
     pub(super) fn get_type_predicate_parent(
         &self,
         node: &Node,
-    ) -> Option<Rc<Node /*SignatureDeclaration*/>> {
+    ) -> Option<Gc<Node /*SignatureDeclaration*/>> {
         match node.parent().kind() {
             SyntaxKind::ArrowFunction
             | SyntaxKind::CallSignature
@@ -375,7 +375,7 @@ impl TypeChecker {
         let node_as_signature_declaration = node.as_signature_declaration();
         for_each(
             node_as_signature_declaration.parameters(),
-            |parameter: &Rc<Node>, _| -> Option<()> {
+            |parameter: &Gc<Node>, _| -> Option<()> {
                 self.check_parameter(parameter);
                 None
             },
@@ -882,6 +882,6 @@ impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChai
 }
 
 struct IndexSignatureMapValue {
-    pub type_: Rc<Type>,
-    pub declarations: Vec<Rc<Node /*IndexSignatureDeclaration*/>>,
+    pub type_: Gc<Type>,
+    pub declarations: Vec<Gc<Node /*IndexSignatureDeclaration*/>>,
 }

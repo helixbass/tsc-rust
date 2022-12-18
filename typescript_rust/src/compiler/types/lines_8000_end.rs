@@ -72,7 +72,7 @@ pub struct Printer {
     pub has_written_comment: Cell<bool>,
     pub comments_disabled: Cell<bool>,
     pub last_substitution: GcCell<Option<Gc<Node>>>,
-    pub current_parenthesizer_rule: GcCell<Option<Rc<dyn Fn(&Node) -> Rc<Node>>>>,
+    pub current_parenthesizer_rule: GcCell<Option<Rc<dyn Fn(&Node) -> Gc<Node>>>>,
     pub parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
     pub emit_binary_expression: GcCell<Option<Gc<EmitBinaryExpression>>>,
 }
@@ -585,7 +585,7 @@ pub trait PrintHandlers {
     fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
         None
     }
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Rc<Node>> {
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Option<Gc<Node>> {
         None
     }
     fn is_substitute_node_supported(&self) -> bool;
@@ -748,7 +748,7 @@ pub trait SymbolTracker {
     fn track_symbol(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<Rc<Node>>,
+        enclosing_declaration: Option<Gc<Node>>,
         meaning: SymbolFlags,
     ) -> Option<bool> {
         None
@@ -822,7 +822,7 @@ pub struct DiagnosticCollection {
 #[ast_type]
 pub struct SyntaxList {
     _node: BaseNode,
-    pub _children: Vec<Rc<Node>>,
+    pub _children: Vec<Gc<Node>>,
 }
 
 bitflags! {

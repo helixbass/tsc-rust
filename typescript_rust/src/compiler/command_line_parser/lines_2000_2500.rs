@@ -1,4 +1,5 @@
 use fancy_regex::Regex;
+use gc::Gc;
 use serde::Serialize;
 use std::cell::RefCell;
 use std::cmp;
@@ -671,7 +672,7 @@ pub(super) fn is_compiler_options_value(
 
 #[derive(Serialize)]
 pub(crate) struct TSConfig {
-    pub compiler_options: Rc<CompilerOptions>,
+    pub compiler_options: Gc<CompilerOptions>,
     pub compile_on_save: Option<bool>,
     pub exclude: Option<Vec<String>>,
     pub files: Option<Vec<String>>,

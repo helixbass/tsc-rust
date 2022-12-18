@@ -1,4 +1,5 @@
 use derive_builder::Builder;
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -101,7 +102,7 @@ pub(crate) fn update_error_for_no_input_files(
 #[derive(Builder)]
 pub struct ParsedTsconfig {
     pub raw: Option<serde_json::Value>,
-    pub options: Option<Rc<CompilerOptions>>,
+    pub options: Option<Gc<CompilerOptions>>,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub type_acquisition: Option<Rc<TypeAcquisition>>,
     pub extended_config_path: Option<String>,
@@ -343,7 +344,7 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     let typing_options_type_acquisition: RefCell<Option<TypeAcquisition>> = RefCell::new(None);
     let watch_options: RefCell<Option<WatchOptions>> = RefCell::new(None);
     let extended_config_path: RefCell<Option<String>> = RefCell::new(None);
-    let root_compiler_options: RefCell<Option<Vec<Rc<Node /*PropertyName*/>>>> = RefCell::new(None);
+    let root_compiler_options: RefCell<Option<Vec<Gc<Node /*PropertyName*/>>>> = RefCell::new(None);
 
     let base_path_string = base_path.to_owned();
     let errors = RefCell::new(errors);
@@ -431,7 +432,7 @@ struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost>
     host: &'a THost,
     errors: &'a RefCell<&'a mut Vec<Rc<Diagnostic>>>,
     source_file: &'a Node,
-    root_compiler_options: &'a RefCell<Option<Vec<Rc<Node>>>>,
+    root_compiler_options: &'a RefCell<Option<Vec<Gc<Node>>>>,
 }
 
 impl<'a, THost: ParseConfigHost> ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost> {
@@ -446,7 +447,7 @@ impl<'a, THost: ParseConfigHost> ParseOwnConfigOfJsonSourceFileOptionsIterator<'
         host: &'a THost,
         errors: &'a RefCell<&'a mut Vec<Rc<Diagnostic>>>,
         source_file: &'a Node,
-        root_compiler_options: &'a RefCell<Option<Vec<Rc<Node>>>>,
+        root_compiler_options: &'a RefCell<Option<Vec<Gc<Node>>>>,
     ) -> Self {
         Self {
             options: RefCell::new(options),

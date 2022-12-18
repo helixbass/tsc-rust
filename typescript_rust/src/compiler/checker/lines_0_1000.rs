@@ -143,7 +143,7 @@ pub(crate) struct IterationTypesResolver {
     pub get_global_generator_type:
         fn(&TypeChecker, report_errors: bool) -> Rc<Type /*GenericType*/>,
     pub resolve_iteration_type:
-        fn(&TypeChecker, type_: &Type, error_node: Option<Rc<Node>>) -> Option<Rc<Type>>,
+        fn(&TypeChecker, type_: &Type, error_node: Option<Gc<Node>>) -> Option<Gc<Type>>,
     pub must_have_a_next_method_diagnostic: &'static DiagnosticMessage,
     pub must_be_a_method_diagnostic: &'static DiagnosticMessage,
     pub must_have_a_value_diagnostic: &'static DiagnosticMessage,
@@ -267,10 +267,10 @@ lazy_static! {
 
 #[derive(Clone, Debug)]
 pub(crate) enum TypeSystemEntity {
-    Node(Rc<Node>),
-    Symbol(Rc<Symbol>),
-    Type(Rc<Type>),
-    Signature(Rc<Signature>),
+    Node(Gc<Node>),
+    Symbol(Gc<Symbol>),
+    Type(Gc<Type>),
+    Signature(Gc<Signature>),
 }
 
 impl TypeSystemEntity {
@@ -317,26 +317,26 @@ impl PartialEq for TypeSystemEntity {
 
 impl Eq for TypeSystemEntity {}
 
-impl From<Rc<Node>> for TypeSystemEntity {
-    fn from(value: Rc<Node>) -> Self {
+impl From<Gc<Node>> for TypeSystemEntity {
+    fn from(value: Gc<Node>) -> Self {
         Self::Node(value)
     }
 }
 
-impl From<Rc<Symbol>> for TypeSystemEntity {
-    fn from(value: Rc<Symbol>) -> Self {
+impl From<Gc<Symbol>> for TypeSystemEntity {
+    fn from(value: Gc<Symbol>) -> Self {
         Self::Symbol(value)
     }
 }
 
-impl From<Rc<Type>> for TypeSystemEntity {
-    fn from(value: Rc<Type>) -> Self {
+impl From<Gc<Type>> for TypeSystemEntity {
+    fn from(value: Gc<Type>) -> Self {
         Self::Type(value)
     }
 }
 
-impl From<Rc<Signature>> for TypeSystemEntity {
-    fn from(value: Rc<Signature>) -> Self {
+impl From<Gc<Signature>> for TypeSystemEntity {
+    fn from(value: Gc<Signature>) -> Self {
         Self::Signature(value)
     }
 }
@@ -991,13 +991,13 @@ pub fn create_type_checker(
             .create_intrinsic_type(TypeFlags::BigInt, "bigint", None)
             .into(),
     );
-    let false_type: Rc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
+    let false_type: Gc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
         TypeFlags::BooleanLiteral,
         "false",
         None,
     ))
     .into();
-    let regular_false_type: Rc<Type> = FreshableIntrinsicType::new(
+    let regular_false_type: Gc<Type> = FreshableIntrinsicType::new(
         type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false", None),
     )
     .into();
@@ -1010,13 +1010,13 @@ pub fn create_type_checker(
     regular_false_type_as_freshable_intrinsic_type.set_regular_type(regular_false_type.clone());
     regular_false_type_as_freshable_intrinsic_type.set_fresh_type(type_checker.false_type());
     type_checker.regular_false_type = Some(regular_false_type);
-    let true_type: Rc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
+    let true_type: Gc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
         TypeFlags::BooleanLiteral,
         "true",
         None,
     ))
     .into();
-    let regular_true_type: Rc<Type> = FreshableIntrinsicType::new(
+    let regular_true_type: Gc<Type> = FreshableIntrinsicType::new(
         type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true", None),
     )
     .into();
@@ -1342,7 +1342,7 @@ pub fn create_type_checker(
 struct RestrictiveMapperFunc {}
 
 impl TypeMapperCallback for RestrictiveMapperFunc {
-    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
+    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Gc<Type> {
         if t.flags().intersects(TypeFlags::TypeParameter) {
             type_checker.get_restrictive_type_parameter(t)
         } else {
@@ -1355,7 +1355,7 @@ impl TypeMapperCallback for RestrictiveMapperFunc {
 struct PermissiveMapperFunc {}
 
 impl TypeMapperCallback for PermissiveMapperFunc {
-    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
+    fn call(&self, type_checker: &TypeChecker, t: &Type) -> Gc<Type> {
         if t.flags().intersects(TypeFlags::TypeParameter) {
             type_checker.wildcard_type()
         } else {
@@ -1367,39 +1367,39 @@ impl TypeMapperCallback for PermissiveMapperFunc {
 fn async_iteration_types_resolver_resolve_iteration_type(
     type_checker: &TypeChecker,
     type_: &Type,
-    error_node: Option<Rc<Node>>,
-) -> Option<Rc<Type>> {
+    error_node: Option<Gc<Node>>,
+) -> Option<Gc<Type>> {
     type_checker.get_awaited_type_(type_, error_node, None, None)
 }
 
 fn sync_iteration_types_resolver_resolve_iteration_type(
     _type_checker: &TypeChecker,
     type_: &Type,
-    _error_node: Option<Rc<Node>>,
-) -> Option<Rc<Type>> {
+    _error_node: Option<Gc<Node>>,
+) -> Option<Gc<Type>> {
     Some(type_.type_wrapper())
 }
 
 #[derive(Debug)]
 pub(crate) struct DuplicateInfoForSymbol {
-    pub first_file_locations: Vec<Rc<Node /*Declaration*/>>,
-    pub second_file_locations: Vec<Rc<Node /*Declaration*/>>,
+    pub first_file_locations: Vec<Gc<Node /*Declaration*/>>,
+    pub second_file_locations: Vec<Gc<Node /*Declaration*/>>,
     pub is_block_scoped: bool,
 }
 
 #[derive(Debug)]
 pub(crate) struct DuplicateInfoForFiles {
-    pub first_file: Rc<Node /*SourceFile*/>,
-    pub second_file: Rc<Node /*SourceFile*/>,
+    pub first_file: Gc<Node /*SourceFile*/>,
+    pub second_file: Gc<Node /*SourceFile*/>,
     pub conflicting_symbols: HashMap<String, DuplicateInfoForSymbol>,
 }
 
 impl TypeChecker {
-    pub fn rc_wrapper(&self) -> Rc<TypeChecker> {
+    pub fn rc_wrapper(&self) -> Gc<TypeChecker> {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    fn set_rc_wrapper(&self, wrapper: Rc<TypeChecker>) {
+    fn set_rc_wrapper(&self, wrapper: Gc<TypeChecker>) {
         *self._rc_wrapper.borrow_mut() = Some(wrapper);
     }
 
@@ -1458,7 +1458,7 @@ impl TypeChecker {
             .set(requested_external_emit_helpers);
     }
 
-    pub(super) fn maybe_external_helpers_module(&self) -> RefMut<Option<Rc<Symbol>>> {
+    pub(super) fn maybe_external_helpers_module(&self) -> RefMut<Option<Gc<Symbol>>> {
         self.external_helpers_module.borrow_mut()
     }
 
@@ -1519,11 +1519,11 @@ impl TypeChecker {
         self.inline_level.set(inline_level);
     }
 
-    pub(super) fn maybe_current_node(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_current_node(&self) -> Option<Gc<Node>> {
         self.current_node.borrow().clone()
     }
 
-    pub(super) fn set_current_node(&self, current_node: Option<Rc<Node>>) {
+    pub(super) fn set_current_node(&self, current_node: Option<Gc<Node>>) {
         *self.current_node.borrow_mut() = current_node;
     }
 
@@ -1559,19 +1559,19 @@ impl TypeChecker {
         self.globals.clone()
     }
 
-    pub(super) fn undefined_symbol(&self) -> Rc<Symbol> {
+    pub(super) fn undefined_symbol(&self) -> Gc<Symbol> {
         self.undefined_symbol.clone().unwrap()
     }
 
-    pub(super) fn global_this_symbol(&self) -> Rc<Symbol> {
+    pub(super) fn global_this_symbol(&self) -> Gc<Symbol> {
         self.global_this_symbol.clone().unwrap()
     }
 
-    pub(super) fn require_symbol(&self) -> Rc<Symbol> {
+    pub(super) fn require_symbol(&self) -> Gc<Symbol> {
         self.require_symbol.clone().unwrap()
     }
 
-    pub(super) fn arguments_symbol(&self) -> Rc<Symbol> {
+    pub(super) fn arguments_symbol(&self) -> Gc<Symbol> {
         self.arguments_symbol.clone().unwrap()
     }
 
@@ -1630,7 +1630,7 @@ impl TypeChecker {
         ptr::eq(symbol, &*self.unknown_symbol())
     }
 
-    pub fn get_type_of_symbol_at_location(&self, symbol: &Symbol, location_in: &Node) -> Rc<Type> {
+    pub fn get_type_of_symbol_at_location(&self, symbol: &Symbol, location_in: &Node) -> Gc<Type> {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
         match location {
             Some(location) => self.get_type_of_symbol_at_location_(symbol, &location),
@@ -1642,7 +1642,7 @@ impl TypeChecker {
         &self,
         parameter_in: &Node, /*ParameterDeclaration*/
         parameter_name: &str,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let parameter =
             get_parse_tree_node(Some(parameter_in), Some(|node: &Node| is_parameter(node)));
         if parameter.is_none() {
@@ -1655,7 +1655,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_property_of_type(&self, type_: &Type, name: &str) -> Option<Rc<Symbol>> {
+    pub fn get_property_of_type(&self, type_: &Type, name: &str) -> Option<Gc<Symbol>> {
         self.get_property_of_type_(type_, &escape_leading_underscores(name), None)
     }
 
@@ -1664,7 +1664,7 @@ impl TypeChecker {
         left_type: &Type,
         name: &str,
         location: &Node,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let node = get_parse_tree_node(Some(location), Option::<fn(&Node) -> bool>::None)?;
         let prop_name = escape_leading_underscores(name);
         let lexically_scoped_identifier =
@@ -1674,7 +1674,7 @@ impl TypeChecker {
         })
     }
 
-    pub fn get_type_of_property_of_type(&self, type_: &Type, name: &str) -> Option<Rc<Type>> {
+    pub fn get_type_of_property_of_type(&self, type_: &Type, name: &str) -> Option<Gc<Type>> {
         self.get_type_of_property_of_type_(type_, &escape_leading_underscores(name))
     }
 
@@ -1689,7 +1689,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_index_type_of_type(&self, type_: &Type, kind: IndexKind) -> Option<Rc<Type>> {
+    pub fn get_index_type_of_type(&self, type_: &Type, kind: IndexKind) -> Option<Gc<Type>> {
         self.get_index_type_of_type_(
             type_,
             &*if kind == IndexKind::String {
@@ -1700,7 +1700,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_type_from_type_node(&self, node_in: &Node /*TypeNode*/) -> Rc<Type> {
+    pub fn get_type_from_type_node(&self, node_in: &Node /*TypeNode*/) -> Gc<Type> {
         let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_type_node(node)));
         if let Some(node) = node {
             self.get_type_from_type_node_(&node)
@@ -1709,15 +1709,15 @@ impl TypeChecker {
         }
     }
 
-    pub fn get_parameter_type(&self, signature: &Signature, parameter_index: usize) -> Rc<Type> {
+    pub fn get_parameter_type(&self, signature: &Signature, parameter_index: usize) -> Gc<Type> {
         self.get_type_at_position(signature, parameter_index)
     }
 
-    pub fn get_awaited_type(&self, type_: &Type) -> Option<Rc<Type>> {
+    pub fn get_awaited_type(&self, type_: &Type) -> Option<Gc<Type>> {
         self.get_awaited_type_(type_, Option::<&Node>::None, None, None)
     }
 
-    pub fn get_non_optional_type(&self, type_: &Type) -> Rc<Type> {
+    pub fn get_non_optional_type(&self, type_: &Type) -> Gc<Type> {
         self.remove_optional_type_marker(type_)
     }
 
@@ -1727,7 +1727,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         self.node_builder()
             .type_to_type_node(type_, enclosing_declaration, flags, tracker)
     }
@@ -1738,7 +1738,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node /*IndexSignatureDeclaration*/>> {
+    ) -> Option<Gc<Node /*IndexSignatureDeclaration*/>> {
         self.node_builder()
             .index_info_to_index_signature_declaration(
                 index_info,
@@ -1750,12 +1750,12 @@ impl TypeChecker {
 
     pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         kind: SyntaxKind,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Rc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>> {
+    ) -> Option<Gc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>> {
         self.node_builder().signature_to_signature_declaration(
             signature,
             kind,
@@ -1771,7 +1771,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Rc<Node /*EntityName*/>> {
+    ) -> Option<Gc<Node /*EntityName*/>> {
         self.node_builder().symbol_to_entity_name(
             symbol,
             Some(meaning),
@@ -1787,7 +1787,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Rc<Node /*Expression*/>> {
+    ) -> Option<Gc<Node /*Expression*/>> {
         self.node_builder().symbol_to_expression(
             symbol,
             Some(meaning),
@@ -1816,7 +1816,7 @@ impl TypeChecker {
         symbol: &Symbol,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+    ) -> Option<Gc<Node /*ParameterDeclaration*/>> {
         self.node_builder().symbol_to_parameter_declaration(
             symbol,
             enclosing_declaration,
@@ -1830,7 +1830,7 @@ impl TypeChecker {
         parameter: &Type, /*TypeParameter*/
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Rc<Node /*TypeParameterDeclaration*/>> {
+    ) -> Option<Gc<Node /*TypeParameterDeclaration*/>> {
         self.node_builder().type_parameter_to_declaration(
             parameter,
             enclosing_declaration,
@@ -1843,7 +1843,7 @@ impl TypeChecker {
         &self,
         location_in: &Node,
         meaning: SymbolFlags,
-    ) -> Vec<Rc<Symbol>> {
+    ) -> Vec<Gc<Symbol>> {
         let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
         location.map_or_else(
             || vec![],
@@ -1851,7 +1851,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_symbol_at_location(&self, node_in: &Node) -> Option<Rc<Symbol>> {
+    pub fn get_symbol_at_location(&self, node_in: &Node) -> Option<Gc<Symbol>> {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None)?;
         self.get_symbol_at_location_(&node, Some(true))
     }
@@ -1864,7 +1864,7 @@ impl TypeChecker {
     pub fn get_shorthand_assignment_value_symbol<TNode: Borrow<Node>>(
         &self,
         node_in: Option<TNode>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let node = get_parse_tree_node(node_in, Option::<fn(&Node) -> bool>::None)?;
         self.get_shorthand_assignment_value_symbol_(Some(node))
     }
@@ -1872,13 +1872,13 @@ impl TypeChecker {
     pub fn get_export_specifier_local_target_symbol(
         &self,
         node_in: &Node, /*Identifier | ExportSpecifier*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let node =
             get_parse_tree_node(Some(node_in), Some(|node: &Node| is_export_specifier(node)))?;
         self.get_export_specifier_local_target_symbol_(&node)
     }
 
-    pub fn get_export_symbol_of_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
+    pub fn get_export_symbol_of_symbol(&self, symbol: &Symbol) -> Gc<Symbol> {
         self.get_merged_symbol(Some(
             symbol
                 .maybe_export_symbol()
@@ -1887,7 +1887,7 @@ impl TypeChecker {
         .unwrap()
     }
 
-    pub fn get_type_at_location(&self, node_in: &Node) -> Rc<Type> {
+    pub fn get_type_at_location(&self, node_in: &Node) -> Gc<Type> {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None);
         if let Some(node) = node {
             self.get_type_of_node(&node)
@@ -1899,7 +1899,7 @@ impl TypeChecker {
     pub fn get_type_of_assignment_pattern(
         &self,
         node_in: &Node, /*AssignmentPattern*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_assignment_pattern(node)),
@@ -1911,7 +1911,7 @@ impl TypeChecker {
     pub fn get_property_symbol_of_destructuring_assignment(
         &self,
         location_in: &Node, /*Identifier*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let location =
             get_parse_tree_node(Some(location_in), Some(|node: &Node| is_identifier(node)))?;
         self.get_property_symbol_of_destructuring_assignment_(&location)
@@ -1919,7 +1919,7 @@ impl TypeChecker {
 
     pub fn signature_to_string<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -1979,7 +1979,7 @@ impl TypeChecker {
 
     pub fn write_signature<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -2045,11 +2045,11 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_expression(node)))?;
         let containing_call =
             find_ancestor(Some(&*node), |node: &Node| is_call_like_expression(node));
-        let containing_call_resolved_signature: Option<Rc<Signature>> =
+        let containing_call_resolved_signature: Option<Gc<Signature>> =
             containing_call.as_ref().and_then(|containing_call| {
                 RefCell::borrow(&self.get_node_links(&containing_call))
                     .resolved_signature
@@ -2058,7 +2058,7 @@ impl TypeChecker {
         if matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::Completions))
         {
             if let Some(containing_call) = containing_call.as_ref() {
-                let mut to_mark_skip: Option<Rc<Node>> = Some(node.node_wrapper());
+                let mut to_mark_skip: Option<Gc<Node>> = Some(node.node_wrapper());
                 while {
                     let to_mark_skip_present = to_mark_skip.as_ref().unwrap();
                     self.get_node_links(to_mark_skip_present)
@@ -2076,7 +2076,7 @@ impl TypeChecker {
         if matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::Completions))
         {
             if let Some(containing_call) = containing_call.as_ref() {
-                let mut to_mark_skip: Option<Rc<Node>> = Some(node.node_wrapper());
+                let mut to_mark_skip: Option<Gc<Node>> = Some(node.node_wrapper());
                 while {
                     let to_mark_skip_present = to_mark_skip.as_ref().unwrap();
                     self.get_node_links(to_mark_skip_present)
@@ -2096,7 +2096,7 @@ impl TypeChecker {
     pub fn get_contextual_type_for_object_literal_element(
         &self,
         node_in: &Node, /*ObjectLiteralElementLike*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_object_literal_element_like(node)),
@@ -2108,7 +2108,7 @@ impl TypeChecker {
         &self,
         node_in: &Node, /*CallLikeExpression*/
         arg_index: usize,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_call_like_expression(node)),
@@ -2119,7 +2119,7 @@ impl TypeChecker {
     pub fn get_contextual_type_for_jsx_attribute(
         &self,
         node_in: &Node, /*ObjectLiteralElementLike*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_jsx_attribute_like(node)),
@@ -2130,9 +2130,9 @@ impl TypeChecker {
     pub fn get_resolved_signature(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         argument_count: Option<usize>,
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2144,9 +2144,9 @@ impl TypeChecker {
     pub fn get_resolved_signature_for_signature_help(
         &self,
         node: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         argument_count: Option<usize>,
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2202,7 +2202,7 @@ impl TypeChecker {
     pub fn get_signature_from_declaration(
         &self,
         declaration_in: &Node, /*SignatureDeclaration*/
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         let declaration = get_parse_tree_node(
             Some(declaration_in),
             Some(|node: &Node| is_function_like(Some(node))),
@@ -2221,11 +2221,11 @@ impl TypeChecker {
         Some(self.is_implementation_of_overload_(&node))
     }
 
-    pub fn get_aliased_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
+    pub fn get_aliased_symbol(&self, symbol: &Symbol) -> Gc<Symbol> {
         self.resolve_alias(symbol)
     }
 
-    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> Vec<Rc<Symbol>> {
+    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> Vec<Gc<Symbol>> {
         self.get_exports_of_module_as_array(module_symbol)
     }
 
@@ -2248,7 +2248,7 @@ impl TypeChecker {
         &self,
         name: &str,
         symbol: &Symbol,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.try_get_member_in_module_exports_(&escape_leading_underscores(name), symbol)
     }
 
@@ -2256,41 +2256,41 @@ impl TypeChecker {
         &self,
         name: &str,
         symbol: &Symbol,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.try_get_member_in_module_exports_and_properties_(
             &escape_leading_underscores(name),
             symbol,
         )
     }
 
-    pub fn try_find_ambient_module(&self, module_name: &str) -> Option<Rc<Symbol>> {
+    pub fn try_find_ambient_module(&self, module_name: &str) -> Option<Gc<Symbol>> {
         self.try_find_ambient_module_(module_name, true)
     }
 
     pub fn try_find_ambient_module_without_augmentations(
         &self,
         module_name: &str,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.try_find_ambient_module_(module_name, false)
     }
 
-    pub fn get_any_type(&self) -> Rc<Type> {
+    pub fn get_any_type(&self) -> Gc<Type> {
         self.any_type()
     }
 
-    pub fn get_string_type(&self) -> Rc<Type> {
+    pub fn get_string_type(&self) -> Gc<Type> {
         self.string_type()
     }
 
-    pub fn get_number_type(&self) -> Rc<Type> {
+    pub fn get_number_type(&self) -> Gc<Type> {
         self.number_type()
     }
 
-    pub fn get_boolean_type(&self) -> Rc<Type> {
+    pub fn get_boolean_type(&self) -> Gc<Type> {
         self.boolean_type()
     }
 
-    pub fn get_false_type(&self, fresh: Option<bool>) -> Rc<Type> {
+    pub fn get_false_type(&self, fresh: Option<bool>) -> Gc<Type> {
         if matches!(fresh, Some(true)) {
             self.false_type()
         } else {
@@ -2298,7 +2298,7 @@ impl TypeChecker {
         }
     }
 
-    pub fn get_true_type(&self, fresh: Option<bool>) -> Rc<Type> {
+    pub fn get_true_type(&self, fresh: Option<bool>) -> Gc<Type> {
         if matches!(fresh, Some(true)) {
             self.true_type()
         } else {
@@ -2306,35 +2306,35 @@ impl TypeChecker {
         }
     }
 
-    pub fn get_void_type(&self) -> Rc<Type> {
+    pub fn get_void_type(&self) -> Gc<Type> {
         self.void_type()
     }
 
-    pub fn get_undefined_type(&self) -> Rc<Type> {
+    pub fn get_undefined_type(&self) -> Gc<Type> {
         self.undefined_type()
     }
 
-    pub fn get_null_type(&self) -> Rc<Type> {
+    pub fn get_null_type(&self) -> Gc<Type> {
         self.null_type()
     }
 
-    pub fn get_es_symbol_type(&self) -> Rc<Type> {
+    pub fn get_es_symbol_type(&self) -> Gc<Type> {
         self.es_symbol_type()
     }
 
-    pub fn get_never_type(&self) -> Rc<Type> {
+    pub fn get_never_type(&self) -> Gc<Type> {
         self.never_type()
     }
 
-    pub fn get_optional_type(&self) -> Rc<Type> {
+    pub fn get_optional_type(&self) -> Gc<Type> {
         self.optional_type()
     }
 
-    pub fn get_promise_type(&self) -> Rc<Type> {
+    pub fn get_promise_type(&self) -> Gc<Type> {
         self.get_global_promise_type(false)
     }
 
-    pub fn get_promise_like_type(&self) -> Rc<Type> {
+    pub fn get_promise_like_type(&self) -> Gc<Type> {
         self.get_global_promise_like_type(false)
     }
 
@@ -2343,7 +2343,7 @@ impl TypeChecker {
         location: &Node,
         name: &str,
         meaning: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.get_suggested_symbol_for_nonexistent_symbol_(
             Some(location),
             &escape_leading_underscores(name),
@@ -2364,7 +2364,7 @@ impl TypeChecker {
         )
     }
 
-    pub fn get_default_from_type_parameter(&self, type_: &Type) -> Option<Rc<Type>> {
+    pub fn get_default_from_type_parameter(&self, type_: &Type) -> Option<Gc<Type>> {
         /*type &&*/
         if type_.flags().intersects(TypeFlags::TypeParameter) {
             self.get_default_from_type_parameter_(type_)
@@ -2379,13 +2379,13 @@ impl TypeChecker {
         location: Option<TLocation>,
         meaning: SymbolFlags,
         exclude_globals: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         self.resolve_name_(
             location,
             &escape_leading_underscores(name),
             meaning,
             None,
-            Option::<Rc<Node>>::None,
+            Option::<Gc<Node>>::None,
             false,
             Some(exclude_globals),
         )
@@ -2413,7 +2413,7 @@ impl TypeChecker {
     pub fn resolve_external_module_name(
         &self,
         module_specifier_in: &Node, /*Expression*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let module_specifier = get_parse_tree_node(
             Some(module_specifier_in),
             Some(|node: &Node| is_expression(node)),
@@ -2425,7 +2425,7 @@ impl TypeChecker {
         &self,
         node_in: &Node,
         include_global_this: Option<bool>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None)?;
         self.try_get_this_type_at_(&node, include_global_this, Option::<&Node>::None)
     }
@@ -2433,7 +2433,7 @@ impl TypeChecker {
     pub fn get_type_argument_constraint(
         &self,
         node_in: &Node, /*TypeNode*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_type_node(node)))?;
         self.get_type_argument_constraint_(&node)
     }
@@ -2507,10 +2507,10 @@ impl TypeChecker {
     pub(super) fn get_resolved_signature_worker(
         &self,
         node_in: &Node, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Rc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
         argument_count: Option<usize>,
         check_mode: CheckMode,
-    ) -> Option<Rc<Signature>> {
+    ) -> Option<Gc<Signature>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: &Node| is_call_like_expression(node)),
@@ -2531,7 +2531,7 @@ impl TypeChecker {
         self.union_types.borrow_mut()
     }
 
-    pub(super) fn intersection_types(&self) -> RefMut<HashMap<String, Rc<Type>>> {
+    pub(super) fn intersection_types(&self) -> RefMut<HashMap<String, Gc<Type>>> {
         self.intersection_types.borrow_mut()
     }
 
@@ -2581,11 +2581,11 @@ impl TypeChecker {
         self.substitution_types.borrow_mut()
     }
 
-    pub(super) fn subtype_reduction_cache(&self) -> RefMut<HashMap<String, Vec<Rc<Type>>>> {
+    pub(super) fn subtype_reduction_cache(&self) -> RefMut<HashMap<String, Vec<Gc<Type>>>> {
         self.subtype_reduction_cache.borrow_mut()
     }
 
-    pub(super) fn evolving_array_types(&self) -> RefMut<HashMap<TypeId, Rc<Type>>> {
+    pub(super) fn evolving_array_types(&self) -> RefMut<HashMap<TypeId, Gc<Type>>> {
         self.evolving_array_types.borrow_mut()
     }
 
@@ -2593,211 +2593,211 @@ impl TypeChecker {
         self.undefined_properties.borrow_mut()
     }
 
-    pub(super) fn unknown_symbol(&self) -> Rc<Symbol> {
+    pub(super) fn unknown_symbol(&self) -> Gc<Symbol> {
         self.unknown_symbol.as_ref().unwrap().clone()
     }
 
-    pub(super) fn resolving_symbol(&self) -> Rc<Symbol> {
+    pub(super) fn resolving_symbol(&self) -> Gc<Symbol> {
         self.resolving_symbol.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unresolved_symbols(&self) -> RefMut<HashMap<String, Rc<Symbol>>> {
+    pub(super) fn unresolved_symbols(&self) -> RefMut<HashMap<String, Gc<Symbol>>> {
         self.unresolved_symbols.borrow_mut()
     }
 
-    pub(super) fn error_types(&self) -> RefMut<HashMap<String, Rc<Type>>> {
+    pub(super) fn error_types(&self) -> RefMut<HashMap<String, Gc<Type>>> {
         self.error_types.borrow_mut()
     }
 
-    pub(super) fn any_type(&self) -> Rc<Type> {
+    pub(super) fn any_type(&self) -> Gc<Type> {
         self.any_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn auto_type(&self) -> Rc<Type> {
+    pub(super) fn auto_type(&self) -> Gc<Type> {
         self.auto_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn wildcard_type(&self) -> Rc<Type> {
+    pub(super) fn wildcard_type(&self) -> Gc<Type> {
         self.wildcard_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn error_type(&self) -> Rc<Type> {
+    pub(super) fn error_type(&self) -> Gc<Type> {
         self.error_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unresolved_type(&self) -> Rc<Type> {
+    pub(super) fn unresolved_type(&self) -> Gc<Type> {
         self.unresolved_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn non_inferrable_any_type(&self) -> Rc<Type> {
+    pub(super) fn non_inferrable_any_type(&self) -> Gc<Type> {
         self.non_inferrable_any_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn intrinsic_marker_type(&self) -> Rc<Type> {
+    pub(super) fn intrinsic_marker_type(&self) -> Gc<Type> {
         self.intrinsic_marker_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unknown_type(&self) -> Rc<Type> {
+    pub(super) fn unknown_type(&self) -> Gc<Type> {
         self.unknown_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn non_null_unknown_type(&self) -> Rc<Type> {
+    pub(super) fn non_null_unknown_type(&self) -> Gc<Type> {
         self.non_null_unknown_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn undefined_type(&self) -> Rc<Type> {
+    pub(super) fn undefined_type(&self) -> Gc<Type> {
         self.undefined_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn undefined_widening_type(&self) -> Rc<Type> {
+    pub(super) fn undefined_widening_type(&self) -> Gc<Type> {
         self.undefined_widening_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn optional_type(&self) -> Rc<Type> {
+    pub(super) fn optional_type(&self) -> Gc<Type> {
         self.optional_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn missing_type(&self) -> Rc<Type> {
+    pub(super) fn missing_type(&self) -> Gc<Type> {
         self.missing_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn null_type(&self) -> Rc<Type> {
+    pub(super) fn null_type(&self) -> Gc<Type> {
         self.null_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn null_widening_type(&self) -> Rc<Type> {
+    pub(super) fn null_widening_type(&self) -> Gc<Type> {
         self.null_widening_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn string_type(&self) -> Rc<Type> {
+    pub(super) fn string_type(&self) -> Gc<Type> {
         self.string_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn number_type(&self) -> Rc<Type> {
+    pub(super) fn number_type(&self) -> Gc<Type> {
         self.number_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn bigint_type(&self) -> Rc<Type> {
+    pub(super) fn bigint_type(&self) -> Gc<Type> {
         self.bigint_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn true_type(&self) -> Rc<Type> {
+    pub(super) fn true_type(&self) -> Gc<Type> {
         self.true_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn regular_true_type(&self) -> Rc<Type> {
+    pub(super) fn regular_true_type(&self) -> Gc<Type> {
         self.regular_true_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn false_type(&self) -> Rc<Type> {
+    pub(super) fn false_type(&self) -> Gc<Type> {
         self.false_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn regular_false_type(&self) -> Rc<Type> {
+    pub(super) fn regular_false_type(&self) -> Gc<Type> {
         self.regular_false_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn boolean_type(&self) -> Rc<Type> {
+    pub(super) fn boolean_type(&self) -> Gc<Type> {
         self.boolean_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn es_symbol_type(&self) -> Rc<Type> {
+    pub(super) fn es_symbol_type(&self) -> Gc<Type> {
         self.es_symbol_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn void_type(&self) -> Rc<Type> {
+    pub(super) fn void_type(&self) -> Gc<Type> {
         self.void_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn never_type(&self) -> Rc<Type> {
+    pub(super) fn never_type(&self) -> Gc<Type> {
         self.never_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn silent_never_type(&self) -> Rc<Type> {
+    pub(super) fn silent_never_type(&self) -> Gc<Type> {
         self.silent_never_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn non_inferrable_type(&self) -> Rc<Type> {
+    pub(super) fn non_inferrable_type(&self) -> Gc<Type> {
         self.non_inferrable_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn implicit_never_type(&self) -> Rc<Type> {
+    pub(super) fn implicit_never_type(&self) -> Gc<Type> {
         self.implicit_never_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unreachable_never_type(&self) -> Rc<Type> {
+    pub(super) fn unreachable_never_type(&self) -> Gc<Type> {
         self.unreachable_never_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn non_primitive_type(&self) -> Rc<Type> {
+    pub(super) fn non_primitive_type(&self) -> Gc<Type> {
         self.non_primitive_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn string_or_number_type(&self) -> Rc<Type> {
+    pub(super) fn string_or_number_type(&self) -> Gc<Type> {
         self.string_or_number_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn string_number_symbol_type(&self) -> Rc<Type> {
+    pub(super) fn string_number_symbol_type(&self) -> Gc<Type> {
         self.string_number_symbol_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn keyof_constraint_type(&self) -> Rc<Type> {
+    pub(super) fn keyof_constraint_type(&self) -> Gc<Type> {
         self.keyof_constraint_type.clone().unwrap()
     }
 
-    pub(super) fn number_or_big_int_type(&self) -> Rc<Type> {
+    pub(super) fn number_or_big_int_type(&self) -> Gc<Type> {
         self.number_or_big_int_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn template_constraint_type(&self) -> Rc<Type> {
+    pub(super) fn template_constraint_type(&self) -> Gc<Type> {
         self.template_constraint_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn empty_type_literal_symbol(&self) -> Rc<Symbol> {
+    pub(super) fn empty_type_literal_symbol(&self) -> Gc<Symbol> {
         self.empty_type_literal_symbol.as_ref().unwrap().clone()
     }
 
-    pub(super) fn empty_object_type(&self) -> Rc<Type> {
+    pub(super) fn empty_object_type(&self) -> Gc<Type> {
         self.empty_object_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn empty_jsx_object_type(&self) -> Rc<Type> {
+    pub(super) fn empty_jsx_object_type(&self) -> Gc<Type> {
         self.empty_jsx_object_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn empty_type_literal_type(&self) -> Rc<Type> {
+    pub(super) fn empty_type_literal_type(&self) -> Gc<Type> {
         self.empty_type_literal_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn empty_generic_type(&self) -> Rc<Type> {
+    pub(super) fn empty_generic_type(&self) -> Gc<Type> {
         self.empty_generic_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn any_function_type(&self) -> Rc<Type> {
+    pub(super) fn any_function_type(&self) -> Gc<Type> {
         self.any_function_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn no_constraint_type(&self) -> Rc<Type> {
+    pub(super) fn no_constraint_type(&self) -> Gc<Type> {
         self.no_constraint_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn circular_constraint_type(&self) -> Rc<Type> {
+    pub(super) fn circular_constraint_type(&self) -> Gc<Type> {
         self.circular_constraint_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn resolving_default_type(&self) -> Rc<Type> {
+    pub(super) fn resolving_default_type(&self) -> Gc<Type> {
         self.resolving_default_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn marker_super_type(&self) -> Rc<Type> {
+    pub(super) fn marker_super_type(&self) -> Gc<Type> {
         self.marker_super_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn marker_sub_type(&self) -> Rc<Type> {
+    pub(super) fn marker_sub_type(&self) -> Gc<Type> {
         self.marker_sub_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn marker_other_type(&self) -> Rc<Type> {
+    pub(super) fn marker_other_type(&self) -> Gc<Type> {
         self.marker_other_type.as_ref().unwrap().clone()
     }
 
@@ -2805,19 +2805,19 @@ impl TypeChecker {
         self.no_type_predicate.as_ref().unwrap().clone()
     }
 
-    pub(super) fn any_signature(&self) -> Rc<Signature> {
+    pub(super) fn any_signature(&self) -> Gc<Signature> {
         self.any_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unknown_signature(&self) -> Rc<Signature> {
+    pub(super) fn unknown_signature(&self) -> Gc<Signature> {
         self.unknown_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn resolving_signature(&self) -> Rc<Signature> {
+    pub(super) fn resolving_signature(&self) -> Gc<Signature> {
         self.resolving_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn silent_never_signature(&self) -> Rc<Signature> {
+    pub(super) fn silent_never_signature(&self) -> Gc<Signature> {
         self.silent_never_signature.as_ref().unwrap().clone()
     }
 
@@ -2851,7 +2851,7 @@ impl TypeChecker {
         self.amalgamated_duplicates.borrow_mut()
     }
 
-    pub(super) fn reverse_mapped_cache(&self) -> RefMut<HashMap<String, Option<Rc<Type>>>> {
+    pub(super) fn reverse_mapped_cache(&self) -> RefMut<HashMap<String, Option<Gc<Type>>>> {
         self.reverse_mapped_cache.borrow_mut()
     }
 
@@ -2875,23 +2875,23 @@ impl TypeChecker {
 
     pub(super) fn maybe_pattern_ambient_module_augmentations(
         &self,
-    ) -> RefMut<Option<HashMap<String, Rc<Symbol>>>> {
+    ) -> RefMut<Option<HashMap<String, Gc<Symbol>>>> {
         self.pattern_ambient_module_augmentations.borrow_mut()
     }
 
-    pub(super) fn maybe_global_object_type(&self) -> Option<Rc<Type>> {
+    pub(super) fn maybe_global_object_type(&self) -> Option<Gc<Type>> {
         self.global_object_type.borrow().clone()
     }
 
-    pub(super) fn global_object_type(&self) -> Rc<Type> {
+    pub(super) fn global_object_type(&self) -> Gc<Type> {
         self.global_object_type.borrow().clone().unwrap()
     }
 
-    pub(super) fn global_function_type(&self) -> Rc<Type> {
+    pub(super) fn global_function_type(&self) -> Gc<Type> {
         self.global_function_type.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn global_callable_function_type(&self) -> Rc<Type> {
+    pub(super) fn global_callable_function_type(&self) -> Gc<Type> {
         self.global_callable_function_type
             .borrow()
             .as_ref()
@@ -2899,7 +2899,7 @@ impl TypeChecker {
             .clone()
     }
 
-    pub(super) fn global_newable_function_type(&self) -> Rc<Type> {
+    pub(super) fn global_newable_function_type(&self) -> Gc<Type> {
         self.global_newable_function_type
             .borrow()
             .as_ref()
@@ -2907,11 +2907,11 @@ impl TypeChecker {
             .clone()
     }
 
-    pub(super) fn global_array_type(&self) -> Rc<Type> {
+    pub(super) fn global_array_type(&self) -> Gc<Type> {
         self.global_array_type.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn global_readonly_array_type(&self) -> Rc<Type> {
+    pub(super) fn global_readonly_array_type(&self) -> Gc<Type> {
         self.global_readonly_array_type
             .borrow()
             .as_ref()
@@ -2919,35 +2919,35 @@ impl TypeChecker {
             .clone()
     }
 
-    pub(super) fn global_string_type(&self) -> Rc<Type> {
+    pub(super) fn global_string_type(&self) -> Gc<Type> {
         self.global_string_type.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn global_number_type(&self) -> Rc<Type> {
+    pub(super) fn global_number_type(&self) -> Gc<Type> {
         self.global_number_type.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn global_boolean_type(&self) -> Rc<Type> {
+    pub(super) fn global_boolean_type(&self) -> Gc<Type> {
         self.global_boolean_type.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn global_reg_exp_type(&self) -> Rc<Type> {
+    pub(super) fn global_reg_exp_type(&self) -> Gc<Type> {
         self.global_reg_exp_type.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn global_this_type(&self) -> Rc<Type> {
+    pub(super) fn global_this_type(&self) -> Gc<Type> {
         self.global_this_type.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn any_array_type(&self) -> Rc<Type> {
+    pub(super) fn any_array_type(&self) -> Gc<Type> {
         self.any_array_type.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn auto_array_type(&self) -> Rc<Type> {
+    pub(super) fn auto_array_type(&self) -> Gc<Type> {
         self.auto_array_type.borrow().as_ref().unwrap().clone()
     }
 
-    pub(super) fn any_readonly_array_type(&self) -> Rc<Type> {
+    pub(super) fn any_readonly_array_type(&self) -> Gc<Type> {
         self.any_readonly_array_type
             .borrow()
             .as_ref()
@@ -2957,147 +2957,147 @@ impl TypeChecker {
 
     pub(super) fn maybe_deferred_global_non_nullable_type_alias(
         &self,
-    ) -> RefMut<Option<Rc<Symbol>>> {
+    ) -> RefMut<Option<Gc<Symbol>>> {
         self.deferred_global_non_nullable_type_alias.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_es_symbol_constructor_symbol(
         &self,
-    ) -> RefMut<Option<Rc<Symbol>>> {
+    ) -> RefMut<Option<Gc<Symbol>>> {
         self.deferred_global_es_symbol_constructor_symbol
             .borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_es_symbol_constructor_type_symbol(
         &self,
-    ) -> RefMut<Option<Rc<Symbol>>> {
+    ) -> RefMut<Option<Gc<Symbol>>> {
         self.deferred_global_es_symbol_constructor_type_symbol
             .borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_es_symbol_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_es_symbol_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_es_symbol_type.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_typed_property_descriptor_type(
         &self,
-    ) -> RefMut<Option<Rc<Type>>> {
+    ) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_typed_property_descriptor_type
             .borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_promise_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_promise_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_promise_type.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_promise_like_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_promise_like_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_promise_like_type.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_promise_constructor_symbol(
         &self,
-    ) -> RefMut<Option<Rc<Symbol>>> {
+    ) -> RefMut<Option<Gc<Symbol>>> {
         self.deferred_global_promise_constructor_symbol.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_promise_constructor_like_type(
         &self,
-    ) -> RefMut<Option<Rc<Type>>> {
+    ) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_promise_constructor_like_type
             .borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_iterable_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_iterable_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_iterable_type.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_iterator_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_iterator_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_iterator_type.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_iterable_iterator_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_iterable_iterator_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_iterable_iterator_type.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_generator_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_generator_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_generator_type.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_iterator_yield_result_type(
         &self,
-    ) -> RefMut<Option<Rc<Type>>> {
+    ) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_iterator_yield_result_type.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_iterator_return_result_type(
         &self,
-    ) -> RefMut<Option<Rc<Type>>> {
+    ) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_iterator_return_result_type
             .borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_async_iterable_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_async_iterable_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_async_iterable_type.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_async_iterator_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_async_iterator_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_async_iterator_type.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_async_iterable_iterator_type(
         &self,
-    ) -> RefMut<Option<Rc<Type>>> {
+    ) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_async_iterable_iterator_type
             .borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_async_generator_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_async_generator_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_async_generator_type.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_template_strings_array_type(
         &self,
-    ) -> RefMut<Option<Rc<Type>>> {
+    ) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_template_strings_array_type
             .borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_import_meta_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_import_meta_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_import_meta_type.borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_import_meta_expression_type(
         &self,
-    ) -> RefMut<Option<Rc<Type>>> {
+    ) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_import_meta_expression_type
             .borrow_mut()
     }
 
     pub(super) fn maybe_deferred_global_import_call_options_type(
         &self,
-    ) -> RefMut<Option<Rc<Type>>> {
+    ) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_import_call_options_type.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_extract_symbol(&self) -> RefMut<Option<Rc<Symbol>>> {
+    pub(super) fn maybe_deferred_global_extract_symbol(&self) -> RefMut<Option<Gc<Symbol>>> {
         self.deferred_global_extract_symbol.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_omit_symbol(&self) -> RefMut<Option<Rc<Symbol>>> {
+    pub(super) fn maybe_deferred_global_omit_symbol(&self) -> RefMut<Option<Gc<Symbol>>> {
         self.deferred_global_omit_symbol.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_awaited_symbol(&self) -> RefMut<Option<Rc<Symbol>>> {
+    pub(super) fn maybe_deferred_global_awaited_symbol(&self) -> RefMut<Option<Gc<Symbol>>> {
         self.deferred_global_awaited_symbol.borrow_mut()
     }
 
-    pub(super) fn maybe_deferred_global_big_int_type(&self) -> RefMut<Option<Rc<Type>>> {
+    pub(super) fn maybe_deferred_global_big_int_type(&self) -> RefMut<Option<Gc<Type>>> {
         self.deferred_global_big_int_type.borrow_mut()
     }
 
     pub(super) fn all_potentially_unused_identifiers(
         &self,
-    ) -> RefMut<HashMap<Path, Vec<Rc<Node /*PotentiallyUnusedIdentifier*/>>>> {
+    ) -> RefMut<HashMap<Path, Vec<Gc<Node /*PotentiallyUnusedIdentifier*/>>>> {
         self.all_potentially_unused_identifiers.borrow_mut()
     }
 
@@ -3153,19 +3153,19 @@ impl TypeChecker {
         self.last_flow_node_reachable.set(last_flow_node_reachable);
     }
 
-    pub(super) fn maybe_flow_type_cache(&self) -> RefMut<Option<HashMap<NodeId, Rc<Type>>>> {
+    pub(super) fn maybe_flow_type_cache(&self) -> RefMut<Option<HashMap<NodeId, Gc<Type>>>> {
         self.flow_type_cache.borrow_mut()
     }
 
-    pub(super) fn empty_string_type(&self) -> Rc<Type> {
+    pub(super) fn empty_string_type(&self) -> Gc<Type> {
         self.empty_string_type.clone().unwrap()
     }
 
-    pub(super) fn zero_type(&self) -> Rc<Type> {
+    pub(super) fn zero_type(&self) -> Gc<Type> {
         self.zero_type.clone().unwrap()
     }
 
-    pub(super) fn zero_big_int_type(&self) -> Rc<Type> {
+    pub(super) fn zero_big_int_type(&self) -> Gc<Type> {
         self.zero_big_int_type.clone().unwrap()
     }
 
@@ -3189,7 +3189,7 @@ impl TypeChecker {
         self.suggestion_count.set(self.suggestion_count.get() + 1)
     }
 
-    pub(super) fn merged_symbols(&self) -> RefMut<HashMap<u32, Rc<Symbol>>> {
+    pub(super) fn merged_symbols(&self) -> RefMut<HashMap<u32, Gc<Symbol>>> {
         self.merged_symbols.borrow_mut()
     }
 
@@ -3199,7 +3199,7 @@ impl TypeChecker {
 
     pub(super) fn flow_loop_caches(
         &self,
-    ) -> RefMut<HashMap<usize, Rc<RefCell<HashMap<String, Rc<Type>>>>>> {
+    ) -> RefMut<HashMap<usize, Rc<RefCell<HashMap<String, Gc<Type>>>>>> {
         self.flow_loop_caches.borrow_mut()
     }
 
@@ -3211,7 +3211,7 @@ impl TypeChecker {
         self.flow_loop_keys.borrow_mut()
     }
 
-    pub(super) fn flow_loop_types(&self) -> RefMut<HashMap<usize, Vec<Rc<Type>>>> {
+    pub(super) fn flow_loop_types(&self) -> RefMut<HashMap<usize, Vec<Gc<Type>>>> {
         self.flow_loop_types.borrow_mut()
     }
 
@@ -3231,19 +3231,19 @@ impl TypeChecker {
         self.flow_node_post_super.borrow_mut()
     }
 
-    pub(super) fn potential_this_collisions(&self) -> RefMut<Vec<Rc<Node>>> {
+    pub(super) fn potential_this_collisions(&self) -> RefMut<Vec<Gc<Node>>> {
         self.potential_this_collisions.borrow_mut()
     }
 
-    pub(super) fn potential_new_target_collisions(&self) -> RefMut<Vec<Rc<Node>>> {
+    pub(super) fn potential_new_target_collisions(&self) -> RefMut<Vec<Gc<Node>>> {
         self.potential_new_target_collisions.borrow_mut()
     }
 
-    pub(super) fn potential_weak_map_set_collisions(&self) -> RefMut<Vec<Rc<Node>>> {
+    pub(super) fn potential_weak_map_set_collisions(&self) -> RefMut<Vec<Gc<Node>>> {
         self.potential_weak_map_set_collisions.borrow_mut()
     }
 
-    pub(super) fn potential_reflect_collisions(&self) -> RefMut<Vec<Rc<Node>>> {
+    pub(super) fn potential_reflect_collisions(&self) -> RefMut<Vec<Gc<Node>>> {
         self.potential_reflect_collisions.borrow_mut()
     }
 
@@ -3259,11 +3259,11 @@ impl TypeChecker {
         self.suggestion_diagnostics.borrow_mut()
     }
 
-    pub(super) fn typeof_types_by_name(&self) -> &HashMap<&'static str, Rc<Type>> {
+    pub(super) fn typeof_types_by_name(&self) -> &HashMap<&'static str, Gc<Type>> {
         self.typeof_types_by_name.as_ref().unwrap()
     }
 
-    pub(super) fn typeof_type(&self) -> Rc<Type> {
+    pub(super) fn typeof_type(&self) -> Gc<Type> {
         self.typeof_type.clone().unwrap()
     }
 

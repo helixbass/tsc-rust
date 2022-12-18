@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
@@ -55,7 +56,7 @@ impl TypeChecker {
     pub(super) fn check_switch_statement(&self, node: &Node /*SwitchStatement*/) {
         self.check_grammar_statement_in_ambient_context(node);
 
-        let mut first_default_clause: Option<Rc<Node /*CaseOrDefaultClause*/>> = None;
+        let mut first_default_clause: Option<Gc<Node /*CaseOrDefaultClause*/>> = None;
         let mut has_duplicate_default_clause = false;
 
         let node_as_switch_statement = node.as_switch_statement();
@@ -64,7 +65,7 @@ impl TypeChecker {
         let expression_is_literal = self.is_literal_type(&expression_type);
         for_each(
             &node_as_switch_statement.case_block.as_case_block().clauses,
-            |clause: &Rc<Node>, _| -> Option<()> {
+            |clause: &Gc<Node>, _| -> Option<()> {
                 if clause.kind() == SyntaxKind::DefaultClause && !has_duplicate_default_clause {
                     if first_default_clause.is_none() {
                         first_default_clause = Some(clause.clone());
@@ -106,7 +107,7 @@ impl TypeChecker {
                 let clause_as_case_or_default_clause = clause.as_case_or_default_clause();
                 for_each(
                     clause_as_case_or_default_clause.statements(),
-                    |statement: &Rc<Node>, _| -> Option<()> {
+                    |statement: &Gc<Node>, _| -> Option<()> {
                         self.check_source_element(Some(&**statement));
                         None
                     },
@@ -370,7 +371,7 @@ impl TypeChecker {
                     interface_declaration.clone().filter(|_| {
                         !some(
                             Some(&self.get_base_types(type_)),
-                            Some(|base: &Rc<Type>| {
+                            Some(|base: &Gc<Type>| {
                                 self.get_property_of_object_type(base, prop.escaped_name())
                                     .is_some()
                                     && self.get_index_type_of_type_(base, &info.key_type).is_some()
@@ -434,7 +435,7 @@ impl TypeChecker {
                         .filter(|interface_declaration| {
                             !some(
                                 Some(&self.get_base_types(type_)),
-                                Some(|base: &Rc<Type>| {
+                                Some(|base: &Gc<Type>| {
                                     self.get_index_info_of_type_(base, &check_info.key_type)
                                         .is_some()
                                         && self
@@ -503,7 +504,7 @@ impl TypeChecker {
 
     pub(super) fn check_type_parameters(
         &self,
-        type_parameter_declarations: Option<&[Rc<Node /*TypeParameterDeclaration*/>]>,
+        type_parameter_declarations: Option<&[Gc<Node /*TypeParameterDeclaration*/>]>,
     ) {
         if let Some(type_parameter_declarations) = type_parameter_declarations {
             let mut seen_default = false;
@@ -551,7 +552,7 @@ impl TypeChecker {
     pub(super) fn check_type_parameters_not_referenced(
         &self,
         root: &Node, /*TypeNode*/
-        type_parameters: &[Rc<Node /*TypeParameterDeclaration*/>],
+        type_parameters: &[Gc<Node /*TypeParameterDeclaration*/>],
         index: usize,
     ) {
         self.check_type_parameters_not_referenced_visit(index, type_parameters, root);
@@ -560,7 +561,7 @@ impl TypeChecker {
     pub(super) fn check_type_parameters_not_referenced_visit(
         &self,
         index: usize,
-        type_parameters: &[Rc<Node /*TypeParameterDeclaration*/>],
+        type_parameters: &[Gc<Node /*TypeParameterDeclaration*/>],
         node: &Node,
     ) {
         if node.kind() == SyntaxKind::TypeReference {
@@ -626,7 +627,7 @@ impl TypeChecker {
 
     pub(super) fn are_type_parameters_identical(
         &self,
-        declarations: &[Rc<Node /*ClassDeclaration | InterfaceDeclaration*/>],
+        declarations: &[Gc<Node /*ClassDeclaration | InterfaceDeclaration*/>],
         target_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
     ) -> bool {
         let max_type_argument_count = length(target_parameters);
@@ -690,7 +691,7 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn check_class_expression(&self, node: &Node /*ClassExpression*/) -> Rc<Type> {
+    pub(super) fn check_class_expression(&self, node: &Node /*ClassExpression*/) -> Gc<Type> {
         self.check_class_like_declaration(node);
         self.check_node_deferred(node);
         self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap())
@@ -699,7 +700,7 @@ impl TypeChecker {
     pub(super) fn check_class_expression_deferred(&self, node: &Node /*ClassExpression*/) {
         for_each(
             node.as_class_expression().members(),
-            |member: &Rc<Node>, _| -> Option<()> {
+            |member: &Gc<Node>, _| -> Option<()> {
                 self.check_source_element(Some(&**member));
                 None
             },
@@ -711,10 +712,10 @@ impl TypeChecker {
         let node_as_class_declaration = node.as_class_declaration();
         if some(
             node.maybe_decorators().as_deref(),
-            Option::<fn(&Rc<Node>) -> bool>::None,
+            Option::<fn(&Gc<Node>) -> bool>::None,
         ) && some(
             Some(node_as_class_declaration.members()),
-            Some(|p: &Rc<Node>| {
+            Some(|p: &Gc<Node>| {
                 has_static_modifier(p) && is_private_identifier_class_element_declaration(p)
             }),
         ) {
@@ -736,7 +737,7 @@ impl TypeChecker {
         self.check_class_like_declaration(node);
         for_each(
             node_as_class_declaration.members(),
-            |member: &Rc<Node>, _| -> Option<()> {
+            |member: &Gc<Node>, _| -> Option<()> {
                 self.check_source_element(Some(&**member));
                 None
             },
@@ -777,7 +778,7 @@ impl TypeChecker {
                 base_type_node_as_expression_with_type_arguments
                     .maybe_type_arguments()
                     .as_ref(),
-                |type_argument: &Rc<Node>, _| -> Option<()> {
+                |type_argument: &Gc<Node>, _| -> Option<()> {
                     self.check_source_element(Some(&**type_argument));
                     None
                 },
@@ -813,13 +814,13 @@ impl TypeChecker {
                     base_type_node_as_expression_with_type_arguments
                         .maybe_type_arguments()
                         .as_deref(),
-                    Option::<fn(&Rc<Node>) -> bool>::None,
+                    Option::<fn(&Gc<Node>) -> bool>::None,
                 ) {
                     maybe_for_each(
                         base_type_node_as_expression_with_type_arguments
                             .maybe_type_arguments()
                             .as_ref(),
-                        |type_argument: &Rc<Node>, _| -> Option<()> {
+                        |type_argument: &Gc<Node>, _| -> Option<()> {
                             self.check_source_element(Some(&**type_argument));
                             None
                         },
@@ -910,7 +911,7 @@ impl TypeChecker {
                             .as_deref(),
                         base_type_node,
                     );
-                    if for_each_bool(&constructors, |sig: &Rc<Signature>, _| {
+                    if for_each_bool(&constructors, |sig: &Gc<Signature>, _| {
                         !self.is_js_constructor(sig.declaration.as_deref())
                             && !self.is_type_identical_to(
                                 &self.get_return_type_of_signature(sig.clone()),

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -24,7 +25,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_apparent_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_apparent_type(&self, type_: &Type) -> Gc<Type> {
         let t = if type_.flags().intersects(TypeFlags::Instantiable) {
             self.get_base_constraint_of_type(type_)
                 .unwrap_or_else(|| self.unknown_type())
@@ -56,7 +57,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_reduced_apparent_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_reduced_apparent_type(&self, type_: &Type) -> Gc<Type> {
         self.get_reduced_type(&self.get_apparent_type(&self.get_reduced_type(type_)))
     }
 
@@ -65,10 +66,10 @@ impl TypeChecker {
         containing_type: &Type, /*UnionOrIntersectionType*/
         name: &str,             /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
-        let mut single_prop: Option<Rc<Symbol>> = None;
-        let mut prop_set: Option<HashMap<SymbolId, Rc<Symbol>>> = None;
-        let mut index_types: Option<Vec<Rc<Type>>> = None;
+    ) -> Option<Gc<Symbol>> {
+        let mut single_prop: Option<Gc<Symbol>> = None;
+        let mut prop_set: Option<HashMap<SymbolId, Gc<Symbol>>> = None;
+        let mut index_types: Option<Vec<Gc<Type>>> = None;
         let is_union = containing_type.flags().intersects(TypeFlags::Union);
         let mut optional_flag = if is_union {
             SymbolFlags::None
@@ -247,11 +248,11 @@ impl TypeChecker {
         } else {
             vec![single_prop]
         };
-        let mut declarations: Option<Vec<Rc<Node /*Declaration*/>>> = None;
-        let mut first_type: Option<Rc<Type>> = None;
-        let mut name_type: Option<Rc<Type>> = None;
-        let mut prop_types: Vec<Rc<Type>> = vec![];
-        let mut first_value_declaration: Option<Rc<Node /*Declaration*/>> = None;
+        let mut declarations: Option<Vec<Gc<Node /*Declaration*/>>> = None;
+        let mut first_type: Option<Gc<Type>> = None;
+        let mut name_type: Option<Gc<Type>> = None;
+        let mut prop_types: Vec<Gc<Type>> = vec![];
+        let mut first_value_declaration: Option<Gc<Node /*Declaration*/>> = None;
         let mut has_non_uniform_value_declaration = false;
         for prop in props {
             if first_value_declaration.is_none() {
@@ -291,7 +292,7 @@ impl TypeChecker {
             prop_types.push(type_);
         }
         add_range(&mut prop_types, index_types.as_deref(), None, None);
-        let result: Rc<Symbol> = self
+        let result: Gc<Symbol> = self
             .create_symbol(
                 SymbolFlags::Property | optional_flag,
                 name.to_owned(),
@@ -345,7 +346,7 @@ impl TypeChecker {
         type_: &Type, /*UnionOrIntersectionType*/
         name: &str,   /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let type_as_union_or_intersection_type = type_.as_union_or_intersection_type_interface();
         let mut property = type_as_union_or_intersection_type
             .maybe_property_cache_without_object_function_property_augment()
@@ -405,7 +406,7 @@ impl TypeChecker {
         type_: &Type, /*UnionOrIntersectionType*/
         name: &str,   /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let property = self.get_union_or_intersection_property(
             type_,
             name,
@@ -414,7 +415,7 @@ impl TypeChecker {
         property.filter(|property| !get_check_flags(property).intersects(CheckFlags::ReadPartial))
     }
 
-    pub(super) fn get_reduced_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_reduced_type(&self, type_: &Type) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Union)
             && type_
                 .as_union_type()
@@ -441,7 +442,7 @@ impl TypeChecker {
                         | ObjectFlags::IsNeverIntersectionComputed
                         | if some(
                             Some(&self.get_properties_of_union_or_intersection_type(type_)),
-                            Some(|symbol: &Rc<Symbol>| self.is_never_reduced_property(symbol)),
+                            Some(|symbol: &Gc<Symbol>| self.is_never_reduced_property(symbol)),
                         ) {
                             ObjectFlags::IsNeverIntersection
                         } else {
@@ -461,9 +462,9 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn get_reduced_union_type(&self, union_type: &Type /*UnionType*/) -> Rc<Type> {
+    pub(super) fn get_reduced_union_type(&self, union_type: &Type /*UnionType*/) -> Gc<Type> {
         let union_type_as_union_type = union_type.as_union_type();
-        let reduced_types = same_map(union_type_as_union_type.types(), |type_: &Rc<Type>, _| {
+        let reduced_types = same_map(union_type_as_union_type.types(), |type_: &Gc<Type>, _| {
             self.get_reduced_type(type_)
         });
         if are_rc_slices_equal(&reduced_types, union_type_as_union_type.types()) {
@@ -511,7 +512,7 @@ impl TypeChecker {
         {
             let never_prop = find(
                 &self.get_properties_of_union_or_intersection_type(type_),
-                |property: &Rc<Symbol>, _| self.is_discriminant_with_never_type(property),
+                |property: &Gc<Symbol>, _| self.is_discriminant_with_never_type(property),
             )
             .map(Clone::clone);
             if let Some(never_prop) = never_prop {
@@ -528,7 +529,7 @@ impl TypeChecker {
             }
             let private_prop = find(
                 &self.get_properties_of_union_or_intersection_type(type_),
-                |property: &Rc<Symbol>, _| self.is_conflicting_private_property(property),
+                |property: &Gc<Symbol>, _| self.is_conflicting_private_property(property),
             )
             .map(Clone::clone);
             if let Some(private_prop) = private_prop {
@@ -552,7 +553,7 @@ impl TypeChecker {
         type_: &Type,
         name: &str, /*__String*/
         skip_object_function_property_augment: Option<bool>,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(&type_);
@@ -600,7 +601,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         kind: SignatureKind,
-    ) -> Vec<Rc<Signature>> {
+    ) -> Vec<Gc<Signature>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
             let resolved = self.resolve_structured_type_members(type_);
             let resolved_as_resolved_type = resolved.as_resolved_type();
@@ -613,7 +614,7 @@ impl TypeChecker {
         vec![]
     }
 
-    pub fn get_signatures_of_type(&self, type_: &Type, kind: SignatureKind) -> Vec<Rc<Signature>> {
+    pub fn get_signatures_of_type(&self, type_: &Type, kind: SignatureKind) -> Vec<Gc<Signature>> {
         self.get_signatures_of_structured_type(&self.get_reduced_apparent_type(type_), kind)
     }
 
@@ -713,7 +714,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         key_type: &Type,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         self.get_index_info_of_type_(type_, key_type)
             .map(|index_info| index_info.type_.clone())
     }
@@ -756,7 +757,7 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*DeclarationWithTypeParameters*/
     ) -> Option<Vec<Rc<Type /*<TypeParameter>*/>>> {
-        let mut result: Option<Vec<Rc<Type>>> = None;
+        let mut result: Option<Vec<Gc<Type>>> = None;
         for node in get_effective_type_parameter_declarations(declaration) {
             result = Some(maybe_append_if_unique_rc(
                 result,
@@ -766,8 +767,8 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn symbols_to_array(&self, symbols: &SymbolTable) -> Vec<Rc<Symbol>> {
-        let mut result: Vec<Rc<Symbol>> = vec![];
+    pub(super) fn symbols_to_array(&self, symbols: &SymbolTable) -> Vec<Gc<Symbol>> {
+        let mut result: Vec<Gc<Symbol>> = vec![];
         for (id, symbol) in symbols {
             if !self.is_reserved_member_name(id) {
                 result.push(symbol.clone());
@@ -782,7 +783,7 @@ impl TypeChecker {
     ) -> bool {
         is_in_js_file(Some(node)) && (
             matches!(node.as_parameter_declaration().maybe_type(), Some(type_) if type_.kind() == SyntaxKind::JSDocOptionalType) ||
-            get_jsdoc_parameter_tags(node).iter().any(|tag: &Rc<Node>| {
+            get_jsdoc_parameter_tags(node).iter().any(|tag: &Gc<Node>| {
                 let tag_as_jsdoc_property_like_tag = tag.as_jsdoc_property_like_tag();
                 let is_bracketed = tag_as_jsdoc_property_like_tag.is_bracketed;
                 let type_expression = tag_as_jsdoc_property_like_tag.type_expression.as_ref();
@@ -798,7 +799,7 @@ impl TypeChecker {
         &self,
         module_name: &str,
         with_augmentations: bool,
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         if is_external_module_name_relative(module_name) {
             return None;
         }
@@ -887,7 +888,7 @@ impl TypeChecker {
         kind: TypePredicateKind,
         parameter_name: Option<String>,
         parameter_index: Option<usize>,
-        type_: Option<Rc<Type>>,
+        type_: Option<Gc<Type>>,
     ) -> TypePredicate {
         TypePredicate {
             kind,

@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use gc::Gc;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;

@@ -62,7 +62,7 @@ impl CheckTypeRelatedTo {
         source: &Type,
         target: &Type,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        error_node: Option<Rc<Node>>,
+        error_node: Option<Gc<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
         error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
@@ -105,11 +105,11 @@ impl CheckTypeRelatedTo {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_error_node(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_error_node(&self) -> Option<Gc<Node>> {
         self.error_node.borrow().clone()
     }
 
-    pub(super) fn set_error_node(&self, error_node: Option<Rc<Node>>) {
+    pub(super) fn set_error_node(&self, error_node: Option<Gc<Node>>) {
         *self.error_node.borrow_mut() = error_node;
     }
 
@@ -125,11 +125,11 @@ impl CheckTypeRelatedTo {
         self.maybe_keys.borrow_mut()
     }
 
-    pub(super) fn maybe_source_stack(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub(super) fn maybe_source_stack(&self) -> RefMut<Option<Vec<Gc<Type>>>> {
         self.source_stack.borrow_mut()
     }
 
-    pub(super) fn maybe_target_stack(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+    pub(super) fn maybe_target_stack(&self) -> RefMut<Option<Vec<Gc<Type>>>> {
         self.target_stack.borrow_mut()
     }
 
@@ -181,7 +181,7 @@ impl CheckTypeRelatedTo {
         self.override_next_error_info.set(override_next_error_info);
     }
 
-    pub(super) fn maybe_last_skipped_info(&self) -> RefMut<Option<(Rc<Type>, Rc<Type>)>> {
+    pub(super) fn maybe_last_skipped_info(&self) -> RefMut<Option<(Gc<Type>, Gc<Type>)>> {
         self.last_skipped_info.borrow_mut()
     }
 
@@ -1110,7 +1110,7 @@ impl CheckTypeRelatedTo {
                         .intersects(TypeFlags::StructuredType)
                     && !some(
                         Some(source.as_union_or_intersection_type().types()),
-                        Some(|t: &Rc<Type>| {
+                        Some(|t: &Gc<Type>| {
                             get_object_flags(t).intersects(ObjectFlags::NonInferrableType)
                         }),
                     ))
@@ -1303,11 +1303,11 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn get_type_of_property_in_types(
         &self,
-        types: &[Rc<Type>],
+        types: &[Gc<Type>],
         name: &str, /*__String*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let append_prop_type =
-            |mut prop_types: Option<Vec<Rc<Type>>>, type_: &Rc<Type>, _| -> Option<Vec<Rc<Type>>> {
+            |mut prop_types: Option<Vec<Gc<Type>>>, type_: &Gc<Type>, _| -> Option<Vec<Gc<Type>>> {
                 let type_ = self.type_checker.get_apparent_type(type_);
                 let prop = if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
                     self.type_checker
@@ -1363,7 +1363,7 @@ impl CheckTypeRelatedTo {
             return false;
         }
         let mut reduced_target = target.type_wrapper();
-        let mut check_types: Option<Vec<Rc<Type>>> = None;
+        let mut check_types: Option<Vec<Gc<Type>>> = None;
         if target.flags().intersects(TypeFlags::Union) {
             reduced_target = self
                 .type_checker
@@ -1580,7 +1580,7 @@ impl CheckTypeRelatedTo {
 #[derive(Clone)]
 pub(super) struct ErrorCalculationState {
     pub error_info: Option<Rc<DiagnosticMessageChain>>,
-    pub last_skipped_info: Option<(Rc<Type>, Rc<Type>)>,
+    pub last_skipped_info: Option<(Gc<Type>, Gc<Type>)>,
     pub incompatible_stack: Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>,
     pub override_next_error_info: usize,
     pub related_info: Option<Vec<DiagnosticRelatedInformation>>,

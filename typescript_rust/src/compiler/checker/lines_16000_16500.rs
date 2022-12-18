@@ -27,7 +27,7 @@ impl TypeChecker {
     pub(super) fn is_spreadable_property(&self, prop: &Symbol) -> bool {
         !some(
             prop.maybe_declarations().as_deref(),
-            Some(|declaration: &Rc<Node>| {
+            Some(|declaration: &Gc<Node>| {
                 is_private_identifier_class_element_declaration(declaration)
             }),
         ) && (!prop
@@ -35,18 +35,18 @@ impl TypeChecker {
             .intersects(SymbolFlags::Method | SymbolFlags::GetAccessor | SymbolFlags::SetAccessor)
             || !matches!(
                 prop.maybe_declarations().as_ref(),
-                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Rc<Node>| maybe_is_class_like(decl.maybe_parent()))
+                Some(prop_declarations) if prop_declarations.iter().any(|decl: &Gc<Node>| maybe_is_class_like(decl.maybe_parent()))
             ))
     }
 
-    pub(super) fn get_spread_symbol(&self, prop: &Symbol, readonly: bool) -> Rc<Symbol> {
+    pub(super) fn get_spread_symbol(&self, prop: &Symbol, readonly: bool) -> Gc<Symbol> {
         let is_setonly_accessor = prop.flags().intersects(SymbolFlags::SetAccessor)
             && !prop.flags().intersects(SymbolFlags::GetAccessor);
         if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop) {
             return prop.symbol_wrapper();
         }
         let flags = SymbolFlags::Property | (prop.flags() & SymbolFlags::Optional);
-        let result: Rc<Symbol> = self
+        let result: Gc<Symbol> = self
             .create_symbol(
                 flags,
                 prop.escaped_name().to_owned(),
@@ -99,10 +99,10 @@ impl TypeChecker {
         value: String,
         symbol: Option<TSymbol>,
         regular_type: Option<TRegularType>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Rc<Type> = StringLiteralType::new(type_, value).into();
+        let type_: Gc<Type> = StringLiteralType::new(type_, value).into();
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
@@ -120,10 +120,10 @@ impl TypeChecker {
         value: Number,
         symbol: Option<TSymbol>,
         regular_type: Option<TRegularType>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Rc<Type> = NumberLiteralType::new(type_, value).into();
+        let type_: Gc<Type> = NumberLiteralType::new(type_, value).into();
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
@@ -141,10 +141,10 @@ impl TypeChecker {
         value: PseudoBigInt,
         symbol: Option<TSymbol>,
         regular_type: Option<TRegularType>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Rc<Type> = BigIntLiteralType::new(type_, value).into();
+        let type_: Gc<Type> = BigIntLiteralType::new(type_, value).into();
         type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         type_
             .as_literal_type()
@@ -156,7 +156,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_fresh_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_fresh_type_of_literal_type(&self, type_: &Type) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
             return match type_ {
                 Type::LiteralType(type_) => type_.get_or_initialize_fresh_type(self),
@@ -169,7 +169,7 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn get_regular_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
+    pub(super) fn get_regular_type_of_literal_type(&self, type_: &Type) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
             // TODO: this seems like it should be encapsulated behind an abstraction (also above in
             // get_fresh_type_of_literal_type())?
@@ -222,7 +222,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_string_literal_type(&self, value: &str) -> Rc<Type> {
+    pub(super) fn get_string_literal_type(&self, value: &str) -> Gc<Type> {
         let mut string_literal_types = self.string_literal_types();
         if string_literal_types.contains_key(value) {
             return string_literal_types.get(value).unwrap().clone();
@@ -237,7 +237,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_number_literal_type(&self, value: Number) -> Rc<Type> {
+    pub(super) fn get_number_literal_type(&self, value: Number) -> Gc<Type> {
         let mut number_literal_types = self.number_literal_types();
         if number_literal_types.contains_key(&value) {
             return number_literal_types.get(&value).unwrap().clone();
@@ -252,7 +252,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_big_int_literal_type(&self, value: PseudoBigInt) -> Rc<Type> {
+    pub(super) fn get_big_int_literal_type(&self, value: PseudoBigInt) -> Gc<Type> {
         let key = pseudo_big_int_to_string(&value);
         let mut big_int_literal_types = self.big_int_literal_types();
         if big_int_literal_types.contains_key(&key) {
@@ -286,7 +286,7 @@ impl TypeChecker {
         if enum_literal_types.contains_key(&key) {
             return enum_literal_types.get(&key).unwrap().clone();
         }
-        let type_: Rc<Type> = match value {
+        let type_: Gc<Type> = match value {
             StringOrNumber::String(value) => self.create_string_literal_type(
                 TypeFlags::EnumLiteral | TypeFlags::StringLiteral,
                 value,
@@ -307,7 +307,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_literal_type_node(
         &self,
         node: &Node, /*LiteralTypeNode*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_literal_type_node = node.as_literal_type_node();
         if node_as_literal_type_node.literal.kind() == SyntaxKind::NullKeyword {
             return self.null_type();
@@ -327,7 +327,7 @@ impl TypeChecker {
         symbol: &Symbol,
     ) -> Rc<Type /*UniqueESSymbolType*/> {
         let type_ = self.create_type(TypeFlags::UniqueESSymbol);
-        let type_: Rc<Type> = UniqueESSymbolType::new(
+        let type_: Gc<Type> = UniqueESSymbolType::new(
             type_,
             symbol.symbol_wrapper(),
             format!("__@{}@{}", symbol.escaped_name(), get_symbol_id(symbol)),
@@ -336,7 +336,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> Rc<Type> {
+    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> Gc<Type> {
         if is_valid_es_symbol_declaration(node) {
             let symbol = self.get_symbol_of_node(node).unwrap();
             let links = self.get_symbol_links(&symbol);
@@ -349,7 +349,7 @@ impl TypeChecker {
         self.es_symbol_type()
     }
 
-    pub(super) fn get_this_type(&self, node: &Node) -> Rc<Type> {
+    pub(super) fn get_this_type(&self, node: &Node) -> Gc<Type> {
         let container = get_this_container(node, false);
         let parent = /*container &&*/ container.maybe_parent();
         if let Some(parent) = parent.as_ref().filter(|parent| {
@@ -435,7 +435,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_this_type_node(
         &self,
         node: &Node, /*ThisExpression | ThisTypeNode*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             links.borrow_mut().resolved_type = Some(self.get_this_type(node));
@@ -447,7 +447,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_rest_type_node(
         &self,
         node: &Node, /*RestTypeNode | NamedTupleMember*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let node_as_has_type = node.as_has_type();
         self.get_type_from_type_node_(
             &self
@@ -459,7 +459,7 @@ impl TypeChecker {
     pub(super) fn get_array_element_type_node(
         &self,
         node: &Node, /*TypeNode*/
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         match node.kind() {
             SyntaxKind::ParenthesizedType => {
                 return self.get_array_element_type_node(&node.as_parenthesized_type_node().type_);
@@ -489,7 +489,7 @@ impl TypeChecker {
     pub(super) fn get_type_from_named_tuple_type_node(
         &self,
         node: &Node, /*NamedTupleMember*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let node_as_named_tuple_member = node.as_named_tuple_member();
@@ -508,11 +508,11 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_type_from_type_node_(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
+    pub(super) fn get_type_from_type_node_(&self, node: &Node /*TypeNode*/) -> Gc<Type> {
         self.get_conditional_flow_type_of_type(&self.get_type_from_type_node_worker(node), node)
     }
 
-    pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
+    pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Gc<Type> {
         match node.kind() {
             SyntaxKind::AnyKeyword | SyntaxKind::JSDocAllType | SyntaxKind::JSDocUnknownType => {
                 self.any_type()
@@ -638,23 +638,23 @@ impl TypeChecker {
 
     pub(super) fn instantiate_types(
         &self,
-        types: Option<&[Rc<Type>]>,
+        types: Option<&[Gc<Type>]>,
         mapper: Option<Rc<TypeMapper>>,
-    ) -> Option<Vec<Rc<Type>>> {
-        self.instantiate_list(types, mapper, |type_: &Rc<Type>, mapper| {
+    ) -> Option<Vec<Gc<Type>>> {
+        self.instantiate_list(types, mapper, |type_: &Gc<Type>, mapper| {
             self.instantiate_type(type_, mapper)
         })
     }
 
     pub(super) fn instantiate_signatures(
         &self,
-        signatures: &[Rc<Signature>],
+        signatures: &[Gc<Signature>],
         mapper: Rc<TypeMapper>,
-    ) -> Vec<Rc<Signature>> {
+    ) -> Vec<Gc<Signature>> {
         self.instantiate_list(
             Some(signatures),
             Some(mapper),
-            |signature: &Rc<Signature>, mapper| {
+            |signature: &Gc<Signature>, mapper| {
                 Rc::new(self.instantiate_signature(signature.clone(), mapper.unwrap(), None))
             },
         )
@@ -679,7 +679,7 @@ impl TypeChecker {
     pub(super) fn create_type_mapper(
         &self,
         sources: Vec<Rc<Type /*TypeParameter*/>>,
-        targets: Option<Vec<Rc<Type>>>,
+        targets: Option<Vec<Gc<Type>>>,
     ) -> TypeMapper {
         if sources.len() == 1 {
             self.make_unary_type_mapper(
@@ -691,7 +691,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_mapped_type(&self, type_: &Type, mapper: &TypeMapper) -> Rc<Type> {
+    pub(super) fn get_mapped_type(&self, type_: &Type, mapper: &TypeMapper) -> Gc<Type> {
         match mapper {
             TypeMapper::Simple(mapper) => {
                 if ptr::eq(type_, Rc::as_ptr(&mapper.source)) {
@@ -732,7 +732,7 @@ impl TypeChecker {
     pub(super) fn make_array_type_mapper(
         &self,
         sources: Vec<Rc<Type /*TypeParameter*/>>,
-        targets: Option<Vec<Rc<Type>>>,
+        targets: Option<Vec<Gc<Type>>>,
     ) -> TypeMapper {
         TypeMapper::new_array(sources, targets)
     }
@@ -832,7 +832,7 @@ impl TypeChecker {
     pub(super) fn get_restrictive_type_parameter(
         &self,
         tp: &Type, /*TypeParameter*/
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if matches!(
             tp.as_type_parameter().maybe_constraint().as_ref(),
             Some(constraint) if Rc::ptr_eq(constraint, &self.unknown_type())
@@ -840,7 +840,7 @@ impl TypeChecker {
             tp.type_wrapper()
         } else {
             if tp.maybe_restrictive_instantiation().is_none() {
-                let restrictive_instantiation: Rc<Type> =
+                let restrictive_instantiation: Gc<Type> =
                     self.create_type_parameter(tp.maybe_symbol()).into();
                 *tp.maybe_restrictive_instantiation() = Some(restrictive_instantiation.clone());
                 restrictive_instantiation
@@ -875,7 +875,7 @@ impl TypeChecker {
 
     pub(super) fn instantiate_signature(
         &self,
-        signature: Rc<Signature>,
+        signature: Gc<Signature>,
         mut mapper: Rc<TypeMapper>,
         erase_type_parameters: Option<bool>,
     ) -> Signature {
@@ -926,7 +926,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         mut mapper: Rc<TypeMapper>,
-    ) -> Rc<Symbol> {
+    ) -> Gc<Symbol> {
         let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
         {
@@ -976,8 +976,8 @@ impl TypeChecker {
         type_: &Type, /*AnonymousType | DeferredTypeReference*/
         mapper: Rc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
-        alias_type_arguments: Option<&[Rc<Type>]>,
-    ) -> Rc<Type> {
+        alias_type_arguments: Option<&[Gc<Type>]>,
+    ) -> Gc<Type> {
         let type_as_object_type = type_.as_object_type();
         let declaration = if type_as_object_type
             .object_flags()
@@ -1032,10 +1032,10 @@ impl TypeChecker {
                 || target.symbol().flags().intersects(SymbolFlags::TypeLiteral))
                 && target.maybe_alias_type_arguments().is_none()
             {
-                maybe_filter(type_parameters.as_deref(), |tp: &Rc<Type>| {
+                maybe_filter(type_parameters.as_deref(), |tp: &Gc<Type>| {
                     some(
                         Some(&*all_declarations),
-                        Some(|d: &Rc<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
+                        Some(|d: &Gc<Node>| self.is_type_parameter_possibly_referenced(tp, d)),
                     )
                 })
             } else {
@@ -1047,7 +1047,7 @@ impl TypeChecker {
         if !type_parameters.is_empty() {
             let combined_mapper =
                 self.combine_type_mappers(type_as_object_type.maybe_mapper(), mapper.clone());
-            let type_arguments = map(&type_parameters, |t: &Rc<Type>, _| {
+            let type_arguments = map(&type_parameters, |t: &Gc<Type>, _| {
                 self.get_mapped_type(t, &combined_mapper)
             });
             let alias_symbol =
@@ -1155,7 +1155,7 @@ impl BackreferenceMapperCallback {
 }
 
 impl TypeMapperCallback for BackreferenceMapperCallback {
-    fn call(&self, checker: &TypeChecker, t: &Type) -> Rc<Type> {
+    fn call(&self, checker: &TypeChecker, t: &Type) -> Gc<Type> {
         if matches!(
             find_index(&self.context_inferences, |info: &Rc<InferenceInfo>, _| ptr::eq(&*info.type_parameter, t), None),
             Some(found_index) if found_index >= self.index

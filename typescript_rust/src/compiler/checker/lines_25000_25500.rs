@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -56,7 +57,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         container: &Node, /*ForStatement*/
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let container_as_for_statement = container.as_for_statement();
         find_ancestor(Some(node), |n: &Node| {
             if ptr::eq(n, container) {
@@ -77,7 +78,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_enclosing_iteration_statement(&self, node: &Node) -> Option<Rc<Node>> {
+    pub(super) fn get_enclosing_iteration_statement(&self, node: &Node) -> Option<Gc<Node>> {
         find_ancestor(Some(node), |n: &Node| {
             if
             /* !n ||*/
@@ -262,7 +263,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn find_first_super_call(&self, node: &Node) -> Option<Rc<Node /*SuperCall*/>> {
+    pub(super) fn find_first_super_call(&self, node: &Node) -> Option<Gc<Node /*SuperCall*/>> {
         if is_super_call(node) {
             Some(node.node_wrapper())
         } else if is_function_like(Some(node)) {
@@ -271,7 +272,7 @@ impl TypeChecker {
             for_each_child_returns(
                 node,
                 |node: &Node| self.find_first_super_call(node),
-                Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+                Option::<fn(&NodeArray) -> Option<Gc<Node>>>::None,
             )
         }
     }
@@ -329,7 +330,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_this_expression(&self, node: &Node) -> Rc<Type> {
+    pub(super) fn check_this_expression(&self, node: &Node) -> Gc<Type> {
         let is_node_in_type_query = self.is_in_type_query(node);
         let mut container = get_this_container(node, true);
         let mut captured_by_arrow_function = false;
@@ -441,7 +442,7 @@ impl TypeChecker {
         node: &Node,
         include_global_this: Option<bool>,
         container: Option<TContainer>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let include_global_this = include_global_this.unwrap_or(true);
         let container = container.map_or_else(
             || get_this_container(node, false),
@@ -538,7 +539,7 @@ impl TypeChecker {
     pub(super) fn get_explicit_this_type(
         &self,
         node: &Node, /*Expression*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let container = get_this_container(node, false);
         if is_function_like(Some(&*container)) {
             let signature = self.get_signature_from_declaration_(&container);
@@ -563,7 +564,7 @@ impl TypeChecker {
     pub(super) fn get_class_name_from_prototype_method(
         &self,
         container: &Node,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         if container.kind() == SyntaxKind::FunctionExpression
             && is_binary_expression(&container.parent())
             && get_assignment_declaration_kind(&container.parent())
@@ -697,7 +698,7 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_type_for_this_expression_from_jsdoc(&self, node: &Node) -> Option<Rc<Type>> {
+    pub(super) fn get_type_for_this_expression_from_jsdoc(&self, node: &Node) -> Option<Gc<Type>> {
         let jsdoc_type = get_jsdoc_type(node);
         if let Some(jsdoc_type) = jsdoc_type
             .as_ref()
@@ -749,7 +750,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn check_super_expression(&self, node: &Node) -> Rc<Type> {
+    pub(super) fn check_super_expression(&self, node: &Node) -> Gc<Type> {
         let is_call_expression = node.parent().kind() == SyntaxKind::CallExpression
             && ptr::eq(&*node.parent().as_call_expression().expression, node);
 

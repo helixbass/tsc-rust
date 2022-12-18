@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use fancy_regex::{Captures, Regex};
-use gc::{Finalize, Trace};
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::cmp;
@@ -757,7 +757,7 @@ pub fn get_jsx_implicit_import_base<TFile: Borrow<Node>>(
     compiler_options: &CompilerOptions,
     file: Option<TFile /*SourceFile*/>,
 ) -> Option<String> {
-    let file: Option<Rc<Node>> = file.map(|file| file.borrow().node_wrapper());
+    let file: Option<Gc<Node>> = file.map(|file| file.borrow().node_wrapper());
     let jsx_import_source_pragmas = file.as_ref().and_then(|file| {
         file.as_source_file()
             .pragmas()
@@ -955,7 +955,7 @@ impl SymlinkCache {
 
     pub fn set_symlinks_from_resolutions(
         &self,
-        files: &[Rc<Node /*SourceFile*/>],
+        files: &[Gc<Node /*SourceFile*/>],
         type_reference_directives: Option<
             &HashMap<String, Option<Rc<ResolvedTypeReferenceDirective>>>,
         >,

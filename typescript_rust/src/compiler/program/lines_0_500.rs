@@ -113,7 +113,7 @@ struct OutputFingerprint {
 }
 
 pub(super) fn create_compiler_host(
-    options: Rc<CompilerOptions>,
+    options: Gc<CompilerOptions>,
     set_parent_nodes: Option<bool>,
 ) -> impl CompilerHost {
     create_compiler_host_worker(options, set_parent_nodes, None)
@@ -121,7 +121,7 @@ pub(super) fn create_compiler_host(
 
 /*pub(crate) fn create_compiler_host_worker(*/
 pub fn create_compiler_host_worker(
-    options: Rc<CompilerOptions>,
+    options: Gc<CompilerOptions>,
     set_parent_nodes: Option<bool>,
     system: Option<Rc<dyn System>>,
 ) -> impl CompilerHost {
@@ -425,7 +425,7 @@ impl CompilerHost for CompilerHostConcrete {
         language_version: ScriptTarget,
         on_error: Option<&mut dyn FnMut(&str)>,
         should_create_new_source_file: Option<bool>,
-    ) -> Option<Rc<Node /*SourceFile*/>> {
+    ) -> Option<Gc<Node /*SourceFile*/>> {
         let mut text: Option<String> = None;
         // performance.mark("beforeIORead");
         match self.read_file(file_name) {
@@ -500,7 +500,7 @@ impl CompilerHost for CompilerHostConcrete {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        _source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ) {
         if let Some(write_file_override) = self.maybe_write_file_override() {
             write_file_override.write_file(
@@ -527,7 +527,7 @@ impl CompilerHost for CompilerHostConcrete {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        _source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ) {
         // performance.mark("beforeIOWrite");
         match write_file_ensuring_directories(
@@ -645,7 +645,7 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
                 ScriptTarget,
                 Option<&mut dyn FnMut(&str)>,
                 Option<bool>,
-            ) -> Option<Rc<Node>>,
+            ) -> Option<Gc<Node>>,
         >,
     >,
 ) /*-> */
@@ -689,7 +689,7 @@ struct ChangeCompilerHostLikeToUseCacheOverrider {
                 ScriptTarget,
                 Option<&mut dyn FnMut(&str)>,
                 Option<bool>,
-            ) -> Option<Rc<Node>>,
+            ) -> Option<Gc<Node>>,
         >,
     >,
     read_file_cache: GcCell<HashMap<String, Option<String>>>,
@@ -710,7 +710,7 @@ impl ChangeCompilerHostLikeToUseCacheOverrider {
                     ScriptTarget,
                     Option<&mut dyn FnMut(&str)>,
                     Option<bool>,
-                ) -> Option<Rc<Node>>,
+                ) -> Option<Gc<Node>>,
             >,
         >,
     ) -> Self {
@@ -788,7 +788,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ) {
         let key = (self.to_path)(file_name);
         self.file_exists_cache.borrow_mut().remove(&*key);

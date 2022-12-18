@@ -34,54 +34,54 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
         base_factory: &TBaseNodeFactory,
         binary_operator: SyntaxKind,
         left_side: &Node, /*Expression*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn parenthesize_right_side_of_binary(
         &self,
         base_factory: &TBaseNodeFactory,
         binary_operator: SyntaxKind,
-        left_side: Option<Rc<Node /*Expression*/>>,
+        left_side: Option<Gc<Node /*Expression*/>>,
         right_side: &Node, /*Expression*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn parenthesize_expression_of_computed_property_name(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn parenthesize_condition_of_conditional_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         condition: &Node, /*Expression*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn parenthesize_branch_of_conditional_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         branch: &Node, /*Expression*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn parenthesize_expression_of_export_default(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn parenthesize_expression_of_new(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
-    ) -> Rc<Node /*LeftHandSideExpression*/>;
+    ) -> Gc<Node /*LeftHandSideExpression*/>;
     fn parenthesize_left_side_of_access(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
-    ) -> Rc<Node /*LeftHandSideExpression*/>;
+    ) -> Gc<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_postfix_unary(
         &self,
         base_factory: &TBaseNodeFactory,
         operand: &Node, /*Expression*/
-    ) -> Rc<Node /*LeftHandSideExpression*/>;
+    ) -> Gc<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_prefix_unary(
         &self,
         base_factory: &TBaseNodeFactory,
         operand: &Node, /*Expression*/
-    ) -> Rc<Node /*UnaryExpression*/>;
+    ) -> Gc<Node /*UnaryExpression*/>;
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -91,32 +91,32 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
         &self,
         base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn parenthesize_expression_of_expression_statement(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn parenthesize_concise_body_of_arrow_function(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: &Node, /*Expression | ConciseBody*/
-    ) -> Rc<Node /*Expression | ConciseBody*/>;
+    ) -> Gc<Node /*Expression | ConciseBody*/>;
     fn parenthesize_member_of_conditional_type(
         &self,
         base_factory: &TBaseNodeFactory,
         member: &Node, /*TypeNode*/
-    ) -> Rc<Node /*TypeNode*/>;
+    ) -> Gc<Node /*TypeNode*/>;
     fn parenthesize_member_of_element_type(
         &self,
         base_factory: &TBaseNodeFactory,
         member: &Node, /*TypeNode*/
-    ) -> Rc<Node /*TypeNode*/>;
+    ) -> Gc<Node /*TypeNode*/>;
     fn parenthesize_element_type_of_array_type(
         &self,
         base_factory: &TBaseNodeFactory,
         member: &Node, /*TypeNode*/
-    ) -> Rc<Node /*TypeNode*/>;
+    ) -> Gc<Node /*TypeNode*/>;
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -135,42 +135,42 @@ pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ConciseBody*/
         multi_line: Option<bool>,
-    ) -> Rc<Node /*Block*/>;
+    ) -> Gc<Node /*Block*/>;
     fn convert_to_function_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*FunctionDeclaration*/
-    ) -> Rc<Node /*FunctionExpression*/>;
+    ) -> Gc<Node /*FunctionExpression*/>;
     fn convert_to_array_assignment_element(
         &self,
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ArrayBindingOrAssignmentElement*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
     fn convert_to_object_assignment_element(
         &self,
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
-    ) -> Rc<Node /*ObjectLiteralElementLike*/>;
+    ) -> Gc<Node /*ObjectLiteralElementLike*/>;
     fn convert_to_assignment_pattern(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentPattern*/
-    ) -> Rc<Node /*AssignmentPattern*/>;
+    ) -> Gc<Node /*AssignmentPattern*/>;
     fn convert_to_object_assignment_pattern(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ObjectBindingOrAssignmentPattern*/
-    ) -> Rc<Node /*ObjectLiteralExpression*/>;
+    ) -> Gc<Node /*ObjectLiteralExpression*/>;
     fn convert_to_array_assignment_pattern(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ArrayBindingOrAssignmentPattern*/
-    ) -> Rc<Node /*ArrayLiteralExpression*/>;
+    ) -> Gc<Node /*ArrayLiteralExpression*/>;
     fn convert_to_assignment_element_target(
         &self,
         base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentElementTarget*/
-    ) -> Rc<Node /*Expression*/>;
+    ) -> Gc<Node /*Expression*/>;
 }
 
 #[derive(Trace, Finalize)]
@@ -191,7 +191,7 @@ bitflags! {
 pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
     fn factory(&self) -> Rc<NodeFactory<TBaseNodeFactory>>;
 
-    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
+    fn get_compiler_options(&self) -> Gc<CompilerOptions>;
 
     fn start_lexical_environment(&self);
 
@@ -202,7 +202,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
 
     fn resume_lexical_environment(&self);
 
-    fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>>;
+    fn end_lexical_environment(&self) -> Option<Vec<Gc<Node /*Statement*/>>>;
 
     fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/);
 
@@ -210,7 +210,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
 
     fn start_block_scope(&self);
 
-    fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>>;
+    fn end_block_scope(&self) -> Option<Vec<Gc<Node /*Statement*/>>>;
 
     fn add_block_scoped_variable(&self, node: &Node /*Identifier*/);
 
@@ -230,7 +230,7 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 
     fn is_substitution_enabled(&self, node: &Node) -> bool;
 
-    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node>;
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
 
     fn enable_emit_notification(&self, kind: SyntaxKind);
 
@@ -242,11 +242,11 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 }
 
 pub trait TransformationResult {
-    fn transformed(&self) -> Vec<Rc<Node>>;
+    fn transformed(&self) -> Vec<Gc<Node>>;
 
     fn diagnostics(&self) -> Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>;
 
-    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node>;
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
 
     fn emit_node_with_notification(
         &self,
@@ -262,7 +262,7 @@ pub trait TransformationResult {
 
 pub type TransformerFactory = Rc<dyn Fn(Rc<dyn TransformationContext>) -> Transformer>;
 
-// pub type Transformer = Rc<dyn FnMut(&Node) -> Rc<Node>>;
-pub type Transformer = Rc<dyn Fn(&Node) -> Rc<Node>>;
+// pub type Transformer = Rc<dyn FnMut(&Node) -> Gc<Node>>;
+pub type Transformer = Rc<dyn Fn(&Node) -> Gc<Node>>;
 
-pub type VisitResult = Option<Vec<Rc<Node>>>;
+pub type VisitResult = Option<Vec<Gc<Node>>>;

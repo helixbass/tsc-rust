@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
@@ -62,9 +63,9 @@ impl TypeChecker {
 
     pub(super) fn get_constructor_defined_this_assignment_types(
         &self,
-        types: &[Rc<Type>],
-        declarations: &[Rc<Node /*Declaration*/>],
-    ) -> Option<Vec<Rc<Type>>> {
+        types: &[Gc<Type>],
+        declarations: &[Gc<Node /*Declaration*/>],
+    ) -> Option<Vec<Gc<Type>>> {
         Debug_.assert(types.len() == declarations.len(), None);
         Some(types.iter().enumerate().filter(|(i, _)| {
             let declaration = &declarations[*i];
@@ -84,7 +85,7 @@ impl TypeChecker {
         element: &Node, /*BindingElement*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let element_as_binding_element = element.as_binding_element();
         if element_as_binding_element.maybe_initializer().is_some() {
             let contextual_type = if is_binding_pattern(Some(element_as_binding_element.name())) {
@@ -129,14 +130,14 @@ impl TypeChecker {
         pattern: &Node, /*ObjectBindingPattern*/
         include_pattern_in_type: bool,
         report_errors: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let mut members = create_symbol_table(None);
         let mut string_index_info: Option<Rc<IndexInfo>> = None;
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
         for_each(
             &pattern.as_object_binding_pattern().elements,
-            |e: &Rc<Node>, _| {
+            |e: &Gc<Node>, _| {
                 let e_as_binding_element = e.as_binding_element();
                 let name = e_as_binding_element
                     .property_name
@@ -164,7 +165,7 @@ impl TypeChecker {
                     } else {
                         SymbolFlags::None
                     };
-                let symbol: Rc<Symbol> = self.create_symbol(flags, text.into_owned(), None).into();
+                let symbol: Gc<Symbol> = self.create_symbol(flags, text.into_owned(), None).into();
                 symbol
                     .as_transient_symbol()
                     .symbol_links()
@@ -210,7 +211,7 @@ impl TypeChecker {
         pattern: &Node, /*BindingPattern*/
         include_pattern_in_type: bool,
         report_errors: bool,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let elements = pattern.as_has_elements().elements();
         let last_element = last_or_undefined(&**elements);
         let rest_element = last_element.filter(|last_element| {
@@ -227,7 +228,7 @@ impl TypeChecker {
                 self.any_array_type()
             };
         }
-        let element_types = map(elements, |e: &Rc<Node>, _| {
+        let element_types = map(elements, |e: &Gc<Node>, _| {
             if is_omitted_expression(e) {
                 self.any_type()
             } else {
@@ -240,7 +241,7 @@ impl TypeChecker {
         });
         let min_length: usize = (find_last_index_returns_isize(
             &**elements,
-            |e: &Rc<Node>, _| {
+            |e: &Gc<Node>, _| {
                 !(matches!(rest_element.as_ref(), Some(rest_element) if Rc::ptr_eq(e, rest_element))
                     || is_omitted_expression(e)
                     || self.has_default_value(e))
@@ -249,7 +250,7 @@ impl TypeChecker {
         ) + 1)
             .try_into()
             .unwrap();
-        let element_flags = map(elements, |e: &Rc<Node>, i| {
+        let element_flags = map(elements, |e: &Gc<Node>, i| {
             if matches!(rest_element.as_ref(), Some(rest_element) if Rc::ptr_eq(e, rest_element)) {
                 ElementFlags::Rest
             } else if i >= min_length {
@@ -258,7 +259,7 @@ impl TypeChecker {
                 ElementFlags::Required
             }
         });
-        let mut result: Rc<Type> =
+        let mut result: Gc<Type> =
             self.create_tuple_type(&element_types, Some(&element_flags), None, None);
         if include_pattern_in_type {
             result = self.clone_type_reference(&result);
@@ -276,7 +277,7 @@ impl TypeChecker {
         pattern: &Node, /*BindingPattern*/
         include_pattern_in_type: Option<bool>,
         report_errors: Option<bool>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let include_pattern_in_type = include_pattern_in_type.unwrap_or(false);
         let report_errors = report_errors.unwrap_or(false);
         if pattern.kind() == SyntaxKind::ObjectBindingPattern {
@@ -298,7 +299,7 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
         report_errors: Option<bool>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         self.widen_type_for_variable_like_declaration(
             self.get_type_for_variable_like_declaration(declaration, true),
             declaration,
@@ -320,7 +321,7 @@ impl TypeChecker {
         type_: Option<TType>,
         declaration: &Node,
         report_errors: Option<bool>,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let report_errors = report_errors.unwrap_or(false);
         if let Some(type_) = type_ {
             let mut type_ = type_.borrow().type_wrapper();
@@ -382,7 +383,7 @@ impl TypeChecker {
     pub(super) fn try_get_type_from_effective_type_node(
         &self,
         declaration: &Node, /*Declaration*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let type_node = get_effective_type_annotation_node(declaration);
         type_node.map(|type_node| self.get_type_from_type_node_(&type_node))
     }
@@ -390,7 +391,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_variable_or_parameter_or_property(
         &self,
         symbol: &Symbol,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         let links_type_is_none = { (*links).borrow().type_.is_none() };
         if links_type_is_none {
@@ -407,7 +408,7 @@ impl TypeChecker {
     pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
         &self,
         symbol: &Symbol,
-    ) -> Rc<Type> {
+    ) -> Gc<Type> {
         if symbol.flags().intersects(SymbolFlags::Prototype) {
             return self.get_type_of_prototype_property(symbol);
         }
@@ -421,7 +422,7 @@ impl TypeChecker {
                         &get_source_file_of_node(Some(&*symbol_value_declaration)).unwrap(),
                     )
                     .unwrap();
-                let result: Rc<Symbol> = self
+                let result: Gc<Symbol> = self
                     .create_symbol(file_symbol.flags(), "exports".to_owned(), None)
                     .into();
                 result.set_declarations(
@@ -509,7 +510,7 @@ impl TypeChecker {
             }
             return self.report_circularity_error(symbol);
         }
-        let type_: Rc<Type>;
+        let type_: Gc<Type>;
         if declaration.kind() == SyntaxKind::ExportAssignment {
             type_ = self.widen_type_for_variable_like_declaration(
                 Some(
@@ -626,7 +627,7 @@ impl TypeChecker {
     pub(super) fn get_annotated_accessor_type_node<TAccessor: Borrow<Node>>(
         &self,
         accessor: Option<TAccessor /*AccessorDeclaration*/>,
-    ) -> Option<Rc<Node /*TypeNode*/>> {
+    ) -> Option<Gc<Node /*TypeNode*/>> {
         let accessor = accessor?;
         let accessor = accessor.borrow();
         if accessor.kind() == SyntaxKind::GetAccessor {
@@ -641,7 +642,7 @@ impl TypeChecker {
     pub(super) fn get_annotated_accessor_type<TAccessor: Borrow<Node>>(
         &self,
         accessor: Option<TAccessor /*AccessorDeclaration*/>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let node = self.get_annotated_accessor_type_node(accessor)?;
         Some(self.get_type_from_type_node_(&node))
     }
@@ -649,7 +650,7 @@ impl TypeChecker {
     pub(super) fn get_annotated_accessor_this_parameter(
         &self,
         accessor: &Node, /*AccessorDeclaration*/
-    ) -> Option<Rc<Symbol>> {
+    ) -> Option<Gc<Symbol>> {
         let parameter = self.get_accessor_this_parameter(accessor)?;
         parameter.maybe_symbol()
     }
@@ -657,11 +658,11 @@ impl TypeChecker {
     pub(super) fn get_this_type_of_declaration(
         &self,
         declaration: &Node, /*SignatureDeclaration*/
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         self.get_this_type_of_signature(&self.get_signature_from_declaration_(declaration))
     }
 
-    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> Gc<Type> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_type) = (*links).borrow().type_.clone() {
             return links_type;
@@ -675,7 +676,7 @@ impl TypeChecker {
         ret
     }
 
-    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> Option<Rc<Type>> {
+    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> Option<Gc<Type>> {
         let links = self.get_symbol_links(symbol);
         if let Some(links_write_type) = (*links).borrow().write_type.clone() {
             return Some(links_write_type);
@@ -689,7 +690,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         writing: Option<bool>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         if !self.push_type_resolution(
             &symbol.symbol_wrapper().into(),
             TypeSystemPropertyName::Type,
@@ -719,7 +720,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         writing: Option<bool>,
-    ) -> Option<Rc<Type>> {
+    ) -> Option<Gc<Type>> {
         let writing = writing.unwrap_or(false);
         let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
         let setter = get_declaration_of_kind(symbol, SyntaxKind::SetAccessor);
@@ -786,7 +787,7 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn instantiate_type_if_needed(&self, type_: &Type, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn instantiate_type_if_needed(&self, type_: &Type, symbol: &Symbol) -> Gc<Type> {
         if get_check_flags(symbol).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
             return self.instantiate_type(type_, (*links).borrow().mapper.clone());

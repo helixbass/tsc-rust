@@ -162,7 +162,7 @@ pub trait ModuleResolutionHostOverrider: Trace + Finalize {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     );
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
         None
@@ -298,7 +298,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         language_version: ScriptTarget,
         on_error: Option<&mut dyn FnMut(&str)>,
         should_create_new_source_file: Option<bool>,
-    ) -> Option<Rc<Node /*SourceFile*/>>;
+    ) -> Option<Gc<Node /*SourceFile*/>>;
     fn get_source_file_by_path(
         &self,
         file_name: &str,
@@ -306,7 +306,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         language_version: ScriptTarget,
         on_error: Option<&mut dyn FnMut(&str)>,
         should_create_new_source_file: Option<bool>,
-    ) -> Option<Rc<Node /*SourceFile*/>> {
+    ) -> Option<Gc<Node /*SourceFile*/>> {
         None
     }
     fn get_cancellation_token(&self) -> Option<Rc<dyn CancellationToken>> {
@@ -322,7 +322,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     );
     fn write_file_non_overridden(
         &self,
@@ -330,7 +330,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     );
     fn is_write_file_supported(&self) -> bool;
     fn set_overriding_write_file(
@@ -562,8 +562,8 @@ impl SourceMapSource {
     }
 }
 
-impl From<Rc<Node /*SourceFile*/>> for SourceMapSource {
-    fn from(value: Rc<Node>) -> Self {
+impl From<Gc<Node /*SourceFile*/>> for SourceMapSource {
+    fn from(value: Gc<Node>) -> Self {
         Self::SourceFile(value)
     }
 }
@@ -849,7 +849,7 @@ pub enum EmitHint {
 }
 
 pub trait SourceFileMayBeEmittedHost {
-    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
+    fn get_compiler_options(&self) -> Gc<CompilerOptions>;
     fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool;
     fn get_resolved_project_reference_to_redirect(
         &self,
@@ -861,11 +861,11 @@ pub trait SourceFileMayBeEmittedHost {
 pub trait EmitHost:
     ScriptReferenceHost + ModuleSpecifierResolutionHost + SourceFileMayBeEmittedHost
 {
-    fn get_source_files(&self) -> &[Rc<Node /*SourceFile*/>];
+    fn get_source_files(&self) -> &[Gc<Node /*SourceFile*/>];
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_current_directory(&self) -> String;
 
-    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Gc<Node /*SourceFile*/>>;
 
     fn get_common_source_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
@@ -873,7 +873,7 @@ pub trait EmitHost:
 
     fn is_emit_blocked(&self, emit_file_name: &str) -> bool;
 
-    fn get_prepend_nodes(&self) -> Vec<Rc<Node /*InputFiles | UnparsedSource*/>>;
+    fn get_prepend_nodes(&self) -> Vec<Gc<Node /*InputFiles | UnparsedSource*/>>;
 
     fn write_file(
         &self,
@@ -881,14 +881,14 @@ pub trait EmitHost:
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&dyn FnMut(&str)>,
-        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        source_files: Option<&[Gc<Node /*SourceFile*/>]>,
     ); // WriteFileCallback
     fn get_program_build_info(&self) -> Option<ProgramBuildInfo>;
     fn get_source_file_from_reference(
         &self,
         referencing_file: &Node, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
-    ) -> Option<Rc<Node /*SourceFile*/>>;
+    ) -> Option<Gc<Node /*SourceFile*/>>;
     fn redirect_targets_map(&self) -> &RedirectTargetsMap;
     fn as_source_file_may_be_emitted_host(&self) -> &dyn SourceFileMayBeEmittedHost;
 }

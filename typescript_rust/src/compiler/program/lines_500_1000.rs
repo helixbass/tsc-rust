@@ -53,7 +53,7 @@ pub struct LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
 
 impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
     pub fn new(
-        options: Rc<CompilerOptions>,
+        options: Gc<CompilerOptions>,
         host: Rc<dyn CompilerHost>,
         type_reference_directive_resolution_cache: Option<
             Rc<TypeReferenceDirectiveResolutionCache>,
@@ -184,7 +184,7 @@ pub struct LoadWithModeAwareCacheLoaderResolveModuleName {
 
 impl LoadWithModeAwareCacheLoaderResolveModuleName {
     pub fn new(
-        options: Rc<CompilerOptions>,
+        options: Gc<CompilerOptions>,
         host: Rc<dyn CompilerHost>,
         module_resolution_cache: Option<Rc<ModuleResolutionCache>>,
     ) -> Self {
@@ -388,7 +388,7 @@ pub(crate) fn is_referenced_file(reason: Option<&FileIncludeReason>) -> bool {
 
 #[derive(Debug)]
 pub(crate) struct ReferenceFileLocation {
-    pub file: Rc<Node /*SourceFile*/>,
+    pub file: Gc<Node /*SourceFile*/>,
     pub pos: isize,
     pub end: isize,
     pub package_id: Option<PackageId>,
@@ -396,7 +396,7 @@ pub(crate) struct ReferenceFileLocation {
 
 #[derive(Debug)]
 pub(crate) struct SyntheticReferenceFileLocation {
-    pub file: Rc<Node /*SourceFile*/>,
+    pub file: Gc<Node /*SourceFile*/>,
     pub package_id: Option<PackageId>,
     pub text: String,
 }
@@ -424,7 +424,7 @@ impl ReferenceFileLocationOrSyntheticReferenceFileLocation {
         }
     }
 
-    pub fn file(&self) -> Rc<Node> {
+    pub fn file(&self) -> Gc<Node> {
         match self {
             Self::ReferenceFileLocation(location) => location.file.clone(),
             Self::SyntheticReferenceFileLocation(location) => location.file.clone(),
@@ -457,7 +457,7 @@ impl From<SyntheticReferenceFileLocation>
 }
 
 pub(crate) fn get_referenced_file_location<
-    TGetSourceFileByPath: FnMut(&Path) -> Option<Rc<Node /*SourceFile*/>>,
+    TGetSourceFileByPath: FnMut(&Path) -> Option<Gc<Node /*SourceFile*/>>,
 >(
     mut get_source_file_by_path: TGetSourceFileByPath,
     ref_: &ReferencedFile,
@@ -632,7 +632,7 @@ fn should_program_create_new_source_files(
     })
 }
 
-pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program> {
+pub fn create_program(root_names_or_options: CreateProgramOptions) -> Gc<Program> {
     let create_program_options = root_names_or_options;
     let program = Program::new(create_program_options);
     program.create();
@@ -642,8 +642,8 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
 impl Program {
     pub fn new(
         create_program_options: CreateProgramOptions,
-        // options: Rc<CompilerOptions>,
-        // files: Vec<Rc<Node>>,
+        // options: Gc<CompilerOptions>,
+        // files: Vec<Gc<Node>>,
         // current_directory: String,
         // host: Rc<dyn CompilerHost>,
     ) -> Rc<Self> {
@@ -1014,7 +1014,7 @@ impl Program {
                 );
             }
             *self.files.borrow_mut() = Some({
-                let mut files: Vec<Rc<Node>> = stable_sort(
+                let mut files: Vec<Gc<Node>> = stable_sort(
                     self.processing_default_lib_files.borrow().as_ref().unwrap(),
                     |a, b| self.compare_default_lib_files(a, b),
                 )
@@ -1097,11 +1097,11 @@ impl Program {
         // tracing?.pop();
     }
 
-    pub fn set_rc_wrapper(&self, rc_wrapper: Option<Rc<Program>>) {
+    pub fn set_rc_wrapper(&self, rc_wrapper: Option<Gc<Program>>) {
         *self._rc_wrapper.borrow_mut() = rc_wrapper;
     }
 
-    pub fn rc_wrapper(&self) -> Rc<Program> {
+    pub fn rc_wrapper(&self) -> Gc<Program> {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
@@ -1119,7 +1119,7 @@ impl Program {
         self.project_references.borrow()
     }
 
-    pub(super) fn files(&self) -> Ref<Vec<Rc<Node>>> {
+    pub(super) fn files(&self) -> Ref<Vec<Gc<Node>>> {
         Ref::map(self.files.borrow(), |files| files.as_ref().unwrap())
     }
 
@@ -1177,11 +1177,11 @@ impl Program {
         self.source_files_found_searching_node_modules.borrow_mut()
     }
 
-    pub(super) fn maybe_old_program(&self) -> Option<Rc<Program>> {
+    pub(super) fn maybe_old_program(&self) -> Option<Gc<Program>> {
         self.old_program.borrow().clone()
     }
 
-    pub(super) fn set_old_program(&self, old_program: Option<Rc<Program>>) {
+    pub(super) fn set_old_program(&self, old_program: Option<Gc<Program>>) {
         *self.old_program.borrow_mut() = old_program;
     }
 
@@ -1270,7 +1270,7 @@ impl Program {
         )
     }
 
-    pub(super) fn maybe_compiler_options_object_literal_syntax(&self) -> Option<Option<Rc<Node>>> {
+    pub(super) fn maybe_compiler_options_object_literal_syntax(&self) -> Option<Option<Gc<Node>>> {
         self._compiler_options_object_literal_syntax
             .borrow()
             .clone()
@@ -1278,7 +1278,7 @@ impl Program {
 
     pub(super) fn set_compiler_options_object_literal_syntax(
         &self,
-        compiler_options_object_literal_syntax: Option<Option<Rc<Node>>>,
+        compiler_options_object_literal_syntax: Option<Option<Gc<Node>>>,
     ) {
         *self._compiler_options_object_literal_syntax.borrow_mut() =
             compiler_options_object_literal_syntax;
@@ -1316,7 +1316,7 @@ impl Program {
 
     pub(super) fn package_id_to_source_file(
         &self,
-    ) -> RefMut<HashMap<String, Rc<Node /*SourceFile*/>>> {
+    ) -> RefMut<HashMap<String, Gc<Node /*SourceFile*/>>> {
         RefMut::map(
             self.package_id_to_source_file.borrow_mut(),
             |package_id_to_source_file| package_id_to_source_file.as_mut().unwrap(),
@@ -1360,7 +1360,7 @@ impl Program {
         self.missing_file_paths.borrow_mut()
     }
 
-    pub(super) fn files_by_name_ignore_case(&self) -> RefMut<HashMap<String, Rc<Node>>> {
+    pub(super) fn files_by_name_ignore_case(&self) -> RefMut<HashMap<String, Gc<Node>>> {
         RefMut::map(
             self.files_by_name_ignore_case.borrow_mut(),
             |files_by_name_ignore_case| files_by_name_ignore_case.as_mut().unwrap(),
@@ -1422,7 +1422,7 @@ impl Program {
 
 #[derive(Clone)]
 pub enum FilesByNameValue {
-    SourceFile(Rc<Node /*SourceFile*/>),
+    SourceFile(Gc<Node /*SourceFile*/>),
     False,
     Undefined,
 }
@@ -1445,7 +1445,7 @@ struct ActualResolveModuleNamesWorkerHost {
 }
 
 impl ActualResolveModuleNamesWorkerHost {
-    pub fn new(host: Rc<dyn CompilerHost>, options: Rc<CompilerOptions>) -> Self {
+    pub fn new(host: Rc<dyn CompilerHost>, options: Gc<CompilerOptions>) -> Self {
         Self { host, options }
     }
 }
@@ -1534,7 +1534,7 @@ struct ActualResolveTypeReferenceDirectiveNamesWorkerHost {
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerHost {
-    pub fn new(host: Rc<dyn CompilerHost>, options: Rc<CompilerOptions>) -> Self {
+    pub fn new(host: Rc<dyn CompilerHost>, options: Gc<CompilerOptions>) -> Self {
         Self { host, options }
     }
 }
@@ -1594,15 +1594,15 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
 }
 
 impl ScriptReferenceHost for Program {
-    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         self.options.clone()
     }
 
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
+    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
         self.get_source_file_(file_name)
     }
 
-    fn get_source_file_by_path(&self, path: &Path) -> Option<Rc<Node /*SourceFile*/>> {
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Gc<Node /*SourceFile*/>> {
         self.files_by_name()
             .get(&**path)
             .and_then(|value| match value {
@@ -1656,15 +1656,15 @@ impl ModuleSpecifierResolutionHost for Program {
 }
 
 impl TypeCheckerHost for Program {
-    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         self.options.clone()
     }
 
-    fn get_source_files(&self) -> Ref<Vec<Rc<Node>>> {
+    fn get_source_files(&self) -> Ref<Vec<Gc<Node>>> {
         self.files()
     }
 
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
+    fn get_source_file(&self, file_name: &str) -> Option<Gc<Node /*SourceFile*/>> {
         self.get_source_file_(file_name)
     }
 
@@ -1687,7 +1687,7 @@ impl TypeCheckerHost for Program {
 impl TypeCheckerHostDebuggable for Program {}
 
 impl SourceFileMayBeEmittedHost for Program {
-    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+    fn get_compiler_options(&self) -> Gc<CompilerOptions> {
         self.get_compiler_options()
     }
 

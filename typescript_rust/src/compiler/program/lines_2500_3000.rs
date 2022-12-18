@@ -1,3 +1,4 @@
+use gc::Gc;
 use regex::Regex;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -29,10 +30,10 @@ use crate::{
 impl Program {
     pub(super) fn collect_module_references(
         &self,
-        imports: &mut Option<Vec<Rc<Node>>>,
+        imports: &mut Option<Vec<Gc<Node>>>,
         file: &Node,
         is_external_module_file: bool,
-        module_augmentations: &mut Option<Vec<Rc<Node>>>,
+        module_augmentations: &mut Option<Vec<Gc<Node>>>,
         ambient_modules: &mut Option<Vec<String>>,
         node: &Node, /*Statement*/
         in_ambient_module: bool,
@@ -105,7 +106,7 @@ impl Program {
     pub(super) fn collect_dynamic_import_or_require_calls(
         &self,
         is_java_script_file: bool,
-        imports: &mut Option<Vec<Rc<Node>>>,
+        imports: &mut Option<Vec<Gc<Node>>>,
         file: &Node, /*SourceFile*/
     ) {
         lazy_static! {
@@ -160,11 +161,11 @@ impl Program {
         is_java_script_file: bool,
         source_file: &Node, /*SourceFile*/
         position: isize,
-    ) -> Rc<Node> {
+    ) -> Gc<Node> {
         let mut current = source_file.node_wrapper();
         loop {
             let child = if is_java_script_file && has_jsdoc_nodes(&current) {
-                maybe_for_each(current.maybe_js_doc().as_ref(), |child: &Rc<Node>, _| {
+                maybe_for_each(current.maybe_js_doc().as_ref(), |child: &Gc<Node>, _| {
                     self.get_containing_child(position, child)
                 })
             } else {
@@ -174,7 +175,7 @@ impl Program {
                 for_each_child_returns(
                     &current,
                     |child: &Node| self.get_containing_child(position, child),
-                    Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+                    Option::<fn(&NodeArray) -> Option<Gc<Node>>>::None,
                 )
             });
             if child.is_none() {
@@ -184,7 +185,7 @@ impl Program {
         }
     }
 
-    pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Rc<Node>> {
+    pub(super) fn get_containing_child(&self, position: isize, child: &Node) -> Option<Gc<Node>> {
         if child.pos() <= position
             && (position < child.end()
                 || position == child.end() && child.kind() == SyntaxKind::EndOfFileToken)
@@ -195,7 +196,7 @@ impl Program {
     }
 
     pub(super) fn get_source_file_from_reference_worker<
-        TGetSourceFile: FnMut(&str) -> Option<Rc<Node>>,
+        TGetSourceFile: FnMut(&str) -> Option<Gc<Node>>,
         TFail: FnMut(&'static DiagnosticMessage, Option<Vec<String>>),
     >(
         &self,
@@ -203,7 +204,7 @@ impl Program {
         mut get_source_file: TGetSourceFile,
         mut fail: Option<TFail>,
         reason: Option<&FileIncludeReason>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         if has_extension(file_name) {
             let canonical_file_name = self.host().get_canonical_file_name(file_name);
             if self.options.allow_non_ts_extensions != Some(true)
@@ -356,7 +357,7 @@ impl Program {
         path: &Path,
         resolved_path: &Path,
         original_file_name: &str,
-    ) -> Rc<Node /*SourceFile*/> {
+    ) -> Gc<Node /*SourceFile*/> {
         unimplemented!()
     }
 
@@ -367,7 +368,7 @@ impl Program {
         ignore_no_default_lib: bool,
         reason: &FileIncludeReason,
         package_id: Option<&PackageId>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         // tracing?.push(tracing.Phase.Program, "findSourceFile", {
         //     fileName,
         //     isDefaultLib: isDefaultLib || undefined,
@@ -391,7 +392,7 @@ impl Program {
         ignore_no_default_lib: bool,
         reason: &FileIncludeReason,
         package_id: Option<&PackageId>,
-    ) -> Option<Rc<Node>> {
+    ) -> Option<Gc<Node>> {
         let path = self.to_path(file_name);
         if self.use_source_of_project_reference_redirect() {
             let mut source = self.get_source_of_project_reference_redirect(&path);
