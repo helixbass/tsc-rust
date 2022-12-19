@@ -151,7 +151,7 @@ impl TypeChecker {
     pub(super) fn get_conditional_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         root: Rc<RefCell<ConditionalRoot>>,
-        mut mapper: Option<Rc<TypeMapper>>,
+        mut mapper: Option<Gc<TypeMapper>>,
         alias_symbol: Option<TAliasSymbol>,
         mut alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
@@ -192,7 +192,7 @@ impl TypeChecker {
             {
                 return self.wildcard_type();
             }
-            let mut combined_mapper: Option<Rc<TypeMapper>> = None;
+            let mut combined_mapper: Option<Gc<TypeMapper>> = None;
             if let Some(root_infer_type_parameters) =
                 (*root).borrow().infer_type_parameters.clone().as_ref()
             {
@@ -364,12 +364,12 @@ impl TypeChecker {
     pub(super) fn can_tail_recurse(
         &self,
         root: &mut Rc<RefCell<ConditionalRoot>>,
-        mapper: &mut Option<Rc<TypeMapper>>,
+        mapper: &mut Option<Gc<TypeMapper>>,
         alias_symbol: &mut Option<Gc<Symbol>>,
         alias_type_arguments: &mut Option<&[Gc<Type>]>,
         tail_count: &mut usize,
         new_type: &Type,
-        new_mapper: Option<Rc<TypeMapper>>,
+        new_mapper: Option<Gc<TypeMapper>>,
     ) -> bool {
         if new_type.flags().intersects(TypeFlags::Conditional) {
             if let Some(new_mapper) = new_mapper {
@@ -518,7 +518,7 @@ impl TypeChecker {
     pub(super) fn get_infer_type_parameters(
         &self,
         node: &Node, /*ConditionalTypeNode*/
-    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+    ) -> Option<Vec<Gc<Type /*TypeParameter*/>>> {
         let mut result: Option<Vec<Gc<Type>>> = None;
         if let Some(node_locals) = node.maybe_locals().clone() {
             (*node_locals)
@@ -1152,7 +1152,7 @@ impl TypeChecker {
             Rc::new(RefCell::new(members)),
             vec![],
             vec![],
-            same_map(&index_infos, |info: &Rc<IndexInfo>, _| {
+            same_map(&index_infos, |info: &Gc<IndexInfo>, _| {
                 self.get_index_info_with_readonly(info, readonly)
             }),
         );

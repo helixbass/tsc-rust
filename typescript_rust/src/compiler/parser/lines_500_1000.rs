@@ -276,9 +276,9 @@ pub struct ParserType {
     pub(super) script_kind: Option<ScriptKind>,
     pub(super) language_variant: Option<LanguageVariant>,
     pub(super) parse_diagnostics:
-        RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+        RefCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) js_doc_diagnostics:
-        RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+        RefCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) syntax_cursor: RefCell<Option<IncrementalParserSyntaxCursor>>,
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
     pub(super) node_count: Cell<Option<usize>>,
@@ -469,21 +469,21 @@ impl ParserType {
         self.language_variant = language_variant;
     }
 
-    pub(super) fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+    pub(super) fn parse_diagnostics(&self) -> RefMut<Vec<Gc<Diagnostic>>> {
         RefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
 
-    pub(super) fn set_parse_diagnostics(&mut self, parse_diagnostics: Option<Vec<Rc<Diagnostic>>>) {
+    pub(super) fn set_parse_diagnostics(&mut self, parse_diagnostics: Option<Vec<Gc<Diagnostic>>>) {
         *self.parse_diagnostics.borrow_mut() = parse_diagnostics;
     }
 
-    pub(super) fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Rc<Diagnostic>>>> {
+    pub(super) fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Gc<Diagnostic>>>> {
         self.js_doc_diagnostics.borrow_mut()
     }
 
-    pub(super) fn js_doc_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+    pub(super) fn js_doc_diagnostics(&self) -> RefMut<Vec<Gc<Diagnostic>>> {
         RefMut::map(self.js_doc_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
@@ -491,7 +491,7 @@ impl ParserType {
 
     pub(super) fn set_js_doc_diagnostics(
         &mut self,
-        js_doc_diagnostics: Option<Vec<Rc<Diagnostic>>>,
+        js_doc_diagnostics: Option<Vec<Gc<Diagnostic>>>,
     ) {
         *self.js_doc_diagnostics.borrow_mut() = js_doc_diagnostics;
     }

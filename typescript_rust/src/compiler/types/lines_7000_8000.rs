@@ -238,13 +238,13 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 
     fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn Fn(EmitHint, &Node));
 
-    fn add_diagnostic(&self, diag: Rc<Diagnostic /*DiagnosticWithLocation*/>);
+    fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>);
 }
 
 pub trait TransformationResult {
     fn transformed(&self) -> Vec<Gc<Node>>;
 
-    fn diagnostics(&self) -> Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>;
+    fn diagnostics(&self) -> Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>;
 
     fn substitute_node(&self, hint: EmitHint, node: &Node) -> Gc<Node>;
 

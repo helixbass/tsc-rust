@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -248,7 +248,7 @@ impl TypeChecker {
         members: Rc<RefCell<SymbolTable>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
-        index_infos: Vec<Rc<IndexInfo>>,
+        index_infos: Vec<Gc<IndexInfo>>,
     ) /*-> BaseObjectType*/
     {
         type_.resolve(
@@ -271,10 +271,10 @@ impl TypeChecker {
     pub(super) fn create_anonymous_type_returning_base_object_type<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,
-        members: Rc<RefCell<SymbolTable>>,
+        members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
-        index_infos: Vec<Rc<IndexInfo>>,
+        index_infos: Vec<Gc<IndexInfo>>,
     ) -> BaseObjectType {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
         self.set_structured_type_members(
@@ -290,10 +290,10 @@ impl TypeChecker {
     pub(super) fn create_anonymous_type<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,
-        members: Rc<RefCell<SymbolTable>>,
+        members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
-        index_infos: Vec<Rc<IndexInfo>>,
+        index_infos: Vec<Gc<IndexInfo>>,
     ) -> Gc<Type> {
         BaseInterfaceType::new(
             self.create_anonymous_type_returning_base_object_type(

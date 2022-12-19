@@ -212,7 +212,7 @@ impl InferTypes {
             );
             let index_types = map(
                 &self.type_checker.get_index_infos_of_type(source),
-                |info: &Rc<IndexInfo>, _| {
+                |info: &Gc<IndexInfo>, _| {
                     if !Rc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
                         info.type_.clone()
                     } else {

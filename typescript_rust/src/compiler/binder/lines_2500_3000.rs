@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -532,7 +532,7 @@ impl BinderType {
             self.file()
                 .as_source_file()
                 .bind_diagnostics_mut()
-                .push(Rc::new(
+                .push(Gc::new(
                     self.create_diagnostic_for_node(
                         node,
                         &Diagnostics::Modifiers_cannot_appear_here,
@@ -554,14 +554,14 @@ impl BinderType {
             self.file()
                 .as_source_file()
                 .bind_diagnostics_mut()
-                .push(Rc::new(
+                .push(Gc::new(
                     self.create_diagnostic_for_node(node, diag, None).into(),
                 ));
         } else {
             let file_symbol = self.file().symbol();
             let mut global_exports = file_symbol.maybe_global_exports();
             if global_exports.is_none() {
-                *global_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
                 self.declare_symbol(
                     &mut global_exports.as_ref().unwrap().borrow_mut(),
                     Some(self.file().symbol()),
@@ -737,7 +737,7 @@ impl BinderType {
         let assigned_expression =
             get_right_most_assigned_expression(&node_as_binary_expression.right);
         if is_empty_object_literal(&assigned_expression)
-            || Rc::ptr_eq(&self.container(), &self.file())
+            || Gc::ptr_eq(&self.container(), &self.file())
                 && is_exports_or_module_exports_or_alias(&self.file(), &assigned_expression)
         {
             return;
@@ -847,7 +847,7 @@ impl BinderType {
                         let mut constructor_symbol_members = constructor_symbol.maybe_members_mut();
                         if constructor_symbol_members.is_none() {
                             *constructor_symbol_members =
-                                Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                                Some(Gc::new(GcCell::new(create_symbol_table(None))));
                         }
                         let mut constructor_symbol_members =
                             constructor_symbol_members.as_ref().unwrap().borrow_mut();

@@ -21,7 +21,7 @@ impl TypeChecker {
         &self,
         iteration_types: &IterationTypes,
         error_node: Option<TErrorNode>,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         if ptr::eq(iteration_types, &*self.no_iteration_types()) {
             return self.no_iteration_types();
         }
@@ -53,7 +53,7 @@ impl TypeChecker {
         type_: &Type,
         use_: IterationUse,
         error_node: Option<TErrorNode>,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         if self.is_type_any(Some(type_)) {
             return self.any_iteration_types();
         }
@@ -142,7 +142,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         self.get_cached_iteration_types(type_, resolver.iterable_cache_key)
     }
 
@@ -150,7 +150,7 @@ impl TypeChecker {
         &self,
         global_type: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         let global_iteration_types = self
             .get_iteration_types_of_iterable_cached(global_type, resolver)
             .unwrap_or_else(|| {
@@ -171,7 +171,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         let mut global_type: Gc<Type>;
         if self.is_reference_to_type(type_, &*{
             let type_ = (resolver.get_global_iterable_type)(self, false);
@@ -255,7 +255,7 @@ impl TypeChecker {
         type_: &Type,
         resolver: &IterationTypesResolver,
         error_node: Option<TErrorNode>,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         let method = self.get_property_of_type_(
             type_,
             &self.get_property_name_for_known_symbol_name(resolver.iterator_symbol_name),
@@ -331,7 +331,7 @@ impl TypeChecker {
         type_: &Type,
         resolver: &IterationTypesResolver,
         error_node: Option<TErrorNode>,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         if self.is_type_any(Some(type_)) {
             return Some(self.any_iteration_types());
         }
@@ -353,7 +353,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         self.get_cached_iteration_types(type_, resolver.iterator_cache_key)
     }
 
@@ -361,7 +361,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         resolver: &IterationTypesResolver,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         let global_type = (resolver.get_global_iterable_iterator_type)(self, false);
         if self.is_reference_to_type(type_, &global_type) {
             let yield_type = self.get_type_arguments(type_)[0].clone();
@@ -441,7 +441,7 @@ impl TypeChecker {
     pub(super) fn get_iteration_types_of_iterator_result(
         &self,
         type_: &Type,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         if self.is_type_any(Some(type_)) {
             return self.any_iteration_types();
         }
@@ -512,7 +512,7 @@ impl TypeChecker {
         resolver: &IterationTypesResolver,
         method_name: &str, /*"next" | "return" | "throw"*/
         error_node: Option<TErrorNode>,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         let method = self.get_property_of_type_(type_, method_name, None);
 
         if method.is_none() && method_name != "next" {
@@ -757,7 +757,7 @@ impl TypeChecker {
         type_: &Type,
         resolver: &IterationTypesResolver,
         error_node: Option<TErrorNode>,
-    ) -> Rc<IterationTypes> {
+    ) -> Gc<IterationTypes> {
         let error_node = error_node.map(|error_node| error_node.borrow().node_wrapper());
         let iteration_types = self.combine_iteration_types(&[
             self.get_iteration_types_of_method(type_, resolver, "next", error_node.as_deref()),
@@ -788,7 +788,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         is_async_generator: bool,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         if self.is_type_any(Some(type_)) {
             return Some(self.any_iteration_types());
         }

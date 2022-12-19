@@ -579,7 +579,7 @@ impl TypeChecker {
     pub(super) fn create_evolving_array_type(
         &self,
         element_type: &Type,
-    ) -> Rc<Type /*EvolvingArrayType*/> {
+    ) -> Gc<Type /*EvolvingArrayType*/> {
         let result = self.create_object_type(ObjectFlags::EvolvingArray, Option::<&Symbol>::None);
         EvolvingArrayType::new(result, element_type.type_wrapper()).into()
     }
@@ -587,7 +587,7 @@ impl TypeChecker {
     pub(super) fn get_evolving_array_type(
         &self,
         element_type: &Type,
-    ) -> Rc<Type /*EvolvingArrayType*/> {
+    ) -> Gc<Type /*EvolvingArrayType*/> {
         self.evolving_array_types()
             .entry(element_type.id())
             .or_insert_with(|| self.create_evolving_array_type(element_type))
@@ -598,7 +598,7 @@ impl TypeChecker {
         &self,
         evolving_array_type: &Type, /*EvolvingArrayType*/
         node: &Node,                /*Expression*/
-    ) -> Rc<Type /*EvolvingArrayType*/> {
+    ) -> Gc<Type /*EvolvingArrayType*/> {
         let element_type = self.get_regular_type_of_object_literal(
             &self.get_base_type_of_literal_type(&self.get_context_free_type_of_expression(node)),
         );
@@ -1026,7 +1026,7 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn is_reachable_flow_node(&self, flow: Rc<FlowNode>) -> bool {
+    pub(super) fn is_reachable_flow_node(&self, flow: Gc<FlowNode>) -> bool {
         let result = self.is_reachable_flow_node_worker(flow.clone(), false);
         *self.maybe_last_flow_node() = Some(flow);
         self.set_last_flow_node_reachable(result);
@@ -1050,7 +1050,7 @@ impl TypeChecker {
 
     pub(super) fn is_reachable_flow_node_worker(
         &self,
-        mut flow: Rc<FlowNode>,
+        mut flow: Gc<FlowNode>,
         mut no_cache_check: bool,
     ) -> bool {
         loop {
@@ -1112,7 +1112,7 @@ impl TypeChecker {
             } else if flags.intersects(FlowFlags::BranchLabel) {
                 return some(
                     flow.as_flow_label().maybe_antecedents().as_deref(),
-                    Some(|f: &Rc<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
+                    Some(|f: &Gc<FlowNode>| self.is_reachable_flow_node_worker(f.clone(), false)),
                 );
             } else if flags.intersects(FlowFlags::LoopLabel) {
                 let antecedents = flow.as_flow_label().maybe_antecedents().clone();

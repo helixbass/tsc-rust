@@ -231,7 +231,7 @@ impl TypeChecker {
     pub(super) fn get_type_arguments_from_nodes(
         &self,
         type_argument_nodes: &[Gc<Node /*TypeNode*/>],
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        type_parameters: &[Gc<Type /*TypeParameter*/>],
         is_js: bool,
     ) -> Vec<Gc<Type>> {
         let mut type_arguments = type_argument_nodes
@@ -253,7 +253,7 @@ impl TypeChecker {
     pub(super) fn infer_signature_instantiation_for_overload_failure(
         &self,
         node: &Node, /*CallLikeExpression*/
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        type_parameters: &[Gc<Type /*TypeParameter*/>],
         candidate: Gc<Signature>,
         args: &[Gc<Node /*Expression*/>],
     ) -> Gc<Signature> {

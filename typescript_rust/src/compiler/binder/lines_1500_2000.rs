@@ -135,8 +135,8 @@ impl BinderType {
     pub(super) fn bind_optional_expression(
         &self,
         node: &Node, /*expression*/
-        true_target: Rc<FlowNode /*FlowLabel*/>,
-        false_target: Rc<FlowNode /*FlowLabel*/>,
+        true_target: Gc<FlowNode /*FlowLabel*/>,
+        false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
         self.do_with_conditional_branches(
             |node| self.bind(Some(node)),
@@ -195,8 +195,8 @@ impl BinderType {
     pub(super) fn bind_optional_chain(
         &self,
         node: &Node, /*OptionalChain*/
-        true_target: Rc<FlowNode /*FlowLabel*/>,
-        false_target: Rc<FlowNode /*FlowLabel*/>,
+        true_target: Gc<FlowNode /*FlowLabel*/>,
+        false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
         let pre_chain_label = if is_optional_chain_root(node) {
             Some(self.create_branch_label())
@@ -620,7 +620,7 @@ impl BinderType {
                     pattern_ambient_modules.as_mut().unwrap(),
                     match pattern {
                         Some(StringOrPattern::Pattern(pattern)) => {
-                            Some(Rc::new(PatternAmbientModule::new(pattern, symbol)))
+                            Some(Gc::new(PatternAmbientModule::new(pattern, symbol)))
                         }
                         _ => None,
                     },
@@ -671,7 +671,7 @@ pub(crate) struct BindBinaryExpressionFlowStateMachine {
 }
 
 impl BindBinaryExpressionFlowStateMachine {
-    pub fn new(binder: Rc<BinderType>) -> Self {
+    pub fn new(binder: Gc<BinderType>) -> Self {
         Self { binder }
     }
 

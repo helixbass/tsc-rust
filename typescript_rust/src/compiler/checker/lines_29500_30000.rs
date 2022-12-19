@@ -365,7 +365,7 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> Rc<Diagnostic /*DiagnosticWithLocation*/> {
+    ) -> Gc<Diagnostic /*DiagnosticWithLocation*/> {
         if is_call_expression(node) {
             let GetDiagnosticSpanForCallNodeReturn {
                 source_file,
@@ -441,7 +441,7 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         signatures: &[Gc<Signature>],
         args: &[Gc<Node /*Expression*/>],
-    ) -> Rc<Diagnostic> {
+    ) -> Gc<Diagnostic> {
         let spread_index = self.get_spread_argument_index(args);
         if let Some(spread_index) = spread_index {
             return Rc::new(
@@ -608,7 +608,7 @@ impl TypeChecker {
         node: &Node, /*CallLikeExpression*/
         signatures: &[Gc<Signature>],
         type_arguments: &NodeArray, /*<TypeNode>*/
-    ) -> Rc<Diagnostic> {
+    ) -> Gc<Diagnostic> {
         let arg_count = type_arguments.len();
         if signatures.len() == 1 {
             let sig = &signatures[0];
@@ -856,7 +856,7 @@ impl TypeChecker {
                     }
                 } else {
                     let mut all_diagnostics: Vec<
-                        Vec<Rc<Diagnostic /*DiagnosticRelatedInformation*/>>,
+                        Vec<Gc<Diagnostic /*DiagnosticRelatedInformation*/>>,
                     > = vec![];
                     let mut max = 0;
                     let mut min = usize::MAX;
@@ -901,7 +901,7 @@ impl TypeChecker {
                         Some("No errors reported for 3 or fewer overload signatures"),
                     );
                     let chain = chain_diagnostic_messages_multiple(
-                        map(&diags, |d: &Rc<Diagnostic>, _| match d.message_text() {
+                        map(&diags, |d: &Gc<Diagnostic>, _| match d.message_text() {
                             DiagnosticMessageText::String(d_message_text) => {
                                 DiagnosticMessageChain::new(
                                     d_message_text.clone(),
@@ -918,13 +918,13 @@ impl TypeChecker {
                         None,
                     );
                     let related: Vec<Rc<DiagnosticRelatedInformation>> =
-                        flat_map(Some(&*diags), |d: &Rc<Diagnostic>, _| {
+                        flat_map(Some(&*diags), |d: &Gc<Diagnostic>, _| {
                             d.maybe_related_information()
                                 .clone()
                                 .unwrap_or_else(|| vec![])
                         });
-                    let diag: Rc<Diagnostic>;
-                    if every(&diags, |d: &Rc<Diagnostic>, _| {
+                    let diag: Gc<Diagnostic>;
+                    if every(&diags, |d: &Gc<Diagnostic>, _| {
                         d.start() == diags[0].start()
                             && d.length() == diags[0].length()
                             && are_option_rcs_equal(

@@ -620,10 +620,10 @@ impl TypeChecker {
 
     pub(super) fn find_index_info(
         &self,
-        index_infos: &[Rc<IndexInfo>],
+        index_infos: &[Gc<IndexInfo>],
         key_type: &Type,
-    ) -> Option<Rc<IndexInfo>> {
-        find(index_infos, |info: &Rc<IndexInfo>, _| {
+    ) -> Option<Gc<IndexInfo>> {
+        find(index_infos, |info: &Gc<IndexInfo>, _| {
             ptr::eq(&*info.key_type, key_type)
         })
         .map(Clone::clone)
@@ -631,12 +631,12 @@ impl TypeChecker {
 
     pub(super) fn find_applicable_index_info(
         &self,
-        index_infos: &[Rc<IndexInfo>],
+        index_infos: &[Gc<IndexInfo>],
         key_type: &Type,
-    ) -> Option<Rc<IndexInfo>> {
-        let mut string_index_info: Option<Rc<IndexInfo>> = None;
-        let mut applicable_info: Option<Rc<IndexInfo>> = None;
-        let mut applicable_infos: Option<Vec<Rc<IndexInfo>>> = None;
+    ) -> Option<Gc<IndexInfo>> {
+        let mut string_index_info: Option<Gc<IndexInfo>> = None;
+        let mut applicable_info: Option<Gc<IndexInfo>> = None;
+        let mut applicable_infos: Option<Vec<Gc<IndexInfo>>> = None;
         for info in index_infos {
             if Rc::ptr_eq(&info.key_type, &self.string_type()) {
                 string_index_info = Some(info.clone());
@@ -655,7 +655,7 @@ impl TypeChecker {
             Some(Rc::new(self.create_index_info(
                 self.unknown_type(),
                 self.get_intersection_type(
-                    &map(&applicable_infos, |info: &Rc<IndexInfo>, _| {
+                    &map(&applicable_infos, |info: &Gc<IndexInfo>, _| {
                         info.type_.clone()
                     }),
                     Option::<&Symbol>::None,
@@ -663,7 +663,7 @@ impl TypeChecker {
                 ),
                 reduce_left(
                     &applicable_infos,
-                    |is_readonly, info: &Rc<IndexInfo>, _| is_readonly && info.is_readonly,
+                    |is_readonly, info: &Gc<IndexInfo>, _| is_readonly && info.is_readonly,
                     true,
                     None,
                     None,
@@ -690,7 +690,7 @@ impl TypeChecker {
                 && self.is_numeric_literal_name(&source.as_string_literal_type().value)
     }
 
-    pub(super) fn get_index_infos_of_structured_type(&self, type_: &Type) -> Vec<Rc<IndexInfo>> {
+    pub(super) fn get_index_infos_of_structured_type(&self, type_: &Type) -> Vec<Gc<IndexInfo>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
             let resolved = self.resolve_structured_type_members(type_);
             return resolved.as_resolved_type().index_infos().clone();
@@ -698,7 +698,7 @@ impl TypeChecker {
         vec![]
     }
 
-    pub(super) fn get_index_infos_of_type(&self, type_: &Type) -> Vec<Rc<IndexInfo>> {
+    pub(super) fn get_index_infos_of_type(&self, type_: &Type) -> Vec<Gc<IndexInfo>> {
         self.get_index_infos_of_structured_type(&self.get_reduced_apparent_type(type_))
     }
 
@@ -706,7 +706,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         key_type: &Type,
-    ) -> Option<Rc<IndexInfo>> {
+    ) -> Option<Gc<IndexInfo>> {
         self.find_index_info(&self.get_index_infos_of_type(type_), key_type)
     }
 
@@ -723,10 +723,10 @@ impl TypeChecker {
         &self,
         type_: &Type,
         key_type: &Type,
-    ) -> Vec<Rc<IndexInfo>> {
+    ) -> Vec<Gc<IndexInfo>> {
         self.get_index_infos_of_type(type_)
             .into_iter()
-            .filter(|info: &Rc<IndexInfo>| self.is_applicable_index_type(key_type, &info.key_type))
+            .filter(|info: &Gc<IndexInfo>| self.is_applicable_index_type(key_type, &info.key_type))
             .collect()
     }
 
@@ -734,7 +734,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         key_type: &Type,
-    ) -> Option<Rc<IndexInfo>> {
+    ) -> Option<Gc<IndexInfo>> {
         self.find_applicable_index_info(&self.get_index_infos_of_type(type_), key_type)
     }
 
@@ -742,7 +742,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &str, /*__String*/
-    ) -> Option<Rc<IndexInfo>> {
+    ) -> Option<Gc<IndexInfo>> {
         self.get_applicable_index_info(
             type_,
             &*if self.is_late_bound_name(name) {
@@ -756,7 +756,7 @@ impl TypeChecker {
     pub(super) fn get_type_parameters_from_declaration(
         &self,
         declaration: &Node, /*DeclarationWithTypeParameters*/
-    ) -> Option<Vec<Rc<Type /*<TypeParameter>*/>>> {
+    ) -> Option<Vec<Gc<Type /*<TypeParameter>*/>>> {
         let mut result: Option<Vec<Gc<Type>>> = None;
         for node in get_effective_type_parameter_declarations(declaration) {
             result = Some(maybe_append_if_unique_rc(
@@ -900,7 +900,7 @@ impl TypeChecker {
 
     pub(super) fn get_min_type_argument_count(
         &self,
-        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
     ) -> usize {
         let mut min_type_argument_count = 0;
         if let Some(type_parameters) = type_parameters {

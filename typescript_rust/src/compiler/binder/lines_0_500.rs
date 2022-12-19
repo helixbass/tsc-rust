@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
@@ -22,7 +22,7 @@ use crate::{
     CompilerOptions, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation,
     DiagnosticWithLocation, Diagnostics, FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags,
     NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String,
-    append_if_unique_rc, create_symbol_table, get_escaped_text_of_identifier_or_literal,
+    append_if_unique_gc, create_symbol_table, get_escaped_text_of_identifier_or_literal,
     get_name_of_declaration, is_property_name_literal, object_allocator, set_parent,
     set_value_declaration, BaseSymbol, InternalSymbolName, NamedDeclarationInterface, Node,
     NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
@@ -41,39 +41,40 @@ pub(super) struct ActiveLabel {
     pub name: __String,
     break_target: Gc<FlowNode /*FlowLabel*/>,
     continue_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
+    #[unsafe_ignore_trace]
     referenced: Cell<bool>,
 }
 
 impl ActiveLabel {
     pub fn new(
-        next: Option<Rc<ActiveLabel>>,
+        next: Option<Gc<ActiveLabel>>,
         name: __String,
-        break_target: Rc<FlowNode>,
-        continue_target: Option<Rc<FlowNode>>,
+        break_target: Gc<FlowNode>,
+        continue_target: Option<Gc<FlowNode>>,
         referenced: bool,
     ) -> Self {
         Self {
             next,
             name,
             break_target,
-            continue_target: RefCell::new(continue_target),
+            continue_target: GcCell::new(continue_target),
             referenced: Cell::new(referenced),
         }
     }
 
-    pub fn next(&self) -> Option<Rc<ActiveLabel>> {
+    pub fn next(&self) -> Option<Gc<ActiveLabel>> {
         self.next.clone()
     }
 
-    pub fn break_target(&self) -> Rc<FlowNode> {
+    pub fn break_target(&self) -> Gc<FlowNode> {
         self.break_target.clone()
     }
 
-    pub fn maybe_continue_target(&self) -> Option<Rc<FlowNode>> {
+    pub fn maybe_continue_target(&self) -> Option<Gc<FlowNode>> {
         self.continue_target.borrow().clone()
     }
 
-    pub fn set_continue_target(&self, continue_target: Option<Rc<FlowNode>>) {
+    pub fn set_continue_target(&self, continue_target: Option<Gc<FlowNode>>) {
         *self.continue_target.borrow_mut() = continue_target;
     }
 
@@ -300,6 +301,7 @@ pub(crate) struct BinderType {
     pub(super) _rc_wrapper: GcCell<Option<Gc<BinderType>>>,
     pub(super) file: GcCell<Option<Gc</*SourceFile*/ Node>>>,
     pub(super) options: GcCell<Option<Gc<CompilerOptions>>>,
+    #[unsafe_ignore_trace]
     pub(super) language_version: Cell<Option<ScriptTarget>>,
     pub(super) parent: GcCell<Option<Gc<Node>>>,
     pub(super) container: GcCell<Option<Gc<Node>>>,
@@ -308,6 +310,7 @@ pub(crate) struct BinderType {
     pub(super) last_container: GcCell<Option<Gc<Node>>>,
     pub(super) delayed_type_aliases:
         GcCell<Option<Vec<Gc<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
+    #[unsafe_ignore_trace]
     pub(super) seen_this_keyword: Cell<Option<bool>>,
 
     pub(super) current_flow: GcCell<Option<Gc<FlowNode>>>,
@@ -319,16 +322,22 @@ pub(crate) struct BinderType {
     pub(super) current_exception_target: GcCell<Option<Gc<FlowNode /*FlowLabel*/>>>,
     pub(super) pre_switch_case_flow: GcCell<Option<Gc<FlowNode>>>,
     pub(super) active_label_list: GcCell<Option<Gc<ActiveLabel>>>,
+    #[unsafe_ignore_trace]
     pub(super) has_explicit_return: Cell<Option<bool>>,
 
+    #[unsafe_ignore_trace]
     pub(super) emit_flags: Cell<Option<NodeFlags>>,
 
+    #[unsafe_ignore_trace]
     pub(super) in_strict_mode: Cell<Option<bool>>,
 
+    #[unsafe_ignore_trace]
     pub(super) in_assignment_pattern: Cell<bool>,
 
+    #[unsafe_ignore_trace]
     pub(super) symbol_count: Cell<usize>,
 
+    #[unsafe_ignore_trace]
     pub(super) Symbol: RefCell<Option<fn(SymbolFlags, __String) -> BaseSymbol>>,
     #[unsafe_ignore_trace]
     pub(super) classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
@@ -338,47 +347,45 @@ pub(crate) struct BinderType {
     pub(super) bind_binary_expression_flow: GcCell<Option<Gc<BindBinaryExpressionFlow>>>,
 }
 
-pub(super) fn create_binder() -> Rc<BinderType> {
-    let wrapped = Rc::new(BinderType {
-        _rc_wrapper: RefCell::new(None),
-        file: RefCell::new(None),
-        options: RefCell::new(None),
-        language_version: Cell::new(None),
-        parent: RefCell::new(None),
-        container: RefCell::new(None),
-        this_parent_container: RefCell::new(None),
-        block_scope_container: RefCell::new(None),
-        last_container: RefCell::new(None),
-        delayed_type_aliases: RefCell::new(None),
-        seen_this_keyword: Cell::new(None),
-        current_flow: RefCell::new(None),
-        current_break_target: RefCell::new(None),
-        current_continue_target: RefCell::new(None),
-        current_return_target: RefCell::new(None),
-        current_true_target: RefCell::new(None),
-        current_false_target: RefCell::new(None),
-        current_exception_target: RefCell::new(None),
-        pre_switch_case_flow: RefCell::new(None),
-        active_label_list: RefCell::new(None),
-        has_explicit_return: Cell::new(None),
-        // emit_flags: Cell::new(None),
+pub(super) fn create_binder() -> Gc<BinderType> {
+    let wrapped = Gc::new(BinderType {
+        _rc_wrapper: Default::default(),
+        file: Default::default(),
+        options: Default::default(),
+        language_version: Default::default(),
+        parent: Default::default(),
+        container: Default::default(),
+        this_parent_container: Default::default(),
+        block_scope_container: Default::default(),
+        last_container: Default::default(),
+        delayed_type_aliases: Default::default(),
+        seen_this_keyword: Default::default(),
+        current_flow: Default::default(),
+        current_break_target: Default::default(),
+        current_continue_target: Default::default(),
+        current_return_target: Default::default(),
+        current_true_target: Default::default(),
+        current_false_target: Default::default(),
+        current_exception_target: Default::default(),
+        pre_switch_case_flow: Default::default(),
+        active_label_list: Default::default(),
+        has_explicit_return: Default::default(),
+        // emit_flags: Default::default(),
         emit_flags: Cell::new(Some(NodeFlags::None)),
-        in_strict_mode: Cell::new(None),
-        in_assignment_pattern: Cell::new(false),
-        symbol_count: Cell::new(0),
-        Symbol: RefCell::new(None),
-        classifiable_names: RefCell::new(None),
-        unreachable_flow: RefCell::new(Rc::new(
+        in_strict_mode: Default::default(),
+        in_assignment_pattern: Default::default(),
+        symbol_count: Default::default(),
+        Symbol: Default::default(),
+        classifiable_names: Default::default(),
+        unreachable_flow: GcCell::new(Gc::new(FlowStart::new(FlowFlags::Unreachable, None).into())),
+        reported_unreachable_flow: GcCell::new(Gc::new(
             FlowStart::new(FlowFlags::Unreachable, None).into(),
         )),
-        reported_unreachable_flow: RefCell::new(Rc::new(
-            FlowStart::new(FlowFlags::Unreachable, None).into(),
-        )),
-        bind_binary_expression_flow: RefCell::new(None),
+        bind_binary_expression_flow: Default::default(),
     });
     *wrapped._rc_wrapper.borrow_mut() = Some(wrapped.clone());
     *wrapped.bind_binary_expression_flow.borrow_mut() =
-        Some(Rc::new(wrapped.create_bind_binary_expression_flow()));
+        Some(Gc::new(wrapped.create_bind_binary_expression_flow()));
     wrapped
 }
 
@@ -387,7 +394,7 @@ impl BinderType {
         self.bind_source_file(f, opts);
     }
 
-    pub(super) fn rc_wrapper(&self) -> Rc<Self> {
+    pub(super) fn rc_wrapper(&self) -> Gc<Self> {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
@@ -493,12 +500,14 @@ impl BinderType {
         *self.last_container.borrow_mut() = last_container;
     }
 
-    pub(super) fn maybe_delayed_type_aliases(&self) -> RefMut<Option<Vec<Gc<Node>>>> {
+    pub(super) fn maybe_delayed_type_aliases(&self) -> GcCellRefMut<Option<Vec<Gc<Node>>>> {
         self.delayed_type_aliases.borrow_mut()
     }
 
-    pub(super) fn delayed_type_aliases(&self) -> RefMut<Vec<Gc<Node>>> {
-        RefMut::map(self.delayed_type_aliases.borrow_mut(), |option| {
+    pub(super) fn delayed_type_aliases(
+        &self,
+    ) -> GcCellRefMut<Option<Vec<Gc<Node>>>, Vec<Gc<Node>>> {
+        GcCellRefMut::map(self.delayed_type_aliases.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
@@ -515,101 +524,101 @@ impl BinderType {
         self.seen_this_keyword.set(seen_this_keyword);
     }
 
-    pub(super) fn current_flow(&self) -> Rc<FlowNode> {
+    pub(super) fn current_flow(&self) -> Gc<FlowNode> {
         self.current_flow.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_flow(&self) -> Option<Rc<FlowNode>> {
+    pub(super) fn maybe_current_flow(&self) -> Option<Gc<FlowNode>> {
         self.current_flow.borrow().clone()
     }
 
-    pub(super) fn set_current_flow(&self, current_flow: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_flow(&self, current_flow: Option<Gc<FlowNode>>) {
         *self.current_flow.borrow_mut() = current_flow;
     }
 
-    pub(super) fn maybe_current_break_target(&self) -> Option<Rc<FlowNode>> {
+    pub(super) fn maybe_current_break_target(&self) -> Option<Gc<FlowNode>> {
         self.current_break_target.borrow().clone()
     }
 
-    pub(super) fn set_current_break_target(&self, current_break_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_break_target(&self, current_break_target: Option<Gc<FlowNode>>) {
         *self.current_break_target.borrow_mut() = current_break_target;
     }
 
-    pub(super) fn maybe_current_continue_target(&self) -> Option<Rc<FlowNode>> {
+    pub(super) fn maybe_current_continue_target(&self) -> Option<Gc<FlowNode>> {
         self.current_continue_target.borrow().clone()
     }
 
     pub(super) fn set_current_continue_target(
         &self,
-        current_continue_target: Option<Rc<FlowNode>>,
+        current_continue_target: Option<Gc<FlowNode>>,
     ) {
         *self.current_continue_target.borrow_mut() = current_continue_target;
     }
 
-    pub(super) fn maybe_current_return_target(&self) -> Option<Rc<FlowNode>> {
+    pub(super) fn maybe_current_return_target(&self) -> Option<Gc<FlowNode>> {
         self.current_return_target.borrow().clone()
     }
 
-    pub(super) fn set_current_return_target(&self, current_return_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_return_target(&self, current_return_target: Option<Gc<FlowNode>>) {
         *self.current_return_target.borrow_mut() = current_return_target;
     }
 
-    pub(super) fn current_true_target(&self) -> Rc<FlowNode> {
+    pub(super) fn current_true_target(&self) -> Gc<FlowNode> {
         self.current_true_target.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_true_target(&self) -> Option<Rc<FlowNode>> {
+    pub(super) fn maybe_current_true_target(&self) -> Option<Gc<FlowNode>> {
         self.current_true_target.borrow().clone()
     }
 
-    pub(super) fn set_current_true_target(&self, current_true_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_true_target(&self, current_true_target: Option<Gc<FlowNode>>) {
         *self.current_true_target.borrow_mut() = current_true_target;
     }
 
-    pub(super) fn current_false_target(&self) -> Rc<FlowNode> {
+    pub(super) fn current_false_target(&self) -> Gc<FlowNode> {
         self.current_false_target.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_current_false_target(&self) -> Option<Rc<FlowNode>> {
+    pub(super) fn maybe_current_false_target(&self) -> Option<Gc<FlowNode>> {
         self.current_false_target.borrow().clone()
     }
 
-    pub(super) fn set_current_false_target(&self, current_false_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_false_target(&self, current_false_target: Option<Gc<FlowNode>>) {
         *self.current_false_target.borrow_mut() = current_false_target;
     }
 
-    pub(super) fn maybe_current_exception_target(&self) -> Option<Rc<FlowNode>> {
+    pub(super) fn maybe_current_exception_target(&self) -> Option<Gc<FlowNode>> {
         self.current_exception_target.borrow().clone()
     }
 
     pub(super) fn set_current_exception_target(
         &self,
-        current_exception_target: Option<Rc<FlowNode>>,
+        current_exception_target: Option<Gc<FlowNode>>,
     ) {
         *self.current_exception_target.borrow_mut() = current_exception_target;
     }
 
-    pub(super) fn pre_switch_case_flow(&self) -> Rc<FlowNode> {
+    pub(super) fn pre_switch_case_flow(&self) -> Gc<FlowNode> {
         self.pre_switch_case_flow.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_pre_switch_case_flow(&self) -> Option<Rc<FlowNode>> {
+    pub(super) fn maybe_pre_switch_case_flow(&self) -> Option<Gc<FlowNode>> {
         self.pre_switch_case_flow.borrow().clone()
     }
 
-    pub(super) fn set_pre_switch_case_flow(&self, pre_switch_case_flow: Option<Rc<FlowNode>>) {
+    pub(super) fn set_pre_switch_case_flow(&self, pre_switch_case_flow: Option<Gc<FlowNode>>) {
         *self.pre_switch_case_flow.borrow_mut() = pre_switch_case_flow;
     }
 
-    pub(super) fn active_label_list(&self) -> Rc<ActiveLabel> {
+    pub(super) fn active_label_list(&self) -> Gc<ActiveLabel> {
         self.active_label_list.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_active_label_list(&self) -> Option<Rc<ActiveLabel>> {
+    pub(super) fn maybe_active_label_list(&self) -> Option<Gc<ActiveLabel>> {
         self.active_label_list.borrow().clone()
     }
 
-    pub(super) fn set_active_label_list(&self, active_label_list: Option<Rc<ActiveLabel>>) {
+    pub(super) fn set_active_label_list(&self, active_label_list: Option<Gc<ActiveLabel>>) {
         *self.active_label_list.borrow_mut() = active_label_list;
     }
 
@@ -686,15 +695,15 @@ impl BinderType {
         *self.classifiable_names.borrow_mut() = classifiable_names;
     }
 
-    pub(super) fn unreachable_flow(&self) -> Rc<FlowNode> {
+    pub(super) fn unreachable_flow(&self) -> Gc<FlowNode> {
         self.unreachable_flow.borrow().clone()
     }
 
-    pub(super) fn reported_unreachable_flow(&self) -> Rc<FlowNode> {
+    pub(super) fn reported_unreachable_flow(&self) -> Gc<FlowNode> {
         self.reported_unreachable_flow.borrow().clone()
     }
 
-    pub(super) fn bind_binary_expression_flow(&self) -> Rc<BindBinaryExpressionFlow> {
+    pub(super) fn bind_binary_expression_flow(&self) -> Gc<BindBinaryExpressionFlow> {
         self.bind_binary_expression_flow.borrow().clone().unwrap()
     }
 
@@ -792,14 +801,14 @@ impl BinderType {
         if symbol_declarations.is_none() {
             *symbol_declarations = Some(vec![]);
         }
-        append_if_unique_rc(symbol_declarations.as_mut().unwrap(), &node.node_wrapper());
+        append_if_unique_gc(symbol_declarations.as_mut().unwrap(), &node.node_wrapper());
 
         if symbol_flags.intersects(
             SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,
         ) {
             let mut exports = symbol.maybe_exports_mut();
             if exports.is_none() {
-                *exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                *exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
             }
         }
 
@@ -811,7 +820,7 @@ impl BinderType {
         ) {
             let mut members = symbol.maybe_members_mut();
             if members.is_none() {
-                *members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                *members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
             }
         }
 
@@ -931,7 +940,7 @@ impl BinderType {
                 let index = index_of(
                     &function_type.as_jsdoc_function_type().parameters(),
                     &node.node_wrapper(),
-                    |a, b| Rc::ptr_eq(a, b),
+                    |a, b| Gc::ptr_eq(a, b),
                 );
                 return Some(format!("arg{}", index).into());
             }
@@ -1112,7 +1121,7 @@ impl BinderType {
                                 |declaration: &Gc<Node>, index| {
                                     let decl = get_name_of_declaration(Some(&**declaration))
                                         .unwrap_or_else(|| declaration.node_wrapper());
-                                    let diag: Rc<Diagnostic> = Rc::new(
+                                    let diag: Gc<Diagnostic> = Gc::new(
                                         self.create_diagnostic_for_node(
                                             &decl,
                                             message,
@@ -1162,7 +1171,7 @@ impl BinderType {
                                 },
                             );
 
-                            let diag: Rc<Diagnostic> = Rc::new(
+                            let diag: Gc<Diagnostic> = Gc::new(
                                 self.create_diagnostic_for_node(
                                     &declaration_name,
                                     message,
@@ -1194,7 +1203,7 @@ impl BinderType {
 
         self.add_declaration_to_symbol(&symbol, node, includes);
         if let Some(symbol_parent) = symbol.maybe_parent() {
-            Debug_.assert(matches!(parent, Some(parent) if Rc::ptr_eq(&symbol_parent, &parent.borrow().symbol_wrapper())), Some("Existing symbol parent should match new one"));
+            Debug_.assert(matches!(parent, Some(parent) if Gc::ptr_eq(&symbol_parent, &parent.borrow().symbol_wrapper())), Some("Existing symbol parent should match new one"));
         } else {
             symbol.set_parent(parent.map(|parent| parent.borrow().symbol_wrapper()));
         }

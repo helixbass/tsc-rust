@@ -667,7 +667,7 @@ impl TypeChecker {
     pub(super) fn get_non_interhited_properties(
         &self,
         type_: &Type, /*InterfaceType*/
-        base_types: &[Rc<Type /*BaseType*/>],
+        base_types: &[Gc<Type /*BaseType*/>],
         properties: &[Gc<Symbol>],
     ) -> Vec<Gc<Symbol>> {
         if length(Some(base_types)) == 0 {

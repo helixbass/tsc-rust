@@ -211,7 +211,7 @@ impl TypeChecker {
     pub(super) fn resolve_structured_type_members(
         &self,
         type_: &Type, /*StructuredType*/
-    ) -> Rc<Type /*ResolvedType*/> {
+    ) -> Gc<Type /*ResolvedType*/> {
         if !type_.as_resolvable_type().is_resolved() {
             if type_.flags().intersects(TypeFlags::Object) {
                 let type_as_object_type = type_.as_object_type();

@@ -144,7 +144,7 @@ impl TypeChecker {
     pub(super) fn instantiate_mapped_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*MappedType*/
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
@@ -215,7 +215,7 @@ impl TypeChecker {
         tuple_type: &Type,    /*TupleTypeReference*/
         mapped_type: &Type,   /*MappedType*/
         type_variable: &Type, /*TypeVariable*/
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
     ) -> Gc<Type> {
         let tuple_type_as_type_reference = tuple_type.as_type_reference();
         let element_flags = &tuple_type_as_type_reference
@@ -253,7 +253,7 @@ impl TypeChecker {
         &self,
         array_type: &Type,
         mapped_type: &Type, /*MappedType*/
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
     ) -> Gc<Type> {
         let element_type =
             self.instantiate_mapped_type_template(mapped_type, &self.number_type(), true, mapper);
@@ -274,7 +274,7 @@ impl TypeChecker {
         &self,
         tuple_type: &Type,  /*TupleTypeReference*/
         mapped_type: &Type, /*MappedType*/
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
     ) -> Gc<Type> {
         let tuple_type_as_type_reference = tuple_type.as_type_reference_interface();
         let tuple_type_target = tuple_type_as_type_reference.target();
@@ -329,7 +329,7 @@ impl TypeChecker {
         type_: &Type, /*MappedType*/
         key: &Type,
         is_optional: bool,
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
     ) -> Gc<Type> {
         let template_mapper = Rc::new(self.append_type_mapping(
             Some(mapper),
@@ -364,10 +364,10 @@ impl TypeChecker {
     pub(super) fn instantiate_anonymous_type<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*AnonymousType*/
-        mut mapper: Rc<TypeMapper>,
+        mut mapper: Gc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Rc<Type /*AnonymousType*/> {
+    ) -> Gc<Type /*AnonymousType*/> {
         let type_as_object_flags_type = type_.as_object_flags_type();
         let mut result = self.create_object_type(
             type_as_object_flags_type.object_flags() | ObjectFlags::Instantiated,
@@ -502,7 +502,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type(
         &self,
         type_: &Type,
-        mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
     ) -> Gc<Type> {
         self.maybe_instantiate_type(Some(type_), mapper).unwrap()
     }
@@ -510,7 +510,7 @@ impl TypeChecker {
     pub(super) fn maybe_instantiate_type<TType: Borrow<Type>>(
         &self,
         type_: Option<TType>,
-        mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
     ) -> Option<Gc<Type>> {
         match (type_.as_ref(), mapper) {
             (Some(type_), Some(mapper)) => Some(self.instantiate_type_with_alias(
@@ -526,7 +526,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_with_alias<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type,
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
@@ -554,7 +554,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_worker<TSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type,
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
         alias_symbol: Option<TSymbol>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
@@ -747,7 +747,7 @@ impl TypeChecker {
     pub(super) fn instantiate_reverse_mapped_type(
         &self,
         type_: &Type, /*ReverseMappedType*/
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
     ) -> Gc<Type> {
         let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
         let inner_mapped_type = self.instantiate_type(
@@ -811,8 +811,8 @@ impl TypeChecker {
     pub(super) fn instantiate_index_info(
         &self,
         info: &IndexInfo,
-        mapper: Rc<TypeMapper>,
-    ) -> Rc<IndexInfo> {
+        mapper: Gc<TypeMapper>,
+    ) -> Gc<IndexInfo> {
         Rc::new(self.create_index_info(
             info.key_type.clone(),
             self.instantiate_type(&info.type_, Some(mapper)),

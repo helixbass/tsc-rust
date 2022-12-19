@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -180,9 +180,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn transform_flags(&self) -> TransformFlags;
     fn set_transform_flags(&self, flags: TransformFlags);
     fn add_transform_flags(&self, flags: TransformFlags);
-    fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
+    fn maybe_decorators(&self) -> GcCellRef<Option<NodeArray>>;
     fn set_decorators(&self, decorators: Option<NodeArray>);
-    fn maybe_modifiers(&self) -> Ref<Option<NodeArray>>;
+    fn maybe_modifiers(&self) -> GcCellRef<Option<NodeArray>>;
     fn set_modifiers(&self, modifiers: Option<NodeArray>);
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
@@ -195,26 +195,26 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
     fn symbol(&self) -> Gc<Symbol>;
     fn set_symbol(&self, symbol: Gc<Symbol>);
-    fn maybe_locals(&self) -> Option<Rc<RefCell<SymbolTable>>>;
-    fn maybe_locals_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
-    fn locals(&self) -> Rc<RefCell<SymbolTable>>;
-    fn locals_mut(&self) -> RefMut<Rc<RefCell<SymbolTable>>>;
-    fn set_locals(&self, locals: Option<Rc<RefCell<SymbolTable>>>);
+    fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>>;
+    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
+    fn locals(&self) -> Gc<GcCell<SymbolTable>>;
+    fn locals_mut(&self) -> GcCellRefMut<Gc<GcCell<SymbolTable>>>;
+    fn set_locals(&self, locals: Option<Gc<GcCell<SymbolTable>>>);
     fn maybe_next_container(&self) -> Option<Gc<Node>>;
     fn set_next_container(&self, next_container: Option<Gc<Node>>);
     fn maybe_local_symbol(&self) -> Option<Gc<Symbol>>;
     fn set_local_symbol(&self, local_symbol: Option<Gc<Symbol>>);
-    fn maybe_flow_node(&self) -> Ref<Option<Rc<FlowNode>>>;
-    fn maybe_flow_node_mut(&self) -> RefMut<Option<Rc<FlowNode>>>;
-    fn set_flow_node(&self, emit_node: Option<Rc<FlowNode>>);
-    fn maybe_emit_node(&self) -> Option<Rc<RefCell<EmitNode>>>;
-    fn maybe_emit_node_mut(&self) -> RefMut<Option<Rc<RefCell<EmitNode>>>>;
-    fn set_emit_node(&self, emit_node: Option<Rc<RefCell<EmitNode>>>);
-    fn maybe_contextual_type(&self) -> RefMut<Option<Gc<Type>>>;
-    fn maybe_inference_context(&self) -> RefMut<Option<Rc<InferenceContext>>>;
+    fn maybe_flow_node(&self) -> GcCellRef<Option<Gc<FlowNode>>>;
+    fn maybe_flow_node_mut(&self) -> GcCellRefMut<Option<Gc<FlowNode>>>;
+    fn set_flow_node(&self, emit_node: Option<Gc<FlowNode>>);
+    fn maybe_emit_node(&self) -> Option<Gc<GcCell<EmitNode>>>;
+    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<EmitNode>>>>;
+    fn set_emit_node(&self, emit_node: Option<Gc<GcCell<EmitNode>>>);
+    fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Gc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Vec<Gc<Node /*JSDoc*/>>);
-    fn maybe_js_doc_cache(&self) -> Ref<Option<Vec<Gc<Node /*JSDocTag*/>>>>;
+    fn maybe_js_doc_cache(&self) -> GcCellRef<Option<Vec<Gc<Node /*JSDocTag*/>>>>;
     fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Gc<Node /*JSDocTag*/>>>);
     // IncrementalElement
     fn maybe_intersects_change(&self) -> Option<bool>;
@@ -1772,7 +1772,7 @@ impl NodeInterface for BaseNode {
         self.transform_flags.set(self.transform_flags.get() | flags);
     }
 
-    fn maybe_decorators(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_decorators(&self) -> GcCellRef<Option<NodeArray>> {
         self.decorators.borrow()
     }
 
@@ -1780,7 +1780,7 @@ impl NodeInterface for BaseNode {
         *self.decorators.borrow_mut() = decorators;
     }
 
-    fn maybe_modifiers(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_modifiers(&self) -> GcCellRef<Option<NodeArray>> {
         self.modifiers.borrow()
     }
 
@@ -1832,23 +1832,23 @@ impl NodeInterface for BaseNode {
         *self.symbol.borrow_mut() = Some(symbol);
     }
 
-    fn maybe_locals(&self) -> Option<Rc<RefCell<SymbolTable>>> {
+    fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>> {
         self.locals.borrow().clone()
     }
 
-    fn maybe_locals_mut(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
         self.locals.borrow_mut()
     }
 
-    fn locals(&self) -> Rc<RefCell<SymbolTable>> {
+    fn locals(&self) -> Gc<GcCell<SymbolTable>> {
         self.locals.borrow().clone().unwrap()
     }
 
-    fn locals_mut(&self) -> RefMut<Rc<RefCell<SymbolTable>>> {
+    fn locals_mut(&self) -> GcCellRefMut<Gc<GcCell<SymbolTable>>> {
         RefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 
-    fn set_locals(&self, locals: Option<Rc<RefCell<SymbolTable>>>) {
+    fn set_locals(&self, locals: Option<Gc<GcCell<SymbolTable>>>) {
         *self.locals.borrow_mut() = locals;
     }
 
@@ -1868,35 +1868,35 @@ impl NodeInterface for BaseNode {
         *self.local_symbol.borrow_mut() = local_symbol;
     }
 
-    fn maybe_emit_node(&self) -> Option<Rc<RefCell<EmitNode>>> {
+    fn maybe_emit_node(&self) -> Option<Gc<GcCell<EmitNode>>> {
         self.emit_node.borrow().clone()
     }
 
-    fn maybe_emit_node_mut(&self) -> RefMut<Option<Rc<RefCell<EmitNode>>>> {
+    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<EmitNode>>>> {
         self.emit_node.borrow_mut()
     }
 
-    fn set_emit_node(&self, emit_node: Option<Rc<RefCell<EmitNode>>>) {
+    fn set_emit_node(&self, emit_node: Option<Gc<GcCell<EmitNode>>>) {
         *self.emit_node.borrow_mut() = emit_node;
     }
 
-    fn maybe_contextual_type(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.contextual_type.borrow_mut()
     }
 
-    fn maybe_inference_context(&self) -> RefMut<Option<Rc<InferenceContext>>> {
+    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>> {
         self.inference_context.borrow_mut()
     }
 
-    fn maybe_flow_node(&self) -> Ref<Option<Rc<FlowNode>>> {
+    fn maybe_flow_node(&self) -> GcCellRef<Option<Gc<FlowNode>>> {
         self.flow_node.borrow()
     }
 
-    fn maybe_flow_node_mut(&self) -> RefMut<Option<Rc<FlowNode>>> {
+    fn maybe_flow_node_mut(&self) -> GcCellRefMut<Option<Gc<FlowNode>>> {
         self.flow_node.borrow_mut()
     }
 
-    fn set_flow_node(&self, flow_node: Option<Rc<FlowNode>>) {
+    fn set_flow_node(&self, flow_node: Option<Gc<FlowNode>>) {
         *self.flow_node.borrow_mut() = flow_node;
     }
 
@@ -1908,7 +1908,7 @@ impl NodeInterface for BaseNode {
         *self.js_doc.borrow_mut() = Some(js_doc);
     }
 
-    fn maybe_js_doc_cache(&self) -> Ref<Option<Vec<Gc<Node>>>> {
+    fn maybe_js_doc_cache(&self) -> GcCellRef<Option<Vec<Gc<Node>>>> {
         self.js_doc_cache.borrow()
     }
 

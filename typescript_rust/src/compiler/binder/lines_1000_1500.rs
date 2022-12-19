@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use gc::Gc;
 use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
@@ -17,13 +18,13 @@ use crate::{
 impl BinderType {
     pub(super) fn create_flow_switch_clause(
         &self,
-        antecedent: Rc<FlowNode>,
+        antecedent: Gc<FlowNode>,
         switch_statement: &Node, /*SwitchStatement*/
         clause_start: usize,
         clause_end: usize,
-    ) -> Rc<FlowNode> {
+    ) -> Gc<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
-        Rc::new(init_flow_node(
+        Gc::new(init_flow_node(
             FlowSwitchClause::new(
                 FlowFlags::SwitchClause,
                 antecedent,
@@ -38,11 +39,11 @@ impl BinderType {
     pub(super) fn create_flow_mutation(
         &self,
         flags: FlowFlags,
-        antecedent: Rc<FlowNode>,
+        antecedent: Gc<FlowNode>,
         node: &Node, /*Expression | VariableDeclaration | ArrayBindingElement*/
-    ) -> Rc<FlowNode> {
+    ) -> Gc<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
-        let result: Rc<FlowNode> = Rc::new(init_flow_node(
+        let result: Gc<FlowNode> = Gc::new(init_flow_node(
             if flags.intersects(FlowFlags::ArrayMutation) {
                 FlowArrayMutation::new(flags, antecedent, node.node_wrapper()).into()
             } else {
@@ -57,16 +58,16 @@ impl BinderType {
 
     pub(super) fn create_flow_call(
         &self,
-        antecedent: Rc<FlowNode>,
+        antecedent: Gc<FlowNode>,
         node: &Node, /*CallExpression*/
-    ) -> Rc<FlowNode> {
+    ) -> Gc<FlowNode> {
         self.set_flow_node_referenced(&antecedent);
-        Rc::new(init_flow_node(
+        Gc::new(init_flow_node(
             FlowCall::new(FlowFlags::Call, antecedent, node.node_wrapper()).into(),
         ))
     }
 
-    pub(super) fn finish_flow_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> Rc<FlowNode> {
+    pub(super) fn finish_flow_label(&self, flow: Gc<FlowNode /*FlowLabel*/>) -> Gc<FlowNode> {
         let antecedents = flow.as_flow_label().maybe_antecedents();
         let antecedents = antecedents.as_ref();
         if antecedents.is_none() {
@@ -134,15 +135,15 @@ impl BinderType {
             && !self.is_logical_assignment_expression(&node.parent())
             && !self.is_logical_expression(&node.parent())
             && !(is_optional_chain(&node.parent())
-                && Rc::ptr_eq(&node.parent().as_has_expression().expression(), &node))
+                && Gc::ptr_eq(&node.parent().as_has_expression().expression(), &node))
     }
 
     pub(super) fn do_with_conditional_branches<TArgument, TAction: FnMut(TArgument)>(
         &self,
         mut action: TAction,
         value: TArgument,
-        true_target: Rc<FlowNode /*FlowLabel*/>,
-        false_target: Rc<FlowNode /*FlowLabel*/>,
+        true_target: Gc<FlowNode /*FlowLabel*/>,
+        false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
         let saved_true_target = self.maybe_current_true_target();
         let saved_false_target = self.maybe_current_false_target();
@@ -156,8 +157,8 @@ impl BinderType {
     pub(super) fn bind_condition<TNode: Borrow<Node> + Clone>(
         &self,
         node: Option<TNode>,
-        true_target: Rc<FlowNode /*FlowLabel*/>,
-        false_target: Rc<FlowNode /*FlowLabel*/>,
+        true_target: Gc<FlowNode /*FlowLabel*/>,
+        false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
         self.do_with_conditional_branches(
             |node| self.bind(node),
@@ -196,8 +197,8 @@ impl BinderType {
     pub(super) fn bind_iterative_statement(
         &self,
         node: &Node, /*Statement*/
-        break_target: Rc<FlowNode /*FlowLabel*/>,
-        continue_target: Rc<FlowNode /*FlowLabel*/>,
+        break_target: Gc<FlowNode /*FlowLabel*/>,
+        continue_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
         let save_break_target = self.maybe_current_break_target();
         let save_continue_target = self.maybe_current_continue_target();
@@ -211,8 +212,8 @@ impl BinderType {
     pub(super) fn set_continue_target(
         &self,
         node: &Node,
-        target: Rc<FlowNode /*FlowLabel*/>,
-    ) -> Rc<FlowNode> {
+        target: Gc<FlowNode /*FlowLabel*/>,
+    ) -> Gc<FlowNode> {
         let mut node = node.node_wrapper();
         let mut label = self.maybe_active_label_list();
         while label.is_some() && node.parent().kind() == SyntaxKind::LabeledStatement {
@@ -349,7 +350,7 @@ impl BinderType {
     pub(super) fn find_active_label(
         &self,
         name: &str, /*__String*/
-    ) -> Option<Rc<ActiveLabel>> {
+    ) -> Option<Gc<ActiveLabel>> {
         let mut label = self.maybe_active_label_list();
         while let Some(label_present) = label {
             if &label_present.name == name {
@@ -363,8 +364,8 @@ impl BinderType {
     pub(super) fn bind_break_or_continue_flow(
         &self,
         node: &Node, /*BreakOrContinueStatement*/
-        break_target: Option<Rc<FlowNode /*FlowLabel*/>>,
-        continue_target: Option<Rc<FlowNode /*FlowLabel*/>>,
+        break_target: Option<Gc<FlowNode /*FlowLabel*/>>,
+        continue_target: Option<Gc<FlowNode /*FlowLabel*/>>,
     ) {
         let flow_label = if node.kind() == SyntaxKind::BreakStatement {
             break_target
@@ -619,7 +620,7 @@ impl BinderType {
     pub(super) fn bind_labeled_statement(&self, node: &Node /*LabeledStatement*/) {
         let post_statement_label = self.create_branch_label();
         let node_as_labeled_statement = node.as_labeled_statement();
-        self.set_active_label_list(Some(Rc::new(ActiveLabel::new(
+        self.set_active_label_list(Some(Gc::new(ActiveLabel::new(
             self.maybe_active_label_list(),
             node_as_labeled_statement
                 .label
@@ -689,8 +690,8 @@ impl BinderType {
     pub(super) fn bind_logical_like_expression(
         &self,
         node: &Node, /*BinaryExpression*/
-        true_target: Rc<FlowNode /*FlowLabel*/>,
-        false_target: Rc<FlowNode /*FlowLabel*/>,
+        true_target: Gc<FlowNode /*FlowLabel*/>,
+        false_target: Gc<FlowNode /*FlowLabel*/>,
     ) {
         let pre_right_label = self.create_branch_label();
         let node_as_binary_expression = node.as_binary_expression();

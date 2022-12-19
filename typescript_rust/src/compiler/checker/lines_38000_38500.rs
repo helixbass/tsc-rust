@@ -628,7 +628,7 @@ impl TypeChecker {
     pub(super) fn are_type_parameters_identical(
         &self,
         declarations: &[Gc<Node /*ClassDeclaration | InterfaceDeclaration*/>],
-        target_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        target_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
     ) -> bool {
         let max_type_argument_count = length(target_parameters);
         let min_type_argument_count = self.get_min_type_argument_count(target_parameters);

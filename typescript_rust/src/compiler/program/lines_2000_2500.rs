@@ -20,7 +20,7 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+    ) -> Vec<Gc<Diagnostic>> {
         self.get_and_cache_diagnostics(
             source_file,
             cancellation_token,
@@ -32,7 +32,7 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+    ) -> Vec<Gc<Diagnostic>> {
         // self.run_with_cancellation_token(|| {
         if skip_type_checking(source_file, &self.options, |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
@@ -93,8 +93,8 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         include_bind_and_check_diagnostics: bool,
-        all_diagnostics: &[Option<Vec<Rc<Diagnostic>>>],
-    ) -> Vec<Rc<Diagnostic>> {
+        all_diagnostics: &[Option<Vec<Gc<Diagnostic>>>],
+    ) -> Vec<Gc<Diagnostic>> {
         let flat_diagnostics = all_diagnostics
             .into_iter()
             .filter_map(|option| option.clone())
@@ -137,10 +137,10 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         comment_directives: &[Rc<CommentDirective>],
-        flat_diagnostics: &[Rc<Diagnostic>],
+        flat_diagnostics: &[Gc<Diagnostic>],
     ) -> DiagnosticsWithPrecedingDirectives {
         let mut directives = create_comment_directives_map(source_file, comment_directives);
-        let diagnostics: Vec<Rc<Diagnostic>> = flat_diagnostics
+        let diagnostics: Vec<Gc<Diagnostic>> = flat_diagnostics
             .into_iter()
             .filter(|diagnostic| {
                 self.mark_preceding_comment_directive_line(diagnostic, &mut directives)
@@ -212,8 +212,8 @@ impl Program {
             &Program,
             &Node, /*SourceFile*/
             Option<Rc<dyn CancellationTokenDebuggable>>,
-        ) -> Vec<Rc<Diagnostic>>,
-    ) -> Vec<Rc<Diagnostic>> {
+        ) -> Vec<Gc<Diagnostic>>,
+    ) -> Vec<Gc<Diagnostic>> {
         let result = get_diagnostics(self, source_file, cancellation_token);
         result
     }
@@ -221,14 +221,14 @@ impl Program {
     pub fn get_options_diagnostics(
         &self,
         _cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> SortedArray<Rc<Diagnostic>> {
+    ) -> SortedArray<Gc<Diagnostic>> {
         sort_and_deduplicate_diagnostics(&concatenate(
             self.program_diagnostics().get_global_diagnostics(),
             self.get_options_diagnostics_of_config_file(),
         ))
     }
 
-    pub fn get_options_diagnostics_of_config_file(&self) -> Vec<Rc<Diagnostic>> {
+    pub fn get_options_diagnostics_of_config_file(&self) -> Vec<Gc<Diagnostic>> {
         let options_config_file = self.options.config_file.as_ref();
         if options_config_file.is_none() {
             return vec![];
@@ -251,7 +251,7 @@ impl Program {
     pub fn get_global_diagnostics(
         &self,
         _cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> SortedArray<Rc<Diagnostic>> {
+    ) -> SortedArray<Gc<Diagnostic>> {
         if !self.root_names().is_empty() {
             sort_and_deduplicate_diagnostics(
                 &self
@@ -263,7 +263,7 @@ impl Program {
         }
     }
 
-    pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+    pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Gc<Diagnostic>> {
         self.maybe_config_file_parsing_diagnostics()
             .clone()
             .unwrap_or_else(|| vec![])
@@ -379,6 +379,6 @@ impl Program {
 }
 
 pub struct DiagnosticsWithPrecedingDirectives {
-    pub diagnostics: Vec<Rc<Diagnostic>>,
+    pub diagnostics: Vec<Gc<Diagnostic>>,
     pub directives: CommentDirectivesMap,
 }

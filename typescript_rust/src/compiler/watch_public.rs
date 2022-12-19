@@ -8,7 +8,7 @@ use crate::{
 
 pub fn create_incremental_compiler_host(
     options: Gc<CompilerOptions>,
-    system: Option<Rc<dyn System>>,
+    system: Option<Gc<Box<dyn System>>>,
 ) -> impl CompilerHost {
     let system = system.unwrap_or_else(|| get_sys());
     let host = create_compiler_host_worker(options, None, Some(system));
@@ -18,7 +18,7 @@ pub fn create_incremental_compiler_host(
 pub trait WatchStatusReporter {
     fn call(
         &self,
-        diagnostic: Rc<Diagnostic>,
+        diagnostic: Gc<Diagnostic>,
         new_line: &str,
         options: Gc<CompilerOptions>,
         error_count: Option<usize>,

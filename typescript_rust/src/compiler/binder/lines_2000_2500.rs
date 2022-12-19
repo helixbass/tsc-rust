@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -78,7 +78,7 @@ impl BinderType {
             .wrap();
         self.add_declaration_to_symbol(&type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let mut type_literal_symbol_members = type_literal_symbol.maybe_members_mut();
-        *type_literal_symbol_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+        *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
         type_literal_symbol_members
             .as_ref()
             .unwrap()
@@ -126,7 +126,7 @@ impl BinderType {
                     let file = self.file();
                     let span = get_error_span_for_node(&file, &identifier);
                     file.as_source_file().bind_diagnostics_mut().push(
-                        Rc::new(
+                        Gc::new(
                             create_file_diagnostic(
                                 &file,
                                 span.start,
@@ -174,9 +174,6 @@ impl BinderType {
         if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
             symbol.set_parent(self.container().maybe_symbol());
         }
-        self.file()
-            .as_source_file()
-            .keep_strong_reference_to_symbol(symbol.clone());
         self.add_declaration_to_symbol(&symbol, node, symbol_flags);
         symbol
     }
@@ -201,7 +198,7 @@ impl BinderType {
                             block_scope_container.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
                             *block_scope_container_locals =
-                                Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                                Some(Gc::new(GcCell::new(create_symbol_table(None))));
                             self.add_to_container_chain(&block_scope_container);
                         }
                     }
@@ -221,7 +218,7 @@ impl BinderType {
                     let mut block_scope_container_locals = block_scope_container.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
                         *block_scope_container_locals =
-                            Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                            Some(Gc::new(GcCell::new(create_symbol_table(None))));
                         self.add_to_container_chain(&block_scope_container);
                     }
                 }
@@ -261,7 +258,7 @@ impl BinderType {
             self.set_block_scope_container(Some(
                 get_enclosing_block_scope_container(&host).unwrap_or_else(|| self.file()),
             ));
-            self.set_current_flow(Some(Rc::new(init_flow_node(
+            self.set_current_flow(Some(Gc::new(init_flow_node(
                 FlowStart::new(FlowFlags::Start, None).into(),
             ))));
             self.set_parent(Some(type_alias.clone()));
@@ -403,7 +400,7 @@ impl BinderType {
                 self.file()
                     .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Rc::new(
+                    .push(Gc::new(
                         self.create_diagnostic_for_node(
                             node,
                             self.get_strict_mode_identifier_message(node),
@@ -416,7 +413,7 @@ impl BinderType {
                     self.file()
                         .as_source_file()
                         .bind_diagnostics_mut()
-                        .push(Rc::new(
+                        .push(Gc::new(
                             self.create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Identifier_expected_0_is_a_reserved_word_at_the_top_level_of_a_module,
@@ -428,7 +425,7 @@ impl BinderType {
                     self.file()
                         .as_source_file()
                         .bind_diagnostics_mut()
-                        .push(Rc::new(
+                        .push(Gc::new(
                             self.create_diagnostic_for_node(
                                 node,
                                 &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here,
@@ -443,7 +440,7 @@ impl BinderType {
                 self.file()
                     .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Rc::new(
+                    .push(Gc::new(
                         self.create_diagnostic_for_node(
                             node,
                             &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here,
@@ -480,7 +477,7 @@ impl BinderType {
             let file = self.file();
             let file_as_source_file = file.as_source_file();
             if file_as_source_file.parse_diagnostics().is_empty() {
-                file_as_source_file.bind_diagnostics_mut().push(Rc::new(
+                file_as_source_file.bind_diagnostics_mut().push(Gc::new(
                     self.create_diagnostic_for_node(
                         node,
                         &Diagnostics::constructor_is_a_reserved_word,
@@ -533,7 +530,7 @@ impl BinderType {
                 self.file()
                     .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Rc::new(
+                    .push(Gc::new(
                         create_file_diagnostic(
                             &self.file(),
                             span.start,
@@ -568,7 +565,7 @@ impl BinderType {
                 self.file()
                     .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Rc::new(
+                    .push(Gc::new(
                         create_file_diagnostic(
                             &self.file(),
                             span.start,
@@ -651,7 +648,7 @@ impl BinderType {
                 self.file()
                     .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Rc::new(
+                    .push(Gc::new(
                         create_file_diagnostic(
                             &self.file(),
                             error_span.start,
@@ -675,7 +672,7 @@ impl BinderType {
                 self.file()
                     .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(Rc::new(
+                    .push(Gc::new(
                         self.create_diagnostic_for_node(
                             node,
                             &Diagnostics::Octal_literals_are_not_allowed_in_strict_mode,
@@ -757,7 +754,7 @@ impl BinderType {
         self.file()
             .as_source_file()
             .bind_diagnostics_mut()
-            .push(Rc::new(
+            .push(Gc::new(
                 create_file_diagnostic(&self.file(), span.start, span.length, message, args).into(),
             ));
     }
@@ -794,7 +791,7 @@ impl BinderType {
         range: BaseTextRange,
         message: &DiagnosticMessage,
     ) {
-        let diag = Rc::new(
+        let diag = Gc::new(
             create_file_diagnostic(
                 &self.file(),
                 range.pos(),

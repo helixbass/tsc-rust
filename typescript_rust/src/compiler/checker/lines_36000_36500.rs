@@ -247,7 +247,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_identifiers<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
         potentially_unused_identifiers: &[Gc<Node /*PotentiallyUnusedIdentifier*/>],
@@ -300,7 +300,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn error_unused_local<TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>)>(
+    pub(super) fn error_unused_local<TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>)>(
         &self,
         declaration: &Node, /*Declaration*/
         name: &str,
@@ -325,7 +325,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_class_members<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
         node: &Node, /*ClassDeclaration | ClassExpression*/
@@ -404,7 +404,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_infer_type_parameter<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
         node: &Node, /*InferTypeNode*/
@@ -431,7 +431,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_type_parameters<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
         node: &Node, /*ClassLikeDeclaration | SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration*/
@@ -587,7 +587,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_unused_locals_and_parameters<
-        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Gc<Diagnostic>),
     >(
         &self,
         node_with_locals: &Node,

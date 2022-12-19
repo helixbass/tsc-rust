@@ -23,7 +23,7 @@ impl TypeChecker {
         &self,
         left: Option<TLeft>,
         right: Option<TRight>,
-        mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
     ) -> Option<Gc<Symbol>> {
         let left = left.map(|left| left.borrow().symbol_wrapper());
         let right = right.map(|right| right.borrow().symbol_wrapper());
@@ -47,7 +47,7 @@ impl TypeChecker {
         &self,
         left: &Signature,
         right: &Signature,
-        mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
     ) -> Vec<Gc<Symbol>> {
         let left_count = self.get_parameter_count(left);
         let right_count = self.get_parameter_count(right);
@@ -170,7 +170,7 @@ impl TypeChecker {
             .maybe_type_parameters()
             .clone()
             .or_else(|| right.maybe_type_parameters().clone());
-        let mut param_mapper: Option<Rc<TypeMapper>> = None;
+        let mut param_mapper: Option<Gc<TypeMapper>> = None;
         if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
             param_mapper = Some(Rc::new(self.create_type_mapper(
                 right.maybe_type_parameters().clone().unwrap(),
@@ -220,7 +220,7 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_union_index_infos(&self, types: &[Gc<Type>]) -> Vec<Rc<IndexInfo>> {
+    pub(super) fn get_union_index_infos(&self, types: &[Gc<Type>]) -> Vec<Gc<IndexInfo>> {
         let source_infos = self.get_index_infos_of_type(&types[0]);
         // if (sourceInfos) {
         let mut result = vec![];
@@ -341,7 +341,7 @@ impl TypeChecker {
     pub(super) fn resolve_intersection_type_members(&self, type_: &Type /*IntersectionType*/) {
         let mut call_signatures: Vec<Gc<Signature>> = vec![];
         let mut construct_signatures: Vec<Gc<Signature>> = vec![];
-        let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+        let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         let type_as_intersection_type = type_.as_intersection_type();
         let types = type_as_intersection_type.types();
         let mixin_flags = self.find_mixins(types);
@@ -369,7 +369,7 @@ impl TypeChecker {
             );
             index_infos = reduce_left(
                 &self.get_index_infos_of_type(t),
-                |mut infos: Vec<Rc<IndexInfo>>, new_info: &Rc<IndexInfo>, _| {
+                |mut infos: Vec<Gc<IndexInfo>>, new_info: &Gc<IndexInfo>, _| {
                     self.append_index_info(&mut infos, new_info, false);
                     infos
                 },
@@ -413,8 +413,8 @@ impl TypeChecker {
 
     pub(super) fn append_index_info(
         &self,
-        index_infos: &mut Vec<Rc<IndexInfo>>,
-        new_info: &Rc<IndexInfo>,
+        index_infos: &mut Vec<Gc<IndexInfo>>,
+        new_info: &Gc<IndexInfo>,
         union: bool,
     ) {
         // if (indexInfos) {
@@ -513,7 +513,7 @@ impl TypeChecker {
             );
         } else {
             let mut members = self.empty_symbols();
-            let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+            let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
             let symbol_exports = symbol.maybe_exports();
             if let Some(symbol_exports) = symbol_exports.as_ref() {
                 members = self.get_exports_of_symbol(&symbol);
@@ -527,7 +527,7 @@ impl TypeChecker {
                     members = Rc::new(RefCell::new(vars_only));
                 }
             }
-            let mut base_constructor_index_info: Option<Rc<IndexInfo>> = None;
+            let mut base_constructor_index_info: Option<Gc<IndexInfo>> = None;
             self.set_structured_type_members(
                 type_as_object_type,
                 members.clone(),
@@ -851,7 +851,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_mapped_type_members(&self, type_: &Type /*MappedType*/) {
         let mut members = create_symbol_table(None);
-        let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+        let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         let type_as_mapped_type = type_.as_mapped_type();
         self.set_structured_type_members(
             type_as_mapped_type,
@@ -936,7 +936,7 @@ impl TypeChecker {
         modifiers_type: &Type,
         template_modifiers: MappedTypeModifiers,
         template_type: &Type,
-        index_infos: &mut Vec<Rc<IndexInfo>>,
+        index_infos: &mut Vec<Gc<IndexInfo>>,
         key_type: &Type,
     ) {
         let prop_name_type = if let Some(name_type) = name_type {
@@ -977,7 +977,7 @@ impl TypeChecker {
         name_type: Option<&Type>,
         template_type: &Type,
         type_parameter: &Type,
-        index_infos: &mut Vec<Rc<IndexInfo>>,
+        index_infos: &mut Vec<Gc<IndexInfo>>,
         key_type: &Type,
         prop_name_type: &Type,
     ) {

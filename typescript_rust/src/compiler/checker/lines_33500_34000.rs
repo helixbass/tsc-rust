@@ -450,11 +450,11 @@ impl TypeChecker {
     pub(super) fn get_unique_type_parameters(
         &self,
         context: &InferenceContext,
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
-    ) -> Vec<Rc<Type /*TypeParameter*/>> {
-        let mut result: Vec<Rc<Type /*TypeParameter*/>> = vec![];
-        let mut old_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
-        let mut new_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        type_parameters: &[Gc<Type /*TypeParameter*/>],
+    ) -> Vec<Gc<Type /*TypeParameter*/>> {
+        let mut result: Vec<Gc<Type /*TypeParameter*/>> = vec![];
+        let mut old_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
+        let mut new_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
         for tp in type_parameters {
             let tp_symbol = tp.symbol();
             let name = tp_symbol.escaped_name();
@@ -509,7 +509,7 @@ impl TypeChecker {
 
     pub(super) fn has_type_parameter_by_name(
         &self,
-        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
         name: &str, /*__String*/
     ) -> bool {
         some(
@@ -520,7 +520,7 @@ impl TypeChecker {
 
     pub(super) fn get_unique_type_parameter_name(
         &self,
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        type_parameters: &[Gc<Type /*TypeParameter*/>],
         base_name: &str, /*__String*/
     ) -> __String {
         let base_name_as_chars = base_name.chars().collect::<Vec<_>>();

@@ -66,7 +66,7 @@ impl CheckTypeRelatedTo {
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
         error_output_container: Option<Rc<dyn CheckTypeErrorOutputContainer>>,
-    ) -> Rc<Self> {
+    ) -> Gc<Self> {
         let instance = Self {
             _rc_wrapper: RefCell::new(None),
             type_checker: type_checker.rc_wrapper(),
@@ -92,7 +92,7 @@ impl CheckTypeRelatedTo {
             incompatible_stack: RefCell::new(vec![]),
             in_property_check: Cell::new(false),
         };
-        let rc_wrapped = Rc::new(instance);
+        let rc_wrapped = Gc::new(instance);
         rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
         rc_wrapped
     }
@@ -298,7 +298,7 @@ impl CheckTypeRelatedTo {
                     }
                 }
             }
-            let diag: Rc<Diagnostic> = Rc::new(
+            let diag: Gc<Diagnostic> = Rc::new(
                 create_diagnostic_for_node_from_message_chain(
                     self.maybe_error_node().as_ref().unwrap(),
                     self.maybe_error_info()

@@ -1,23 +1,24 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{init_flow_node, BinderType, ContainerFlags};
 use crate::{
-    contains_rc, create_symbol_table, for_each, for_each_child, get_combined_modifier_flags,
-    get_immediately_invoked_function_expression, get_name_of_declaration, has_syntactic_modifier,
-    is_ambient_module, is_assignment_expression, is_binary_expression, is_declaration,
-    is_destructuring_assignment, is_dotted_name, is_element_access_expression,
-    is_expression_of_optional_chain_root, is_in_js_file, is_jsdoc_enum_tag, is_jsdoc_type_alias,
-    is_module_declaration, is_non_null_expression, is_nullish_coalesce, is_optional_chain,
-    is_parenthesized_expression, is_property_access_entity_name_expression,
-    is_property_access_expression, is_string_literal_like, is_string_or_numeric_literal_like,
-    is_type_of_expression, node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode,
-    FlowNodeBase, FlowReduceLabel, FlowStart, HasStatementsInterface, ModifierFlags, Node,
-    NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    contains_gc, contains_rc, create_symbol_table, for_each, for_each_child,
+    get_combined_modifier_flags, get_immediately_invoked_function_expression,
+    get_name_of_declaration, has_syntactic_modifier, is_ambient_module, is_assignment_expression,
+    is_binary_expression, is_declaration, is_destructuring_assignment, is_dotted_name,
+    is_element_access_expression, is_expression_of_optional_chain_root, is_in_js_file,
+    is_jsdoc_enum_tag, is_jsdoc_type_alias, is_module_declaration, is_non_null_expression,
+    is_nullish_coalesce, is_optional_chain, is_parenthesized_expression,
+    is_property_access_entity_name_expression, is_property_access_expression,
+    is_string_literal_like, is_string_or_numeric_literal_like, is_type_of_expression,
+    node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode, FlowNodeBase,
+    FlowReduceLabel, FlowStart, HasStatementsInterface, ModifierFlags, Node, NodeArray, NodeFlags,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 impl BinderType {
@@ -166,7 +167,7 @@ impl BinderType {
             self.set_block_scope_container(Some(node.node_wrapper()));
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container()
-                    .set_locals(Some(Rc::new(RefCell::new(create_symbol_table(None)))));
+                    .set_locals(Some(Gc::new(GcCell::new(create_symbol_table(None)))));
             }
             self.add_to_container_chain(&self.container());
         } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {
@@ -189,7 +190,7 @@ impl BinderType {
                     .is_none()
                 && get_immediately_invoked_function_expression(node).is_some();
             if !is_iife {
-                self.set_current_flow(Some(Rc::new(init_flow_node(
+                self.set_current_flow(Some(Gc::new(init_flow_node(
                     FlowStart::new(FlowFlags::Start, None).into(),
                 ))));
                 if container_flags.intersects(
@@ -578,25 +579,25 @@ impl BinderType {
         self.contains_narrowable_reference(expr)
     }
 
-    pub(super) fn create_branch_label(&self) -> Rc<FlowNode /*FlowLabel*/> {
-        Rc::new(init_flow_node(
+    pub(super) fn create_branch_label(&self) -> Gc<FlowNode /*FlowLabel*/> {
+        Gc::new(init_flow_node(
             FlowLabel::new(FlowFlags::BranchLabel, None).into(),
         ))
     }
 
-    pub(super) fn create_loop_label(&self) -> Rc<FlowNode /*FlowLabel*/> {
-        Rc::new(init_flow_node(
+    pub(super) fn create_loop_label(&self) -> Gc<FlowNode /*FlowLabel*/> {
+        Gc::new(init_flow_node(
             FlowLabel::new(FlowFlags::LoopLabel, None).into(),
         ))
     }
 
     pub(super) fn create_reduce_label(
         &self,
-        target: Rc<FlowNode /*FlowLabel*/>,
-        antecedents: Vec<Rc<FlowNode>>,
-        antecedent: Rc<FlowNode>,
-    ) -> Rc<FlowNode /*FlowReduceLabel*/> {
-        Rc::new(init_flow_node(
+        target: Gc<FlowNode /*FlowLabel*/>,
+        antecedents: Vec<Gc<FlowNode>>,
+        antecedent: Gc<FlowNode>,
+    ) -> Gc<FlowNode /*FlowReduceLabel*/> {
+        Gc::new(init_flow_node(
             FlowReduceLabel::new(FlowFlags::ReduceLabel, target, antecedents, antecedent).into(),
         ))
     }
@@ -615,11 +616,11 @@ impl BinderType {
     pub(super) fn add_antecedent(
         &self,
         label: &FlowNode, /*FlowLabel*/
-        antecedent: Rc<FlowNode>,
+        antecedent: Gc<FlowNode>,
     ) {
         let label_as_flow_label = label.as_flow_label();
         if !antecedent.flags().intersects(FlowFlags::Unreachable)
-            && !contains_rc(
+            && !contains_gc(
                 label_as_flow_label.maybe_antecedents().as_deref(),
                 &antecedent,
             )
@@ -636,9 +637,9 @@ impl BinderType {
     pub(super) fn create_flow_condition<TExpression: Borrow<Node>>(
         &self,
         flags: FlowFlags,
-        antecedent: Rc<FlowNode>,
+        antecedent: Gc<FlowNode>,
         expression: Option<TExpression>,
-    ) -> Rc<FlowNode> {
+    ) -> Gc<FlowNode> {
         if antecedent.flags().intersects(FlowFlags::Unreachable) {
             return antecedent;
         }
@@ -664,7 +665,7 @@ impl BinderType {
             return antecedent;
         }
         self.set_flow_node_referenced(&antecedent);
-        Rc::new(init_flow_node(
+        Gc::new(init_flow_node(
             FlowCondition::new(flags, antecedent, expression.node_wrapper()).into(),
         ))
     }

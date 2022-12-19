@@ -772,7 +772,7 @@ impl TypeChecker {
     pub(super) fn instantiate_instantiable_types(
         &self,
         type_: &Type,
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
     ) -> Gc<Type> {
         if type_.flags().intersects(TypeFlags::Instantiable) {
             return self.instantiate_type(type_, Some(mapper));
@@ -921,7 +921,7 @@ impl TypeChecker {
         self.get_contextual_type_(node, None)
     }
 
-    pub(super) fn get_inference_context(&self, node: &Node) -> Option<Rc<InferenceContext>> {
+    pub(super) fn get_inference_context(&self, node: &Node) -> Option<Gc<InferenceContext>> {
         let ancestor = find_ancestor(Some(node), |n: &Node| n.maybe_inference_context().is_some());
         ancestor.map(|ancestor| ancestor.maybe_inference_context().clone().unwrap())
     }

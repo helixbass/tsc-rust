@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -986,7 +986,7 @@ pub struct JSDocTemplateTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub constraint: Option<Gc<Node /*JSDocTypeExpression*/>>,
     pub type_parameters: NodeArray, /*<TypeParameterDeclaration>*/
-    type_parameters_for_has_type_parameters_interface: RefCell<Option<NodeArray>>, /*<TypeParameterDeclaration>*/
+    type_parameters_for_has_type_parameters_interface: GcCell<Option<NodeArray>>, /*<TypeParameterDeclaration>*/
 }
 
 impl JSDocTemplateTag {
@@ -999,18 +999,18 @@ impl JSDocTemplateTag {
             _base_jsdoc_tag: base_jsdoc_tag,
             constraint,
             type_parameters: type_parameters.clone(),
-            type_parameters_for_has_type_parameters_interface: RefCell::new(Some(type_parameters)),
+            type_parameters_for_has_type_parameters_interface: GcCell::new(Some(type_parameters)),
         }
     }
 }
 
 impl HasTypeParametersInterface for JSDocTemplateTag {
-    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_parameters(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_parameters_for_has_type_parameters_interface
             .borrow()
     }
 
-    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>> {
+    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<NodeArray>> {
         self.type_parameters_for_has_type_parameters_interface
             .borrow_mut()
     }
@@ -1152,7 +1152,7 @@ impl JSDocTypeLikeTagInterface for JSDocCallbackTag {
 #[ast_type]
 pub struct JSDocSignature {
     _node: BaseNode,
-    type_parameters: RefCell<Option<NodeArray /*<JSDocTemplateTag>*/>>,
+    type_parameters: GcCell<Option<NodeArray /*<JSDocTemplateTag>*/>>,
     pub parameters: NodeArray, /*<JSDocParameterTag>*/
     pub type_: Option<Gc<Node /*JSDocReturnTag*/>>,
 }
@@ -1166,7 +1166,7 @@ impl JSDocSignature {
     ) -> Self {
         Self {
             _node: base_node,
-            type_parameters: RefCell::new(type_parameters),
+            type_parameters: GcCell::new(type_parameters),
             parameters,
             type_,
         }
@@ -1204,11 +1204,11 @@ impl HasTypeInterface for JSDocSignature {
 }
 
 impl HasTypeParametersInterface for JSDocSignature {
-    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_parameters(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_parameters.borrow()
     }
 
-    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>> {
+    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<NodeArray>> {
         self.type_parameters.borrow_mut()
     }
 }
@@ -1483,7 +1483,7 @@ pub struct FlowLabel {
 }
 
 impl FlowLabel {
-    pub fn new(flags: FlowFlags, antecedents: Option<Vec<Rc<FlowNode>>>) -> Self {
+    pub fn new(flags: FlowFlags, antecedents: Option<Vec<Gc<FlowNode>>>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1491,15 +1491,15 @@ impl FlowLabel {
         }
     }
 
-    pub fn maybe_antecedents(&self) -> Ref<Option<Vec<Rc<FlowNode>>>> {
+    pub fn maybe_antecedents(&self) -> Ref<Option<Vec<Gc<FlowNode>>>> {
         self.antecedents.borrow()
     }
 
-    pub fn maybe_antecedents_mut(&self) -> RefMut<Option<Vec<Rc<FlowNode>>>> {
+    pub fn maybe_antecedents_mut(&self) -> RefMut<Option<Vec<Gc<FlowNode>>>> {
         self.antecedents.borrow_mut()
     }
 
-    pub fn set_antecedents(&self, antecedents: Option<Vec<Rc<FlowNode>>>) {
+    pub fn set_antecedents(&self, antecedents: Option<Vec<Gc<FlowNode>>>) {
         *self.antecedents.borrow_mut() = antecedents;
     }
 }
@@ -1529,7 +1529,7 @@ impl From<FlowLabel> for FlowNode {
 }
 
 pub trait HasAntecedentInterface {
-    fn antecedent(&self) -> Rc<FlowNode>;
+    fn antecedent(&self) -> Gc<FlowNode>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -1541,7 +1541,7 @@ pub struct FlowAssignment {
 }
 
 impl FlowAssignment {
-    pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Gc<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Gc<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1570,7 +1570,7 @@ impl FlowNodeBase for FlowAssignment {
 }
 
 impl HasAntecedentInterface for FlowAssignment {
-    fn antecedent(&self) -> Rc<FlowNode> {
+    fn antecedent(&self) -> Gc<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1590,7 +1590,7 @@ pub struct FlowCall {
 }
 
 impl FlowCall {
-    pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Gc<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Gc<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1619,7 +1619,7 @@ impl FlowNodeBase for FlowCall {
 }
 
 impl HasAntecedentInterface for FlowCall {
-    fn antecedent(&self) -> Rc<FlowNode> {
+    fn antecedent(&self) -> Gc<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1639,7 +1639,7 @@ pub struct FlowCondition {
 }
 
 impl FlowCondition {
-    pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Gc<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Gc<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             antecedent,
@@ -1668,7 +1668,7 @@ impl FlowNodeBase for FlowCondition {
 }
 
 impl HasAntecedentInterface for FlowCondition {
-    fn antecedent(&self) -> Rc<FlowNode> {
+    fn antecedent(&self) -> Gc<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1692,7 +1692,7 @@ pub struct FlowSwitchClause {
 impl FlowSwitchClause {
     pub fn new(
         flags: FlowFlags,
-        antecedent: Rc<FlowNode>,
+        antecedent: Gc<FlowNode>,
         switch_statement: Gc<Node>,
         clause_start: usize,
         clause_end: usize,
@@ -1727,7 +1727,7 @@ impl FlowNodeBase for FlowSwitchClause {
 }
 
 impl HasAntecedentInterface for FlowSwitchClause {
-    fn antecedent(&self) -> Rc<FlowNode> {
+    fn antecedent(&self) -> Gc<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1747,7 +1747,7 @@ pub struct FlowArrayMutation {
 }
 
 impl FlowArrayMutation {
-    pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Gc<Node>) -> Self {
+    pub fn new(flags: FlowFlags, antecedent: Gc<FlowNode>, node: Gc<Node>) -> Self {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
@@ -1776,7 +1776,7 @@ impl FlowNodeBase for FlowArrayMutation {
 }
 
 impl HasAntecedentInterface for FlowArrayMutation {
-    fn antecedent(&self) -> Rc<FlowNode> {
+    fn antecedent(&self) -> Gc<FlowNode> {
         self.antecedent.clone()
     }
 }
@@ -1799,9 +1799,9 @@ pub struct FlowReduceLabel {
 impl FlowReduceLabel {
     pub fn new(
         flags: FlowFlags,
-        target: Rc<FlowNode>,
-        antecedents: Vec<Rc<FlowNode>>,
-        antecedent: Rc<FlowNode>,
+        target: Gc<FlowNode>,
+        antecedents: Vec<Gc<FlowNode>>,
+        antecedent: Gc<FlowNode>,
     ) -> Self {
         Self {
             flags: Cell::new(flags),
@@ -1832,7 +1832,7 @@ impl FlowNodeBase for FlowReduceLabel {
 }
 
 impl HasAntecedentInterface for FlowReduceLabel {
-    fn antecedent(&self) -> Rc<FlowNode> {
+    fn antecedent(&self) -> Gc<FlowNode> {
         self.antecedent.clone()
     }
 }

@@ -342,7 +342,7 @@ impl TypeChecker {
         &self,
         source: &Type, /*StringLiteralType*/
         target: &Type, /*UnionType*/
-    ) -> Option<Rc<Type /*StringLiteralType*/>> {
+    ) -> Option<Gc<Type /*StringLiteralType*/>> {
         let candidates = target
             .as_union_type()
             .types()

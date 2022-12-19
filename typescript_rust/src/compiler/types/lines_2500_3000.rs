@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell, GcCellRef, GcCellRefMut};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -903,7 +903,7 @@ pub struct CaseClause {
     _node: BaseNode,
     pub expression: Gc<Node /*Expression*/>,
     pub statements: NodeArray, /*<Statement>*/
-    fallthrough_flow_node: RefCell<Option<Rc<FlowNode>>>,
+    fallthrough_flow_node: RefCell<Option<Gc<FlowNode>>>,
 }
 
 impl CaseClause {
@@ -924,16 +924,16 @@ impl HasStatementsInterface for CaseClause {
 }
 
 pub trait CaseOrDefaultClauseInterface: HasStatementsInterface {
-    fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>>;
-    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Rc<FlowNode>>);
+    fn maybe_fallthrough_flow_node(&self) -> Option<Gc<FlowNode>>;
+    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Gc<FlowNode>>);
 }
 
 impl CaseOrDefaultClauseInterface for CaseClause {
-    fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>> {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Gc<FlowNode>> {
         self.fallthrough_flow_node.borrow().clone()
     }
 
-    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Rc<FlowNode>>) {
+    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Gc<FlowNode>>) {
         *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
     }
 }
@@ -949,7 +949,7 @@ impl HasExpressionInterface for CaseClause {
 pub struct DefaultClause {
     _node: BaseNode,
     pub statements: NodeArray, /*<Statement>*/
-    fallthrough_flow_node: RefCell<Option<Rc<FlowNode>>>,
+    fallthrough_flow_node: RefCell<Option<Gc<FlowNode>>>,
 }
 
 impl DefaultClause {
@@ -969,11 +969,11 @@ impl HasStatementsInterface for DefaultClause {
 }
 
 impl CaseOrDefaultClauseInterface for DefaultClause {
-    fn maybe_fallthrough_flow_node(&self) -> Option<Rc<FlowNode>> {
+    fn maybe_fallthrough_flow_node(&self) -> Option<Gc<FlowNode>> {
         self.fallthrough_flow_node.borrow().clone()
     }
 
-    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Rc<FlowNode>>) {
+    fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Gc<FlowNode>>) {
         *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
     }
 }
@@ -1335,8 +1335,8 @@ impl HasElementsInterface for ArrayBindingPattern {
 }
 
 pub trait HasTypeParametersInterface {
-    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>>;
-    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>>;
+    fn maybe_type_parameters(&self) -> GcCellRef<Option<NodeArray>>;
+    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<NodeArray>>;
 }
 
 pub trait GenericNamedDeclarationInterface:
@@ -1348,7 +1348,7 @@ pub trait GenericNamedDeclarationInterface:
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseGenericNamedDeclaration {
     _named_declaration: BaseNamedDeclaration,
-    type_parameters: RefCell<Option<NodeArray /*<TypeParameterDeclaration>*/>>,
+    type_parameters: GcCell<Option<NodeArray /*<TypeParameterDeclaration>*/>>,
 }
 
 impl BaseGenericNamedDeclaration {
@@ -1358,17 +1358,17 @@ impl BaseGenericNamedDeclaration {
     ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
-            type_parameters: RefCell::new(type_parameters),
+            type_parameters: GcCell::new(type_parameters),
         }
     }
 }
 
 impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
-    fn maybe_type_parameters(&self) -> Ref<Option<NodeArray>> {
+    fn maybe_type_parameters(&self) -> GcCellRef<Option<NodeArray>> {
         self.type_parameters.borrow()
     }
 
-    fn maybe_type_parameters_mut(&self) -> RefMut<Option<NodeArray>> {
+    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<NodeArray>> {
         self.type_parameters.borrow_mut()
     }
 }

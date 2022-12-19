@@ -111,7 +111,7 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
         arity: usize,
-    ) -> Rc<Type /*ObjectType*/> {
+    ) -> Gc<Type /*ObjectType*/> {
         if symbol.is_none() {
             return if arity != 0 {
                 self.empty_generic_type()
@@ -410,7 +410,7 @@ impl TypeChecker {
             .unwrap_or_else(|| self.empty_object_type())
     }
 
-    pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/> {
+    pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Gc<Type /*GenericType*/> {
         if self.maybe_deferred_global_promise_type().is_none() {
             *self.maybe_deferred_global_promise_type() =
                 self.get_global_type("Promise", 1, report_errors);
@@ -423,7 +423,7 @@ impl TypeChecker {
     pub(super) fn get_global_promise_like_type(
         &self,
         report_errors: bool,
-    ) -> Rc<Type /*GenericType*/> {
+    ) -> Gc<Type /*GenericType*/> {
         if self.maybe_deferred_global_promise_like_type().is_none() {
             *self.maybe_deferred_global_promise_like_type() =
                 self.get_global_type("PromiseLike", 1, report_errors);
@@ -451,7 +451,7 @@ impl TypeChecker {
     pub(super) fn get_global_promise_constructor_like_type(
         &self,
         report_errors: bool,
-    ) -> Rc<Type /*GenericType*/> {
+    ) -> Gc<Type /*GenericType*/> {
         if self
             .maybe_deferred_global_promise_constructor_like_type()
             .is_none()
@@ -580,7 +580,7 @@ impl TypeChecker {
         &self,
         name: &str, /*__String*/
         arity: Option<usize>,
-    ) -> Option<Rc<Type /*ObjectType*/>> {
+    ) -> Option<Gc<Type /*ObjectType*/>> {
         let arity = arity.unwrap_or(0);
         let symbol = self.get_global_symbol(name, SymbolFlags::Type, None);
         symbol.map(|symbol| self.get_type_of_global_symbol(Some(symbol), arity))
@@ -650,7 +650,7 @@ impl TypeChecker {
         &self,
         generic_global_type: &Type, /*GenericType*/
         type_arguments: Vec<Gc<Type>>,
-    ) -> Rc<Type /*ObjectType*/> {
+    ) -> Gc<Type /*ObjectType*/> {
         if !ptr::eq(generic_global_type, &*self.empty_generic_type()) {
             self.create_type_reference(generic_global_type, Some(type_arguments))
         } else {
@@ -676,7 +676,7 @@ impl TypeChecker {
         &self,
         element_type: &Type,
         readonly: Option<bool>,
-    ) -> Rc<Type /*ObjectType*/> {
+    ) -> Gc<Type /*ObjectType*/> {
         self.create_type_from_generic_global_type(
             &*if matches!(readonly, Some(true)) {
                 self.global_readonly_array_type()
@@ -722,7 +722,7 @@ impl TypeChecker {
     pub(super) fn get_array_or_tuple_target_type(
         &self,
         node: &Node, /*ArrayTypeNode | TupleTypeNode*/
-    ) -> Rc<Type /*GenericType*/> {
+    ) -> Gc<Type /*GenericType*/> {
         let readonly = self.is_readonly_type_operator(&node.parent());
         let element_type = self.get_array_element_type_node(node);
         if element_type.is_some() {
@@ -936,7 +936,7 @@ impl TypeChecker {
         element_flags: &[ElementFlags],
         readonly: bool,
         named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Rc<Type /*GenericType*/> {
+    ) -> Gc<Type /*GenericType*/> {
         if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::Rest) {
             return if readonly {
                 self.global_readonly_array_type()
@@ -994,12 +994,12 @@ impl TypeChecker {
         element_flags: &[ElementFlags],
         readonly: bool,
         named_member_declarations: Option<&[Gc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
-    ) -> Rc<Type /*TupleType*/> {
+    ) -> Gc<Type /*TupleType*/> {
         let arity = element_flags.len();
         let min_length = count_where(Some(element_flags), |f: &ElementFlags, _| {
             f.intersects(ElementFlags::Required | ElementFlags::Variadic)
         });
-        let mut type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        let mut type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
         let mut properties: Vec<Gc<Symbol>> = vec![];
         let mut combined_flags = ElementFlags::None;
         if arity > 0 {

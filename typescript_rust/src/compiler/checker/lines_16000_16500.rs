@@ -77,9 +77,9 @@ impl TypeChecker {
 
     pub(super) fn get_index_info_with_readonly(
         &self,
-        info: &Rc<IndexInfo>,
+        info: &Gc<IndexInfo>,
         readonly: bool,
-    ) -> Rc<IndexInfo> {
+    ) -> Gc<IndexInfo> {
         if info.is_readonly != readonly {
             Rc::new(self.create_index_info(
                 info.key_type.clone(),
@@ -273,7 +273,7 @@ impl TypeChecker {
         value: StringOrNumber,
         enum_id: usize,
         symbol: &Symbol,
-    ) -> Rc<Type /*LiteralType*/> {
+    ) -> Gc<Type /*LiteralType*/> {
         let key = match value.clone() {
             StringOrNumber::String(value) => {
                 format!("{}@{}", enum_id, value)
@@ -325,7 +325,7 @@ impl TypeChecker {
     pub(super) fn create_unique_es_symbol_type(
         &self,
         symbol: &Symbol,
-    ) -> Rc<Type /*UniqueESSymbolType*/> {
+    ) -> Gc<Type /*UniqueESSymbolType*/> {
         let type_ = self.create_type(TypeFlags::UniqueESSymbol);
         let type_: Gc<Type> = UniqueESSymbolType::new(
             type_,
@@ -602,11 +602,11 @@ impl TypeChecker {
 
     pub(super) fn instantiate_list<
         TItem,
-        TInstantiator: FnMut(&Rc<TItem>, Option<Rc<TypeMapper>>) -> Rc<TItem>,
+        TInstantiator: FnMut(&Rc<TItem>, Option<Gc<TypeMapper>>) -> Rc<TItem>,
     >(
         &self,
         items: Option<&[Rc<TItem>]>,
-        mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
         mut instantiator: TInstantiator,
     ) -> Option<Vec<Rc<TItem>>> {
         let items = items?;
@@ -639,7 +639,7 @@ impl TypeChecker {
     pub(super) fn instantiate_types(
         &self,
         types: Option<&[Gc<Type>]>,
-        mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
     ) -> Option<Vec<Gc<Type>>> {
         self.instantiate_list(types, mapper, |type_: &Gc<Type>, mapper| {
             self.instantiate_type(type_, mapper)
@@ -649,7 +649,7 @@ impl TypeChecker {
     pub(super) fn instantiate_signatures(
         &self,
         signatures: &[Gc<Signature>],
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
     ) -> Vec<Gc<Signature>> {
         self.instantiate_list(
             Some(signatures),
@@ -663,13 +663,13 @@ impl TypeChecker {
 
     pub(super) fn instantiate_index_infos(
         &self,
-        index_infos: &[Rc<IndexInfo>],
-        mapper: Rc<TypeMapper>,
-    ) -> Vec<Rc<IndexInfo>> {
+        index_infos: &[Gc<IndexInfo>],
+        mapper: Gc<TypeMapper>,
+    ) -> Vec<Gc<IndexInfo>> {
         self.instantiate_list(
             Some(index_infos),
             Some(mapper.clone()),
-            |index_info: &Rc<IndexInfo>, mapper| {
+            |index_info: &Gc<IndexInfo>, mapper| {
                 self.instantiate_index_info(index_info, mapper.unwrap())
             },
         )
@@ -678,7 +678,7 @@ impl TypeChecker {
 
     pub(super) fn create_type_mapper(
         &self,
-        sources: Vec<Rc<Type /*TypeParameter*/>>,
+        sources: Vec<Gc<Type /*TypeParameter*/>>,
         targets: Option<Vec<Gc<Type>>>,
     ) -> TypeMapper {
         if sources.len() == 1 {
@@ -731,7 +731,7 @@ impl TypeChecker {
 
     pub(super) fn make_array_type_mapper(
         &self,
-        sources: Vec<Rc<Type /*TypeParameter*/>>,
+        sources: Vec<Gc<Type /*TypeParameter*/>>,
         targets: Option<Vec<Gc<Type>>>,
     ) -> TypeMapper {
         TypeMapper::new_array(sources, targets)
@@ -746,23 +746,23 @@ impl TypeChecker {
 
     pub(super) fn make_composite_type_mapper(
         &self,
-        mapper1: Rc<TypeMapper>,
-        mapper2: Rc<TypeMapper>,
+        mapper1: Gc<TypeMapper>,
+        mapper2: Gc<TypeMapper>,
     ) -> TypeMapper {
         TypeMapper::new_composite(mapper1, mapper2)
     }
 
     pub(super) fn make_merged_type_mapper(
         &self,
-        mapper1: Rc<TypeMapper>,
-        mapper2: Rc<TypeMapper>,
+        mapper1: Gc<TypeMapper>,
+        mapper2: Gc<TypeMapper>,
     ) -> TypeMapper {
         TypeMapper::new_merged(mapper1, mapper2)
     }
 
     pub(super) fn create_type_eraser(
         &self,
-        sources: Vec<Rc<Type /*TypeParameter*/>>,
+        sources: Vec<Gc<Type /*TypeParameter*/>>,
     ) -> TypeMapper {
         self.create_type_mapper(sources, None)
     }
@@ -777,9 +777,9 @@ impl TypeChecker {
 
     pub(super) fn combine_type_mappers(
         &self,
-        mapper1: Option<Rc<TypeMapper>>,
-        mapper2: Rc<TypeMapper>,
-    ) -> Rc<TypeMapper> {
+        mapper1: Option<Gc<TypeMapper>>,
+        mapper2: Gc<TypeMapper>,
+    ) -> Gc<TypeMapper> {
         if let Some(mapper1) = mapper1 {
             Rc::new(self.make_composite_type_mapper(mapper1, mapper2))
         } else {
@@ -789,9 +789,9 @@ impl TypeChecker {
 
     pub(super) fn merge_type_mappers(
         &self,
-        mapper1: Option<Rc<TypeMapper>>,
-        mapper2: Rc<TypeMapper>,
-    ) -> Rc<TypeMapper> {
+        mapper1: Option<Gc<TypeMapper>>,
+        mapper2: Gc<TypeMapper>,
+    ) -> Gc<TypeMapper> {
         if let Some(mapper1) = mapper1 {
             Rc::new(self.make_merged_type_mapper(mapper1, mapper2))
         } else {
@@ -803,7 +803,7 @@ impl TypeChecker {
         &self,
         source: &Type,
         target: &Type,
-        mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
     ) -> TypeMapper {
         match mapper {
             None => self.make_unary_type_mapper(source, target),
@@ -816,7 +816,7 @@ impl TypeChecker {
 
     pub(super) fn append_type_mapping(
         &self,
-        mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
         source: &Type,
         target: &Type,
     ) -> TypeMapper {
@@ -854,7 +854,7 @@ impl TypeChecker {
     pub(super) fn clone_type_parameter(
         &self,
         type_parameter: &Type, /*TypeParameter*/
-    ) -> Rc<Type /*TypeParameter*/> {
+    ) -> Gc<Type /*TypeParameter*/> {
         let mut result = self.create_type_parameter(Some(type_parameter.symbol()));
         result.target = Some(type_parameter.type_wrapper());
         result.into()
@@ -863,7 +863,7 @@ impl TypeChecker {
     pub(super) fn instantiate_type_predicate(
         &self,
         predicate: &TypePredicate,
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
     ) -> TypePredicate {
         self.create_type_predicate(
             predicate.kind,
@@ -876,11 +876,11 @@ impl TypeChecker {
     pub(super) fn instantiate_signature(
         &self,
         signature: Gc<Signature>,
-        mut mapper: Rc<TypeMapper>,
+        mut mapper: Gc<TypeMapper>,
         erase_type_parameters: Option<bool>,
     ) -> Signature {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
-        let mut fresh_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        let mut fresh_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
         if let Some(signature_type_parameters) = signature.maybe_type_parameters().clone() {
             if !erase_type_parameters {
                 fresh_type_parameters =
@@ -925,7 +925,7 @@ impl TypeChecker {
     pub(super) fn instantiate_symbol(
         &self,
         symbol: &Symbol,
-        mut mapper: Rc<TypeMapper>,
+        mut mapper: Gc<TypeMapper>,
     ) -> Gc<Symbol> {
         let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
@@ -974,7 +974,7 @@ impl TypeChecker {
     pub(super) fn get_object_type_instantiation<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*AnonymousType | DeferredTypeReference*/
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {

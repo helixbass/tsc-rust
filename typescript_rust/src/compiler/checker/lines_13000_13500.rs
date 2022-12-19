@@ -329,7 +329,7 @@ impl TypeChecker {
         &self,
         target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Gc<Type>>>,
-    ) -> Rc<Type /*TypeReference*/> {
+    ) -> Gc<Type /*TypeReference*/> {
         let id = self.get_type_list_id(type_arguments.as_deref());
         let type_ = target
             .as_generic_type()
@@ -377,10 +377,10 @@ impl TypeChecker {
         &self,
         target: &Type, /*GenericType*/
         node: &Node,   /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
-        mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Gc<Type>]>,
-    ) -> Rc<Type /*DeferredTypeReference*/> {
+    ) -> Gc<Type /*DeferredTypeReference*/> {
         let mut alias_symbol =
             alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
         let mut alias_type_arguments = alias_type_arguments.map(ToOwned::to_owned);

@@ -80,7 +80,7 @@ impl CheckTypeRelatedTo {
         let index_infos = self.type_checker.get_index_infos_of_type(target);
         let target_has_string_index = some(
             Some(&index_infos),
-            Some(|info: &Rc<IndexInfo>| {
+            Some(|info: &Gc<IndexInfo>| {
                 Rc::ptr_eq(&info.key_type, &self.type_checker.string_type())
             }),
         );
@@ -437,7 +437,7 @@ impl TypeChecker {
         type_: &Type,  /*GenericType*/
         source: &Type, /*TypeParameter*/
         target: &Type,
-    ) -> Rc<Type /*TypeReference*/> {
+    ) -> Gc<Type /*TypeReference*/> {
         let result = self.create_type_reference(
             type_,
             maybe_map(
@@ -490,7 +490,7 @@ impl TypeChecker {
         TCreateMarkerType: FnMut(&GetVariancesCache, &Type /*TypeParameter*/, &Type) -> Gc<Type>,
     >(
         &self,
-        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
         cache: TCache,
         mut create_marker_type: TCreateMarkerType,
     ) -> Vec<VarianceFlags> {
@@ -724,7 +724,7 @@ impl TypeChecker {
         .is_some()
     }
 
-    pub(super) fn get_declaring_class(&self, prop: &Symbol) -> Option<Rc<Type /*InterfaceType*/>> {
+    pub(super) fn get_declaring_class(&self, prop: &Symbol) -> Option<Gc<Type /*InterfaceType*/>> {
         prop.maybe_parent()
             .filter(|prop_parent| prop_parent.flags().intersects(SymbolFlags::Class))
             .map(|_prop_parent| {
@@ -931,7 +931,7 @@ impl TypeChecker {
 
 pub(super) enum GetVariancesCache {
     SymbolLinks(Rc<RefCell<SymbolLinks>>),
-    GenericType(Rc<Type /*GenericType*/>),
+    GenericType(Gc<Type /*GenericType*/>),
 }
 
 impl GetVariancesCache {

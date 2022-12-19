@@ -420,7 +420,7 @@ impl TypeChecker {
         &self,
         node: &Node,
         include_this_types: Option<bool>,
-    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+    ) -> Option<Vec<Gc<Type /*TypeParameter*/>>> {
         let mut node = Some(node.node_wrapper());
         loop {
             node = node.unwrap().maybe_parent();
@@ -567,7 +567,7 @@ impl TypeChecker {
     pub(super) fn get_outer_type_parameters_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+    ) -> Option<Vec<Gc<Type /*TypeParameter*/>>> {
         let declaration = if symbol.flags().intersects(SymbolFlags::Class) {
             symbol.maybe_value_declaration()
         } else {
@@ -584,10 +584,10 @@ impl TypeChecker {
     pub(super) fn get_local_type_parameters_of_class_or_interface_or_type_alias(
         &self,
         symbol: &Symbol,
-    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+    ) -> Option<Vec<Gc<Type /*TypeParameter*/>>> {
         let symbol_declarations = symbol.maybe_declarations();
         let symbol_declarations = symbol_declarations.as_ref()?;
-        let mut result: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        let mut result: Option<Vec<Gc<Type /*TypeParameter*/>>> = None;
         for node in symbol_declarations {
             if matches!(
                 node.kind(),
@@ -610,7 +610,7 @@ impl TypeChecker {
     pub(super) fn get_type_parameters_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+    ) -> Option<Vec<Gc<Type /*TypeParameter*/>>> {
         let outer_type_parameters = self.get_outer_type_parameters_of_class_or_interface(symbol);
         let local_type_parameters =
             self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
@@ -851,8 +851,8 @@ impl TypeChecker {
     pub(super) fn get_implements_types(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> Vec<Rc<Type /*BaseType*/>> {
-        let mut resolved_implements_types: Vec<Rc<Type /*BaseType*/>> = vec![];
+    ) -> Vec<Gc<Type /*BaseType*/>> {
+        let mut resolved_implements_types: Vec<Gc<Type /*BaseType*/>> = vec![];
         if let Some(type_symbol_declarations) = type_.symbol().maybe_declarations().as_deref() {
             for declaration in type_symbol_declarations {
                 let implements_type_nodes = get_effective_implements_type_nodes(declaration);
@@ -887,7 +887,7 @@ impl TypeChecker {
     pub(super) fn get_base_types(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> Vec<Rc<Type /*BaseType*/>> {
+    ) -> Vec<Gc<Type /*BaseType*/>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         if !matches!(
             type_as_not_actually_interface_type.maybe_base_types_resolved(),
@@ -977,7 +977,7 @@ impl TypeChecker {
     pub(super) fn resolve_base_types_of_class(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> Rc<Vec<Rc<Type /*BaseType*/>>> {
+    ) -> Rc<Vec<Gc<Type /*BaseType*/>>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         *type_as_not_actually_interface_type.maybe_resolved_base_types() =
             Some(resolving_empty_array());

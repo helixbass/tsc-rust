@@ -721,8 +721,8 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn create_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
-        Rc::new(EmitResolverCreateResolver::new())
+    pub(super) fn create_resolver(&self) -> Gc<Box<dyn EmitResolverDebuggable>> {
+        Gc::new(Box::new(EmitResolverCreateResolver::new()))
     }
 
     pub(super) fn get_external_module_file_from_declaration(
@@ -976,7 +976,7 @@ impl TypeChecker {
                     .join(", ");
                 self.diagnostics().add(
                     {
-                        let diagnostic: Rc<Diagnostic> = Rc::new(
+                        let diagnostic: Gc<Diagnostic> = Rc::new(
                             create_diagnostic_for_node(
                                 first_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
@@ -1002,7 +1002,7 @@ impl TypeChecker {
                 );
                 self.diagnostics().add(
                     {
-                        let diagnostic: Rc<Diagnostic> = Rc::new(
+                        let diagnostic: Gc<Diagnostic> = Rc::new(
                             create_diagnostic_for_node(
                                 second_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,

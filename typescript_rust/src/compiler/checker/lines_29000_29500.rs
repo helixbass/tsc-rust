@@ -286,7 +286,7 @@ impl TypeChecker {
         node: &Node, /*JsxOpeningLikeElement*/
         signature: Gc<Signature>,
         check_mode: CheckMode,
-        context: Rc<InferenceContext>,
+        context: Gc<InferenceContext>,
     ) -> Vec<Gc<Type>> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
@@ -331,7 +331,7 @@ impl TypeChecker {
         signature: Gc<Signature>,
         args: &[Gc<Node /*Expression*/>],
         check_mode: CheckMode,
-        context: Rc<InferenceContext>,
+        context: Gc<InferenceContext>,
     ) -> Vec<Gc<Type>> {
         if is_jsx_opening_like_element(node) {
             return self.infer_jsx_type_arguments(node, signature, check_mode, context);
@@ -546,7 +546,7 @@ impl TypeChecker {
         index: usize,
         arg_count: usize,
         rest_type: &Type,
-        context: Option<Rc<InferenceContext>>,
+        context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
     ) -> Gc<Type> {
         if index >= arg_count - 1 {
@@ -661,7 +661,7 @@ impl TypeChecker {
                 is_javascript,
             )
             .unwrap();
-        let mut mapper: Option<Rc<TypeMapper>> = None;
+        let mut mapper: Option<Gc<TypeMapper>> = None;
         for i in 0..type_argument_nodes.len() {
             Debug_.assert(
                 type_parameters.get(i).is_some(),
@@ -860,7 +860,7 @@ impl TypeChecker {
         }
 
         if report_errors {
-            let diag: Rc<Diagnostic> = Rc::new(
+            let diag: Gc<Diagnostic> = Rc::new(
                 create_diagnostic_for_node(
                     &node_as_jsx_opening_like_element.tag_name(),
                     &Diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
@@ -914,7 +914,7 @@ impl TypeChecker {
         check_mode: CheckMode,
         report_errors: bool,
         containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-    ) -> Option<Vec<Rc<Diagnostic>>> {
+    ) -> Option<Vec<Gc<Diagnostic>>> {
         let error_output_container: Rc<dyn CheckTypeErrorOutputContainer> =
             Rc::new(CheckTypeErrorOutputContainerConcrete::new(Some(true)));
         if is_jsx_opening_like_element(node) {

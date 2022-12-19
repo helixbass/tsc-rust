@@ -1,4 +1,4 @@
-use gc::{Finalize, Trace};
+use gc::{Finalize, Gc, Trace};
 use std::borrow::Cow;
 use std::env;
 use std::fs::{self, File};
@@ -452,13 +452,13 @@ impl System for SystemConcrete {
 }
 
 thread_local! {
-    static SYS: Rc<dyn System> = Rc::new(SystemConcrete::new(
+    static SYS: Gc<Box<dyn System>> = Gc::new(Box::new(SystemConcrete::new(
         env::args().skip(1).collect(),
         is_file_system_case_sensitive(),
-    ));
+    )));
 }
 
-pub fn get_sys() -> Rc<dyn System> {
+pub fn get_sys() -> Gc<Box<dyn System>> {
     SYS.with(|sys| sys.clone())
 }
 

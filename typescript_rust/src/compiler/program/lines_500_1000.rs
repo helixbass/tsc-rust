@@ -369,8 +369,8 @@ fn for_each_project_reference_worker<
 pub(crate) const inferred_types_containing_file: &str = "__inferred type names__.ts";
 
 pub(crate) struct DiagnosticCache {
-    pub per_file: Option<HashMap<Path, Vec<Rc<Diagnostic>>>>,
-    pub all_diagnostics: Option<Vec<Rc<Diagnostic>>>,
+    pub per_file: Option<HashMap<Path, Vec<Gc<Diagnostic>>>>,
+    pub all_diagnostics: Option<Vec<Gc<Diagnostic>>>,
 }
 
 impl Default for DiagnosticCache {
@@ -546,7 +546,7 @@ pub(crate) fn get_referenced_file_location<
 
 pub fn get_config_file_parsing_diagnostics(
     config_file_parse_result: &ParsedCommandLine,
-) -> Vec<Rc<Diagnostic>> {
+) -> Vec<Gc<Diagnostic>> {
     // unimplemented!()
     vec![]
 }
@@ -646,10 +646,10 @@ impl Program {
         // files: Vec<Gc<Node>>,
         // current_directory: String,
         // host: Rc<dyn CompilerHost>,
-    ) -> Rc<Self> {
+    ) -> Gc<Self> {
         let options = create_program_options.options.clone();
         let max_node_module_js_depth = options.max_node_module_js_depth.unwrap_or(0);
-        let rc = Rc::new(Program {
+        let rc = Gc::new(Program {
             _rc_wrapper: RefCell::new(None),
             create_program_options: RefCell::new(Some(create_program_options)),
             root_names: RefCell::new(None),
@@ -1111,7 +1111,7 @@ impl Program {
         })
     }
 
-    pub(super) fn maybe_config_file_parsing_diagnostics(&self) -> Ref<Option<Vec<Rc<Diagnostic>>>> {
+    pub(super) fn maybe_config_file_parsing_diagnostics(&self) -> Ref<Option<Vec<Gc<Diagnostic>>>> {
         self.config_file_parsing_diagnostics.borrow()
     }
 

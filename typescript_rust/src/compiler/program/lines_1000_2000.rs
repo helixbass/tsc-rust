@@ -224,7 +224,7 @@ impl Program {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(
             Program::get_syntactic_diagnostics_for_file,
             cancellation_token,
@@ -235,7 +235,7 @@ impl Program {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+    ) -> Vec<Gc<Diagnostic>> {
         self.get_diagnostics_helper(
             Program::get_semantic_diagnostics_for_file,
             cancellation_token,
@@ -604,9 +604,9 @@ impl Program {
             &Program,
             &Node, /*SourceFile*/
             Option<Rc<dyn CancellationTokenDebuggable>>,
-        ) -> Vec<Rc<Diagnostic>>,
+        ) -> Vec<Gc<Diagnostic>>,
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+    ) -> Vec<Gc<Diagnostic>> {
         self.get_source_files()
             .iter()
             .flat_map(|source_file| get_diagnostics(self, source_file, cancellation_token.clone()))
@@ -616,7 +616,7 @@ impl Program {
     pub(super) fn get_program_diagnostics(
         &self,
         source_file: &Node, /*SourceFile*/
-    ) -> Vec<Rc<Diagnostic>> {
+    ) -> Vec<Gc<Diagnostic>> {
         if skip_type_checking(source_file, &self.options, |file_name: &str| {
             self.is_source_of_project_reference_redirect_(file_name)
         }) {
@@ -649,7 +649,7 @@ impl Program {
         &self,
         source_file: Option<&Node /*SourceFile*/>,
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+    ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
         // unimplemented!()
         vec![]
     }
@@ -667,7 +667,7 @@ impl Program {
         // TODO: getSyntacticDiagnosticsForFile() doesn't actually take this argument, should
         // refactor eg get_diagnostics_helper() to use closures instead?
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+    ) -> Vec<Gc<Diagnostic>> {
         source_file.as_source_file().parse_diagnostics().clone()
     }
 
@@ -675,7 +675,7 @@ impl Program {
         &self,
         source_file: &Node, /*SourceFile*/
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-    ) -> Vec<Rc<Diagnostic>> {
+    ) -> Vec<Gc<Diagnostic>> {
         concatenate(
             filter_semantic_diagnostics(
                 self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token),

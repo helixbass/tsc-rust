@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -631,11 +631,11 @@ pub trait FunctionLikeDeclarationInterface:
 {
     fn maybe_body(&self) -> Option<Gc<Node>>;
     fn maybe_asterisk_token(&self) -> Option<Gc<Node>>;
-    fn maybe_exclamation_token(&self) -> RefMut<Option<Gc<Node>>>;
-    fn maybe_end_flow_node(&self) -> Option<Rc<FlowNode>>;
-    fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>);
-    fn maybe_return_flow_node(&self) -> Option<Rc<FlowNode>>;
-    fn set_return_flow_node(&self, return_flow_node: Option<Rc<FlowNode>>);
+    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Gc<Node>>>;
+    fn maybe_end_flow_node(&self) -> Option<Gc<FlowNode>>;
+    fn set_end_flow_node(&self, end_flow_node: Option<Gc<FlowNode>>);
+    fn maybe_return_flow_node(&self) -> Option<Gc<FlowNode>>;
+    fn set_return_flow_node(&self, return_flow_node: Option<Gc<FlowNode>>);
 }
 
 #[derive(Debug)]
@@ -647,10 +647,10 @@ pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
     pub asterisk_token: Option<Gc<Node /*AsteriskToken*/>>,
     pub question_token: Option<Gc<Node /*QuestionToken*/>>,
-    pub exclamation_token: RefCell<Option<Gc<Node /*ExclamationToken*/>>>,
+    pub exclamation_token: GcCell<Option<Gc<Node /*ExclamationToken*/>>>,
     body: Option<Gc<Node /*Block | Expression*/>>,
-    end_flow_node: RefCell<Option<Rc<FlowNode>>>,
-    return_flow_node: RefCell<Option<Rc<FlowNode>>>,
+    end_flow_node: GcCell<Option<Gc<FlowNode>>>,
+    return_flow_node: GcCell<Option<Gc<FlowNode>>>,
 }
 
 impl BaseFunctionLikeDeclaration {
@@ -660,9 +660,9 @@ impl BaseFunctionLikeDeclaration {
             body,
             asterisk_token: None,
             question_token: None,
-            exclamation_token: RefCell::new(None),
-            end_flow_node: RefCell::new(None),
-            return_flow_node: RefCell::new(None),
+            exclamation_token: GcCell::new(None),
+            end_flow_node: GcCell::new(None),
+            return_flow_node: GcCell::new(None),
         }
     }
 }
@@ -676,23 +676,23 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
         self.asterisk_token.clone()
     }
 
-    fn maybe_exclamation_token(&self) -> RefMut<Option<Gc<Node>>> {
+    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Gc<Node>>> {
         self.exclamation_token.borrow_mut()
     }
 
-    fn maybe_end_flow_node(&self) -> Option<Rc<FlowNode>> {
+    fn maybe_end_flow_node(&self) -> Option<Gc<FlowNode>> {
         self.end_flow_node.borrow().clone()
     }
 
-    fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
+    fn set_end_flow_node(&self, end_flow_node: Option<Gc<FlowNode>>) {
         *self.end_flow_node.borrow_mut() = end_flow_node;
     }
 
-    fn maybe_return_flow_node(&self) -> Option<Rc<FlowNode>> {
+    fn maybe_return_flow_node(&self) -> Option<Gc<FlowNode>> {
         self.return_flow_node.borrow().clone()
     }
 
-    fn set_return_flow_node(&self, return_flow_node: Option<Rc<FlowNode>>) {
+    fn set_return_flow_node(&self, return_flow_node: Option<Gc<FlowNode>>) {
         *self.return_flow_node.borrow_mut() = return_flow_node;
     }
 }

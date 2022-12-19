@@ -156,7 +156,7 @@ impl TypeChecker {
     pub(super) fn get_declared_type_of_class_or_interface(
         &self,
         symbol: &Symbol,
-    ) -> Rc<Type /*InterfaceType*/> {
+    ) -> Gc<Type /*InterfaceType*/> {
         let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         let mut symbol = symbol.symbol_wrapper();
@@ -234,7 +234,7 @@ impl TypeChecker {
                     .constraint
                     .borrow_mut() = Some(type_.clone());
             }
-            let mut instantiations: HashMap<String, Rc<Type /*TypeReference*/>> = HashMap::new();
+            let mut instantiations: HashMap<String, Gc<Type /*TypeReference*/>> = HashMap::new();
             instantiations.insert(
                 self.get_type_list_id(type_as_interface_type.maybe_type_parameters()),
                 type_.clone(),
@@ -491,7 +491,7 @@ impl TypeChecker {
     pub(super) fn get_declared_type_of_type_parameter(
         &self,
         symbol: &Symbol,
-    ) -> Rc<Type /*TypeParameter*/> {
+    ) -> Gc<Type /*TypeParameter*/> {
         let links = self.get_symbol_links(symbol);
         let mut links = links.borrow_mut();
         if links.declared_type.is_none() {
@@ -639,7 +639,7 @@ impl TypeChecker {
     pub(super) fn create_instantiated_symbol_table(
         &self,
         symbols: &[Gc<Symbol>],
-        mapper: Rc<TypeMapper>,
+        mapper: Gc<TypeMapper>,
         mapping_this_only: bool,
     ) -> SymbolTable {
         let mut result = create_symbol_table(None);

@@ -109,8 +109,8 @@ impl IndexSignatureDeclaration {
 pub struct ClassStaticBlockDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
     pub body: Gc<Node /*Block*/>,
-    end_flow_node: RefCell<Option<Rc<FlowNode>>>,
-    return_flow_node: RefCell<Option<Rc<FlowNode>>>,
+    end_flow_node: RefCell<Option<Gc<FlowNode>>>,
+    return_flow_node: RefCell<Option<Gc<FlowNode>>>,
 }
 
 impl ClassStaticBlockDeclaration {
@@ -123,19 +123,19 @@ impl ClassStaticBlockDeclaration {
         }
     }
 
-    pub fn maybe_end_flow_node(&self) -> Option<Rc<FlowNode>> {
+    pub fn maybe_end_flow_node(&self) -> Option<Gc<FlowNode>> {
         self.end_flow_node.borrow().clone()
     }
 
-    pub fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
+    pub fn set_end_flow_node(&self, end_flow_node: Option<Gc<FlowNode>>) {
         *self.end_flow_node.borrow_mut() = end_flow_node;
     }
 
-    pub fn maybe_return_flow_node(&self) -> Option<Rc<FlowNode>> {
+    pub fn maybe_return_flow_node(&self) -> Option<Gc<FlowNode>> {
         self.return_flow_node.borrow().clone()
     }
 
-    pub fn set_return_flow_node(&self, return_flow_node: Option<Rc<FlowNode>>) {
+    pub fn set_return_flow_node(&self, return_flow_node: Option<Gc<FlowNode>>) {
         *self.return_flow_node.borrow_mut() = return_flow_node;
     }
 }

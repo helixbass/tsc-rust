@@ -1532,7 +1532,7 @@ impl CheckTypeRelatedTo {
                     .infer_type_parameters
                     .clone();
                 let mut source_extends = source.as_conditional_type().extends_type.clone();
-                let mut mapper: Option<Rc<TypeMapper>> = None;
+                let mut mapper: Option<Gc<TypeMapper>> = None;
                 if let Some(source_params) = source_params.as_ref() {
                     let ctx = self.type_checker.create_inference_context(
                         source_params,

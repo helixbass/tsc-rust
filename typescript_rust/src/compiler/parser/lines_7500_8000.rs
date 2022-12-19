@@ -1087,12 +1087,12 @@ bitflags! {
 
 pub struct ParsedJSDocTypeExpression {
     pub js_doc_type_expression: Gc<Node /*JSDocTypeExpression*/>,
-    pub diagnostics: Vec<Rc<Diagnostic>>,
+    pub diagnostics: Vec<Gc<Diagnostic>>,
 }
 
 pub struct ParsedIsolatedJSDocComment {
     pub js_doc: Gc<Node /*JSDoc*/>,
-    pub diagnostics: Vec<Rc<Diagnostic>>,
+    pub diagnostics: Vec<Gc<Diagnostic>>,
 }
 
 impl BaseNodeFactory for ParserType {

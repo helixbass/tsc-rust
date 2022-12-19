@@ -32,7 +32,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub fn get_global_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+    pub fn get_global_diagnostics(&self) -> Vec<Gc<Diagnostic>> {
         self.throw_if_non_diagnostics_producing();
         self.diagnostics().get_global_diagnostics()
     }

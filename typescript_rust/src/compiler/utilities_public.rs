@@ -49,7 +49,7 @@ pub fn sort_and_deduplicate_diagnostics(
     sort_and_deduplicate(
         diagnostics,
         &|a, b| compare_diagnostics(&**a, &**b),
-        Option::<&fn(&Rc<Diagnostic>, &Rc<Diagnostic>) -> bool>::None,
+        Option::<&fn(&Gc<Diagnostic>, &Gc<Diagnostic>) -> bool>::None,
     )
 }
 
@@ -314,7 +314,7 @@ lazy_static! {
 pub fn validate_locale_and_set_language(
     locale: &str,
     sys: &dyn System,
-    mut errors: Option<&mut Push<Rc<Diagnostic>>>,
+    mut errors: Option<&mut Push<Gc<Diagnostic>>>,
 ) {
     let lower_case_locale = locale.to_lowercase();
     lazy_static! {
@@ -347,7 +347,7 @@ fn try_set_language_and_territory(
     sys: &dyn System,
     language: &str,
     territory: Option<&str>,
-    errors: &mut Option<&mut Push<Rc<Diagnostic>>>,
+    errors: &mut Option<&mut Push<Gc<Diagnostic>>>,
 ) -> bool {
     let compiler_file_path = normalize_path(&sys.get_executing_file_path());
     let containing_directory_path = get_directory_path(&compiler_file_path);

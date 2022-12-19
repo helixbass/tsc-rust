@@ -132,7 +132,7 @@ impl TypeChecker {
         report_errors: bool,
     ) -> Gc<Type> {
         let mut members = create_symbol_table(None);
-        let mut string_index_info: Option<Rc<IndexInfo>> = None;
+        let mut string_index_info: Option<Gc<IndexInfo>> = None;
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
         for_each(

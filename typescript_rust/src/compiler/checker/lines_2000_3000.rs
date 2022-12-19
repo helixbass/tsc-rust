@@ -64,10 +64,10 @@ impl TypeChecker {
         TTypeOnlyDeclaration: Borrow<Node /*TypeOnlyCompatibleAliasDeclaration*/>,
     >(
         &self,
-        diagnostic: Rc<Diagnostic>,
+        diagnostic: Gc<Diagnostic>,
         type_only_declaration: Option<TTypeOnlyDeclaration>,
         unescaped_name: &str,
-    ) -> Rc<Diagnostic> {
+    ) -> Gc<Diagnostic> {
         if type_only_declaration.is_none() {
             return diagnostic;
         }
@@ -584,7 +584,7 @@ impl TypeChecker {
         if !declaration.flags().intersects(NodeFlags::Ambient)
             && !self.is_block_scoped_name_declared_before_use(&declaration, error_location)
         {
-            let mut diagnostic_message: Option<Rc<Diagnostic>> = None;
+            let mut diagnostic_message: Option<Gc<Diagnostic>> = None;
             let declaration_name =
                 declaration_name_to_string(get_name_of_declaration(Some(&**declaration)))
                     .into_owned();

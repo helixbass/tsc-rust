@@ -532,7 +532,7 @@ impl TypeChecker {
                                     node.pos().try_into().unwrap(),
                                 ));
                             }
-                            let diagnostic: Rc<Diagnostic> = Rc::new(
+                            let diagnostic: Gc<Diagnostic> = Rc::new(
                                 create_file_diagnostic(
                                     &source_file,
                                     span.unwrap().start,
@@ -558,7 +558,7 @@ impl TypeChecker {
                                 &source_file,
                                 node.pos().try_into().unwrap(),
                             ));
-                            let diagnostic: Rc<Diagnostic> = Rc::new(
+                            let diagnostic: Gc<Diagnostic> = Rc::new(
                                 create_file_diagnostic(
                                     &source_file,
                                     span.unwrap().start,
@@ -577,7 +577,7 @@ impl TypeChecker {
                             &source_file,
                             node.pos().try_into().unwrap(),
                         );
-                        let diagnostic: Rc<Diagnostic> = Rc::new(
+                        let diagnostic: Gc<Diagnostic> = Rc::new(
                             create_file_diagnostic(
                                 &source_file,
                                 span.start,

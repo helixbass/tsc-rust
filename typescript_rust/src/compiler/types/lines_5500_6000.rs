@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use serde::Serialize;
 use std::borrow::Cow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -51,7 +51,7 @@ impl IntersectionType {
 pub struct MappedType {
     _object_type: BaseObjectType,
     pub declaration: Gc<Node /*MappedTypeNode*/>,
-    type_parameter: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
+    type_parameter: RefCell<Option<Gc<Type /*TypeParameter*/>>>,
     constraint_type: RefCell<Option<Gc<Type>>>,
     name_type: RefCell<Option<Gc<Type>>>,
     template_type: RefCell<Option<Gc<Type>>>,
@@ -141,16 +141,16 @@ impl EvolvingArrayType {
 pub struct ReverseMappedType {
     _object_type: BaseObjectType,
     pub source: Gc<Type>,
-    pub mapped_type: Rc<Type /*MappedType*/>,
-    pub constraint_type: Rc<Type /*IndexType*/>,
+    pub mapped_type: Gc<Type /*MappedType*/>,
+    pub constraint_type: Gc<Type /*IndexType*/>,
 }
 
 impl ReverseMappedType {
     pub fn new(
         base_object_type: BaseObjectType,
         source: Gc<Type>,
-        mapped_type: Rc<Type /*MappedType*/>,
-        constraint_type: Rc<Type /*IndexType*/>,
+        mapped_type: Gc<Type /*MappedType*/>,
+        constraint_type: Gc<Type /*IndexType*/>,
     ) -> Self {
         Self {
             _object_type: base_object_type,
@@ -164,15 +164,15 @@ impl ReverseMappedType {
 pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {
-    fn members(&self) -> Rc<RefCell<SymbolTable>>;
-    fn properties(&self) -> Ref<Vec<Gc<Symbol>>>;
-    fn properties_mut(&self) -> RefMut<Vec<Gc<Symbol>>>;
+    fn members(&self) -> Gc<GcCell<SymbolTable>>;
+    fn properties(&self) -> GcCellRef<Vec<Gc<Symbol>>>;
+    fn properties_mut(&self) -> GcCellRefMut<Vec<Gc<Symbol>>>;
     fn set_properties(&self, properties: Vec<Gc<Symbol>>);
-    fn call_signatures(&self) -> Ref<Vec<Gc<Signature>>>;
+    fn call_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
     fn set_call_signatures(&self, call_signatures: Vec<Gc<Signature>>);
-    fn construct_signatures(&self) -> Ref<Vec<Gc<Signature>>>;
+    fn construct_signatures(&self) -> GcCellRef<Vec<Gc<Signature>>>;
     fn set_construct_signatures(&self, construct_signatures: Vec<Gc<Signature>>);
-    fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>>;
+    fn index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>>;
     fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Gc<Type>>;
     fn set_object_type_without_abstract_construct_signatures(
         &self,
@@ -181,7 +181,7 @@ pub trait ResolvedTypeInterface:
 }
 
 pub trait FreshObjectLiteralTypeInterface: ResolvedTypeInterface {
-    fn maybe_regular_type(&self) -> RefMut<Option<Rc<Type /*ResolvedType*/>>>;
+    fn maybe_regular_type(&self) -> GcCellRefMut<Option<Gc<Type /*ResolvedType*/>>>;
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -265,8 +265,8 @@ pub struct TypeParameter {
     _type: BaseType,
     pub constraint: RefCell<Option<Gc<Type>>>,
     pub default: RefCell<Option<Gc<Type>>>,
-    pub target: Option<Rc<Type /*TypeParameter*/>>,
-    pub mapper: RefCell<Option<Rc<TypeMapper>>>,
+    pub target: Option<Gc<Type /*TypeParameter*/>>,
+    pub mapper: RefCell<Option<Gc<TypeMapper>>>,
     pub is_this_type: Option<bool>,
 }
 
@@ -294,11 +294,11 @@ impl TypeParameter {
         self.default.borrow_mut()
     }
 
-    pub fn maybe_mapper(&self) -> Option<Rc<TypeMapper>> {
+    pub fn maybe_mapper(&self) -> Option<Gc<TypeMapper>> {
         self.mapper.borrow().clone()
     }
 
-    pub fn set_mapper(&self, mapper: Rc<TypeMapper>) {
+    pub fn set_mapper(&self, mapper: Gc<TypeMapper>) {
         *self.mapper.borrow_mut() = Some(mapper);
     }
 }
@@ -362,7 +362,7 @@ impl IndexedAccessType {
 #[type_type]
 pub struct IndexType {
     _type: BaseType,
-    pub type_: Rc<Type /*InstantiableType | UnionOrIntersectionType*/>,
+    pub type_: Gc<Type /*InstantiableType | UnionOrIntersectionType*/>,
     pub(crate) strings_only: bool,
 }
 
@@ -382,8 +382,8 @@ pub struct ConditionalRoot {
     pub check_type: Gc<Type>,
     pub extends_type: Gc<Type>,
     pub is_distributive: bool,
-    pub infer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
-    pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub infer_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
+    pub outer_type_parameters: Option<Vec<Gc<Type /*TypeParameter*/>>>,
     instantiations: RefCell<Option<HashMap<String, Gc<Type>>>>,
     pub alias_symbol: Option<Gc<Symbol>>,
     pub alias_type_arguments: Option<Vec<Gc<Type>>>,
@@ -429,8 +429,8 @@ pub struct ConditionalType {
     resolved_false_type: RefCell<Option<Gc<Type>>>,
     resolved_inferred_true_type: RefCell<Option<Gc<Type>>>,
     resolved_default_constraint: RefCell<Option<Gc<Type>>>,
-    pub(crate) mapper: Option<Rc<TypeMapper>>,
-    pub(crate) combined_mapper: Option<Rc<TypeMapper>>,
+    pub(crate) mapper: Option<Gc<TypeMapper>>,
+    pub(crate) combined_mapper: Option<Gc<TypeMapper>>,
 }
 
 impl ConditionalType {
@@ -439,8 +439,8 @@ impl ConditionalType {
         root: Rc<RefCell<ConditionalRoot>>,
         check_type: Gc<Type>,
         extends_type: Gc<Type>,
-        mapper: Option<Rc<TypeMapper>>,
-        combined_mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
+        combined_mapper: Option<Gc<TypeMapper>>,
     ) -> Self {
         Self {
             _type: base_type,
@@ -650,11 +650,11 @@ impl Signature {
         self.resolved_return_type.borrow_mut()
     }
 
-    pub fn maybe_resolved_type_predicate(&self) -> Option<Rc<TypePredicate>> {
+    pub fn maybe_resolved_type_predicate(&self) -> Option<Gc<TypePredicate>> {
         self.resolved_type_predicate.borrow().clone()
     }
 
-    pub fn maybe_resolved_type_predicate_mut(&self) -> RefMut<Option<Rc<TypePredicate>>> {
+    pub fn maybe_resolved_type_predicate_mut(&self) -> RefMut<Option<Gc<TypePredicate>>> {
         self.resolved_type_predicate.borrow_mut()
     }
 
@@ -793,11 +793,11 @@ impl TypeMapper {
         })
     }
 
-    pub fn new_composite(mapper1: Rc<TypeMapper>, mapper2: Rc<TypeMapper>) -> Self {
+    pub fn new_composite(mapper1: Gc<TypeMapper>, mapper2: Gc<TypeMapper>) -> Self {
         Self::Composite(TypeMapperCompositeOrMerged { mapper1, mapper2 })
     }
 
-    pub fn new_merged(mapper1: Rc<TypeMapper>, mapper2: Rc<TypeMapper>) -> Self {
+    pub fn new_merged(mapper1: Gc<TypeMapper>, mapper2: Gc<TypeMapper>) -> Self {
         Self::Merged(TypeMapperCompositeOrMerged { mapper1, mapper2 })
     }
 }
@@ -837,7 +837,7 @@ pub struct InferenceInfo {
 
 impl InferenceInfo {
     pub fn new(
-        type_parameter: Rc<Type /*TypeParameter*/>,
+        type_parameter: Gc<Type /*TypeParameter*/>,
         candidates: Option<Vec<Gc<Type>>>,
         contra_candidates: Option<Vec<Gc<Type>>>,
         inferred_type: Option<Gc<Type>>,
@@ -982,9 +982,9 @@ impl InferenceContext {
         signature: Option<Gc<Signature>>,
         flags: InferenceFlags,
         compare_types: Rc<dyn TypeComparer>,
-        mapper: Option<Rc<TypeMapper>>,
-        non_fixing_mapper: Option<Rc<TypeMapper>>,
-        return_mapper: Option<Rc<TypeMapper>>,
+        mapper: Option<Gc<TypeMapper>>,
+        non_fixing_mapper: Option<Gc<TypeMapper>>,
+        return_mapper: Option<Gc<TypeMapper>>,
         inferred_type_parameters: Option<Vec<Gc<Type>>>,
     ) -> Self {
         Self {
@@ -1015,27 +1015,27 @@ impl InferenceContext {
         self.flags.set(flags);
     }
 
-    pub fn mapper(&self) -> Rc<TypeMapper> {
+    pub fn mapper(&self) -> Gc<TypeMapper> {
         self.mapper.borrow().clone().unwrap()
     }
 
-    pub fn set_mapper(&self, mapper: Rc<TypeMapper>) {
+    pub fn set_mapper(&self, mapper: Gc<TypeMapper>) {
         *self.mapper.borrow_mut() = Some(mapper);
     }
 
-    pub fn non_fixing_mapper(&self) -> Rc<TypeMapper> {
+    pub fn non_fixing_mapper(&self) -> Gc<TypeMapper> {
         self.non_fixing_mapper.borrow().clone().unwrap()
     }
 
-    pub fn set_non_fixing_mapper(&self, non_fixing_mapper: Rc<TypeMapper>) {
+    pub fn set_non_fixing_mapper(&self, non_fixing_mapper: Gc<TypeMapper>) {
         *self.non_fixing_mapper.borrow_mut() = Some(non_fixing_mapper);
     }
 
-    pub fn maybe_return_mapper(&self) -> Option<Rc<TypeMapper>> {
+    pub fn maybe_return_mapper(&self) -> Option<Gc<TypeMapper>> {
         self.return_mapper.borrow().clone()
     }
 
-    pub fn set_return_mapper(&self, return_mapper: Option<Rc<TypeMapper>>) {
+    pub fn set_return_mapper(&self, return_mapper: Option<Gc<TypeMapper>>) {
         *self.return_mapper.borrow_mut() = return_mapper;
     }
 

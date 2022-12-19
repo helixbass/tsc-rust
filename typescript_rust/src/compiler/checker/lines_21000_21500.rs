@@ -187,7 +187,7 @@ impl TypeChecker {
             vec![],
             same_map(
                 &self.get_index_infos_of_type(type_),
-                |info: &Rc<IndexInfo>, _| {
+                |info: &Gc<IndexInfo>, _| {
                     Rc::new(self.create_index_info(
                         info.key_type.clone(),
                         self.get_widened_type(&info.type_),
@@ -645,11 +645,11 @@ impl TypeChecker {
 
     pub(super) fn create_inference_context(
         &self,
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        type_parameters: &[Gc<Type /*TypeParameter*/>],
         signature: Option<Gc<Signature>>,
         flags: InferenceFlags,
         compare_types: Option<Rc<dyn TypeComparer>>,
-    ) -> Rc<InferenceContext> {
+    ) -> Gc<InferenceContext> {
         self.create_inference_context_worker(
             type_parameters
                 .into_iter()
@@ -669,7 +669,7 @@ impl TypeChecker {
         &self,
         context: Option<&InferenceContext>,
         extra_flags: Option<InferenceFlags>,
-    ) -> Option<Rc<InferenceContext>> {
+    ) -> Option<Gc<InferenceContext>> {
         let extra_flags = extra_flags.unwrap_or(InferenceFlags::None);
         context.map(|context| {
             self.create_inference_context_worker(
@@ -692,7 +692,7 @@ impl TypeChecker {
         signature: Option<Gc<Signature>>,
         flags: InferenceFlags,
         compare_types: Rc<dyn TypeComparer>,
-    ) -> Rc<InferenceContext> {
+    ) -> Gc<InferenceContext> {
         let context = Rc::new(InferenceContext::new(
             inferences,
             signature,
@@ -772,7 +772,7 @@ impl TypeChecker {
     pub(super) fn clone_inferred_part_of_context(
         &self,
         context: &InferenceContext,
-    ) -> Option<Rc<InferenceContext>> {
+    ) -> Option<Gc<InferenceContext>> {
         let inferences = filter(&context.inferences(), |inference: &Rc<InferenceInfo>| {
             self.has_inference_candidates(inference)
         });
@@ -793,7 +793,7 @@ impl TypeChecker {
     pub(super) fn get_mapper_from_context(
         &self,
         context: Option<&InferenceContext>,
-    ) -> Option<Rc<TypeMapper>> {
+    ) -> Option<Gc<TypeMapper>> {
         context.map(|context| context.mapper().clone())
     }
 
@@ -1086,7 +1086,7 @@ pub(super) struct CreateInferenceContextWorkerMapperCallback {
 }
 
 impl CreateInferenceContextWorkerMapperCallback {
-    pub fn new(inference_context: Rc<InferenceContext>) -> Self {
+    pub fn new(inference_context: Gc<InferenceContext>) -> Self {
         Self { inference_context }
     }
 }
@@ -1103,7 +1103,7 @@ pub(super) struct CreateInferenceContextWorkerNonFixingMapperCallback {
 }
 
 impl CreateInferenceContextWorkerNonFixingMapperCallback {
-    pub fn new(inference_context: Rc<InferenceContext>) -> Self {
+    pub fn new(inference_context: Gc<InferenceContext>) -> Self {
         Self { inference_context }
     }
 }

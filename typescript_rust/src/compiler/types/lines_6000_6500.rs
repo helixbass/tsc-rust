@@ -1882,7 +1882,7 @@ pub struct ParsedCommandLineWithBaseOptions {
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub raw: Option<serde_json::Value>,
-    pub errors: Vec<Rc<Diagnostic>>,
+    pub errors: Vec<Gc<Diagnostic>>,
     pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
     pub compile_on_save: Option<bool>,
 }
@@ -1948,7 +1948,7 @@ pub struct CreateProgramOptions {
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub host: Option<Rc<dyn CompilerHost>>,
     pub old_program: Option<Gc<Program>>,
-    pub config_file_parsing_diagnostics: Option<Vec<Rc<Diagnostic>>>,
+    pub config_file_parsing_diagnostics: Option<Vec<Gc<Diagnostic>>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

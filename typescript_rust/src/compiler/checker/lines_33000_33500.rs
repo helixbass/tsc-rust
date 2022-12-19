@@ -288,7 +288,7 @@ impl TypeChecker {
         maybe_missing_await: bool,
         left_str: &str,
         right_str: &str,
-    ) -> Option<Rc<Diagnostic>> {
+    ) -> Option<Gc<Diagnostic>> {
         let mut type_name: Option<&'static str> = None;
         match operator_token.kind() {
             SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::EqualsEqualsToken => {
@@ -585,7 +585,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*Expression*/
         contextual_type: &Type,
-        inference_context: Option<Rc<InferenceContext>>,
+        inference_context: Option<Gc<InferenceContext>>,
         check_mode: CheckMode,
     ) -> Gc<Type> {
         let context = self.get_context_node(node);

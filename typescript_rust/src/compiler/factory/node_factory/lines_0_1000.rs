@@ -60,8 +60,8 @@ pub fn create_node_factory<TBaseNodeFactory: 'static + BaseNodeFactory>(
 }
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub fn new(flags: NodeFactoryFlags) -> Rc<Self> {
-        let factory_ = Rc::new(Self {
+    pub fn new(flags: NodeFactoryFlags) -> Gc<Self> {
+        let factory_ = Gc::new(Self {
             flags,
             parenthesizer_rules: RefCell::new(None),
             converters: RefCell::new(None),

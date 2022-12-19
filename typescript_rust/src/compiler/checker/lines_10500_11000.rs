@@ -449,14 +449,14 @@ impl TypeChecker {
         &self,
         type_: &Type,  /*ObjectType*/
         source: &Type, /*InterfaceTypeWithDeclaredMembers*/
-        type_parameters: Vec<Rc<Type /*TypeParameter*/>>,
+        type_parameters: Vec<Gc<Type /*TypeParameter*/>>,
         type_arguments: Vec<Gc<Type>>,
     ) {
-        let mut mapper: Option<Rc<TypeMapper>> = None;
+        let mut mapper: Option<Gc<TypeMapper>> = None;
         let mut members: Rc<RefCell<SymbolTable>>;
         let mut call_signatures: Vec<Gc<Signature>>;
         let mut construct_signatures: Vec<Gc<Signature>>;
-        let mut index_infos: Vec<Rc<IndexInfo>>;
+        let mut index_infos: Vec<Gc<IndexInfo>>;
         let source_as_interface_type_with_declared_members =
             source.as_interface_type_with_declared_members();
         if range_equals_rc(&type_parameters, &type_arguments, 0, type_parameters.len()) {
@@ -557,7 +557,7 @@ impl TypeChecker {
                         ))]
                     };
                 let inherited_index_infos_filtered =
-                    filter(&inherited_index_infos, |info: &Rc<IndexInfo>| {
+                    filter(&inherited_index_infos, |info: &Gc<IndexInfo>| {
                         self.find_index_info(&index_infos, &info.key_type).is_none()
                     });
                 index_infos = concatenate(index_infos, inherited_index_infos_filtered);
@@ -608,7 +608,7 @@ impl TypeChecker {
         this_parameter: Option<Gc<Symbol>>,
         parameters: Vec<Gc<Symbol>>,
         resolved_return_type: Option<Gc<Type>>,
-        resolved_type_predicate: Option<Rc<TypePredicate>>,
+        resolved_type_predicate: Option<Gc<TypePredicate>>,
         min_argument_count: usize,
         flags: SignatureFlags,
     ) -> Signature {
@@ -1047,8 +1047,8 @@ impl TypeChecker {
 
     pub(super) fn compare_type_parameters_identical(
         &self,
-        source_params: Option<&[Rc<Type /*TypeParameter*/>]>,
-        target_params: Option<&[Rc<Type /*TypeParameter*/>]>,
+        source_params: Option<&[Gc<Type /*TypeParameter*/>]>,
+        target_params: Option<&[Gc<Type /*TypeParameter*/>]>,
     ) -> bool {
         if length(source_params) != length(target_params) {
             return false;

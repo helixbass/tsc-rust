@@ -1,4 +1,4 @@
-use gc::{Finalize, Trace};
+use gc::{Finalize, Gc, Trace};
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -184,6 +184,15 @@ pub fn contains<TItem: Eq>(array: Option<&[TItem]>, value: &TItem) -> bool {
 pub fn contains_rc<TItem>(array: Option<&[Rc<TItem>]>, value: &Rc<TItem>) -> bool {
     array.map_or(false, |array| {
         array.iter().any(|item| Rc::ptr_eq(item, value))
+    })
+}
+
+pub fn contains_gc<TItem: Trace + Finalize>(
+    array: Option<&[Gc<TItem>]>,
+    value: &Gc<TItem>,
+) -> bool {
+    array.map_or(false, |array| {
+        array.iter().any(|item| Gc::ptr_eq(item, value))
     })
 }
 
@@ -715,8 +724,27 @@ pub fn push_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) 
     }
 }
 
+pub fn push_if_unique_gc<TItem: Trace + Finalize>(
+    array: &mut Vec<Gc<TItem>>,
+    to_add: &Gc<TItem>,
+) -> bool {
+    if contains_gc(Some(array), to_add) {
+        false
+    } else {
+        array.push(to_add.clone());
+        true
+    }
+}
+
 pub fn append_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) {
     push_if_unique_rc(array, to_add);
+}
+
+pub fn append_if_unique_gc<TItem: Trace + Finalize>(
+    array: &mut Vec<Gc<TItem>>,
+    to_add: &Gc<TItem>,
+) {
+    push_if_unique_gc(array, to_add);
 }
 
 pub fn maybe_append_if_unique_rc<TItem>(

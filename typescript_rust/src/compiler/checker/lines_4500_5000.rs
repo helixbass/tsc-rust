@@ -1887,7 +1887,7 @@ pub struct NodeBuilderContext<'symbol_tracker> {
     pub reported_diagnostic: Cell<bool>,
     pub visited_types: Rc<RefCell<Option<HashSet<TypeId>>>>,
     pub symbol_depth: Rc<RefCell<Option<HashMap<String, usize>>>>,
-    pub infer_type_parameters: Rc<RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>>,
+    pub infer_type_parameters: Rc<RefCell<Option<Vec<Gc<Type /*TypeParameter*/>>>>>,
     pub approximate_length: Cell<usize>,
     pub truncating: Cell<Option<bool>>,
     pub type_parameter_symbol_list: Rc<RefCell<Option<HashSet<SymbolId>>>>,

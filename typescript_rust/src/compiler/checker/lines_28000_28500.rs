@@ -936,7 +936,7 @@ impl TypeChecker {
         }
         let value_declaration = value_declaration.unwrap();
 
-        let mut diagnostic_message: Option<Rc<Diagnostic>> = None;
+        let mut diagnostic_message: Option<Gc<Diagnostic>> = None;
         let declaration_name = id_text(right);
         if self.is_in_property_initializer_or_class_static_block(node)
             && !self.is_optional_property_declaration(&value_declaration)
@@ -1199,7 +1199,7 @@ impl TypeChecker {
         }
         let error_info = error_info.unwrap();
         let error_info_code = error_info.code;
-        let result_diagnostic: Rc<Diagnostic> = Rc::new(
+        let result_diagnostic: Gc<Diagnostic> = Rc::new(
             create_diagnostic_for_node_from_message_chain(prop_node, error_info, None).into(),
         );
         if let Some(related_info) = related_info {

@@ -46,7 +46,7 @@ pub(super) fn convert_object_literal_expression_to_json<
     TJsonConversionNotifier: JsonConversionNotifier,
 >(
     return_value: bool,
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: &RefCell<&mut Push<Gc<Diagnostic>>>,
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     known_root_options: Option<&CommandLineOption>,
@@ -205,7 +205,7 @@ pub(super) fn convert_object_literal_expression_to_json<
 pub(super) fn convert_array_literal_expression_to_json<
     TJsonConversionNotifier: JsonConversionNotifier,
 >(
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: &RefCell<&mut Push<Gc<Diagnostic>>>,
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     return_value: bool,
@@ -247,7 +247,7 @@ pub(super) fn convert_array_literal_expression_to_json<
 }
 
 pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConversionNotifier>(
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: &RefCell<&mut Push<Gc<Diagnostic>>>,
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     return_value: bool,
@@ -572,7 +572,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 pub(super) fn validate_value(
     invalid_reported: Option<bool>,
     option: Option<&CommandLineOption>,
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: &RefCell<&mut Push<Gc<Diagnostic>>>,
     source_file: &Node,      /*JsonSourceFile*/
     value_expression: &Node, /*Expression*/
     value: Option<serde_json::Value>,
@@ -598,7 +598,7 @@ pub(super) fn validate_value(
 }
 
 pub(super) fn report_invalid_option_value(
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: &RefCell<&mut Push<Gc<Diagnostic>>>,
     invalid_reported: &mut Option<bool>,
     source_file: &Node,      /*JsonSourceFile*/
     value_expression: &Node, /*Expression*/

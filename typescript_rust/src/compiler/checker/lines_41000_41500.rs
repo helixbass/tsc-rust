@@ -29,7 +29,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_index_infos_at_location_(&self, node: &Node) -> Option<Vec<Rc<IndexInfo>>> {
+    pub(super) fn get_index_infos_at_location_(&self, node: &Node) -> Option<Vec<Gc<IndexInfo>>> {
         if is_identifier(node)
             && is_property_access_expression(&node.parent())
             && ptr::eq(&*node.parent().as_property_access_expression().name, node)
@@ -43,7 +43,7 @@ impl TypeChecker {
                 vec![object_type.clone()]
             };
             return Some(flat_map(Some(&object_types), |t: &Gc<Type>, _| {
-                filter(&self.get_index_infos_of_type(t), |info: &Rc<IndexInfo>| {
+                filter(&self.get_index_infos_of_type(t), |info: &Gc<IndexInfo>| {
                     self.is_applicable_index_type(key_type, &info.key_type)
                 })
             }));

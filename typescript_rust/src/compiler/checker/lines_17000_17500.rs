@@ -534,7 +534,7 @@ impl TypeChecker {
                             Some(&*target_prop_type),
                         )
                     {
-                        let diag: Rc<Diagnostic> = Rc::new(
+                        let diag: Gc<Diagnostic> = Rc::new(
                             create_diagnostic_for_node(
                                 &prop,
                                 &Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_type_of_the_target,
@@ -1218,7 +1218,7 @@ impl TypeChecker {
         error_reporter: &mut Option<ErrorReporter>,
         incompatible_error_reporter: Option<&TIncompatibleErrorReporter>,
         compare_types: Rc<dyn TypeComparer>,
-        report_unreliable_markers: Option<Rc<TypeMapper>>,
+        report_unreliable_markers: Option<Gc<TypeMapper>>,
     ) -> Ternary {
         if Rc::ptr_eq(&source, &target) {
             return Ternary::True;
@@ -1555,12 +1555,12 @@ pub(super) trait CheckTypeContainingMessageChain: Trace + Finalize {
 }
 
 pub(super) trait CheckTypeErrorOutputContainer: Trace + Finalize {
-    fn push_error(&self, error: Rc<Diagnostic>);
-    fn set_errors(&self, errors: Vec<Rc<Diagnostic>>);
-    fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>>;
+    fn push_error(&self, error: Gc<Diagnostic>);
+    fn set_errors(&self, errors: Vec<Gc<Diagnostic>>);
+    fn get_error(&self, index: usize) -> Option<Gc<Diagnostic>>;
     fn errors_len(&self) -> usize;
     fn skip_logging(&self) -> Option<bool>;
-    fn errors(&self) -> Vec<Rc<Diagnostic>>;
+    fn errors(&self) -> Vec<Gc<Diagnostic>>;
 }
 
 #[derive(Trace, Finalize)]
@@ -1579,15 +1579,15 @@ impl CheckTypeErrorOutputContainerConcrete {
 }
 
 impl CheckTypeErrorOutputContainer for CheckTypeErrorOutputContainerConcrete {
-    fn push_error(&self, error: Rc<Diagnostic>) {
+    fn push_error(&self, error: Gc<Diagnostic>) {
         self.errors.borrow_mut().push(error);
     }
 
-    fn set_errors(&self, errors: Vec<Rc<Diagnostic>>) {
+    fn set_errors(&self, errors: Vec<Gc<Diagnostic>>) {
         *self.errors.borrow_mut() = errors;
     }
 
-    fn get_error(&self, index: usize) -> Option<Rc<Diagnostic>> {
+    fn get_error(&self, index: usize) -> Option<Gc<Diagnostic>> {
         self.errors.borrow().get(index).map(Clone::clone)
     }
 
@@ -1599,7 +1599,7 @@ impl CheckTypeErrorOutputContainer for CheckTypeErrorOutputContainerConcrete {
         self.skip_logging
     }
 
-    fn errors(&self) -> Vec<Rc<Diagnostic>> {
+    fn errors(&self) -> Vec<Gc<Diagnostic>> {
         self.errors.borrow().clone()
     }
 }

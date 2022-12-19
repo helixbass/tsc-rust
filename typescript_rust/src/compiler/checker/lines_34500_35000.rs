@@ -256,7 +256,7 @@ impl TypeChecker {
     pub(super) fn get_effective_type_arguments(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
     ) -> Vec<Gc<Type>> {
         self.fill_missing_type_arguments(
             maybe_map(
@@ -273,10 +273,10 @@ impl TypeChecker {
     pub(super) fn check_type_argument_constraints(
         &self,
         node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
-        type_parameters: &[Rc<Type /*TypeParameter*/>],
+        type_parameters: &[Gc<Type /*TypeParameter*/>],
     ) -> bool {
         let mut type_arguments: Option<Vec<Gc<Type>>> = None;
-        let mut mapper: Option<Rc<TypeMapper>> = None;
+        let mut mapper: Option<Gc<TypeMapper>> = None;
         let mut result = true;
         for i in 0..type_parameters.len() {
             let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);

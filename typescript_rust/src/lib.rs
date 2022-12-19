@@ -36,12 +36,12 @@ pub use compiler::command_line_parser::{
     ParseConfigFileHost,
 };
 pub use compiler::core::{
-    add_range, append, append_if_unique_rc, array_of, array_to_map, arrays_equal, binary_search,
-    binary_search_copy_key, cartesian_product, cast, cast_present, clear, clone,
-    compare_strings_case_insensitive, compare_strings_case_sensitive,
+    add_range, append, append_if_unique_gc, append_if_unique_rc, array_of, array_to_map,
+    arrays_equal, binary_search, binary_search_copy_key, cartesian_product, cast, cast_present,
+    clear, clone, compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, comparison_to_ordering, concatenate,
-    contains, contains_rc, count_where, create_get_canonical_file_name, create_multi_map,
-    create_underscore_escaped_multi_map, deduplicate_rc, ends_with,
+    contains, contains_gc, contains_rc, count_where, create_get_canonical_file_name,
+    create_multi_map, create_underscore_escaped_multi_map, deduplicate_rc, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
     filter_iter, filter_mutate, filter_owning, find, find_best_pattern_match, find_index,
     find_last, find_last_index, find_last_index_returns_isize, first, first_defined,
@@ -395,8 +395,8 @@ pub use compiler::types::{
 use compiler::types::{
     AccessFlags, CommentDirectivesMap, EmitNode, ExternalEmitHelpers, FileIncludeKind,
     FileIncludeReason, IterationTypes, IterationTypesKey, JsxReferenceKind, MemberOverrideStatus,
-    ModulePath, RawSourceMap, ReadonlyPragmaMap, ReferencedFile, SourceOfProjectReferenceRedirect,
-    WideningContext,
+    ModulePath, OutofbandVarianceMarkerHandler, RawSourceMap, ReadonlyPragmaMap, ReferencedFile,
+    SourceOfProjectReferenceRedirect, WideningContext,
 };
 pub use compiler::utilities::{
     add_related_info, array_is_homogeneous, attach_file_to_diagnostics, chain_diagnostic_messages,

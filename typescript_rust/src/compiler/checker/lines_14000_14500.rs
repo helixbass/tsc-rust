@@ -843,7 +843,7 @@ impl TypeChecker {
         signatures: &[Gc<Signature>],
         kind: Option<TypeFlags>,
     ) -> Option<TypePredicate> {
-        let mut first: Option<Rc<TypePredicate>> = None;
+        let mut first: Option<Gc<TypePredicate>> = None;
         let mut types: Vec<Gc<Type>> = vec![];
         for sig in signatures {
             let pred = self.get_type_predicate_of_signature(sig);

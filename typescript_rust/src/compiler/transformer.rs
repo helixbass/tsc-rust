@@ -250,7 +250,7 @@ pub fn transform_nodes(
     let mut lexical_environment_function_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
     let mut emit_helpers: Option<Vec<Rc<EmitHelper>>> = None;
     let state = TransformationState::Uninitialized;
-    let diagnostics: Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> = vec![];
+    let diagnostics: Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> = vec![];
     let mut transformed: Vec<Gc<Node>> = vec![];
 
     let transformation_result = TransformNodesTransformationResult::new(
@@ -298,7 +298,7 @@ pub struct TransformNodesTransformationResult {
     block_scope_stack_offset: Cell<usize>,
     block_scoped_variable_declarations: RefCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
     emit_helpers: RefCell<Option<Vec<Rc<EmitHelper>>>>,
-    diagnostics: RefCell<Vec<Rc<Diagnostic>>>,
+    diagnostics: RefCell<Vec<Gc<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
     transformers_with_context: RefCell<Option<Vec<Transformer>>>,
     allow_dts_files: bool,
@@ -319,7 +319,7 @@ impl TransformNodesTransformationResult {
         lexical_environment_variable_declarations_stack: Vec<Option<Vec<Gc<Node>>>>,
         lexical_environment_function_declarations_stack: Vec<Option<Vec<Gc<Node>>>>,
         emit_helpers: Option<Vec<Rc<EmitHelper>>>,
-        diagnostics: Vec<Rc<Diagnostic>>,
+        diagnostics: Vec<Gc<Diagnostic>>,
         transformers: Vec<TransformerFactory>,
         allow_dts_files: bool,
         options: Gc<CompilerOptions>,
@@ -514,7 +514,7 @@ impl TransformNodesTransformationResult {
         self.state.set(state);
     }
 
-    fn diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+    fn diagnostics(&self) -> RefMut<Vec<Gc<Diagnostic>>> {
         self.diagnostics.borrow_mut()
     }
 
@@ -1076,7 +1076,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         no_emit_notification(hint, node, emit_callback)
     }
 
-    fn add_diagnostic(&self, diag: Rc<Diagnostic /*DiagnosticWithLocation*/>) {
+    fn add_diagnostic(&self, diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {
         self.diagnostics().push(diag);
     }
 }
@@ -1086,7 +1086,7 @@ impl TransformationResult for TransformNodesTransformationResult {
         self.transformed.borrow().clone()
     }
 
-    fn diagnostics(&self) -> Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>> {
+    fn diagnostics(&self) -> Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>> {
         Some(self.diagnostics.borrow().clone())
     }
 
@@ -1242,5 +1242,5 @@ impl TransformationContext for TransformationContextNull {
         no_emit_notification(hint, node, emit_callback)
     }
 
-    fn add_diagnostic(&self, _diag: Rc<Diagnostic /*DiagnosticWithLocation*/>) {}
+    fn add_diagnostic(&self, _diag: Gc<Diagnostic /*DiagnosticWithLocation*/>) {}
 }

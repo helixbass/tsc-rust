@@ -108,7 +108,7 @@ impl DiagnosticReporterConcrete {
 }
 
 impl DiagnosticReporter for DiagnosticReporterConcrete {
-    fn call(&self, diagnostic: Rc<Diagnostic>) {
+    fn call(&self, diagnostic: Gc<Diagnostic>) {
         if !self.pretty {
             self.system
                 .write(&format_diagnostic(&diagnostic, &*self.host));
@@ -188,7 +188,7 @@ impl WatchStatusReporterConcrete {
 impl WatchStatusReporter for WatchStatusReporterConcrete {
     fn call(
         &self,
-        diagnostic: Rc<Diagnostic>,
+        diagnostic: Gc<Diagnostic>,
         new_line: &str,
         options: Gc<CompilerOptions>,
         _error_count: Option<usize>,
@@ -312,12 +312,12 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
 }
 
 impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {
         report_unrecoverable_diagnostic(&*self.system, &*self.report_diagnostic, diagnostic)
     }
 }
 
-pub fn get_error_count_for_summary(diagnostics: &[Rc<Diagnostic>]) -> usize {
+pub fn get_error_count_for_summary(diagnostics: &[Gc<Diagnostic>]) -> usize {
     count_where(Some(diagnostics), |diagnostic, _| {
         diagnostic.category() == DiagnosticCategory::Error
     })
@@ -826,7 +826,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
 ) -> EmitFilesAndReportErrorsReturn {
     let is_list_files_only = matches!(program.get_compiler_options().list_files_only, Some(true));
 
-    let mut all_diagnostics: Vec<Rc<Diagnostic>> =
+    let mut all_diagnostics: Vec<Gc<Diagnostic>> =
         program.get_config_file_parsing_diagnostics().clone();
     let config_file_parsing_diagnostics_length = all_diagnostics.len();
     add_range(
@@ -945,7 +945,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
 fn report_unrecoverable_diagnostic(
     system: &dyn System,
     report_diagnostic: &dyn DiagnosticReporter,
-    diagnostic: Rc<Diagnostic>,
+    diagnostic: Gc<Diagnostic>,
 ) {
     unimplemented!()
 }
@@ -1003,7 +1003,7 @@ impl<TBuilderProgram: BuilderProgram> WatchHost
 impl<TBuilderProgram: BuilderProgram> ConfigFileDiagnosticsReporter
     for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
 {
-    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Gc<Diagnostic>) {
         unimplemented!()
     }
 }
@@ -1011,7 +1011,7 @@ impl<TBuilderProgram: BuilderProgram> ConfigFileDiagnosticsReporter
 pub struct IncrementalCompilationOptions<'a> {
     pub root_names: &'a [String],
     pub options: &'a CompilerOptions,
-    pub config_file_parsing_diagnostics: Option<&'a [Rc<Diagnostic>]>,
+    pub config_file_parsing_diagnostics: Option<&'a [Gc<Diagnostic>]>,
     pub project_references: Option<&'a [Rc<ProjectReference>]>,
     pub host: Option<Rc<dyn CompilerHost>>,
     pub report_diagnostic: Option<Rc<dyn DiagnosticReporter>>,

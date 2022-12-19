@@ -33,7 +33,7 @@ use local_macros::enum_unwrapped;
 
 pub(super) fn parse_response_file<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
     read_file: Option<&TReadFile>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut HashMap<String, CompilerOptionsValue>,
@@ -109,7 +109,7 @@ pub(super) fn parse_option_value(
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     opt: &CommandLineOption,
     options: &mut HashMap<String, CompilerOptionsValue>,
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &mut Vec<Gc<Diagnostic>>,
 ) -> usize {
     if opt.is_tsconfig_only() {
         let opt_value = args.get(i).map(|opt_value| &**opt_value);
@@ -321,7 +321,7 @@ pub(crate) struct ParsedBuildCommand {
     pub build_options: BuildOptions,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub projects: Vec<String>,
-    pub errors: Vec<Rc<Diagnostic>>,
+    pub errors: Vec<Gc<Diagnostic>>,
 }
 
 thread_local! {
@@ -545,7 +545,7 @@ pub fn read_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>>>(
 
 pub struct ReadConfigFileReturn {
     pub config: Option<serde_json::Value>,
-    pub error: Option<Rc<Diagnostic>>,
+    pub error: Option<Gc<Diagnostic>>,
 }
 
 pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> ReadConfigFileReturn {
@@ -616,7 +616,7 @@ pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<Option<String>
 
 pub(crate) enum StringOrRcDiagnostic {
     String(String),
-    RcDiagnostic(Rc<Diagnostic>),
+    RcDiagnostic(Gc<Diagnostic>),
 }
 
 impl From<String> for StringOrRcDiagnostic {
@@ -625,8 +625,8 @@ impl From<String> for StringOrRcDiagnostic {
     }
 }
 
-impl From<Rc<Diagnostic>> for StringOrRcDiagnostic {
-    fn from(value: Rc<Diagnostic>) -> Self {
+impl From<Gc<Diagnostic>> for StringOrRcDiagnostic {
+    fn from(value: Gc<Diagnostic>) -> Self {
         Self::RcDiagnostic(value)
     }
 }
@@ -1264,7 +1264,7 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
 
 pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNotifier>(
     source_file: &Node, /*JsonSourceFile*/
-    errors: &RefCell<&mut Vec<Rc<Diagnostic>>>,
+    errors: &RefCell<&mut Vec<Gc<Diagnostic>>>,
     report_options_errors: bool,
     options_iterator: Option<&TOptionsIterator>,
 ) -> Option<serde_json::Value> {
@@ -1329,7 +1329,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
 
 pub fn convert_to_object(
     source_file: &Node, /*JsonSourceFile*/
-    errors: &mut Push<Rc<Diagnostic>>,
+    errors: &mut Push<Gc<Diagnostic>>,
 ) -> Option<serde_json::Value> {
     convert_to_object_worker(
         source_file,
@@ -1351,7 +1351,7 @@ pub(crate) fn convert_to_object_worker<
 >(
     source_file: &Node, /*JsonSourceFile*/
     root_expression: Option<TRootExpression>,
-    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    errors: &RefCell<&mut Push<Gc<Diagnostic>>>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
     json_conversion_notifier: Option<&TJsonConversionNotifier>,

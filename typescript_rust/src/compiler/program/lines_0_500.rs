@@ -123,7 +123,7 @@ pub(super) fn create_compiler_host(
 pub fn create_compiler_host_worker(
     options: Gc<CompilerOptions>,
     set_parent_nodes: Option<bool>,
-    system: Option<Rc<dyn System>>,
+    system: Option<Gc<Box<dyn System>>>,
 ) -> impl CompilerHost {
     let system = system.unwrap_or_else(|| get_sys());
     let existing_directories: HashMap<String, bool> = HashMap::new();
@@ -134,19 +134,19 @@ pub fn create_compiler_host_worker(
     CompilerHostConcrete {
         set_parent_nodes,
         system,
-        existing_directories: RefCell::new(existing_directories),
-        output_fingerprints: RefCell::new(None),
+        existing_directories: GcCell::new(existing_directories),
+        output_fingerprints: Default::default(),
         options,
         new_line,
-        current_directory: RefCell::new(None),
+        current_directory: Default::default(),
         get_canonical_file_name,
-        read_file_override: RefCell::new(None),
-        file_exists_override: RefCell::new(None),
-        directory_exists_override: RefCell::new(None),
-        realpath_override: RefCell::new(None),
-        get_directories_override: RefCell::new(None),
-        write_file_override: RefCell::new(None),
-        create_directory_override: RefCell::new(None),
+        read_file_override: Default::default(),
+        file_exists_override: Default::default(),
+        directory_exists_override: Default::default(),
+        realpath_override: Default::default(),
+        get_directories_override: Default::default(),
+        write_file_override: Default::default(),
+        create_directory_override: Default::default(),
     }
 }
 
@@ -155,7 +155,8 @@ struct CompilerHostConcrete {
     set_parent_nodes: Option<bool>,
     system: Gc<Box<dyn System>>,
     existing_directories: GcCell<HashMap<String, bool>>,
-    output_fingerprints: GcCell<Option<HashMap<String, OutputFingerprint>>>,
+    #[unsafe_ignore_trace]
+    output_fingerprints: RefCell<Option<HashMap<String, OutputFingerprint>>>,
     options: Gc<CompilerOptions>,
     new_line: String,
     current_directory: GcCell<Option<String>>,
@@ -867,12 +868,12 @@ pub fn get_pre_emit_diagnostics<TSourceFile: Borrow<Node>>(
     program: &ProgramOrBuilderProgram,
     source_file: Option<TSourceFile>,
     cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
-) -> Vec<Rc<Diagnostic>> {
+) -> Vec<Gc<Diagnostic>> {
     let program = match program {
         ProgramOrBuilderProgram::Program(program) => program,
         _ => unimplemented!(),
     };
-    let mut diagnostics: Vec<Rc<Diagnostic>> = vec![];
+    let mut diagnostics: Vec<Gc<Diagnostic>> = vec![];
     add_range(
         &mut diagnostics,
         Some(&program.get_config_file_parsing_diagnostics()),
@@ -931,7 +932,7 @@ pub trait FormatDiagnosticsHost {
 }
 
 pub fn format_diagnostics<THost: FormatDiagnosticsHost>(
-    diagnostics: &[Rc<Diagnostic>],
+    diagnostics: &[Gc<Diagnostic>],
     host: &THost,
 ) -> String {
     let mut output = "".to_owned();
@@ -1161,7 +1162,7 @@ pub fn format_location<THost: FormatDiagnosticsHost, TColor: Fn(&str, &str) -> S
 }
 
 pub fn format_diagnostics_with_color_and_context<THost: FormatDiagnosticsHost>(
-    diagnostics: &[Rc<Diagnostic>],
+    diagnostics: &[Gc<Diagnostic>],
     host: &THost,
 ) -> String {
     let mut output = "".to_owned();

@@ -800,9 +800,9 @@ pub fn attach_file_to_diagnostic(
 }
 
 pub fn attach_file_to_diagnostics(
-    diagnostics: &[Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>],
+    diagnostics: &[Gc<Diagnostic /*DiagnosticWithDetachedLocation*/>],
     file: &Node, /*SourceFile*/
-) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
     diagnostics
         .iter()
         .map(|diagnostic| {

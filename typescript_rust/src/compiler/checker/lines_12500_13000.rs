@@ -31,7 +31,7 @@ impl TypeChecker {
     pub(super) fn fill_missing_type_arguments(
         &self,
         type_arguments: Option<Vec<Gc<Type>>>,
-        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
         min_type_argument_count: usize,
         is_java_script_implicit_any: bool,
     ) -> Option<Vec<Gc<Type>>> {
@@ -452,7 +452,7 @@ impl TypeChecker {
     pub(super) fn get_type_predicate_of_signature(
         &self,
         signature: &Signature,
-    ) -> Option<Rc<TypePredicate>> {
+    ) -> Option<Gc<TypePredicate>> {
         if signature.maybe_resolved_type_predicate().is_none() {
             if let Some(signature_target) = signature.target.as_ref() {
                 let target_type_predicate = self.get_type_predicate_of_signature(signature_target);
@@ -480,7 +480,7 @@ impl TypeChecker {
                     .declaration
                     .as_ref()
                     .and_then(|declaration| get_effective_return_type_node(declaration));
-                let mut jsdoc_predicate: Option<Rc<TypePredicate>> = None;
+                let mut jsdoc_predicate: Option<Gc<TypePredicate>> = None;
                 if type_.is_none() && is_in_js_file(signature.declaration.as_deref()) {
                     let jsdoc_signature =
                         self.get_signature_of_type_tag(signature.declaration.as_ref().unwrap());
@@ -744,7 +744,7 @@ impl TypeChecker {
         signature: Gc<Signature>,
         type_arguments: Option<&[Gc<Type>]>,
         is_javascript: bool,
-        inferred_type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        inferred_type_parameters: Option<&[Gc<Type /*TypeParameter*/>]>,
     ) -> Gc<Signature> {
         let instantiated_signature = self
             .get_signature_instantiation_without_filling_in_type_arguments(
@@ -914,7 +914,7 @@ impl TypeChecker {
     pub(super) fn get_or_create_type_from_signature(
         &self,
         signature: Gc<Signature>,
-    ) -> Rc<Type /*ObjectType*/> {
+    ) -> Gc<Type /*ObjectType*/> {
         if signature.maybe_isolated_signature_type().is_none() {
             let kind = signature
                 .declaration
@@ -978,7 +978,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_index_infos_of_symbol(&self, symbol: &Symbol) -> Vec<Rc<IndexInfo>> {
+    pub(super) fn get_index_infos_of_symbol(&self, symbol: &Symbol) -> Vec<Gc<IndexInfo>> {
         let index_symbol = self.get_index_symbol(symbol);
         if let Some(index_symbol) = index_symbol {
             self.get_index_infos_of_index_symbol(&index_symbol)
@@ -990,9 +990,9 @@ impl TypeChecker {
     pub(super) fn get_index_infos_of_index_symbol(
         &self,
         index_symbol: &Symbol,
-    ) -> Vec<Rc<IndexInfo>> {
+    ) -> Vec<Gc<IndexInfo>> {
         if let Some(index_symbol_declarations) = index_symbol.maybe_declarations().as_ref() {
-            let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+            let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
             for declaration in index_symbol_declarations {
                 let declaration_as_index_signature_declaration =
                     declaration.as_index_signature_declaration();

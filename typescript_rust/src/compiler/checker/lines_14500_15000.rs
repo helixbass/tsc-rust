@@ -22,7 +22,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn each_union_contains(
         &self,
-        union_types: &[Rc<Type /*UnionType*/>],
+        union_types: &[Gc<Type /*UnionType*/>],
         type_: &Type,
     ) -> bool {
         for u in union_types {
@@ -90,7 +90,7 @@ impl TypeChecker {
     }
 
     pub(super) fn intersect_unions_of_primitive_types(&self, types: &mut Vec<Gc<Type>>) -> bool {
-        let mut union_types: Option<Vec<Rc<Type /*UnionType*/>>> = None;
+        let mut union_types: Option<Vec<Gc<Type /*UnionType*/>>> = None;
         let index = find_index(
             types,
             |t: &Gc<Type>, _| get_object_flags(t).intersects(ObjectFlags::PrimitiveUnion),
@@ -732,7 +732,7 @@ impl TypeChecker {
         );
         let index_key_types = map(
             &self.get_index_infos_of_type(type_),
-            |info: &Rc<IndexInfo>, _| {
+            |info: &Gc<IndexInfo>, _| {
                 if !Rc::ptr_eq(info, &self.enum_number_index_info())
                     && self.is_key_type_included(&info.key_type, include)
                 {

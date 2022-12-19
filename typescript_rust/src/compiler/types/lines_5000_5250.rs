@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use indexmap::IndexMap;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ use local_macros::{enum_unwrapped, symbol_type, type_type};
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
 pub struct MappedSymbol {
     _transient_symbol: BaseTransientSymbol,
-    pub mapped_type: Rc<Type /*MappedType*/>,
+    pub mapped_type: Gc<Type /*MappedType*/>,
     key_type: RefCell<Gc<Type>>,
 }
 
@@ -58,8 +58,8 @@ impl MappedSymbol {
 pub struct ReverseMappedSymbol {
     _transient_symbol: BaseTransientSymbol,
     pub property_type: Gc<Type>,
-    pub mapped_type: Rc<Type /*MappedType*/>,
-    pub constraint_type: Rc<Type /*IndexType*/>,
+    pub mapped_type: Gc<Type /*MappedType*/>,
+    pub constraint_type: Gc<Type /*IndexType*/>,
 }
 
 impl ReverseMappedSymbol {
@@ -537,117 +537,119 @@ pub trait TypeInterface {
     fn maybe_symbol(&self) -> Option<Gc<Symbol>>;
     fn symbol(&self) -> Gc<Symbol>;
     fn set_symbol(&self, symbol: Option<Gc<Symbol>>);
-    fn maybe_pattern(&self) -> RefMut<Option<Gc<Node /*DestructuringPattern*/>>>;
+    fn maybe_pattern(&self) -> GcCellRefMut<Option<Gc<Node /*DestructuringPattern*/>>>;
     fn maybe_alias_symbol(&self) -> Option<Gc<Symbol>>;
-    fn maybe_alias_symbol_mut(&self) -> RefMut<Option<Gc<Symbol>>>;
+    fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Gc<Symbol>>>;
     fn maybe_alias_type_arguments(&self) -> Option<Vec<Gc<Type>>>;
-    fn maybe_alias_type_arguments_mut(&self) -> RefMut<Option<Vec<Gc<Type>>>>;
+    fn maybe_alias_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>>;
     fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool>;
     fn set_alias_type_arguments_contains_marker(
         &self,
         alias_type_arguments_contains_marker: Option<bool>,
     );
-    fn maybe_permissive_instantiation(&self) -> RefMut<Option<Gc<Type>>>;
-    fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Gc<Type>>>;
-    fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Gc<Type>>>;
-    fn maybe_widened(&self) -> RefMut<Option<Gc<Type>>>;
+    fn maybe_permissive_instantiation(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_restrictive_instantiation(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_immediate_base_constraint(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_widened(&self) -> GcCellRefMut<Option<Gc<Type>>>;
     // InstantiableType fields
-    fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Gc<Type>>>;
-    fn maybe_resolved_index_type(&self) -> RefMut<Option<Rc<Type /*IndexType*/>>>;
-    fn maybe_resolved_string_index_type(&self) -> RefMut<Option<Rc<Type /*IndexType*/>>>;
+    fn maybe_resolved_base_constraint(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_resolved_index_type(&self) -> GcCellRefMut<Option<Gc<Type /*IndexType*/>>>;
+    fn maybe_resolved_string_index_type(&self) -> GcCellRefMut<Option<Gc<Type /*IndexType*/>>>;
     // SyntheticDefaultModuleType fields
-    fn maybe_synthetic_type(&self) -> RefMut<Option<Gc<Type>>>;
-    fn maybe_default_only_type(&self) -> RefMut<Option<Gc<Type>>>;
+    fn maybe_synthetic_type(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_default_only_type(&self) -> GcCellRefMut<Option<Gc<Type>>>;
     // PromiseOrAwaitableType fields
-    fn maybe_promise_type_of_promise_constructor(&self) -> RefMut<Option<Gc<Type>>>;
-    fn maybe_promised_type_of_promise(&self) -> RefMut<Option<Gc<Type>>>;
-    fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Gc<Type>>>;
+    fn maybe_promise_type_of_promise_constructor(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_promised_type_of_promise(&self) -> GcCellRefMut<Option<Gc<Type>>>;
+    fn maybe_awaited_type_of_type(&self) -> GcCellRefMut<Option<Gc<Type>>>;
     // IterableOrIteratorType fields
-    fn maybe_iteration_types_of_generator_return_type(&self) -> RefMut<Option<Rc<IterationTypes>>>;
+    fn maybe_iteration_types_of_generator_return_type(
+        &self,
+    ) -> GcCellRefMut<Option<Gc<IterationTypes>>>;
     fn maybe_iteration_types_of_async_generator_return_type(
         &self,
-    ) -> RefMut<Option<Rc<IterationTypes>>>;
-    fn maybe_iteration_types_of_iterable(&self) -> RefMut<Option<Rc<IterationTypes>>>;
-    fn maybe_iteration_types_of_iterator(&self) -> RefMut<Option<Rc<IterationTypes>>>;
-    fn maybe_iteration_types_of_async_iterable(&self) -> RefMut<Option<Rc<IterationTypes>>>;
-    fn maybe_iteration_types_of_async_iterator(&self) -> RefMut<Option<Rc<IterationTypes>>>;
-    fn maybe_iteration_types_of_iterator_result(&self) -> RefMut<Option<Rc<IterationTypes>>>;
+    ) -> GcCellRefMut<Option<Gc<IterationTypes>>>;
+    fn maybe_iteration_types_of_iterable(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>>;
+    fn maybe_iteration_types_of_iterator(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>>;
+    fn maybe_iteration_types_of_async_iterable(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>>;
+    fn maybe_iteration_types_of_async_iterator(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>>;
+    fn maybe_iteration_types_of_iterator_result(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>>;
     fn get_by_iteration_type_cache_key(
         &self,
         key: IterationTypeCacheKey,
-    ) -> Option<Rc<IterationTypes>>;
+    ) -> Option<Gc<IterationTypes>>;
     fn set_by_iteration_type_cache_key(
         &self,
         key: IterationTypeCacheKey,
-        value: Option<Rc<IterationTypes>>,
+        value: Option<Gc<IterationTypes>>,
     );
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BaseType {
-    _type_wrapper: RefCell<Option<Gc<Type>>>,
+    _type_wrapper: GcCell<Option<Gc<Type>>>,
     flags: Cell<TypeFlags>,
     pub id: Option<TypeId>,
-    symbol: RefCell<Option<Gc<Symbol>>>,
-    pattern: RefCell<Option<Gc<Node>>>,
-    alias_symbol: RefCell<Option<Gc<Symbol>>>,
-    alias_type_arguments: RefCell<Option<Vec<Gc<Type>>>>,
+    symbol: GcCell<Option<Gc<Symbol>>>,
+    pattern: GcCell<Option<Gc<Node>>>,
+    alias_symbol: GcCell<Option<Gc<Symbol>>>,
+    alias_type_arguments: GcCell<Option<Vec<Gc<Type>>>>,
     alias_type_arguments_contains_marker: Cell<Option<bool>>,
-    permissive_instantiation: RefCell<Option<Gc<Type>>>,
-    restrictive_instantiation: RefCell<Option<Gc<Type>>>,
-    immediate_base_constraint: RefCell<Option<Gc<Type>>>,
-    widened: RefCell<Option<Gc<Type>>>,
+    permissive_instantiation: GcCell<Option<Gc<Type>>>,
+    restrictive_instantiation: GcCell<Option<Gc<Type>>>,
+    immediate_base_constraint: GcCell<Option<Gc<Type>>>,
+    widened: GcCell<Option<Gc<Type>>>,
     // InstantiableType fields
-    resolved_base_constraint: RefCell<Option<Gc<Type>>>,
-    resolved_index_type: RefCell<Option<Rc<Type /*IndexType*/>>>,
-    resolved_string_index_type: RefCell<Option<Rc<Type /*IndexType*/>>>,
+    resolved_base_constraint: GcCell<Option<Gc<Type>>>,
+    resolved_index_type: GcCell<Option<Gc<Type /*IndexType*/>>>,
+    resolved_string_index_type: GcCell<Option<Gc<Type /*IndexType*/>>>,
     // SyntheticDefaultModuleType fields
-    synthetic_type: RefCell<Option<Gc<Type>>>,
-    default_only_type: RefCell<Option<Gc<Type>>>,
+    synthetic_type: GcCell<Option<Gc<Type>>>,
+    default_only_type: GcCell<Option<Gc<Type>>>,
     // PromiseOrAwaitableType fields
-    promise_type_of_promise_constructor: RefCell<Option<Gc<Type>>>,
-    promised_type_of_promise: RefCell<Option<Gc<Type>>>,
-    awaited_type_of_type: RefCell<Option<Gc<Type>>>,
+    promise_type_of_promise_constructor: GcCell<Option<Gc<Type>>>,
+    promised_type_of_promise: GcCell<Option<Gc<Type>>>,
+    awaited_type_of_type: GcCell<Option<Gc<Type>>>,
     // IterableOrIteratorType fields
-    iteration_types_of_generator_return_type: RefCell<Option<Rc<IterationTypes>>>,
-    iteration_types_of_async_generator_return_type: RefCell<Option<Rc<IterationTypes>>>,
-    iteration_types_of_iterable: RefCell<Option<Rc<IterationTypes>>>,
-    iteration_types_of_iterator: RefCell<Option<Rc<IterationTypes>>>,
-    iteration_types_of_async_iterable: RefCell<Option<Rc<IterationTypes>>>,
-    iteration_types_of_async_iterator: RefCell<Option<Rc<IterationTypes>>>,
-    iteration_types_of_iterator_result: RefCell<Option<Rc<IterationTypes>>>,
+    iteration_types_of_generator_return_type: GcCell<Option<Gc<IterationTypes>>>,
+    iteration_types_of_async_generator_return_type: GcCell<Option<Gc<IterationTypes>>>,
+    iteration_types_of_iterable: GcCell<Option<Gc<IterationTypes>>>,
+    iteration_types_of_iterator: GcCell<Option<Gc<IterationTypes>>>,
+    iteration_types_of_async_iterable: GcCell<Option<Gc<IterationTypes>>>,
+    iteration_types_of_async_iterator: GcCell<Option<Gc<IterationTypes>>>,
+    iteration_types_of_iterator_result: GcCell<Option<Gc<IterationTypes>>>,
 }
 
 impl BaseType {
     pub fn new(flags: TypeFlags) -> Self {
         Self {
-            _type_wrapper: RefCell::new(None),
+            _type_wrapper: GcCell::new(None),
             flags: Cell::new(flags),
             id: None,
-            symbol: RefCell::new(None),
-            pattern: RefCell::new(None),
-            alias_symbol: RefCell::new(None),
-            alias_type_arguments: RefCell::new(None),
+            symbol: GcCell::new(None),
+            pattern: GcCell::new(None),
+            alias_symbol: GcCell::new(None),
+            alias_type_arguments: GcCell::new(None),
             alias_type_arguments_contains_marker: Cell::new(None),
-            permissive_instantiation: RefCell::new(None),
-            restrictive_instantiation: RefCell::new(None),
-            immediate_base_constraint: RefCell::new(None),
-            widened: RefCell::new(None),
-            resolved_base_constraint: RefCell::new(None),
-            resolved_index_type: RefCell::new(None),
-            resolved_string_index_type: RefCell::new(None),
-            synthetic_type: RefCell::new(None),
-            default_only_type: RefCell::new(None),
-            promise_type_of_promise_constructor: RefCell::new(None),
-            promised_type_of_promise: RefCell::new(None),
-            awaited_type_of_type: RefCell::new(None),
-            iteration_types_of_generator_return_type: RefCell::new(None),
-            iteration_types_of_async_generator_return_type: RefCell::new(None),
-            iteration_types_of_iterable: RefCell::new(None),
-            iteration_types_of_iterator: RefCell::new(None),
-            iteration_types_of_async_iterable: RefCell::new(None),
-            iteration_types_of_async_iterator: RefCell::new(None),
-            iteration_types_of_iterator_result: RefCell::new(None),
+            permissive_instantiation: GcCell::new(None),
+            restrictive_instantiation: GcCell::new(None),
+            immediate_base_constraint: GcCell::new(None),
+            widened: GcCell::new(None),
+            resolved_base_constraint: GcCell::new(None),
+            resolved_index_type: GcCell::new(None),
+            resolved_string_index_type: GcCell::new(None),
+            synthetic_type: GcCell::new(None),
+            default_only_type: GcCell::new(None),
+            promise_type_of_promise_constructor: GcCell::new(None),
+            promised_type_of_promise: GcCell::new(None),
+            awaited_type_of_type: GcCell::new(None),
+            iteration_types_of_generator_return_type: GcCell::new(None),
+            iteration_types_of_async_generator_return_type: GcCell::new(None),
+            iteration_types_of_iterable: GcCell::new(None),
+            iteration_types_of_iterator: GcCell::new(None),
+            iteration_types_of_async_iterable: GcCell::new(None),
+            iteration_types_of_async_iterator: GcCell::new(None),
+            iteration_types_of_iterator_result: GcCell::new(None),
         }
     }
 }
@@ -685,7 +687,7 @@ impl TypeInterface for BaseType {
         *self.symbol.borrow_mut() = symbol;
     }
 
-    fn maybe_pattern(&self) -> RefMut<Option<Gc<Node>>> {
+    fn maybe_pattern(&self) -> GcCellRefMut<Option<Gc<Node>>> {
         self.pattern.borrow_mut()
     }
 
@@ -693,7 +695,7 @@ impl TypeInterface for BaseType {
         self.alias_symbol.borrow().clone()
     }
 
-    fn maybe_alias_symbol_mut(&self) -> RefMut<Option<Gc<Symbol>>> {
+    fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Gc<Symbol>>> {
         self.alias_symbol.borrow_mut()
     }
 
@@ -701,7 +703,7 @@ impl TypeInterface for BaseType {
         self.alias_type_arguments.borrow().clone()
     }
 
-    fn maybe_alias_type_arguments_mut(&self) -> RefMut<Option<Vec<Gc<Type>>>> {
+    fn maybe_alias_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Gc<Type>>>> {
         self.alias_type_arguments.borrow_mut()
     }
 
@@ -717,89 +719,91 @@ impl TypeInterface for BaseType {
             .set(alias_type_arguments_contains_marker);
     }
 
-    fn maybe_permissive_instantiation(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_permissive_instantiation(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.permissive_instantiation.borrow_mut()
     }
 
-    fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_restrictive_instantiation(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.restrictive_instantiation.borrow_mut()
     }
 
-    fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_immediate_base_constraint(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.immediate_base_constraint.borrow_mut()
     }
 
-    fn maybe_widened(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_widened(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.widened.borrow_mut()
     }
 
-    fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_resolved_base_constraint(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.resolved_base_constraint.borrow_mut()
     }
 
-    fn maybe_resolved_index_type(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_resolved_index_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.resolved_index_type.borrow_mut()
     }
 
-    fn maybe_resolved_string_index_type(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_resolved_string_index_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.resolved_string_index_type.borrow_mut()
     }
 
-    fn maybe_synthetic_type(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_synthetic_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.synthetic_type.borrow_mut()
     }
 
-    fn maybe_default_only_type(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_default_only_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.default_only_type.borrow_mut()
     }
 
-    fn maybe_promise_type_of_promise_constructor(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_promise_type_of_promise_constructor(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.promise_type_of_promise_constructor.borrow_mut()
     }
 
-    fn maybe_promised_type_of_promise(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_promised_type_of_promise(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.promised_type_of_promise.borrow_mut()
     }
 
-    fn maybe_awaited_type_of_type(&self) -> RefMut<Option<Gc<Type>>> {
+    fn maybe_awaited_type_of_type(&self) -> GcCellRefMut<Option<Gc<Type>>> {
         self.awaited_type_of_type.borrow_mut()
     }
 
-    fn maybe_iteration_types_of_generator_return_type(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+    fn maybe_iteration_types_of_generator_return_type(
+        &self,
+    ) -> GcCellRefMut<Option<Gc<IterationTypes>>> {
         self.iteration_types_of_generator_return_type.borrow_mut()
     }
 
     fn maybe_iteration_types_of_async_generator_return_type(
         &self,
-    ) -> RefMut<Option<Rc<IterationTypes>>> {
+    ) -> GcCellRefMut<Option<Gc<IterationTypes>>> {
         self.iteration_types_of_async_generator_return_type
             .borrow_mut()
     }
 
-    fn maybe_iteration_types_of_iterable(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+    fn maybe_iteration_types_of_iterable(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>> {
         self.iteration_types_of_iterable.borrow_mut()
     }
 
-    fn maybe_iteration_types_of_iterator(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+    fn maybe_iteration_types_of_iterator(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>> {
         self.iteration_types_of_iterator.borrow_mut()
     }
 
-    fn maybe_iteration_types_of_async_iterable(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+    fn maybe_iteration_types_of_async_iterable(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>> {
         self.iteration_types_of_async_iterable.borrow_mut()
     }
 
-    fn maybe_iteration_types_of_async_iterator(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+    fn maybe_iteration_types_of_async_iterator(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>> {
         self.iteration_types_of_async_iterator.borrow_mut()
     }
 
-    fn maybe_iteration_types_of_iterator_result(&self) -> RefMut<Option<Rc<IterationTypes>>> {
+    fn maybe_iteration_types_of_iterator_result(&self) -> GcCellRefMut<Option<Gc<IterationTypes>>> {
         self.iteration_types_of_iterator_result.borrow_mut()
     }
 
     fn get_by_iteration_type_cache_key(
         &self,
         key: IterationTypeCacheKey,
-    ) -> Option<Rc<IterationTypes>> {
+    ) -> Option<Gc<IterationTypes>> {
         match key {
             IterationTypeCacheKey::IterationTypesOfGeneratorReturnType => self
                 .maybe_iteration_types_of_generator_return_type()
@@ -828,7 +832,7 @@ impl TypeInterface for BaseType {
     fn set_by_iteration_type_cache_key(
         &self,
         key: IterationTypeCacheKey,
-        value: Option<Rc<IterationTypes>>,
+        value: Option<Gc<IterationTypes>>,
     ) {
         match key {
             IterationTypeCacheKey::IterationTypesOfGeneratorReturnType => {
