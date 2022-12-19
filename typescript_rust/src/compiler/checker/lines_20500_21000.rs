@@ -26,7 +26,7 @@ impl TypeChecker {
         ignore_return_types: bool,
         mut compare_types: TCompareTypes,
     ) -> Ternary {
-        if Rc::ptr_eq(&source, &target) {
+        if Gc::ptr_eq(&source, &target) {
             return Ternary::True;
         }
         if !self.is_matching_signature(&source, &target, partial_match) {
@@ -45,7 +45,7 @@ impl TypeChecker {
             ));
             for (i, t) in target_type_parameters.iter().enumerate() {
                 let s = &source_type_parameters[i];
-                if !(Rc::ptr_eq(s, t)
+                if !(Gc::ptr_eq(s, t)
                     || compare_types(
                         &self
                             .maybe_instantiate_type(
@@ -154,8 +154,8 @@ impl TypeChecker {
             if common_base_type.is_none() {
                 common_base_type = Some(base_type.clone());
             }
-            if Rc::ptr_eq(&base_type, t)
-                || !Rc::ptr_eq(&base_type, common_base_type.as_ref().unwrap())
+            if Gc::ptr_eq(&base_type, t)
+                || !Gc::ptr_eq(&base_type, common_base_type.as_ref().unwrap())
             {
                 return false;
             }
@@ -231,10 +231,10 @@ impl TypeChecker {
 
     pub(super) fn is_array_type(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Reference)
-            && (Rc::ptr_eq(
+            && (Gc::ptr_eq(
                 &type_.as_type_reference_interface().target(),
                 &self.global_array_type(),
-            ) || Rc::ptr_eq(
+            ) || Gc::ptr_eq(
                 &type_.as_type_reference_interface().target(),
                 &self.global_readonly_array_type(),
             ))
@@ -242,7 +242,7 @@ impl TypeChecker {
 
     pub(super) fn is_readonly_array_type(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::Reference)
-            && Rc::ptr_eq(
+            && Gc::ptr_eq(
                 &type_.as_type_reference_interface().target(),
                 &self.global_readonly_array_type(),
             )
@@ -874,7 +874,7 @@ impl TypeChecker {
             .clone()
             .as_ref()
             .filter(|deferred_global_non_nullable_type_alias| {
-                !Rc::ptr_eq(
+                !Gc::ptr_eq(
                     deferred_global_non_nullable_type_alias,
                     &self.unknown_symbol(),
                 )
@@ -1043,7 +1043,7 @@ impl TypeChecker {
             let updated = f(&original);
             members.insert(
                 property.escaped_name().to_owned(),
-                if Rc::ptr_eq(&updated, &original) {
+                if Gc::ptr_eq(&updated, &original) {
                     property.clone()
                 } else {
                     self.create_symbol_with_type(property, Some(updated))

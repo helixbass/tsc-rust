@@ -556,11 +556,11 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
 
         SyntaxKind::Identifier => {
             if node.parent().kind() == SyntaxKind::QualifiedName
-                && Rc::ptr_eq(&node.parent().as_qualified_name().right, &node)
+                && Gc::ptr_eq(&node.parent().as_qualified_name().right, &node)
             {
                 node = node.parent();
             } else if node.parent().kind() == SyntaxKind::PropertyAccessExpression
-                && Rc::ptr_eq(&node.parent().as_property_access_expression().name, &node)
+                && Gc::ptr_eq(&node.parent().as_property_access_expression().name, &node)
             {
                 node = node.parent();
             }
@@ -582,16 +582,16 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                     return !is_expression_with_type_arguments_in_class_extends_clause(&parent);
                 }
                 SyntaxKind::TypeParameter => {
-                    return matches!(parent.as_type_parameter_declaration().constraint.clone(), Some(constraint) if Rc::ptr_eq(&node, &constraint));
+                    return matches!(parent.as_type_parameter_declaration().constraint.clone(), Some(constraint) if Gc::ptr_eq(&node, &constraint));
                 }
                 SyntaxKind::JSDocTemplateTag => {
-                    return matches!(parent.as_jsdoc_template_tag().constraint.clone(), Some(constraint) if Rc::ptr_eq(&node, &constraint));
+                    return matches!(parent.as_jsdoc_template_tag().constraint.clone(), Some(constraint) if Gc::ptr_eq(&node, &constraint));
                 }
                 SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertySignature
                 | SyntaxKind::Parameter
                 | SyntaxKind::VariableDeclaration => {
-                    return matches!(parent.as_has_type().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
+                    return matches!(parent.as_has_type().maybe_type(), Some(type_) if Gc::ptr_eq(&node, &type_));
                 }
                 SyntaxKind::FunctionDeclaration
                 | SyntaxKind::FunctionExpression
@@ -601,15 +601,15 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                 | SyntaxKind::MethodSignature
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor => {
-                    return matches!(parent.as_function_like_declaration().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
+                    return matches!(parent.as_function_like_declaration().maybe_type(), Some(type_) if Gc::ptr_eq(&node, &type_));
                 }
                 SyntaxKind::CallSignature
                 | SyntaxKind::ConstructSignature
                 | SyntaxKind::IndexSignature => {
-                    return matches!(parent.as_signature_declaration().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
+                    return matches!(parent.as_signature_declaration().maybe_type(), Some(type_) if Gc::ptr_eq(&node, &type_));
                 }
                 SyntaxKind::TypeAssertionExpression => {
-                    return Rc::ptr_eq(&node, &parent.as_type_assertion().type_);
+                    return Gc::ptr_eq(&node, &parent.as_type_assertion().type_);
                 }
                 SyntaxKind::CallExpression => {
                     return contains_rc(

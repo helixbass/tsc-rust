@@ -360,7 +360,7 @@ impl TypeChecker {
                 &node.as_identifier().escaped_text == self.arguments_symbol().escaped_name()
                     && matches!(
                         self.get_referenced_value_symbol(node, None),
-                        Some(symbol) if Rc::ptr_eq(&symbol, &self.arguments_symbol())
+                        Some(symbol) if Gc::ptr_eq(&symbol, &self.arguments_symbol())
                     )
             }
 
@@ -414,7 +414,7 @@ impl TypeChecker {
                     .is_some()
             {
                 let previous = &symbol_declarations[i - 1];
-                if Rc::ptr_eq(&decl.parent(), &previous.parent())
+                if Gc::ptr_eq(&decl.parent(), &previous.parent())
                     && decl.kind() == previous.kind()
                     && decl.pos() == previous.end()
                 {
@@ -504,7 +504,7 @@ impl TypeChecker {
         }
         if matches!(
             signature.maybe_resolved_type_predicate().as_ref(),
-            Some(resolved_type_predicate) if Rc::ptr_eq(resolved_type_predicate, &self.no_type_predicate())
+            Some(resolved_type_predicate) if Gc::ptr_eq(resolved_type_predicate, &self.no_type_predicate())
         ) {
             None
         } else {

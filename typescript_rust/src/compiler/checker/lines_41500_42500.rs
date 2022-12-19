@@ -43,7 +43,7 @@ impl TypeChecker {
         let symbol = symbol.unwrap();
         let symbol = symbol.borrow();
         let ref target = self.resolve_alias(symbol);
-        if Rc::ptr_eq(target, &self.unknown_symbol()) {
+        if Gc::ptr_eq(target, &self.unknown_symbol()) {
             return true;
         }
         target.flags().intersects(SymbolFlags::Value)
@@ -342,7 +342,7 @@ impl TypeChecker {
         if let Some(resolved_symbol) = resolved_symbol.as_ref().filter(|resolved_symbol| {
             matches!(
                 type_symbol.as_ref(),
-                Some(type_symbol) if Rc::ptr_eq(
+                Some(type_symbol) if Gc::ptr_eq(
                     *resolved_symbol,
                     type_symbol
                 )
@@ -351,7 +351,7 @@ impl TypeChecker {
             let global_promise_symbol = self.get_global_promise_constructor_symbol(false);
             if matches!(
                 global_promise_symbol.as_ref(),
-                Some(global_promise_symbol) if Rc::ptr_eq(
+                Some(global_promise_symbol) if Gc::ptr_eq(
                     resolved_symbol,
                     global_promise_symbol
                 )
@@ -782,7 +782,7 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.merge_symbol_table(self.globals_rc(), &RefCell::borrow(&file.locals()), None);
+                self.merge_symbol_table(self.globals_rc(), &(*file.locals()).borrow(), None);
             }
             if let Some(file_js_global_augmentations) =
                 file_as_source_file.maybe_js_global_augmentations().clone()
@@ -893,7 +893,7 @@ impl TypeChecker {
         *self.any_array_type.borrow_mut() = Some(self.create_array_type(&self.any_type(), None));
 
         *self.auto_array_type.borrow_mut() = Some(self.create_array_type(&self.auto_type(), None));
-        if Rc::ptr_eq(&self.auto_array_type(), &self.empty_object_type()) {
+        if Gc::ptr_eq(&self.auto_array_type(), &self.empty_object_type()) {
             *self.auto_array_type.borrow_mut() = Some(self.create_anonymous_type(
                 Option::<&Symbol>::None,
                 self.empty_symbols(),
@@ -1044,7 +1044,7 @@ impl TypeChecker {
                 && !location.flags().intersects(NodeFlags::Ambient)
             {
                 let helpers_module = self.resolve_helpers_module(&source_file, location);
-                if !Rc::ptr_eq(&helpers_module, &self.unknown_symbol()) {
+                if !Gc::ptr_eq(&helpers_module, &self.unknown_symbol()) {
                     let unchecked_helpers = helpers & !self.requested_external_emit_helpers();
                     let mut helper = ExternalEmitHelpers::FirstEmitHelper;
                     while helper <= ExternalEmitHelpers::LastEmitHelper {

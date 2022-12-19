@@ -696,7 +696,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let type_arguments = type_arguments.into();
         let node_as_type_reference_node = node.as_type_reference_node();
         let node_type_arguments = node_as_type_reference_node.maybe_type_arguments();
-        if !Rc::ptr_eq(&node_as_type_reference_node.type_name, &type_name)
+        if !Gc::ptr_eq(&node_as_type_reference_node.type_name, &type_name)
             || has_option_node_array_changed(node_type_arguments.as_ref(), &type_arguments)
         {
             self.update(

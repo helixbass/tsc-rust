@@ -792,7 +792,7 @@ impl TypeChecker {
             let extends_node = get_class_extends_heritage_element(node);
             if let Some(extends_node) = extends_node
                 .as_ref()
-                .filter(|extends_node| !Rc::ptr_eq(*extends_node, base_type_node))
+                .filter(|extends_node| !Gc::ptr_eq(*extends_node, base_type_node))
             {
                 self.check_expression(
                     &extends_node.as_expression_with_type_arguments().expression,

@@ -533,7 +533,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         let cached = (*links).borrow().resolved_signature.clone();
         if let Some(cached) = cached.as_ref().filter(|cached| {
-            !Rc::ptr_eq(cached, &self.resolving_signature()) && candidates_out_array.is_none()
+            !Gc::ptr_eq(cached, &self.resolving_signature()) && candidates_out_array.is_none()
         }) {
             return cached.clone();
         }
@@ -543,7 +543,7 @@ impl TypeChecker {
             candidates_out_array,
             check_mode.unwrap_or(CheckMode::Normal),
         );
-        if !Rc::ptr_eq(&result, &self.resolving_signature()) {
+        if !Gc::ptr_eq(&result, &self.resolving_signature()) {
             links.borrow_mut().resolved_signature =
                 if self.flow_loop_start() == self.flow_loop_count() {
                     Some(result.clone())
@@ -727,7 +727,7 @@ impl TypeChecker {
                 if is_variable_declaration(&parent_node.parent())
                     && matches!(
                         parent_node.parent().as_variable_declaration().maybe_initializer().as_ref(),
-                        Some(parent_node_parent_initializer) if Rc::ptr_eq(
+                        Some(parent_node_parent_initializer) if Gc::ptr_eq(
                             parent_node_parent_initializer,
                             &parent_node
                         )
@@ -744,7 +744,7 @@ impl TypeChecker {
                         == SyntaxKind::EqualsToken
                     && (allow_declaration
                         || Rc::ptr_eq(
-                            &parent_node.parent().as_binary_expression().right,
+                            G & parent_node.parent().as_binary_expression().right,
                             &parent_node,
                         ))
                 {
@@ -817,7 +817,7 @@ impl TypeChecker {
         }
 
         let signature = self.get_resolved_signature_(node, None, check_mode);
-        if Rc::ptr_eq(&signature, &self.resolving_signature()) {
+        if Gc::ptr_eq(&signature, &self.resolving_signature()) {
             return self.non_inferrable_type();
         }
 

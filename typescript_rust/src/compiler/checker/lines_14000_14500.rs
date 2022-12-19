@@ -244,7 +244,7 @@ impl TypeChecker {
             target_as_tuple_type.readonly,
             expanded_declarations.as_deref(),
         );
-        if Rc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
+        if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
             self.empty_object_type()
         } else if !expanded_flags.is_empty() {
             self.create_type_reference(&tuple_target, Some(expanded_types))
@@ -525,7 +525,7 @@ impl TypeChecker {
                     self.get_regular_type_of_literal_type(&self.get_type_of_symbol(key_property))
                 });
                 for target in &types.clone() {
-                    if !Rc::ptr_eq(&source, target) {
+                    if !Gc::ptr_eq(&source, target) {
                         if count == 100000 {
                             let estimated_count = (count / (len - i)) * len;
                             if estimated_count > 1000000 {
@@ -553,7 +553,7 @@ impl TypeChecker {
                                     t.as_ref(),
                                     Some(t) if self.is_unit_type(t) && !matches!(
                                         key_property_type.as_ref(),
-                                        Some(key_property_type) if Rc::ptr_eq(&self.get_regular_type_of_literal_type(t), key_property_type)
+                                        Some(key_property_type) if Gc::ptr_eq(&self.get_regular_type_of_literal_type(t), key_property_type)
                                     )
                                 ) {
                                     continue;
@@ -1006,12 +1006,12 @@ impl TypeChecker {
             }
         } else {
             if flags.intersects(TypeFlags::AnyOrUnknown) {
-                if Rc::ptr_eq(&type_, &self.wildcard_type()) {
+                if Gc::ptr_eq(&type_, &self.wildcard_type()) {
                     includes |= TypeFlags::IncludesWildcard;
                 }
             } else if self.strict_null_checks || !flags.intersects(TypeFlags::Nullable) {
                 if matches!(self.exact_optional_property_types, Some(true))
-                    && Rc::ptr_eq(&type_, &self.missing_type())
+                    && Gc::ptr_eq(&type_, &self.missing_type())
                 {
                     includes |= TypeFlags::IncludesMissingType;
                     type_ = self.undefined_type();

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -44,8 +44,8 @@ impl TypeChecker {
             links.borrow_mut().resolved_type = Some(
                 if resolved.flags().intersects(TypeFlags::IndexedAccess) && {
                     let resolved_as_indexed_access_type = resolved.as_indexed_access_type();
-                    Rc::ptr_eq(&resolved_as_indexed_access_type.object_type, &object_type)
-                        && Rc::ptr_eq(&resolved_as_indexed_access_type.index_type, &index_type)
+                    Gc::ptr_eq(&resolved_as_indexed_access_type.object_type, &object_type)
+                        && Gc::ptr_eq(&resolved_as_indexed_access_type.index_type, &index_type)
                 } {
                     self.get_conditional_flow_type_of_type(&resolved, node)
                 } else {
@@ -187,8 +187,8 @@ impl TypeChecker {
                 ),
                 mapper.clone(),
             );
-            if Rc::ptr_eq(&check_type, &self.wildcard_type())
-                || Rc::ptr_eq(&extends_type, &self.wildcard_type())
+            if Gc::ptr_eq(&check_type, &self.wildcard_type())
+                || Gc::ptr_eq(&extends_type, &self.wildcard_type())
             {
                 return self.wildcard_type();
             }
@@ -266,9 +266,9 @@ impl TypeChecker {
                     );
                     if false_type.flags().intersects(TypeFlags::Conditional) {
                         let new_root = false_type.as_conditional_type().root.clone();
-                        if Rc::ptr_eq(&(*new_root).borrow().node.parent(), &(*root).borrow().node)
+                        if Gc::ptr_eq(&(*new_root).borrow().node.parent(), &(*root).borrow().node)
                             && (!(*new_root).borrow().is_distributive
-                                || Rc::ptr_eq(
+                                || Gc::ptr_eq(
                                     &(*new_root).borrow().check_type,
                                     &(*root).borrow().check_type,
                                 ))
@@ -402,7 +402,7 @@ impl TypeChecker {
                     if match new_check_type.as_ref() {
                         None => true,
                         Some(new_check_type) => {
-                            Rc::ptr_eq(new_check_type, &(*new_root).borrow().check_type)
+                            Gc::ptr_eq(new_check_type, &(*new_root).borrow().check_type)
                                 || !new_check_type
                                     .flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)
@@ -791,7 +791,7 @@ impl TypeChecker {
     pub(super) fn resolve_import_symbol_type(
         &self,
         node: &Node, /*ImportTypeNode*/
-        links: &RefCell<NodeLinks>,
+        links: &GcCell<NodeLinks>,
         symbol: &Symbol,
         meaning: SymbolFlags,
     ) -> Gc<Type> {
@@ -905,7 +905,7 @@ impl TypeChecker {
         }
         let first_type = first_type.unwrap();
         let second_type = find(type_as_union_type.types(), |t: &Gc<Type>, _| {
-            !Rc::ptr_eq(t, &first_type)
+            !Gc::ptr_eq(t, &first_type)
                 && !self.is_empty_object_type_or_spreads_into_empty_object(type_)
         })
         .map(Clone::clone);
@@ -1079,7 +1079,7 @@ impl TypeChecker {
 
         let mut members = create_symbol_table(None);
         let mut skipped_private_members: HashSet<__String> = HashSet::new();
-        let index_infos = if Rc::ptr_eq(&left, &self.empty_object_type()) {
+        let index_infos = if Gc::ptr_eq(&left, &self.empty_object_type()) {
             self.get_index_infos_of_type(&right)
         } else {
             self.get_union_index_infos(&[left.clone(), right.clone()])

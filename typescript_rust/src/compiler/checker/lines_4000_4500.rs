@@ -32,7 +32,8 @@ impl TypeChecker {
             return Some(symbol.symbol_wrapper());
         }
         let export_equals = container.maybe_exports().as_ref().and_then(|exports| {
-            RefCell::borrow(exports)
+            (*exports)
+                .borrow()
                 .get(InternalSymbolName::ExportEquals)
                 .map(Clone::clone)
         });
@@ -41,7 +42,7 @@ impl TypeChecker {
             return Some(container.symbol_wrapper());
         }
         let exports = self.get_exports_of_symbol(container);
-        let exports = RefCell::borrow(&exports);
+        let exports = (*exports).borrow();
         let quick = exports.get(symbol.escaped_name());
         if let Some(quick) = quick {
             if self.get_symbol_if_same_reference(quick, symbol).is_some() {
@@ -64,7 +65,7 @@ impl TypeChecker {
         s1: &Symbol,
         s2: &Symbol,
     ) -> Option<Gc<Symbol>> {
-        if Rc::ptr_eq(
+        if Gc::ptr_eq(
             &self
                 .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s1)), None))
                 .unwrap(),
@@ -245,7 +246,7 @@ impl TypeChecker {
     >(
         &self,
         type_: &TType,
-        members: Rc<RefCell<SymbolTable>>,
+        members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Gc<Signature>>,
         construct_signatures: Vec<Gc<Signature>>,
         index_infos: Vec<Gc<IndexInfo>>,
@@ -258,7 +259,7 @@ impl TypeChecker {
             construct_signatures,
             index_infos,
         );
-        if !Rc::ptr_eq(&members, &self.empty_symbols()) {
+        if !Gc::ptr_eq(&members, &self.empty_symbols()) {
             type_.set_properties(self.get_named_members(&(*members).borrow()));
         }
         // type_
@@ -351,7 +352,7 @@ impl TypeChecker {
         TEnclosingDeclaration: Borrow<Node>,
         TReturn,
         TCallback: FnMut(
-            Rc<RefCell<SymbolTable>>,
+            Gc<GcCell<SymbolTable>>,
             Option<bool>,
             Option<bool>,
             Option<&Node>,
@@ -400,14 +401,14 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     let mut table: Option<SymbolTable> = None;
-                    for (key, member_symbol) in &*RefCell::borrow(
-                        &self
-                            .get_symbol_of_node(&location_unwrapped)
-                            .unwrap()
-                            .maybe_members()
-                            .clone()
-                            .unwrap_or_else(|| self.empty_symbols()),
-                    ) {
+                    for (key, member_symbol) in &*(*self
+                        .get_symbol_of_node(&location_unwrapped)
+                        .unwrap()
+                        .maybe_members()
+                        .clone()
+                        .unwrap_or_else(|| self.empty_symbols()))
+                    .borrow()
+                    {
                         if member_symbol
                             .flags()
                             .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
@@ -460,7 +461,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: Option<
-            &mut HashMap<SymbolId, Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>>,
+            &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         >,
     ) -> Option<Vec<Gc<Symbol>>> {
         let mut visited_symbol_tables_map_default = HashMap::new();
@@ -524,16 +525,13 @@ impl TypeChecker {
 
     pub(super) fn get_accessible_symbol_chain_from_symbol_table(
         &self,
-        visited_symbol_tables: Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
         meaning: SymbolFlags,
         symbol: &Symbol,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<
-            SymbolId,
-            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
-        >,
-        symbols: Rc<RefCell<SymbolTable>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
+        symbols: Gc<GcCell<SymbolTable>>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
     ) -> Option<Vec<Gc<Symbol>>> {
@@ -560,10 +558,7 @@ impl TypeChecker {
         &self,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<
-            SymbolId,
-            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
-        >,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         symbol_from_symbol_table: &Symbol,
         meaning: SymbolFlags,
     ) -> bool {
@@ -585,10 +580,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<
-            SymbolId,
-            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
-        >,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
         symbol_from_symbol_table: &Symbol,
         resolved_alias_symbol: Option<TResolvedAliasSymbol>,
         ignore_qualification: Option<bool>,
@@ -600,7 +592,7 @@ impl TypeChecker {
             resolved_alias_symbol
                 .as_deref()
                 .unwrap_or(symbol_from_symbol_table),
-        ) || Rc::ptr_eq(
+        ) || Gc::ptr_eq(
             &self.get_merged_symbol(Some(symbol)).unwrap(),
             &self
                 .get_merged_symbol(Some(
@@ -632,12 +624,9 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<
-            SymbolId,
-            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
-        >,
-        visited_symbol_tables: Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
-        symbols: Rc<RefCell<SymbolTable>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
+        visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
+        symbols: Gc<GcCell<SymbolTable>>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
     ) -> Option<Vec<Gc<Symbol>>> {
@@ -647,7 +636,8 @@ impl TypeChecker {
             enclosing_declaration,
             use_only_external_aliasing,
             visited_symbol_tables_map,
-            &RefCell::borrow(&symbols)
+            &(*symbols)
+                .borrow()
                 .get(symbol.escaped_name())
                 .unwrap()
                 .clone(),
@@ -658,7 +648,7 @@ impl TypeChecker {
         }
 
         let result: Option<Vec<Gc<Symbol>>> = for_each_entry(
-            &*RefCell::borrow(&symbols),
+            &*(*symbols).borrow(),
             |symbol_from_symbol_table, _| {
                 if symbol_from_symbol_table
                     .flags()
@@ -732,7 +722,7 @@ impl TypeChecker {
         );
 
         result.or_else(|| {
-            if Rc::ptr_eq(&symbols, &self.globals_rc()) {
+            if Gc::ptr_eq(&symbols, &self.globals_rc()) {
                 self.get_candidate_list_for_symbol(
                     symbol,
                     meaning,
@@ -756,11 +746,8 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<&Node>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<
-            SymbolId,
-            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
-        >,
-        visited_symbol_tables: Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
+        visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
         symbol_from_symbol_table: &Symbol,
         resolved_import_symbol: &Symbol,
         ignore_qualification: Option<bool>,
@@ -816,7 +803,8 @@ impl TypeChecker {
         let mut qualify = false;
         self.for_each_symbol_table_in_scope(enclosing_declaration, |symbol_table, _, _, _| {
             let mut symbol_from_symbol_table = self.get_merged_symbol(
-                RefCell::borrow(&symbol_table)
+                (*symbol_table)
+                    .borrow()
                     .get(symbol.escaped_name())
                     .map(Clone::clone),
             )?;
@@ -1081,7 +1069,7 @@ impl TypeChecker {
                 if let Some(symbol_external_module) = symbol_external_module {
                     let enclosing_external_module =
                         self.get_external_module_container(enclosing_declaration);
-                    if !matches!(enclosing_external_module, Some(enclosing_external_module) if Rc::ptr_eq(&symbol_external_module, &enclosing_external_module))
+                    if !matches!(enclosing_external_module, Some(enclosing_external_module) if Gc::ptr_eq(&symbol_external_module, &enclosing_external_module))
                     {
                         return SymbolAccessibilityResult {
                             accessibility: SymbolAccessibility::CannotBeNamed,

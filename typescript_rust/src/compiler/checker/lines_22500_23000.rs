@@ -69,7 +69,7 @@ impl TypeChecker {
             SyntaxKind::Identifier => {
                 if !is_this_in_type_query(node) {
                     let symbol = self.get_resolved_symbol(node);
-                    return if !Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
+                    return if !Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
                         Some(format!(
                             "{}|{}|{}|{}",
                             if let Some(flow_container) = flow_container.as_ref() {
@@ -181,7 +181,7 @@ impl TypeChecker {
                     target.kind() == SyntaxKind::ThisKeyword
                 } else {
                     target.kind() == SyntaxKind::Identifier
-                        && Rc::ptr_eq(
+                        && Gc::ptr_eq(
                             &self.get_resolved_symbol(source),
                             &self.get_resolved_symbol(target),
                         )
@@ -425,7 +425,7 @@ impl TypeChecker {
                                 map.insert(id, type_.clone());
                             }
                             Some(existing) => {
-                                if !Rc::ptr_eq(existing, &self.unknown_type()) {
+                                if !Gc::ptr_eq(existing, &self.unknown_type()) {
                                     map.insert(id, self.unknown_type());
                                     duplicate = true;
                                 }
@@ -512,7 +512,7 @@ impl TypeChecker {
                     .get(&self.get_type_id(&self.get_regular_type_of_literal_type(key_type)))
                     .map(Clone::clone)
             });
-        result.filter(|result| !Rc::ptr_eq(result, &self.unknown_type()))
+        result.filter(|result| !Gc::ptr_eq(result, &self.unknown_type()))
     }
 
     pub(super) fn get_matching_union_constituent_for_type(

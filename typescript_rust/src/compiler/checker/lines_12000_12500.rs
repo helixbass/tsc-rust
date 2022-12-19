@@ -104,9 +104,9 @@ impl TypeChecker {
                     }
                     if single_prop.is_none() {
                         single_prop = Some(prop.clone());
-                    } else if !Rc::ptr_eq(&prop, single_prop.as_ref().unwrap()) {
+                    } else if !Gc::ptr_eq(&prop, single_prop.as_ref().unwrap()) {
                         let single_prop = single_prop.as_ref().unwrap();
-                        let is_instantiation = Rc::ptr_eq(
+                        let is_instantiation = Gc::ptr_eq(
                             &self.get_target_symbol(&prop),       /*|| prop*/
                             &self.get_target_symbol(single_prop), /*|| singleProp*/
                         );
@@ -259,7 +259,7 @@ impl TypeChecker {
                 first_value_declaration = prop.maybe_value_declaration();
             } else if matches!(
                 prop.maybe_value_declaration(),
-                Some(value_declaration) if !Rc::ptr_eq(&value_declaration, first_value_declaration.as_ref().unwrap())
+                Some(value_declaration) if !Gc::ptr_eq(&value_declaration, first_value_declaration.as_ref().unwrap())
             ) {
                 has_non_uniform_value_declaration = true;
             }
@@ -280,7 +280,7 @@ impl TypeChecker {
             if first_type.is_none() {
                 first_type = Some(type_.clone());
                 name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
-            } else if !Rc::ptr_eq(&type_, first_type.as_ref().unwrap()) {
+            } else if !Gc::ptr_eq(&type_, first_type.as_ref().unwrap()) {
                 check_flags |= CheckFlags::HasNonUniformType;
             }
             if self.is_literal_type(&type_) || self.is_pattern_literal_type(&type_) {
@@ -570,7 +570,7 @@ impl TypeChecker {
                 return None;
             }
             let resolved_as_resolved_type = resolved.as_resolved_type();
-            let function_type = if Rc::ptr_eq(&resolved, &self.any_function_type()) {
+            let function_type = if Gc::ptr_eq(&resolved, &self.any_function_type()) {
                 Some(self.global_function_type())
             } else if !resolved_as_resolved_type.call_signatures().is_empty() {
                 Some(self.global_callable_function_type())
@@ -638,7 +638,7 @@ impl TypeChecker {
         let mut applicable_info: Option<Gc<IndexInfo>> = None;
         let mut applicable_infos: Option<Vec<Gc<IndexInfo>>> = None;
         for info in index_infos {
-            if Rc::ptr_eq(&info.key_type, &self.string_type()) {
+            if Gc::ptr_eq(&info.key_type, &self.string_type()) {
                 string_index_info = Some(info.clone());
             } else if self.is_applicable_index_type(key_type, &info.key_type) {
                 if applicable_info.is_none() {

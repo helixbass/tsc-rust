@@ -450,7 +450,7 @@ impl TypeChecker {
         let index_constraint =
             self.get_simplified_type_or_constraint(&type_as_indexed_access_type.index_type);
         if let Some(index_constraint) = index_constraint.filter(|index_constraint| {
-            !Rc::ptr_eq(index_constraint, &type_as_indexed_access_type.index_type)
+            !Gc::ptr_eq(index_constraint, &type_as_indexed_access_type.index_type)
         }) {
             let indexed_access = self.get_indexed_access_type_or_undefined(
                 &type_as_indexed_access_type.object_type,
@@ -467,7 +467,7 @@ impl TypeChecker {
         let object_constraint =
             self.get_simplified_type_or_constraint(&type_as_indexed_access_type.object_type);
         if let Some(object_constraint) = object_constraint.filter(|object_constraint| {
-            !Rc::ptr_eq(object_constraint, &type_as_indexed_access_type.object_type)
+            !Gc::ptr_eq(object_constraint, &type_as_indexed_access_type.object_type)
         }) {
             return self.get_indexed_access_type_or_undefined(
                 &object_constraint,
@@ -525,13 +525,13 @@ impl TypeChecker {
             )
         {
             let simplified = self.get_simplified_type(&type_as_conditional_type.check_type, false);
-            let constraint = if Rc::ptr_eq(&simplified, &type_as_conditional_type.check_type) {
+            let constraint = if Gc::ptr_eq(&simplified, &type_as_conditional_type.check_type) {
                 self.get_constraint_of_type(&simplified)
             } else {
                 Some(simplified)
             };
             if let Some(constraint) = constraint
-                .filter(|constraint| !Rc::ptr_eq(constraint, &type_as_conditional_type.check_type))
+                .filter(|constraint| !Gc::ptr_eq(constraint, &type_as_conditional_type.check_type))
             {
                 let instantiated = self.get_conditional_type_instantiation(
                     type_,
@@ -627,8 +627,8 @@ impl TypeChecker {
                 | TypeFlags::StringMapping,
         ) {
             let constraint = self.get_resolved_base_constraint(type_);
-            return if !Rc::ptr_eq(&constraint, &self.no_constraint_type())
-                && !Rc::ptr_eq(&constraint, &self.circular_constraint_type())
+            return if !Gc::ptr_eq(&constraint, &self.no_constraint_type())
+                && !Gc::ptr_eq(&constraint, &self.circular_constraint_type())
             {
                 Some(constraint)
             } else {
@@ -651,7 +651,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*InstantiableType*/
     ) -> bool {
-        !Rc::ptr_eq(
+        !Gc::ptr_eq(
             &self.get_resolved_base_constraint(type_),
             &self.circular_constraint_type(),
         )
@@ -743,8 +743,8 @@ impl TypeChecker {
         t: &Type,
     ) -> Option<Gc<Type>> {
         let c = self.get_immediate_base_constraint(stack, t);
-        if !Rc::ptr_eq(&c, &self.no_constraint_type())
-            && !Rc::ptr_eq(&c, &self.circular_constraint_type())
+        if !Gc::ptr_eq(&c, &self.no_constraint_type())
+            && !Gc::ptr_eq(&c, &self.circular_constraint_type())
         {
             Some(c)
         } else {
@@ -774,7 +774,7 @@ impl TypeChecker {
             for type_ in types {
                 let base_type = self.get_base_constraint(stack, type_);
                 if let Some(base_type) = base_type {
-                    if !Rc::ptr_eq(&base_type, type_) {
+                    if !Gc::ptr_eq(&base_type, type_) {
                         different = true;
                     }
                     base_types.push(base_type);
@@ -914,12 +914,12 @@ impl TypeChecker {
                 };
                 if matches!(
                     type_parameter_as_type_parameter.maybe_default().as_ref(),
-                    Some(default) if Rc::ptr_eq(default, &self.resolving_default_type())
+                    Some(default) if Gc::ptr_eq(default, &self.resolving_default_type())
                 ) {
                     *type_parameter_as_type_parameter.maybe_default() = Some(default_type);
                 }
             }
-        } else if Rc::ptr_eq(
+        } else if Gc::ptr_eq(
             type_parameter_as_type_parameter
                 .maybe_default()
                 .as_ref()
@@ -938,8 +938,8 @@ impl TypeChecker {
     ) -> Option<Gc<Type>> {
         let default_type = self.get_resolved_type_parameter_default(type_parameter);
         default_type.filter(|default_type| {
-            !Rc::ptr_eq(&default_type, &self.no_constraint_type())
-                && !Rc::ptr_eq(&default_type, &self.circular_constraint_type())
+            !Gc::ptr_eq(&default_type, &self.no_constraint_type())
+                && !Gc::ptr_eq(&default_type, &self.circular_constraint_type())
         })
     }
 
@@ -949,7 +949,7 @@ impl TypeChecker {
     ) -> bool {
         !matches!(
             self.get_resolved_type_parameter_default(type_parameter),
-            Some(resolved) if Rc::ptr_eq(&resolved, &self.circular_constraint_type())
+            Some(resolved) if Gc::ptr_eq(&resolved, &self.circular_constraint_type())
         )
     }
 

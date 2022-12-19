@@ -444,7 +444,7 @@ impl TypeChecker {
 
             // Debug.assert(!!derived, "derived should point at something, even if it is the base class' declaration.");
 
-            if Rc::ptr_eq(&derived, &base) {
+            if Gc::ptr_eq(&derived, &base) {
                 let derived_class_decl =
                     get_class_like_declaration_of_symbol(&type_.symbol()).unwrap();
 
@@ -461,7 +461,7 @@ impl TypeChecker {
                             .map(|base_symbol| self.get_target_symbol(base_symbol));
                         if matches!(
                             derived_elsewhere.as_ref(),
-                            Some(derived_elsewhere) if !Rc::ptr_eq(derived_elsewhere, &base)
+                            Some(derived_elsewhere) if !Gc::ptr_eq(derived_elsewhere, &base)
                         ) {
                             continue 'base_property_check;
                         }

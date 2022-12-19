@@ -167,7 +167,7 @@ impl TypeChecker {
             }));
             let declaration_name = declaration.as_named_declaration().name();
             if declaration_name.kind() != SyntaxKind::Identifier {
-                if Rc::ptr_eq(
+                if Gc::ptr_eq(
                     (*links).borrow().type_.as_ref().unwrap(),
                     &self.unknown_type(),
                 ) {
@@ -196,7 +196,7 @@ impl TypeChecker {
 
     pub(super) fn create_promise_type(&self, promised_type: &Type) -> Gc<Type> {
         let global_promise_type = self.get_global_promise_type(true);
-        if !Rc::ptr_eq(&global_promise_type, &self.empty_generic_type()) {
+        if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type()) {
             let promised_type = self
                 .get_awaited_type_no_alias(
                     &self.unwrap_awaited_type(promised_type),
@@ -213,7 +213,7 @@ impl TypeChecker {
 
     pub(super) fn create_promise_like_type(&self, promised_type: &Type) -> Gc<Type> {
         let global_promise_like_type = self.get_global_promise_like_type(true);
-        if !Rc::ptr_eq(&global_promise_like_type, &self.empty_generic_type()) {
+        if !Gc::ptr_eq(&global_promise_like_type, &self.empty_generic_type()) {
             let promised_type = self
                 .get_awaited_type_no_alias(
                     &self.unwrap_awaited_type(promised_type),
@@ -235,7 +235,7 @@ impl TypeChecker {
         promised_type: &Type,
     ) -> Gc<Type> {
         let promise_type = self.create_promise_type(promised_type);
-        if Rc::ptr_eq(&promise_type, &self.unknown_type()) {
+        if Gc::ptr_eq(&promise_type, &self.unknown_type()) {
             self.error(
                 Some(func),
                 if is_import_call(func) {
@@ -417,7 +417,7 @@ impl TypeChecker {
                 let contextual_signature =
                     self.get_contextual_signature_for_function_like_declaration(func);
                 let contextual_type = contextual_signature.and_then(|contextual_signature| {
-                    if Rc::ptr_eq(
+                    if Gc::ptr_eq(
                         &contextual_signature,
                         &self.get_signature_from_declaration_(func),
                     ) {
@@ -514,9 +514,9 @@ impl TypeChecker {
             .unwrap_or_else(|| self.unknown_type());
         let next_type = (resolver.resolve_iteration_type)(self, next_type, None)
             .unwrap_or_else(|| self.unknown_type());
-        if Rc::ptr_eq(&global_generator_type, &self.empty_generic_type()) {
+        if Gc::ptr_eq(&global_generator_type, &self.empty_generic_type()) {
             let global_type = (resolver.get_global_iterable_iterator_type)(self, false);
-            let iteration_types = if !Rc::ptr_eq(&global_type, &self.empty_generic_type()) {
+            let iteration_types = if !Gc::ptr_eq(&global_type, &self.empty_generic_type()) {
                 Some(self.get_iteration_types_of_global_iterable_type(&global_type, resolver))
             } else {
                 None
@@ -536,7 +536,7 @@ impl TypeChecker {
             if self.is_type_assignable_to(&return_type, &iterable_iterator_return_type)
                 && self.is_type_assignable_to(&iterable_iterator_next_type, &next_type)
             {
-                if !Rc::ptr_eq(&global_type, &self.empty_generic_type()) {
+                if !Gc::ptr_eq(&global_type, &self.empty_generic_type()) {
                     return self
                         .create_type_from_generic_global_type(&global_type, vec![yield_type]);
                 }

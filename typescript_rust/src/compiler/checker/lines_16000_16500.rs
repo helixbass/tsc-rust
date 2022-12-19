@@ -835,7 +835,7 @@ impl TypeChecker {
     ) -> Gc<Type> {
         if matches!(
             tp.as_type_parameter().maybe_constraint().as_ref(),
-            Some(constraint) if Rc::ptr_eq(constraint, &self.unknown_type())
+            Some(constraint) if Gc::ptr_eq(constraint, &self.unknown_type())
         ) {
             tp.type_wrapper()
         } else {

@@ -26,7 +26,7 @@ impl CheckTypeRelatedTo {
         if let Some(prop_value_declaration) = prop.maybe_value_declaration().as_ref() {
             if let Some(container_value_declaration) = container.maybe_value_declaration().as_ref()
             {
-                return Rc::ptr_eq(
+                return Gc::ptr_eq(
                     &prop_value_declaration.parent(),
                     container_value_declaration,
                 );
@@ -823,7 +823,7 @@ impl CheckTypeRelatedTo {
                 {
                     if matches!(
                         target.maybe_alias_symbol().as_ref(),
-                        Some(target_alias_symbol) if Rc::ptr_eq(
+                        Some(target_alias_symbol) if Gc::ptr_eq(
                             &source_alias_symbol,
                             &target_alias_symbol,
                         )
@@ -1109,7 +1109,7 @@ impl CheckTypeRelatedTo {
                     && !self.type_checker.is_generic_index_type(&base_index_type)
                 {
                     let access_flags = AccessFlags::Writing
-                        | if !Rc::ptr_eq(&base_object_type, object_type) {
+                        | if !Gc::ptr_eq(&base_object_type, object_type) {
                             AccessFlags::NoIndexSignatures
                         } else {
                             AccessFlags::None
@@ -1174,8 +1174,8 @@ impl CheckTypeRelatedTo {
             if !modifiers.intersects(MappedTypeModifiers::ExcludeOptional) {
                 if !keys_remapped
                     && template_type.flags().intersects(TypeFlags::IndexedAccess)
-                    && Rc::ptr_eq(&template_type.as_indexed_access_type().object_type, &source)
-                    && Rc::ptr_eq(
+                    && Gc::ptr_eq(&template_type.as_indexed_access_type().object_type, &source)
+                    && Gc::ptr_eq(
                         &template_type.as_indexed_access_type().index_type,
                         &self
                             .type_checker
@@ -1231,7 +1231,7 @@ impl CheckTypeRelatedTo {
                             && non_null_component
                                 .flags()
                                 .intersects(TypeFlags::IndexedAccess)
-                            && Rc::ptr_eq(
+                            && Gc::ptr_eq(
                                 &non_null_component.as_indexed_access_type().index_type,
                                 &type_parameter,
                             )
@@ -1464,7 +1464,7 @@ impl CheckTypeRelatedTo {
                 let constraint = self.type_checker.get_base_constraint_of_type(&source);
                 if let Some(constraint) = constraint
                     .as_ref()
-                    .filter(|constraint| !Rc::ptr_eq(*constraint, &source))
+                    .filter(|constraint| !Gc::ptr_eq(*constraint, &source))
                 {
                     result = self.is_related_to(
                         constraint,
@@ -1482,7 +1482,7 @@ impl CheckTypeRelatedTo {
             }
         } else if source.flags().intersects(TypeFlags::StringMapping) {
             if target.flags().intersects(TypeFlags::StringMapping)
-                && Rc::ptr_eq(
+                && Gc::ptr_eq(
                     &source.as_string_mapping_type().symbol(),
                     &target.as_string_mapping_type().symbol(),
                 )
@@ -1671,7 +1671,7 @@ impl CheckTypeRelatedTo {
             }
             if get_object_flags(&source).intersects(ObjectFlags::Reference)
                 && get_object_flags(target).intersects(ObjectFlags::Reference)
-                && Rc::ptr_eq(
+                && Gc::ptr_eq(
                     &source.as_type_reference_interface().target(),
                     &target.as_type_reference_interface().target(),
                 )

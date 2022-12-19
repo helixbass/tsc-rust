@@ -88,7 +88,7 @@ impl TypeChecker {
 
     pub(super) fn get_this_type_argument(&self, type_: &Type) -> Option<Gc<Type>> {
         if get_object_flags(type_).intersects(ObjectFlags::Reference)
-            && Rc::ptr_eq(&type_.as_type_reference().target, &self.global_this_type())
+            && Gc::ptr_eq(&type_.as_type_reference().target, &self.global_this_type())
         {
             self.get_type_arguments(type_).get(0).cloned()
         } else {
@@ -176,7 +176,7 @@ impl TypeChecker {
                                 .is_some()
                                 && matches!(
                                     source_file.maybe_symbol().as_ref(),
-                                    Some(source_file_symbol) if Rc::ptr_eq(
+                                    Some(source_file_symbol) if Gc::ptr_eq(
                                         &self.get_resolved_symbol(&expression),
                                         source_file_symbol,
                                     )
@@ -516,7 +516,7 @@ impl TypeChecker {
                 && (in_binding_initializer
                     || matches!(
                         node_parent.as_has_initializer().maybe_initializer().as_ref(),
-                        Some(node_parent_initializer) if Rc::ptr_eq(
+                        Some(node_parent_initializer) if Gc::ptr_eq(
                             node_parent_initializer,
                             &node
                         )
@@ -527,7 +527,7 @@ impl TypeChecker {
             if is_binding_element(node_parent)
                 && matches!(
                     node_parent.as_has_initializer().maybe_initializer().as_ref(),
-                    Some(node_parent_initializer) if Rc::ptr_eq(
+                    Some(node_parent_initializer) if Gc::ptr_eq(
                         node_parent_initializer,
                         &node
                     )
@@ -611,7 +611,7 @@ impl TypeChecker {
 
         let signature = if matches!(
             (*self.get_node_links(call_target)).borrow().resolved_signature.as_ref(),
-            Some(resolved_signature) if Rc::ptr_eq(
+            Some(resolved_signature) if Gc::ptr_eq(
                 resolved_signature,
                 &self.resolving_signature()
             )

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
@@ -151,7 +151,7 @@ impl TypeChecker {
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
-        if RefCell::borrow(&links).target.is_none() {
+        if (*links).borrow().target.is_none() {
             links.borrow_mut().target = Some(self.resolving_symbol());
             let node = self.get_declaration_of_alias_symbol(symbol);
             if node.is_none() {
@@ -159,8 +159,8 @@ impl TypeChecker {
             }
             let node = node.unwrap();
             let target = self.get_target_of_alias_declaration(&node, None);
-            if Rc::ptr_eq(
-                RefCell::borrow(&links).target.as_ref().unwrap(),
+            if Gc::ptr_eq(
+                (*links).borrow().target.as_ref().unwrap(),
                 &self.resolving_symbol(),
             ) {
                 links.borrow_mut().target = Some(target.unwrap_or_else(|| self.unknown_symbol()));
@@ -177,21 +177,21 @@ impl TypeChecker {
                     )]),
                 );
             }
-        } else if Rc::ptr_eq(
-            RefCell::borrow(&links).target.as_ref().unwrap(),
+        } else if Gc::ptr_eq(
+            (*links).borrow().target.as_ref().unwrap(),
             &self.resolving_symbol(),
         ) {
             links.borrow_mut().target = Some(self.unknown_symbol());
         }
-        let ret = RefCell::borrow(&links).target.clone().unwrap();
+        let ret = (*links).borrow().target.clone().unwrap();
         ret
     }
 
     pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> Option<Gc<Symbol>> {
         let links = self.get_symbol_links(symbol);
         if !matches!(
-            RefCell::borrow(&links).target.as_ref(),
-            Some(target) if Rc::ptr_eq(target, &self.resolving_symbol())
+            (*links).borrow().target.as_ref(),
+            Some(target) if Gc::ptr_eq(target, &self.resolving_symbol())
         ) {
             return Some(self.resolve_alias(symbol));
         }
@@ -240,7 +240,7 @@ impl TypeChecker {
 
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only_worker<TTarget: Borrow<Symbol>>(
         &self,
-        alias_declaration_links: &RefCell<SymbolLinks>,
+        alias_declaration_links: &GcCell<SymbolLinks>,
         target: Option<TTarget>,
         overwrite_empty: bool,
     ) -> bool {
@@ -278,7 +278,8 @@ impl TypeChecker {
                         });
                 alias_declaration_links.borrow_mut().type_only_declaration =
                     Some(type_only.or_else(|| {
-                        match RefCell::borrow(&self.get_symbol_links(&export_symbol))
+                        match (*self.get_symbol_links(&export_symbol))
+                            .borrow()
                             .type_only_declaration
                             .clone()
                         {
@@ -305,7 +306,7 @@ impl TypeChecker {
             return None;
         }
         let links = self.get_symbol_links(symbol);
-        let ret = match RefCell::borrow(&links).type_only_declaration.as_ref() {
+        let ret = match (*links).borrow().type_only_declaration.as_ref() {
             Some(Some(type_only_declaration)) => Some(type_only_declaration.clone()),
             _ => None,
         };
@@ -319,7 +320,7 @@ impl TypeChecker {
         let symbol = self.get_symbol_of_node(node).unwrap();
         let target = self.resolve_alias(&symbol);
         // if (target) {
-        let mark_alias = Rc::ptr_eq(&target, &self.unknown_symbol())
+        let mark_alias = Gc::ptr_eq(&target, &self.unknown_symbol())
             || target.flags().intersects(SymbolFlags::Value)
                 && !self.is_const_enum_or_const_enum_only_module(&target)
                 && self.get_type_only_alias_declaration(&symbol).is_none();
@@ -332,7 +333,7 @@ impl TypeChecker {
 
     pub(super) fn mark_alias_symbol_as_referenced(&self, symbol: &Symbol) {
         let links = self.get_symbol_links(symbol);
-        if !matches!(RefCell::borrow(&links).referenced, Some(true)) {
+        if !matches!((*links).borrow().referenced, Some(true)) {
             links.borrow_mut().referenced = Some(true);
             let node = self.get_declaration_of_alias_symbol(symbol);
             if node.is_none() {
@@ -341,7 +342,7 @@ impl TypeChecker {
             let node = node.unwrap();
             if is_internal_module_import_equals_declaration(&node) {
                 let target = self.resolve_symbol(Some(symbol), None).unwrap();
-                if Rc::ptr_eq(&target, &self.unknown_symbol())
+                if Gc::ptr_eq(&target, &self.unknown_symbol())
                     || target.flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(
@@ -355,7 +356,7 @@ impl TypeChecker {
 
     pub(super) fn mark_const_enum_alias_as_referenced(&self, symbol: &Symbol) {
         let links = self.get_symbol_links(symbol);
-        if !matches!(RefCell::borrow(&links).const_enum_referenced, Some(true)) {
+        if !matches!((*links).borrow().const_enum_referenced, Some(true)) {
             links.borrow_mut().const_enum_referenced = Some(true);
         }
     }
@@ -536,7 +537,7 @@ impl TypeChecker {
             )?;
             if node_is_missing(Some(&**right)) {
                 return None;
-            } else if Rc::ptr_eq(&namespace, &self.unknown_symbol()) {
+            } else if Gc::ptr_eq(&namespace, &self.unknown_symbol()) {
                 return Some(namespace);
             }
             if let Some(namespace_value_declaration) = namespace.maybe_value_declaration() {
@@ -569,7 +570,7 @@ impl TypeChecker {
                 }
             }
             symbol = self.get_merged_symbol(self.get_symbol(
-                &RefCell::borrow(&self.get_exports_of_symbol(&namespace)),
+                &(*self.get_exports_of_symbol(&namespace)).borrow(),
                 &right.as_identifier().escaped_text,
                 meaning,
             ));
@@ -625,7 +626,7 @@ impl TypeChecker {
                         && is_qualified_name(&name.parent())
                     {
                         let exported_type_symbol = self.get_merged_symbol(self.get_symbol(
-                            &RefCell::borrow(&self.get_exports_of_symbol(&namespace)),
+                            &(*self.get_exports_of_symbol(&namespace)).borrow(),
                             &right.as_identifier().escaped_text,
                             SymbolFlags::Type,
                         ));

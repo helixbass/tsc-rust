@@ -54,7 +54,7 @@ impl TypeChecker {
                 false,
                 None,
             ).as_ref(),
-            Some(resolved_name) if Rc::ptr_eq(
+            Some(resolved_name) if Gc::ptr_eq(
                 global_es_symbol,
                 resolved_name
             )
@@ -100,7 +100,7 @@ impl TypeChecker {
 
         if let Some(options_type) = options_type.as_ref() {
             let import_call_options_type = self.get_global_import_call_options_type(true);
-            if !Rc::ptr_eq(&import_call_options_type, &self.empty_object_type()) {
+            if !Gc::ptr_eq(&import_call_options_type, &self.empty_object_type()) {
                 self.check_type_assignable_to(
                     options_type,
                     &self.get_nullable_type(&import_call_options_type, TypeFlags::Undefined),
@@ -285,7 +285,7 @@ impl TypeChecker {
                 None,
             )
             .unwrap();
-        if Rc::ptr_eq(&resolved_require, &self.require_symbol()) {
+        if Gc::ptr_eq(&resolved_require, &self.require_symbol()) {
             return true;
         }
         if resolved_require.flags().intersects(SymbolFlags::Alias) {
@@ -442,7 +442,7 @@ impl TypeChecker {
         self.propagate_optional_type_marker(
             &self.get_non_nullable_type(&non_optional_type),
             node,
-            !Rc::ptr_eq(&non_optional_type, &left_type),
+            !Gc::ptr_eq(&non_optional_type, &left_type),
         )
     }
 

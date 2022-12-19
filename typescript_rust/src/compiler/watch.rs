@@ -68,12 +68,12 @@ impl FormatDiagnosticsHost for SysFormatDiagnosticsHost {
 }
 
 pub fn create_diagnostic_reporter(
-    system: Rc<dyn System>,
+    system: Gc<Box<dyn System>>,
     pretty: Option<bool>,
 ) -> Rc<dyn DiagnosticReporter> {
     let host: Rc<SysFormatDiagnosticsHost> =
         sys_format_diagnostics_host.with(|sys_format_diagnostics_host_| {
-            if Rc::ptr_eq(&system, &get_sys())
+            if Gc::ptr_eq(&system, &get_sys())
             /*&& sysFormatDiagnosticsHost*/
             {
                 sys_format_diagnostics_host_.clone().unwrap()

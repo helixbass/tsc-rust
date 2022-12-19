@@ -935,7 +935,7 @@ fn try_get_module_name_from_ambient_module(
             };
             if matches!(
                 d.maybe_symbol().as_ref(),
-                Some(d_symbol) if Rc::ptr_eq(
+                Some(d_symbol) if Gc::ptr_eq(
                     original_export_symbol,
                     d_symbol
                 )

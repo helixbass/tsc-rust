@@ -464,7 +464,7 @@ impl TypeChecker {
             || matches!(
                 parent.as_ref(),
                 Some(parent) if is_entity_name_expression(name) &&
-                    Rc::ptr_eq(
+                    Gc::ptr_eq(
                         parent,
                         &self.get_resolved_symbol(
                             &get_first_identifier(name)
@@ -639,10 +639,10 @@ impl TypeChecker {
                 while let Some(node_present) = node.as_ref() {
                     if node_present.kind() == SyntaxKind::ForInStatement && {
                         let node_as_for_in_statement = node_present.as_for_in_statement();
-                        Rc::ptr_eq(&child, &node_as_for_in_statement.statement)
+                        Gc::ptr_eq(&child, &node_as_for_in_statement.statement)
                             && matches!(
                                 self.get_for_in_variable_symbol(node_present).as_ref(),
-                                Some(for_in_variable_symbol) if Rc::ptr_eq(
+                                Some(for_in_variable_symbol) if Gc::ptr_eq(
                                     for_in_variable_symbol,
                                     &symbol
                                 )
@@ -699,7 +699,7 @@ impl TypeChecker {
                 check_mode,
             ),
             node,
-            !Rc::ptr_eq(&non_optional_type, &expr_type),
+            !Gc::ptr_eq(&non_optional_type, &expr_type),
         )
     }
 
@@ -720,7 +720,7 @@ impl TypeChecker {
         let index_expression = &node_as_element_access_expression.argument_expression;
         let index_type = self.check_expression(index_expression, None, None);
 
-        if self.is_error_type(&object_type) || Rc::ptr_eq(&object_type, &self.silent_never_type()) {
+        if self.is_error_type(&object_type) || Gc::ptr_eq(&object_type, &self.silent_never_type()) {
             return object_type;
         }
 
@@ -850,7 +850,7 @@ impl TypeChecker {
                 None => true,
                 Some(last_symbol) => matches!(
                     symbol.as_ref(),
-                    Some(symbol) if Rc::ptr_eq(
+                    Some(symbol) if Gc::ptr_eq(
                         symbol,
                         last_symbol,
                     )
@@ -860,7 +860,7 @@ impl TypeChecker {
                     last_parent.as_ref(),
                     Some(last_parent) if matches!(
                         parent.as_ref(),
-                        Some(parent) if Rc::ptr_eq(
+                        Some(parent) if Gc::ptr_eq(
                             parent,
                             last_parent,
                         )

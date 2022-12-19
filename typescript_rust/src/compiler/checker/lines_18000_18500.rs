@@ -829,7 +829,7 @@ impl CheckTypeRelatedTo {
             .type_checker
             .get_normalized_type(&original_target, true);
 
-        if Rc::ptr_eq(&source, &target) {
+        if Gc::ptr_eq(&source, &target) {
             return Ternary::True;
         }
 
@@ -840,7 +840,7 @@ impl CheckTypeRelatedTo {
         if source.flags().intersects(TypeFlags::TypeParameter)
             && matches!(
                 self.type_checker.get_constraint_of_type(&source),
-                Some(constraint) if Rc::ptr_eq(&constraint, &target)
+                Some(constraint) if Gc::ptr_eq(&constraint, &target)
             )
         {
             return Ternary::True;
@@ -868,7 +868,7 @@ impl CheckTypeRelatedTo {
                     .type_checker
                     .get_normalized_type(&null_stripped_target, true);
             }
-            if Rc::ptr_eq(&source, &null_stripped_target) {
+            if Gc::ptr_eq(&source, &null_stripped_target) {
                 return Ternary::True;
             }
         }
@@ -924,7 +924,7 @@ impl CheckTypeRelatedTo {
                 && source
                     .flags()
                     .intersects(TypeFlags::Primitive | TypeFlags::Object | TypeFlags::Intersection)
-                && !Rc::ptr_eq(&source, &self.type_checker.global_object_type())
+                && !Gc::ptr_eq(&source, &self.type_checker.global_object_type())
                 && target
                     .flags()
                     .intersects(TypeFlags::Object | TypeFlags::Intersection)
@@ -1194,7 +1194,7 @@ impl CheckTypeRelatedTo {
                 self.try_elaborate_errors_for_primitives_and_objects(&source, &target);
             } else if source.maybe_symbol().is_some()
                 && source.flags().intersects(TypeFlags::Object)
-                && Rc::ptr_eq(&self.type_checker.global_object_type(), &source)
+                && Gc::ptr_eq(&self.type_checker.global_object_type(), &source)
             {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead),

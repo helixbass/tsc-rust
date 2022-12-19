@@ -322,7 +322,7 @@ impl TypeChecker {
         }
 
         if node_on_right_side.parent().kind() == SyntaxKind::ImportEqualsDeclaration {
-            return if Rc::ptr_eq(
+            return if Gc::ptr_eq(
                 &node_on_right_side
                     .parent()
                     .as_import_equals_declaration()
@@ -336,7 +336,7 @@ impl TypeChecker {
         }
 
         if node_on_right_side.parent().kind() == SyntaxKind::ExportAssignment {
-            return if Rc::ptr_eq(
+            return if Gc::ptr_eq(
                 &node_on_right_side
                     .parent()
                     .as_export_assignment()
@@ -395,7 +395,7 @@ impl TypeChecker {
         parent.kind() == SyntaxKind::ImportType
             && matches!(
                 parent.as_import_type_node().qualifier.as_ref(),
-                Some(parent_qualifier) if Rc::ptr_eq(
+                Some(parent_qualifier) if Gc::ptr_eq(
                     parent_qualifier,
                     &node,
                 )
@@ -416,7 +416,7 @@ impl TypeChecker {
 
         if is_in_js_file(Some(name))
             && name.parent().kind() == SyntaxKind::PropertyAccessExpression
-            && Rc::ptr_eq(
+            && Gc::ptr_eq(
                 &name.parent(),
                 &name.parent().parent().as_binary_expression().left,
             )
@@ -443,7 +443,7 @@ impl TypeChecker {
             );
             if matches!(
                 success.as_ref(),
-                Some(success) if !Rc::ptr_eq(
+                Some(success) if !Gc::ptr_eq(
                     success,
                     &self.unknown_symbol()
                 )
@@ -466,7 +466,7 @@ impl TypeChecker {
                     .borrow()
                     .resolved_symbol
                     .clone();
-                return sym.filter(|sym| !Rc::ptr_eq(sym, &self.unknown_symbol()));
+                return sym.filter(|sym| !Gc::ptr_eq(sym, &self.unknown_symbol()));
             }
         }
 
@@ -530,7 +530,7 @@ impl TypeChecker {
             if name.kind() == SyntaxKind::Identifier {
                 if is_jsx_tag_name(name) && self.is_jsx_intrinsic_identifier(name) {
                     let symbol = self.get_intrinsic_tag_symbol(&name.parent());
-                    return if Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
+                    return if Gc::ptr_eq(&symbol, &self.unknown_symbol()) {
                         None
                     } else {
                         Some(symbol)
@@ -595,7 +595,7 @@ impl TypeChecker {
             );
             return if matches!(
                 symbol.as_ref(),
-                Some(symbol) if !Rc::ptr_eq(
+                Some(symbol) if !Gc::ptr_eq(
                     symbol,
                     &self.unknown_symbol()
                 )
@@ -818,7 +818,7 @@ impl TypeChecker {
                         || is_import_call(&node.parent()))
                     || is_literal_type_node(&node.parent())
                         && is_literal_import_type_node(&node.parent().parent())
-                        && Rc::ptr_eq(
+                        && Gc::ptr_eq(
                             &node.parent().parent().as_import_type_node().argument,
                             &node.parent(),
                         )

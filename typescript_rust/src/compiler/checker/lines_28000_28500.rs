@@ -189,7 +189,7 @@ impl TypeChecker {
                 check_mode,
             ),
             node,
-            !Rc::ptr_eq(&non_optional_type, &left_type),
+            !Gc::ptr_eq(&non_optional_type, &left_type),
         )
     }
 
@@ -224,7 +224,7 @@ impl TypeChecker {
             node = node.parent();
         }
         is_call_or_new_expression(&node.parent())
-            && Rc::ptr_eq(&node.parent().as_has_expression().expression(), &node)
+            && Gc::ptr_eq(&node.parent().as_has_expression().expression(), &node)
     }
 
     pub(super) fn lookup_symbol_for_private_identifier_declaration(
@@ -437,7 +437,7 @@ impl TypeChecker {
             || is_this_property(node) && self.is_auto_typed_property(prop))
             && matches!(
                 self.get_declaring_constructor(prop).as_ref(),
-                Some(declaring_constructor) if Rc::ptr_eq(
+                Some(declaring_constructor) if Gc::ptr_eq(
                     &get_this_container(node, true),
                     declaring_constructor
                 )
@@ -465,7 +465,7 @@ impl TypeChecker {
             left_type.type_wrapper()
         });
         let is_any_like = self.is_type_any(Some(&*apparent_type))
-            || Rc::ptr_eq(&apparent_type, &self.silent_never_type());
+            || Gc::ptr_eq(&apparent_type, &self.silent_never_type());
         let mut prop: Option<Gc<Symbol>> = None;
         if is_private_identifier(right) {
             if self.language_version < ScriptTarget::ESNext {
@@ -608,7 +608,7 @@ impl TypeChecker {
                     }
                     if matches!(
                         left_type.maybe_symbol().as_ref(),
-                        Some(left_type_symbol) if Rc::ptr_eq(
+                        Some(left_type_symbol) if Gc::ptr_eq(
                             left_type_symbol,
                             &self.global_this_symbol()
                         )
@@ -793,7 +793,7 @@ impl TypeChecker {
                 );
                 return !matches!(
                     declaration_file.as_ref(),
-                    Some(declaration_file) if !Rc::ptr_eq(
+                    Some(declaration_file) if !Gc::ptr_eq(
                         file,
                         declaration_file
                     ) && self.is_global_source_file(declaration_file)
@@ -861,7 +861,7 @@ impl TypeChecker {
                 if !is_static(declaration) {
                     let flow_container = self.get_control_flow_container(node);
                     if flow_container.kind() == SyntaxKind::Constructor
-                        && Rc::ptr_eq(&flow_container.parent(), &declaration.parent())
+                        && Gc::ptr_eq(&flow_container.parent(), &declaration.parent())
                         && !declaration.flags().intersects(NodeFlags::Ambient)
                     {
                         assume_uninitialized = true;
@@ -873,7 +873,7 @@ impl TypeChecker {
                 prop.as_ref().and_then(|prop| prop.maybe_value_declaration()).as_ref(),
                 Some(prop_value_declaration) if is_property_access_expression(prop_value_declaration) &&
                     get_assignment_declaration_property_access_kind(prop_value_declaration) != AssignmentDeclarationKind::None &&
-                    Rc::ptr_eq(
+                    Gc::ptr_eq(
                         &self.get_control_flow_container(node),
                         &self.get_control_flow_container(prop_value_declaration),
                     )

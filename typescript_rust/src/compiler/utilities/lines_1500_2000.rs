@@ -290,7 +290,7 @@ pub fn is_in_top_level_context(node: &Node) -> bool {
     let mut node = node.node_wrapper();
     if is_identifier(&node)
         && (is_class_declaration(&node.parent()) || is_function_declaration(&node.parent()))
-        && matches!(node.parent().as_named_declaration().maybe_name(), Some(node_parent_name) if Rc::ptr_eq(&node_parent_name, &node))
+        && matches!(node.parent().as_named_declaration().maybe_name(), Some(node_parent_name) if Gc::ptr_eq(&node_parent_name, &node))
     {
         node = node.parent();
     }
@@ -371,7 +371,7 @@ pub fn get_immediately_invoked_function_expression(
             parent = parent.parent();
         }
         if parent.kind() == SyntaxKind::CallExpression
-            && Rc::ptr_eq(&parent.as_call_expression().expression, &prev)
+            && Gc::ptr_eq(&parent.as_call_expression().expression, &prev)
         {
             return Some(parent);
         }
@@ -632,7 +632,7 @@ pub fn is_expression_node(node: &Node) -> bool {
                 return false;
             }
             let node_parent_as_binary_expression = node_parent.as_binary_expression();
-            Rc::ptr_eq(&node_parent_as_binary_expression.left, &node)
+            Gc::ptr_eq(&node_parent_as_binary_expression.left, &node)
                 && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::InKeyword
         }
         SyntaxKind::Identifier => {

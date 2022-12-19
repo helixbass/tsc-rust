@@ -73,7 +73,7 @@ impl TypeChecker {
                             if target_type.flags().intersects(TypeFlags::Unit) {
                                 let source_type = self.get_type_of_symbol(source_prop);
                                 if !(source_type.flags().intersects(TypeFlags::Any)
-                                    || Rc::ptr_eq(
+                                    || Gc::ptr_eq(
                                         &self.get_regular_type_of_literal_type(&source_type),
                                         &self.get_regular_type_of_literal_type(&target_type),
                                     ))
@@ -631,7 +631,7 @@ impl InferTypes {
         if let Some(ref source_alias_symbol) = source.maybe_alias_symbol().clone().filter(|source_alias_symbol| {
             matches!(
                 target.maybe_alias_symbol().as_ref(),
-                Some(target_alias_symbol) if Rc::ptr_eq(source_alias_symbol, target_alias_symbol)
+                Some(target_alias_symbol) if Gc::ptr_eq(source_alias_symbol, target_alias_symbol)
             )
         }) {
             if let Some(source_alias_type_arguments) = source.maybe_alias_type_arguments().as_ref() {
@@ -742,11 +742,11 @@ impl InferTypes {
         }
         if target.flags().intersects(TypeFlags::TypeVariable) {
             if get_object_flags(&source).intersects(ObjectFlags::NonInferrableType)
-                || Rc::ptr_eq(&source, &self.type_checker.non_inferrable_any_type())
-                || Rc::ptr_eq(&source, &self.type_checker.silent_never_type())
+                || Gc::ptr_eq(&source, &self.type_checker.non_inferrable_any_type())
+                || Gc::ptr_eq(&source, &self.type_checker.silent_never_type())
                 || self.priority().intersects(InferencePriority::ReturnType)
-                    && (Rc::ptr_eq(&source, &self.type_checker.auto_type())
-                        || Rc::ptr_eq(&source, &self.type_checker.auto_array_type()))
+                    && (Gc::ptr_eq(&source, &self.type_checker.auto_type())
+                        || Gc::ptr_eq(&source, &self.type_checker.auto_array_type()))
                 || self.type_checker.is_from_inference_blocked_source(&source)
             {
                 return;
@@ -811,7 +811,7 @@ impl InferTypes {
                 return;
             } else {
                 let simplified = self.type_checker.get_simplified_type(&target, false);
-                if !Rc::ptr_eq(&simplified, &target) {
+                if !Gc::ptr_eq(&simplified, &target) {
                     self.invoke_once(&source, &simplified, |source: &Type, target: &Type| {
                         self.infer_from_types(source, target)
                     });
@@ -831,7 +831,7 @@ impl InferTypes {
                         );
                         if let Some(simplified) = simplified
                             .as_ref()
-                            .filter(|simplified| !Rc::ptr_eq(simplified, &target))
+                            .filter(|simplified| !Gc::ptr_eq(simplified, &target))
                         {
                             self.invoke_once(
                                 &source,
@@ -850,7 +850,7 @@ impl InferTypes {
             && {
                 let source_as_type_reference = source.as_type_reference_interface();
                 let target_as_type_reference = target.as_type_reference_interface();
-                (Rc::ptr_eq(
+                (Gc::ptr_eq(
                     &source_as_type_reference.target(),
                     &target_as_type_reference.target(),
                 ) || self.type_checker.is_array_type(&source)
@@ -904,7 +904,7 @@ impl InferTypes {
         {
             let source_as_string_mapping_type = source.as_string_mapping_type();
             let target_as_string_mapping_type = target.as_string_mapping_type();
-            if Rc::ptr_eq(&source.symbol(), &target.symbol()) {
+            if Gc::ptr_eq(&source.symbol(), &target.symbol()) {
                 self.infer_from_types(
                     &source_as_string_mapping_type.type_,
                     &target_as_string_mapping_type.type_,
@@ -942,7 +942,7 @@ impl InferTypes {
                     .intersects(TypeFlags::Intersection | TypeFlags::Instantiable))
             {
                 let apparent_source = self.type_checker.get_apparent_type(&source);
-                if !Rc::ptr_eq(&apparent_source, &source)
+                if !Gc::ptr_eq(&apparent_source, &source)
                     && self.allow_complex_constraint_inference()
                     && !apparent_source
                         .flags()

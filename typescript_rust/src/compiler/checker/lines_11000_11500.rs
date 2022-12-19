@@ -261,7 +261,7 @@ impl TypeChecker {
         let type_as_union_type = type_.as_union_type();
         let call_signatures =
             self.get_union_signatures(&map(type_as_union_type.types(), |t: &Gc<Type>, _| {
-                if Rc::ptr_eq(t, &self.global_function_type()) {
+                if Gc::ptr_eq(t, &self.global_function_type()) {
                     vec![self.unknown_signature()]
                 } else {
                     self.get_signatures_of_type(t, SignatureKind::Call)
@@ -420,7 +420,7 @@ impl TypeChecker {
         // if (indexInfos) {
         for i in 0..index_infos.len() {
             let info = index_infos[i].clone();
-            if Rc::ptr_eq(&info.key_type, &new_info.key_type) {
+            if Gc::ptr_eq(&info.key_type, &new_info.key_type) {
                 index_infos[i] = Rc::new(self.create_index_info(
                     info.key_type.clone(),
                     if union {
@@ -517,7 +517,7 @@ impl TypeChecker {
             let symbol_exports = symbol.maybe_exports();
             if let Some(symbol_exports) = symbol_exports.as_ref() {
                 members = self.get_exports_of_symbol(&symbol);
-                if Rc::ptr_eq(&symbol, &self.global_this_symbol()) {
+                if Gc::ptr_eq(&symbol, &self.global_this_symbol()) {
                     let mut vars_only = SymbolTable::new();
                     for (_, p) in &*(*members).borrow() {
                         if !p.flags().intersects(SymbolFlags::BlockScoped) {
@@ -549,7 +549,7 @@ impl TypeChecker {
                         &mut members.borrow_mut(),
                         &self.get_properties_of_type(&base_constructor_type),
                     );
-                } else if Rc::ptr_eq(&base_constructor_type, &self.any_type()) {
+                } else if Gc::ptr_eq(&base_constructor_type, &self.any_type()) {
                     base_constructor_index_info = Some(Rc::new(self.create_index_info(
                         self.string_type(),
                         self.any_type(),
@@ -780,7 +780,7 @@ impl TypeChecker {
             if (*type_as_conditional_type.root).borrow().is_distributive {
                 let check_type = &type_as_conditional_type.check_type;
                 let constraint = self.get_lower_bound_of_key_type(check_type);
-                if !Rc::ptr_eq(&constraint, check_type) {
+                if !Gc::ptr_eq(&constraint, check_type) {
                     return self.get_conditional_type_instantiation(
                         type_,
                         &self.prepend_type_mapping(

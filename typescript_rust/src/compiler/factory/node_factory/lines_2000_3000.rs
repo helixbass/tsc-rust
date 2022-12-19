@@ -507,7 +507,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     node_type_arguments.len() == type_arguments.len()
                         && node_type_arguments.iter().enumerate().all(
                             |(index, node_type_argument)| {
-                                Rc::ptr_eq(node_type_argument, &type_arguments[index])
+                                Gc::ptr_eq(node_type_argument, &type_arguments[index])
                             },
                         )
                 }
@@ -516,7 +516,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }
             || !(node_as_call_expression.arguments.len() == arguments_array.len()
                 && node_as_call_expression.arguments.iter().enumerate().all(
-                    |(index, node_argument)| Rc::ptr_eq(node_argument, &arguments_array[index]),
+                    |(index, node_argument)| Gc::ptr_eq(node_argument, &arguments_array[index]),
                 ))
         {
             self.update(
@@ -595,7 +595,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 question_dot_token.as_ref(),
             ) {
                 (Some(node_question_dot_token), Some(question_dot_token)) => {
-                    Rc::ptr_eq(node_question_dot_token, question_dot_token)
+                    Gc::ptr_eq(node_question_dot_token, question_dot_token)
                 }
                 (None, None) => true,
                 _ => false,
@@ -608,7 +608,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     node_type_arguments.len() == type_arguments.len()
                         && node_type_arguments.iter().enumerate().all(
                             |(index, node_type_argument)| {
-                                Rc::ptr_eq(node_type_argument, &type_arguments[index])
+                                Gc::ptr_eq(node_type_argument, &type_arguments[index])
                             },
                         )
                 }
@@ -617,7 +617,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }
             || !(node_as_call_expression.arguments.len() == arguments_array.len()
                 && node_as_call_expression.arguments.iter().enumerate().all(
-                    |(index, node_argument)| Rc::ptr_eq(node_argument, &arguments_array[index]),
+                    |(index, node_argument)| Gc::ptr_eq(node_argument, &arguments_array[index]),
                 ))
         {
             self.update(

@@ -136,7 +136,7 @@ impl TypeChecker {
             )))
         });
         let widened = self.get_widened_type_with_context(&original, prop_context);
-        if Rc::ptr_eq(&widened, &original) {
+        if Gc::ptr_eq(&widened, &original) {
             prop.symbol_wrapper()
         } else {
             self.create_symbol_with_type(prop, Some(widened))

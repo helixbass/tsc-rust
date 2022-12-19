@@ -693,7 +693,7 @@ impl Printer {
                     let substitute = self
                         .substitute_node(hint, &node)
                         .unwrap_or_else(|| node.node_wrapper());
-                    if !Rc::ptr_eq(&substitute, &node) {
+                    if !Gc::ptr_eq(&substitute, &node) {
                         node = substitute;
                         if let Some(current_parenthesizer_rule) =
                             self.maybe_current_parenthesizer_rule()

@@ -745,7 +745,7 @@ impl TypeChecker {
         } else if self.is_global_source_file(&container2) {
             false
         } else {
-            Rc::ptr_eq(&container1, &container2)
+            Gc::ptr_eq(&container1, &container2)
         }
     }
 

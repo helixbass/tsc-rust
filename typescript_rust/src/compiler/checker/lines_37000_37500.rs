@@ -265,7 +265,7 @@ impl TypeChecker {
             }
         }
 
-        if Rc::ptr_eq(&right_type, &self.never_type())
+        if Gc::ptr_eq(&right_type, &self.never_type())
             || !self.is_type_assignable_to_kind(
                 &right_type,
                 TypeFlags::NonPrimitive | TypeFlags::InstantiableNonPrimitive,
@@ -674,10 +674,10 @@ impl TypeChecker {
                 continue;
             }
             let iteration_types = iteration_types.clone().unwrap();
-            if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 continue;
             }
-            if Rc::ptr_eq(&iteration_types, &self.any_iteration_types()) {
+            if Gc::ptr_eq(&iteration_types, &self.any_iteration_types()) {
                 return self.any_iteration_types();
             }
             if yield_types.is_none() {
@@ -762,7 +762,7 @@ impl TypeChecker {
         if !type_.flags().intersects(TypeFlags::Union) {
             let iteration_types =
                 self.get_iteration_types_of_iterable_worker(type_, use_, error_node.as_deref());
-            if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if let Some(error_node) = error_node.as_ref() {
                     self.report_type_not_iterable_error(
                         error_node,
@@ -782,7 +782,7 @@ impl TypeChecker {
         };
         let cached_types = self.get_cached_iteration_types(type_, cache_key);
         if let Some(cached_types) = cached_types.as_ref() {
-            return if Rc::ptr_eq(cached_types, &self.no_iteration_types()) {
+            return if Gc::ptr_eq(cached_types, &self.no_iteration_types()) {
                 None
             } else {
                 Some(cached_types.clone())
@@ -796,7 +796,7 @@ impl TypeChecker {
                 use_,
                 error_node.as_deref(),
             );
-            if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if let Some(error_node) = error_node.as_ref() {
                     self.report_type_not_iterable_error(
                         error_node,
@@ -825,7 +825,7 @@ impl TypeChecker {
             self.no_iteration_types()
         };
         self.set_cached_iteration_types(type_, cache_key, iteration_types.clone());
-        if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+        if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
             None
         } else {
             Some(iteration_types)

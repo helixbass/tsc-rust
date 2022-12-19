@@ -2054,7 +2054,8 @@ impl TypeChecker {
             find_ancestor(Some(&*node), |node: &Node| is_call_like_expression(node));
         let containing_call_resolved_signature: Option<Gc<Signature>> =
             containing_call.as_ref().and_then(|containing_call| {
-                RefCell::borrow(&self.get_node_links(&containing_call))
+                (*self.get_node_links(&containing_call))
+                    .borrow()
                     .resolved_signature
                     .clone()
             });
@@ -2459,7 +2460,8 @@ impl TypeChecker {
 
         self.check_source_file(&file);
         Debug_.assert(
-            RefCell::borrow(&self.get_node_links(&file))
+            (*self.get_node_links(&file))
+                .borrow()
                 .flags
                 .intersects(NodeCheckFlags::TypeChecked),
             None,

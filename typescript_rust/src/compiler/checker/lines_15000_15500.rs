@@ -407,7 +407,7 @@ impl TypeChecker {
                 .or_else(|| self.get_index_info_of_type_(object_type, &self.string_type()));
             if let Some(index_info) = index_info.as_deref() {
                 if access_flags.intersects(AccessFlags::NoIndexSignatures)
-                    && !Rc::ptr_eq(&index_info.key_type, &self.number_type())
+                    && !Gc::ptr_eq(&index_info.key_type, &self.number_type())
                 {
                     if access_expression.is_some() {
                         self.error(
@@ -427,7 +427,7 @@ impl TypeChecker {
                     return None;
                 }
                 if let Some(access_node) = access_node.as_ref() {
-                    if Rc::ptr_eq(&index_info.key_type, &self.string_type())
+                    if Gc::ptr_eq(&index_info.key_type, &self.string_type())
                         && !self.is_type_assignable_to_kind(
                             index_type,
                             TypeFlags::String | TypeFlags::Number,
@@ -536,7 +536,7 @@ impl TypeChecker {
                     let mut took_if_branch = false;
                     if matches!(
                         object_type.maybe_symbol(),
-                        Some(symbol) if Rc::ptr_eq(&symbol, &self.global_this_symbol())
+                        Some(symbol) if Gc::ptr_eq(&symbol, &self.global_this_symbol())
                     ) {
                         if let Some(prop_name) = prop_name.as_ref() {
                             let global_this_symbol_exports =
@@ -1067,7 +1067,7 @@ impl TypeChecker {
             }
         };
         if let Some(type_cache) = read_cache() {
-            return if Rc::ptr_eq(&type_cache, &self.circular_constraint_type()) {
+            return if Gc::ptr_eq(&type_cache, &self.circular_constraint_type()) {
                 type_.type_wrapper()
             } else {
                 type_cache
@@ -1142,7 +1142,7 @@ impl TypeChecker {
         let true_type = self.get_true_type_from_conditional_type(type_);
         let false_type = self.get_false_type_from_conditional_type(type_);
         if false_type.flags().intersects(TypeFlags::Never)
-            && Rc::ptr_eq(
+            && Gc::ptr_eq(
                 &self.get_actual_type_variable(&true_type),
                 &self.get_actual_type_variable(check_type),
             )
@@ -1158,7 +1158,7 @@ impl TypeChecker {
                 return self.never_type();
             }
         } else if true_type.flags().intersects(TypeFlags::Never)
-            && Rc::ptr_eq(
+            && Gc::ptr_eq(
                 &self.get_actual_type_variable(&false_type),
                 &self.get_actual_type_variable(check_type),
             )

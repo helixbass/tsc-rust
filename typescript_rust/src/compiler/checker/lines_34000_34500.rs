@@ -414,7 +414,7 @@ impl TypeChecker {
                     == FunctionFlags::Generator
                 {
                     let return_type = self.get_type_from_type_node_(return_type_node);
-                    if Rc::ptr_eq(&return_type, &self.void_type()) {
+                    if Gc::ptr_eq(&return_type, &self.void_type()) {
                         self.error(
                             Some(&**return_type_node),
                             &Diagnostics::A_generator_cannot_have_a_void_type_annotation,

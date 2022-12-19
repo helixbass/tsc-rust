@@ -600,7 +600,7 @@ impl NotActuallyInterfaceType<'_> {
         }
     }
 
-    pub fn set_members(&self, members: Option<Rc<RefCell<SymbolTable>>>) {
+    pub fn set_members(&self, members: Option<Gc<GcCell<SymbolTable>>>) {
         match self {
             Self::InterfaceType(value) => value.set_members(members),
             Self::BaseObjectType(value) => value.set_members(members),

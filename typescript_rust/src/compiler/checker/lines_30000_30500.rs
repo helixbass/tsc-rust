@@ -348,7 +348,7 @@ impl TypeChecker {
         if is_call_chain(node) {
             let non_optional_type =
                 self.get_optional_expression_type(&func_type, &node_as_call_expression.expression);
-            call_chain_flags = if Rc::ptr_eq(&non_optional_type, &func_type) {
+            call_chain_flags = if Gc::ptr_eq(&non_optional_type, &func_type) {
                 SignatureFlags::None
             } else if is_outermost_optional_chain(node) {
                 SignatureFlags::IsOuterCallChain
@@ -368,7 +368,7 @@ impl TypeChecker {
             },
         );
 
-        if Rc::ptr_eq(&func_type, &self.silent_never_type()) {
+        if Gc::ptr_eq(&func_type, &self.silent_never_type()) {
             return self.silent_never_signature();
         }
 
@@ -531,7 +531,7 @@ impl TypeChecker {
 
         let mut expression_type =
             self.check_non_null_expression(&node_as_new_expression.expression);
-        if Rc::ptr_eq(&expression_type, &self.silent_never_type()) {
+        if Gc::ptr_eq(&expression_type, &self.silent_never_type()) {
             return self.silent_never_signature();
         }
 
@@ -610,7 +610,7 @@ impl TypeChecker {
                 if matches!(
                     signature.declaration.as_ref(),
                     Some(signature_declaration) if !self.is_js_constructor(Some(&**signature_declaration)) &&
-                        !Rc::ptr_eq(
+                        !Gc::ptr_eq(
                             &self.get_return_type_of_signature(signature.clone()),
                             &self.void_type()
                         )
@@ -623,7 +623,7 @@ impl TypeChecker {
                 }
                 if matches!(
                     self.get_this_type_of_signature(&signature).as_ref(),
-                    Some(this_type) if Rc::ptr_eq(
+                    Some(this_type) if Gc::ptr_eq(
                         this_type,
                         &self.void_type()
                     )

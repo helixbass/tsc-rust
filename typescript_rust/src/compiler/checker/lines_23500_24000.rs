@@ -216,7 +216,7 @@ impl GetFlowTypeOfReference {
             self.type_checker
                 .finalize_evolving_array_type(&evolved_type)
         };
-        if Rc::ptr_eq(&result_type, &self.type_checker.unreachable_never_type())
+        if Gc::ptr_eq(&result_type, &self.type_checker.unreachable_never_type())
             || matches!(
                 self.reference.maybe_parent().as_ref(),
                 Some(reference_parent) if reference_parent.kind() == SyntaxKind::NonNullExpression
@@ -229,7 +229,7 @@ impl GetFlowTypeOfReference {
         {
             return self.declared_type.clone();
         }
-        if Rc::ptr_eq(&result_type, &self.type_checker.non_null_unknown_type()) {
+        if Gc::ptr_eq(&result_type, &self.type_checker.non_null_unknown_type()) {
             self.type_checker.unknown_type()
         } else {
             result_type
@@ -266,7 +266,7 @@ impl GetFlowTypeOfReference {
                 for i in self.shared_flow_start()..self.type_checker.shared_flow_count() {
                     if matches!(
                         self.type_checker.shared_flow_nodes().get(&i),
-                        Some(shared_flow_node) if Rc::ptr_eq(
+                        Some(shared_flow_node) if Gc::ptr_eq(
                             shared_flow_node,
                             &flow
                         )
@@ -338,7 +338,7 @@ impl GetFlowTypeOfReference {
                 if let Some(container) = container.as_ref().filter(|container| {
                     !matches!(
                         self.flow_container.as_ref(),
-                        Some(flow_container) if Rc::ptr_eq(
+                        Some(flow_container) if Gc::ptr_eq(
                             container,
                             flow_container
                         )
@@ -418,8 +418,8 @@ impl GetFlowTypeOfReference {
                     self.type_checker.is_incomplete(&flow_type),
                 ));
             }
-            if Rc::ptr_eq(&self.declared_type, &self.type_checker.auto_type())
-                || Rc::ptr_eq(&self.declared_type, &self.type_checker.auto_array_type())
+            if Gc::ptr_eq(&self.declared_type, &self.type_checker.auto_type())
+                || Gc::ptr_eq(&self.declared_type, &self.type_checker.auto_array_type())
             {
                 if self.type_checker.is_empty_array_assignment(node) {
                     return Some(
@@ -571,7 +571,7 @@ impl GetFlowTypeOfReference {
                 } else {
                     type_.clone()
                 };
-                return if Rc::ptr_eq(&narrowed_type, &type_) {
+                return if Gc::ptr_eq(&narrowed_type, &type_) {
                     Some(flow_type)
                 } else {
                     Some(self.type_checker.create_flow_type(
@@ -596,8 +596,8 @@ impl GetFlowTypeOfReference {
         &self,
         flow: Gc<FlowNode /*FlowArrayMutation*/>,
     ) -> Option<FlowType> {
-        if Rc::ptr_eq(&self.declared_type, &self.type_checker.auto_type())
-            || Rc::ptr_eq(&self.declared_type, &self.type_checker.auto_array_type())
+        if Gc::ptr_eq(&self.declared_type, &self.type_checker.auto_type())
+            || Gc::ptr_eq(&self.declared_type, &self.type_checker.auto_array_type())
         {
             let flow_as_flow_array_mutation = flow.as_flow_array_mutation();
             let node = &flow_as_flow_array_mutation.node;
@@ -648,7 +648,7 @@ impl GetFlowTypeOfReference {
                             );
                         }
                     }
-                    return if Rc::ptr_eq(&evolved_type, &type_) {
+                    return if Gc::ptr_eq(&evolved_type, &type_) {
                         Some(flow_type)
                     } else {
                         Some(self.type_checker.create_flow_type(
@@ -680,7 +680,7 @@ impl GetFlowTypeOfReference {
             &flow_as_flow_condition.node,
             assume_true,
         );
-        if Rc::ptr_eq(&narrowed_type, &non_evolving_type) {
+        if Gc::ptr_eq(&narrowed_type, &non_evolving_type) {
             return flow_type;
         }
         self.type_checker
@@ -789,8 +789,8 @@ impl GetFlowTypeOfReference {
             }
             let flow_type = self.get_type_at_flow_node(antecedent.clone());
             let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
-            if Rc::ptr_eq(&type_, &self.declared_type)
-                && Rc::ptr_eq(&self.declared_type, &self.initial_type)
+            if Gc::ptr_eq(&type_, &self.declared_type)
+                && Gc::ptr_eq(&self.declared_type, &self.initial_type)
             {
                 return type_.into();
             }
@@ -813,8 +813,8 @@ impl GetFlowTypeOfReference {
                     &bypass_flow.as_flow_switch_clause().switch_statement,
                 )
             {
-                if Rc::ptr_eq(&type_, &self.declared_type)
-                    && Rc::ptr_eq(&self.declared_type, &self.initial_type)
+                if Gc::ptr_eq(&type_, &self.declared_type)
+                    && Gc::ptr_eq(&self.declared_type, &self.initial_type)
                 {
                     return type_.into();
                 }
@@ -868,7 +868,7 @@ impl GetFlowTypeOfReference {
         for i in self.type_checker.flow_loop_start()..self.type_checker.flow_loop_count() {
             if matches!(
                 self.type_checker.flow_loop_nodes().get(&i),
-                Some(flow_loop_node) if Rc::ptr_eq(
+                Some(flow_loop_node) if Gc::ptr_eq(
                     flow_loop_node,
                     &flow
                 )
@@ -940,7 +940,7 @@ impl GetFlowTypeOfReference {
             {
                 subtype_reduction = true;
             }
-            if Rc::ptr_eq(&type_, &self.declared_type) {
+            if Gc::ptr_eq(&type_, &self.declared_type) {
                 break;
             }
         }

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::convert::TryInto;
@@ -220,14 +220,14 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> Rc<RefCell<SymbolTable>> {
+    ) -> Gc<GcCell<SymbolTable>> {
         let links = self.get_symbol_links(symbol);
         if self
             .get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)
             .is_none()
         {
             let is_static = resolution_kind == MembersOrExportsResolutionKind::resolved_exports;
-            let early_symbols: Option<Rc<RefCell<SymbolTable>>> = if !is_static {
+            let early_symbols: Option<Gc<GcCell<SymbolTable>>> = if !is_static {
                 symbol.maybe_members().clone()
             } else if symbol.flags().intersects(SymbolFlags::Module) {
                 Some(self.get_exports_of_module_worker(symbol))
@@ -314,9 +314,9 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_links_members_or_exports_resolution_field_value(
         &self,
-        symbol_links: &RefCell<SymbolLinks>,
+        symbol_links: &GcCell<SymbolLinks>,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> Option<Rc<RefCell<SymbolTable>>> {
+    ) -> Option<Gc<GcCell<SymbolTable>>> {
         match resolution_kind {
             MembersOrExportsResolutionKind::resolved_exports => {
                 symbol_links.borrow().resolved_exports.clone()
@@ -329,9 +329,9 @@ impl TypeChecker {
 
     pub(super) fn set_symbol_links_members_or_exports_resolution_field_value(
         &self,
-        symbol_links: &RefCell<SymbolLinks>,
+        symbol_links: &GcCell<SymbolLinks>,
         resolution_kind: MembersOrExportsResolutionKind,
-        value: Option<Rc<RefCell<SymbolTable>>>,
+        value: Option<Gc<GcCell<SymbolTable>>>,
     ) {
         match resolution_kind {
             MembersOrExportsResolutionKind::resolved_exports => {
@@ -343,7 +343,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_members_of_symbol(&self, symbol: &Symbol) -> Rc<RefCell<SymbolTable>> {
+    pub(super) fn get_members_of_symbol(&self, symbol: &Symbol) -> Gc<GcCell<SymbolTable>> {
         if symbol.flags().intersects(SymbolFlags::LateBindingContainer) {
             self.get_resolved_members_or_exports_of_symbol(
                 symbol,
@@ -453,7 +453,7 @@ impl TypeChecker {
         type_arguments: Vec<Gc<Type>>,
     ) {
         let mut mapper: Option<Gc<TypeMapper>> = None;
-        let mut members: Rc<RefCell<SymbolTable>>;
+        let mut members: Gc<GcCell<SymbolTable>>;
         let mut call_signatures: Vec<Gc<Signature>>;
         let mut construct_signatures: Vec<Gc<Signature>>;
         let mut index_infos: Vec<Gc<IndexInfo>>;
@@ -509,7 +509,7 @@ impl TypeChecker {
         }
         let base_types = self.get_base_types(source);
         if !base_types.is_empty() {
-            if matches!(source.maybe_symbol(), Some(symbol) if Rc::ptr_eq(&members, &self.get_members_of_symbol(&symbol)))
+            if matches!(source.maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(&symbol)))
             {
                 members = Rc::new(RefCell::new(create_symbol_table(
                     source_as_interface_type_with_declared_members
@@ -546,7 +546,7 @@ impl TypeChecker {
                     self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Construct),
                 );
                 let inherited_index_infos =
-                    if !Rc::ptr_eq(&instantiated_base_type, &self.any_type()) {
+                    if !Gc::ptr_eq(&instantiated_base_type, &self.any_type()) {
                         self.get_index_infos_of_type(&instantiated_base_type)
                     } else {
                         vec![Rc::new(self.create_index_info(
@@ -1064,7 +1064,7 @@ impl TypeChecker {
         );
         for (i, source) in source_params.iter().enumerate() {
             let target = &target_params[i];
-            if Rc::ptr_eq(source, target) {
+            if Gc::ptr_eq(source, target) {
                 continue;
             }
             if !self.is_type_identical_to(

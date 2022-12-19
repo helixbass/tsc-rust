@@ -245,7 +245,7 @@ impl CheckTypeRelatedTo {
                         continue 'outer;
                     }
                     let target_property = target_property.unwrap();
-                    if Rc::ptr_eq(source_property, &target_property) {
+                    if Gc::ptr_eq(source_property, &target_property) {
                         continue;
                     }
                     let related = self.property_related_to(
@@ -1075,7 +1075,7 @@ impl CheckTypeRelatedTo {
             {
                 let source_prop = self.type_checker.get_property_of_type_(source, name, None);
                 if let Some(source_prop) = source_prop {
-                    if !Rc::ptr_eq(&source_prop, &target_prop) {
+                    if !Gc::ptr_eq(&source_prop, &target_prop) {
                         let related = self.property_related_to(
                             source,
                             target,
@@ -1521,7 +1521,7 @@ impl CheckTypeRelatedTo {
                 let prop_type = self.type_checker.get_non_missing_type_of_symbol(prop);
                 let type_ = if matches!(self.type_checker.exact_optional_property_types, Some(true))
                     || prop_type.flags().intersects(TypeFlags::Undefined)
-                    || Rc::ptr_eq(key_type, &self.type_checker.number_type())
+                    || Gc::ptr_eq(key_type, &self.type_checker.number_type())
                     || !prop.flags().intersects(SymbolFlags::Optional)
                 {
                     prop_type

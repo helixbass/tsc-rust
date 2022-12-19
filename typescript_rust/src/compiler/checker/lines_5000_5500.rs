@@ -347,12 +347,13 @@ impl NodeBuilder {
             }
         }
         let cached_result = links.as_ref().and_then(|links| {
-            RefCell::borrow(links)
+            (**links)
+                .borrow()
                 .serialized_types
                 .as_ref()
                 .unwrap()
                 .get(&key)
-                .map(Clone::clone)
+                .cloned()
         });
         if let Some(cached_result) = cached_result.as_ref() {
             if matches!(cached_result.truncating, Some(true)) {
@@ -617,8 +618,8 @@ impl NodeBuilder {
         let type_arguments = self.type_checker.get_type_arguments(type_);
         let type_as_type_reference = type_.as_type_reference_interface();
         let type_target = type_as_type_reference.target();
-        if Rc::ptr_eq(&type_target, &self.type_checker.global_array_type())
-            || Rc::ptr_eq(
+        if Gc::ptr_eq(&type_target, &self.type_checker.global_array_type())
+            || Gc::ptr_eq(
                 &type_target,
                 &self.type_checker.global_readonly_array_type(),
             )
@@ -635,7 +636,7 @@ impl NodeBuilder {
                         factory_
                             .create_type_reference_node(
                                 synthetic_factory_,
-                                if Rc::ptr_eq(&type_target, &self.type_checker.global_array_type())
+                                if Gc::ptr_eq(&type_target, &self.type_checker.global_array_type())
                                 {
                                     "Array"
                                 } else {
@@ -658,7 +659,7 @@ impl NodeBuilder {
                 })
             });
             Some(
-                if Rc::ptr_eq(&type_target, &self.type_checker.global_array_type()) {
+                if Gc::ptr_eq(&type_target, &self.type_checker.global_array_type()) {
                     array_type
                 } else {
                     synthetic_factory.with(|synthetic_factory_| {
@@ -865,7 +866,7 @@ impl NodeBuilder {
                     while {
                         i += 1;
                         i < length
-                            && matches!(self.type_checker.get_parent_symbol_of_type_parameter(&outer_type_parameters[i]), Some(parent_symbol) if Rc::ptr_eq(&parent_symbol, &parent))
+                            && matches!(self.type_checker.get_parent_symbol_of_type_parameter(&outer_type_parameters[i]), Some(parent_symbol) if Gc::ptr_eq(&parent_symbol, &parent))
                     } {}
                     if !range_equals_rc(outer_type_parameters, &type_arguments, start, i) {
                         let type_argument_slice =

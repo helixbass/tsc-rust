@@ -126,7 +126,7 @@ impl TypeChecker {
                     );
                     if matches!(
                         var_decl_list.as_ref(),
-                        Some(var_decl_list) if Rc::ptr_eq(
+                        Some(var_decl_list) if Gc::ptr_eq(
                             &var_decl_list.parent(),
                             &container
                         )
@@ -150,7 +150,7 @@ impl TypeChecker {
 
                             if matches!(
                                 container.as_for_statement().initializer.as_ref(),
-                                Some(container_initializer) if Rc::ptr_eq(
+                                Some(container_initializer) if Gc::ptr_eq(
                                     part,
                                     container_initializer
                                 )
@@ -174,7 +174,7 @@ impl TypeChecker {
                 );
                 if matches!(
                     var_decl_list.as_ref(),
-                    Some(var_decl_list) if Rc::ptr_eq(
+                    Some(var_decl_list) if Gc::ptr_eq(
                         &var_decl_list.parent(),
                         &container
                     ) && self.is_assigned_in_body_of_for_statement(node, &container)
@@ -285,7 +285,7 @@ impl TypeChecker {
         let class_instance_type = self.get_declared_type_of_symbol(&class_symbol);
         let base_constructor_type = self.get_base_constructor_type_of_class(&class_instance_type);
 
-        Rc::ptr_eq(&base_constructor_type, &self.null_widening_type())
+        Gc::ptr_eq(&base_constructor_type, &self.null_widening_type())
     }
 
     pub(super) fn check_this_before_super(
@@ -391,7 +391,7 @@ impl TypeChecker {
             let global_this_type = self.get_type_of_symbol(&self.global_this_symbol());
             if matches!(
                 type_.as_ref(),
-                Some(type_) if Rc::ptr_eq(
+                Some(type_) if Gc::ptr_eq(
                     type_,
                     &global_this_type
                 )
@@ -413,7 +413,7 @@ impl TypeChecker {
                         self.try_get_this_type_at_(&container, None, Option::<&Node>::None);
                     if matches!(
                         outside_this.as_ref(),
-                        Some(outside_this) if !Rc::ptr_eq(
+                        Some(outside_this) if !Gc::ptr_eq(
                             outside_this,
                             &self.global_this_type()
                         )
@@ -639,7 +639,7 @@ impl TypeChecker {
                                         is_call_expression(&container_parent_parent_parent) &&
                             matches!(
                                 container_parent_parent_parent.as_call_expression().arguments.get(2),
-                                Some(argument) if Rc::ptr_eq(
+                                Some(argument) if Gc::ptr_eq(
                                     argument,
                                     &container_parent_parent
                                 )
@@ -678,7 +678,7 @@ impl TypeChecker {
                         is_call_expression(&container_parent_parent)
                             && matches!(
                                 container_parent_parent.as_call_expression().arguments.get(2),
-                                Some(argument) if Rc::ptr_eq(
+                                Some(argument) if Gc::ptr_eq(
                                     argument,
                                     &container_parent
                                 )

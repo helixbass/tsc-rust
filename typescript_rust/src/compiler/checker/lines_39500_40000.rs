@@ -112,7 +112,7 @@ impl TypeChecker {
         let mut symbol = self.get_symbol_of_node(node).unwrap();
         let target = self.resolve_alias(&symbol);
 
-        if !Rc::ptr_eq(&target, &self.unknown_symbol()) {
+        if !Gc::ptr_eq(&target, &self.unknown_symbol()) {
             symbol = self
                 .get_merged_symbol(Some(symbol.maybe_export_symbol().unwrap_or(symbol)))
                 .unwrap();
@@ -398,7 +398,7 @@ impl TypeChecker {
                 != SyntaxKind::ExternalModuleReference
             {
                 let target = self.resolve_alias(&self.get_symbol_of_node(node).unwrap());
-                if !Rc::ptr_eq(&target, &self.unknown_symbol()) {
+                if !Gc::ptr_eq(&target, &self.unknown_symbol()) {
                     if target.flags().intersects(SymbolFlags::Value) {
                         let module_name = get_first_identifier(
                             &node_as_import_equals_declaration.module_reference,
@@ -722,10 +722,10 @@ impl TypeChecker {
             );
             if matches!(
                 symbol.as_ref(),
-                Some(symbol) if Rc::ptr_eq(
+                Some(symbol) if Gc::ptr_eq(
                     symbol,
                     &self.undefined_symbol()
-                ) || Rc::ptr_eq(
+                ) || Gc::ptr_eq(
                     symbol,
                     &self.global_this_symbol()
                 ) || matches!(
@@ -756,7 +756,7 @@ impl TypeChecker {
                 if match target.as_ref() {
                     None => true,
                     Some(target) => {
-                        Rc::ptr_eq(target, &self.unknown_symbol())
+                        Gc::ptr_eq(target, &self.unknown_symbol())
                             || target.flags().intersects(SymbolFlags::Value)
                     }
                 } {
@@ -854,7 +854,7 @@ impl TypeChecker {
                 } else {
                     sym.clone()
                 };
-                if Rc::ptr_eq(&target, &self.unknown_symbol())
+                if Gc::ptr_eq(&target, &self.unknown_symbol())
                     || target.flags().intersects(SymbolFlags::Value)
                 {
                     self.check_expression_cached(&node_as_export_assignment.expression, None);

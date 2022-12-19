@@ -423,7 +423,7 @@ impl TypeChecker {
                 awaited_symbol.as_ref(),
                 Some(awaited_symbol) if matches!(
                     type_.maybe_alias_symbol().as_ref(),
-                    Some(type_alias_symbol) if Rc::ptr_eq(
+                    Some(type_alias_symbol) if Gc::ptr_eq(
                         type_alias_symbol,
                         awaited_symbol
                     )

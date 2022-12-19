@@ -429,7 +429,7 @@ impl TypeChecker {
         );
         matches!(
             constructor_symbol.as_ref(),
-            Some(constructor_symbol) if Rc::ptr_eq(
+            Some(constructor_symbol) if Gc::ptr_eq(
                 constructor_symbol,
                 &global_promise_symbol
             )

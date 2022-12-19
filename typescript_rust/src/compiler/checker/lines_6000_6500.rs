@@ -228,7 +228,7 @@ impl NodeBuilder {
             if result.flags().intersects(SymbolFlags::TypeParameter)
                 && matches!(
                     type_.maybe_symbol().as_ref(),
-                    Some(type_symbol) if Rc::ptr_eq(
+                    Some(type_symbol) if Gc::ptr_eq(
                         result,
                         type_symbol,
                     )
@@ -887,7 +887,7 @@ impl NodeBuilder {
                 Some(context_enclosing_declaration) => some(
                     symbol.maybe_declarations().as_deref(),
                     Some(|d: &Gc<Node>| {
-                        Rc::ptr_eq(
+                        Gc::ptr_eq(
                             get_source_file_of_node(Some(&**d)).as_ref().unwrap(),
                             get_source_file_of_node(Some(&**context_enclosing_declaration))
                                 .as_ref()
@@ -1237,7 +1237,7 @@ impl NodeBuilder {
                                 let override_type_node = type_via_parent.as_ref().filter(|type_via_parent| {
                                     matches!(
                                         t_as_jsdoc_property_like_tag.type_expression.as_ref(),
-                                        Some(t_type_expression) if !Rc::ptr_eq(
+                                        Some(t_type_expression) if !Gc::ptr_eq(
                                             &self.type_checker.get_type_from_type_node_(&t_type_expression.as_jsdoc_type_expression().type_),
                                             *type_via_parent
                                         )
@@ -1535,7 +1535,7 @@ impl NodeBuilder {
                 node,
                 &self.type_checker.get_type_from_type_node_(node)
             ) || self.type_checker.get_intended_type_from_jsdoc_type_reference(node).is_some() ||
-            Rc::ptr_eq(
+            Gc::ptr_eq(
                 &self.type_checker.unknown_symbol(),
                 &self.type_checker.resolve_type_reference_name(
                     node,

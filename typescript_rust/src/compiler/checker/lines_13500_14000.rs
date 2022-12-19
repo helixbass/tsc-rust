@@ -52,7 +52,7 @@ impl TypeChecker {
                 type_ = self.get_intended_type_from_jsdoc_type_reference(node);
                 if type_.is_none() {
                     symbol = Some(self.resolve_type_reference_name(node, meaning, Some(true)));
-                    if Rc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
+                    if Gc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
                         symbol = Some(self.resolve_type_reference_name(
                             node,
                             meaning | SymbolFlags::Value,
@@ -597,7 +597,7 @@ impl TypeChecker {
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_extract_symbol| {
-                !Rc::ptr_eq(deferred_global_extract_symbol, &self.unknown_symbol())
+                !Gc::ptr_eq(deferred_global_extract_symbol, &self.unknown_symbol())
             })
     }
 
@@ -612,7 +612,7 @@ impl TypeChecker {
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_omit_symbol| {
-                !Rc::ptr_eq(deferred_global_omit_symbol, &self.unknown_symbol())
+                !Gc::ptr_eq(deferred_global_omit_symbol, &self.unknown_symbol())
             })
     }
 
@@ -632,7 +632,7 @@ impl TypeChecker {
             .as_ref()
             .map(Clone::clone)
             .filter(|deferred_global_awaited_symbol| {
-                !Rc::ptr_eq(deferred_global_awaited_symbol, &self.unknown_symbol())
+                !Gc::ptr_eq(deferred_global_awaited_symbol, &self.unknown_symbol())
             })
     }
 
@@ -858,7 +858,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let target = self.get_array_or_tuple_target_type(node);
-            if Rc::ptr_eq(&target, &self.empty_generic_type()) {
+            if Gc::ptr_eq(&target, &self.empty_generic_type()) {
                 links.borrow_mut().resolved_type = Some(self.empty_object_type());
             } else if !(node.kind() == SyntaxKind::TupleType
                 && some(
@@ -922,7 +922,7 @@ impl TypeChecker {
             readonly,
             named_member_declarations,
         );
-        if Rc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
+        if Gc::ptr_eq(&tuple_target, &self.empty_generic_type()) {
             self.empty_object_type()
         } else if !element_types.is_empty() {
             self.create_normalized_type_reference(&tuple_target, Some(element_types.to_owned()))

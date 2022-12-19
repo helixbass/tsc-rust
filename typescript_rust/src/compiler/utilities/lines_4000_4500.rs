@@ -1056,7 +1056,7 @@ pub fn is_this_in_type_query(node: &Node) -> bool {
 
     let mut node = node.node_wrapper();
     while is_qualified_name(&node.parent())
-        && Rc::ptr_eq(&node.parent().as_qualified_name().left, &node)
+        && Gc::ptr_eq(&node.parent().as_qualified_name().left, &node)
     {
         node = node.parent();
     }

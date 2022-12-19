@@ -283,8 +283,8 @@ impl TypeChecker {
             if match writable_type.as_ref() {
                 None => true,
                 Some(writable_type) => {
-                    Rc::ptr_eq(writable_type, &self.false_type())
-                        || Rc::ptr_eq(writable_type, &self.regular_false_type())
+                    Gc::ptr_eq(writable_type, &self.false_type())
+                        || Gc::ptr_eq(writable_type, &self.regular_false_type())
                 }
             } {
                 return true;
@@ -300,8 +300,8 @@ impl TypeChecker {
                     .as_property_assignment()
                     .initializer;
                 let raw_original_type = self.check_expression(initializer, None, None);
-                if Rc::ptr_eq(&raw_original_type, &self.false_type())
-                    || Rc::ptr_eq(&raw_original_type, &self.regular_false_type())
+                if Gc::ptr_eq(&raw_original_type, &self.false_type())
+                    || Gc::ptr_eq(&raw_original_type, &self.regular_false_type())
                 {
                     return true;
                 }
@@ -360,7 +360,7 @@ impl TypeChecker {
                     );
                     let is_local_parameter_property = matches!(
                         symbol_value_declaration.maybe_parent().as_ref(),
-                        Some(symbol_value_declaration_parent) if Rc::ptr_eq(
+                        Some(symbol_value_declaration_parent) if Gc::ptr_eq(
                             &ctor,
                             symbol_value_declaration_parent
                         )
@@ -377,7 +377,7 @@ impl TypeChecker {
                         is_assignment_declaration
                             && matches!(
                                 symbol.maybe_parent().and_then(|symbol_parent| symbol_parent.maybe_value_declaration()).as_ref(),
-                                Some(symbol_parent_value_declaration) if Rc::ptr_eq(
+                                Some(symbol_parent_value_declaration) if Gc::ptr_eq(
                                     symbol_parent_value_declaration,
                                     &ctor,
                                 )
@@ -624,7 +624,7 @@ impl TypeChecker {
             &Diagnostics::Type_of_await_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
             None,
         );
-        if Rc::ptr_eq(&awaited_type, &operand_type)
+        if Gc::ptr_eq(&awaited_type, &operand_type)
             && !self.is_error_type(&awaited_type)
             && !operand_type.flags().intersects(TypeFlags::AnyOrUnknown)
         {
@@ -650,7 +650,7 @@ impl TypeChecker {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         let operand_type =
             self.check_expression(&node_as_prefix_unary_expression.operand, None, None);
-        if Rc::ptr_eq(&operand_type, &self.silent_never_type()) {
+        if Gc::ptr_eq(&operand_type, &self.silent_never_type()) {
             return self.silent_never_type();
         }
         match node_as_prefix_unary_expression.operand.kind() {
@@ -767,7 +767,7 @@ impl TypeChecker {
         let node_as_postfix_unary_expression = node.as_postfix_unary_expression();
         let operand_type =
             self.check_expression(&node_as_postfix_unary_expression.operand, None, None);
-        if Rc::ptr_eq(&operand_type, &self.silent_never_type()) {
+        if Gc::ptr_eq(&operand_type, &self.silent_never_type()) {
             return self.silent_never_type();
         }
         let ok = self.check_arithmetic_operand_type(

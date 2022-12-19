@@ -585,7 +585,7 @@ impl TypeChecker {
         } else {
             key_type.type_wrapper()
         };
-        key_types.push(if Rc::ptr_eq(&prop_name_type, &self.string_type()) {
+        key_types.push(if Gc::ptr_eq(&prop_name_type, &self.string_type()) {
             self.string_or_number_type()
         } else {
             prop_name_type
@@ -733,10 +733,10 @@ impl TypeChecker {
         let index_key_types = map(
             &self.get_index_infos_of_type(type_),
             |info: &Gc<IndexInfo>, _| {
-                if !Rc::ptr_eq(info, &self.enum_number_index_info())
+                if !Gc::ptr_eq(info, &self.enum_number_index_info())
                     && self.is_key_type_included(&info.key_type, include)
                 {
-                    if Rc::ptr_eq(&info.key_type, &self.string_type())
+                    if Gc::ptr_eq(&info.key_type, &self.string_type())
                         && include.intersects(TypeFlags::Number)
                     {
                         self.string_or_number_type()
@@ -792,7 +792,7 @@ impl TypeChecker {
             self.get_index_type_for_generic_type(&type_, strings_only)
         } else if get_object_flags(&type_).intersects(ObjectFlags::Mapped) {
             self.get_index_type_for_mapped_type(&type_, strings_only, no_index_signatures)
-        } else if Rc::ptr_eq(&type_, &self.wildcard_type()) {
+        } else if Gc::ptr_eq(&type_, &self.wildcard_type()) {
             self.wildcard_type()
         } else if type_.flags().intersects(TypeFlags::Unknown) {
             self.never_type()

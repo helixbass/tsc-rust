@@ -328,7 +328,7 @@ impl NodeBuilder {
         let mut parameters = if some(
             Some(&*expanded_params),
             Some(|p: &Gc<Symbol>| {
-                !Rc::ptr_eq(p, &expanded_params[expanded_params.len() - 1])
+                !Gc::ptr_eq(p, &expanded_params[expanded_params.len() - 1])
                     && get_check_flags(p).intersects(CheckFlags::RestParameter)
             }),
         ) {

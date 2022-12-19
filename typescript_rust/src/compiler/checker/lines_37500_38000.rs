@@ -87,7 +87,7 @@ impl TypeChecker {
                 });
             if let Some(iteration_types) = iteration_types.as_ref() {
                 if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
-                    if !Rc::ptr_eq(iteration_types, &self.no_iteration_types()) {
+                    if !Gc::ptr_eq(iteration_types, &self.no_iteration_types()) {
                         return self.set_cached_iteration_types(
                             type_,
                             IterationTypeCacheKey::IterationTypesOfAsyncIterable,
@@ -107,7 +107,7 @@ impl TypeChecker {
                 &self.async_iteration_types_resolver,
                 error_node.as_deref(),
             );
-            if !Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if !Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 return iteration_types;
             }
         }
@@ -118,7 +118,7 @@ impl TypeChecker {
                 &self.sync_iteration_types_resolver,
                 error_node.as_deref(),
             );
-            if !Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if !Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
                 if use_.intersects(IterationUse::AllowsAsyncIterablesFlag) {
                     return self.set_cached_iteration_types(
                         type_,
@@ -160,7 +160,7 @@ impl TypeChecker {
                     Option::<&Node>::None,
                 )
             });
-        if Rc::ptr_eq(&global_iteration_types, &self.no_iteration_types()) {
+        if Gc::ptr_eq(&global_iteration_types, &self.no_iteration_types()) {
             self.default_iteration_types()
         } else {
             global_iteration_types
@@ -342,7 +342,7 @@ impl TypeChecker {
             .unwrap_or_else(|| {
                 self.get_iteration_types_of_iterator_slow(type_, resolver, error_node)
             });
-        if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+        if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
             None
         } else {
             Some(iteration_types)
@@ -374,7 +374,7 @@ impl TypeChecker {
                         Option::<&Node>::None,
                     )
                 });
-            let iteration_types = if Rc::ptr_eq(&global_iteration_types, &self.no_iteration_types())
+            let iteration_types = if Gc::ptr_eq(&global_iteration_types, &self.no_iteration_types())
             {
                 self.default_iteration_types()
             } else {
@@ -473,7 +473,7 @@ impl TypeChecker {
 
         let yield_iterator_result =
             self.filter_type(type_, |type_| self.is_yield_iterator_result(type_));
-        let yield_type = if !Rc::ptr_eq(&yield_iterator_result, &self.never_type()) {
+        let yield_type = if !Gc::ptr_eq(&yield_iterator_result, &self.never_type()) {
             self.get_type_of_property_of_type_(&yield_iterator_result, "value")
         } else {
             None
@@ -481,7 +481,7 @@ impl TypeChecker {
 
         let return_iterator_result =
             self.filter_type(type_, |type_| self.is_return_iterator_result(type_));
-        let return_type = if !Rc::ptr_eq(&return_iterator_result, &self.never_type()) {
+        let return_type = if !Gc::ptr_eq(&return_iterator_result, &self.never_type()) {
             self.get_type_of_property_of_type_(&return_iterator_result, "value")
         } else {
             None
@@ -578,7 +578,7 @@ impl TypeChecker {
                     }).and_then(|global_generator_type_symbol_members| {
                         (*global_generator_type_symbol_members).borrow().get(method_name).cloned()
                     }).as_ref(),
-                    Some(global_generator_type_symbol_member) if Rc::ptr_eq(
+                    Some(global_generator_type_symbol_member) if Gc::ptr_eq(
                         global_generator_type_symbol_member,
                         method_type_symbol
                     )
@@ -590,7 +590,7 @@ impl TypeChecker {
                         }).and_then(|global_iterator_type_symbol_members| {
                             (*global_iterator_type_symbol_members).borrow().get(method_name).cloned()
                         }).as_ref(),
-                        Some(global_iterator_type_symbol_member) if Rc::ptr_eq(
+                        Some(global_iterator_type_symbol_member) if Gc::ptr_eq(
                             global_iterator_type_symbol_member,
                             method_type_symbol
                         )
@@ -715,7 +715,7 @@ impl TypeChecker {
                 .unwrap_or_else(|| self.any_type());
         let iteration_types =
             self.get_iteration_types_of_iterator_result(&resolved_method_return_type);
-        if Rc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+        if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
             if error_node.is_some() {
                 self.error(
                     error_node.as_deref(),

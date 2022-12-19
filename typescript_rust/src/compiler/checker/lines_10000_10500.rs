@@ -33,7 +33,7 @@ impl TypeChecker {
                 type_arguments[last].maybe_symbol(),
             ) {
                 (None, None) => true,
-                (Some(symbol_a), Some(symbol_b)) => Rc::ptr_eq(&symbol_a, &symbol_b),
+                (Some(symbol_a), Some(symbol_b)) => Gc::ptr_eq(&symbol_a, &symbol_b),
                 _ => false,
             };
         }

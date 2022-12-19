@@ -242,7 +242,7 @@ impl TypeChecker {
         let min_length: usize = (find_last_index_returns_isize(
             &**elements,
             |e: &Gc<Node>, _| {
-                !(matches!(rest_element.as_ref(), Some(rest_element) if Rc::ptr_eq(e, rest_element))
+                !(matches!(rest_element.as_ref(), Some(rest_element) if Gc::ptr_eq(e, rest_element))
                     || is_omitted_expression(e)
                     || self.has_default_value(e))
             },
@@ -251,7 +251,7 @@ impl TypeChecker {
             .try_into()
             .unwrap();
         let element_flags = map(elements, |e: &Gc<Node>, i| {
-            if matches!(rest_element.as_ref(), Some(rest_element) if Rc::ptr_eq(e, rest_element)) {
+            if matches!(rest_element.as_ref(), Some(rest_element) if Gc::ptr_eq(e, rest_element)) {
                 ElementFlags::Rest
             } else if i >= min_length {
                 ElementFlags::Optional
@@ -312,7 +312,7 @@ impl TypeChecker {
         let global_symbol = self.get_global_es_symbol_constructor_type_symbol(false);
         matches!(
             (global_symbol, symbol),
-            (Some(global_symbol), Some(symbol)) if Rc::ptr_eq(&symbol, &global_symbol)
+            (Some(global_symbol), Some(symbol)) if Gc::ptr_eq(&symbol, &global_symbol)
         )
     }
 
@@ -441,13 +441,13 @@ impl TypeChecker {
                     result.set_value_declaration(file_symbol_value_declaration);
                 }
                 if let Some(file_symbol_members) = file_symbol.maybe_members().as_ref() {
-                    *result.maybe_members_mut() = Some(Rc::new(RefCell::new(
-                        RefCell::borrow(file_symbol_members).clone(),
+                    *result.maybe_members_mut() = Some(Gc::new(GcCell::new(
+                        (**file_symbol_members).borrow().clone(),
                     )));
                 }
                 if let Some(file_symbol_exports) = file_symbol.maybe_exports().as_ref() {
-                    *result.maybe_exports_mut() = Some(Rc::new(RefCell::new(
-                        RefCell::borrow(file_symbol_exports).clone(),
+                    *result.maybe_exports_mut() = Some(Gc::new(GcCell::new(
+                        (**file_symbol_exports).borrow().clone(),
                     )));
                 }
                 let mut members = create_symbol_table(None);
@@ -475,7 +475,7 @@ impl TypeChecker {
             }
             let type_node = type_node.unwrap();
             let type_ = self.get_type_of_node(&type_node);
-            return if self.is_type_any(Some(&*type_)) || Rc::ptr_eq(&type_, &self.unknown_type()) {
+            return if self.is_type_any(Some(&*type_)) || Gc::ptr_eq(&type_, &self.unknown_type()) {
                 type_
             } else {
                 self.error_type()

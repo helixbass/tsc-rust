@@ -272,7 +272,7 @@ impl TypeChecker {
         let expr = skip_parentheses(node, Some(true));
         expr.kind() == SyntaxKind::NullKeyword
             || expr.kind() == SyntaxKind::Identifier
-                && Rc::ptr_eq(&self.get_resolved_symbol(&expr), &self.undefined_symbol())
+                && Gc::ptr_eq(&self.get_resolved_symbol(&expr), &self.undefined_symbol())
     }
 
     pub(super) fn is_empty_array_literal(&self, node: &Node /*Expression*/) -> bool {
@@ -728,8 +728,8 @@ impl TypeChecker {
             );
             let flow_type = self.get_flow_type_of_property(&reference, Some(symbol));
             if self.no_implicit_any
-                && (Rc::ptr_eq(&flow_type, &self.auto_type())
-                    || Rc::ptr_eq(&flow_type, &self.auto_array_type()))
+                && (Gc::ptr_eq(&flow_type, &self.auto_type())
+                    || Gc::ptr_eq(&flow_type, &self.auto_array_type()))
             {
                 self.error(
                     symbol.maybe_value_declaration(),
@@ -789,8 +789,8 @@ impl TypeChecker {
         );
         let flow_type = self.get_flow_type_of_property(&reference, Some(symbol));
         if self.no_implicit_any
-            && (Rc::ptr_eq(&flow_type, &self.auto_type())
-                || Rc::ptr_eq(&flow_type, &self.auto_array_type()))
+            && (Gc::ptr_eq(&flow_type, &self.auto_type())
+                || Gc::ptr_eq(&flow_type, &self.auto_array_type()))
         {
             self.error(
                 symbol.maybe_value_declaration(),
@@ -989,7 +989,7 @@ impl TypeChecker {
             Some(defined_in_method && !defined_in_constructor),
         ));
         if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
-            if Rc::ptr_eq(
+            if Gc::ptr_eq(
                 &self.filter_type(&widened, |t| t.flags().intersects(!TypeFlags::Nullable)),
                 &self.never_type(),
             ) {
@@ -1022,7 +1022,7 @@ impl TypeChecker {
             let s = self.get_symbol_of_node(&decl);
             if let Some(s) = s {
                 if let Some(s_exports) = s.maybe_exports().as_deref() {
-                    let s_exports = RefCell::borrow(s_exports);
+                    let s_exports = (**s_exports).borrow();
                     if !s_exports.is_empty() {
                         self.merge_symbol_table(exports.clone(), &s_exports, None);
                     }
@@ -1037,7 +1037,7 @@ impl TypeChecker {
         let s = self.get_symbol_of_node(&decl);
         if let Some(s) = s {
             if let Some(s_exports) = s.maybe_exports().as_deref() {
-                let s_exports = RefCell::borrow(s_exports);
+                let s_exports = (**s_exports).borrow();
                 if !s_exports.is_empty() {
                     self.merge_symbol_table(exports.clone(), &s_exports, None);
                 }
@@ -1157,7 +1157,7 @@ impl TypeChecker {
             let mut members = create_symbol_table(None);
             let exported_type_as_resolved_type = exported_type.as_resolved_type();
             copy_entries(
-                &*RefCell::borrow(&exported_type_as_resolved_type.members()),
+                &*(*exported_type_as_resolved_type.members()).borrow(),
                 &mut members,
             );
             let initial_size = members.len();
@@ -1168,12 +1168,10 @@ impl TypeChecker {
                         Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }
             }
-            for (name, s) in
-                &*RefCell::borrow(&resolved_symbol.as_deref().unwrap_or(symbol).exports())
-            {
-                let exported_member = members.get(name).map(Clone::clone);
+            for (name, s) in &*(*resolved_symbol.as_deref().unwrap_or(symbol).exports()).borrow() {
+                let exported_member = members.get(name).cloned();
                 if let Some(exported_member) =
-                    exported_member.filter(|exported_member| !Rc::ptr_eq(exported_member, s))
+                    exported_member.filter(|exported_member| !Gc::ptr_eq(exported_member, s))
                 {
                     if s.flags().intersects(SymbolFlags::Value)
                         && exported_member.flags().intersects(SymbolFlags::Value)
@@ -1182,7 +1180,7 @@ impl TypeChecker {
                             if let Some(exported_member_value_declaration) =
                                 exported_member.maybe_value_declaration()
                             {
-                                if !Rc::ptr_eq(
+                                if !Gc::ptr_eq(
                                     &get_source_file_of_node(Some(&*s_value_declaration)).unwrap(),
                                     &get_source_file_of_node(Some(
                                         &*exported_member_value_declaration,
@@ -1291,7 +1289,7 @@ impl TypeChecker {
             );
             if let Some(result_symbol) = result.maybe_symbol() {
                 if result_symbol.flags().intersects(SymbolFlags::Class)
-                    && Rc::ptr_eq(
+                    && Gc::ptr_eq(
                         &type_,
                         &self.get_declared_type_of_class_or_interface(&result_symbol),
                     )

@@ -181,7 +181,7 @@ impl TypeChecker {
                 |left: Option<Gc<Signature>>, right: &Gc<Signature>, _| {
                     if match left.as_ref() {
                         None => true,
-                        Some(left) => Rc::ptr_eq(left, right),
+                        Some(left) => Gc::ptr_eq(left, right),
                     } {
                         left
                     } else if self.compare_type_parameters_identical(
@@ -1269,7 +1269,7 @@ impl TypeChecker {
             return self.error_type();
         }
 
-        if !Rc::ptr_eq(&spread, &self.empty_object_type()) {
+        if !Gc::ptr_eq(&spread, &self.empty_object_type()) {
             if !properties_array.is_empty() {
                 spread = self.get_spread_type(
                     &spread,

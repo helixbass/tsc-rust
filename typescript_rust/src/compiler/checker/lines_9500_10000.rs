@@ -113,7 +113,7 @@ impl TypeChecker {
                     .unwrap();
                 let type_ = self.get_widened_type_for_assignment_declaration(
                     &export_equals,
-                    if Rc::ptr_eq(&export_equals, &resolved_module) {
+                    if Gc::ptr_eq(&export_equals, &resolved_module) {
                         None
                     } else {
                         Some(resolved_module)
@@ -635,7 +635,7 @@ impl TypeChecker {
                 return self.is_type_any(Some(&*param_type))
                     || matches!(
                         self.get_element_type_of_array_type(&param_type),
-                        Some(element_type) if Rc::ptr_eq(&element_type, &self.any_type())
+                        Some(element_type) if Gc::ptr_eq(&element_type, &self.any_type())
                     );
             }
         }
@@ -747,7 +747,7 @@ impl TypeChecker {
             );
             if let Some(extended) = extended
                 .as_ref()
-                .filter(|extended| !Rc::ptr_eq(&base_type_node, *extended))
+                .filter(|extended| !Gc::ptr_eq(&base_type_node, *extended))
             {
                 Debug_.assert(
                     extended
@@ -782,7 +782,7 @@ impl TypeChecker {
                 return ret;
             }
             if !base_constructor_type.flags().intersects(TypeFlags::Any)
-                && !Rc::ptr_eq(&base_constructor_type, &self.null_widening_type())
+                && !Gc::ptr_eq(&base_constructor_type, &self.null_widening_type())
                 && !self.is_constructor_type(&base_constructor_type)
             {
                 let err = self.error(

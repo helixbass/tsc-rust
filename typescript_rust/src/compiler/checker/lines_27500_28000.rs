@@ -519,7 +519,7 @@ impl TypeChecker {
         if let Some(node_expression) = node_as_jsx_expression.expression.as_ref() {
             let type_ = self.check_expression(node_expression, check_mode, None);
             if node_as_jsx_expression.dot_dot_dot_token.is_some()
-                && !Rc::ptr_eq(&type_, &self.any_type())
+                && !Gc::ptr_eq(&type_, &self.any_type())
                 && !self.is_array_type(&type_)
             {
                 self.error(

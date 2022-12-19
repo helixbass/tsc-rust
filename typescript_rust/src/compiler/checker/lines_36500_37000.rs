@@ -327,7 +327,7 @@ impl TypeChecker {
                 local_declaration_symbol
                     .as_ref()
                     .filter(|local_declaration_symbol| {
-                        !Rc::ptr_eq(local_declaration_symbol, &symbol)
+                        !Gc::ptr_eq(local_declaration_symbol, &symbol)
                             && local_declaration_symbol
                                 .flags()
                                 .intersects(SymbolFlags::BlockScopedVariable)

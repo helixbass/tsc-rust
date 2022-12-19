@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
@@ -498,7 +498,7 @@ impl TypeChecker {
             return self.any_type();
         }
         if let Some(type_to_intersect) = type_to_intersect.as_ref() {
-            if !Rc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
+            if !Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
                 return self.get_intersection_type(
                     &[type_to_intersect.clone(), spread.clone()],
                     Option::<&Symbol>::None,
@@ -507,7 +507,7 @@ impl TypeChecker {
             }
         }
         type_to_intersect.unwrap_or_else(|| {
-            if Rc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
+            if Gc::ptr_eq(&spread, &self.empty_jsx_object_type()) {
                 self.create_jsx_attributes_type(
                     &mut object_flags,
                     &attributes,
@@ -523,7 +523,7 @@ impl TypeChecker {
         &self,
         object_flags: &mut ObjectFlags,
         attributes: &Node,
-        attributes_table: Rc<RefCell<SymbolTable>>,
+        attributes_table: Gc<GcCell<SymbolTable>>,
     ) -> Gc<Type> {
         *object_flags |= self.fresh_object_literal_flag;
         let result = self.create_anonymous_type(
@@ -737,7 +737,7 @@ impl TypeChecker {
         );
         let result = mod_
             .as_ref()
-            .filter(|mod_| !Rc::ptr_eq(mod_, &self.unknown_symbol()))
+            .filter(|mod_| !Gc::ptr_eq(mod_, &self.unknown_symbol()))
             .map(|mod_| {
                 self.get_merged_symbol(self.resolve_symbol(Some(&**mod_), None))
                     .unwrap()
@@ -775,7 +775,7 @@ impl TypeChecker {
 
             if match resolved_namespace.as_ref() {
                 None => true,
-                Some(resolved_namespace) => Rc::ptr_eq(resolved_namespace, &self.unknown_symbol()),
+                Some(resolved_namespace) => Gc::ptr_eq(resolved_namespace, &self.unknown_symbol()),
             } {
                 let namespace_name = self.get_jsx_namespace_(location.as_deref());
                 resolved_namespace = self.resolve_name_(
@@ -805,7 +805,7 @@ impl TypeChecker {
                 );
                 if let Some(candidate) = candidate
                     .as_ref()
-                    .filter(|candidate| !Rc::ptr_eq(candidate, &self.unknown_symbol()))
+                    .filter(|candidate| !Gc::ptr_eq(candidate, &self.unknown_symbol()))
                 {
                     if let Some(links) = links.as_ref() {
                         links.borrow_mut().jsx_namespace = Some(Some(candidate.clone()));
@@ -823,7 +823,7 @@ impl TypeChecker {
         );
         if matches!(
             s.as_ref(),
-            Some(s) if Rc::ptr_eq(
+            Some(s) if Gc::ptr_eq(
                 s,
                 &self.unknown_symbol()
             )

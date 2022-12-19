@@ -114,7 +114,7 @@ impl TypeChecker {
                             let grand_parent_as_mapped_type_node =
                                 grand_parent.as_mapped_type_node();
                             grand_parent_as_mapped_type_node.type_.is_some()
-                                && Rc::ptr_eq(
+                                && Gc::ptr_eq(
                                     &skip_parentheses(
                                         grand_parent_as_mapped_type_node.type_.as_ref().unwrap(),
                                         None,
@@ -126,7 +126,7 @@ impl TypeChecker {
                                     let grand_parent_parent = grand_parent.parent();
                                     let grand_parent_parent_as_conditional_type_node =
                                         grand_parent_parent.as_conditional_type_node();
-                                    Rc::ptr_eq(
+                                    Gc::ptr_eq(
                                         &grand_parent_parent_as_conditional_type_node.extends_type,
                                         &grand_parent,
                                     ) && grand_parent_parent_as_conditional_type_node
@@ -242,7 +242,7 @@ impl TypeChecker {
         type_parameter_as_type_parameter
             .maybe_constraint()
             .and_then(|type_parameter_constraint| {
-                if Rc::ptr_eq(&type_parameter_constraint, &self.no_constraint_type()) {
+                if Gc::ptr_eq(&type_parameter_constraint, &self.no_constraint_type()) {
                     None
                 } else {
                     Some(type_parameter_constraint)
@@ -625,7 +625,7 @@ impl TypeChecker {
         alias_type_arguments: Option<&[Gc<Type>]>,
     ) -> Gc<Type> {
         let type_ = self.get_declared_type_of_symbol(symbol);
-        if Rc::ptr_eq(&type_, &self.intrinsic_marker_type())
+        if Gc::ptr_eq(&type_, &self.intrinsic_marker_type())
             && intrinsic_type_kinds.contains_key(symbol.escaped_name())
             && matches!(type_arguments, Some(type_arguments) if type_arguments.len() == 1)
         {
@@ -859,7 +859,7 @@ impl TypeChecker {
             None,
             Option::<&Node>::None,
         );
-        if symbol.is_some() && !Rc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
+        if symbol.is_some() && !Gc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
             symbol.unwrap()
         } else if ignore_errors {
             self.unknown_symbol()
@@ -992,7 +992,7 @@ impl TypeChecker {
             }
             if (covariant || type_.flags().intersects(TypeFlags::TypeVariable))
                 && parent.kind() == SyntaxKind::ConditionalType
-                && Rc::ptr_eq(&node, &parent.as_conditional_type_node().true_type)
+                && Gc::ptr_eq(&node, &parent.as_conditional_type_node().true_type)
             {
                 let parent_as_conditional_type_node = parent.as_conditional_type_node();
                 let constraint = self.get_implied_constraint(
@@ -1127,8 +1127,8 @@ impl TypeChecker {
                             if is_jsdoc_index_signature(node) {
                                 let indexed = self.get_type_from_type_node_(&type_args[0]);
                                 let target = self.get_type_from_type_node_(&type_args[1]);
-                                let index_info = if Rc::ptr_eq(&indexed, &self.string_type())
-                                    || Rc::ptr_eq(&indexed, &self.number_type())
+                                let index_info = if Gc::ptr_eq(&indexed, &self.string_type())
+                                    || Gc::ptr_eq(&indexed, &self.number_type())
                                 {
                                     vec![Rc::new(
                                         self.create_index_info(indexed, target, false, None),

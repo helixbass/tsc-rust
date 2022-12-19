@@ -569,7 +569,7 @@ impl Printer {
                     Some(node_b),
                     Option::<fn(Option<Gc<Node>>) -> bool>::None
                 ).unwrap().maybe_parent().as_ref(),
-                Some(node_b_parent) if Rc::ptr_eq(
+                Some(node_b_parent) if Gc::ptr_eq(
                     node_a_parent,
                     node_b_parent,
                 )
@@ -601,7 +601,7 @@ impl Printer {
             None => true,
             Some(parent) => !matches!(
                 next_node.maybe_parent().as_ref(),
-                Some(next_node_parent) if Rc::ptr_eq(
+                Some(next_node_parent) if Gc::ptr_eq(
                     parent,
                     next_node_parent,
                 )
@@ -614,13 +614,13 @@ impl Printer {
         let prev_node_index = parent_node_array.as_ref().and_then(|parent_node_array| {
             parent_node_array
                 .into_iter()
-                .position(|node| Rc::ptr_eq(node, previous_node))
+                .position(|node| Gc::ptr_eq(node, previous_node))
         });
         matches!(
             prev_node_index,
             Some(prev_node_index) if matches!(
                 parent_node_array.as_ref().and_then(|parent_node_array| {
-                    parent_node_array.into_iter().position(|node| Rc::ptr_eq(node, next_node))
+                    parent_node_array.into_iter().position(|node| Gc::ptr_eq(node, next_node))
                 }),
                 Some(value) if value == prev_node_index + 1
             )

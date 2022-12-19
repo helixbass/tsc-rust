@@ -58,7 +58,7 @@ impl TypeChecker {
                     let mut n = Some(node.node_wrapper());
                     while !match n.as_ref() {
                         None => false,
-                        Some(n) => Rc::ptr_eq(n, &container),
+                        Some(n) => Gc::ptr_eq(n, &container),
                     } {
                         if match n.as_ref() {
                             None => true,
@@ -151,7 +151,7 @@ impl TypeChecker {
         let type_variable = self.get_homomorphic_type_variable(type_);
         if let Some(type_variable) = type_variable.as_ref() {
             let mapped_type_variable = self.instantiate_type(type_variable, Some(mapper.clone()));
-            if !Rc::ptr_eq(type_variable, &mapped_type_variable) {
+            if !Gc::ptr_eq(type_variable, &mapped_type_variable) {
                 let type_as_mapped_type = type_.as_mapped_type();
                 return self.map_type_with_alias(
                     &self.get_reduced_type(&mapped_type_variable),
@@ -183,7 +183,7 @@ impl TypeChecker {
                 );
             }
         }
-        if Rc::ptr_eq(
+        if Gc::ptr_eq(
             &self.instantiate_type(
                 &self.get_constraint_type_from_mapped_type(type_),
                 Some(mapper.clone()),
@@ -455,7 +455,7 @@ impl TypeChecker {
                 result = Some(
                     if let Some(distribution_type) =
                         distribution_type.as_ref().filter(|distribution_type| {
-                            !Rc::ptr_eq(&check_type, distribution_type)
+                            !Gc::ptr_eq(&check_type, distribution_type)
                                 && distribution_type
                                     .flags()
                                     .intersects(TypeFlags::Union | TypeFlags::Never)

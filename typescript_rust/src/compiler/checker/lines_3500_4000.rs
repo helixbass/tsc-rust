@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -130,13 +130,14 @@ impl TypeChecker {
         let exported = exported.borrow();
         if ptr::eq(exported, &*self.unknown_symbol())
             || ptr::eq(exported, module_symbol)
-            || RefCell::borrow(&module_symbol.exports()).len() == 1
+            || (*module_symbol.exports()).borrow().len() == 1
             || exported.flags().intersects(SymbolFlags::Alias)
         {
             return Some(exported.symbol_wrapper());
         }
         let links = self.get_symbol_links(exported);
-        if let Some(links_cjs_export_merged) = RefCell::borrow(&links)
+        if let Some(links_cjs_export_merged) = (*links)
+            .borrow()
             .cjs_export_merged
             .as_ref()
             .map(|cjs_export_merged| cjs_export_merged.clone())
@@ -151,10 +152,10 @@ impl TypeChecker {
         merged.set_flags(merged.flags() | SymbolFlags::ValueModule);
         let mut merged_exports = merged.maybe_exports_mut();
         if merged_exports.is_none() {
-            *merged_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+            *merged_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
         }
         let mut merged_exports = merged_exports.as_ref().unwrap().borrow_mut();
-        for (name, s) in &*RefCell::borrow(&module_symbol.exports()) {
+        for (name, s) in &*(*module_symbol.exports()).borrow() {
             if name == InternalSymbolName::ExportEquals {
                 continue;
             }
@@ -293,14 +294,12 @@ impl TypeChecker {
             result.set_const_enum_only_module(Some(true));
         }
         if let Some(symbol_members) = symbol.maybe_members().as_ref() {
-            *result.maybe_members_mut() = Some(Rc::new(RefCell::new(
-                RefCell::borrow(symbol_members).clone(),
-            )));
+            *result.maybe_members_mut() =
+                Some(Gc::new(GcCell::new((**symbol_members).borrow().clone())));
         }
         if let Some(symbol_exports) = symbol.maybe_exports().as_ref() {
-            *result.maybe_exports_mut() = Some(Rc::new(RefCell::new(
-                RefCell::borrow(symbol_exports).clone(),
-            )));
+            *result.maybe_exports_mut() =
+                Some(Gc::new(GcCell::new((**symbol_exports).borrow().clone())));
         }
         let resolved_module_type = self.resolve_structured_type_members(module_type);
         let resolved_module_type_as_resolved_type = resolved_module_type.as_resolved_type();
@@ -315,15 +314,14 @@ impl TypeChecker {
     }
 
     pub(super) fn has_export_assignment_symbol(&self, module_symbol: &Symbol) -> bool {
-        RefCell::borrow(&module_symbol.exports())
+        (*module_symbol.exports())
+            .borrow()
             .get(InternalSymbolName::ExportEquals)
             .is_some()
     }
 
     pub(super) fn get_exports_of_module_as_array(&self, module_symbol: &Symbol) -> Vec<Gc<Symbol>> {
-        self.symbols_to_array(&RefCell::borrow(
-            &self.get_exports_of_module_(module_symbol),
-        ))
+        self.symbols_to_array(&(*self.get_exports_of_module_(module_symbol)).borrow())
     }
 
     pub(super) fn get_exports_and_properties_of_module(
@@ -354,7 +352,7 @@ impl TypeChecker {
         mut cb: TCallback,
     ) {
         let exports = self.get_exports_of_module_(module_symbol);
-        for (key, symbol) in &*RefCell::borrow(&exports) {
+        for (key, symbol) in &*(*exports).borrow() {
             if !self.is_reserved_member_name(key) {
                 cb(symbol, key);
             }
@@ -379,9 +377,7 @@ impl TypeChecker {
     ) -> Option<Gc<Symbol>> {
         let symbol_table = self.get_exports_of_module_(module_symbol);
         // if (symbolTable) {
-        let ret = RefCell::borrow(&symbol_table)
-            .get(member_name)
-            .map(Clone::clone);
+        let ret = (*symbol_table).borrow().get(member_name).cloned();
         ret
         // }
     }
@@ -423,7 +419,7 @@ impl TypeChecker {
             || self.is_tuple_type(resolved_external_module_type))
     }
 
-    pub(super) fn get_exports_of_symbol(&self, symbol: &Symbol) -> Rc<RefCell<SymbolTable>> {
+    pub(super) fn get_exports_of_symbol(&self, symbol: &Symbol) -> Gc<GcCell<SymbolTable>> {
         if symbol.flags().intersects(SymbolFlags::LateBindingContainer) {
             self.get_resolved_members_or_exports_of_symbol(
                 symbol,
@@ -439,12 +435,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_exports_of_module_(
-        &self,
-        module_symbol: &Symbol,
-    ) -> Rc<RefCell<SymbolTable>> {
+    pub(super) fn get_exports_of_module_(&self, module_symbol: &Symbol) -> Gc<GcCell<SymbolTable>> {
         let links = self.get_symbol_links(module_symbol);
-        let resolved_exports = RefCell::borrow(&links).resolved_exports.clone();
+        let resolved_exports = (*links).borrow().resolved_exports.clone();
         resolved_exports.unwrap_or_else(|| {
             let resolved_exports = self.get_exports_of_module_worker(module_symbol);
             links.borrow_mut().resolved_exports = Some(resolved_exports.clone());
@@ -497,7 +490,7 @@ impl TypeChecker {
                     let export_node = export_node.borrow();
                     if matches!(
                         target_symbol.as_ref(),
-                        Some(target_symbol) if !Rc::ptr_eq(&self.resolve_symbol(Some(&**target_symbol), None).unwrap(), &self.resolve_symbol(Some(&**source_symbol), None).unwrap())
+                        Some(target_symbol) if !Gc::ptr_eq(&self.resolve_symbol(Some(&**target_symbol), None).unwrap(), &self.resolve_symbol(Some(&**source_symbol), None).unwrap())
                     ) {
                         let collision_tracker = lookup_table.get_mut(id).unwrap();
                         if collision_tracker.exports_with_duplicate.is_none() {
@@ -519,7 +512,7 @@ impl TypeChecker {
     pub(super) fn get_exports_of_module_worker(
         &self,
         module_symbol: &Symbol,
-    ) -> Rc<RefCell<SymbolTable>> {
+    ) -> Gc<GcCell<SymbolTable>> {
         let mut visited_symbols: Vec<Gc<Symbol>> = vec![];
 
         let module_symbol = self
@@ -544,7 +537,7 @@ impl TypeChecker {
         }
         let symbol_exports = symbol.maybe_exports();
         let symbol_exports = symbol_exports.as_ref().unwrap();
-        let symbol_exports = RefCell::borrow(&symbol_exports);
+        let symbol_exports = (**symbol_exports).borrow();
         let mut symbols = symbol_exports.clone();
         let export_stars = symbol_exports.get(InternalSymbolName::ExportStar);
         if let Some(export_stars) = export_stars {
@@ -643,7 +636,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         let mut results: Option<Vec<Gc<Symbol>>> = None;
         if let Some(links_extended_containers_by_file) =
-            RefCell::borrow(&links).extended_containers_by_file.as_ref()
+            (*links).borrow().extended_containers_by_file.as_ref()
         {
             results = links_extended_containers_by_file.get(&id).map(Clone::clone);
             if results.is_some() {
@@ -690,9 +683,7 @@ impl TypeChecker {
                 return results.unwrap();
             }
         }
-        if let Some(links_extended_containers) =
-            RefCell::borrow(&links).extended_containers.as_ref()
-        {
+        if let Some(links_extended_containers) = (*links).borrow().extended_containers.as_ref() {
             return links_extended_containers.clone();
         }
         let other_files = self.host.get_source_files();
@@ -776,10 +767,10 @@ impl TypeChecker {
                     self.for_each_symbol_table_in_scope(
                         enclosing_declaration.as_deref(),
                         |t, _, _, _| {
-                            for_each_entry(&*RefCell::borrow(&t), |s: &Gc<Symbol>, _| {
+                            for_each_entry(&*(*t).borrow(), |s: &Gc<Symbol>, _| {
                                 if s.flags()
                                     .intersects(self.get_qualified_left_meaning(meaning))
-                                    && Rc::ptr_eq(
+                                    && Gc::ptr_eq(
                                         &self.get_type_of_symbol(s),
                                         &self.get_declared_type_of_symbol(&container),
                                     )
@@ -839,11 +830,10 @@ impl TypeChecker {
                                 );
                             }
                             self.check_expression_cached(&d_parent_left_expression, None);
-                            return RefCell::borrow(
-                                &self.get_node_links(&d_parent_left_expression),
-                            )
-                            .resolved_symbol
-                            .clone();
+                            return (*self.get_node_links(&d_parent_left_expression))
+                                .borrow()
+                                .resolved_symbol
+                                .clone();
                         }
                     }
                 }
@@ -884,12 +874,12 @@ impl TypeChecker {
                         if is_object_literal_expression(&first_decl)
                             && matches!(
                                 first_decl_parent_as_variable_declaration.maybe_initializer(),
-                                Some(first_decl_parent_initializer) if Rc::ptr_eq(&first_decl, &first_decl_parent_initializer)
+                                Some(first_decl_parent_initializer) if Gc::ptr_eq(&first_decl, &first_decl_parent_initializer)
                             )
                             || is_type_literal_node(&first_decl)
                                 && matches!(
                                     first_decl_parent_as_variable_declaration.maybe_type(),
-                                    Some(first_decl_parent_type) if Rc::ptr_eq(&first_decl, &first_decl_parent_type)
+                                    Some(first_decl_parent_type) if Gc::ptr_eq(&first_decl, &first_decl_parent_type)
                                 )
                         {
                             return self.get_symbol_of_node(&first_decl_parent);
@@ -911,7 +901,8 @@ impl TypeChecker {
             .as_ref()
             .and_then(|file_symbol| file_symbol.maybe_exports().clone())
             .and_then(|exports| {
-                RefCell::borrow(&exports)
+                (*exports)
+                    .borrow()
                     .get(InternalSymbolName::ExportEquals)
                     .cloned()
             })?;

@@ -565,7 +565,7 @@ impl TypeChecker {
             self.propagate_optional_type_marker(
                 return_type,
                 expr,
-                !Rc::ptr_eq(&non_optional_type, &func_type),
+                !Gc::ptr_eq(&non_optional_type, &func_type),
             )
         })
     }

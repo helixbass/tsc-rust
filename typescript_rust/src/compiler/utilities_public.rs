@@ -1009,7 +1009,7 @@ fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Gc<Node /*J
     if tags.is_none() || no_cache.unwrap_or(false) {
         let comments = get_jsdoc_comments_and_tags(node, no_cache);
         Debug_.assert(
-            comments.len() < 2 || !Rc::ptr_eq(&comments[0], &comments[1]),
+            comments.len() < 2 || !Gc::ptr_eq(&comments[0], &comments[1]),
             None,
         );
         tags = Some(flat_map(Some(comments), |j, _| {

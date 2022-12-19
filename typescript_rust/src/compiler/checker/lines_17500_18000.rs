@@ -118,7 +118,7 @@ impl TypeChecker {
 
         let source_return_type = self.get_return_type_of_signature(erased_source.clone());
         let target_return_type = self.get_return_type_of_signature(erased_target.clone());
-        if Rc::ptr_eq(&target_return_type, &self.void_type())
+        if Gc::ptr_eq(&target_return_type, &self.void_type())
             || self.is_type_related_to(
                 &target_return_type,
                 &source_return_type,
@@ -404,7 +404,7 @@ impl TypeChecker {
                 _ => panic!("Expected IntrinsicType or LiteralType"),
             };
         }
-        if Rc::ptr_eq(&source, &target) {
+        if Gc::ptr_eq(&source, &target) {
             return true;
         }
         if !Rc::ptr_eq(&relation, &self.identity_relation) {
@@ -500,7 +500,7 @@ impl TypeChecker {
             t = self
                 .get_single_base_for_non_augmenting_subtype(&t)
                 .unwrap_or(t);
-            if Rc::ptr_eq(&t, &type_) {
+            if Gc::ptr_eq(&t, &type_) {
                 break;
             }
             type_ = t.clone();

@@ -580,7 +580,7 @@ impl TypeChecker {
                             containing_message_chain.clone(),
                             Some(result_obj.clone()),
                         );
-                        if result && !Rc::ptr_eq(&specific_source, &source_prop_type) {
+                        if result && !Gc::ptr_eq(&specific_source, &source_prop_type) {
                             self.check_type_related_to(
                                 &source_prop_type,
                                 &target_prop_type,
@@ -896,7 +896,7 @@ impl TypeChecker {
                 invalid_text_diagnostic.clone().unwrap()
             };
             if more_than_one_real_children {
-                if !Rc::ptr_eq(&array_like_target_parts, &self.never_type()) {
+                if !Gc::ptr_eq(&array_like_target_parts, &self.never_type()) {
                     let real_source = self.create_tuple_type(
                         &self.check_jsx_children(&containing_element, Some(CheckMode::Normal)),
                         None,
@@ -947,7 +947,7 @@ impl TypeChecker {
                     }
                 }
             } else {
-                if !Rc::ptr_eq(&non_array_like_target_parts, &self.never_type()) {
+                if !Gc::ptr_eq(&non_array_like_target_parts, &self.never_type()) {
                     let child = &valid_children[0];
                     let elem = self.get_elaboration_element_for_jsx_child(
                         child,
@@ -1202,7 +1202,7 @@ impl TypeChecker {
             }
             && s.parameters().len() == 1
             && signature_has_rest_parameter(&s)
-            && (Rc::ptr_eq(
+            && (Gc::ptr_eq(
                 &self.get_type_of_parameter(&s.parameters()[0]),
                 &self.any_array_type(),
             ) || self.is_type_any(Some(self.get_type_of_parameter(&s.parameters()[0]))))
@@ -1220,7 +1220,7 @@ impl TypeChecker {
         compare_types: Rc<dyn TypeComparer>,
         report_unreliable_markers: Option<Gc<TypeMapper>>,
     ) -> Ternary {
-        if Rc::ptr_eq(&source, &target) {
+        if Gc::ptr_eq(&source, &target) {
             return Ternary::True;
         }
 
@@ -1289,7 +1289,7 @@ impl TypeChecker {
         let source_this_type = self.get_this_type_of_signature(&source);
         if let Some(source_this_type) = source_this_type
             .as_ref()
-            .filter(|source_this_type| !Rc::ptr_eq(source_this_type, &self.void_type()))
+            .filter(|source_this_type| !Gc::ptr_eq(source_this_type, &self.void_type()))
         {
             let target_this_type = self.get_this_type_of_signature(&target);
             if let Some(target_this_type) = target_this_type.as_ref() {
@@ -1461,7 +1461,7 @@ impl TypeChecker {
             } else {
                 self.get_return_type_of_signature(target.clone())
             };
-            if Rc::ptr_eq(&target_return_type, &self.void_type()) {
+            if Gc::ptr_eq(&target_return_type, &self.void_type()) {
                 return result;
             }
             let source_return_type = if self.is_resolving_return_type_of_signature(source.clone()) {

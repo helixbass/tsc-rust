@@ -649,7 +649,7 @@ impl TypeChecker {
                         let declaration_parent = declaration.parent();
                         let last_element =
                             last(&declaration_parent.as_object_binding_pattern().elements);
-                        if Rc::ptr_eq(declaration, last_element)
+                        if Gc::ptr_eq(declaration, last_element)
                             || last(&declaration_parent.as_object_binding_pattern().elements)
                                 .as_binding_element()
                                 .dot_dot_dot_token

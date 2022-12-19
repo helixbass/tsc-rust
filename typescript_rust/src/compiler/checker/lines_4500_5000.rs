@@ -806,7 +806,7 @@ impl NodeBuilder {
                     })
                 }));
             }
-            if Rc::ptr_eq(&type_, &self.type_checker.unresolved_type()) {
+            if Gc::ptr_eq(&type_, &self.type_checker.unresolved_type()) {
                 let ret: Node =
                     synthetic_factory.with(|synthetic_factory_| {
                         factory.with(|factory_| {
@@ -830,7 +830,7 @@ impl NodeBuilder {
                 factory.with(|factory_| {
                     Into::<KeywordTypeNode>::into(factory_.create_keyword_type_node(
                         synthetic_factory_,
-                        if Rc::ptr_eq(&type_, &self.type_checker.intrinsic_marker_type()) {
+                        if Gc::ptr_eq(&type_, &self.type_checker.intrinsic_marker_type()) {
                             SyntaxKind::IntrinsicKeyword
                         } else {
                             SyntaxKind::AnyKeyword
@@ -912,7 +912,7 @@ impl NodeBuilder {
                 .unwrap();
             let parent_name =
                 self.symbol_to_type_node(&parent_symbol, context, SymbolFlags::Type, None);
-            if Rc::ptr_eq(
+            if Gc::ptr_eq(
                 &self
                     .type_checker
                     .get_declared_type_of_symbol(&parent_symbol),

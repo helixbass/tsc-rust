@@ -336,7 +336,7 @@ impl TypeChecker {
 
         let ref parent = node.parent();
         if is_parameter(parent) && is_jsdoc_function_type(&parent.parent()) {
-            if !Rc::ptr_eq(
+            if !Gc::ptr_eq(
                 last(parent.parent().as_jsdoc_function_type().parameters()),
                 parent,
             ) {
@@ -378,7 +378,7 @@ impl TypeChecker {
             None => true,
             Some(host) => !matches!(
                 last(host.as_signature_declaration().parameters()).maybe_symbol().as_ref(),
-                Some(symbol) if Rc::ptr_eq(
+                Some(symbol) if Gc::ptr_eq(
                     symbol,
                     param
                 )
@@ -433,7 +433,7 @@ impl TypeChecker {
                             symbol.as_ref(),
                             Some(symbol) if matches!(
                                 last_param_declaration.maybe_symbol().as_ref(),
-                                Some(last_param_declaration_symbol) if Rc::ptr_eq(
+                                Some(last_param_declaration_symbol) if Gc::ptr_eq(
                                     last_param_declaration_symbol,
                                     symbol
                                 )

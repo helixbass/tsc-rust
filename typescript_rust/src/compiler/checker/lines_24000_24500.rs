@@ -43,7 +43,7 @@ impl GetFlowTypeOfReference {
             None,
             Option::<&Type>::None,
         );
-        if !Rc::ptr_eq(&result, &self.declared_type)
+        if !Gc::ptr_eq(&result, &self.declared_type)
             && (result.flags() & self.declared_type.flags()).intersects(TypeFlags::Union)
             && are_rc_slices_equal(
                 result.as_union_type().types(),
@@ -225,7 +225,7 @@ impl GetFlowTypeOfReference {
                 None,
                 Option::<&Type>::None,
             );
-            if !Rc::ptr_eq(&candidate, &self.type_checker.unknown_type()) {
+            if !Gc::ptr_eq(&candidate, &self.type_checker.unknown_type()) {
                 return candidate;
             }
         }
@@ -329,7 +329,7 @@ impl GetFlowTypeOfReference {
                 && every(type_.as_intersection_type().types(), |t: &Gc<Type>, _| {
                     !matches!(
                         t.maybe_symbol().as_ref(),
-                        Some(t_symbol) if Rc::ptr_eq(
+                        Some(t_symbol) if Gc::ptr_eq(
                             t_symbol,
                             &self.type_checker.global_this_symbol()
                         )

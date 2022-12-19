@@ -33,7 +33,7 @@ impl TypeChecker {
                 return;
             }
             let global_promise_type = self.get_global_promise_type(true);
-            if !Rc::ptr_eq(&global_promise_type, &self.empty_generic_type())
+            if !Gc::ptr_eq(&global_promise_type, &self.empty_generic_type())
                 && !self.is_reference_to_type(&return_type, &global_promise_type)
             {
                 self.error(
@@ -93,7 +93,7 @@ impl TypeChecker {
             if self.is_error_type(&promise_constructor_type) {
                 if promise_constructor_name.kind() == SyntaxKind::Identifier
                     && promise_constructor_name.as_identifier().escaped_text == "Promise"
-                    && Rc::ptr_eq(
+                    && Gc::ptr_eq(
                         &self.get_target_type(&return_type),
                         &self.get_global_promise_type(false),
                     )
@@ -117,7 +117,7 @@ impl TypeChecker {
 
             let global_promise_constructor_like_type =
                 self.get_global_promise_constructor_like_type(true);
-            if Rc::ptr_eq(
+            if Gc::ptr_eq(
                 &global_promise_constructor_like_type,
                 &self.empty_object_type(),
             ) {

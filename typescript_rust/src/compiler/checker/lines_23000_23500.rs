@@ -423,7 +423,7 @@ impl TypeChecker {
             changed = changed
                 || match mapped.as_ref() {
                     None => true,
-                    Some(mapped) => !Rc::ptr_eq(t, mapped),
+                    Some(mapped) => !Gc::ptr_eq(t, mapped),
                 };
             if let Some(mapped) = mapped {
                 mapped_types.push(mapped);
@@ -707,13 +707,13 @@ impl TypeChecker {
         let is_element_assignment = parent.kind() == SyntaxKind::ElementAccessExpression && {
             let parent_as_element_access_expression = parent.as_element_access_expression();
             let parent_parent = parent.parent();
-            Rc::ptr_eq(&parent_as_element_access_expression.expression, &root)
+            Gc::ptr_eq(&parent_as_element_access_expression.expression, &root)
                 && parent_parent.kind() == SyntaxKind::BinaryExpression
                 && {
                     let parent_parent_as_binary_expression = parent_parent.as_binary_expression();
                     parent_parent_as_binary_expression.operator_token.kind()
                         == SyntaxKind::EqualsToken
-                        && Rc::ptr_eq(&parent_parent_as_binary_expression.left, &parent)
+                        && Gc::ptr_eq(&parent_parent_as_binary_expression.left, &parent)
                         && !is_assignment_target(&parent_parent)
                         && self.is_type_assignable_to_kind(
                             &self.get_type_of_expression(
@@ -954,7 +954,7 @@ impl TypeChecker {
             links.borrow_mut().effects_signature = signature.clone();
         }
         let signature = signature.unwrap();
-        if Rc::ptr_eq(&signature, &self.unknown_signature()) {
+        if Gc::ptr_eq(&signature, &self.unknown_signature()) {
             None
         } else {
             Some(signature)
@@ -1056,7 +1056,7 @@ impl TypeChecker {
         loop {
             if matches!(
                 self.maybe_last_flow_node().as_ref(),
-                Some(last_flow_node) if Rc::ptr_eq(
+                Some(last_flow_node) if Gc::ptr_eq(
                     &flow,
                     last_flow_node
                 )

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ impl CheckTypeRelatedTo {
             None,
         );
         if related == Ternary::False && report_errors {
-            if Rc::ptr_eq(&source_info.key_type, &target_info.key_type) {
+            if Gc::ptr_eq(&source_info.key_type, &target_info.key_type) {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::_0_index_signatures_are_incompatible),
                     Some(vec![self.type_checker.type_to_string_(
@@ -81,7 +81,7 @@ impl CheckTypeRelatedTo {
         let target_has_string_index = some(
             Some(&index_infos),
             Some(|info: &Gc<IndexInfo>| {
-                Rc::ptr_eq(&info.key_type, &self.type_checker.string_type())
+                Gc::ptr_eq(&info.key_type, &self.type_checker.string_type())
             }),
         );
         let mut result = Ternary::True;
@@ -632,7 +632,7 @@ impl TypeChecker {
             if self.is_unconstrained_type_parameter(t) {
                 let mut index = type_parameters
                     .iter()
-                    .position(|type_| Rc::ptr_eq(type_, t));
+                    .position(|type_| Gc::ptr_eq(type_, t));
                 if index.is_none() {
                     index = Some(type_parameters.len());
                     type_parameters.push(t.clone());
@@ -882,7 +882,7 @@ impl TypeChecker {
             return Ternary::False;
         }
         if source_prop_accessibility != ModifierFlags::None {
-            if !Rc::ptr_eq(
+            if !Gc::ptr_eq(
                 &self.get_target_symbol(source_prop),
                 &self.get_target_symbol(target_prop),
             ) {
@@ -930,7 +930,7 @@ impl TypeChecker {
 }
 
 pub(super) enum GetVariancesCache {
-    SymbolLinks(Rc<RefCell<SymbolLinks>>),
+    SymbolLinks(Gc<GcCell<SymbolLinks>>),
     GenericType(Gc<Type /*GenericType*/>),
 }
 
@@ -947,8 +947,8 @@ impl GetVariancesCache {
     }
 }
 
-impl From<Rc<RefCell<SymbolLinks>>> for GetVariancesCache {
-    fn from(value: Rc<RefCell<SymbolLinks>>) -> Self {
+impl From<Gc<GcCell<SymbolLinks>>> for GetVariancesCache {
+    fn from(value: Gc<GcCell<SymbolLinks>>) -> Self {
         Self::SymbolLinks(value)
     }
 }
@@ -970,9 +970,9 @@ pub(super) enum RecursionIdentity {
 impl PartialEq for RecursionIdentity {
     fn eq(&self, other: &RecursionIdentity) -> bool {
         match (self, other) {
-            (Self::Node(a), Self::Node(b)) => Rc::ptr_eq(a, b),
-            (Self::Symbol(a), Self::Symbol(b)) => Rc::ptr_eq(a, b),
-            (Self::Type(a), Self::Type(b)) => Rc::ptr_eq(a, b),
+            (Self::Node(a), Self::Node(b)) => Gc::ptr_eq(a, b),
+            (Self::Symbol(a), Self::Symbol(b)) => Gc::ptr_eq(a, b),
+            (Self::Type(a), Self::Type(b)) => Gc::ptr_eq(a, b),
             (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Rc::ptr_eq(a, b),
             (Self::None, Self::None) => true,
             _ => false,

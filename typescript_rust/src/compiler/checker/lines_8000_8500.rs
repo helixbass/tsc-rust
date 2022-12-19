@@ -124,7 +124,7 @@ impl TypeChecker {
                         let base_type_as_union_type = base_type.as_union_type();
                         let count = base_type_as_union_type.types().len();
                         if i + count <= types.len()
-                            && Rc::ptr_eq(
+                            && Gc::ptr_eq(
                                 &self.get_regular_type_of_literal_type(&*types[i + count - 1]),
                                 &self.get_regular_type_of_literal_type(
                                     &base_type_as_union_type.types()[count - 1],
@@ -193,7 +193,8 @@ impl TypeChecker {
         symbol: &Symbol,
         context: Option<&NodeBuilderContext>,
     ) -> Option<String> {
-        let name_type = RefCell::borrow(&self.get_symbol_links(symbol))
+        let name_type = (*self.get_symbol_links(symbol))
+            .borrow()
             .name_type
             .clone()?;
         if name_type
@@ -282,9 +283,8 @@ impl TypeChecker {
                         if is_computed_property_name(&name)
                             && !get_check_flags(symbol).intersects(CheckFlags::Late)
                         {
-                            let name_type = RefCell::borrow(&self.get_symbol_links(symbol))
-                                .name_type
-                                .clone();
+                            let name_type =
+                                (*self.get_symbol_links(symbol)).borrow().name_type.clone();
                             if matches!(name_type, Some(name_type) if name_type.flags().intersects(TypeFlags::StringOrNumberLiteral))
                             {
                                 let result =
@@ -343,10 +343,10 @@ impl TypeChecker {
     pub(super) fn is_declaration_visible(&self, node: &Node) -> bool {
         // if (node) {
         let links = self.get_node_links(node);
-        if RefCell::borrow(&links).is_visible.is_none() {
+        if (*links).borrow().is_visible.is_none() {
             links.borrow_mut().is_visible = Some(self.determine_if_declaration_is_visible(node));
         }
-        let ret = RefCell::borrow(&links).is_visible.unwrap();
+        let ret = (*links).borrow().is_visible.unwrap();
         ret
         // }
 
@@ -595,16 +595,14 @@ impl TypeChecker {
                 .borrow()
                 .type_
                 .is_some(),
-            TypeSystemPropertyName::EnumTagType => {
-                RefCell::borrow(&self.get_node_links(target.as_node()))
-                    .resolved_enum_type
-                    .is_some()
-            }
-            TypeSystemPropertyName::DeclaredType => {
-                RefCell::borrow(&self.get_symbol_links(target.as_symbol()))
-                    .declared_type
-                    .is_some()
-            }
+            TypeSystemPropertyName::EnumTagType => (*self.get_node_links(target.as_node()))
+                .borrow()
+                .resolved_enum_type
+                .is_some(),
+            TypeSystemPropertyName::DeclaredType => (*self.get_symbol_links(target.as_symbol()))
+                .borrow()
+                .declared_type
+                .is_some(),
             TypeSystemPropertyName::ResolvedBaseConstructorType => target
                 .as_type()
                 .as_not_actually_interface_type()
@@ -894,7 +892,7 @@ impl TypeChecker {
                 set_text_range(&*result, Some(node));
                 set_parent(&literal, Some(&*result));
                 set_parent(&result, Some(node));
-                if !Rc::ptr_eq(&lhs_expr, &parent_access) {
+                if !Gc::ptr_eq(&lhs_expr, &parent_access) {
                     set_parent(&lhs_expr, Some(&*result));
                 }
                 result.set_flow_node(Some(parent_access_flow_node));

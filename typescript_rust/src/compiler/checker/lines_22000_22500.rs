@@ -47,7 +47,7 @@ impl InferTypes {
             let t = t.unwrap();
             if matches!(
                 type_variable.as_ref(),
-                Some(type_variable) if !Rc::ptr_eq(&t, type_variable)
+                Some(type_variable) if !Gc::ptr_eq(&t, type_variable)
             ) {
                 return None;
             }
@@ -213,7 +213,7 @@ impl InferTypes {
             let index_types = map(
                 &self.type_checker.get_index_infos_of_type(source),
                 |info: &Gc<IndexInfo>, _| {
-                    if !Rc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
+                    if !Gc::ptr_eq(info, &self.type_checker.enum_number_index_info()) {
                         info.type_.clone()
                     } else {
                         self.type_checker.never_type()
@@ -319,7 +319,7 @@ impl InferTypes {
     pub(super) fn infer_from_object_types(&self, source: &Type, target: &Type) {
         if get_object_flags(source).intersects(ObjectFlags::Reference)
             && get_object_flags(target).intersects(ObjectFlags::Reference)
-            && (Rc::ptr_eq(
+            && (Gc::ptr_eq(
                 &source.as_type_reference_interface().target(),
                 &target.as_type_reference_interface().target(),
             ) || self.type_checker.is_array_type(source)
@@ -710,14 +710,14 @@ impl TypeChecker {
                 s.maybe_symbol().as_ref(),
                 Some(s_symbol) if matches!(
                     t.maybe_symbol().as_ref(),
-                    Some(t_symbol) if Rc::ptr_eq(s_symbol, t_symbol)
+                    Some(t_symbol) if Gc::ptr_eq(s_symbol, t_symbol)
                 )
             )
             || matches!(
                 s.maybe_alias_symbol().as_ref(),
                 Some(s_alias_symbol) if matches!(
                     t.maybe_alias_symbol().as_ref(),
-                    Some(t_alias_symbol) if Rc::ptr_eq(s_alias_symbol, t_alias_symbol)
+                    Some(t_alias_symbol) if Gc::ptr_eq(s_alias_symbol, t_alias_symbol)
                 )
             ) && s.maybe_alias_type_arguments().is_some()
     }

@@ -435,7 +435,7 @@ impl TypeChecker {
             .filter(|rest_type| rest_type.flags().intersects(TypeFlags::TypeParameter))
         {
             let info = find(&context.inferences(), |info: &Rc<InferenceInfo>, _| {
-                Rc::ptr_eq(&info.type_parameter, rest_type)
+                Gc::ptr_eq(&info.type_parameter, rest_type)
             })
             .cloned();
             if let Some(info) = info.as_ref() {
@@ -937,7 +937,7 @@ impl TypeChecker {
         }
         let this_type = self.get_this_type_of_signature(&signature);
         if let Some(this_type) = this_type.as_ref().filter(|this_type| {
-            !Rc::ptr_eq(this_type, &self.void_type()) && node.kind() != SyntaxKind::NewExpression
+            !Gc::ptr_eq(this_type, &self.void_type()) && node.kind() != SyntaxKind::NewExpression
         }) {
             let this_argument_node = self.get_this_argument_of_call(node);
             let this_argument_type = self.get_this_argument_type(this_argument_node.as_deref());

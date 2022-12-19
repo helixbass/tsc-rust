@@ -554,7 +554,7 @@ pub fn get_jsdoc_host(node: &Node) -> Option<Gc<Node /*HasJSDoc*/>> {
         }
         let host_js_doc = host_js_doc.unwrap();
         // TODO: seems weird that .maybe_js_doc() is returning a Vec rather than a slice?
-        matches!(last_or_undefined(&host_js_doc), Some(last) if Rc::ptr_eq(&js_doc, last))
+        matches!(last_or_undefined(&host_js_doc), Some(last) if Gc::ptr_eq(&js_doc, last))
     })
 }
 
@@ -635,7 +635,7 @@ pub fn get_assignment_target_kind(node: &Node) -> AssignmentKind {
                 let parent_as_binary_expression = parent.as_binary_expression();
                 let binary_operator = parent_as_binary_expression.operator_token.kind();
                 return if is_assignment_operator(binary_operator)
-                    && Rc::ptr_eq(&parent_as_binary_expression.left, &node)
+                    && Gc::ptr_eq(&parent_as_binary_expression.left, &node)
                 {
                     if binary_operator == SyntaxKind::EqualsToken
                         || is_logical_or_coalescing_assignment_operator(binary_operator)
@@ -671,14 +671,14 @@ pub fn get_assignment_target_kind(node: &Node) -> AssignmentKind {
                 };
             }
             SyntaxKind::ForInStatement => {
-                return if Rc::ptr_eq(&parent.as_for_in_statement().initializer, &node) {
+                return if Gc::ptr_eq(&parent.as_for_in_statement().initializer, &node) {
                     AssignmentKind::Definite
                 } else {
                     AssignmentKind::None
                 };
             }
             SyntaxKind::ForOfStatement => {
-                return if Rc::ptr_eq(&parent.as_for_of_statement().initializer, &node) {
+                return if Gc::ptr_eq(&parent.as_for_of_statement().initializer, &node) {
                     AssignmentKind::Definite
                 } else {
                     AssignmentKind::None
@@ -694,13 +694,13 @@ pub fn get_assignment_target_kind(node: &Node) -> AssignmentKind {
                 node = parent.parent();
             }
             SyntaxKind::ShorthandPropertyAssignment => {
-                if !Rc::ptr_eq(&parent.as_shorthand_property_assignment().name(), &node) {
+                if !Gc::ptr_eq(&parent.as_shorthand_property_assignment().name(), &node) {
                     return AssignmentKind::None;
                 }
                 node = parent.parent();
             }
             SyntaxKind::PropertyAssignment => {
-                if Rc::ptr_eq(&parent.as_property_assignment().name(), &node) {
+                if Gc::ptr_eq(&parent.as_property_assignment().name(), &node) {
                     return AssignmentKind::None;
                 }
                 node = parent.parent();
@@ -850,7 +850,7 @@ pub fn get_declaration_from_name(name: &Node) -> Option<Gc<Node /*Declaration*/>
             } else if is_qualified_name(&parent) {
                 let tag = parent.parent();
                 if is_jsdoc_parameter_tag(&tag)
-                    && Rc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
+                    && Gc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
                 {
                     Some(tag)
                 } else {
@@ -881,7 +881,7 @@ pub fn get_declaration_from_name(name: &Node) -> Option<Gc<Node /*Declaration*/>
             } else if is_qualified_name(&parent) {
                 let tag = parent.parent();
                 if is_jsdoc_parameter_tag(&tag)
-                    && Rc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
+                    && Gc::ptr_eq(&tag.as_jsdoc_property_like_tag().name, &parent)
                 {
                     Some(tag)
                 } else {

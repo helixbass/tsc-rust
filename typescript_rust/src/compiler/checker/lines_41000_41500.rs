@@ -471,14 +471,14 @@ impl TypeChecker {
         let ref parent = parent.unwrap();
         let is_property_name = (is_property_access_expression(parent)
             || is_property_assignment(parent))
-            && Rc::ptr_eq(&parent.as_named_declaration().name(), node);
+            && Gc::ptr_eq(&parent.as_named_declaration().name(), node);
         !is_property_name
             && matches!(
                 self.get_referenced_value_symbol(
                     node,
                     None,
                 ).as_ref(),
-                Some(referenced_value_symbol) if Rc::ptr_eq(
+                Some(referenced_value_symbol) if Gc::ptr_eq(
                     referenced_value_symbol,
                     &self.arguments_symbol()
                 )
@@ -577,7 +577,7 @@ impl TypeChecker {
                             let symbol_file = parent_symbol_value_declaration;
                             let ref reference_file =
                                 get_source_file_of_node(Some(&**node)).unwrap();
-                            let symbol_is_umd_export = !Rc::ptr_eq(symbol_file, reference_file);
+                            let symbol_is_umd_export = !Gc::ptr_eq(symbol_file, reference_file);
                             return if symbol_is_umd_export {
                                 None
                             } else {
@@ -589,7 +589,7 @@ impl TypeChecker {
                         is_module_or_enum_declaration(n)
                             && matches!(
                                 self.get_symbol_of_node(n).as_ref(),
-                                Some(symbol) if Rc::ptr_eq(
+                                Some(symbol) if Gc::ptr_eq(
                                     symbol,
                                     parent_symbol
                                 )
