@@ -867,7 +867,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
 pub fn get_pre_emit_diagnostics<TSourceFile: Borrow<Node>>(
     program: &ProgramOrBuilderProgram,
     source_file: Option<TSourceFile>,
-    cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
 ) -> Vec<Gc<Diagnostic>> {
     let program = match program {
         ProgramOrBuilderProgram::Program(program) => program,

@@ -369,17 +369,16 @@ dependencies = [
 [[package]]
 name = "gc"
 version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3edaac0f5832202ebc99520cb77c932248010c4645d20be1dc62d6579f5b3752"
+source = "git+https://github.com/manishearth/rust-gc?rev=6c5f754#6c5f754682e573e4590b52168dce835bba28beaf"
 dependencies = [
  "gc_derive",
+ "serde",
 ]
 
 [[package]]
 name = "gc_derive"
 version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60df8444f094ff7885631d80e78eb7d88c3c2361a98daaabb06256e4500db941"
+source = "git+https://github.com/manishearth/rust-gc?rev=6c5f754#6c5f754682e573e4590b52168dce835bba28beaf"
 dependencies = [
  "proc-macro2",
  "quote",

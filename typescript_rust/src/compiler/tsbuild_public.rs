@@ -1,3 +1,4 @@
+use gc::Gc;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -62,7 +63,7 @@ impl<TBuilderProgram: BuilderProgram> SolutionBuilder<TBuilderProgram> {
     pub fn build<TGetCustomTransformers: FnMut(&str) -> CustomTransformers>(
         &self,
         project: Option<&str>,
-        cancellation_token: Option<Rc<dyn CancellationToken>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationToken>>>,
         write_file: Option<&dyn WriteFileCallback>,
         get_custom_transformers: Option<TGetCustomTransformers>,
     ) -> ExitStatus {

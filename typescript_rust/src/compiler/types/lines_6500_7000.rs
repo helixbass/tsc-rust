@@ -309,7 +309,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     ) -> Option<Gc<Node /*SourceFile*/>> {
         None
     }
-    fn get_cancellation_token(&self) -> Option<Rc<dyn CancellationToken>> {
+    fn get_cancellation_token(&self) -> Option<Gc<Box<dyn CancellationToken>>> {
         None
     }
     fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String;

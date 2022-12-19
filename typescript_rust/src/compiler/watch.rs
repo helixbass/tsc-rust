@@ -820,7 +820,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<&dyn WriteFileCallback>,
-    cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<CustomTransformers>,
 ) -> EmitFilesAndReportErrorsReturn {
@@ -915,7 +915,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<&dyn WriteFileCallback>,
-    cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<CustomTransformers>,
 ) -> ExitStatus {

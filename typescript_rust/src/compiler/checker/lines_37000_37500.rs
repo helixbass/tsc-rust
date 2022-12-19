@@ -655,11 +655,11 @@ impl TypeChecker {
             ]));
             let mut iteration_types_cache = self.iteration_types_cache();
             let iteration_types = iteration_types_cache.entry(id).or_insert_with(|| {
-                Rc::new(IterationTypes::new(yield_type, return_type, next_type))
+                Gc::new(IterationTypes::new(yield_type, return_type, next_type))
             });
             return iteration_types.clone();
         }
-        Rc::new(IterationTypes::new(yield_type, return_type, next_type))
+        Gc::new(IterationTypes::new(yield_type, return_type, next_type))
     }
 
     pub(super) fn combine_iteration_types(

@@ -6,12 +6,12 @@ use std::rc::Rc;
 
 use super::{typeof_eq_facts, typeof_ne_facts, GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    contains_rc, escape_leading_underscores, every, find_index, has_static_modifier, id_text,
-    is_element_access_expression, is_private_identifier, is_property_access_expression,
-    is_string_literal_like, Debug_, SymbolFlags, SymbolInterface, SyntaxKind, __String,
-    are_rc_slices_equal, is_access_expression, is_optional_chain, map, same_map, Node,
-    NodeInterface, Symbol, Type, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    are_gc_slices_equal, contains_gc, contains_rc, escape_leading_underscores, every, find_index,
+    has_static_modifier, id_text, is_element_access_expression, is_private_identifier,
+    is_property_access_expression, is_string_literal_like, Debug_, SymbolFlags, SymbolInterface,
+    SyntaxKind, __String, are_rc_slices_equal, is_access_expression, is_optional_chain, map,
+    same_map, Node, NodeInterface, Symbol, Type, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl GetFlowTypeOfReference {
@@ -45,7 +45,7 @@ impl GetFlowTypeOfReference {
         );
         if !Gc::ptr_eq(&result, &self.declared_type)
             && (result.flags() & self.declared_type.flags()).intersects(TypeFlags::Union)
-            && are_rc_slices_equal(
+            && are_gc_slices_equal(
                 result.as_union_type().types(),
                 self.declared_type.as_union_type().types(),
             )
@@ -878,7 +878,7 @@ impl GetFlowTypeOfReference {
         }
         let clause_types = &switch_types[clause_start..clause_end];
         let has_default_clause = clause_start == clause_end
-            || contains_rc(Some(clause_types), &self.type_checker.never_type());
+            || contains_gc(Some(clause_types), &self.type_checker.never_type());
         if type_.flags().intersects(TypeFlags::Unknown) && !has_default_clause {
             let mut ground_clause_types: Option<Vec<Gc<Type>>> = None;
             for i in 0..clause_types.len() {
@@ -935,7 +935,7 @@ impl GetFlowTypeOfReference {
         }
         let default_type = self.type_checker.filter_type(type_, |t: &Type| {
             !(self.type_checker.is_unit_like_type(t)
-                && contains_rc(
+                && contains_gc(
                     Some(&switch_types),
                     &self
                         .type_checker

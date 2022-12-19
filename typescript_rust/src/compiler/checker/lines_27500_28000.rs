@@ -209,9 +209,9 @@ impl TypeChecker {
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(Rc::new(GenerateInitialErrorChain::new(
+                    Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
                         opening_like_element.node_wrapper(),
-                    ))),
+                    )))),
                     None,
                 );
             }
@@ -230,9 +230,9 @@ impl TypeChecker {
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(Rc::new(GenerateInitialErrorChain::new(
+                    Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
                         opening_like_element.node_wrapper(),
-                    ))),
+                    )))),
                     None,
                 );
             }
@@ -264,9 +264,9 @@ impl TypeChecker {
                 Some(Cow::Borrowed(
                     &Diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
                 )),
-                Some(Rc::new(GenerateInitialErrorChain::new(
+                Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
                     opening_like_element.node_wrapper(),
-                ))),
+                )))),
                 None,
             );
         }

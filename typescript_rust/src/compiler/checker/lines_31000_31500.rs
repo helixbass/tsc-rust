@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -164,7 +164,7 @@ impl TypeChecker {
         member_table.insert(InternalSymbolName::Default.to_owned(), new_symbol);
         self.create_anonymous_type(
             anonymous_symbol,
-            Rc::new(RefCell::new(member_table)),
+            Gc::new(GcCell::new(member_table)),
             vec![],
             vec![],
             vec![],

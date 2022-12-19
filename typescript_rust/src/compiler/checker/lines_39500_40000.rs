@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};
 use crate::{
-    HasStatementsInterface, __String, are_option_rcs_equal, count_where,
+    are_option_gcs_equal, HasStatementsInterface, __String, are_option_rcs_equal, count_where,
     create_diagnostic_for_node, declaration_name_to_string, for_each, for_each_entry_bool,
     for_each_import_clause_declaration_bool, get_combined_node_flags,
     get_effective_type_annotation_node, get_emit_declarations, get_es_module_interop,
@@ -195,7 +195,7 @@ impl TypeChecker {
                             }
                         }
                         SyntaxKind::ExportSpecifier => {
-                            if !are_option_rcs_equal(
+                            if !are_option_gcs_equal(
                                 get_source_file_of_node(type_only_alias.as_deref()).as_ref(),
                                 get_source_file_of_node(Some(node)).as_ref(),
                             ) {
@@ -963,7 +963,7 @@ impl TypeChecker {
                     if !self.is_duplicated_common_js_export(declarations.as_deref()) {
                         for declaration in declarations.as_ref().unwrap() {
                             if is_not_overload(declaration) {
-                                self.diagnostics().add(Rc::new(
+                                self.diagnostics().add(Gc::new(
                                     create_diagnostic_for_node(
                                         declaration,
                                         &Diagnostics::Cannot_redeclare_exported_variable_0,

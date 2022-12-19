@@ -278,14 +278,14 @@ impl TypeChecker {
                                 .unwrap_or_else(|| member.clone()),
                         ),
                         None,
-                        Some(Rc::new(
+                        Some(Gc::new(Box::new(
                             IssueMemberSpecificErrorContainingMessageChain::new(
                                 self.rc_wrapper(),
                                 declared_prop.clone(),
                                 type_with_this.type_wrapper(),
                                 base_with_this.type_wrapper(),
                             ),
-                        )),
+                        ))),
                         None,
                     ) {
                         issued_member_error = true;
@@ -795,7 +795,7 @@ impl TypeChecker {
                                     type_name2,
                                 ])
                             );
-                            self.diagnostics().add(Rc::new(
+                            self.diagnostics().add(Gc::new(
                                 create_diagnostic_for_node_from_message_chain(
                                     type_node, error_info, None,
                                 )

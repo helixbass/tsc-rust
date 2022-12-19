@@ -223,7 +223,7 @@ impl Program {
     pub fn get_syntactic_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(
             Program::get_syntactic_diagnostics_for_file,
@@ -234,7 +234,7 @@ impl Program {
     pub fn get_semantic_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         self.get_diagnostics_helper(
             Program::get_semantic_diagnostics_for_file,
@@ -246,7 +246,7 @@ impl Program {
         &self,
         target_source_file: Option<&Node /*SourceFile*/>,
         write_file: Option<&dyn WriteFileCallback>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         emit_only_dts_files: Option<bool>,
         custom_transformers: Option<CustomTransformers>,
         force_dts_emit: Option<bool>,
@@ -603,9 +603,9 @@ impl Program {
         get_diagnostics: fn(
             &Program,
             &Node, /*SourceFile*/
-            Option<Rc<dyn CancellationTokenDebuggable>>,
+            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> Vec<Gc<Diagnostic>>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         self.get_source_files()
             .iter()
@@ -648,7 +648,7 @@ impl Program {
     pub fn get_declaration_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> {
         // unimplemented!()
         vec![]
@@ -666,7 +666,7 @@ impl Program {
         source_file: &Node, /*SourceFile*/
         // TODO: getSyntacticDiagnosticsForFile() doesn't actually take this argument, should
         // refactor eg get_diagnostics_helper() to use closures instead?
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         source_file.as_source_file().parse_diagnostics().clone()
     }
@@ -674,7 +674,7 @@ impl Program {
     pub(super) fn get_semantic_diagnostics_for_file(
         &self,
         source_file: &Node, /*SourceFile*/
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         concatenate(
             filter_semantic_diagnostics(

@@ -57,7 +57,7 @@ impl TypeChecker {
                 &self.get_type_with_this_argument(
                     &self.instantiate_type(
                         constraint_type,
-                        Some(Rc::new(
+                        Some(Gc::new(
                             self.make_unary_type_mapper(&type_parameter, default_type),
                         )),
                     ),
@@ -230,8 +230,8 @@ impl TypeChecker {
                     );
                 } else {
                     if let Some(type_predicate_type) = type_predicate.type_.as_ref() {
-                        let leading_error: Rc<dyn CheckTypeContainingMessageChain> =
-                            Rc::new(CheckTypePredicateContainingMessageChain);
+                        let leading_error: Gc<Box<dyn CheckTypeContainingMessageChain>> =
+                            Gc::new(Box::new(CheckTypePredicateContainingMessageChain));
                         self.check_type_assignable_to(
                             type_predicate_type,
                             &self.get_type_of_symbol(

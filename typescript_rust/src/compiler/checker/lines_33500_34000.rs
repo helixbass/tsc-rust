@@ -344,7 +344,7 @@ impl TypeChecker {
                                 );
                             let inferences =
                                 map(&*context.inferences(), |info: &Gc<InferenceInfo>, _| {
-                                    Rc::new(self.create_inference_info(&info.type_parameter))
+                                    Gc::new(self.create_inference_info(&info.type_parameter))
                                 });
                             self.apply_to_parameter_types(
                                 &instantiated_signature,
@@ -496,7 +496,7 @@ impl TypeChecker {
             }
         }
         if let Some(new_type_parameters) = new_type_parameters.as_ref() {
-            let mapper = Rc::new(self.create_type_mapper(
+            let mapper = Gc::new(self.create_type_mapper(
                 old_type_parameters.unwrap(),
                 Some(new_type_parameters.clone()),
             ));

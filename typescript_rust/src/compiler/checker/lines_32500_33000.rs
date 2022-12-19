@@ -921,8 +921,10 @@ impl TypeChecker {
                     let sf_as_source_file = sf.as_source_file();
                     let source_text = sf_as_source_file.text_as_chars();
                     let start = skip_trivia(&source_text, left.pos(), None, None, None);
-                    let is_in_diag_2657 =
-                        sf_as_source_file.parse_diagnostics().iter().any(|diag| {
+                    let is_in_diag_2657 = (*sf_as_source_file.parse_diagnostics())
+                        .borrow()
+                        .iter()
+                        .any(|diag| {
                             if diag.code()
                                 != Diagnostics::JSX_expressions_must_have_one_parent_element.code
                             {

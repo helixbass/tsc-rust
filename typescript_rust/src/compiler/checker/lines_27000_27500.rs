@@ -35,7 +35,7 @@ impl TypeChecker {
     ) -> Gc<Type> {
         let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
         if has_computed_string_property {
-            index_infos.push(Rc::new(self.get_object_literal_index_info(
+            index_infos.push(Gc::new(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -43,7 +43,7 @@ impl TypeChecker {
             )));
         }
         if has_computed_number_property {
-            index_infos.push(Rc::new(self.get_object_literal_index_info(
+            index_infos.push(Gc::new(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -51,7 +51,7 @@ impl TypeChecker {
             )));
         }
         if has_computed_symbol_property {
-            index_infos.push(Rc::new(self.get_object_literal_index_info(
+            index_infos.push(Gc::new(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -60,7 +60,7 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             node.maybe_symbol(),
-            Rc::new(RefCell::new(properties_table.clone())),
+            Gc::new(GcCell::new(properties_table.clone())),
             vec![],
             vec![],
             index_infos,
@@ -481,7 +481,7 @@ impl TypeChecker {
                         &spread,
                         &self.create_anonymous_type(
                             attributes.maybe_symbol(),
-                            Rc::new(RefCell::new(child_prop_map)),
+                            Gc::new(GcCell::new(child_prop_map)),
                             vec![],
                             vec![],
                             vec![],

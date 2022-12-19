@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use gc::{Finalize, Gc, Trace};
+use gc::{unsafe_empty_trace, Finalize, Gc, GcCell, Trace};
 use serde::Serialize;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
@@ -1911,7 +1911,7 @@ pub struct ParsedCommandLine {
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub raw: Option<serde_json::Value>,
-    pub errors: Vec<Gc<Diagnostic>>,
+    pub errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
     pub compile_on_save: Option<bool>,
 }
@@ -2411,6 +2411,11 @@ impl CommandLineOption {
             Self::CommandLineOptionOfListType(list_type) => unimplemented!(),
         }
     }
+}
+
+impl Finalize for CommandLineOption {}
+unsafe impl Trace for CommandLineOption {
+    unsafe_empty_trace!();
 }
 
 #[non_exhaustive]

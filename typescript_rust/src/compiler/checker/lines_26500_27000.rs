@@ -354,7 +354,7 @@ impl TypeChecker {
             .or_else(|| right.maybe_type_parameters().clone());
         let mut param_mapper: Option<Gc<TypeMapper>> = None;
         if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
-            param_mapper = Some(Rc::new(self.create_type_mapper(
+            param_mapper = Some(Gc::new(self.create_type_mapper(
                 right.maybe_type_parameters().clone().unwrap(),
                 left.maybe_type_parameters().clone(),
             )));
@@ -399,7 +399,7 @@ impl TypeChecker {
                 },
             );
         }
-        Rc::new(result)
+        Gc::new(result)
     }
 
     pub(super) fn get_contextual_call_signature(
@@ -504,7 +504,7 @@ impl TypeChecker {
             if signature_list.len() == 1 {
                 signature_list[0].clone()
             } else {
-                Rc::new(self.create_union_signature(&signature_list[0].clone(), signature_list))
+                Gc::new(self.create_union_signature(&signature_list[0].clone(), signature_list))
             }
         })
     }

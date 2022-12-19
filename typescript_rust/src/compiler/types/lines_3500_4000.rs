@@ -196,7 +196,7 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     symbol_count: Cell<Option<usize>>,
 
-    parse_diagnostics: GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+    parse_diagnostics: GcCell<Option<Gc<GcCell<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>>>,
 
     bind_diagnostics: GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>,
     bind_suggestion_diagnostics: GcCell<Option<Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>>>>,
@@ -537,15 +537,11 @@ impl SourceFile {
         self.contents.symbol_count.set(Some(symbol_count))
     }
 
-    pub fn parse_diagnostics(
-        &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<Diagnostic>>>, Vec<Gc<Diagnostic>>> {
-        GcCellRefMut::map(self.contents.parse_diagnostics.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
+    pub fn parse_diagnostics(&self) -> Gc<GcCell<Vec<Gc<Diagnostic>>>> {
+        self.contents.parse_diagnostics.borrow().clone().unwrap()
     }
 
-    pub fn set_parse_diagnostics(&self, parse_diagnostics: Vec<Gc<Diagnostic>>) {
+    pub fn set_parse_diagnostics(&self, parse_diagnostics: Gc<GcCell<Vec<Gc<Diagnostic>>>>) {
         *self.contents.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
     }
 
@@ -1117,13 +1113,13 @@ pub trait WriteFileCallback {
     );
 }
 
-pub trait CancellationToken {
+pub trait CancellationToken: Trace + Finalize {
     fn is_cancellation_requested(&self) -> bool;
 
     fn throw_if_cancellation_requested(&self);
 }
 
-pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug + Trace + Finalize {}
+pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug {}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum FileIncludeKind {

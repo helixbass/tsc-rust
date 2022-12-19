@@ -1199,7 +1199,7 @@ impl TypeChecker {
         }
         let error_info = error_info.unwrap();
         let error_info_code = error_info.code;
-        let result_diagnostic: Gc<Diagnostic> = Rc::new(
+        let result_diagnostic: Gc<Diagnostic> = Gc::new(
             create_diagnostic_for_node_from_message_chain(prop_node, error_info, None).into(),
         );
         if let Some(related_info) = related_info {

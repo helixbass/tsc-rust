@@ -42,7 +42,7 @@ impl TypeChecker {
             message_chain,
             related_message: related_info,
         } = self.invocation_error_details(error_target, apparent_type, kind);
-        let diagnostic: Gc<Diagnostic> = Rc::new(
+        let diagnostic: Gc<Diagnostic> = Gc::new(
             create_diagnostic_for_node_from_message_chain(error_target, message_chain, None).into(),
         );
         if let Some(related_info) = related_info {
@@ -152,7 +152,7 @@ impl TypeChecker {
 
         if call_signatures.is_empty() {
             if is_array_literal_expression(&node.parent()) {
-                let diagnostic: Gc<Diagnostic> = Rc::new(
+                let diagnostic: Gc<Diagnostic> = Gc::new(
                     create_diagnostic_for_node(
                         &node_as_tagged_template_expression.tag,
                         &Diagnostics::It_is_likely_that_you_are_missing_a_comma_to_separate_these_two_template_expressions_They_form_a_tagged_template_expression_which_cannot_be_invoked,
@@ -254,7 +254,7 @@ impl TypeChecker {
             } = error_details;
             let message_chain =
                 chain_diagnostic_messages(Some(error_details_message_chain), head_message, None);
-            let diag: Gc<Diagnostic> = Rc::new(
+            let diag: Gc<Diagnostic> = Gc::new(
                 create_diagnostic_for_node_from_message_chain(
                     &node_as_decorator.expression,
                     message_chain,
@@ -366,7 +366,7 @@ impl TypeChecker {
             .symbol_links()
             .borrow_mut()
             .type_ = Some(result.type_wrapper());
-        Rc::new(self.create_signature(
+        Gc::new(self.create_signature(
             Some(declaration),
             None,
             None,
@@ -424,7 +424,7 @@ impl TypeChecker {
                         None
                     },
                 );
-                self.diagnostics().add(Rc::new(
+                self.diagnostics().add(Gc::new(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(Some(node)).unwrap(),
                         node_as_jsx_opening_like_element

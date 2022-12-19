@@ -19,7 +19,7 @@ impl Program {
     pub(super) fn get_bind_and_check_diagnostics_for_file(
         &self,
         source_file: &Node, /*SourceFile*/
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         self.get_and_cache_diagnostics(
             source_file,
@@ -31,7 +31,7 @@ impl Program {
     pub(super) fn get_bind_and_check_diagnostics_for_file_no_cache(
         &self,
         source_file: &Node, /*SourceFile*/
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         // self.run_with_cancellation_token(|| {
         if skip_type_checking(source_file, &self.options, |file_name: &str| {
@@ -207,11 +207,11 @@ impl Program {
     pub(super) fn get_and_cache_diagnostics(
         &self,
         source_file: &Node, /*SourceFile*/
-        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         get_diagnostics: fn(
             &Program,
             &Node, /*SourceFile*/
-            Option<Rc<dyn CancellationTokenDebuggable>>,
+            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
         ) -> Vec<Gc<Diagnostic>>,
     ) -> Vec<Gc<Diagnostic>> {
         let result = get_diagnostics(self, source_file, cancellation_token);
@@ -220,7 +220,7 @@ impl Program {
 
     pub fn get_options_diagnostics(
         &self,
-        _cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> SortedArray<Gc<Diagnostic>> {
         sort_and_deduplicate_diagnostics(&concatenate(
             self.program_diagnostics().get_global_diagnostics(),
@@ -250,7 +250,7 @@ impl Program {
 
     pub fn get_global_diagnostics(
         &self,
-        _cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> SortedArray<Gc<Diagnostic>> {
         if !self.root_names().is_empty() {
             sort_and_deduplicate_diagnostics(

@@ -6,8 +6,8 @@ use std::rc::Rc;
 
 use super::{CheckMode, GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    are_option_rcs_equal, escape_leading_underscores, find, find_ancestor, for_each_child,
-    get_assignment_target_kind, get_containing_class, get_containing_function,
+    are_option_gcs_equal, are_option_rcs_equal, escape_leading_underscores, find, find_ancestor,
+    for_each_child, get_assignment_target_kind, get_containing_class, get_containing_function,
     get_immediately_invoked_function_expression, get_name_of_declaration, get_root_declaration,
     get_this_container, has_syntactic_modifier, is_access_expression, is_assignment_target,
     is_binary_expression, is_binding_element, is_call_chain, is_catch_clause,
@@ -90,7 +90,7 @@ impl GetFlowTypeOfReference {
                 || target.flags().intersects(TypeFlags::Object)
                     && get_object_flags(target).intersects(ObjectFlags::Class)
             {
-                return are_option_rcs_equal(
+                return are_option_gcs_equal(
                     source.maybe_symbol().as_ref(),
                     target.maybe_symbol().as_ref(),
                 );
@@ -1096,7 +1096,7 @@ impl TypeChecker {
             && (Gc::ptr_eq(&type_, &self.auto_type())
                 || Gc::ptr_eq(&type_, &self.auto_array_type()))
         {
-            if Rc::ptr_eq(&flow_type, &self.auto_type())
+            if Gc::ptr_eq(&flow_type, &self.auto_type())
                 || Gc::ptr_eq(&flow_type, &self.auto_array_type())
             {
                 if self.no_implicit_any {

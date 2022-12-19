@@ -436,7 +436,7 @@ pub(super) fn compiler_options_alternate_mode() -> Rc<AlternateModeDiagnostics> 
 
 thread_local! {
     pub(crate) static default_init_compiler_options: Gc<CompilerOptions> =
-        Rc::new(CompilerOptionsBuilder::default()
+        Gc::new(CompilerOptionsBuilder::default()
             .module(Some(ModuleKind::CommonJS))
             .target(Some(ScriptTarget::ES2016))
             .strict(Some(true))
@@ -490,7 +490,7 @@ pub(crate) fn create_compiler_diagnostic_for_invalid_custom_type(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
 ) -> Gc<Diagnostic> {
     create_diagnostic_for_invalid_custom_type(opt, |message, args| {
-        Rc::new(create_compiler_diagnostic(message, args).into())
+        Gc::new(create_compiler_diagnostic(message, args).into())
     })
 }
 
@@ -1325,7 +1325,7 @@ pub(super) fn parse_strings<TReadFile: Fn(&str) -> io::Result<Option<String>>>(
                     errors.push(create_unknown_option_error(
                         &input_option_name,
                         diagnostics.as_did_you_mean_options_diagnostics(),
-                        |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                        |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
                         Some(s),
                     ));
                 }

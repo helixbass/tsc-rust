@@ -234,7 +234,9 @@ impl TypeChecker {
             &expected_return_type,
             Some(node),
             Some(head_message),
-            Some(Rc::new(ResolveCallContainingMessageChain::new(error_info))),
+            Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
+                error_info,
+            )))),
             None,
         );
     }

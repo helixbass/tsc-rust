@@ -7,20 +7,20 @@ use std::rc::Rc;
 
 use super::{CheckMode, TypeFacts};
 use crate::{
-    every, get_containing_class, get_object_flags, token_to_string, ExternalEmitHelpers, Number,
-    __String, add_related_info, are_option_rcs_equal, create_diagnostic_for_node,
-    create_file_diagnostic, first_or_undefined, get_check_flags, get_containing_function,
-    get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
-    get_effective_return_type_node, get_function_flags, get_source_file_of_node,
-    get_span_of_token_at_position, has_context_sensitive_parameters, is_access_expression,
-    is_binary_expression, is_bindable_object_define_property_call, is_call_expression,
-    is_class_static_block_declaration, is_effective_external_module, is_function_expression,
-    is_in_top_level_context, is_object_literal_method, is_private_identifier,
-    is_property_access_expression, is_property_assignment, parse_pseudo_big_int,
-    skip_outer_expressions, skip_parentheses, some, AssignmentKind, CheckFlags, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics, FunctionFlags,
-    LiteralLikeNodeInterface, ModifierFlags, ModuleKind, Node, NodeCheckFlags, NodeFlags,
-    NodeInterface, ObjectFlags, OuterExpressionKinds, PseudoBigInt, ReadonlyTextRange,
+    are_option_gcs_equal, every, get_containing_class, get_object_flags, token_to_string,
+    ExternalEmitHelpers, Number, __String, add_related_info, are_option_rcs_equal,
+    create_diagnostic_for_node, create_file_diagnostic, first_or_undefined, get_check_flags,
+    get_containing_function, get_containing_function_or_class_static_block,
+    get_declaration_modifier_flags_from_symbol, get_effective_return_type_node, get_function_flags,
+    get_source_file_of_node, get_span_of_token_at_position, has_context_sensitive_parameters,
+    is_access_expression, is_binary_expression, is_bindable_object_define_property_call,
+    is_call_expression, is_class_static_block_declaration, is_effective_external_module,
+    is_function_expression, is_in_top_level_context, is_object_literal_method,
+    is_private_identifier, is_property_access_expression, is_property_assignment,
+    parse_pseudo_big_int, skip_outer_expressions, skip_parentheses, some, AssignmentKind,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformation, Diagnostics,
+    FunctionFlags, LiteralLikeNodeInterface, ModifierFlags, ModuleKind, Node, NodeCheckFlags,
+    NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds, PseudoBigInt, ReadonlyTextRange,
     ScriptTarget, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TextSpan, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
 };
@@ -64,7 +64,7 @@ impl TypeChecker {
                         return links_context_free_type;
                     }
                     let return_type = self.get_return_type_from_body(node, check_mode);
-                    let return_only_signature = Rc::new(self.create_signature(
+                    let return_only_signature = Gc::new(self.create_signature(
                         None,
                         None,
                         None,
@@ -146,7 +146,7 @@ impl TypeChecker {
                         }
                         let instantiated_contextual_signature =
                             if let Some(inference_context) = inference_context.as_ref() {
-                                Rc::new(self.instantiate_signature(
+                                Gc::new(self.instantiate_signature(
                                     contextual_signature.clone(),
                                     inference_context.mapper(),
                                     None,
@@ -354,7 +354,7 @@ impl TypeChecker {
                 let ctor = ctor.unwrap();
                 if let Some(symbol_value_declaration) = symbol.maybe_value_declaration().as_ref() {
                     let is_assignment_declaration = is_binary_expression(symbol_value_declaration);
-                    let is_local_property_declaration = are_option_rcs_equal(
+                    let is_local_property_declaration = are_option_gcs_equal(
                         ctor.maybe_parent().as_ref(),
                         symbol_value_declaration.maybe_parent().as_ref(),
                     );
@@ -366,7 +366,7 @@ impl TypeChecker {
                         )
                     );
                     let is_local_this_property_assignment = is_assignment_declaration
-                        && are_option_rcs_equal(
+                        && are_option_gcs_equal(
                             symbol
                                 .maybe_parent()
                                 .and_then(|symbol_parent| symbol_parent.maybe_value_declaration())
@@ -532,7 +532,7 @@ impl TypeChecker {
                                     node.pos().try_into().unwrap(),
                                 ));
                             }
-                            let diagnostic: Gc<Diagnostic> = Rc::new(
+                            let diagnostic: Gc<Diagnostic> = Gc::new(
                                 create_file_diagnostic(
                                     &source_file,
                                     span.unwrap().start,
@@ -558,7 +558,7 @@ impl TypeChecker {
                                 &source_file,
                                 node.pos().try_into().unwrap(),
                             ));
-                            let diagnostic: Gc<Diagnostic> = Rc::new(
+                            let diagnostic: Gc<Diagnostic> = Gc::new(
                                 create_file_diagnostic(
                                     &source_file,
                                     span.unwrap().start,
@@ -577,7 +577,7 @@ impl TypeChecker {
                             &source_file,
                             node.pos().try_into().unwrap(),
                         );
-                        let diagnostic: Gc<Diagnostic> = Rc::new(
+                        let diagnostic: Gc<Diagnostic> = Gc::new(
                             create_file_diagnostic(
                                 &source_file,
                                 span.start,
@@ -630,7 +630,7 @@ impl TypeChecker {
         {
             self.add_error_or_suggestion(
                 false,
-                Rc::new(
+                Gc::new(
                     create_diagnostic_for_node(
                         node,
                         &Diagnostics::await_has_no_effect_on_the_type_of_this_expression,

@@ -669,7 +669,7 @@ impl ParserType {
                     .statements()
                     .get(0)
                     .map(|statement| statement.as_expression_statement().expression.clone()),
-                &RefCell::new(&mut *result_as_source_file.parse_diagnostics()),
+                result_as_source_file.parse_diagnostics(),
                 false,
                 None,
                 Option::<&JsonConversionNotifierDummy>::None,

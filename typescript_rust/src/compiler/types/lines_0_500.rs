@@ -44,6 +44,35 @@ pub trait ReadonlyTextRange {
     fn set_end(&self, end: isize);
 }
 
+pub struct ReadonlyTextRangeConcrete {
+    pos: isize,
+    end: isize,
+}
+
+impl ReadonlyTextRangeConcrete {
+    pub fn new(pos: isize, end: isize) -> Self {
+        Self { pos, end }
+    }
+}
+
+impl ReadonlyTextRange for ReadonlyTextRangeConcrete {
+    fn pos(&self) -> isize {
+        self.pos
+    }
+
+    fn set_pos(&self, pos: isize) {
+        unreachable!()
+    }
+
+    fn end(&self) -> isize {
+        self.end
+    }
+
+    fn set_end(&self, end: isize) {
+        unreachable!()
+    }
+}
+
 pub trait TextRange {
     fn pos(&self) -> isize;
     fn set_pos(&self, pos: isize);

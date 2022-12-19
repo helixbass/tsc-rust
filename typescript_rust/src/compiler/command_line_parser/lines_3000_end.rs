@@ -1,5 +1,5 @@
 use fancy_regex::Regex;
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -40,7 +40,7 @@ pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigH
     extended_config_path: &str,
     host: &THost,
     resolution_stack: &[&str],
-    errors: &mut Vec<Gc<Diagnostic>>,
+    errors: Gc<GcCell<Vec<Gc<Diagnostic>>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
 ) -> Option<Rc<ParsedTsconfig>> {
     let path = if host.use_case_sensitive_file_names() {
@@ -61,12 +61,13 @@ pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigH
         extended_result = Some(read_json_config_file(extended_config_path, |path| {
             host.read_file(path)
         }));
-        if extended_result
+        if (*extended_result
             .as_ref()
             .unwrap()
             .as_source_file()
-            .parse_diagnostics()
-            .is_empty()
+            .parse_diagnostics())
+        .borrow()
+        .is_empty()
         {
             extended_config = Some(Rc::new(parse_config(
                 None,
@@ -75,7 +76,7 @@ pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigH
                 &get_directory_path(extended_config_path),
                 Some(&get_base_file_name(extended_config_path, None, None)),
                 resolution_stack,
-                errors,
+                errors.clone(),
                 extended_config_cache,
             )));
         }
@@ -106,11 +107,15 @@ pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigH
                 .append(&mut extended_result_extended_source_files.clone());
         }
     }
-    if !extended_result_as_source_file
-        .parse_diagnostics()
+    if !(*extended_result_as_source_file.parse_diagnostics())
+        .borrow()
         .is_empty()
     {
-        errors.append(&mut extended_result_as_source_file.parse_diagnostics().clone());
+        errors.borrow_mut().append(
+            &mut (*extended_result_as_source_file.parse_diagnostics())
+                .borrow()
+                .clone(),
+        );
         return None;
     }
     extended_config
@@ -283,7 +288,7 @@ pub(super) fn convert_options_from_json_compiler_options(
                     errors.push(create_unknown_option_error(
                         id,
                         diagnostics,
-                        |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                        |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
                         None,
                     ));
                 }
@@ -321,7 +326,7 @@ pub(super) fn convert_options_from_json_type_acquisition(
                     errors.push(create_unknown_option_error(
                         id,
                         diagnostics,
-                        |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                        |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
                         None,
                     ));
                 }
@@ -362,7 +367,7 @@ pub(super) fn convert_options_from_json_watch_options(
                     errors.push(create_unknown_option_error(
                         id,
                         diagnostics,
-                        |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                        |message, args| Gc::new(create_compiler_diagnostic(message, args).into()),
                         None,
                     ));
                 }
@@ -414,7 +419,7 @@ pub(crate) fn convert_json_option(
             normalize_non_list_option_value_compiler_options_value(opt, base_path, validated_value)
         };
     } else {
-        errors.push(Rc::new(
+        errors.push(Gc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                 Some(vec![
@@ -546,7 +551,7 @@ pub(super) fn validate_json_option_value_compiler_options_value(
     }
     let d = d.unwrap();
     let (diagnostic_message, args) = d;
-    errors.push(Rc::new(
+    errors.push(Gc::new(
         create_compiler_diagnostic(diagnostic_message, args).into(),
     ));
     opt.to_compiler_options_value_none()

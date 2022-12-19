@@ -124,7 +124,7 @@ impl TypeChecker {
         {
             flags |= SignatureFlags::HasLiteralTypes;
         }
-        Rc::new(
+        Gc::new(
             self.create_signature(
                 candidates[0].declaration.clone(),
                 None,
@@ -208,7 +208,7 @@ impl TypeChecker {
             None
         };
         let instantiated = if let Some(type_argument_nodes) = type_argument_nodes.as_ref() {
-            Rc::new(self.create_signature_instantiation(
+            Gc::new(self.create_signature_instantiation(
                 candidate.clone(),
                 Some(&self.get_type_arguments_from_nodes(
                     type_argument_nodes,
@@ -274,7 +274,7 @@ impl TypeChecker {
             CheckMode::SkipContextSensitive | CheckMode::SkipGenericFunctions,
             inference_context,
         );
-        Rc::new(self.create_signature_instantiation(candidate, Some(&type_argument_types)))
+        Gc::new(self.create_signature_instantiation(candidate, Some(&type_argument_types)))
     }
 
     pub(super) fn get_longest_candidate_index(

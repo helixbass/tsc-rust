@@ -6,12 +6,12 @@ use std::rc::Rc;
 
 use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::{
-    are_option_rcs_equal, cast_present, declaration_name_to_string, factory, for_each,
-    get_declaration_of_kind, get_effective_modifier_flags, get_enclosing_block_scope_container,
-    get_interface_base_type_nodes, get_name_of_declaration, get_source_file_of_node,
-    get_text_of_identifier_or_literal, get_text_of_property_name, has_abstract_modifier,
-    is_ambient_module, is_binding_pattern, is_computed_non_literal_name, is_entity_name_expression,
-    is_enum_const, is_enum_declaration, is_external_module_augmentation,
+    are_option_gcs_equal, are_option_rcs_equal, cast_present, declaration_name_to_string, factory,
+    for_each, get_declaration_of_kind, get_effective_modifier_flags,
+    get_enclosing_block_scope_container, get_interface_base_type_nodes, get_name_of_declaration,
+    get_source_file_of_node, get_text_of_identifier_or_literal, get_text_of_property_name,
+    has_abstract_modifier, is_ambient_module, is_binding_pattern, is_computed_non_literal_name,
+    is_entity_name_expression, is_enum_const, is_enum_declaration, is_external_module_augmentation,
     is_external_module_name_relative, is_finite, is_global_scope_augmentation, is_identifier,
     is_infinity_or_nan_string, is_literal_expression, is_nan, is_optional_chain,
     is_private_identifier, is_static, is_string_literal_like, length, maybe_for_each,
@@ -807,7 +807,7 @@ impl TypeChecker {
                 if let Some(first_non_ambient_class_or_func) =
                     first_non_ambient_class_or_func.as_ref()
                 {
-                    if !are_option_rcs_equal(
+                    if !are_option_gcs_equal(
                         get_source_file_of_node(Some(node)).as_ref(),
                         get_source_file_of_node(Some(&**first_non_ambient_class_or_func)).as_ref(),
                     ) {

@@ -247,7 +247,7 @@ impl TypeChecker {
             }
         });
         let source_signature = if let Some(mapper) = mapper {
-            Rc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None))
+            Gc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None))
         } else {
             contextual_signature.clone()
         };
@@ -669,16 +669,16 @@ impl TypeChecker {
             );
             let constraint = self.get_constraint_of_type_parameter(&type_parameters[i]);
             if let Some(constraint) = constraint.as_ref() {
-                let error_info: Option<Rc<dyn CheckTypeContainingMessageChain>> =
+                let error_info: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>> =
                     if report_errors && head_message.is_some() {
-                        Some(Rc::new(CheckTypeArgumentsErrorInfo))
+                        Some(Gc::new(Box::new(CheckTypeArgumentsErrorInfo)))
                     } else {
                         None
                     };
                 let type_argument_head_message =
                     head_message.unwrap_or(&*Diagnostics::Type_0_does_not_satisfy_the_constraint_1);
                 if mapper.is_none() {
-                    mapper = Some(Rc::new(self.create_type_mapper(
+                    mapper = Some(Gc::new(self.create_type_mapper(
                         type_parameters.clone(),
                         Some(type_argument_types.clone()),
                     )));
@@ -742,8 +742,8 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
-        error_output_container: Rc<dyn CheckTypeErrorOutputContainer>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node);
@@ -778,7 +778,7 @@ impl TypeChecker {
         &self,
         node: &Node, /*JsxOpeningLikeElement*/
         report_errors: bool,
-        error_output_container: Rc<dyn CheckTypeErrorOutputContainer>,
+        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> bool {
         if self
             .get_jsx_namespace_container_for_implicit_import(Some(node))
@@ -860,7 +860,7 @@ impl TypeChecker {
         }
 
         if report_errors {
-            let diag: Gc<Diagnostic> = Rc::new(
+            let diag: Gc<Diagnostic> = Gc::new(
                 create_diagnostic_for_node(
                     &node_as_jsx_opening_like_element.tag_name(),
                     &Diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
@@ -913,10 +913,11 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
-        containing_message_chain: Option<Rc<dyn CheckTypeContainingMessageChain>>,
+        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> Option<Vec<Gc<Diagnostic>>> {
-        let error_output_container: Rc<dyn CheckTypeErrorOutputContainer> =
-            Rc::new(CheckTypeErrorOutputContainerConcrete::new(Some(true)));
+        let error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>> = Gc::new(Box::new(
+            CheckTypeErrorOutputContainerConcrete::new(Some(true)),
+        ));
         if is_jsx_opening_like_element(node) {
             if !self.check_applicable_signature_for_jsx_opening_like_element(
                 node,

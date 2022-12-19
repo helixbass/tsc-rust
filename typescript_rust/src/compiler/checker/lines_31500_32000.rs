@@ -10,13 +10,14 @@ use super::{
     IterationUse, TypeFacts, WideningKind,
 };
 use crate::{
-    are_option_rcs_equal, create_symbol_table, for_each_return_statement,
+    are_option_gcs_equal, are_option_rcs_equal, create_symbol_table, for_each_return_statement,
     for_each_yield_expression, get_effective_return_type_node, get_effective_type_annotation_node,
     get_function_flags, is_import_call, is_omitted_expression, is_transient_symbol, last,
-    node_is_missing, push_if_unique_rc, some, CheckFlags, Diagnostics, FunctionFlags,
-    HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
-    Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionReduction, __String,
+    node_is_missing, push_if_unique_gc, push_if_unique_rc, some, CheckFlags, Diagnostics,
+    FunctionFlags, HasTypeInterface, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
+    NodeInterface, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    __String,
 };
 
 impl TypeChecker {
@@ -580,7 +581,7 @@ impl TypeChecker {
                     &self.any_type(),
                     is_async,
                 ) {
-                    push_if_unique_rc(&mut yield_types, yielded_type);
+                    push_if_unique_gc(&mut yield_types, yielded_type);
                 }
                 let next_type: Option<Gc<Type>>;
                 if yield_expression_as_yield_expression
@@ -601,7 +602,7 @@ impl TypeChecker {
                     next_type = self.get_contextual_type_(yield_expression, None);
                 }
                 if let Some(next_type) = next_type.as_ref() {
-                    push_if_unique_rc(&mut next_types, next_type);
+                    push_if_unique_gc(&mut next_types, next_type);
                 }
             },
         );
@@ -827,7 +828,7 @@ impl TypeChecker {
                     if type_.flags().intersects(TypeFlags::Never) {
                         has_return_of_type_never = true;
                     }
-                    push_if_unique_rc(&mut aggregated_types, &type_);
+                    push_if_unique_gc(&mut aggregated_types, &type_);
                 } else {
                     has_return_with_no_expression = true;
                 }
@@ -844,10 +845,10 @@ impl TypeChecker {
             && has_return_with_no_expression
             && !(self.is_js_constructor(Some(func))
                 && aggregated_types.iter().any(|t| {
-                    are_option_rcs_equal(t.maybe_symbol().as_ref(), func.maybe_symbol().as_ref())
+                    are_option_gcs_equal(t.maybe_symbol().as_ref(), func.maybe_symbol().as_ref())
                 }))
         {
-            push_if_unique_rc(&mut aggregated_types, &self.undefined_type());
+            push_if_unique_gc(&mut aggregated_types, &self.undefined_type());
         }
         Some(aggregated_types)
     }

@@ -9,27 +9,28 @@ use std::rc::Rc;
 
 use super::EmitResolverCreateResolver;
 use crate::{
-    add_related_info, are_option_rcs_equal, concatenate, create_diagnostic_for_node,
-    escape_leading_underscores, external_helpers_module_name_text, for_each_child_bool,
-    for_each_entry_bool, get_all_accessor_declarations, get_declaration_of_kind,
-    get_effective_modifier_flags, get_external_module_name, get_first_identifier,
-    get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier, is_ambient_module,
-    is_binding_pattern, is_declaration, is_declaration_readonly, is_effective_external_module,
-    is_entity_name, is_enum_const, is_expression, is_function_declaration, is_function_like,
-    is_generated_identifier, is_get_accessor, is_global_scope_augmentation, is_identifier,
-    is_jsdoc_parameter_tag, is_named_declaration, is_private_identifier_class_element_declaration,
-    is_property_access_expression, is_property_declaration, is_qualified_name, is_set_accessor,
-    is_string_literal, is_type_only_import_or_export_declaration, is_var_const,
-    is_variable_declaration, is_variable_like_or_accessor, maybe_is_class_like, modifier_to_flag,
-    node_can_be_decorated, node_is_present, parse_isolated_entity_name,
-    should_preserve_const_enums, some, token_to_string, try_cast,
-    with_synthetic_factory_and_factory, Debug_, Diagnostics, ExternalEmitHelpers,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType, ModifierFlags,
-    NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, ObjectFlags,
-    PragmaArgumentName, PragmaName, Signature, SignatureKind, SymbolInterface, SymbolTracker,
-    SyntaxKind, TypeFlags, TypeInterface, TypeReferenceSerializationKind, __String,
-    bind_source_file, is_external_or_common_js_module, Diagnostic, EmitResolverDebuggable, Node,
-    NodeInterface, StringOrNumber, Symbol, SymbolFlags, Type, TypeChecker,
+    add_related_info, are_option_gcs_equal, are_option_rcs_equal, concatenate,
+    create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text,
+    for_each_child_bool, for_each_entry_bool, get_all_accessor_declarations,
+    get_declaration_of_kind, get_effective_modifier_flags, get_external_module_name,
+    get_first_identifier, get_parse_tree_node, get_source_file_of_node, has_syntactic_modifier,
+    is_ambient_module, is_binding_pattern, is_declaration, is_declaration_readonly,
+    is_effective_external_module, is_entity_name, is_enum_const, is_expression,
+    is_function_declaration, is_function_like, is_generated_identifier, is_get_accessor,
+    is_global_scope_augmentation, is_identifier, is_jsdoc_parameter_tag, is_named_declaration,
+    is_private_identifier_class_element_declaration, is_property_access_expression,
+    is_property_declaration, is_qualified_name, is_set_accessor, is_string_literal,
+    is_type_only_import_or_export_declaration, is_var_const, is_variable_declaration,
+    is_variable_like_or_accessor, maybe_is_class_like, modifier_to_flag, node_can_be_decorated,
+    node_is_present, parse_isolated_entity_name, should_preserve_const_enums, some,
+    token_to_string, try_cast, with_synthetic_factory_and_factory, Debug_, Diagnostics,
+    ExternalEmitHelpers, FunctionLikeDeclarationInterface, HasInitializerInterface, LiteralType,
+    ModifierFlags, NamedDeclarationInterface, NodeArray, NodeBuilderFlags, NodeCheckFlags,
+    NodeFlags, ObjectFlags, PragmaArgumentName, PragmaName, Signature, SignatureKind,
+    SymbolInterface, SymbolTracker, SyntaxKind, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind, __String, bind_source_file, is_external_or_common_js_module,
+    Diagnostic, EmitResolverDebuggable, Node, NodeInterface, StringOrNumber, Symbol, SymbolFlags,
+    Type, TypeChecker,
 };
 
 impl TypeChecker {
@@ -420,7 +421,7 @@ impl TypeChecker {
         declaration_in: &Node, /*AccessorDeclaration | VariableLikeDeclaration | PropertyAccessExpression*/
         enclosing_declaration: &Node,
         mut flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
     ) -> Option<Gc<Node /*TypeNode*/>> {
         let declaration = get_parse_tree_node(
@@ -448,7 +449,7 @@ impl TypeChecker {
             self.error_type()
         };
         if type_.flags().intersects(TypeFlags::UniqueESSymbol)
-            && are_option_rcs_equal(type_.maybe_symbol().as_ref(), symbol.as_ref())
+            && are_option_gcs_equal(type_.maybe_symbol().as_ref(), symbol.as_ref())
         {
             flags |= NodeBuilderFlags::AllowUniqueESSymbolType;
         }
@@ -468,7 +469,7 @@ impl TypeChecker {
         signature_declaration_in: &Node, /*SignatureDeclaration*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> Option<Gc<Node /*TypeNode*/>> {
         let signature_declaration = get_parse_tree_node(
             Some(signature_declaration_in),
@@ -498,7 +499,7 @@ impl TypeChecker {
         expr_in: &Node, /*Expression*/
         enclosing_declaration: &Node,
         flags: NodeBuilderFlags,
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> Option<Gc<Node /*TypeNode*/>> {
         let expr = get_parse_tree_node(Some(expr_in), Some(|node: &Node| is_expression(node)));
         if expr.is_none() {
@@ -602,7 +603,7 @@ impl TypeChecker {
         &self,
         type_: &Type, /*FreshableType*/
         enclosing: &Node,
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> Gc<Node /*Expression*/> {
         let enum_result = if type_.flags().intersects(TypeFlags::EnumLiteral) {
             self.node_builder().symbol_to_expression(
@@ -655,7 +656,7 @@ impl TypeChecker {
     pub(super) fn create_literal_const_value(
         &self,
         node: &Node, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
-        tracker: &dyn SymbolTracker,
+        tracker: Gc<Box<dyn SymbolTracker>>,
     ) -> Gc<Node> {
         let ref type_ = self.get_type_of_symbol(&self.get_symbol_of_node(node).unwrap());
         self.literal_type_to_node(type_, node, tracker)
@@ -770,7 +771,7 @@ impl TypeChecker {
                 {
                     for declaration in file_global_this_symbol_declarations {
                         self.diagnostics().add(
-                            Rc::new(
+                            Gc::new(
                                 create_diagnostic_for_node(
                                     declaration,
                                     &Diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
@@ -976,7 +977,7 @@ impl TypeChecker {
                     .join(", ");
                 self.diagnostics().add(
                     {
-                        let diagnostic: Gc<Diagnostic> = Rc::new(
+                        let diagnostic: Gc<Diagnostic> = Gc::new(
                             create_diagnostic_for_node(
                                 first_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,
@@ -1002,7 +1003,7 @@ impl TypeChecker {
                 );
                 self.diagnostics().add(
                     {
-                        let diagnostic: Gc<Diagnostic> = Rc::new(
+                        let diagnostic: Gc<Diagnostic> = Gc::new(
                             create_diagnostic_for_node(
                                 second_file,
                                 &Diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_Colon_0,

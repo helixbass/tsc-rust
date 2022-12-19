@@ -316,7 +316,7 @@ impl TypeChecker {
         add_diagnostic(
             declaration,
             UnusedKind::Local,
-            Rc::new(create_diagnostic_for_node(&node, message, Some(vec![name.to_owned()])).into()),
+            Gc::new(create_diagnostic_for_node(&node, message, Some(vec![name.to_owned()])).into()),
         );
     }
 
@@ -352,7 +352,7 @@ impl TypeChecker {
                             add_diagnostic(
                                 member,
                                 UnusedKind::Local,
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         &member.as_named_declaration().name(),
                                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -382,7 +382,7 @@ impl TypeChecker {
                             add_diagnostic(
                                 parameter,
                                 UnusedKind::Local,
-                                Rc::new(
+                                Gc::new(
                                     create_diagnostic_for_node(
                                         &parameter.as_parameter_declaration().name(),
                                         &Diagnostics::Property_0_is_declared_but_its_value_is_never_read,
@@ -415,7 +415,7 @@ impl TypeChecker {
             add_diagnostic(
                 node,
                 UnusedKind::Parameter,
-                Rc::new(
+                Gc::new(
                     create_diagnostic_for_node(
                         node,
                         &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -466,7 +466,7 @@ impl TypeChecker {
                     .into_iter()
                     .all(|type_parameter| self.is_type_parameter_unused(type_parameter))
             {
-                if try_add_to_set(&mut seen_parents_with_every_unused, Rc::as_ptr(&parent)) {
+                if try_add_to_set(&mut seen_parents_with_every_unused, &*parent) {
                     let source_file = get_source_file_of_node(Some(&*parent)).unwrap();
                     let range = if is_jsdoc_template_tag(&parent) {
                         range_of_node(&parent)
@@ -500,7 +500,7 @@ impl TypeChecker {
                     add_diagnostic(
                         type_parameter,
                         UnusedKind::Parameter,
-                        Rc::new(
+                        Gc::new(
                             create_file_diagnostic(
                                 &source_file,
                                 range.pos(),
@@ -516,7 +516,7 @@ impl TypeChecker {
                 add_diagnostic(
                     type_parameter,
                     UnusedKind::Parameter,
-                    Rc::new(
+                    Gc::new(
                         create_diagnostic_for_node(
                             type_parameter,
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -698,7 +698,7 @@ impl TypeChecker {
                                     add_diagnostic(
                                         parameter,
                                         UnusedKind::Parameter,
-                                        Rc::new(
+                                        Gc::new(
                                             create_diagnostic_for_node(
                                                 name,
                                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -746,7 +746,7 @@ impl TypeChecker {
                 add_diagnostic(
                     &import_decl,
                     UnusedKind::Local,
-                    Rc::new(if unuseds.len() == 1 {
+                    Gc::new(if unuseds.len() == 1 {
                         create_diagnostic_for_node(
                             &import_decl,
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -799,7 +799,7 @@ impl TypeChecker {
                     add_diagnostic(
                         binding_pattern,
                         kind,
-                        Rc::new(if binding_elements.len() == 1 {
+                        Gc::new(if binding_elements.len() == 1 {
                             create_diagnostic_for_node(
                                 binding_pattern,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -825,7 +825,7 @@ impl TypeChecker {
                     add_diagnostic(
                         e,
                         kind,
-                        Rc::new(
+                        Gc::new(
                             create_diagnostic_for_node(
                                 e,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -849,7 +849,7 @@ impl TypeChecker {
                 add_diagnostic(
                     declaration_list,
                     UnusedKind::Local,
-                    Rc::new(if declarations.len() == 1 {
+                    Gc::new(if declarations.len() == 1 {
                         create_diagnostic_for_node(
                             &first(declarations).as_variable_declaration().name(),
                             &Diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -878,7 +878,7 @@ impl TypeChecker {
                     add_diagnostic(
                         decl,
                         UnusedKind::Local,
-                        Rc::new(
+                        Gc::new(
                             create_diagnostic_for_node(
                                 decl,
                                 &Diagnostics::_0_is_declared_but_its_value_is_never_read,

@@ -6,20 +6,21 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    are_option_rcs_equal, declaration_name_to_string, find_ancestor, for_each, for_each_bool,
-    for_each_child, get_class_extends_heritage_element, get_declaration_of_kind,
-    get_effective_base_type_node, get_effective_constraint_of_type_parameter,
-    get_effective_implements_type_nodes, get_effective_type_parameter_declarations,
-    get_name_of_declaration, get_object_flags, get_source_file_of_node,
-    get_span_of_token_at_position, get_text_of_node, has_static_modifier, has_syntactic_modifier,
-    is_class_like, is_entity_name_expression, is_function_like, is_identifier, is_optional_chain,
-    is_private_identifier, is_private_identifier_class_element_declaration, is_static, length,
-    maybe_for_each, some, ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics,
-    ExternalEmitHelpers, FindAncestorCallbackReturn, HasTypeArgumentsInterface, IndexInfo,
-    InterfaceTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, __String, for_each_key, get_effective_type_annotation_node, get_root_declaration,
+    are_option_gcs_equal, are_option_rcs_equal, declaration_name_to_string, find_ancestor,
+    for_each, for_each_bool, for_each_child, get_class_extends_heritage_element,
+    get_declaration_of_kind, get_effective_base_type_node,
+    get_effective_constraint_of_type_parameter, get_effective_implements_type_nodes,
+    get_effective_type_parameter_declarations, get_name_of_declaration, get_object_flags,
+    get_source_file_of_node, get_span_of_token_at_position, get_text_of_node, has_static_modifier,
+    has_syntactic_modifier, is_class_like, is_entity_name_expression, is_function_like,
+    is_identifier, is_optional_chain, is_private_identifier,
+    is_private_identifier_class_element_declaration, is_static, length, maybe_for_each, some,
+    ClassLikeDeclarationInterface, DiagnosticMessage, Diagnostics, ExternalEmitHelpers,
+    FindAncestorCallbackReturn, HasTypeArgumentsInterface, IndexInfo, InterfaceTypeInterface,
+    ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, __String,
+    for_each_key, get_effective_type_annotation_node, get_root_declaration,
     HasInitializerInterface, TypeFlags, TypeInterface,
 };
 
@@ -348,7 +349,7 @@ impl TypeChecker {
         ) || matches!(
             name.as_ref(),
             Some(name) if name.kind() == SyntaxKind::ComputedPropertyName
-        ) || are_option_rcs_equal(
+        ) || are_option_gcs_equal(
             self.get_parent_of_symbol(prop).as_ref(),
             type_.maybe_symbol().as_ref(),
         ) {
@@ -358,7 +359,7 @@ impl TypeChecker {
         };
         for info in &index_infos {
             let local_index_declaration = info.declaration.clone().filter(|info_declaration| {
-                are_option_rcs_equal(
+                are_option_gcs_equal(
                     self.get_parent_of_symbol(&self.get_symbol_of_node(info_declaration).unwrap())
                         .as_ref(),
                     type_.maybe_symbol().as_ref(),
@@ -408,7 +409,7 @@ impl TypeChecker {
         };
         let local_check_declaration = declaration
             .filter(|declaration| {
-                are_option_rcs_equal(
+                are_option_gcs_equal(
                     self.get_parent_of_symbol(&self.get_symbol_of_node(declaration).unwrap())
                         .as_ref(),
                     type_.maybe_symbol().as_ref(),
@@ -420,7 +421,7 @@ impl TypeChecker {
                 continue;
             }
             let local_index_declaration = info.declaration.clone().filter(|info_declaration| {
-                are_option_rcs_equal(
+                are_option_gcs_equal(
                     self.get_parent_of_symbol(&self.get_symbol_of_node(info_declaration).unwrap())
                         .as_ref(),
                     type_.maybe_symbol().as_ref(),
@@ -530,7 +531,7 @@ impl TypeChecker {
                         );
                     }
                     for j in 0..i {
-                        if are_option_rcs_equal(
+                        if are_option_gcs_equal(
                             type_parameter_declarations[j].maybe_symbol().as_ref(),
                             node.maybe_symbol().as_ref(),
                         ) {
@@ -568,7 +569,7 @@ impl TypeChecker {
             let type_ = self.get_type_from_type_reference(node);
             if type_.flags().intersects(TypeFlags::TypeParameter) {
                 for i in index..type_parameters.len() {
-                    if are_option_rcs_equal(
+                    if are_option_gcs_equal(
                         type_.maybe_symbol().as_ref(),
                         self.get_symbol_of_node(&type_parameters[i]).as_ref(),
                     ) {

@@ -248,7 +248,7 @@ impl TypeChecker {
     pub(super) fn get_emit_resolver(
         &self,
         source_file: &Node, /*SourceFile*/
-        cancellation_token: Rc<dyn CancellationTokenDebuggable>,
+        cancellation_token: Gc<Box<dyn CancellationTokenDebuggable>>,
     ) -> Gc<Box<dyn EmitResolverDebuggable>> {
         self.get_diagnostics(Some(source_file), Some(cancellation_token));
         self.emit_resolver()

@@ -8,8 +8,8 @@ use std::rc::Rc;
 
 use super::IterationUse;
 use crate::{
-    add_related_info, contains_rc, create_diagnostic_for_node, create_file_diagnostic, every,
-    filter, find_ancestor, for_each, for_each_bool, get_check_flags,
+    add_related_info, contains_gc, contains_rc, create_diagnostic_for_node, create_file_diagnostic,
+    every, filter, find_ancestor, for_each, for_each_bool, get_check_flags,
     get_effective_return_type_node, get_effective_type_annotation_node, get_object_flags,
     get_source_file_of_node, get_span_of_token_at_position, get_symbol_name_for_private_identifier,
     has_initializer, is_access_expression, is_assignment_target,
@@ -230,10 +230,10 @@ impl TypeChecker {
         if source.flags().intersects(TypeFlags::Union) {
             !for_each_bool(
                 source.as_union_or_intersection_type_interface().types(),
-                |t: &Gc<Type>, _| !contains_rc(Some(types), t),
+                |t: &Gc<Type>, _| !contains_gc(Some(types), t),
             )
         } else {
-            contains_rc(Some(types), &source.type_wrapper())
+            contains_gc(Some(types), &source.type_wrapper())
         }
     }
 
@@ -1014,7 +1014,7 @@ impl TypeChecker {
                 .unwrap(),
         );
         self.diagnostics().add(
-            Rc::new(
+            Gc::new(
                 create_file_diagnostic(
                     &source_file,
                     span.start,

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
@@ -8,11 +8,12 @@ use std::rc::Rc;
 
 use super::TypeFacts;
 use crate::{
-    contains_rc, get_assignment_target_kind, get_declared_expando_initializer, get_object_flags,
-    is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration,
-    maybe_every, push_if_unique_rc, skip_parentheses, AssignmentKind, FlowFlags, FlowNode,
-    FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypePredicateKind, UnionReduction,
+    contains_gc, contains_rc, get_assignment_target_kind, get_declared_expando_initializer,
+    get_object_flags, is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const,
+    is_variable_declaration, maybe_every, push_if_unique_gc, push_if_unique_rc, skip_parentheses,
+    AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, Node, NodeInterface, ObjectFlags,
+    Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicateKind,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -794,7 +795,7 @@ impl GetFlowTypeOfReference {
             {
                 return type_.into();
             }
-            push_if_unique_rc(&mut antecedent_types, &type_);
+            push_if_unique_gc(&mut antecedent_types, &type_);
             if !self
                 .type_checker
                 .is_type_subset_of(&type_, &self.declared_type)
@@ -808,7 +809,7 @@ impl GetFlowTypeOfReference {
         if let Some(bypass_flow) = bypass_flow.as_ref() {
             let flow_type = self.get_type_at_flow_node(bypass_flow.clone());
             let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
-            if !contains_rc(Some(&antecedent_types), &type_)
+            if !contains_gc(Some(&antecedent_types), &type_)
                 && !self.type_checker.is_exhaustive_switch_statement(
                     &bypass_flow.as_flow_switch_clause().switch_statement,
                 )
@@ -850,7 +851,7 @@ impl GetFlowTypeOfReference {
             value
         }
         .unwrap_or_else(|| {
-            let flow_loop_cache = Rc::new(RefCell::new(HashMap::new()));
+            let flow_loop_cache = Gc::new(GcCell::new(HashMap::new()));
             self.type_checker
                 .flow_loop_caches()
                 .insert(id, flow_loop_cache.clone());
@@ -933,7 +934,7 @@ impl GetFlowTypeOfReference {
                 }
             }
             let type_ = self.type_checker.get_type_from_flow_type(&flow_type);
-            push_if_unique_rc(&mut antecedent_types, &type_);
+            push_if_unique_gc(&mut antecedent_types, &type_);
             if !self
                 .type_checker
                 .is_type_subset_of(&type_, &self.declared_type)

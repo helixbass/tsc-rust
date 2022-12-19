@@ -9,11 +9,11 @@ use std::rc::Rc;
 
 use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
-    append_if_unique_rc, arrays_equal, contains, contains_gc, contains_rc, create_scanner, every,
-    filter, get_check_flags, get_object_flags, map, some, CheckFlags, ElementFlags, InferenceInfo,
-    InferencePriority, Node, ObjectFlags, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
-    VarianceFlags,
+    append_if_unique_gc, append_if_unique_rc, arrays_equal, contains, contains_gc, contains_rc,
+    create_scanner, every, filter, get_check_flags, get_object_flags, map, some, CheckFlags,
+    ElementFlags, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionReduction, VarianceFlags,
 };
 
 impl TypeChecker {
@@ -1053,25 +1053,25 @@ impl InferTypes {
                     if matched_sources.is_none() {
                         matched_sources = Some(vec![]);
                     }
-                    append_if_unique_rc(matched_sources.as_mut().unwrap(), s);
+                    append_if_unique_gc(matched_sources.as_mut().unwrap(), s);
                     if matched_targets.is_none() {
                         matched_targets = Some(vec![]);
                     }
-                    append_if_unique_rc(matched_targets.as_mut().unwrap(), t);
+                    append_if_unique_gc(matched_targets.as_mut().unwrap(), t);
                 }
             }
         }
         (
             if let Some(matched_sources) = matched_sources.as_ref() {
                 filter(sources, |t: &Gc<Type>| {
-                    !contains_rc(Some(matched_sources), t)
+                    !contains_gc(Some(matched_sources), t)
                 })
             } else {
                 sources.to_owned()
             },
             if let Some(matched_targets) = matched_targets.as_ref() {
                 filter(targets, |t: &Gc<Type>| {
-                    !contains_rc(Some(matched_targets), t)
+                    !contains_gc(Some(matched_targets), t)
                 })
             } else {
                 targets.to_owned()

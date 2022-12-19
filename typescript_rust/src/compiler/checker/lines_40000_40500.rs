@@ -582,7 +582,7 @@ impl TypeChecker {
             .intersects(NodeCheckFlags::TypeChecked)
         {
             if skip_type_checking(node, &self.compiler_options, |file_name| {
-                TypeCheckerHost::is_source_of_project_reference_redirect(&*self.host, file_name)
+                TypeCheckerHost::is_source_of_project_reference_redirect(&**self.host, file_name)
             }) {
                 return;
             }
@@ -706,7 +706,7 @@ impl TypeChecker {
     pub fn get_diagnostics<TSourceFile: Borrow<Node>>(
         &self,
         source_file: Option<TSourceFile /*SourceFile*/>,
-        ct: Option<Rc<dyn CancellationTokenDebuggable>>,
+        ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
     ) -> Vec<Gc<Diagnostic>> {
         // try {
         self.set_cancellation_token(ct);

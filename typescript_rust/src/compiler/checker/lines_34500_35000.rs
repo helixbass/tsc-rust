@@ -7,13 +7,14 @@ use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
-    add_related_info, are_option_rcs_equal, create_diagnostic_for_node, filter, find_ancestor,
-    for_each, for_each_child, get_class_extends_heritage_element, get_combined_modifier_flags,
-    get_declaration_modifier_flags_from_symbol, get_declaration_of_kind,
-    get_effective_constraint_of_type_parameter, get_effective_modifier_flags,
-    get_emit_script_target, get_name_of_declaration, get_object_flags, has_effective_modifier,
-    has_question_token, has_syntactic_modifier, is_assignment_target, is_global_scope_augmentation,
-    is_in_js_file, is_in_jsdoc, is_module_block, is_module_declaration, is_named_tuple_member,
+    add_related_info, are_option_gcs_equal, are_option_rcs_equal, create_diagnostic_for_node,
+    filter, find_ancestor, for_each, for_each_child, get_class_extends_heritage_element,
+    get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
+    get_declaration_of_kind, get_effective_constraint_of_type_parameter,
+    get_effective_modifier_flags, get_emit_script_target, get_name_of_declaration,
+    get_object_flags, has_effective_modifier, has_question_token, has_syntactic_modifier,
+    is_assignment_target, is_global_scope_augmentation, is_in_js_file, is_in_jsdoc,
+    is_module_block, is_module_declaration, is_named_tuple_member,
     is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
     is_super_call, is_type_reference_type, map, maybe_for_each, maybe_map, node_is_missing,
     node_is_present, some, symbol_name, try_cast, unescape_leading_underscores,
@@ -284,7 +285,7 @@ impl TypeChecker {
                 if type_arguments.is_none() {
                     type_arguments =
                         Some(self.get_effective_type_arguments(node, Some(type_parameters)));
-                    mapper = Some(Rc::new(self.create_type_mapper(
+                    mapper = Some(Gc::new(self.create_type_mapper(
                         type_parameters.to_owned(),
                         type_arguments.clone(),
                     )));
@@ -444,7 +445,7 @@ impl TypeChecker {
         )?;
         Some(self.instantiate_type(
             &constraint,
-            Some(Rc::new(self.create_type_mapper(
+            Some(Gc::new(self.create_type_mapper(
                 type_parameters.clone(),
                 Some(
                     self.get_effective_type_arguments(&type_reference_node, Some(&type_parameters)),
@@ -910,7 +911,7 @@ impl TypeChecker {
                         } else {
                             duplicate_function_declaration = true;
                         }
-                    } else if are_option_rcs_equal(
+                    } else if are_option_gcs_equal(
                         previous_declaration
                             .as_ref()
                             .and_then(|previous_declaration| previous_declaration.maybe_parent())
@@ -1100,7 +1101,7 @@ impl TypeChecker {
             implementation.map(|implementation| implementation.borrow().node_wrapper());
         let implementation_shares_container_with_first_overload = matches!(
             implementation.as_ref(),
-            Some(implementation) if are_option_rcs_equal(
+            Some(implementation) if are_option_gcs_equal(
                 implementation.maybe_parent().as_ref(),
                 overloads[0].maybe_parent().as_ref()
             )

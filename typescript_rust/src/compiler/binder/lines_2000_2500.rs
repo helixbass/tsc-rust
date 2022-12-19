@@ -386,7 +386,9 @@ impl BinderType {
         &self,
         node: &Node, /*Identifier (and whatever ThisKeyword is) */
     ) {
-        if self.file().as_source_file().parse_diagnostics().is_empty()
+        if (*self.file().as_source_file().parse_diagnostics())
+            .borrow()
+            .is_empty()
             && !node.flags().intersects(NodeFlags::Ambient)
             && !node.flags().intersects(NodeFlags::JSDoc)
             && !is_identifier_name(node)
@@ -476,7 +478,10 @@ impl BinderType {
         if node.as_private_identifier().escaped_text == "#constructor" {
             let file = self.file();
             let file_as_source_file = file.as_source_file();
-            if file_as_source_file.parse_diagnostics().is_empty() {
+            if (*file_as_source_file.parse_diagnostics())
+                .borrow()
+                .is_empty()
+            {
                 file_as_source_file.bind_diagnostics_mut().push(Gc::new(
                     self.create_diagnostic_for_node(
                         node,

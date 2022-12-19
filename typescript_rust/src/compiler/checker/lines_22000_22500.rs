@@ -874,7 +874,7 @@ impl TypeChecker {
                         inferred_type = Some(self.instantiate_type(
                             default_type,
                             Some(self.merge_type_mappers(
-                                Some(Rc::new(self.create_backreference_mapper(context, index))),
+                                Some(Gc::new(self.create_backreference_mapper(context, index))),
                                 context.non_fixing_mapper().clone(),
                             )),
                         ));

@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
 use crate::{
-    add_related_info, are_option_rcs_equal, chain_diagnostic_messages,
+    add_related_info, are_option_gcs_equal, are_option_rcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
     create_file_diagnostic, every, factory, filter, find, first, flat_map, flatten, for_each,
@@ -33,7 +33,7 @@ impl TypeChecker {
     pub(super) fn maybe_add_missing_await_info<TErrorNode: Borrow<Node>>(
         &self,
         report_errors: bool,
-        error_output_container: Rc<dyn CheckTypeErrorOutputContainer>,
+        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<TErrorNode>,
         source: &Type,
@@ -372,9 +372,9 @@ impl TypeChecker {
                 start,
                 length,
             } = self.get_diagnostic_span_for_call_node(node, None);
-            Rc::new(create_file_diagnostic(&source_file, start, length, message, args).into())
+            Gc::new(create_file_diagnostic(&source_file, start, length, message, args).into())
         } else {
-            Rc::new(create_diagnostic_for_node(node, message, args).into())
+            Gc::new(create_diagnostic_for_node(node, message, args).into())
         }
     }
 
@@ -444,7 +444,7 @@ impl TypeChecker {
     ) -> Gc<Diagnostic> {
         let spread_index = self.get_spread_argument_index(args);
         if let Some(spread_index) = spread_index {
-            return Rc::new(
+            return Gc::new(
                 create_diagnostic_for_node(
                     &args[spread_index],
                     &Diagnostics::A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter,
@@ -591,7 +591,7 @@ impl TypeChecker {
                 end += 1;
             }
             set_text_range_pos_end(&error_span, pos, end);
-            Rc::new(
+            Gc::new(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(Some(node)).unwrap(),
                     &error_span,
@@ -614,7 +614,7 @@ impl TypeChecker {
             let sig = &signatures[0];
             let min = self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref());
             let max = length(sig.maybe_type_parameters().as_deref());
-            return Rc::new(
+            return Gc::new(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(Some(node)).unwrap(),
                     type_arguments,
@@ -649,7 +649,7 @@ impl TypeChecker {
         }
         if let UsizeOrNegativeInfinity::Usize(below_arg_count) = below_arg_count {
             if above_arg_count != usize::MAX {
-                return Rc::new(
+                return Gc::new(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(Some(node)).unwrap(),
                         type_arguments,
@@ -663,7 +663,7 @@ impl TypeChecker {
                 );
             }
         }
-        Rc::new(
+        Gc::new(
             create_diagnostic_for_node_array(
                 &get_source_file_of_node(Some(node)).unwrap(),
                 type_arguments,
@@ -817,9 +817,9 @@ impl TypeChecker {
                         self.assignable_relation.clone(),
                         CheckMode::Normal,
                         true,
-                        Some(Rc::new(ResolveCallContainingMessageChain::new(
+                        Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
                             chain.map(|chain| Rc::new(RefCell::new(chain))),
-                        ))),
+                        )))),
                     );
                     if let Some(diags) = diags.as_ref() {
                         for d in diags {
@@ -876,7 +876,7 @@ impl TypeChecker {
                             self.assignable_relation.clone(),
                             CheckMode::Normal,
                             true,
-                            Some(Rc::new(chain)),
+                            Some(Gc::new(Box::new(chain))),
                         );
                         if let Some(diags) = diags {
                             if diags.len() <= min {
@@ -927,12 +927,12 @@ impl TypeChecker {
                     if every(&diags, |d: &Gc<Diagnostic>, _| {
                         d.start() == diags[0].start()
                             && d.length() == diags[0].length()
-                            && are_option_rcs_equal(
+                            && are_option_gcs_equal(
                                 d.maybe_file().as_ref(),
                                 diags[0].maybe_file().as_ref(),
                             )
                     }) {
-                        diag = Rc::new(
+                        diag = Gc::new(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformation::new(
                                     chain.category,
@@ -947,7 +947,7 @@ impl TypeChecker {
                             .into(),
                         );
                     } else {
-                        diag = Rc::new(
+                        diag = Gc::new(
                             create_diagnostic_for_node_from_message_chain(
                                 node,
                                 chain,
@@ -1161,7 +1161,7 @@ impl TypeChecker {
             }
 
             let mut check_candidate: Gc<Signature>;
-            let mut inference_context: Option<Rc<InferenceContext>> = None;
+            let mut inference_context: Option<Gc<InferenceContext>> = None;
 
             if let Some(ref candidate_type_parameters) = candidate.maybe_type_parameters().clone() {
                 let type_argument_types: Option<Vec<Gc<Type>>>;
@@ -1338,6 +1338,7 @@ impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
 #[derive(Trace, Finalize)]
 struct ResolveCallOverloadContainingMessageChain {
     type_checker: Gc<TypeChecker>,
+    #[unsafe_ignore_trace]
     i: Rc<Cell<usize>>,
     candidates_len: usize,
     c: Gc<Signature>,

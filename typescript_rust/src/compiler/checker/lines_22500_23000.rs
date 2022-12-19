@@ -9,15 +9,15 @@ use std::rc::Rc;
 
 use super::{get_next_flow_id, increment_next_flow_id, IterationUse, TypeFacts};
 use crate::{
-    count_where, find, for_each, reduce_left, CheckFlags, FlowNodeBase, TransientSymbolInterface,
-    UnionOrIntersectionTypeInterface, __String, are_option_rcs_equal, escape_leading_underscores,
-    find_ancestor, get_check_flags, get_node_id, get_object_flags, get_symbol_id,
-    is_access_expression, is_assignment_expression, is_binary_expression, is_binding_element,
-    is_identifier, is_optional_chain, is_string_or_numeric_literal_like, is_this_in_type_query,
-    is_variable_declaration, is_write_only_access, node_is_missing, FindAncestorCallbackReturn,
-    FlowNode, HasInitializerInterface, HasTypeInterface, Node, NodeInterface, Number, ObjectFlags,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
-    TypeInterface,
+    are_option_gcs_equal, count_where, find, for_each, reduce_left, CheckFlags, FlowNodeBase,
+    TransientSymbolInterface, UnionOrIntersectionTypeInterface, __String, are_option_rcs_equal,
+    escape_leading_underscores, find_ancestor, get_check_flags, get_node_id, get_object_flags,
+    get_symbol_id, is_access_expression, is_assignment_expression, is_binary_expression,
+    is_binding_element, is_identifier, is_optional_chain, is_string_or_numeric_literal_like,
+    is_this_in_type_query, is_variable_declaration, is_write_only_access, node_is_missing,
+    FindAncestorCallbackReturn, FlowNode, HasInitializerInterface, HasTypeInterface, Node,
+    NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -188,7 +188,7 @@ impl TypeChecker {
                         || matches!(
                             target.kind(),
                             SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
-                        ) && are_option_rcs_equal(
+                        ) && are_option_gcs_equal(
                             self.get_export_symbol_of_value_symbol_if_exported(Some(
                                 self.get_resolved_symbol(source),
                             ))

@@ -6,8 +6,8 @@ use std::rc::Rc;
 
 use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{
-    are_option_rcs_equal, create_diagnostic_for_node, create_file_diagnostic, filter, find,
-    first_or_undefined, for_each_bool, get_effective_return_type_node,
+    are_option_gcs_equal, are_option_rcs_equal, create_diagnostic_for_node, create_file_diagnostic,
+    filter, find, first_or_undefined, for_each_bool, get_effective_return_type_node,
     get_jsdoc_type_parameter_declarations, get_object_flags, get_source_file_of_node,
     get_span_of_token_at_position, has_abstract_modifier, has_syntactic_modifier, id_text,
     is_accessor, is_binary_expression, is_child_of_node_with_kind, is_computed_property_name,
@@ -19,10 +19,11 @@ use crate::{
     HasInitializerInterface, HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, IterationTypesKey, LiteralLikeNodeInterface, ModifierFlags,
     ModuleKind, NamedDeclarationInterface, Node, NodeBuilderFlags, NodeCheckFlags, NodeFlags,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags,
-    SignatureKind, SourceFileLike, StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags,
-    SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Ternary, TokenFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceSerializationKind,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, ReadonlyTextRangeConcrete, ScriptTarget,
+    Signature, SignatureFlags, SignatureKind, SourceFileLike, StringOrNumber, Symbol,
+    SymbolAccessibilityResult, SymbolFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult,
+    SyntaxKind, Ternary, TokenFlags, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -189,7 +190,9 @@ impl TypeChecker {
     }
 
     pub(super) fn has_parse_diagnostics(&self, source_file: &Node /*SourceFile*/) -> bool {
-        !source_file.as_source_file().parse_diagnostics().is_empty()
+        !(*source_file.as_source_file().parse_diagnostics())
+            .borrow()
+            .is_empty()
     }
 
     pub(super) fn grammar_error_on_first_token(
@@ -201,7 +204,7 @@ impl TypeChecker {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
             let span = get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap());
-            self.diagnostics().add(Rc::new(
+            self.diagnostics().add(Gc::new(
                 create_file_diagnostic(&source_file, span.start, span.length, message, args).into(),
             ));
             return true;
@@ -219,7 +222,7 @@ impl TypeChecker {
     ) -> bool {
         let source_file = get_source_file_of_node(Some(node_for_source_file)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
-            self.diagnostics().add(Rc::new(
+            self.diagnostics().add(Gc::new(
                 create_file_diagnostic(&source_file, start, length, message, args).into(),
             ));
             return true;
@@ -250,7 +253,7 @@ impl TypeChecker {
     ) -> bool {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
-            self.diagnostics().add(Rc::new(
+            self.diagnostics().add(Gc::new(
                 create_diagnostic_for_node(node, message, args).into(),
             ));
             return true;
@@ -267,12 +270,18 @@ impl TypeChecker {
         } else {
             None
         };
-        let range: Option<Rc<dyn ReadonlyTextRange>> = node
+        let range: Option<Box<dyn ReadonlyTextRange>> = node
             .as_constructor_declaration()
             .maybe_type_parameters()
             .as_ref()
+            // .map(|node_type_parameters| {
+            //     Gc::new(node_type_parameters.clone()) as Gc<dyn ReadonlyTextRange>
+            // })
             .map(|node_type_parameters| {
-                Rc::new(node_type_parameters.clone()) as Rc<dyn ReadonlyTextRange>
+                Box::new(ReadonlyTextRangeConcrete::new(
+                    node_type_parameters.pos(),
+                    node_type_parameters.end(),
+                )) as Box<dyn ReadonlyTextRange>
             })
             .or_else(|| {
                 jsdoc_type_parameters
@@ -280,7 +289,13 @@ impl TypeChecker {
                     .and_then(|jsdoc_type_parameters| {
                         first_or_undefined(jsdoc_type_parameters).cloned()
                     })
-                    .map(|jsdoc_type_parameter| jsdoc_type_parameter as Rc<dyn ReadonlyTextRange>)
+                    // .map(|jsdoc_type_parameter| jsdoc_type_parameter as Gc<dyn ReadonlyTextRange>)
+                    .map(|jsdoc_type_parameter| {
+                        Box::new(ReadonlyTextRangeConcrete::new(
+                            jsdoc_type_parameter.pos(),
+                            jsdoc_type_parameter.end(),
+                        )) as Box<dyn ReadonlyTextRange>
+                    })
             });
         if let Some(range) = range {
             let pos = if range.pos() == range.end() {
@@ -603,7 +618,7 @@ impl TypeChecker {
         let source_file = get_source_file_of_node(Some(node)).unwrap();
         if !self.has_parse_diagnostics(&source_file) {
             let span = get_span_of_token_at_position(&source_file, node.pos().try_into().unwrap());
-            self.diagnostics().add(Rc::new(
+            self.diagnostics().add(Gc::new(
                 create_file_diagnostic(&source_file, text_span_end(&span), 0, message, args).into(),
             ));
             return true;
@@ -755,7 +770,7 @@ impl TypeChecker {
                         }
                         if overlap_obj_flags.intersects(ObjectFlags::Anonymous) {
                             return source.maybe_alias_symbol().is_some()
-                                && are_option_rcs_equal(
+                                && are_option_gcs_equal(
                                     source.maybe_alias_symbol().as_ref(),
                                     target.maybe_alias_symbol().as_ref(),
                                 );

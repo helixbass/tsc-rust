@@ -6,7 +6,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    add_related_info, contains_rc, create_diagnostic_for_node, find_ancestor,
+    add_related_info, contains_gc, contains_rc, create_diagnostic_for_node, find_ancestor,
     for_each_child_returns, for_each_enclosing_block_scope_container, get_ancestor,
     get_assignment_declaration_kind, get_class_extends_heritage_element,
     get_enclosing_block_scope_container, get_jsdoc_this_tag, get_jsdoc_type, get_super_container,
@@ -17,12 +17,12 @@ use crate::{
     is_iteration_statement, is_method_declaration, is_object_literal_expression,
     is_property_assignment, is_property_declaration, is_source_file, is_static, is_super_call,
     is_super_property, length, maybe_is_class_like, node_starts_new_lexical_environment,
-    push_if_unique_rc, text_range_contains_position_inclusive, AssignmentDeclarationKind,
-    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, HasTypeInterface,
-    InterfaceTypeInterface, InternalSymbolName, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeCheckFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeInterface,
+    push_if_unique_gc, push_if_unique_rc, text_range_contains_position_inclusive,
+    AssignmentDeclarationKind, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
+    HasTypeInterface, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -145,7 +145,7 @@ impl TypeChecker {
                                 let mut links = links.borrow_mut();
                                 let captured_bindings =
                                     links.captured_block_scope_bindings.as_mut().unwrap();
-                                push_if_unique_rc(captured_bindings, &symbol.symbol_wrapper());
+                                push_if_unique_gc(captured_bindings, &symbol.symbol_wrapper());
                             }
 
                             if matches!(
@@ -204,7 +204,7 @@ impl TypeChecker {
     ) -> bool {
         let links = self.get_node_links(node);
         /* !!links &&*/
-        let ret = contains_rc(
+        let ret = contains_gc(
             (*links).borrow().captured_block_scope_bindings.as_deref(),
             &self.get_symbol_of_node(decl).unwrap(),
         );
