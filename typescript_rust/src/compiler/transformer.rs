@@ -237,7 +237,7 @@ pub fn no_emit_notification(hint: EmitHint, node: &Node, callback: &dyn Fn(EmitH
 pub fn transform_nodes(
     resolver: Option<Rc<dyn EmitResolver>>,
     host: Option<Rc<dyn EmitHost>>,
-    factory: Rc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     options: Gc<CompilerOptions>,
     nodes: &[Gc<Node>],
     transformers: &[TransformerFactory],
@@ -248,7 +248,7 @@ pub fn transform_nodes(
     let mut lexical_environment_function_declarations: Option<Vec<Gc<Node>>> = None;
     let mut lexical_environment_variable_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
     let mut lexical_environment_function_declarations_stack: Vec<Option<Vec<Gc<Node>>>> = vec![];
-    let mut emit_helpers: Option<Vec<Rc<EmitHelper>>> = None;
+    let mut emit_helpers: Option<Vec<Gc<EmitHelper>>> = None;
     let state = TransformationState::Uninitialized;
     let diagnostics: Vec<Gc<Diagnostic /*DiagnosticWithLocation*/>> = vec![];
     let mut transformed: Vec<Gc<Node>> = vec![];
@@ -297,7 +297,7 @@ pub struct TransformNodesTransformationResult {
         RefCell<Option<Vec<Option<Vec<Gc<Node /*Identifier*/>>>>>>,
     block_scope_stack_offset: Cell<usize>,
     block_scoped_variable_declarations: RefCell<Option<Vec<Gc<Node /*Identifier*/>>>>,
-    emit_helpers: RefCell<Option<Vec<Rc<EmitHelper>>>>,
+    emit_helpers: RefCell<Option<Vec<Gc<EmitHelper>>>>,
     diagnostics: RefCell<Vec<Gc<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
     transformers_with_context: RefCell<Option<Vec<Transformer>>>,
@@ -306,7 +306,7 @@ pub struct TransformNodesTransformationResult {
     resolver: Option<Rc<dyn EmitResolver>>,
     host: Option<Rc<dyn EmitHost>>,
     created_emit_helper_factory: RefCell<Option<Rc<EmitHelperFactory>>>,
-    factory: Rc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
 }
 
 impl TransformNodesTransformationResult {
@@ -318,14 +318,14 @@ impl TransformNodesTransformationResult {
         lexical_environment_function_declarations: Option<Vec<Gc<Node>>>,
         lexical_environment_variable_declarations_stack: Vec<Option<Vec<Gc<Node>>>>,
         lexical_environment_function_declarations_stack: Vec<Option<Vec<Gc<Node>>>>,
-        emit_helpers: Option<Vec<Rc<EmitHelper>>>,
+        emit_helpers: Option<Vec<Gc<EmitHelper>>>,
         diagnostics: Vec<Gc<Diagnostic>>,
         transformers: Vec<TransformerFactory>,
         allow_dts_files: bool,
         options: Gc<CompilerOptions>,
         resolver: Option<Rc<dyn EmitResolver>>,
         host: Option<Rc<dyn EmitHost>>,
-        factory: Rc<NodeFactory<BaseNodeFactorySynthetic>>,
+        factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
     ) -> Rc<Self> {
         let rc = Rc::new(Self {
             transformed: RefCell::new(transformed),
@@ -498,15 +498,15 @@ impl TransformNodesTransformationResult {
         *self.block_scoped_variable_declarations.borrow_mut() = block_scoped_variable_declarations;
     }
 
-    fn emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>> {
+    fn emit_helpers(&self) -> Option<Vec<Gc<EmitHelper>>> {
         self.emit_helpers.borrow().clone()
     }
 
-    fn emit_helpers_mut(&self) -> RefMut<Option<Vec<Rc<EmitHelper>>>> {
+    fn emit_helpers_mut(&self) -> RefMut<Option<Vec<Gc<EmitHelper>>>> {
         self.emit_helpers.borrow_mut()
     }
 
-    fn set_emit_helpers(&self, emit_helpers: Option<Vec<Rc<EmitHelper>>>) {
+    fn set_emit_helpers(&self, emit_helpers: Option<Vec<Gc<EmitHelper>>>) {
         *self.emit_helpers.borrow_mut() = emit_helpers;
     }
 
@@ -621,7 +621,7 @@ impl TransformNodesTransformationResult {
 }
 
 impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTransformationResult {
-    fn factory(&self) -> Rc<NodeFactory<BaseNodeFactorySynthetic>> {
+    fn factory(&self) -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
         self.factory.clone()
     }
 
@@ -993,7 +993,7 @@ impl TransformationContext for TransformNodesTransformationResult {
             .unwrap()
     }
 
-    fn request_emit_helper(&self, helper: Rc<EmitHelper>) {
+    fn request_emit_helper(&self, helper: Gc<EmitHelper>) {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot modify the transformation context during initialization."),
@@ -1018,7 +1018,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         append(emit_helpers.as_mut().unwrap(), Some(helper));
     }
 
-    fn read_emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>> {
+    fn read_emit_helpers(&self) -> Option<Vec<Gc<EmitHelper>>> {
         Debug_.assert(
             self.state() > TransformationState::Uninitialized,
             Some("Cannot modify the transformation context during initialization."),
@@ -1164,7 +1164,7 @@ impl TransformationContextNull {
 }
 
 impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContextNull {
-    fn factory(&self) -> Rc<NodeFactory<BaseNodeFactorySynthetic>> {
+    fn factory(&self) -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
         factory_static.with(|factory_| factory_.clone())
     }
 
@@ -1216,9 +1216,9 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn request_emit_helper(&self, _helper: Rc<EmitHelper>) {}
+    fn request_emit_helper(&self, _helper: Gc<EmitHelper>) {}
 
-    fn read_emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>> {
+    fn read_emit_helpers(&self) -> Option<Vec<Gc<EmitHelper>>> {
         not_implemented()
     }
 

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
@@ -10,10 +10,11 @@ use std::rc::Rc;
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
     add_range, create_base_node_factory, create_scanner, is_named_declaration, is_property_name,
-    maybe_append_if_unique_rc, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    Debug_, EmitFlags, EmitNode, LanguageVariant, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange, StrOrRcNode,
-    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, TransformFlags,
+    maybe_append_if_unique_gc, maybe_append_if_unique_rc, set_text_range, BaseNode,
+    BaseNodeFactory, BaseNodeFactoryConcrete, Debug_, EmitFlags, EmitNode, LanguageVariant, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, Scanner,
+    ScriptTarget, SourceMapRange, StrOrRcNode, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -333,7 +334,7 @@ thread_local! {
 
 pub fn with_synthetic_factory_and_factory<
     TReturn,
-    TCallback: FnOnce(&BaseNodeFactorySynthetic, &Rc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
+    TCallback: FnOnce(&BaseNodeFactorySynthetic, &Gc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
 >(
     callback: TCallback,
 ) -> TReturn {
@@ -343,7 +344,7 @@ pub fn with_synthetic_factory_and_factory<
 
 pub fn with_factory<
     TReturn,
-    TCallback: FnOnce(&Rc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
+    TCallback: FnOnce(&Gc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
 >(
     callback: TCallback,
 ) -> TReturn {
@@ -398,7 +399,7 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
 }
 
 thread_local! {
-    pub static factory: Rc<NodeFactory<BaseNodeFactorySynthetic>> =
+    pub static factory: Gc<NodeFactory<BaseNodeFactorySynthetic>> =
         create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
 }
 
@@ -425,7 +426,7 @@ pub fn set_original_node(node: Gc<Node>, original: Option<Gc<Node>>) -> Gc<Node>
         let emit_node = original.maybe_emit_node();
         if let Some(emit_node) = emit_node.as_ref() {
             node.maybe_emit_node_mut()
-                .get_or_insert_with(|| Rc::new(RefCell::new(Default::default())));
+                .get_or_insert_with(|| Gc::new(GcCell::new(Default::default())));
             merge_emit_node(
                 &(**emit_node).borrow(),
                 &mut (*node.maybe_emit_node().unwrap()).borrow_mut(),
@@ -493,7 +494,7 @@ pub(super) fn merge_emit_node(
         let mut dest_emit_node_helpers = dest_emit_node.helpers.clone();
         for helper in helpers {
             dest_emit_node_helpers =
-                Some(maybe_append_if_unique_rc(dest_emit_node_helpers, helper));
+                Some(maybe_append_if_unique_gc(dest_emit_node_helpers, helper));
         }
         dest_emit_node.helpers = dest_emit_node_helpers;
     }
@@ -504,9 +505,9 @@ pub(super) fn merge_emit_node(
 }
 
 pub(super) fn merge_token_source_map_ranges(
-    source_ranges: &HashMap<SyntaxKind, Option<Rc<SourceMapRange>>>,
-    dest_ranges: Option<&HashMap<SyntaxKind, Option<Rc<SourceMapRange>>>>,
-) -> HashMap<SyntaxKind, Option<Rc<SourceMapRange>>> {
+    source_ranges: &HashMap<SyntaxKind, Option<Gc<SourceMapRange>>>,
+    dest_ranges: Option<&HashMap<SyntaxKind, Option<Gc<SourceMapRange>>>>,
+) -> HashMap<SyntaxKind, Option<Gc<SourceMapRange>>> {
     let mut dest_ranges =
         dest_ranges.map_or_else(|| HashMap::new(), |dest_ranges| dest_ranges.clone());
     for (key, value) in source_ranges {

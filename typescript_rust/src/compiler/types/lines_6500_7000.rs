@@ -591,17 +591,23 @@ impl fmt::Debug for SourceMapSourceConcrete {
 #[derive(Debug, Default, Trace, Finalize)]
 pub struct EmitNode {
     pub annotated_nodes: Option<Vec<Gc<Node>>>,
+    #[unsafe_ignore_trace]
     pub flags: Option<EmitFlags>,
+    #[unsafe_ignore_trace]
     pub leading_comments: Option<Vec<Rc<SynthesizedComment>>>,
+    #[unsafe_ignore_trace]
     pub trailing_comments: Option<Vec<Rc<SynthesizedComment>>>,
+    #[unsafe_ignore_trace]
     pub comment_range: Option<BaseTextRange>,
     pub source_map_range: Option<Gc<SourceMapRange>>,
     pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Gc<SourceMapRange>>>>,
+    #[unsafe_ignore_trace]
     pub constant_value: Option<StringOrNumber>,
     pub external_helpers_module_name: Option<Gc<Node /*Identifier*/>>,
     pub external_helpers: Option<bool>,
     pub helpers: Option<Vec<Gc<EmitHelper>>>,
     pub starts_on_new_line: Option<bool>,
+    #[unsafe_ignore_trace]
     pub snippet_element: Option<SnippetElement>,
 }
 
@@ -624,7 +630,7 @@ pub trait EmitHelperBase {
     fn scoped(&self) -> bool;
     fn text(&self) -> EmitHelperText;
     fn priority(&self) -> Option<usize>;
-    fn dependencies(&self) -> Option<&[Rc<EmitHelper>]>;
+    fn dependencies(&self) -> Option<&[Gc<EmitHelper>]>;
 }
 
 #[derive(Clone)]
@@ -677,7 +683,7 @@ impl EmitHelperBase for ScopedEmitHelper {
         self.priority.clone()
     }
 
-    fn dependencies(&self) -> Option<&[Rc<EmitHelper>]> {
+    fn dependencies(&self) -> Option<&[Gc<EmitHelper>]> {
         self.dependencies.as_deref()
     }
 }
@@ -709,7 +715,7 @@ impl EmitHelperBase for UnscopedEmitHelper {
         self.priority.clone()
     }
 
-    fn dependencies(&self) -> Option<&[Rc<EmitHelper>]> {
+    fn dependencies(&self) -> Option<&[Gc<EmitHelper>]> {
         self.dependencies.as_deref()
     }
 }
@@ -749,7 +755,7 @@ impl EmitHelperBase for EmitHelper {
         }
     }
 
-    fn dependencies(&self) -> Option<&[Rc<EmitHelper>]> {
+    fn dependencies(&self) -> Option<&[Gc<EmitHelper>]> {
         match self {
             Self::ScopedEmitHelper(emit_helper) => emit_helper.dependencies(),
             Self::UnscopedEmitHelper(emit_helper) => emit_helper.dependencies(),

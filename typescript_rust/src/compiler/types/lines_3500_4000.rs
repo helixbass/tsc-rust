@@ -870,7 +870,7 @@ pub struct UnparsedSource {
     text: RefCell<String>,
     text_as_chars: RefCell<SourceTextAsChars>,
     pub prologues: Vec<Gc<Node /*UnparsedPrologue*/>>,
-    pub helpers: Option<Vec<Rc<EmitHelper /*UnscopedEmitHelper*/>>>,
+    pub helpers: Option<Vec<Gc<EmitHelper /*UnscopedEmitHelper*/>>>,
 
     pub referenced_files: Vec<FileReference>,
     pub type_reference_directives: Option<Vec<String>>,

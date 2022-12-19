@@ -1,6 +1,11 @@
 use gc::Gc;
 use std::rc::Rc;
 
+use super::{
+    ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule,
+    ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule,
+    ParenthesizeRightSideOfBinaryCurrentParenthesizerRule,
+};
 use crate::{
     for_each, get_comment_range, get_emit_flags, is_block, is_let, is_module_declaration,
     is_var_const, node_is_synthesized, range_is_on_single_line, with_synthetic_factory, EmitFlags,
@@ -223,17 +228,11 @@ impl Printer {
                 self.write_space();
                 self.emit_expression(
                     Some(&**body),
-                    Some(Rc::new({
-                        let parenthesizer = self.parenthesizer();
-                        move |node: &Node| {
-                            with_synthetic_factory(|synthetic_factory| {
-                                parenthesizer.parenthesize_concise_body_of_arrow_function(
-                                    synthetic_factory,
-                                    node,
-                                )
-                            })
-                        }
-                    })),
+                    Some(Gc::new(Box::new(
+                        ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule::new(
+                            self.parenthesizer(),
+                        ),
+                    ))),
                 );
             }
         } else {
@@ -751,29 +750,17 @@ impl Printer {
         self.emit_expression(
             Some(&*node_as_export_assignment.expression),
             if node_as_export_assignment.is_export_equals == Some(true) {
-                Some(Rc::new({
-                    let parenthesizer = self.parenthesizer();
-                    move |node: &Node| {
-                        with_synthetic_factory(|synthetic_factory| {
-                            parenthesizer.parenthesize_right_side_of_binary(
-                                synthetic_factory,
-                                SyntaxKind::EqualsToken,
-                                None,
-                                node,
-                            )
-                        })
-                    }
-                }))
+                Some(Gc::new(Box::new(
+                    ParenthesizeRightSideOfBinaryCurrentParenthesizerRule::new(
+                        self.parenthesizer(),
+                    ),
+                )))
             } else {
-                Some(Rc::new({
-                    let parenthesizer = self.parenthesizer();
-                    move |node: &Node| {
-                        with_synthetic_factory(|synthetic_factory| {
-                            parenthesizer
-                                .parenthesize_expression_of_export_default(synthetic_factory, node)
-                        })
-                    }
-                }))
+                Some(Gc::new(Box::new(
+                    ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule::new(
+                        self.parenthesizer(),
+                    ),
+                )))
             },
         );
         self.write_trailing_semicolon();

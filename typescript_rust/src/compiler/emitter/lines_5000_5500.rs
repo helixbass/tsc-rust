@@ -504,7 +504,7 @@ impl Printer {
         write_comment_range(
             text_as_chars,
             line_map.as_ref().unwrap(),
-            &*self.writer(),
+            &**self.writer(),
             0,
             text_as_chars.len(),
             &self.new_line,
@@ -742,7 +742,7 @@ impl Printer {
         if !self.has_written_comment() {
             emit_new_line_before_leading_comment_of_position(
                 &self.get_current_line_map(),
-                &*self.writer(),
+                &**self.writer(),
                 range_pos,
                 comment_pos,
             );
@@ -753,7 +753,7 @@ impl Printer {
         write_comment_range(
             &self.current_source_file().as_source_file().text_as_chars(),
             &self.get_current_line_map(),
-            &*self.writer(),
+            &**self.writer(),
             comment_pos.try_into().unwrap(),
             comment_end.try_into().unwrap(),
             &self.new_line,

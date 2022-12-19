@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -267,7 +267,7 @@ pub struct ParserType {
     pub(super) PrivateIdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) TokenConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    pub(super) factory: Rc<NodeFactory<ParserType>>,
+    pub(super) factory: Gc<NodeFactory<ParserType>>,
     pub(super) file_name: Option<String>,
     pub(super) source_flags: Cell<Option<NodeFlags>>,
     pub(super) source_text: Option<String>,
@@ -831,10 +831,9 @@ impl ParserType {
         source_file_as_source_file.set_node_count(self.node_count());
         source_file_as_source_file.set_identifier_count(self.identifier_count());
         source_file_as_source_file.set_identifiers(self.identifiers_rc());
-        source_file_as_source_file.set_parse_diagnostics(attach_file_to_diagnostics(
-            &*self.parse_diagnostics(),
-            &source_file,
-        ));
+        source_file_as_source_file.set_parse_diagnostics(Gc::new(GcCell::new(
+            attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file),
+        )));
         {
             let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
             if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {

@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
-    factory: Rc<NodeFactory<TBaseNodeFactory>>,
+    factory: Gc<NodeFactory<TBaseNodeFactory>>,
 ) -> ParenthesizerRulesConcrete<TBaseNodeFactory> {
     ParenthesizerRulesConcrete::new(factory)
 }
@@ -26,7 +26,7 @@ pub struct ParenthesizerRulesConcrete<TBaseNodeFactory: BaseNodeFactory + 'stati
 }
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRulesConcrete<TBaseNodeFactory> {
-    pub fn new(factory: Rc<NodeFactory<TBaseNodeFactory>>) -> Self {
+    pub fn new(factory: Gc<NodeFactory<TBaseNodeFactory>>) -> Self {
         Self { factory }
     }
 

@@ -35,7 +35,7 @@ impl Printer {
         write_comment_range(
             &self.current_source_file().as_source_file().text_as_chars(),
             &self.get_current_line_map(),
-            &*self.writer(),
+            &**self.writer(),
             comment_pos.try_into().unwrap(),
             comment_end.try_into().unwrap(),
             &self.new_line,
@@ -96,7 +96,7 @@ impl Printer {
         write_comment_range(
             &self.current_source_file().as_source_file().text_as_chars(),
             &self.get_current_line_map(),
-            &*self.writer(),
+            &**self.writer(),
             comment_pos.try_into().unwrap(),
             comment_end.try_into().unwrap(),
             &self.new_line,
@@ -119,7 +119,7 @@ impl Printer {
         write_comment_range(
             &self.current_source_file().as_source_file().text_as_chars(),
             &self.get_current_line_map(),
-            &*self.writer(),
+            &**self.writer(),
             comment_pos.try_into().unwrap(),
             comment_end.try_into().unwrap(),
             &self.new_line,
@@ -253,7 +253,7 @@ impl Printer {
         let current_detached_comment_info = emit_detached_comments(
             &self.current_source_file().as_source_file().text_as_chars(),
             &*self.get_current_line_map(),
-            &*self.writer(),
+            &**self.writer(),
             |text: &SourceTextAsChars,
              line_map: &[usize],
              writer: &dyn EmitTextWriter,
@@ -287,7 +287,7 @@ impl Printer {
         write_comment_range(
             text,
             line_map,
-            &*self.writer(),
+            &**self.writer(),
             comment_pos.try_into().unwrap(),
             comment_end.try_into().unwrap(),
             &self.new_line,
@@ -364,7 +364,7 @@ impl Printer {
 
         if matches!(
             self.maybe_most_recently_added_source_map_source().as_ref(),
-            Some(most_recently_added_source_map_source) if Rc::ptr_eq(
+            Some(most_recently_added_source_map_source) if Gc::ptr_eq(
                 &source,
                 most_recently_added_source_map_source
             )

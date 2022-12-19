@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory>(
-    factory: Rc<NodeFactory<TBaseNodeFactory>>,
+    factory: Gc<NodeFactory<TBaseNodeFactory>>,
 ) -> NodeConvertersConcrete<TBaseNodeFactory> {
     NodeConvertersConcrete::new(factory)
 }
@@ -24,7 +24,7 @@ pub struct NodeConvertersConcrete<TBaseNodeFactory: BaseNodeFactory + 'static> {
 }
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConvertersConcrete<TBaseNodeFactory> {
-    pub fn new(factory: Rc<NodeFactory<TBaseNodeFactory>>) -> Self {
+    pub fn new(factory: Gc<NodeFactory<TBaseNodeFactory>>) -> Self {
         Self { factory }
     }
 }

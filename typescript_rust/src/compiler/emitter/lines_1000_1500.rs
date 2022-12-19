@@ -259,7 +259,7 @@ impl Printer {
     pub(super) fn emit(
         &self,
         node: Option<&Node>,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         if node.is_none() {
             return;
@@ -281,7 +281,7 @@ impl Printer {
     pub(super) fn emit_expression(
         &self,
         node: Option<&Node /*Expression*/>,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         if node.is_none() {
             return;

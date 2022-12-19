@@ -189,7 +189,7 @@ bitflags! {
 }
 
 pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
-    fn factory(&self) -> Rc<NodeFactory<TBaseNodeFactory>>;
+    fn factory(&self) -> Gc<NodeFactory<TBaseNodeFactory>>;
 
     fn get_compiler_options(&self) -> Gc<CompilerOptions>;
 
@@ -222,9 +222,9 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
     fn get_emit_host(&self) -> Rc<dyn EmitHost>;
     fn get_emit_helper_factory(&self) -> Rc<EmitHelperFactory>;
 
-    fn request_emit_helper(&self, helper: Rc<EmitHelper>);
+    fn request_emit_helper(&self, helper: Gc<EmitHelper>);
 
-    fn read_emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>>;
+    fn read_emit_helpers(&self) -> Option<Vec<Gc<EmitHelper>>>;
 
     fn enable_substitution(&self, kind: SyntaxKind);
 

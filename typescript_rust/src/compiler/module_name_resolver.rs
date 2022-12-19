@@ -917,10 +917,10 @@ pub trait PerDirectoryResolutionCache<TValue: Trace + Finalize> {
 #[derive(Trace, Finalize)]
 pub struct ModuleResolutionCache {
     current_directory: String,
-    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
     pre_directory_resolution_cache:
         PerDirectoryResolutionCacheConcrete<Rc<ResolvedModuleWithFailedLookupLocations>>,
-    module_name_to_directory_map: Rc<CacheWithRedirects<PerModuleNameCache>>,
+    module_name_to_directory_map: Gc<CacheWithRedirects<PerModuleNameCache>>,
     package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
 }
 
@@ -944,7 +944,7 @@ pub trait PackageJsonInfoCache: Trace + Finalize {
 #[derive(Trace, Finalize)]
 pub struct PerModuleNameCache {
     current_directory: String,
-    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
     directory_path_map: GcCell<HashMap<String, Rc<ResolvedModuleWithFailedLookupLocations>>>,
 }
 
@@ -958,19 +958,19 @@ pub struct CacheWithRedirects<TCache: Trace + Finalize + 'static> {
 impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
     pub fn new(options: Option<Gc<CompilerOptions>>) -> Self {
         Self {
-            options: RefCell::new(options),
-            own_map: RefCell::new(Rc::new(RefCell::new(HashMap::new()))),
-            redirects_map: Rc::new(RefCell::new(HashMap::new())),
+            options: GcCell::new(options),
+            own_map: Default::default(),
+            redirects_map: Default::default(),
         }
     }
 
-    pub fn get_own_map(&self) -> Rc<RefCell<HashMap<String, Rc<TCache>>>> {
+    pub fn get_own_map(&self) -> Gc<GcCell<HashMap<String, Gc<TCache>>>> {
         self.own_map.borrow().clone()
     }
 
     pub fn redirects_map(
         &self,
-    ) -> Rc<RefCell<HashMap<Path, Rc<RefCell<HashMap<String, Rc<TCache>>>>>>> {
+    ) -> Gc<GcCell<HashMap<Path, Gc<GcCell<HashMap<String, Gc<TCache>>>>>>> {
         self.redirects_map.clone()
     }
 
@@ -978,14 +978,14 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
         *self.options.borrow_mut() = Some(new_options);
     }
 
-    pub fn set_own_map(&self, new_own_map: Rc<RefCell<HashMap<String, Rc<TCache>>>>) {
+    pub fn set_own_map(&self, new_own_map: Gc<GcCell<HashMap<String, Gc<TCache>>>>) {
         *self.own_map.borrow_mut() = new_own_map;
     }
 
     pub fn get_or_create_map_of_cache_redirects(
         &self,
         redirected_reference: Option<Rc<ResolvedProjectReference>>,
-    ) -> Rc<RefCell<HashMap<String, Rc<TCache>>>> {
+    ) -> Gc<GcCell<HashMap<String, Gc<TCache>>>> {
         if redirected_reference.is_none() {
             return self.own_map.borrow().clone();
         }
@@ -1001,7 +1001,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
                         &redirected_reference.command_line.options,
                     ),
                 } {
-                    Rc::new(RefCell::new(HashMap::new()))
+                    Gc::new(GcCell::new(HashMap::new()))
                 } else {
                     self.own_map.borrow().clone()
                 },
@@ -1027,11 +1027,11 @@ pub(crate) fn create_cache_with_redirects<TCache: Trace + Finalize>(
 
 pub fn create_package_json_info_cache(
     current_directory: &str,
-    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
 ) -> PackageJsonInfoCacheConcrete {
     PackageJsonInfoCacheConcrete {
         current_directory: current_directory.to_owned(),
-        cache: RefCell::new(None),
+        cache: Default::default(),
         get_canonical_file_name,
     }
 }
@@ -1040,7 +1040,7 @@ pub fn create_package_json_info_cache(
 pub struct PackageJsonInfoCacheConcrete {
     pub current_directory: String,
     pub cache: GcCell<Option<HashMap<Path, PackageJsonInfoOrBool>>>,
-    pub get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    pub get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
 }
 
 impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
@@ -1104,8 +1104,8 @@ fn get_or_create_cache<TCache: Trace + Finalize, TCreate: FnMut() -> TCache>(
 
 fn create_per_directory_resolution_cache<TValue: Trace + Finalize>(
     current_directory: &str,
-    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
-    directory_to_module_name_map: Rc<CacheWithRedirects<ModeAwareCache<TValue>>>,
+    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
+    directory_to_module_name_map: Gc<CacheWithRedirects<ModeAwareCache<TValue>>>,
 ) -> PerDirectoryResolutionCacheConcrete<TValue> {
     PerDirectoryResolutionCacheConcrete {
         current_directory: current_directory.to_owned(),
@@ -1117,8 +1117,12 @@ fn create_per_directory_resolution_cache<TValue: Trace + Finalize>(
 #[derive(Trace, Finalize)]
 pub struct PerDirectoryResolutionCacheConcrete<TValue: Trace + Finalize + 'static> {
     pub current_directory: String,
-    pub get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
-    pub directory_to_module_name_map: Rc<CacheWithRedirects<ModeAwareCache<TValue>>>,
+    pub get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
+    pub directory_to_module_name_map: Gc<CacheWithRedirects<ModeAwareCache<TValue>>>,
+}
+
+pub trait GetCanonicalFileName: Trace + Finalize {
+    fn call(&self, file_name: &str) -> String;
 }
 
 impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
@@ -1130,7 +1134,7 @@ impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
         redirected_reference: Option<Rc<ResolvedProjectReference>>,
     ) -> Rc<ModeAwareCache<TValue>> {
         let path = to_path(directory_name, Some(&self.current_directory), |path| {
-            (self.get_canonical_file_name)(path)
+            self.get_canonical_file_name.call(path)
         });
         get_or_create_cache(
             &self.directory_to_module_name_map,
@@ -1157,8 +1161,8 @@ pub(crate) fn create_mode_aware_cache<TValue: Clone + Trace + Finalize>() -> Mod
 impl<TValue: Clone + Trace + Finalize> ModeAwareCache<TValue> {
     pub fn new() -> Self {
         Self {
-            underlying: RefCell::new(HashMap::new()),
-            memoized_reverse_keys: RefCell::new(HashMap::new()),
+            underlying: Default::default(),
+            memoized_reverse_keys: Default::default(),
         }
     }
 
@@ -1216,25 +1220,25 @@ impl<TValue: Clone + Trace + Finalize> ModeAwareCache<TValue> {
 
 pub fn create_module_resolution_cache(
     current_directory: &str,
-    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
     options: Option<Gc<CompilerOptions>>,
     directory_to_module_name_map: Option<
-        Rc<CacheWithRedirects<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>>>,
+        Gc<CacheWithRedirects<ModeAwareCache<Rc<ResolvedModuleWithFailedLookupLocations>>>>,
     >,
-    module_name_to_directory_map: Option<Rc<CacheWithRedirects<PerModuleNameCache>>>,
+    module_name_to_directory_map: Option<Gc<CacheWithRedirects<PerModuleNameCache>>>,
 ) -> ModuleResolutionCache {
     let directory_to_module_name_map = directory_to_module_name_map
-        .unwrap_or_else(|| Rc::new(create_cache_with_redirects(options.clone())));
+        .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options.clone())));
     let pre_directory_resolution_cache = create_per_directory_resolution_cache(
         current_directory,
         get_canonical_file_name.clone(),
         directory_to_module_name_map.clone(),
     );
     let module_name_to_directory_map = module_name_to_directory_map
-        .unwrap_or_else(|| Rc::new(create_cache_with_redirects(options.clone())));
-    let package_json_info_cache: Rc<dyn PackageJsonInfoCache> = Rc::new(
+        .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options.clone())));
+    let package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>> = Gc::new(Box::new(
         create_package_json_info_cache(current_directory, get_canonical_file_name.clone()),
-    );
+    ));
 
     ModuleResolutionCache {
         current_directory: current_directory.to_owned(),
@@ -1246,7 +1250,7 @@ pub fn create_module_resolution_cache(
 }
 
 impl ModuleResolutionCache {
-    pub fn get_package_json_info_cache(&self) -> Rc<dyn PackageJsonInfoCache> {
+    pub fn get_package_json_info_cache(&self) -> Gc<Box<dyn PackageJsonInfoCache>> {
         self.package_json_info_cache.clone()
     }
 
@@ -1265,12 +1269,12 @@ impl ModuleResolutionCache {
 impl PerModuleNameCache {
     pub fn new(
         current_directory: String,
-        get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+        get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
     ) -> Self {
         Self {
             current_directory,
             get_canonical_file_name,
-            directory_path_map: RefCell::new(HashMap::new()),
+            directory_path_map: Default::default(),
         }
     }
 
@@ -1280,14 +1284,14 @@ impl PerModuleNameCache {
             .get(&*to_path(
                 directory,
                 Some(&self.current_directory),
-                |path| (self.get_canonical_file_name)(path),
+                |path| self.get_canonical_file_name.call(path),
             ))
             .cloned()
     }
 
     pub fn set(&self, directory: &str, result: Rc<ResolvedModuleWithFailedLookupLocations>) {
         let path = to_path(directory, Some(&self.current_directory), |path| {
-            (self.get_canonical_file_name)(path)
+            self.get_canonical_file_name.call(path)
         });
         if self.directory_path_map.borrow().contains_key(&*path) {
             return;
@@ -1328,7 +1332,7 @@ impl PerModuleNameCache {
         let resolution_directory = to_path(
             &get_directory_path(resolution),
             Some(&self.current_directory),
-            |file_name: &str| (self.get_canonical_file_name)(file_name),
+            |file_name: &str| self.get_canonical_file_name.call(file_name),
         );
 
         let mut i = 0;
@@ -1431,9 +1435,9 @@ impl PackageJsonInfoCache for ModuleResolutionCache {
 
 pub fn create_type_reference_directive_resolution_cache(
     current_directory: &str,
-    get_canonical_file_name: Rc<dyn Fn(&str) -> String>,
+    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
     options: Option<Gc<CompilerOptions>>,
-    package_json_info_cache: Option<Rc<dyn PackageJsonInfoCache>>,
+    package_json_info_cache: Option<Gc<Box<dyn PackageJsonInfoCache>>>,
     directory_to_module_name_map: Option<
         Rc<
             CacheWithRedirects<
@@ -1449,10 +1453,10 @@ pub fn create_type_reference_directive_resolution_cache(
             .unwrap_or_else(|| Rc::new(create_cache_with_redirects(options))),
     );
     let package_json_info_cache = package_json_info_cache.unwrap_or_else(|| {
-        Rc::new(create_package_json_info_cache(
+        Gc::new(Box::new(create_package_json_info_cache(
             current_directory,
             get_canonical_file_name,
-        ))
+        )))
     });
 
     TypeReferenceDirectiveResolutionCache {
@@ -2631,9 +2635,13 @@ fn load_node_module_from_directory(
     )
 }
 
+#[derive(Trace, Finalize)]
 pub struct PackageJsonInfo {
+    #[unsafe_ignore_trace]
     pub package_directory: String,
+    #[unsafe_ignore_trace]
     pub package_json_content: Rc<PackageJson /*PackageJsonPathFields*/>,
+    #[unsafe_ignore_trace]
     pub version_paths: Option<Rc<VersionPaths>>,
 }
 
@@ -3276,7 +3284,7 @@ fn load_module_from_specific_node_modules_directory(
     )
 }
 
-#[derive(Clone)]
+#[derive(Clone, Trace, Finalize)]
 pub enum PackageJsonInfoOrBool {
     PackageJsonInfo(Rc<PackageJsonInfo>),
     Bool(bool),

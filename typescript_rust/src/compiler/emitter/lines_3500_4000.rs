@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 use std::rc::Rc;
 
+use super::ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule;
 use crate::{
     find_index, for_each, for_each_leading_comment_range, for_each_trailing_comment_range,
     get_comment_range, get_emit_flags, get_line_and_character_of_position,
@@ -260,15 +261,11 @@ impl Printer {
         let node_as_case_clause = node.as_case_clause();
         self.emit_expression(
             Some(&*node_as_case_clause.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
 
         self.emit_case_or_default_clause_rest(
@@ -396,15 +393,11 @@ impl Printer {
         }
         self.emit_expression(
             Some(&**initializer),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
     }
 
@@ -428,17 +421,11 @@ impl Printer {
             self.write_space();
             self.emit_expression(
                 Some(&**node_object_assignment_initializer),
-                Some(Rc::new({
-                    let parenthesizer = self.parenthesizer();
-                    move |node: &Node| {
-                        with_synthetic_factory(|synthetic_factory| {
-                            parenthesizer.parenthesize_expression_for_disallowed_comma(
-                                synthetic_factory,
-                                node,
-                            )
-                        })
-                    }
-                })),
+                Some(Gc::new(Box::new(
+                    ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                        self.parenthesizer(),
+                    ),
+                ))),
             );
         }
     }
@@ -455,15 +442,11 @@ impl Printer {
         );
         self.emit_expression(
             Some(&*node_as_spread_assignment.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_expression_for_disallowed_comma(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         // }
     }

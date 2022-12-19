@@ -9,12 +9,12 @@ use crate::{
     get_comment_range, get_emit_flags, get_shebang, is_arrow_function, is_block,
     is_empty_statement, is_function_like, is_identifier, is_prologue_directive, is_source_file,
     is_unparsed_source, range_is_on_single_line, single_or_undefined, some, with_synthetic_factory,
-    BundleFileSection, BundleFileSectionKind, Debug_, EmitFlags, EmitHint, HasInitializerInterface,
-    HasStatementsInterface, HasTypeInterface, HasTypeParametersInterface, ListFormat,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, SourceFileLike, SourceFilePrologueDirective,
-    SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo, Symbol, SyntaxKind, TextRange,
-    UnparsedSectionInterface,
+    BundleFileSection, BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags,
+    EmitHint, HasInitializerInterface, HasStatementsInterface, HasTypeInterface,
+    HasTypeParametersInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike,
+    SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression, SourceFilePrologueInfo,
+    Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
 };
 
 impl Printer {
@@ -34,7 +34,7 @@ impl Printer {
                 if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                     bundle_file_info
                         .sections
-                        .push(Rc::new(BundleFileSection::new_prologue(
+                        .push(Gc::new(BundleFileSection::new_prologue(
                             prologue_as_unparsed_prologue
                                 .maybe_data()
                                 .unwrap()
@@ -513,11 +513,11 @@ impl Printer {
 
     pub(super) fn emit_node_list<TNode: Borrow<Node>>(
         &self,
-        emit: fn(&Printer, Option<&Node>, Option<Rc<dyn Fn(&Node) -> Gc<Node>>>),
+        emit: fn(&Printer, Option<&Node>, Option<Gc<Box<dyn CurrentParenthesizerRule>>>),
         parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
-        parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
+        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) {

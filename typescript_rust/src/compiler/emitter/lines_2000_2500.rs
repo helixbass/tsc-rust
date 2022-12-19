@@ -1,6 +1,12 @@
 use gc::Gc;
 use std::rc::Rc;
 
+use super::{
+    ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule,
+    ParenthesizeLeftSideOfAccessCurrentParenthesizerRule,
+    ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule,
+    ParenthesizeMemberOfElementTypeCurrentParenthesizerRule,
+};
 use crate::{
     for_each, get_constant_value, get_emit_flags, is_access_expression, is_finite,
     is_json_source_file, is_numeric_literal, set_text_range_pos_end,
@@ -92,14 +98,9 @@ impl Printer {
         self.write_punctuation("@");
         self.emit_expression(
             Some(&*node.as_decorator().expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
     }
 
@@ -385,15 +386,11 @@ impl Printer {
     pub(super) fn emit_array_type(&self, node: &Node /*ArrayTypeNode*/) {
         self.emit(
             Some(&*node.as_array_type_node().element_type),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_element_type_of_array_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         self.write_punctuation("[");
         self.write_punctuation("]");
@@ -460,15 +457,11 @@ impl Printer {
     pub(super) fn emit_optional_type(&self, node: &Node /*OptionalTypeNode*/) {
         self.emit(
             Some(&*node.as_optional_type_node().type_),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_element_type_of_array_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         self.write_punctuation("?");
     }
@@ -513,30 +506,22 @@ impl Printer {
         let node_as_conditional_type_node = node.as_conditional_type_node();
         self.emit(
             Some(&*node_as_conditional_type_node.check_type),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_member_of_conditional_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         self.write_space();
         self.write_keyword("extends");
         self.write_space();
         self.emit(
             Some(&*node_as_conditional_type_node.extends_type),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer
-                            .parenthesize_member_of_conditional_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                ),
+            ))),
         );
         self.write_space();
         self.write_punctuation("?");
@@ -574,14 +559,9 @@ impl Printer {
         self.write_space();
         self.emit(
             Some(&*node_as_type_operator_node.type_),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
     }
 
@@ -589,14 +569,9 @@ impl Printer {
         let node_as_indexed_access_type_node = node.as_indexed_access_type_node();
         self.emit(
             Some(&*node_as_indexed_access_type_node.object_type),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_member_of_element_type(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
         self.write_punctuation("[");
         self.emit(Some(&*node_as_indexed_access_type_node.index_type), None);
@@ -826,14 +801,9 @@ impl Printer {
         let node_as_property_access_expression = node.as_property_access_expression();
         self.emit_expression(
             Some(&*node_as_property_access_expression.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
         let token = node_as_property_access_expression
             .question_dot_token
@@ -919,14 +889,9 @@ impl Printer {
         let node_as_element_access_expression = node.as_element_access_expression();
         self.emit_expression(
             Some(&*node_as_element_access_expression.expression),
-            Some(Rc::new({
-                let parenthesizer = self.parenthesizer();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_left_side_of_access(synthetic_factory, node)
-                    })
-                }
-            })),
+            Some(Gc::new(Box::new(
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+            ))),
         );
         self.emit(
             node_as_element_access_expression

@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use gc::Gc;
+use gc::{Gc, GcCellRef};
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
@@ -55,7 +55,7 @@ bitflags! {
 
 pub fn create_node_factory<TBaseNodeFactory: 'static + BaseNodeFactory>(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
-) -> Rc<NodeFactory<TBaseNodeFactory>> {
+) -> Gc<NodeFactory<TBaseNodeFactory>> {
     NodeFactory::new(flags)
 }
 
@@ -63,15 +63,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn new(flags: NodeFactoryFlags) -> Gc<Self> {
         let factory_ = Gc::new(Self {
             flags,
-            parenthesizer_rules: RefCell::new(None),
-            converters: RefCell::new(None),
+            parenthesizer_rules: Default::default(),
+            converters: Default::default(),
         });
         factory_.set_parenthesizer_rules(
             /*memoize(*/
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
-                Rc::new(null_parenthesizer_rules())
+                Gc::new(Box::new(null_parenthesizer_rules()))
             } else {
-                Rc::new(create_parenthesizer_rules(factory_.clone()))
+                Gc::new(Box::new(create_parenthesizer_rules(factory_.clone())))
             },
         );
         factory_.set_converters(
@@ -115,8 +115,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         *self.converters.borrow_mut() = Some(node_converters);
     }
 
-    pub fn converters(&self) -> Ref<Box<dyn NodeConverters<TBaseNodeFactory>>> {
-        Ref::map(self.converters.borrow(), |option| option.as_ref().unwrap())
+    pub fn converters(&self) -> GcCellRef<Box<dyn NodeConverters<TBaseNodeFactory>>> {
+        GcCellRef::map(self.converters.borrow(), |option| option.as_ref().unwrap())
     }
 
     pub fn create_jsdoc_all_type(&self, base_factory: &TBaseNodeFactory) -> BaseNode {

@@ -1,4 +1,4 @@
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -9,12 +9,12 @@ use crate::{
     StringOrNumber, SyntaxKind, SynthesizedComment,
 };
 
-pub(crate) fn get_or_create_emit_node(node: &Node) -> Rc<RefCell<EmitNode>> {
+pub(crate) fn get_or_create_emit_node(node: &Node) -> Gc<GcCell<EmitNode>> {
     match node.maybe_emit_node() {
         None => {
             if is_parse_tree_node(node) {
                 if node.kind() == SyntaxKind::SourceFile {
-                    let ret = Rc::new(RefCell::new(EmitNode {
+                    let ret = Gc::new(GcCell::new(EmitNode {
                         annotated_nodes: Some(vec![node.node_wrapper()]),
                         ..Default::default()
                     }));
@@ -35,7 +35,7 @@ pub(crate) fn get_or_create_emit_node(node: &Node) -> Rc<RefCell<EmitNode>> {
                     .push(node.node_wrapper());
             }
 
-            *node.maybe_emit_node_mut() = Some(Rc::new(RefCell::new(Default::default())));
+            *node.maybe_emit_node_mut() = Some(Gc::new(GcCell::new(Default::default())));
         }
         Some(node_emit_node) => {
             Debug_.assert(
@@ -125,7 +125,7 @@ pub fn get_constant_value(node: &Node /*AccessExpression*/) -> Option<StringOrNu
         .and_then(|node_emit_node| (*node_emit_node).borrow().constant_value.clone())
 }
 
-pub fn get_emit_helpers(node: &Node) -> Option<Vec<Rc<EmitHelper>>> {
+pub fn get_emit_helpers(node: &Node) -> Option<Vec<Gc<EmitHelper>>> {
     node.maybe_emit_node()
         .and_then(|node_emit_node| (*node_emit_node).borrow().helpers.clone())
 }
