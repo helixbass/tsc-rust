@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::cmp;
@@ -172,7 +172,7 @@ impl TypeChecker {
             .or_else(|| right.maybe_type_parameters().clone());
         let mut param_mapper: Option<Gc<TypeMapper>> = None;
         if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
-            param_mapper = Some(Rc::new(self.create_type_mapper(
+            param_mapper = Some(Gc::new(self.create_type_mapper(
                 right.maybe_type_parameters().clone().unwrap(),
                 left.maybe_type_parameters().clone(),
             )));
@@ -229,7 +229,7 @@ impl TypeChecker {
             if every(types, |t: &Gc<Type>, _| {
                 self.get_index_info_of_type_(t, index_type).is_some()
             }) {
-                result.push(Rc::new(self.create_index_info(
+                result.push(Gc::new(self.create_index_info(
                     index_type.clone(),
                     self.get_union_type(
                         map(types, |t: &Gc<Type>, _| {
@@ -358,7 +358,7 @@ impl TypeChecker {
                             mixin_flags.as_ref(),
                             i,
                         ));
-                        Rc::new(clone)
+                        Gc::new(clone)
                     });
                 }
                 self.append_signatures(&mut construct_signatures, &signatures);
@@ -421,7 +421,7 @@ impl TypeChecker {
         for i in 0..index_infos.len() {
             let info = index_infos[i].clone();
             if Gc::ptr_eq(&info.key_type, &new_info.key_type) {
-                index_infos[i] = Rc::new(self.create_index_info(
+                index_infos[i] = Gc::new(self.create_index_info(
                     info.key_type.clone(),
                     if union {
                         self.get_union_type(
@@ -483,7 +483,7 @@ impl TypeChecker {
             );
             self.set_structured_type_members(
                 type_as_object_type,
-                Rc::new(RefCell::new(members)),
+                Gc::new(GcCell::new(members)),
                 call_signatures,
                 construct_signatures,
                 index_infos,
@@ -524,7 +524,7 @@ impl TypeChecker {
                             vars_only.insert(p.escaped_name().to_owned(), p.clone());
                         }
                     }
-                    members = Rc::new(RefCell::new(vars_only));
+                    members = Gc::new(GcCell::new(vars_only));
                 }
             }
             let mut base_constructor_index_info: Option<Gc<IndexInfo>> = None;
@@ -541,7 +541,7 @@ impl TypeChecker {
                 if base_constructor_type.flags().intersects(
                     TypeFlags::Object | TypeFlags::Intersection | TypeFlags::TypeVariable,
                 ) {
-                    let members_new = Rc::new(RefCell::new(create_symbol_table(Some(
+                    let members_new = Gc::new(GcCell::new(create_symbol_table(Some(
                         &self.get_named_or_index_signature_members(&*(*members).borrow()),
                     ))));
                     members = members_new;
@@ -550,7 +550,7 @@ impl TypeChecker {
                         &self.get_properties_of_type(&base_constructor_type),
                     );
                 } else if Gc::ptr_eq(&base_constructor_type, &self.any_type()) {
-                    base_constructor_index_info = Some(Rc::new(self.create_index_info(
+                    base_constructor_index_info = Some(Gc::new(self.create_index_info(
                         self.string_type(),
                         self.any_type(),
                         false,
@@ -618,7 +618,7 @@ impl TypeChecker {
                             type_as_object_type.maybe_call_signatures().as_deref(),
                             |sig: &Gc<Signature>, _| {
                                 if self.is_js_constructor(sig.declaration.as_deref()) {
-                                    Some(Rc::new(self.create_signature(
+                                    Some(Gc::new(self.create_signature(
                                         sig.declaration.clone(),
                                         sig.maybe_type_parameters().clone(),
                                         sig.maybe_this_parameter().clone(),
@@ -654,7 +654,7 @@ impl TypeChecker {
         let type_as_indexed_access_type = type_.as_indexed_access_type();
         self.instantiate_type(
             instantiable,
-            Some(Rc::new(self.create_type_mapper(
+            Some(Gc::new(self.create_type_mapper(
                 vec![
                     type_as_indexed_access_type.index_type.clone(),
                     type_as_indexed_access_type.object_type.clone(),
@@ -686,7 +686,7 @@ impl TypeChecker {
             SymbolFlags::Optional
         };
         let index_infos = if let Some(index_info) = index_info {
-            vec![Rc::new(self.create_index_info(
+            vec![Gc::new(self.create_index_info(
                 self.string_type(),
                 self.infer_reverse_mapped_type(
                     &index_info.type_,
@@ -759,7 +759,7 @@ impl TypeChecker {
         }
         self.set_structured_type_members(
             type_as_reverse_mapped_type,
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             index_infos,
@@ -920,7 +920,7 @@ impl TypeChecker {
         }
         self.set_structured_type_members(
             type_as_mapped_type,
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             index_infos,
@@ -942,7 +942,7 @@ impl TypeChecker {
         let prop_name_type = if let Some(name_type) = name_type {
             self.instantiate_type(
                 name_type,
-                Some(Rc::new(self.append_type_mapping(
+                Some(Gc::new(self.append_type_mapping(
                     type_.as_mapped_type().maybe_mapper(),
                     type_parameter,
                     key_type,
@@ -1102,13 +1102,13 @@ impl TypeChecker {
             };
             let prop_type = self.instantiate_type(
                 template_type,
-                Some(Rc::new(self.append_type_mapping(
+                Some(Gc::new(self.append_type_mapping(
                     type_.as_mapped_type().maybe_mapper(),
                     type_parameter,
                     key_type,
                 ))),
             );
-            let index_info = Rc::new(self.create_index_info(
+            let index_info = Gc::new(self.create_index_info(
                 index_key_type,
                 prop_type,
                 template_modifiers.intersects(MappedTypeModifiers::IncludeReadonly),
@@ -1142,7 +1142,7 @@ impl TypeChecker {
                     .maybe_target()
                     .unwrap_or_else(|| mapped_type.type_wrapper()),
             );
-            let mapper = Rc::new(self.append_type_mapping(
+            let mapper = Gc::new(self.append_type_mapping(
                 mapped_type_as_mapped_type.maybe_mapper(),
                 &self.get_type_parameter_from_mapped_type(mapped_type),
                 &symbol_as_mapped_symbol.key_type(),

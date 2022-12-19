@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -10,18 +10,18 @@ use std::rc::Rc;
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
-    are_option_rcs_equal, create_printer, create_symbol_table, declaration_name_to_string,
-    escape_string, factory, find_ancestor, first_defined, get_check_flags,
-    get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
+    are_option_gcs_equal, are_option_rcs_equal, create_printer, create_symbol_table,
+    declaration_name_to_string, escape_string, factory, find_ancestor, first_defined,
+    get_check_flags, get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
     get_emit_script_target, get_first_identifier, get_name_of_declaration, get_root_declaration,
     get_source_file_of_node, has_effective_modifier, is_ambient_module,
     is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
     is_computed_property_name, is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
-    map, maybe_for_each, parse_base_node_factory, parse_node_factory, push_if_unique_rc,
-    set_parent, set_text_range, starts_with, symbol_name, synthetic_factory, try_add_to_set,
-    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
-    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    map, maybe_for_each, parse_base_node_factory, parse_node_factory, push_if_unique_gc,
+    push_if_unique_rc, set_parent, set_text_range, starts_with, symbol_name, synthetic_factory,
+    try_add_to_set, walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint,
+    EmitTextWriter, InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
     ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
@@ -252,7 +252,7 @@ impl TypeChecker {
                         None => true,
                         Some(symbol_declarations) => matches!(
                             context.maybe_enclosing_declaration().as_deref(),
-                            Some(context_enclosing_declaration) if are_option_rcs_equal(
+                            Some(context_enclosing_declaration) if are_option_gcs_equal(
                                 find_ancestor(symbol_declarations.get(0).map(Clone::clone), |declaration| self.is_default_binding_context(declaration)).as_ref(),
                                 find_ancestor(Some(context_enclosing_declaration), |declaration| self.is_default_binding_context(declaration)).as_ref(),
                             )
@@ -505,7 +505,7 @@ impl TypeChecker {
                 if result.is_none() {
                     *result = Some(vec![]);
                 }
-                push_if_unique_rc(result.as_mut().unwrap(), &result_node);
+                push_if_unique_gc(result.as_mut().unwrap(), &result_node);
             }
 
             if is_internal_module_import_equals_declaration(declaration) {
@@ -784,7 +784,7 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             symbol,
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             self.get_index_infos_of_type(&source),

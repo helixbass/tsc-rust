@@ -9,20 +9,20 @@ use std::rc::Rc;
 
 use super::{signature_has_rest_parameter, MembersOrExportsResolutionKind};
 use crate::{
-    append_if_unique_rc, are_rc_slices_equal, concatenate, create_symbol_table,
-    declaration_name_to_string, escape_leading_underscores, every, filter, for_each,
-    get_assignment_declaration_kind, get_check_flags, get_class_like_declaration_of_symbol,
-    get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
-    has_static_modifier, has_syntactic_modifier, is_binary_expression, is_dynamic_name,
-    is_element_access_expression, is_in_js_file, last_or_undefined, length, map, map_defined,
-    maybe_concatenate, maybe_for_each, maybe_map, range_equals_rc, same_map, some,
-    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
-    ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature,
-    SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags,
-    SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
-    __String,
+    append_if_unique_gc, append_if_unique_rc, are_gc_slices_equal, are_rc_slices_equal,
+    concatenate, create_symbol_table, declaration_name_to_string, escape_leading_underscores,
+    every, filter, for_each, get_assignment_declaration_kind, get_check_flags,
+    get_class_like_declaration_of_symbol, get_members_of_declaration, get_name_of_declaration,
+    get_object_flags, has_dynamic_name, has_static_modifier, has_syntactic_modifier,
+    is_binary_expression, is_dynamic_name, is_element_access_expression, is_in_js_file,
+    last_or_undefined, length, map, map_defined, maybe_concatenate, maybe_for_each, maybe_map,
+    range_equals_gc, range_equals_rc, same_map, some, unescape_leading_underscores,
+    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, IndexInfo,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
+    LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags,
+    SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface,
+    SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
@@ -301,7 +301,7 @@ impl TypeChecker {
                     Some(
                         self.combine_symbol_tables(
                             early_symbols.clone(),
-                            Some(Rc::new(RefCell::new(late_symbols))),
+                            Some(Gc::new(GcCell::new(late_symbols))),
                         )
                         .unwrap_or_else(|| self.empty_symbols()),
                     ),
@@ -429,7 +429,7 @@ impl TypeChecker {
                     )
                 },
             );
-            return if !are_rc_slices_equal(
+            return if !are_gc_slices_equal(
                 &types,
                 type_.as_union_or_intersection_type_interface().types(),
             ) {
@@ -459,11 +459,11 @@ impl TypeChecker {
         let mut index_infos: Vec<Gc<IndexInfo>>;
         let source_as_interface_type_with_declared_members =
             source.as_interface_type_with_declared_members();
-        if range_equals_rc(&type_parameters, &type_arguments, 0, type_parameters.len()) {
+        if range_equals_gc(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.maybe_symbol() {
                 self.get_members_of_symbol(&source_symbol)
             } else {
-                Rc::new(RefCell::new(create_symbol_table(
+                Gc::new(GcCell::new(create_symbol_table(
                     source_as_interface_type_with_declared_members
                         .maybe_declared_properties()
                         .as_deref(),
@@ -480,10 +480,10 @@ impl TypeChecker {
                 .clone();
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
-            mapper = Some(Rc::new(
+            mapper = Some(Gc::new(
                 self.create_type_mapper(type_parameters, Some(type_arguments.clone())),
             ));
-            members = Rc::new(RefCell::new(
+            members = Gc::new(GcCell::new(
                 self.create_instantiated_symbol_table(
                     source
                         .as_interface_type()
@@ -511,7 +511,7 @@ impl TypeChecker {
         if !base_types.is_empty() {
             if matches!(source.maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(&symbol)))
             {
-                members = Rc::new(RefCell::new(create_symbol_table(
+                members = Gc::new(GcCell::new(create_symbol_table(
                     source_as_interface_type_with_declared_members
                         .maybe_declared_properties()
                         .as_deref(),
@@ -549,7 +549,7 @@ impl TypeChecker {
                     if !Gc::ptr_eq(&instantiated_base_type, &self.any_type()) {
                         self.get_index_infos_of_type(&instantiated_base_type)
                     } else {
-                        vec![Rc::new(self.create_index_info(
+                        vec![Gc::new(self.create_index_info(
                             self.string_type(),
                             self.any_type(),
                             false,
@@ -689,7 +689,7 @@ impl TypeChecker {
         if let Some(existing) = existing {
             return existing;
         }
-        let ret = Rc::new(self.create_optional_call_signature(&signature, call_chain_flags));
+        let ret = Gc::new(self.create_optional_call_signature(&signature, call_chain_flags));
         if key == "inner" {
             signature
                 .maybe_optional_call_signature_cache()
@@ -803,7 +803,7 @@ impl TypeChecker {
         let declaration = get_class_like_declaration_of_symbol(&class_type.symbol());
         let is_abstract = matches!(declaration.as_ref(), Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract));
         if base_signatures.is_empty() {
-            return vec![Rc::new(
+            return vec![Gc::new(
                 self.create_signature(
                     None,
                     class_type
@@ -859,7 +859,7 @@ impl TypeChecker {
                 } else {
                     sig.flags & !SignatureFlags::Abstract
                 };
-                result.push(Rc::new(sig));
+                result.push(Gc::new(sig));
             }
         }
         result
@@ -925,7 +925,7 @@ impl TypeChecker {
             if result.is_none() {
                 result = Some(vec![]);
             }
-            append_if_unique_rc(result.as_mut().unwrap(), &match_);
+            append_if_unique_gc(result.as_mut().unwrap(), &match_);
         }
         result
     }
@@ -989,7 +989,7 @@ impl TypeChecker {
                             let mut s_not_wrapped =
                                 self.create_union_signature(signature, union_signatures);
                             *s_not_wrapped.maybe_this_parameter_mut() = this_parameter;
-                            s = Rc::new(s_not_wrapped);
+                            s = Gc::new(s_not_wrapped);
                         }
                         if result.is_none() {
                             result = Some(vec![]);
@@ -1029,7 +1029,7 @@ impl TypeChecker {
                         None
                     } else {
                         maybe_map(results.as_ref(), |sig: &Gc<Signature>, _| {
-                            Rc::new(self.combine_signatures_of_union_members(
+                            Gc::new(self.combine_signatures_of_union_members(
                                 sig.clone(),
                                 signature.clone(),
                             ))
@@ -1059,7 +1059,7 @@ impl TypeChecker {
         let source_params = source_params.unwrap();
         let target_params = target_params.unwrap();
 
-        let mapper = Rc::new(
+        let mapper = Gc::new(
             self.create_type_mapper(target_params.to_owned(), Some(source_params.to_owned())),
         );
         for (i, source) in source_params.iter().enumerate() {

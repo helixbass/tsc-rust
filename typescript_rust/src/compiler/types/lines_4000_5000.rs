@@ -564,7 +564,8 @@ pub trait SymbolWriter: SymbolTracker {
     fn increase_indent(&self);
     fn decrease_indent(&self);
     fn clear(&self);
-    fn as_symbol_tracker(&self) -> &dyn SymbolTracker;
+    // fn as_symbol_tracker(self: Gc<Box<Self>>) -> Gc<Box<dyn SymbolTracker>>;
+    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>>;
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

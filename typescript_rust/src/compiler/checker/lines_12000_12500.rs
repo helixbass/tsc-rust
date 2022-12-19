@@ -9,17 +9,17 @@ use std::rc::Rc;
 
 use super::{get_symbol_id, MinArgumentCountFlags};
 use crate::{
-    add_range, append, are_rc_slices_equal, chain_diagnostic_messages, create_symbol_table, find,
-    get_check_flags, get_declaration_modifier_flags_from_symbol,
+    add_range, append, are_gc_slices_equal, are_rc_slices_equal, chain_diagnostic_messages,
+    create_symbol_table, find, get_check_flags, get_declaration_modifier_flags_from_symbol,
     get_effective_type_parameter_declarations, get_immediately_invoked_function_expression,
-    get_jsdoc_parameter_tags, has_question_token, index_of_rc, is_external_module_name_relative,
-    is_in_js_file, is_jsdoc_property_like_tag, is_property_declaration, length,
-    maybe_append_if_unique_rc, reduce_left, same_map, some, CheckFlags, Debug_,
-    DiagnosticMessageChain, HasInitializerInterface, HasTypeInterface, IndexInfo, ModifierFlags,
-    ScriptTarget, Signature, SignatureKind, SymbolId, SymbolTable, Ternary,
-    TransientSymbolInterface, TypeFormatFlags, TypePredicate, TypePredicateKind,
-    UnionOrIntersectionTypeInterface, __String, get_object_flags, map,
-    unescape_leading_underscores, Diagnostics, Node, NodeInterface, ObjectFlags,
+    get_jsdoc_parameter_tags, has_question_token, index_of_gc, index_of_rc,
+    is_external_module_name_relative, is_in_js_file, is_jsdoc_property_like_tag,
+    is_property_declaration, length, maybe_append_if_unique_gc, maybe_append_if_unique_rc,
+    reduce_left, same_map, some, CheckFlags, Debug_, DiagnosticMessageChain,
+    HasInitializerInterface, HasTypeInterface, IndexInfo, ModifierFlags, ScriptTarget, Signature,
+    SignatureKind, SymbolId, SymbolTable, Ternary, TransientSymbolInterface, TypeFormatFlags,
+    TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface, __String, get_object_flags,
+    map, unescape_leading_underscores, Diagnostics, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
     TypeFlags, TypeInterface,
 };
@@ -467,7 +467,7 @@ impl TypeChecker {
         let reduced_types = same_map(union_type_as_union_type.types(), |type_: &Gc<Type>, _| {
             self.get_reduced_type(type_)
         });
-        if are_rc_slices_equal(&reduced_types, union_type_as_union_type.types()) {
+        if are_gc_slices_equal(&reduced_types, union_type_as_union_type.types()) {
             return union_type.type_wrapper();
         }
         let reduced = self.get_union_type(
@@ -652,7 +652,7 @@ impl TypeChecker {
             }
         }
         if let Some(applicable_infos) = applicable_infos {
-            Some(Rc::new(self.create_index_info(
+            Some(Gc::new(self.create_index_info(
                 self.unknown_type(),
                 self.get_intersection_type(
                     &map(&applicable_infos, |info: &Gc<IndexInfo>, _| {
@@ -759,7 +759,7 @@ impl TypeChecker {
     ) -> Option<Vec<Gc<Type /*<TypeParameter>*/>>> {
         let mut result: Option<Vec<Gc<Type>>> = None;
         for node in get_effective_type_parameter_declarations(declaration) {
-            result = Some(maybe_append_if_unique_rc(
+            result = Some(maybe_append_if_unique_gc(
                 result,
                 &self.get_declared_type_of_type_parameter(&node.symbol()),
             ));
@@ -829,7 +829,7 @@ impl TypeChecker {
         let node_as_parameter_declaration = node.as_parameter_declaration();
         if node_as_parameter_declaration.maybe_initializer().is_some() {
             let signature = self.get_signature_from_declaration_(&node.parent());
-            let parameter_index = index_of_rc(
+            let parameter_index = index_of_gc(
                 node.parent().as_signature_declaration().parameters(),
                 &node.node_wrapper(),
             );
@@ -848,7 +848,7 @@ impl TypeChecker {
         if let Some(iife) = iife {
             return node_as_parameter_declaration.maybe_type().is_none()
                 && node_as_parameter_declaration.dot_dot_dot_token.is_none()
-                && index_of_rc(
+                && index_of_gc(
                     node.parent().as_signature_declaration().parameters(),
                     &node.node_wrapper(),
                 ) >= iife

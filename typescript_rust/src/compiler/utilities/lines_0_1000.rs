@@ -43,9 +43,9 @@ use crate::{
 };
 
 thread_local! {
-    static resolving_empty_array_: Rc<Vec<Gc<Type>>> = Rc::new(vec![]);
+    static resolving_empty_array_: Gc<Vec<Gc<Type>>> = Gc::new(vec![]);
 }
-pub fn resolving_empty_array() -> Rc<Vec<Gc<Type>>> {
+pub fn resolving_empty_array() -> Gc<Vec<Gc<Type>>> {
     resolving_empty_array_.with(|resolving_empty_array| resolving_empty_array.clone())
 }
 
@@ -105,14 +105,22 @@ fn create_single_line_string_writer() -> Rc<dyn EmitTextWriter> {
 
 #[derive(Trace, Finalize)]
 struct SingleLineStringWriter {
+    _rc_wrapper: GcCell<Option<Gc<Box<Self>>>>,
     str: RefCell<String>,
 }
 
 impl SingleLineStringWriter {
-    pub fn new() -> Self {
-        Self {
-            str: RefCell::new("".to_owned()),
-        }
+    pub fn new() -> Gc<Box<Self>> {
+        let rc_wrapper = Gc::new(Box::new(Self {
+            _rc_wrapper: Default::default(),
+            str: Default::default(),
+        }));
+        *rc_wrapper._rc_wrapper.borrow_mut() = Some(rc_wrapper.clone());
+        rc_wrapper
+    }
+
+    fn rc_wrapper(&self) -> Gc<Box<Self>> {
+        self._rc_wrapper.borrow().clone().unwrap()
     }
 
     fn str(&self) -> Ref<String> {
@@ -235,8 +243,8 @@ impl SymbolWriter for SingleLineStringWriter {
         self.set_str("".to_owned());
     }
 
-    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
-        self
+    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
+        self.rc_wrapper()
     }
 }
 

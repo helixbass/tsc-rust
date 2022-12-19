@@ -13,12 +13,12 @@ use crate::{
     get_declaration_of_kind, is_ambient_module, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
     is_namespace_reexport_declaration, is_umd_export_symbol, length, maybe_for_each,
-    node_is_present, push_if_unique_rc, some, BaseInterfaceType, BaseIntrinsicType, BaseObjectType,
-    BaseType, CharacterCodes, FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName,
-    Node, NodeInterface, ObjectFlags, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
-    SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeParameter, __String, get_source_file_of_node,
+    node_is_present, push_if_unique_gc, push_if_unique_rc, some, BaseInterfaceType,
+    BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
+    IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, ResolvableTypeInterface,
+    ResolvedTypeInterface, Signature, SignatureFlags, Symbol, SymbolAccessibility,
+    SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter, __String, get_source_file_of_node,
 };
 
 impl TypeChecker {
@@ -32,10 +32,10 @@ impl TypeChecker {
             return Some(symbol.symbol_wrapper());
         }
         let export_equals = container.maybe_exports().as_ref().and_then(|exports| {
-            (*exports)
+            (**exports)
                 .borrow()
                 .get(InternalSymbolName::ExportEquals)
-                .map(Clone::clone)
+                .cloned()
         });
         if matches!(export_equals, Some(export_equals) if self.get_symbol_if_same_reference(&export_equals, symbol).is_some())
         {
@@ -424,7 +424,7 @@ impl TypeChecker {
                     }
                     if let Some(table) = table {
                         result = callback(
-                            Rc::new(RefCell::new(table)),
+                            Gc::new(GcCell::new(table)),
                             None,
                             Some(false),
                             Some(&*location_unwrapped),
@@ -500,7 +500,7 @@ impl TypeChecker {
 
         let id = get_symbol_id(symbol);
         if !visited_symbol_tables_map.contains_key(&id) {
-            visited_symbol_tables_map.insert(id, Rc::new(RefCell::new(vec![])));
+            visited_symbol_tables_map.insert(id, Gc::new(GcCell::new(vec![])));
         }
         let visited_symbol_tables = visited_symbol_tables_map.get(&id).unwrap().clone();
         let result = self.for_each_symbol_table_in_scope(
@@ -535,7 +535,7 @@ impl TypeChecker {
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
     ) -> Option<Vec<Gc<Symbol>>> {
-        if !push_if_unique_rc(&mut visited_symbol_tables.borrow_mut(), &symbols) {
+        if !push_if_unique_gc(&mut visited_symbol_tables.borrow_mut(), &symbols) {
             return None;
         }
 

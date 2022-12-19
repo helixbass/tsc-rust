@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -609,13 +609,13 @@ impl TypeChecker {
             {
                 let mut inferred_exports = inferred.maybe_exports_mut();
                 if inferred_exports.is_none() {
-                    *inferred_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                    *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(None))));
                 }
             }
             {
                 let mut inferred_members = inferred.maybe_members_mut();
                 if inferred_members.is_none() {
-                    *inferred_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                    *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(None))));
                 }
             }
             inferred.set_flags(inferred.flags() | (source.flags() & SymbolFlags::Class));
@@ -743,8 +743,8 @@ impl TypeChecker {
                         .kind()
                         == SyntaxKind::EqualsToken
                     && (allow_declaration
-                        || Rc::ptr_eq(
-                            G & parent_node.parent().as_binary_expression().right,
+                        || Gc::ptr_eq(
+                            &parent_node.parent().as_binary_expression().right,
                             &parent_node,
                         ))
                 {

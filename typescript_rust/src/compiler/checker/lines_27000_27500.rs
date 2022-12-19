@@ -240,7 +240,7 @@ impl TypeChecker {
         } else {
             None
         };
-        let attributes_table = Rc::new(RefCell::new(create_symbol_table(None)));
+        let attributes_table = Gc::new(GcCell::new(create_symbol_table(None)));
         let mut spread = self.empty_jsx_object_type();
         let mut has_spread_any_type = false;
         let mut type_to_intersect: Option<Gc<Type>> = None;

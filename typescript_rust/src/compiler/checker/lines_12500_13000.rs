@@ -66,7 +66,7 @@ impl TypeChecker {
                 result[i] = if let Some(default_type) = default_type {
                     self.instantiate_type(
                         &default_type,
-                        Some(Rc::new(self.create_type_mapper(
+                        Some(Gc::new(self.create_type_mapper(
                             type_parameters.to_owned(),
                             Some(result.clone()),
                         ))),
@@ -219,7 +219,7 @@ impl TypeChecker {
             {
                 flags |= SignatureFlags::Abstract;
             }
-            let resolved_signature = Rc::new(self.create_signature(
+            let resolved_signature = Gc::new(self.create_signature(
                 Some(declaration.node_wrapper()),
                 type_parameters,
                 this_parameter,
@@ -458,7 +458,7 @@ impl TypeChecker {
                 let target_type_predicate = self.get_type_predicate_of_signature(signature_target);
                 *signature.maybe_resolved_type_predicate_mut() =
                     Some(if let Some(target_type_predicate) = target_type_predicate {
-                        Rc::new(self.instantiate_type_predicate(
+                        Gc::new(self.instantiate_type_predicate(
                             &target_type_predicate,
                             signature.mapper.clone().unwrap(),
                         ))
@@ -473,7 +473,7 @@ impl TypeChecker {
                         signature_composite_signatures,
                         signature.composite_kind,
                     )
-                    .map_or_else(|| self.no_type_predicate(), Rc::new),
+                    .map_or_else(|| self.no_type_predicate(), Gc::new),
                 );
             } else {
                 let type_ = signature

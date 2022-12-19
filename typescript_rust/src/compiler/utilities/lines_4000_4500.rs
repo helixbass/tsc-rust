@@ -336,7 +336,7 @@ impl SymbolWriter for TextWriter {
         self.reset();
     }
 
-    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
+    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
         self
     }
 }
@@ -554,7 +554,7 @@ impl SymbolWriter for TrailingSemicolonDeferringWriter {
         self.writer.clear()
     }
 
-    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
+    fn as_symbol_tracker(&self) -> Gc<Box<dyn SymbolTracker>> {
         self
     }
 }

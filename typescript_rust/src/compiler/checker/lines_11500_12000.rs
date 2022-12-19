@@ -999,7 +999,7 @@ impl TypeChecker {
                 }) {
                     return self.instantiate_type(
                         type_,
-                        Some(Rc::new(self.prepend_type_mapping(
+                        Some(Gc::new(self.prepend_type_mapping(
                             &type_variable,
                             &constraint,
                             type_as_mapped_type.maybe_mapper(),

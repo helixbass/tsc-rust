@@ -566,7 +566,7 @@ pub enum NotActuallyInterfaceType<'a> {
 }
 
 impl NotActuallyInterfaceType<'_> {
-    pub fn maybe_resolved_base_types(&self) -> RefMut<Option<Rc<Vec<Gc<Type>>>>> {
+    pub fn maybe_resolved_base_types(&self) -> RefMut<Option<Gc<Vec<Gc<Type>>>>> {
         match self {
             Self::InterfaceType(value) => value.maybe_resolved_base_types(),
             Self::BaseObjectType(value) => {

@@ -49,15 +49,16 @@ pub use compiler::core::{
     get_or_update, get_ranges_where, get_spelling_suggestion, get_string_comparer,
     identity_str_to_cow, identity_str_to_owned, index_of_any_char_code, insert_sorted, last,
     last_or_undefined, length, map, map_defined, matched_text, maybe_add_range,
-    maybe_append_if_unique_rc, maybe_concatenate, maybe_every, maybe_filter, maybe_first_defined,
-    maybe_for_each, maybe_for_each_bool, maybe_map, maybe_same_map, not_implemented,
-    ordered_remove_item_at, pad_left, pad_right, pattern_text, push_if_unique_gc,
-    push_if_unique_rc, range_equals_rc, reduce_left, reduce_left_no_initial_value,
-    reduce_left_no_initial_value_optional, relative_complement, remove_prefix, remove_suffix,
-    replace_element, same_map, set_ui_locale, single_element_array, single_or_undefined, some,
-    sort, sort_and_deduplicate, stable_sort, starts_with, string_contains, sum,
-    to_file_name_lower_case, trim_string, trim_string_end, trim_string_start, try_add_to_set,
-    try_cast, AssertionLevel, Cloneable, MultiMap, Pattern, UnderscoreEscapedMultiMap,
+    maybe_append_if_unique_gc, maybe_append_if_unique_rc, maybe_concatenate, maybe_every,
+    maybe_filter, maybe_first_defined, maybe_for_each, maybe_for_each_bool, maybe_map,
+    maybe_same_map, not_implemented, ordered_remove_item_at, pad_left, pad_right, pattern_text,
+    push_if_unique_gc, push_if_unique_rc, range_equals_gc, range_equals_rc, reduce_left,
+    reduce_left_no_initial_value, reduce_left_no_initial_value_optional, relative_complement,
+    remove_prefix, remove_suffix, replace_element, same_map, set_ui_locale, single_element_array,
+    single_or_undefined, some, sort, sort_and_deduplicate, stable_sort, starts_with,
+    string_contains, sum, to_file_name_lower_case, trim_string, trim_string_end, trim_string_start,
+    try_add_to_set, try_cast, AssertionLevel, Cloneable, MultiMap, Pattern,
+    UnderscoreEscapedMultiMap,
 };
 pub use compiler::core_public::{
     version, version_major_minor, Comparer, Comparison, MapLike, Push, ReadonlyCollection,
@@ -642,7 +643,8 @@ pub use rust_helpers::sys::{
 };
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
-    are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal, capitalize, index_of,
-    index_of_gc, index_of_rc, is_option_str_empty, is_same_variant, last_index_of,
-    last_index_of_returns_isize, push_or_replace, uncapitalize, UsizeOrNegativeInfinity,
+    are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,
+    capitalize, index_of, index_of_gc, index_of_rc, is_option_str_empty, is_same_variant,
+    last_index_of, last_index_of_returns_isize, push_or_replace, uncapitalize,
+    UsizeOrNegativeInfinity,
 };

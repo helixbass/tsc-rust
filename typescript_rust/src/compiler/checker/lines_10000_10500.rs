@@ -63,7 +63,7 @@ impl TypeChecker {
     pub(super) fn resolve_base_types_of_interface(&self, type_: &Type /*InterfaceType*/) {
         let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_resolved_base_types().is_none() {
-            *type_as_interface_type.maybe_resolved_base_types() = Some(Rc::new(vec![]));
+            *type_as_interface_type.maybe_resolved_base_types() = Some(Gc::new(vec![]));
         }
         if let Some(type_symbol_declarations) = type_.symbol().maybe_declarations().as_deref() {
             for declaration in type_symbol_declarations {
@@ -88,7 +88,7 @@ impl TypeChecker {
                                     );
                                     resolved_base_types.push(base_type);
                                     *type_as_interface_type.maybe_resolved_base_types() =
-                                        Some(Rc::new(resolved_base_types));
+                                        Some(Gc::new(resolved_base_types));
                                 } else {
                                     self.report_circular_base_type(declaration, type_);
                                 }

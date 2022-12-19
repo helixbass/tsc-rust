@@ -14,12 +14,13 @@ use crate::{
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_object_flags, get_parameter_symbol_from_jsdoc, is_access_expression, is_binary_expression,
     is_export_assignment, is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol,
-    is_source_file, is_type_alias, length, maybe_append_if_unique_rc, maybe_first_defined,
-    maybe_map, maybe_same_map, resolving_empty_array, same_map, some, AssignmentDeclarationKind,
-    CheckFlags, Debug_, Diagnostics, ElementFlags, HasTypeArgumentsInterface,
-    InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface, ObjectFlags, Signature,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeSystemPropertyName,
+    is_source_file, is_type_alias, length, maybe_append_if_unique_gc, maybe_append_if_unique_rc,
+    maybe_first_defined, maybe_map, maybe_same_map, resolving_empty_array, same_map, some,
+    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags,
+    HasTypeArgumentsInterface, InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface,
+    ObjectFlags, Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -406,7 +407,7 @@ impl TypeChecker {
         declarations: &[Gc<Node>],
     ) -> Option<Vec<Gc<Type>>> {
         for declaration in declarations {
-            type_parameters = Some(maybe_append_if_unique_rc(
+            type_parameters = Some(maybe_append_if_unique_gc(
                 type_parameters,
                 &self.get_declared_type_of_type_parameter(
                     &self.get_symbol_of_node(&**declaration).unwrap(),
@@ -902,7 +903,7 @@ impl TypeChecker {
                     .intersects(ObjectFlags::Tuple)
                 {
                     *type_as_not_actually_interface_type.maybe_resolved_base_types() =
-                        Some(Rc::new(vec![self.get_tuple_base_type(type_)]));
+                        Some(Gc::new(vec![self.get_tuple_base_type(type_)]));
                 } else if type_
                     .symbol()
                     .flags()
@@ -977,7 +978,7 @@ impl TypeChecker {
     pub(super) fn resolve_base_types_of_class(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> Rc<Vec<Gc<Type /*BaseType*/>>> {
+    ) -> Gc<Vec<Gc<Type /*BaseType*/>>> {
         let type_as_not_actually_interface_type = type_.as_not_actually_interface_type();
         *type_as_not_actually_interface_type.maybe_resolved_base_types() =
             Some(resolving_empty_array());
@@ -987,7 +988,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::Intersection | TypeFlags::Any)
         {
-            let ret = Rc::new(vec![]);
+            let ret = Gc::new(vec![]);
             *type_as_not_actually_interface_type.maybe_resolved_base_types() = Some(ret.clone());
             return ret;
         }
@@ -1032,7 +1033,7 @@ impl TypeChecker {
                     &Diagnostics::No_base_constructor_has_the_specified_number_of_type_arguments,
                     None,
                 );
-                let ret = Rc::new(vec![]);
+                let ret = Gc::new(vec![]);
                 *type_as_not_actually_interface_type.maybe_resolved_base_types() =
                     Some(ret.clone());
                 return ret;
@@ -1041,7 +1042,7 @@ impl TypeChecker {
         }
 
         if self.is_error_type(&base_type) {
-            let ret = Rc::new(vec![]);
+            let ret = Gc::new(vec![]);
             *type_as_not_actually_interface_type.maybe_resolved_base_types() = Some(ret.clone());
             return ret;
         }
@@ -1052,7 +1053,7 @@ impl TypeChecker {
                 Some(vec![
                     self.type_to_string_(&reduced_base_type, Option::<&Node>::None, None, None)
                 ]));
-            self.diagnostics().add(Rc::new(
+            self.diagnostics().add(Gc::new(
                 create_diagnostic_for_node_from_message_chain(
                     &base_type_node
                         .as_expression_with_type_arguments()
@@ -1062,7 +1063,7 @@ impl TypeChecker {
                 )
                 .into(),
             ));
-            let ret = Rc::new(vec![]);
+            let ret = Gc::new(vec![]);
             *type_as_not_actually_interface_type.maybe_resolved_base_types() = Some(ret.clone());
             return ret;
         }
@@ -1079,11 +1080,11 @@ impl TypeChecker {
                     None,
                 )]),
             );
-            let ret = Rc::new(vec![]);
+            let ret = Gc::new(vec![]);
             *type_as_not_actually_interface_type.maybe_resolved_base_types() = Some(ret.clone());
             return ret;
         }
-        if Rc::ptr_eq(
+        if Gc::ptr_eq(
             type_as_not_actually_interface_type
                 .maybe_resolved_base_types()
                 .as_ref()
@@ -1092,7 +1093,7 @@ impl TypeChecker {
         ) {
             type_as_not_actually_interface_type.set_members(None);
         }
-        let ret = Rc::new(vec![reduced_base_type]);
+        let ret = Gc::new(vec![reduced_base_type]);
         *type_as_not_actually_interface_type.maybe_resolved_base_types() = Some(ret.clone());
         ret
     }

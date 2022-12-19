@@ -99,6 +99,18 @@ pub fn are_rc_slices_equal<TItem>(a: &[Rc<TItem>], b: &[Rc<TItem>]) -> bool {
     true
 }
 
+pub fn are_gc_slices_equal<TItem: Trace + Finalize>(a: &[Gc<TItem>], b: &[Gc<TItem>]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    for (index, a_item) in a.iter().enumerate() {
+        if !Gc::ptr_eq(a_item, &b[index]) {
+            return false;
+        }
+    }
+    true
+}
+
 // https://stackoverflow.com/a/38406885
 pub fn capitalize(string: &str) -> String {
     let mut c = string.chars();

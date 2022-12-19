@@ -777,6 +777,18 @@ pub fn maybe_append_if_unique_rc<TItem>(
     }
 }
 
+pub fn maybe_append_if_unique_gc<TItem: Trace + Finalize>(
+    array: Option<Vec<Gc<TItem>>>,
+    to_add: &Gc<TItem>,
+) -> Vec<Gc<TItem>> {
+    if let Some(mut array) = array {
+        push_if_unique_gc(&mut array, to_add);
+        array
+    } else {
+        vec![to_add.clone()]
+    }
+}
+
 pub fn comparison_to_ordering(comparison: Comparison) -> Ordering {
     match comparison {
         Comparison::EqualTo => Ordering::Equal,
@@ -831,6 +843,21 @@ pub fn range_equals_rc<TItem>(
 ) -> bool {
     while pos < end {
         if !Rc::ptr_eq(&array1[pos], &array2[pos]) {
+            return false;
+        }
+        pos += 1;
+    }
+    true
+}
+
+pub fn range_equals_gc<TItem: Trace + Finalize>(
+    array1: &[Gc<TItem>],
+    array2: &[Gc<TItem>],
+    mut pos: usize,
+    end: usize,
+) -> bool {
+    while pos < end {
+        if !Gc::ptr_eq(&array1[pos], &array2[pos]) {
             return false;
         }
         pos += 1;

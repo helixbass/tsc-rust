@@ -790,7 +790,7 @@ impl TypeChecker {
     pub(super) fn get_unresolved_symbol_for_entity_name(
         &self,
         name: &Node, /*EntityNameOrEntityNameExpression*/
-    ) -> Rc<Symbol /*TransientSymbol*/> {
+    ) -> Gc<Symbol /*TransientSymbol*/> {
         let identifier = if name.kind() == SyntaxKind::QualifiedName {
             name.as_qualified_name().right.clone()
         } else if name.kind() == SyntaxKind::PropertyAccessExpression {

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
@@ -15,8 +15,8 @@ use crate::{
     get_combined_node_flags, get_declaration_of_kind, get_declared_expando_initializer,
     get_effective_modifier_flags, get_effective_type_annotation_node, get_jsdoc_type,
     get_jsdoc_type_tag, get_object_flags, get_source_file_of_node, get_this_container,
-    has_only_expression_initializer, has_static_modifier, index_of_rc, is_access_expression,
-    is_binary_expression, is_binding_pattern, is_call_expression,
+    has_only_expression_initializer, has_static_modifier, index_of_gc, index_of_rc,
+    is_access_expression, is_binary_expression, is_binding_pattern, is_call_expression,
     is_class_static_block_declaration, is_function_type_node, is_in_js_file, is_jsx_attribute,
     is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,
     is_parameter, is_parameter_declaration, is_property_access_expression, is_property_declaration,
@@ -73,7 +73,7 @@ impl TypeChecker {
         }
         Some(format!(
             "{}",
-            index_of_rc(parent.as_has_elements().elements(), &node.node_wrapper())
+            index_of_gc(parent.as_has_elements().elements(), &node.node_wrapper())
         ))
     }
 
@@ -185,7 +185,7 @@ impl TypeChecker {
                 &self.undefined_type(),
                 Some(&*pattern),
             );
-            let index: usize = index_of_rc(
+            let index: usize = index_of_gc(
                 &pattern.as_array_binding_pattern().elements,
                 &declaration.node_wrapper(),
             )
@@ -422,7 +422,7 @@ impl TypeChecker {
                 if let Some(type_tag) = type_tag {
                     if is_function_type_node(&type_tag) {
                         let signature = self.get_signature_from_declaration_(&type_tag);
-                        let pos: usize = index_of_rc(
+                        let pos: usize = index_of_gc(
                             func.as_function_like_declaration().parameters(),
                             &declaration.node_wrapper(),
                         )
@@ -1016,13 +1016,13 @@ impl TypeChecker {
         {
             return None;
         }
-        let exports = Rc::new(RefCell::new(create_symbol_table(None)));
+        let exports = Gc::new(GcCell::new(create_symbol_table(None)));
         let mut decl = decl.node_wrapper();
         while is_binary_expression(&decl) || is_property_access_expression(&decl) {
             let s = self.get_symbol_of_node(&decl);
             if let Some(s) = s {
                 if let Some(s_exports) = s.maybe_exports().as_deref() {
-                    let s_exports = (**s_exports).borrow();
+                    let s_exports = (*s_exports).borrow();
                     if !s_exports.is_empty() {
                         self.merge_symbol_table(exports.clone(), &s_exports, None);
                     }
@@ -1037,7 +1037,7 @@ impl TypeChecker {
         let s = self.get_symbol_of_node(&decl);
         if let Some(s) = s {
             if let Some(s_exports) = s.maybe_exports().as_deref() {
-                let s_exports = (**s_exports).borrow();
+                let s_exports = (*s_exports).borrow();
                 if !s_exports.is_empty() {
                     self.merge_symbol_table(exports.clone(), &s_exports, None);
                 }
@@ -1165,7 +1165,7 @@ impl TypeChecker {
                 let mut resolved_symbol_exports = resolved_symbol.maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
                     *resolved_symbol_exports =
-                        Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                        Some(Gc::new(GcCell::new(create_symbol_table(None))));
                 }
             }
             for (name, s) in &*(*resolved_symbol.as_deref().unwrap_or(symbol).exports()).borrow() {
@@ -1275,7 +1275,7 @@ impl TypeChecker {
                 } else {
                     exported_type.maybe_symbol()
                 },
-                Rc::new(RefCell::new(members)),
+                Gc::new(GcCell::new(members)),
                 exported_type_as_resolved_type.call_signatures().clone(),
                 exported_type_as_resolved_type
                     .construct_signatures()

@@ -10,23 +10,23 @@ use std::rc::Rc;
 
 use super::{ambient_module_symbol_regex, get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
-    are_option_rcs_equal, array_is_homogeneous, cast_present, create_underscore_escaped_multi_map,
-    first, get_check_flags, get_declaration_of_kind, get_emit_module_resolution_kind,
-    get_first_identifier, get_name_from_index_info, get_non_augmentation_declaration,
-    get_original_node, get_source_file_of_node, get_text_of_jsdoc_comment, is_ambient_module,
-    is_binding_element, is_computed_property_name, is_entity_name, is_identifier,
-    is_identifier_type_reference, is_indexed_access_type_node, is_jsdoc_parameter_tag,
-    is_rest_parameter, is_transient_symbol, length, maybe_filter, maybe_first_defined,
-    maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers, node_is_synthesized,
-    null_transformation_context, out_file, path_is_relative, set_comment_range, set_emit_flags,
-    set_synthetic_leading_comments, some, symbol_name, unescape_leading_underscores,
-    visit_each_child, with_factory, with_synthetic_factory_and_factory, CheckFlags,
-    CompilerOptions, Debug_, EmitFlags, IndexInfo, InternalSymbolName, ModifierFlags,
-    ModuleResolutionKind, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, Signature,
-    SignatureFlags, StrOrNodeArrayRef, StrOrRcNode, StringOrNodeArray, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTracker, SyntaxKind, SynthesizedComment, TransientSymbolInterface, Type,
-    TypeInterface, TypePredicateKind, UnderscoreEscapedMultiMap, UserPreferencesBuilder,
-    VisitResult,
+    are_option_gcs_equal, are_option_rcs_equal, array_is_homogeneous, cast_present,
+    create_underscore_escaped_multi_map, first, get_check_flags, get_declaration_of_kind,
+    get_emit_module_resolution_kind, get_first_identifier, get_name_from_index_info,
+    get_non_augmentation_declaration, get_original_node, get_source_file_of_node,
+    get_text_of_jsdoc_comment, is_ambient_module, is_binding_element, is_computed_property_name,
+    is_entity_name, is_identifier, is_identifier_type_reference, is_indexed_access_type_node,
+    is_jsdoc_parameter_tag, is_rest_parameter, is_transient_symbol, length, maybe_filter,
+    maybe_first_defined, maybe_for_each_bool, maybe_map, modifiers_to_flags, module_specifiers,
+    node_is_synthesized, null_transformation_context, out_file, path_is_relative,
+    set_comment_range, set_emit_flags, set_synthetic_leading_comments, some, symbol_name,
+    unescape_leading_underscores, visit_each_child, with_factory,
+    with_synthetic_factory_and_factory, CheckFlags, CompilerOptions, Debug_, EmitFlags, IndexInfo,
+    InternalSymbolName, ModifierFlags, ModuleResolutionKind, Node, NodeArray, NodeBuilder,
+    NodeBuilderFlags, NodeInterface, Signature, SignatureFlags, StrOrNodeArrayRef, StrOrRcNode,
+    StringOrNodeArray, Symbol, SymbolFlags, SymbolInterface, SymbolTracker, SyntaxKind,
+    SynthesizedComment, TransientSymbolInterface, Type, TypeInterface, TypePredicateKind,
+    UnderscoreEscapedMultiMap, UserPreferencesBuilder, VisitResult,
 };
 
 impl NodeBuilder {
@@ -198,9 +198,9 @@ impl NodeBuilder {
     pub(super) fn types_are_same_reference(&self, a: &Type, b: &Type) -> bool {
         ptr::eq(a, b)
             || a.maybe_symbol().is_some()
-                && are_option_rcs_equal(a.maybe_symbol().as_ref(), b.maybe_symbol().as_ref())
+                && are_option_gcs_equal(a.maybe_symbol().as_ref(), b.maybe_symbol().as_ref())
             || a.maybe_alias_symbol().is_some()
-                && are_option_rcs_equal(
+                && are_option_gcs_equal(
                     a.maybe_alias_symbol().as_ref(),
                     b.maybe_alias_symbol().as_ref(),
                 )
@@ -1407,7 +1407,7 @@ impl NodeBuilder {
             );
             let module_resolver_host = context.tracker.module_resolver_host().unwrap();
             let specifier_compiler_options = if is_bundle {
-                Rc::new(CompilerOptions {
+                Gc::new(CompilerOptions {
                     base_url: Some(module_resolver_host.get_common_source_directory()),
                     ..(*self.type_checker.compiler_options).clone()
                 })

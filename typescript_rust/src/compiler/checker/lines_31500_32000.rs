@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -280,7 +280,7 @@ impl TypeChecker {
             .borrow_mut()
             .type_ = Some(target_type.type_wrapper());
 
-        let members = Rc::new(RefCell::new(create_symbol_table(Some(&[
+        let members = Gc::new(GcCell::new(create_symbol_table(Some(&[
             target_property_symbol,
         ]))));
         *symbol.maybe_members_mut() = Some(members.clone());

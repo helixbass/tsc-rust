@@ -1,17 +1,13 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use regex::{Captures, Regex};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::ptr;
-use std::rc::Rc;
 
-use super::{
-    wrap_symbol_tracker_to_report_for_context, NodeBuilderContext, RcOrReferenceToDynSymbolTracker,
-};
+use super::{wrap_symbol_tracker_to_report_for_context, NodeBuilderContext};
 use crate::{
     every, find, find_ancestor, get_effective_return_type_node, get_effective_type_annotation_node,
     get_emit_script_target, get_first_identifier, get_line_and_character_of_position,
@@ -742,10 +738,10 @@ impl NodeBuilder {
         }
     }
 
-    pub(super) fn clone_node_builder_context<'symbol_tracker>(
+    pub(super) fn clone_node_builder_context(
         &self,
-        context: Rc<RefCell<NodeBuilderContext<'symbol_tracker>>>,
-    ) -> NodeBuilderContext<'symbol_tracker> {
+        context: Gc<GcCell<NodeBuilderContext>>,
+    ) -> NodeBuilderContext {
         let mut initial = (*context).borrow().clone();
         {
             let mut initial_type_parameter_names = initial.type_parameter_names.borrow_mut();
@@ -776,7 +772,7 @@ impl NodeBuilder {
         }
         let initial_tracker =
             wrap_symbol_tracker_to_report_for_context(context.clone(), initial.tracker.clone());
-        initial.tracker = RcOrReferenceToDynSymbolTracker::Rc(Rc::new(initial_tracker));
+        initial.tracker = Gc::new(Box::new(initial_tracker));
         initial
     }
 

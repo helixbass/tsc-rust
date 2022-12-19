@@ -744,7 +744,7 @@ pub trait ModuleSpecifierCache {
     );
 }
 
-pub trait SymbolTracker {
+pub trait SymbolTracker: Trace + Finalize {
     fn track_symbol(
         &self,
         symbol: &Symbol,
@@ -792,7 +792,7 @@ pub trait SymbolTracker {
 }
 
 pub trait ModuleSpecifierResolutionHostAndGetCommonSourceDirectory:
-    ModuleSpecifierResolutionHost
+    ModuleSpecifierResolutionHost + Trace + Finalize
 {
     fn get_common_source_directory(&self) -> String;
     fn as_dyn_module_specifier_resolution_host(&self) -> &dyn ModuleSpecifierResolutionHost;

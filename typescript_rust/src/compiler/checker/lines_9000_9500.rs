@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use gc::Gc;
+use gc::{Gc, GcCell};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
@@ -9,8 +9,8 @@ use std::rc::Rc;
 
 use super::CheckMode;
 use crate::{
-    are_option_rcs_equal, create_symbol_table, find_last_index_returns_isize, for_each,
-    for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
+    are_option_gcs_equal, are_option_rcs_equal, create_symbol_table, find_last_index_returns_isize,
+    for_each, for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
     get_effective_return_type_node, get_effective_set_accessor_type_annotation_node,
     get_effective_type_annotation_node, get_root_declaration, get_source_file_of_node,
     get_this_container, is_accessor, is_binary_expression,
@@ -144,7 +144,7 @@ impl TypeChecker {
                     .as_ref()
                     .map_or_else(|| e_as_binding_element.name(), Clone::clone);
                 if e_as_binding_element.dot_dot_dot_token.is_some() {
-                    string_index_info = Some(Rc::new(self.create_index_info(
+                    string_index_info = Some(Gc::new(self.create_index_info(
                         self.string_type(),
                         self.any_type(),
                         false,
@@ -186,7 +186,7 @@ impl TypeChecker {
         );
         let result = self.create_anonymous_type(
             Option::<&Symbol>::None,
-            Rc::new(RefCell::new(members)),
+            Gc::new(GcCell::new(members)),
             vec![],
             vec![],
             if let Some(string_index_info) = string_index_info {
@@ -337,7 +337,7 @@ impl TypeChecker {
             if type_.flags().intersects(TypeFlags::UniqueESSymbol)
                 && (is_binding_element(declaration)
                     || declaration.as_has_type().maybe_type().is_none())
-                && !are_option_rcs_equal(
+                && !are_option_gcs_equal(
                     type_.maybe_symbol().as_ref(),
                     self.get_symbol_of_node(declaration).as_ref(),
                 )
@@ -454,7 +454,7 @@ impl TypeChecker {
                 members.insert("exports".to_owned(), result);
                 return self.create_anonymous_type(
                     Some(symbol),
-                    Rc::new(RefCell::new(members)),
+                    Gc::new(GcCell::new(members)),
                     vec![],
                     vec![],
                     vec![],

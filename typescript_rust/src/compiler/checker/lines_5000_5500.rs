@@ -12,12 +12,12 @@ use super::{
     SignatureToSignatureDeclarationOptions,
 };
 use crate::{
-    contains_rc, count_where, factory, filter, first, get_check_flags,
+    contains_gc, contains_rc, count_where, factory, filter, first, get_check_flags,
     get_declaration_modifier_flags_from_symbol, get_name_of_declaration, get_object_flags,
     get_parse_tree_node, is_binary_expression, is_class_like, is_element_access_expression,
     is_identifier, is_import_type_node, is_property_access_entity_name_expression, is_static, last,
     length, map, maybe_for_each_bool, node_is_synthesized, null_transformation_context,
-    range_equals_rc, same_map, set_emit_flags, set_text_range, some, symbol_name,
+    range_equals_gc, range_equals_rc, same_map, set_emit_flags, set_text_range, some, symbol_name,
     synthetic_factory, unescape_leading_underscores, visit_each_child, CheckFlags, Debug_,
     ElementFlags, EmitFlags, HasTypeArgumentsInterface, InterfaceTypeInterface, KeywordTypeNode,
     ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
@@ -868,7 +868,7 @@ impl NodeBuilder {
                         i < length
                             && matches!(self.type_checker.get_parent_symbol_of_type_parameter(&outer_type_parameters[i]), Some(parent_symbol) if Gc::ptr_eq(&parent_symbol, &parent))
                     } {}
-                    if !range_equals_rc(outer_type_parameters, &type_arguments, start, i) {
+                    if !range_equals_gc(outer_type_parameters, &type_arguments, start, i) {
                         let type_argument_slice =
                             self.map_to_type_nodes(Some(&type_arguments[start..i]), context, None);
                         let flags = context.flags();
@@ -1210,7 +1210,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
     ) -> bool {
         get_check_flags(property_symbol).intersects(CheckFlags::ReverseMapped)
-            && (contains_rc(
+            && (contains_gc(
                 context.reverse_mapped_stack.borrow().as_deref(),
                 &property_symbol.symbol_wrapper(),
             ) || matches!(

@@ -1028,7 +1028,7 @@ impl TypeChecker {
         if let Some(module_not_found_error) = module_not_found_error {
             if let Some(resolved_module) = resolved_module.as_ref() {
                 let redirect = TypeCheckerHost::get_project_reference_redirect(
-                    &*self.host,
+                    &**self.host,
                     &resolved_module.resolved_file_name,
                 );
                 if let Some(redirect) = redirect {

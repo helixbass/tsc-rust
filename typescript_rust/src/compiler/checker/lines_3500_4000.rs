@@ -17,10 +17,10 @@ use crate::{
     is_external_module_name_relative, is_import_call, is_import_declaration,
     is_module_exports_access_expression, is_object_literal_expression, is_type_literal_node,
     is_variable_declaration, length, mangle_scoped_package_name, map_defined, node_is_synthesized,
-    push_if_unique_rc, unescape_leading_underscores, Diagnostics, HasInitializerInterface,
-    HasTypeInterface, InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags,
-    ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    push_if_unique_gc, push_if_unique_rc, unescape_leading_underscores, Diagnostics,
+    HasInitializerInterface, HasTypeInterface, InternalSymbolName, ModuleKind, Node, NodeInterface,
+    ObjectFlags, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     UnderscoreEscapedMap, __String,
 };
 
@@ -522,7 +522,7 @@ impl TypeChecker {
         self.visit_get_exports_of_module_worker(&mut visited_symbols, Some(module_symbol))
             .map_or_else(
                 || self.empty_symbols(),
-                |symbol_table| Rc::new(RefCell::new(symbol_table)),
+                |symbol_table| Gc::new(GcCell::new(symbol_table)),
             )
     }
 
@@ -532,7 +532,7 @@ impl TypeChecker {
         symbol: Option<Gc<Symbol>>,
     ) -> Option<SymbolTable> {
         let symbol = symbol?;
-        if !(symbol.maybe_exports().is_some() && push_if_unique_rc(visited_symbols, &symbol)) {
+        if !(symbol.maybe_exports().is_some() && push_if_unique_gc(visited_symbols, &symbol)) {
             return None;
         }
         let symbol_exports = symbol.maybe_exports();
@@ -574,7 +574,7 @@ impl TypeChecker {
                 }
                 let exports_with_duplicate = exports_with_duplicate.unwrap();
                 for node in exports_with_duplicate {
-                    self.diagnostics().add(Rc::new(create_diagnostic_for_node(
+                    self.diagnostics().add(Gc::new(create_diagnostic_for_node(
                         node,
                         &Diagnostics::Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambiguity,
                         Some(vec![
