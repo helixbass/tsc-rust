@@ -817,7 +817,7 @@ impl Printer {
             if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                 bundle_file_info
                     .sections
-                    .push(Rc::new(BundleFileSection::new_has_no_default_lib(
+                    .push(Gc::new(BundleFileSection::new_has_no_default_lib(
                         None,
                         pos.try_into().unwrap(),
                         self.writer().get_text_pos().try_into().unwrap(),
@@ -874,7 +874,7 @@ impl Printer {
             if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                 bundle_file_info
                     .sections
-                    .push(Rc::new(BundleFileSection::new_reference(
+                    .push(Gc::new(BundleFileSection::new_reference(
                         BundleFileSectionKind::Reference,
                         directive.file_name.clone(),
                         pos.try_into().unwrap(),
@@ -892,7 +892,7 @@ impl Printer {
             if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                 bundle_file_info
                     .sections
-                    .push(Rc::new(BundleFileSection::new_reference(
+                    .push(Gc::new(BundleFileSection::new_reference(
                         BundleFileSectionKind::Type,
                         directive.file_name.clone(),
                         pos.try_into().unwrap(),
@@ -910,7 +910,7 @@ impl Printer {
             if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
                 bundle_file_info
                     .sections
-                    .push(Rc::new(BundleFileSection::new_reference(
+                    .push(Gc::new(BundleFileSection::new_reference(
                         BundleFileSectionKind::Lib,
                         directive.file_name.clone(),
                         pos.try_into().unwrap(),
@@ -1000,7 +1000,7 @@ impl Printer {
                     self.emit(Some(&**statement), None);
                     if record_bundle_file_section == Some(true) {
                         if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                            bundle_file_info.sections.push(Rc::new(
+                            bundle_file_info.sections.push(Gc::new(
                                 BundleFileSection::new_prologue(
                                     statement
                                         .as_expression_statement()

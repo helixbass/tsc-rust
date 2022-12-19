@@ -1,4 +1,4 @@
-use gc::Gc;
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -12,11 +12,11 @@ use crate::{
     is_incremental_compilation, is_option_str_empty, is_source_file, last_or_undefined,
     no_emit_notification, no_emit_substitution, normalize_slashes, out_file, remove_file_extension,
     resolve_path, BaseNodeFactorySynthetic, BundleFileInfo, BundleFileSection,
-    BundleFileSectionInterface, BundleFileSectionKind, CompilerOptions, Debug_,
-    DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension, JsxEmit,
-    ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules, ParsedCommandLine,
-    PrintHandlers, Printer, PrinterOptions, SourceMapGenerator, SourceMapSource, SyntaxKind,
-    TextRange,
+    BundleFileSectionInterface, BundleFileSectionKind, CompilerOptions, CurrentParenthesizerRule,
+    Debug_, DetachedCommentInfo, EmitBinaryExpression, EmitHint, EmitTextWriter, Extension,
+    JsxEmit, ListFormat, Node, NodeArray, NodeId, NodeInterface, ParenthesizerRules,
+    ParsedCommandLine, PrintHandlers, Printer, PrinterOptions, SourceMapGenerator, SourceMapSource,
+    SyntaxKind, TextRange,
 };
 
 lazy_static! {
@@ -190,17 +190,18 @@ impl PipelinePhase {
 
 pub fn create_printer(
     printer_options: PrinterOptions,
-    handlers: Option<Rc<dyn PrintHandlers>>,
-) -> Rc<Printer> {
-    let handlers = handlers.unwrap_or_else(|| Rc::new(DummyPrintHandlers));
-    let printer = Rc::new(Printer::new(printer_options, handlers));
+    handlers: Option<Gc<Box<dyn PrintHandlers>>>,
+) -> Gc<Printer> {
+    let handlers = handlers.unwrap_or_else(|| Gc::new(Box::new(DummyPrintHandlers)));
+    let printer = Gc::new(Printer::new(printer_options, handlers));
     *printer._rc_wrapper.borrow_mut() = Some(printer.clone());
     printer.reset();
     *printer.emit_binary_expression.borrow_mut() =
-        Some(Rc::new(printer.create_emit_binary_expression()));
+        Some(Gc::new(printer.create_emit_binary_expression()));
     printer
 }
 
+#[derive(Trace, Finalize)]
 pub(super) struct DummyPrintHandlers;
 
 impl PrintHandlers for DummyPrintHandlers {
@@ -214,7 +215,7 @@ impl PrintHandlers for DummyPrintHandlers {
 }
 
 impl Printer {
-    pub fn new(printer_options: PrinterOptions, handlers: Rc<dyn PrintHandlers>) -> Self {
+    pub fn new(printer_options: PrinterOptions, handlers: Gc<Box<dyn PrintHandlers>>) -> Self {
         let extended_diagnostics = printer_options.extended_diagnostics == Some(true);
         let new_line =
             get_new_line_character(printer_options.new_line, Option::<fn() -> String>::None);
@@ -238,56 +239,56 @@ impl Printer {
         };
         let record_internal_section = printer_options.record_internal_section;
         Self {
-            _rc_wrapper: RefCell::new(None),
+            _rc_wrapper: Default::default(),
             printer_options,
             handlers,
             extended_diagnostics,
             new_line,
             module_kind,
-            current_source_file: RefCell::new(None),
-            bundled_helpers: RefCell::new(HashMap::new()),
-            node_id_to_generated_name: RefCell::new(HashMap::new()),
-            auto_generated_id_to_generated_name: RefCell::new(HashMap::new()),
-            generated_names: RefCell::new(HashSet::new()),
-            temp_flags_stack: RefCell::new(vec![]),
+            current_source_file: Default::default(),
+            bundled_helpers: Default::default(),
+            node_id_to_generated_name: Default::default(),
+            auto_generated_id_to_generated_name: Default::default(),
+            generated_names: Default::default(),
+            temp_flags_stack: Default::default(),
             temp_flags: Cell::new(TempFlags::Auto),
-            reserved_names_stack: RefCell::new(vec![]),
-            reserved_names: RefCell::new(None),
+            reserved_names_stack: Default::default(),
+            reserved_names: Default::default(),
             preserve_source_newlines: Cell::new(preserve_source_newlines),
-            next_list_element_pos: Cell::new(None),
-            writer: RefCell::new(None),
-            own_writer: RefCell::new(None),
+            next_list_element_pos: Default::default(),
+            writer: Default::default(),
+            own_writer: Default::default(),
             write: Cell::new(Printer::write_base),
-            is_own_file_emit: Cell::new(false),
-            bundle_file_info: RefCell::new(bundle_file_info),
+            is_own_file_emit: Default::default(),
+            bundle_file_info: GcCell::new(bundle_file_info),
             relative_to_build_info,
             record_internal_section,
-            source_file_text_pos: Cell::new(0),
+            source_file_text_pos: Default::default(),
             source_file_text_kind: Cell::new(BundleFileSectionKind::Text),
 
             source_maps_disabled: Cell::new(true),
-            source_map_generator: RefCell::new(None),
-            source_map_source: RefCell::new(None),
+            source_map_generator: Default::default(),
+            source_map_source: Default::default(),
             source_map_source_index: Cell::new(-1),
-            most_recently_added_source_map_source: RefCell::new(None),
+            most_recently_added_source_map_source: Default::default(),
             most_recently_added_source_map_source_index: Cell::new(-1),
 
             container_pos: Cell::new(-1),
             container_end: Cell::new(-1),
             declaration_list_container_end: Cell::new(-1),
-            current_line_map: RefCell::new(None),
-            detached_comments_info: RefCell::new(None),
-            has_written_comment: Cell::new(false),
-            comments_disabled: Cell::new(false),
-            last_substitution: RefCell::new(None),
-            current_parenthesizer_rule: RefCell::new(None),
+            current_line_map: Default::default(),
+            detached_comments_info: Default::default(),
+            has_written_comment: Default::default(),
+            comments_disabled: Default::default(),
+            last_substitution: Default::default(),
+            current_parenthesizer_rule: Default::default(),
             // const { enter: enterComment, exit: exitComment } = performance.createTimerIf(extendedDiagnostics, "commentTime", "beforeComment", "afterComment");
             parenthesizer: factory.with(|factory_| factory_.parenthesizer()),
-            emit_binary_expression: RefCell::new(None),
+            emit_binary_expression: Default::default(),
         }
     }
 
-    pub(super) fn rc_wrapper(&self) -> Rc<Printer> {
+    pub(super) fn rc_wrapper(&self) -> Gc<Printer> {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
@@ -407,11 +408,11 @@ impl Printer {
         self.next_list_element_pos.set(next_list_element_pos);
     }
 
-    pub(super) fn maybe_writer(&self) -> Option<Rc<dyn EmitTextWriter>> {
+    pub(super) fn maybe_writer(&self) -> Option<Gc<Box<dyn EmitTextWriter>>> {
         self.writer.borrow().clone()
     }
 
-    pub(super) fn writer(&self) -> Rc<dyn EmitTextWriter> {
+    pub(super) fn writer(&self) -> Gc<Box<dyn EmitTextWriter>> {
         self.writer.borrow().clone().unwrap()
     }
 
@@ -492,22 +493,24 @@ impl Printer {
         self.is_own_file_emit.set(is_own_file_emit);
     }
 
-    pub(super) fn maybe_bundle_file_info(&self) -> Ref<Option<BundleFileInfo>> {
+    pub(super) fn maybe_bundle_file_info(&self) -> GcCellRef<Option<BundleFileInfo>> {
         self.bundle_file_info.borrow()
     }
 
-    pub(super) fn maybe_bundle_file_info_mut(&self) -> RefMut<Option<BundleFileInfo>> {
+    pub(super) fn maybe_bundle_file_info_mut(&self) -> GcCellRefMut<Option<BundleFileInfo>> {
         self.bundle_file_info.borrow_mut()
     }
 
-    pub(super) fn bundle_file_info(&self) -> Ref<BundleFileInfo> {
-        Ref::map(self.bundle_file_info.borrow(), |bundle_file_info| {
+    pub(super) fn bundle_file_info(&self) -> GcCellRef<BundleFileInfo> {
+        GcCellRef::map(self.bundle_file_info.borrow(), |bundle_file_info| {
             bundle_file_info.as_ref().unwrap()
         })
     }
 
-    pub(super) fn bundle_file_info_mut(&self) -> RefMut<BundleFileInfo> {
-        RefMut::map(self.bundle_file_info.borrow_mut(), |bundle_file_info| {
+    pub(super) fn bundle_file_info_mut(
+        &self,
+    ) -> GcCellRefMut<Option<BundleFileInfo>, BundleFileInfo> {
+        GcCellRefMut::map(self.bundle_file_info.borrow_mut(), |bundle_file_info| {
             bundle_file_info.as_mut().unwrap()
         })
     }
@@ -534,7 +537,7 @@ impl Printer {
 
     pub(super) fn set_source_map_generator(
         &self,
-        source_map_generator: Option<Rc<dyn SourceMapGenerator>>,
+        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
     ) {
         *self.source_map_generator.borrow_mut() = source_map_generator;
     }
@@ -547,11 +550,11 @@ impl Printer {
         self.source_maps_disabled.set(source_maps_disabled);
     }
 
-    pub(super) fn source_map_generator(&self) -> Rc<dyn SourceMapGenerator> {
+    pub(super) fn source_map_generator(&self) -> Gc<Box<dyn SourceMapGenerator>> {
         self.source_map_generator.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_source_map_source_(&self, source_map_source: Option<Rc<SourceMapSource>>) {
+    pub(super) fn set_source_map_source_(&self, source_map_source: Option<Gc<SourceMapSource>>) {
         *self.source_map_source.borrow_mut() = source_map_source;
     }
 
@@ -565,13 +568,13 @@ impl Printer {
 
     pub(super) fn maybe_most_recently_added_source_map_source(
         &self,
-    ) -> Option<Rc<SourceMapSource>> {
+    ) -> Option<Gc<SourceMapSource>> {
         self.most_recently_added_source_map_source.borrow().clone()
     }
 
     pub(super) fn set_most_recently_added_source_map_source(
         &self,
-        most_recently_added_source_map_source: Option<Rc<SourceMapSource>>,
+        most_recently_added_source_map_source: Option<Gc<SourceMapSource>>,
     ) {
         *self.most_recently_added_source_map_source.borrow_mut() =
             most_recently_added_source_map_source;
@@ -677,18 +680,22 @@ impl Printer {
         *self.last_substitution.borrow_mut() = last_substitution;
     }
 
-    pub(super) fn maybe_current_parenthesizer_rule(&self) -> Option<Rc<dyn Fn(&Node) -> Gc<Node>>> {
+    pub(super) fn maybe_current_parenthesizer_rule(
+        &self,
+    ) -> Option<Gc<Box<dyn CurrentParenthesizerRule>>> {
         self.current_parenthesizer_rule.borrow().clone()
     }
 
     pub(super) fn set_current_parenthesizer_rule(
         &self,
-        current_parenthesizer_rule: Option<Rc<dyn Fn(&Node) -> Gc<Node>>>,
+        current_parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         *self.current_parenthesizer_rule.borrow_mut() = current_parenthesizer_rule;
     }
 
-    pub(super) fn parenthesizer(&self) -> Rc<dyn ParenthesizerRules<BaseNodeFactorySynthetic>> {
+    pub(super) fn parenthesizer(
+        &self,
+    ) -> Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>> {
         self.parenthesizer.clone()
     }
 
@@ -700,7 +707,7 @@ impl Printer {
         // unimplemented!()
     }
 
-    pub(super) fn emit_binary_expression_rc(&self) -> Rc<EmitBinaryExpression> {
+    pub(super) fn emit_binary_expression_rc(&self) -> Gc<EmitBinaryExpression> {
         self.emit_binary_expression.borrow().clone().unwrap()
     }
 
@@ -772,7 +779,7 @@ impl Printer {
         hint: EmitHint,
         node: &Node,
         source_file: Option<&Node /*SourceFile*/>,
-        output: Rc<dyn EmitTextWriter>,
+        output: Gc<Box<dyn EmitTextWriter>>,
     ) {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
@@ -786,7 +793,7 @@ impl Printer {
         format: ListFormat,
         nodes: &NodeArray,
         source_file: Option<&Node /*SourceFile*/>,
-        output: Rc<dyn EmitTextWriter>,
+        output: Gc<Box<dyn EmitTextWriter>>,
     ) {
         let previous_writer = self.maybe_writer();
         self.set_writer(Some(output), None);
@@ -817,7 +824,7 @@ impl Printer {
         } else {
             bundle_file_info
                 .sections
-                .push(Rc::new(BundleFileSection::new_text_like(
+                .push(Gc::new(BundleFileSection::new_text_like(
                     kind, None, pos, end,
                 )));
         }

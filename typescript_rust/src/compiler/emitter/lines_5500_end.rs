@@ -355,7 +355,7 @@ impl Printer {
         unimplemented!()
     }
 
-    pub(super) fn set_source_map_source(&self, source: Rc<SourceMapSource>) {
+    pub(super) fn set_source_map_source(&self, source: Gc<SourceMapSource>) {
         if self.source_maps_disabled() {
             return;
         }

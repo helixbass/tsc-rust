@@ -95,16 +95,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub(crate) fn set_parenthesizer_rules(
         &self,
-        parenthesizer_rules: Rc<dyn ParenthesizerRules<TBaseNodeFactory>>,
+        parenthesizer_rules: Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>,
     ) {
         *self.parenthesizer_rules.borrow_mut() = Some(parenthesizer_rules);
     }
 
-    pub(crate) fn parenthesizer_rules(&self) -> Rc<dyn ParenthesizerRules<TBaseNodeFactory>> {
+    pub(crate) fn parenthesizer_rules(&self) -> Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
         self.parenthesizer_rules.borrow().clone().unwrap()
     }
 
-    pub fn parenthesizer(&self) -> Rc<dyn ParenthesizerRules<TBaseNodeFactory>> {
+    pub fn parenthesizer(&self) -> Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
         self.parenthesizer_rules()
     }
 

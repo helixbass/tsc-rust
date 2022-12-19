@@ -1041,11 +1041,11 @@ impl UnparsedTextLike {
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedSyntheticReference {
     _unparsed_node: BaseUnparsedNode,
-    pub section: Rc<BundleFileSection>,
+    pub section: Gc<BundleFileSection>,
 }
 
 impl UnparsedSyntheticReference {
-    pub fn new(base_unparsed_node: BaseUnparsedNode, section: Rc<BundleFileSection>) -> Self {
+    pub fn new(base_unparsed_node: BaseUnparsedNode, section: Gc<BundleFileSection>) -> Self {
         Self {
             _unparsed_node: base_unparsed_node,
             section,

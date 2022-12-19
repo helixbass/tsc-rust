@@ -574,7 +574,7 @@ pub(super) fn validate_json_option_value(
     }
     let d = d.unwrap();
     let (diagnostic_message, args) = d;
-    errors.push(Rc::new(
+    errors.push(Gc::new(
         create_compiler_diagnostic(diagnostic_message, args).into(),
     ));
     opt.to_compiler_options_value_none()
@@ -913,7 +913,7 @@ fn create_diagnostic<TJsonSourceFile: Borrow<Node> + Clone>(
     spec: String,
 ) -> Gc<Diagnostic> {
     let element = get_ts_config_prop_array_element_value(json_source_file.clone(), spec_key, &spec);
-    Rc::new(if let Some(element) = element {
+    Gc::new(if let Some(element) = element {
         create_diagnostic_for_node_in_source_file(
             json_source_file.unwrap().borrow(),
             &element,

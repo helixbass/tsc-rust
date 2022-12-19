@@ -399,7 +399,7 @@ pub fn create_text_writer(new_line: &str) -> TextWriter {
 }
 
 pub fn get_trailing_semicolon_deferring_writer(
-    writer: Rc<dyn EmitTextWriter>,
+    writer: Gc<Box<dyn EmitTextWriter>>,
 ) -> TrailingSemicolonDeferringWriter {
     TrailingSemicolonDeferringWriter::new(writer)
 }
@@ -411,7 +411,7 @@ pub struct TrailingSemicolonDeferringWriter {
 }
 
 impl TrailingSemicolonDeferringWriter {
-    pub fn new(writer: Rc<dyn EmitTextWriter>) -> Self {
+    pub fn new(writer: Gc<Box<dyn EmitTextWriter>>) -> Self {
         Self {
             writer,
             pending_trailing_semicolon: Cell::new(false),

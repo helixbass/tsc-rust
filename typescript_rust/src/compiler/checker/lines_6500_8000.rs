@@ -43,7 +43,7 @@ impl TypeChecker {
         type_predicate: &TypePredicate,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Rc<dyn EmitTextWriter>>,
+        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> String {
         let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
         if let Some(writer) = writer {

@@ -1986,7 +1986,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-        writer: Option<Rc<dyn EmitTextWriter>>,
+        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> String {
         self.signature_to_string_(
             signature,
@@ -2002,7 +2002,7 @@ impl TypeChecker {
         type_: &Type,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Rc<dyn EmitTextWriter>>,
+        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> String {
         self.type_to_string_(
             type_,
@@ -2018,7 +2018,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
-        writer: Option<Rc<dyn EmitTextWriter>>,
+        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> String {
         self.symbol_to_string_(
             symbol,
@@ -2034,7 +2034,7 @@ impl TypeChecker {
         predicate: &TypePredicate,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Rc<dyn EmitTextWriter>>,
+        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> String {
         self.type_predicate_to_string_(
             predicate,

@@ -236,7 +236,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
-        writer: Option<Rc<dyn EmitTextWriter>>,
+        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> String {
         let flags = flags.unwrap_or(SymbolFormatFlags::AllowAnyNodeKind);
         let mut node_flags = NodeBuilderFlags::IgnoreErrors;
@@ -259,7 +259,7 @@ impl TypeChecker {
         };
         let enclosing_declaration = enclosing_declaration
             .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
-        let symbol_to_string_worker = |writer: Rc<dyn EmitTextWriter>| {
+        let symbol_to_string_worker = |writer: Gc<Box<dyn EmitTextWriter>>| {
             let entity = builder(
                 &self.node_builder(),
                 symbol,
@@ -317,7 +317,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-        writer: Option<Rc<dyn EmitTextWriter>>,
+        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> String {
         let flags = flags.unwrap_or(TypeFormatFlags::None);
         if let Some(writer) = writer {
@@ -330,7 +330,7 @@ impl TypeChecker {
             );
             writer.get_text()
         } else {
-            using_single_line_string_writer(|writer: Rc<dyn EmitTextWriter>| {
+            using_single_line_string_writer(|writer: Gc<Box<dyn EmitTextWriter>>| {
                 self.signature_to_string_worker(
                     signature,
                     enclosing_declaration,
@@ -348,7 +348,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: TypeFormatFlags,
         kind: Option<SignatureKind>,
-        writer: Rc<dyn EmitTextWriter>,
+        writer: Gc<Box<dyn EmitTextWriter>>,
     ) {
         let sig_output: SyntaxKind;
         if flags.intersects(TypeFormatFlags::WriteArrowStyleSignature) {
@@ -392,7 +392,7 @@ impl TypeChecker {
             EmitHint::Unspecified,
             &sig.unwrap(),
             source_file.as_deref(),
-            Rc::new(get_trailing_semicolon_deferring_writer(writer)),
+            Gc::new(Box::new(get_trailing_semicolon_deferring_writer(writer))),
         );
         // writer
     }
@@ -402,13 +402,13 @@ impl TypeChecker {
         type_: &Type,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<Rc<dyn EmitTextWriter>>,
+        writer: Option<Gc<Box<dyn EmitTextWriter>>>,
     ) -> String {
         let flags = flags.unwrap_or(
             TypeFormatFlags::AllowUniqueESSymbolType
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
         );
-        let writer = writer.unwrap_or_else(|| Rc::new(create_text_writer("")));
+        let writer = writer.unwrap_or_else(|| Gc::new(Box::new(create_text_writer(""))));
         let no_truncation = matches!(self.compiler_options.no_error_truncation, Some(true))
             || flags.intersects(TypeFormatFlags::NoTruncation);
         let enclosing_declaration = enclosing_declaration
@@ -425,7 +425,7 @@ impl TypeChecker {
                         NodeBuilderFlags::None
                     },
             ),
-            Some((*writer).borrow().as_symbol_tracker()),
+            Some(writer.as_symbol_tracker()),
         );
         let type_node: Gc<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
@@ -444,7 +444,7 @@ impl TypeChecker {
             source_file.as_deref(),
             writer.clone(),
         );
-        let result = (*writer).borrow().get_text();
+        let result = writer.get_text();
 
         let max_length = if no_truncation {
             no_truncation_maximum_truncation_length * 2

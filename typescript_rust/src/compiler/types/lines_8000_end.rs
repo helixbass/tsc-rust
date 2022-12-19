@@ -22,7 +22,7 @@ use local_macros::{ast_type, enum_unwrapped};
 pub struct Printer {
     pub _rc_wrapper: GcCell<Option<Gc<Printer>>>,
     pub printer_options: PrinterOptions,
-    pub handlers: Rc<dyn PrintHandlers>,
+    pub handlers: Gc<Box<dyn PrintHandlers>>,
     pub extended_diagnostics: bool,
     pub new_line: String,
     pub module_kind: ModuleKind,
@@ -72,9 +72,13 @@ pub struct Printer {
     pub has_written_comment: Cell<bool>,
     pub comments_disabled: Cell<bool>,
     pub last_substitution: GcCell<Option<Gc<Node>>>,
-    pub current_parenthesizer_rule: GcCell<Option<Rc<dyn Fn(&Node) -> Gc<Node>>>>,
+    pub current_parenthesizer_rule: GcCell<Option<Gc<Box<dyn CurrentParenthesizerRule>>>>,
     pub parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
     pub emit_binary_expression: GcCell<Option<Gc<EmitBinaryExpression>>>,
+}
+
+pub trait CurrentParenthesizerRule: Trace + Finalize {
+    fn call(&self, node: &Node) -> Gc<Node>;
 }
 
 #[derive(Copy, Clone)]
@@ -444,7 +448,7 @@ impl BundleFileSection {
 
     pub fn new_prepend(
         data: String,
-        texts: Vec<Rc<BundleFileSection>>,
+        texts: Vec<Gc<BundleFileSection>>,
         pos: isize,
         end: isize,
     ) -> Self {
@@ -576,7 +580,7 @@ pub struct BundleFileInfo {
 
 pub(crate) type BuildInfo = ();
 
-pub trait PrintHandlers {
+pub trait PrintHandlers: Trace + Finalize {
     fn has_global_name(&self, name: &str) -> Option<bool> {
         None
     }

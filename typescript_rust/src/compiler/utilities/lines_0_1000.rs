@@ -92,15 +92,15 @@ pub fn is_transient_symbol(symbol: &Symbol) -> bool {
 }
 
 // lazy_static! {
-//     static ref string_writer: Rc<dyn EmitTextWriter> = create_single_line_string_writer();
+//     static ref string_writer: Gc<Box<dyn EmitTextWriter>> = create_single_line_string_writer();
 // }
 
-fn string_writer() -> Rc<dyn EmitTextWriter> {
+fn string_writer() -> Gc<Box<dyn EmitTextWriter>> {
     create_single_line_string_writer()
 }
 
-fn create_single_line_string_writer() -> Rc<dyn EmitTextWriter> {
-    Rc::new(SingleLineStringWriter::new())
+fn create_single_line_string_writer() -> Gc<Box<dyn EmitTextWriter>> {
+    Gc::new(Box::new(SingleLineStringWriter::new()))
 }
 
 #[derive(Trace, Finalize)]
@@ -456,7 +456,7 @@ pub fn copy_entries<TKey: Clone + Eq + Hash, TValue: Clone>(
     }
 }
 
-pub fn using_single_line_string_writer<TAction: FnOnce(Rc<dyn EmitTextWriter>)>(
+pub fn using_single_line_string_writer<TAction: FnOnce(Gc<Box<dyn EmitTextWriter>>)>(
     action: TAction,
 ) -> String {
     let string_writer = string_writer();

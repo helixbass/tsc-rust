@@ -7,11 +7,11 @@ use super::PipelinePhase;
 use crate::{
     cast, create_binary_expression_trampoline, get_emit_flags, get_parse_tree_node,
     is_binary_expression, is_block, is_expression, is_json_source_file, node_is_synthesized,
-    positions_are_on_same_line, skip_trivia, with_synthetic_factory, BinaryExpressionStateMachine,
-    BinaryExpressionTrampoline, Debug_, EmitFlags, EmitHint, HasTypeArgumentsInterface,
-    HasTypeInterface, HasTypeParametersInterface, LeftOrRight, ListFormat,
-    NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
-    SignatureDeclarationInterface, SourceFileLike, SyntaxKind,
+    positions_are_on_same_line, skip_trivia, with_synthetic_factory, BaseNodeFactorySynthetic,
+    BinaryExpressionStateMachine, BinaryExpressionTrampoline, CurrentParenthesizerRule, Debug_,
+    EmitFlags, EmitHint, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
+    LeftOrRight, ListFormat, NamedDeclarationInterface, Node, NodeInterface, ParenthesizerRules,
+    Printer, ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SyntaxKind,
 };
 
 impl Printer {
@@ -1053,7 +1053,7 @@ pub struct EmitBinaryExpressionStateMachine {
 }
 
 impl EmitBinaryExpressionStateMachine {
-    pub fn new(printer: Rc<Printer>) -> Self {
+    pub fn new(printer: Gc<Printer>) -> Self {
         Self { printer }
     }
 
@@ -1063,38 +1063,12 @@ impl EmitBinaryExpressionStateMachine {
         parent: &Node, /*BinaryExpression*/
         side: LeftOrRight,
     ) -> Option<Gc<Node>> {
-        let parenthesizer_rule: Rc<dyn Fn(&Node) -> Gc<Node>> = if side == LeftOrRight::Left {
-            Rc::new({
-                let parenthesizer = self.printer.parenthesizer();
-                let parent_operator_token_kind =
-                    parent.as_binary_expression().operator_token.kind();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_left_side_of_binary(
-                            synthetic_factory,
-                            parent_operator_token_kind,
-                            node,
-                        )
-                    })
-                }
-            })
-        } else {
-            Rc::new({
-                let parenthesizer = self.printer.parenthesizer();
-                let parent_operator_token_kind =
-                    parent.as_binary_expression().operator_token.kind();
-                move |node: &Node| {
-                    with_synthetic_factory(|synthetic_factory| {
-                        parenthesizer.parenthesize_right_side_of_binary(
-                            synthetic_factory,
-                            parent_operator_token_kind,
-                            None,
-                            node,
-                        )
-                    })
-                }
-            })
-        };
+        let parenthesizer_rule: Gc<Box<dyn CurrentParenthesizerRule>> =
+            Gc::new(Box::new(MaybeEmitExpressionCurrentParenthesizerRule::new(
+                side,
+                self.printer.parenthesizer(),
+                parent.as_binary_expression().operator_token.kind(),
+            )));
 
         let mut pipeline_phase = self.printer.get_pipeline_phase(
             PipelinePhase::Notification,
@@ -1294,5 +1268,51 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
 
     fn implements_fold_state(&self) -> bool {
         false
+    }
+}
+
+#[derive(Trace, Finalize)]
+struct MaybeEmitExpressionCurrentParenthesizerRule {
+    #[unsafe_ignore_trace]
+    side: LeftOrRight,
+    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    #[unsafe_ignore_trace]
+    parent_operator_token_kind: SyntaxKind,
+}
+
+impl MaybeEmitExpressionCurrentParenthesizerRule {
+    pub fn new(
+        side: LeftOrRight,
+        parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+        parent_operator_token_kind: SyntaxKind,
+    ) -> Self {
+        Self {
+            side,
+            parenthesizer,
+            parent_operator_token_kind,
+        }
+    }
+}
+
+impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
+    fn call(&self, node: &Node) -> Gc<Node> {
+        if self.side == LeftOrRight::Left {
+            with_synthetic_factory(|synthetic_factory| {
+                self.parenthesizer.parenthesize_left_side_of_binary(
+                    synthetic_factory,
+                    self.parent_operator_token_kind,
+                    node,
+                )
+            })
+        } else {
+            with_synthetic_factory(|synthetic_factory| {
+                self.parenthesizer.parenthesize_right_side_of_binary(
+                    synthetic_factory,
+                    self.parent_operator_token_kind,
+                    None,
+                    node,
+                )
+            })
+        }
     }
 }

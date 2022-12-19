@@ -146,7 +146,7 @@ impl Printer {
                         }
                     }
                     if let Some(bundle_file_info) = self.maybe_bundle_file_info_mut().as_mut() {
-                        bundle_file_info.sections.push(Rc::new(
+                        bundle_file_info.sections.push(Gc::new(
                             BundleFileSection::new_emit_helpers(
                                 helper.name().to_owned(),
                                 pos.try_into().unwrap(),
@@ -247,7 +247,7 @@ impl Printer {
             let section = (*unparsed.as_unparsed_synthetic_reference().section).clone();
             section.set_pos(pos.try_into().unwrap());
             section.set_end(self.writer().get_text_pos().try_into().unwrap());
-            bundle_file_info.sections.push(Rc::new(section));
+            bundle_file_info.sections.push(Gc::new(section));
         }
     }
 
